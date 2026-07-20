@@ -14,14 +14,24 @@ const TABS: Array<{ value: EventPageTab; label: string; icon: typeof Calendar }>
   { value: "media", label: "Media", icon: ImageIcon },
 ]
 
-export function EventTabsBar() {
+interface EventTabsBarProps {
+  tabs?: EventPageTab[]
+}
+
+export function EventTabsBar({ tabs }: EventTabsBarProps) {
   const { tokens } = useEventSkin()
+  const visibleTabs = tabs?.length
+    ? TABS.filter((tab) => tabs.includes(tab.value))
+    : TABS
 
   return (
     <div className="sticky top-2 z-20 -mx-1 px-1 pb-1">
       <div className={cn(tokens.stickyTabs, "p-1")}>
-        <TabsList className="grid h-auto w-full grid-cols-5 rounded-xl border-0 bg-transparent p-0">
-          {TABS.map(({ value, label, icon: Icon }) => (
+        <TabsList
+          className="grid h-auto w-full rounded-xl border-0 bg-transparent p-0"
+          style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}
+        >
+          {visibleTabs.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}

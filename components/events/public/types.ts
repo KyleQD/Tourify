@@ -1,5 +1,6 @@
 import type { EventHostArtist, EventLinkedVenue } from "@/lib/events/get-public-event-page"
 import type { EventPageSkinId } from "@/lib/events/event-skin-tokens"
+import type { EventPageLayout } from "@/lib/events/event-page-layout"
 
 export interface EventData {
   id: string
@@ -51,6 +52,7 @@ export interface EventData {
   hostArtist?: EventHostArtist | null
   linkedVenue?: EventLinkedVenue | null
   pageTemplate?: EventPageSkinId
+  pageLayout?: EventPageLayout
 }
 
 export interface EventPost {

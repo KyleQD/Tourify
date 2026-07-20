@@ -4,6 +4,10 @@ import {
   type EventPageSkinId,
 } from "@/lib/events/event-skin-tokens"
 import {
+  normalizeEventPageLayout,
+  type EventPageLayout,
+} from "@/lib/events/event-page-layout"
+import {
   getArtistPublicProfilePath,
   getVenuePublicProfilePath,
 } from "@/lib/utils/public-profile-routes"
@@ -79,6 +83,7 @@ export interface PublicEventPageData {
   hostArtist?: EventHostArtist | null
   linkedVenue?: EventLinkedVenue | null
   pageTemplate?: EventPageSkinId
+  pageLayout?: EventPageLayout
   [key: string]: unknown
 }
 
@@ -202,6 +207,7 @@ export async function enrichPublicEventPageData(params: {
       ? producerSettings.page_template
       : null
   )
+  const pageLayout = normalizeEventPageLayout(producerSettings.page_layout)
 
   const creator = hostArtist
     ? {
@@ -286,6 +292,7 @@ export async function enrichPublicEventPageData(params: {
     hostArtist,
     linkedVenue,
     pageTemplate,
+    pageLayout,
     ticketing_event_id: ticketingEventId,
     ticketing_enabled: ticketingEnabled,
   }

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { artistEventUI } from "@/components/events/artist-event-ui"
+import { cn } from "@/lib/utils"
 
 interface ArtistEventOpsPanelProps {
   eventId: string
@@ -209,7 +211,7 @@ export function ArtistEventOpsPanel({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="border-slate-800 bg-slate-950/50">
+      <Card className={artistEventUI.panel}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Ticket className="h-5 w-5 text-cyan-300" />
@@ -222,7 +224,7 @@ export function ArtistEventOpsPanel({
               {linkedId ? "Linked to events_v2" : "Public event only"}
             </Badge>
             {!linkedId ? (
-              <Button size="sm" variant="outline" disabled={isPromoting} onClick={() => void promote("native_ticketing")}>
+              <Button size="sm" variant="outline" className={artistEventUI.buttonOutline} disabled={isPromoting} onClick={() => void promote("native_ticketing")}>
                 Enable Tourify tickets
               </Button>
             ) : null}
@@ -231,19 +233,19 @@ export function ArtistEventOpsPanel({
           <div className="grid gap-3 md:grid-cols-3">
             <div>
               <Label className="text-slate-400">Tier name</Label>
-              <Input value={tierName} onChange={(e) => setTierName(e.target.value)} className="mt-1 border-slate-700 bg-slate-900" />
+              <Input value={tierName} onChange={(e) => setTierName(e.target.value)} className={cn(artistEventUI.input, "mt-1")} />
             </div>
             <div>
               <Label className="text-slate-400">Price</Label>
-              <Input value={tierPrice} onChange={(e) => setTierPrice(e.target.value)} className="mt-1 border-slate-700 bg-slate-900" />
+              <Input value={tierPrice} onChange={(e) => setTierPrice(e.target.value)} className={cn(artistEventUI.input, "mt-1")} />
             </div>
             <div>
               <Label className="text-slate-400">Quantity</Label>
-              <Input value={tierQty} onChange={(e) => setTierQty(e.target.value)} className="mt-1 border-slate-700 bg-slate-900" />
+              <Input value={tierQty} onChange={(e) => setTierQty(e.target.value)} className={cn(artistEventUI.input, "mt-1")} />
             </div>
           </div>
 
-          <Button disabled={isSavingTicket} onClick={() => void saveTicketTier()} className="bg-cyan-600 hover:bg-cyan-700">
+          <Button disabled={isSavingTicket} onClick={() => void saveTicketTier()} className={artistEventUI.buttonPrimary}>
             <Plus className="mr-2 h-4 w-4" />
             Save ticket tier
           </Button>
@@ -251,7 +253,7 @@ export function ArtistEventOpsPanel({
           {ticketTypes.length > 0 ? (
             <div className="space-y-2">
               {ticketTypes.map((tier) => (
-                <div key={tier.id} className="flex items-center justify-between rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-200">
+                <div key={tier.id} className={cn(artistEventUI.inset, "flex items-center justify-between px-3 py-2 text-sm text-slate-200")}>
                   <span>{tier.name}</span>
                   <span>
                     ${Number(tier.price || 0).toFixed(2)} · {tier.quantity_sold || 0}/{tier.quantity_available || 0}
@@ -278,7 +280,7 @@ export function ArtistEventOpsPanel({
                   <div>
                     <Label className="text-slate-400">Allocation</Label>
                     <select
-                      className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+                      className={cn(artistEventUI.select, "mt-1 w-full px-3 py-2 text-sm")}
                       value={selectedAllocationId}
                       onChange={(e) => setSelectedAllocationId(e.target.value)}
                     >
@@ -294,22 +296,22 @@ export function ArtistEventOpsPanel({
                       placeholder="Guest name"
                       value={compName}
                       onChange={(e) => setCompName(e.target.value)}
-                      className="border-slate-700 bg-slate-900"
+                      className={artistEventUI.input}
                     />
                     <Input
                       placeholder="Guest email"
                       value={compEmail}
                       onChange={(e) => setCompEmail(e.target.value)}
-                      className="border-slate-700 bg-slate-900"
+                      className={artistEventUI.input}
                     />
                     <Input
                       placeholder="Qty"
                       value={compQty}
                       onChange={(e) => setCompQty(e.target.value)}
-                      className="border-slate-700 bg-slate-900"
+                      className={artistEventUI.input}
                     />
                   </div>
-                  <Button disabled={isIssuingComp} variant="outline" onClick={() => void issueFromAllocation()}>
+                  <Button disabled={isIssuingComp} variant="outline" className={artistEventUI.buttonOutline} onClick={() => void issueFromAllocation()}>
                     Issue from allocation
                   </Button>
                 </>
@@ -319,7 +321,7 @@ export function ArtistEventOpsPanel({
         </CardContent>
       </Card>
 
-      <Card className="border-slate-800 bg-slate-950/50">
+      <Card className={artistEventUI.panel}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Building2 className="h-5 w-5 text-violet-300" />
@@ -337,17 +339,17 @@ export function ArtistEventOpsPanel({
               <Input
                 value={inviteeUserId}
                 onChange={(e) => setInviteeUserId(e.target.value)}
-                className="border-slate-700 bg-slate-900"
+                className={artistEventUI.input}
                 placeholder="uuid"
               />
-              <Button disabled={isInviting} onClick={() => void inviteCollaborator()}>
+              <Button disabled={isInviting} onClick={() => void inviteCollaborator()} className={artistEventUI.buttonPrimary}>
                 <Users className="mr-2 h-4 w-4" />
                 Invite
               </Button>
             </div>
           </div>
           {!linkedId ? (
-            <Button variant="outline" disabled={isPromoting} onClick={() => void promote("org_collab")}>
+            <Button variant="outline" className={artistEventUI.buttonOutline} disabled={isPromoting} onClick={() => void promote("org_collab")}>
               Promote for collaboration
             </Button>
           ) : (

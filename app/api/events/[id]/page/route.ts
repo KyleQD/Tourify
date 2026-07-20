@@ -4,6 +4,8 @@ import {
   canAccessEventAsViewer,
   resolveEventReference,
 } from '../../_lib/event-reference'
+import { normalizeEventPageLayout } from '@/lib/events/event-page-layout'
+import { resolveEventPageSkinId } from '@/lib/events/event-skin-tokens'
 
 export async function GET(
   request: NextRequest,
@@ -150,6 +152,10 @@ export async function GET(
       event.settings && typeof event.settings === 'object'
         ? (event.settings as Record<string, any>)
         : {}
+    const producerSettings =
+      event.producer_settings && typeof event.producer_settings === 'object'
+        ? (event.producer_settings as Record<string, any>)
+        : eventSettings
     const eventStartAt = typeof event.start_at === 'string' ? event.start_at : null
 
     const response = {
@@ -215,6 +221,10 @@ export async function GET(
         setlist: reference.table === 'events_v2' ? null : event.setlist,
         tags: reference.table === 'events_v2' ? [] : (event.tags ?? []),
         social_links: reference.table === 'events_v2' ? null : (event.social_links ?? null),
+        pageTemplate: resolveEventPageSkinId(
+          typeof producerSettings.page_template === 'string' ? producerSettings.page_template : null
+        ),
+        pageLayout: normalizeEventPageLayout(producerSettings.page_layout),
         slug: event.slug,
         user_id:
           reference.table === 'events_v2'
@@ -247,5 +257,4 @@ export async function GET(
     )
   }
 }
-
 

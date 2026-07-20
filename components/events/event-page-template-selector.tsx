@@ -1,21 +1,27 @@
 "use client"
 
-import { CheckCircle } from "lucide-react"
+import { CheckCircle, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   EVENT_PAGE_TEMPLATE_PREVIEWS,
   type EventPageSkinId,
 } from "@/lib/events/event-skin-tokens"
+import { artistEventUI } from "@/components/events/artist-event-ui"
 import { cn } from "@/lib/utils"
 
 interface EventPageTemplateSelectorProps {
   selectedTemplate: string
   onTemplateChange: (template: EventPageSkinId) => void
+  onPreviewTemplate?: (template: EventPageSkinId) => void
+  disabled?: boolean
   className?: string
 }
 
 export function EventPageTemplateSelector({
   selectedTemplate,
   onTemplateChange,
+  onPreviewTemplate,
+  disabled,
   className,
 }: EventPageTemplateSelectorProps) {
   const selected = (selectedTemplate || "modern") as string
@@ -32,15 +38,25 @@ export function EventPageTemplateSelector({
         {EVENT_PAGE_TEMPLATE_PREVIEWS.map((template) => {
           const isSelected = selected === template.id
           return (
-            <button
+            <div
               key={template.id}
-              type="button"
-              onClick={() => onTemplateChange(template.id)}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+              onClick={() => !disabled && onTemplateChange(template.id)}
+              onKeyDown={(event) => {
+                if (disabled) return
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  onTemplateChange(template.id)
+                }
+              }}
+              aria-disabled={disabled}
               className={cn(
                 "group relative overflow-hidden rounded-xl border p-3 text-left transition-all",
+                disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
                 isSelected
-                  ? "border-purple-400/60 bg-purple-500/10 ring-2 ring-purple-400/30"
-                  : "border-slate-700/80 bg-slate-950/60 hover:border-slate-500"
+                  ? "border-cyan-400/60 bg-cyan-500/10 ring-2 ring-cyan-400/25"
+                  : "border-slate-700/80 bg-slate-950/60 hover:border-cyan-400/40 hover:bg-slate-900/70"
               )}
             >
               <div
@@ -57,11 +73,29 @@ export function EventPageTemplateSelector({
                   </div>
                   <p className="mt-1 text-xs leading-snug text-slate-400">{template.description}</p>
                 </div>
-                {isSelected ? (
-                  <CheckCircle className="h-4 w-4 shrink-0 text-purple-300" />
-                ) : null}
+                <div className="flex shrink-0 items-center gap-1">
+                  {onPreviewTemplate ? (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className={cn(artistEventUI.buttonGhost, "h-7 w-7")}
+                      disabled={disabled}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onPreviewTemplate(template.id)
+                      }}
+                      aria-label={`Preview ${template.name}`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : null}
+                  {isSelected ? (
+                    <CheckCircle className="h-4 w-4 text-cyan-300" />
+                  ) : null}
+                </div>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>

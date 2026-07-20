@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react"
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -21,6 +21,10 @@ import { paShell } from "@/components/public-artist/public-artist-ui"
 import { useAuth } from "@/contexts/auth-context"
 import { useEventAttendance } from "@/hooks/use-event-attendance"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import {
+  getVisibleEventPageTabs,
+  normalizeEventPageLayout,
+} from "@/lib/events/event-page-layout"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
@@ -199,6 +203,15 @@ export function EnhancedEventPage({ eventId, event: initialEvent }: EnhancedEven
     }
   }, [event, user, attendance])
 
+  const pageLayout = useMemo(() => normalizeEventPageLayout(event?.pageLayout), [event?.pageLayout])
+  const visibleTabs = useMemo(() => getVisibleEventPageTabs(pageLayout), [pageLayout])
+
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab === activeTab)) {
+      setActiveTab(visibleTabs[0] || "overview")
+    }
+  }, [activeTab, visibleTabs])
+
   async function handleCreatePost() {
     if (!user || !eventId || !newPostContent.trim()) return
 
@@ -340,6 +353,8 @@ export function EnhancedEventPage({ eventId, event: initialEvent }: EnhancedEven
     <EventSkinProvider template={event.pageTemplate}>
       <EventPageShell
         event={event}
+        pageLayout={pageLayout}
+        visibleTabs={visibleTabs}
         attendance={attendance}
         user={user}
         isUpdatingAttendance={isUpdatingAttendance}
@@ -371,6 +386,8 @@ export function EnhancedEventPage({ eventId, event: initialEvent }: EnhancedEven
 
 function EventPageShell({
   event,
+  pageLayout,
+  visibleTabs,
   attendance,
   user,
   isUpdatingAttendance,
@@ -397,6 +414,8 @@ function EventPageShell({
   handleShare,
 }: {
   event: EventData
+  pageLayout: ReturnType<typeof normalizeEventPageLayout>
+  visibleTabs: ReturnType<typeof getVisibleEventPageTabs>
   attendance: ReturnType<typeof useEventAttendance>["attendance"]
   user: ReturnType<typeof useAuth>["user"]
   isUpdatingAttendance: boolean
@@ -426,21 +445,24 @@ function EventPageShell({
 
   return (
     <div className={cn(tokens.page, "pb-16")}>
-      <div className="pt-6">
-        <EventHero
-          event={event}
-          attendance={attendance}
-          isSignedIn={Boolean(user)}
-          isUpdatingAttendance={isUpdatingAttendance}
-          onAttendanceUpdate={updateAttendance}
-          onShare={() => setShowShareMenu(true)}
-        />
-      </div>
+      {pageLayout.section_visibility.hero ? (
+        <div className="pt-6">
+          <EventHero
+            event={event}
+            attendance={attendance}
+            isSignedIn={Boolean(user)}
+            isUpdatingAttendance={isUpdatingAttendance}
+            onAttendanceUpdate={updateAttendance}
+            onShare={() => setShowShareMenu(true)}
+          />
+        </div>
+      ) : null}
 
       <div className={cn(paShell, "py-8")}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <EventTabsBar />
+          <EventTabsBar tabs={visibleTabs} />
 
+          {visibleTabs.includes("overview") ? (
           <TabsContent value="overview" className="space-y-6">
             <EventOverviewTab
               event={event}
@@ -452,7 +474,9 @@ function EventPageShell({
               onShare={() => setShowShareMenu(true)}
             />
           </TabsContent>
+          ) : null}
 
+          {visibleTabs.includes("posts") ? (
           <TabsContent value="posts" className="space-y-6">
             <EventPostsTab
               posts={posts}
@@ -481,18 +505,25 @@ function EventPageShell({
               onCreatePost={() => void handleCreatePost()}
             />
           </TabsContent>
+          ) : null}
 
+          {visibleTabs.includes("attendance") ? (
           <TabsContent value="attendance" className="space-y-6">
             <EventAttendanceTab attendance={attendance} />
           </TabsContent>
+          ) : null}
 
+          {visibleTabs.includes("details") ? (
           <TabsContent value="details" className="space-y-6">
             <EventDetailsTab event={event} />
           </TabsContent>
+          ) : null}
 
+          {visibleTabs.includes("media") ? (
           <TabsContent value="media" className="space-y-6">
             <EventMediaTab event={event} />
           </TabsContent>
+          ) : null}
         </Tabs>
       </div>
 
