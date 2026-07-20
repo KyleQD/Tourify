@@ -14,6 +14,7 @@ import {
   BarChart3,
   PenTool,
   Briefcase,
+  Music,
   X,
   Plus,
   Search,
