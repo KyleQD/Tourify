@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: derivative }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError)
-      return jsonError({ status: 400, code: "invalid_payload", message: "Invalid protected derivative request.", details: error.flatten() })
+      return jsonError({ status: 400, code: "invalid_payload", message: "Invalid protected derivative request.", issues: error.flatten() })
     return jsonError({ status: 500, code: "derivative_request_failed", message: "Unable to request protected derivative.", retryable: true })
   }
 }

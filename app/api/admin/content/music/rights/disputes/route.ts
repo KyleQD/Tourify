@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: dispute }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError)
-      return jsonError({ status: 400, code: "invalid_payload", message: "Invalid dispute payload.", details: error.flatten() })
+      return jsonError({ status: 400, code: "invalid_payload", message: "Invalid dispute payload.", issues: error.flatten() })
     return jsonError({ status: 500, code: "dispute_create_failed", message: "Unable to open dispute.", retryable: true })
   }
 }
@@ -337,7 +337,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ data: updated })
   } catch (error) {
     if (error instanceof z.ZodError)
-      return jsonError({ status: 400, code: "invalid_payload", message: "Invalid dispute action.", details: error.flatten() })
+      return jsonError({ status: 400, code: "invalid_payload", message: "Invalid dispute action.", issues: error.flatten() })
     return jsonError({ status: 500, code: "dispute_update_failed", message: "Unable to update dispute.", retryable: true })
   }
 }
