@@ -38,8 +38,13 @@ logs/
 
 # local test and audit artifacts
 test-results/
+playwright-report/
+artifacts/
 audit-artifacts/
 .worktree-backups/
+docs/audits/*.json
+docs/audits/persona-reports/
+docs/audits/flow-notes/*.json
 
 # macOS
 .DS_Store
