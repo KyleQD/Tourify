@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   CalendarClock,
   ClipboardCheck,
+  LayoutTemplate,
   MapPin,
   Megaphone,
   Music,
@@ -20,7 +21,8 @@ import {
   BuilderShell,
   SummaryLine,
 } from "@/components/admin/operations-builder/primitives"
-import { EventPageTemplateSelector } from "@/components/events/event-page-template-selector"
+import { EventPageDesignPanel } from "@/components/events/event-page-design-panel"
+import { artistEventStatusClass, artistEventUI } from "@/components/events/artist-event-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +40,7 @@ import {
 } from "@/lib/artist/event-producer-builder"
 import { useBuilderAutosave } from "@/lib/admin/use-builder-autosave"
 import type { ReadinessState } from "@/lib/admin/operations-readiness"
+import { cn } from "@/lib/utils"
 
 interface VenueOption {
   id: string
@@ -56,6 +59,7 @@ const sectionConfig: BuilderSection[] = [
   { id: "lineup", label: "Lineup", mode: "advance", icon: Users },
   { id: "ticketing", label: "Ticketing", mode: "review", icon: Ticket },
   { id: "marketing", label: "Marketing", mode: "review", icon: Megaphone },
+  { id: "page-design", label: "Page Design", mode: "review", icon: LayoutTemplate },
   { id: "review", label: "Review", mode: "review", icon: ClipboardCheck },
 ]
 
@@ -96,7 +100,7 @@ function BuilderPanel({
   children: React.ReactNode
 }) {
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-800/80 bg-slate-950/50 p-5">
+    <div className={cn(artistEventUI.panelPadded, "space-y-6")}>
       <div>
         <h2 className="text-lg font-semibold text-white">{title}</h2>
         {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
@@ -429,14 +433,19 @@ export default function ArtistEventCreatePage() {
 
   if (isHydrating) {
     return (
-      <div className="container mx-auto flex min-h-[50vh] max-w-7xl items-center justify-center px-4 py-6 text-slate-300">
-        Loading event producer…
+      <div className="flex min-h-[50vh] items-center justify-center px-4 py-6 text-slate-300">
+        <div className={cn(artistEventUI.panelPadded, "flex items-center gap-3")}>
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+          Loading event producer…
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-6 pb-28">
+    <div className={artistEventUI.page}>
+      <div className={artistEventUI.pageGlow} />
+    <div className={cn(artistEventUI.shell, "pb-28")}>
       <BuilderShell
         title="Event Producer"
         subtitle="Create a shareable show page with venue, lineup, ticketing links, and marketing — then publish to discover."
@@ -501,7 +510,7 @@ export default function ArtistEventCreatePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                  className={artistEventUI.buttonOutline}
                   onClick={() => void persistEvent(false, { redirect: false })}
                   disabled={isSaving}
                 >
@@ -510,7 +519,7 @@ export default function ArtistEventCreatePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                  className={artistEventUI.buttonOutline}
                   onClick={() => void persistEvent(false, { redirect: true })}
                   disabled={isSaving}
                 >
@@ -518,7 +527,7 @@ export default function ArtistEventCreatePage() {
                 </Button>
                 <Button
                   type="button"
-                  className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+                  className={artistEventUI.buttonAccent}
                   onClick={() => void persistEvent(true, { redirect: true })}
                   disabled={isSaving}
                 >
@@ -536,13 +545,13 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={form.title}
                   onChange={(e) => updateForm({ title: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                   placeholder="Friday Night Live"
                 />
               </Field>
               <Field label="Event type">
                 <Select value={form.type} onValueChange={(value) => updateForm({ type: value })}>
-                  <SelectTrigger className="border-slate-700 bg-slate-900 text-white">
+                  <SelectTrigger className={artistEventUI.select}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -557,7 +566,7 @@ export default function ArtistEventCreatePage() {
               </Field>
               <Field label="Visibility">
                 <Select value={form.visibility} onValueChange={(value) => updateForm({ visibility: value })}>
-                  <SelectTrigger className="border-slate-700 bg-slate-900 text-white">
+                  <SelectTrigger className={artistEventUI.select}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -571,7 +580,7 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={form.posterUrl}
                   onChange={(e) => updateForm({ posterUrl: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                   placeholder="https://..."
                 />
               </Field>
@@ -580,7 +589,7 @@ export default function ArtistEventCreatePage() {
               <Textarea
                 value={form.description}
                 onChange={(e) => updateForm({ description: e.target.value })}
-                className="min-h-[120px] border-slate-700 bg-slate-900 text-white"
+                className={cn(artistEventUI.textarea, "min-h-[120px]")}
                 placeholder="Tell fans what to expect..."
               />
             </Field>
@@ -588,7 +597,7 @@ export default function ArtistEventCreatePage() {
               <Input
                 value={form.tags}
                 onChange={(e) => updateForm({ tags: e.target.value })}
-                className="border-slate-700 bg-slate-900 text-white"
+                className={artistEventUI.input}
                 placeholder="indie, live, acoustic"
               />
             </Field>
@@ -603,14 +612,14 @@ export default function ArtistEventCreatePage() {
                   type="date"
                   value={form.date}
                   onChange={(e) => updateForm({ date: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Timezone">
                 <Input
                   value={form.timezone}
                   onChange={(e) => updateForm({ timezone: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Doors">
@@ -618,7 +627,7 @@ export default function ArtistEventCreatePage() {
                   type="time"
                   value={form.doorsOpen}
                   onChange={(e) => updateForm({ doorsOpen: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Show time">
@@ -626,7 +635,7 @@ export default function ArtistEventCreatePage() {
                   type="time"
                   value={form.time}
                   onChange={(e) => updateForm({ time: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="End time">
@@ -634,14 +643,14 @@ export default function ArtistEventCreatePage() {
                   type="time"
                   value={form.endTime}
                   onChange={(e) => updateForm({ endTime: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Set times" hint="Comma-separated labels">
                 <Input
                   value={form.setTimes}
                   onChange={(e) => updateForm({ setTimes: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                   placeholder="Opener 8pm, Headliner 9:30pm"
                 />
               </Field>
@@ -657,19 +666,19 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={venueQuery}
                   onChange={(e) => setVenueQuery(e.target.value)}
-                  className="border-slate-700 bg-slate-900 pl-9 text-white"
+                  className={cn(artistEventUI.input, "pl-9")}
                   placeholder="Search venues..."
                 />
               </div>
               {isVenueLoading ? <p className="mt-2 text-xs text-slate-500">Searching…</p> : null}
               {venueResults.length > 0 && (
-                <div className="mt-2 space-y-1 rounded-lg border border-slate-800 bg-slate-950 p-2">
+                <div className={cn(artistEventUI.inset, "mt-2 space-y-1 p-2")}>
                   {venueResults.map((venue) => (
                     <button
                       key={venue.id}
                       type="button"
                       onClick={() => selectVenue(venue)}
-                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-900"
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
                     >
                       <span>{venue.name}</span>
                       <span className="text-xs text-slate-500">
@@ -685,56 +694,56 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={form.venueName}
                   onChange={(e) => updateForm({ venueName: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Capacity">
                 <Input
                   value={form.capacity}
                   onChange={(e) => updateForm({ capacity: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="City">
                 <Input
                   value={form.city}
                   onChange={(e) => updateForm({ city: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="State">
                 <Input
                   value={form.state}
                   onChange={(e) => updateForm({ state: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Country">
                 <Input
                   value={form.country}
                   onChange={(e) => updateForm({ country: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Address">
                 <Input
                   value={form.address}
                   onChange={(e) => updateForm({ address: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Contact name">
                 <Input
                   value={form.venueContactName}
                   onChange={(e) => updateForm({ venueContactName: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Contact email">
                 <Input
                   value={form.venueContactEmail}
                   onChange={(e) => updateForm({ venueContactEmail: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
             </div>
@@ -749,13 +758,13 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={artistQuery}
                   onChange={(e) => setArtistQuery(e.target.value)}
-                  className="border-slate-700 bg-slate-900 pl-9 text-white"
+                  className={cn(artistEventUI.input, "pl-9")}
                   placeholder="Search artists..."
                 />
               </div>
               {isArtistLoading ? <p className="mt-2 text-xs text-slate-500">Searching…</p> : null}
               {artistResults.length > 0 && (
-                <div className="mt-2 space-y-1 rounded-lg border border-slate-800 bg-slate-950 p-2">
+                <div className={cn(artistEventUI.inset, "mt-2 space-y-1 p-2")}>
                   {artistResults.map((artist) => (
                     <button
                       key={artist.id}
@@ -765,7 +774,7 @@ export default function ArtistEventCreatePage() {
                         setArtistQuery("")
                         setArtistResults([])
                       }}
-                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-900"
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
                     >
                       <span>{artist.label}</span>
                       <span className="text-xs text-slate-500">{artist.meta}</span>
@@ -777,7 +786,7 @@ export default function ArtistEventCreatePage() {
             {form.supportingArtists.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {form.supportingArtists.map((artist) => (
-                  <Badge key={artist.id} variant="outline" className="gap-1 border-slate-700 text-slate-200">
+                  <Badge key={artist.id} variant="outline" className="gap-1 border-cyan-400/30 bg-cyan-400/10 text-cyan-100">
                     {artist.label}
                     <button type="button" onClick={() => removeSupportingArtist(artist.id)} aria-label={`Remove ${artist.label}`}>
                       <X className="h-3 w-3" />
@@ -790,7 +799,7 @@ export default function ArtistEventCreatePage() {
               <Textarea
                 value={form.lineupNotes}
                 onChange={(e) => updateForm({ lineupNotes: e.target.value })}
-                className="min-h-[100px] border-slate-700 bg-slate-900 text-white"
+                className={cn(artistEventUI.textarea, "min-h-[100px]")}
                 placeholder="Openers, special guests, invite notes..."
               />
             </Field>
@@ -807,7 +816,7 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={form.ticketUrl}
                   onChange={(e) => updateForm({ ticketUrl: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                   placeholder="https://tickets.example.com/..."
                 />
               </Field>
@@ -815,14 +824,14 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={form.capacity}
                   onChange={(e) => updateForm({ capacity: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                 />
               </Field>
               <Field label="Price min">
                 <Input
                   value={form.ticketPriceMin}
                   onChange={(e) => updateForm({ ticketPriceMin: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                   placeholder="25"
                 />
               </Field>
@@ -830,7 +839,7 @@ export default function ArtistEventCreatePage() {
                 <Input
                   value={form.ticketPriceMax}
                   onChange={(e) => updateForm({ ticketPriceMax: e.target.value })}
-                  className="border-slate-700 bg-slate-900 text-white"
+                  className={artistEventUI.input}
                   placeholder="75"
                 />
               </Field>
@@ -839,16 +848,12 @@ export default function ArtistEventCreatePage() {
         )}
 
         {activeSection === "marketing" && (
-          <BuilderPanel title="Marketing" description="Share copy, page style, and notes for your public page.">
-            <EventPageTemplateSelector
-              selectedTemplate={form.pageTemplate}
-              onTemplateChange={(template) => updateForm({ pageTemplate: template })}
-            />
+          <BuilderPanel title="Marketing" description="Share copy and notes for your public page.">
             <Field label="Share blurb">
               <Textarea
                 value={form.shareBlurb}
                 onChange={(e) => updateForm({ shareBlurb: e.target.value })}
-                className="min-h-[80px] border-slate-700 bg-slate-900 text-white"
+                className={cn(artistEventUI.textarea, "min-h-[80px]")}
                 placeholder="Short text for social shares..."
               />
             </Field>
@@ -856,7 +861,7 @@ export default function ArtistEventCreatePage() {
               <Textarea
                 value={form.marketingNotes}
                 onChange={(e) => updateForm({ marketingNotes: e.target.value })}
-                className="min-h-[100px] border-slate-700 bg-slate-900 text-white"
+                className={cn(artistEventUI.textarea, "min-h-[100px]")}
                 placeholder="Promo partners, press, playlist pitches..."
               />
             </Field>
@@ -865,6 +870,7 @@ export default function ArtistEventCreatePage() {
                 <Button
                   type="button"
                   variant="outline"
+                  className={artistEventUI.buttonOutline}
                   onClick={() => {
                     void navigator.clipboard.writeText(`${window.location.origin}${sharePath}`)
                     sonnerToast.success("Share link copied")
@@ -872,13 +878,52 @@ export default function ArtistEventCreatePage() {
                 >
                   Copy public link
                 </Button>
-                <Button type="button" variant="outline" onClick={() => window.open(sharePath, "_blank")}>
+                <Button type="button" variant="outline" className={artistEventUI.buttonOutline} onClick={() => window.open(sharePath, "_blank")}>
                   Preview public page
                 </Button>
               </div>
             ) : (
               <p className="text-sm text-slate-500">Save a draft to generate a public page link.</p>
             )}
+          </BuilderPanel>
+        )}
+
+        {activeSection === "page-design" && (
+          <BuilderPanel title="Page Design" description="Customize the public page fans see when they open your event link.">
+            <EventPageDesignPanel
+              selectedTemplate={form.pageTemplate}
+              layout={form.pageLayout}
+              previewData={{
+                title: form.title || "Untitled event",
+                type: form.type,
+                status: form.status,
+                description: form.description,
+                posterUrl: form.posterUrl,
+                eventDate: form.date,
+                startTime: form.time,
+                venueName: form.venueName,
+                city: form.city,
+                state: form.state,
+                ticketUrl: form.ticketUrl,
+                capacity: form.capacity,
+              }}
+              onTemplateChange={(template) => updateForm({ pageTemplate: template })}
+              onLayoutChange={(pageLayout) => updateForm({ pageLayout })}
+              onSave={() => void persistEvent(false, { redirect: false })}
+              isSaving={isSaving}
+              publicPath={sharePath}
+              onCopyPublicLink={
+                sharePath
+                  ? () => {
+                      void navigator.clipboard.writeText(`${window.location.origin}${sharePath}`)
+                      sonnerToast.success("Share link copied")
+                    }
+                  : undefined
+              }
+              onOpenPublicPage={
+                sharePath ? () => window.open(sharePath, "_blank", "noopener,noreferrer") : undefined
+              }
+            />
           </BuilderPanel>
         )}
 
@@ -890,13 +935,13 @@ export default function ArtistEventCreatePage() {
                   key={item.id}
                   type="button"
                   onClick={() => moveToReadinessItem(item.id)}
-                  className="flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-left hover:bg-slate-900"
+                  className={cn(artistEventUI.inset, artistEventUI.interactive, "flex w-full items-center justify-between px-4 py-3 text-left")}
                 >
                   <div>
                     <p className="text-sm font-medium text-white">{item.label}</p>
                     <p className="text-xs text-slate-400">{item.detail}</p>
                   </div>
-                  <Badge variant="outline" className="border-slate-700 capitalize text-slate-300">
+                  <Badge variant="outline" className={cn("capitalize", artistEventStatusClass(item.state))}>
                     {item.state.replace("_", " ")}
                   </Badge>
                 </button>
@@ -912,6 +957,7 @@ export default function ArtistEventCreatePage() {
           </BuilderPanel>
         )}
       </BuilderShell>
+    </div>
     </div>
   )
 }

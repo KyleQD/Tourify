@@ -4,6 +4,7 @@ import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
 import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
+import { isProductionBlockedPathname } from '@/lib/routing/production-blocked-routes'
 
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request)
@@ -52,31 +53,13 @@ export async function middleware(request: NextRequest) {
     '/jobs',
   ]
 
-  const productionBlockedPrefixes = [
-    '/auth-test',
-    '/debug',
-    '/migrations',
-    '/setup',
-    '/admin/debug',
-    '/admin/setup',
-    '/admin/create-tables',
-    '/api/debug',
-    '/api/debug-auth',
-    '/api/auth-debug',
-    '/api/migrations',
-    '/api/setup-storage',
-    '/api/marketplace/migrations',
-  ]
-
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAnonymousPublicShareRoute = isPublicShareRoute(pathname)
   const isRootRoute = pathname === '/'
 
   const isProduction = process.env.NODE_ENV === 'production'
-  const isProductionBlockedRoute = productionBlockedPrefixes.some(prefix =>
-    pathname.startsWith(prefix)
-  )
+  const isProductionBlockedRoute = isProductionBlockedPathname(pathname)
 
   if (isProduction && isProductionBlockedRoute) {
     return new NextResponse(null, { status: 404 })
@@ -129,7 +112,7 @@ export async function middleware(request: NextRequest) {
         }
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
-    } catch {
+    } catch (error) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }

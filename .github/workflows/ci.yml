@@ -47,6 +47,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Contract tests
         run: npm test -- lib/api/__tests__/contracts.test.ts
 

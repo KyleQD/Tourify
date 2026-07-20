@@ -134,8 +134,8 @@ async function loadEvents(
   if (!mapped.length) {
     const { data: rows } = await supabase
       .from('events')
-      .select('id, title, slug, event_date, venue_name, venue_city, status, organizer_id, created_by')
-      .or(`organizer_id.eq.${organizerAccountId},created_by.eq.${ownerUserId}`)
+      .select('id, title, slug, event_date, venue_name, status, created_by')
+      .eq('created_by', ownerUserId)
       .order('event_date', { ascending: true })
       .limit(40)
 
@@ -146,7 +146,7 @@ async function loadEvents(
         slug: row.slug ? String(row.slug) : null,
         eventDate: row.event_date ? String(row.event_date) : null,
         venueName: row.venue_name ? String(row.venue_name) : null,
-        city: row.venue_city ? String(row.venue_city) : null,
+        city: null,
         status: row.status ? String(row.status) : null,
       })
     }

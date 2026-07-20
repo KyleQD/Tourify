@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
 import {
   mapArtistJobToUnified,
@@ -40,10 +41,16 @@ function parseCsv(value: string | null): string[] | undefined {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const authSupabase = await createClient()
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await authSupabase.auth.getUser()
+    let supabase = authSupabase
+    try {
+      supabase = createServiceRoleClient()
+    } catch (error) {
+      console.warn('[GET /api/jobs] Service read client unavailable; using request-scoped client.', error)
+    }
 
     const { searchParams } = new URL(request.url)
     const venueId = searchParams.get('venue_id')

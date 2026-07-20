@@ -8,6 +8,7 @@ export const revalidate = 3600
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live'
   const now = new Date().toISOString()
+
   const entries: MetadataRoute.Sitemap = [
     { url: `${host}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
     { url: `${host}/news`, lastModified: now, changeFrequency: 'hourly', priority: 0.9 },

@@ -13,9 +13,14 @@ describe("resolveEventPageSkinId", () => {
   })
 
   it("resolves canonical skins", () => {
+    expect(resolveEventPageSkinId("modern")).toBe("modern")
     expect(resolveEventPageSkinId("classic")).toBe("classic")
+    expect(resolveEventPageSkinId("minimal")).toBe("minimal")
     expect(resolveEventPageSkinId("Bold")).toBe("bold")
     expect(resolveEventPageSkinId("cinema")).toBe("cinema")
+    expect(resolveEventPageSkinId("gallery")).toBe("gallery")
+    expect(resolveEventPageSkinId("luxe")).toBe("luxe")
+    expect(resolveEventPageSkinId("poster")).toBe("poster")
     expect(resolveEventPageSkinId("coastal")).toBe("coastal")
   })
 

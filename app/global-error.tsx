@@ -19,9 +19,6 @@ export default function GlobalError({
   const isChunkError = useMemo(() => isChunkLoadError(error), [error])
 
   useEffect(() => {
-  }, [error, reset, isChunkError])
-
-  useEffect(() => {
     if (isPrivacyError) return
     Sentry.captureException(error)
   }, [error, isPrivacyError])

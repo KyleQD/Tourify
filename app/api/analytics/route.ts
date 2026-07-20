@@ -39,14 +39,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Legacy events (organizer scoped)
+    // Legacy events on the live project are creator scoped.
     let legacyEventsQuery = supabase
       .from('events')
-      .select('id, title, start_date, capacity, organizer_id')
-      .gte('start_date', startDate.toISOString())
-      .order('start_date', { ascending: true })
+      .select('id, title, event_date, capacity, created_by')
+      .gte('event_date', startDate.toISOString().slice(0, 10))
+      .order('event_date', { ascending: true })
 
-    if (effectiveAccountId) legacyEventsQuery = legacyEventsQuery.eq('organizer_id', effectiveAccountId)
+    if (effectiveAccountId) legacyEventsQuery = legacyEventsQuery.eq('created_by', effectiveAccountId)
 
     // Canonical events_v2 (creator scoped)
     let eventsV2Query = supabase
@@ -66,7 +66,12 @@ export async function GET(request: NextRequest) {
       throw (legacyEventsResult.error || eventsV2Result.error)
     }
 
-    const legacyEvents = legacyEventsResult.data || []
+    const legacyEvents = (legacyEventsResult.data || []).map((event: any) => ({
+      id: event.id,
+      title: event.title,
+      start_date: event.event_date,
+      capacity: event.capacity,
+    }))
     const eventsV2 = (eventsV2Result.data || []).map((event: any) => ({
       id: event.id,
       title: event.title,
