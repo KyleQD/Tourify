@@ -6,6 +6,7 @@ import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 import { accountTypeMatchesSection } from '@/lib/navigation/account-dashboard-routes'
 import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
 import { handleApiCorsPreflight, withApiCors } from '@/lib/api/cors'
+import { isProductionBlockedPathname } from '@/lib/routing/production-blocked-routes'
 
 const authRoutes = [
   '/login',
@@ -50,22 +51,6 @@ const protectedRoutes = [
   '/jobs',
 ]
 
-const productionBlockedPrefixes = [
-  '/auth-test',
-  '/debug',
-  '/migrations',
-  '/setup',
-  '/admin/debug',
-  '/admin/setup',
-  '/admin/create-tables',
-  '/api/debug',
-  '/api/debug-auth',
-  '/api/auth-debug',
-  '/api/migrations',
-  '/api/setup-storage',
-  '/api/marketplace/migrations',
-]
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isApiRoute = pathname.startsWith('/api/')
@@ -79,9 +64,7 @@ export async function middleware(request: NextRequest) {
   if (corsPreflight) return corsPreflight
 
   const isProduction = process.env.NODE_ENV === 'production'
-  const isProductionBlockedRoute = productionBlockedPrefixes.some(prefix =>
-    pathname.startsWith(prefix)
-  )
+  const isProductionBlockedRoute = isProductionBlockedPathname(pathname)
 
   if (isProduction && isProductionBlockedRoute) {
     return new NextResponse(null, { status: 404 })
@@ -152,7 +135,7 @@ export async function middleware(request: NextRequest) {
         }
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
-    } catch {
+    } catch (error) {
       if (pathname.startsWith('/api/')) {
         return withApiCors(
           request,
