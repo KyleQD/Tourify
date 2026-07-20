@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
           code: "fundamental_blocked",
           message: "Fundamental/emergency amendments remain blocked without ratification package.",
           retryable: false,
-          details: rights,
+          issues: rights,
         })
     }
 

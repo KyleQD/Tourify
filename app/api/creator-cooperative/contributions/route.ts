@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     .select("id")
     .eq("user_id", user.id)
 
-  const memberIds = (members || []).map((m) => m.id)
+  const memberIds = (members || []).map((m: { id: string }) => m.id)
   if (memberIds.length === 0)
     return NextResponse.json({ data: [], disclaimer: CREATOR_COOPERATIVE_DISCLAIMER, enabled: true })
 

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       .eq("status", "active")
       .limit(100)
 
-    const endpoints = (data || []).map((row) => ({
+    const endpoints = (data || []).map((row: Record<string, any>) => ({
       organizationId: row.organization_id,
       service: row.service_key,
       jurisdictions: (row.jurisdictions as string[]) || [],

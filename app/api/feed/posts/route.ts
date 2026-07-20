@@ -268,7 +268,7 @@ async function fetchArticlePreviews(supabase: any, posts: any[]) {
 }
 
 async function fetchActualCommentCounts(supabase: any, posts: any[]) {
-  const postIds = unique(posts.map((post) => post?.id))
+  const postIds = unique(posts.map((post: any) => post?.id))
   if (postIds.length === 0) return new Map<string, number>()
 
   try {
@@ -365,7 +365,7 @@ function getMediaUnavailableCount(post: any) {
 }
 
 async function fetchAcceptedCollaborators(supabase: any, posts: any[]) {
-  const postIds = unique(posts.map((post) => post?.id))
+  const postIds = unique(posts.map((post: any) => post?.id))
   if (postIds.length === 0) return new Map<string, any[]>()
 
   try {
@@ -383,7 +383,9 @@ async function fetchAcceptedCollaborators(supabase: any, posts: any[]) {
       .select('id, username, full_name, avatar_url')
       .in('id', userIds)
 
-    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+    const profileMap = new Map<string, { username?: string | null; full_name?: string | null; avatar_url?: string | null }>(
+      (profiles || []).map((p: any) => [p.id, p])
+    )
     const byPost = new Map<string, any[]>()
 
     for (const row of data) {
@@ -970,13 +972,13 @@ export async function POST(request: NextRequest) {
         taggedUserIds: taggedUsers,
         actorUserId: actingUserId,
         postId: post.id,
-        actorName: author.name || author.username,
+        actorName: (author.name || author.username) ?? undefined,
       }),
       notifyCollaboratorInvites({
         invites: collaboratorInvites,
         actorUserId: actingUserId,
         postId: post.id,
-        actorName: author.name || author.username,
+        actorName: (author.name || author.username) ?? undefined,
       }),
     ])
 

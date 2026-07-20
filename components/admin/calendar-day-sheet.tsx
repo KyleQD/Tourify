@@ -609,19 +609,13 @@ export function CalendarDaySheet({
                       </select>
                     ) : (
                       <div className="rounded-lg border border-neon-cyan/30 bg-neon-cyan/5 p-2.5 text-xs text-muted-foreground">
-                        {scopeMode === 'tour'
-                          ? 'No shows on this tour yet — tasks can still be tour-level.'
-                          : (
-                            <>
-                              No events available.{' '}
-                              <Link
-                                href="/admin/dashboard/events/create"
-                                className="text-neon-cyan underline-offset-2 hover:underline"
-                              >
-                                Create an event
-                              </Link>
-                            </>
-                          )}
+                        No events available.{' '}
+                        <Link
+                          href="/admin/dashboard/events/create"
+                          className="text-neon-cyan underline-offset-2 hover:underline"
+                        >
+                          Create an event
+                        </Link>
                       </div>
                     )}
                   </div>

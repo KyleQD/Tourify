@@ -181,13 +181,13 @@ export async function POST(request: NextRequest) {
         taggedUserIds: taggedUsers,
         actorUserId: userId,
         postId: post.id,
-        actorName: author.name || author.username,
+        actorName: (author.name || author.username) ?? undefined,
       }),
       notifyCollaboratorInvites({
         invites: collaboratorInvites,
         actorUserId: userId,
         postId: post.id,
-        actorName: author.name || author.username,
+        actorName: (author.name || author.username) ?? undefined,
       }),
     ])
 

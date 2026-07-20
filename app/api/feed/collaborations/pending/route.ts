@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
     .select('id, username, full_name, avatar_url')
     .in('id', inviterIds)
 
-  const inviterMap = new Map((inviters || []).map((profile: any) => [profile.id, profile]))
+  const inviterMap = new Map<string, { id: string; username?: string | null; full_name?: string | null; avatar_url?: string | null }>(
+    (inviters || []).map((profile: any) => [profile.id, profile])
+  )
 
   const data = (invites || []).map((invite: any) => {
     const post = postMap.get(invite.post_id)

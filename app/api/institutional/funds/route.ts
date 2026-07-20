@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     .select("organization_id")
     .eq("user_id", user.id)
     .eq("status", "active")
-  const orgIds = (memberships || []).map((m) => m.organization_id)
+  const orgIds = (memberships || []).map((m: { organization_id: string }) => m.organization_id)
   if (orgIds.length === 0) return NextResponse.json({ data: [], disclaimer: INSTITUTIONAL_DISCLAIMER, enabled: true })
 
   const { data, error } = await supabase

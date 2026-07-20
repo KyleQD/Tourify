@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     let match = classifyCatalogMatch({ normalized, candidates })
     if (payload.confirm_track_id) {
-      const confirmed = candidates.find((candidate) => candidate.trackId === payload.confirm_track_id)
+      const confirmed = candidates.find((candidate: { trackId: string }) => candidate.trackId === payload.confirm_track_id)
       if (!confirmed) return jsonError({ status: 404, code: "track_not_found", message: "Confirmed track not found.", retryable: false })
       match = {
         ...match,

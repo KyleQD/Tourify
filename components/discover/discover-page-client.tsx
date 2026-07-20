@@ -296,7 +296,12 @@ export function DiscoverPageClient() {
       surface: "discover",
       metadata: { artistId: artist.id, username: artist.username },
     })
-    router.push(getArtistPublicProfilePath(artist.username))
+    const path = getArtistPublicProfilePath(artist.username ?? artist.id)
+    if (!path) {
+      toast.error("Artist profile unavailable")
+      return
+    }
+    router.push(path)
   }
 
   function openVenue(venue: DiscoverProfile) {
@@ -345,7 +350,12 @@ export function DiscoverPageClient() {
       toast.error("Artist profile unavailable")
       return
     }
-    router.push(getArtistPublicProfilePath(handle))
+    const path = getArtistPublicProfilePath(handle)
+    if (!path) {
+      toast.error("Artist profile unavailable")
+      return
+    }
+    router.push(path)
   }
 
   const filtered = useMemo(() => {

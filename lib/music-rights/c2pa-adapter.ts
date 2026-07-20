@@ -151,8 +151,9 @@ export async function getC2paAdapter(): Promise<C2paAdapter> {
     const loaded = await import(/* webpackIgnore: true */ sdkModule)
     const factory = loaded.createC2paAdapter || loaded.default
     if (typeof factory !== "function") throw new Error("invalid_c2pa_sdk_export")
-    cachedAdapter = await factory()
-    return cachedAdapter
+    const adapter = (await factory()) ?? createStubAdapter()
+    cachedAdapter = adapter
+    return adapter
   } catch {
     cachedAdapter = createStubAdapter()
     return cachedAdapter

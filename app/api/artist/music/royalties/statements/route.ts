@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     if (!allocations?.length)
       return jsonError({ status: 400, code: "no_allocations", message: "No allocations for this payee on the run.", retryable: false })
 
-    const totals = allocations.reduce((acc, row: any) => ({
+    const totals = allocations.reduce((acc: { gross: bigint; deductions: bigint; recouped: bigint; held: bigint; payable: bigint }, row: any) => ({
       gross: acc.gross + parseMinorUnits(row.gross_minor),
       deductions: acc.deductions + parseMinorUnits(row.deductions_minor),
       recouped: acc.recouped + parseMinorUnits(row.recouped_minor),

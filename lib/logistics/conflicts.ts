@@ -113,10 +113,10 @@ export function detectMissingRequired(args: {
   value: unknown
 }): LogisticsConflict | null {
   const isMissing =
-    value === null ||
-    value === undefined ||
-    (typeof value === 'string' && value.trim() === '') ||
-    (Array.isArray(value) && value.length === 0)
+    args.value === null ||
+    args.value === undefined ||
+    (typeof args.value === 'string' && args.value.trim() === '') ||
+    (Array.isArray(args.value) && args.value.length === 0)
 
   if (!isMissing) return null
   return {

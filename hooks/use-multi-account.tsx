@@ -898,6 +898,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
   // Keep sidebar / account switcher avatars in sync after Appearance uploads.
   useEffect(() => {
     if (!user?.id) return
+    const userId = user.id
 
     function handleProfileImagesUpdated(event: Event) {
       const detail = (event as CustomEvent<ProfileImagesUpdatedDetail>).detail
@@ -905,7 +906,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
         setAccounts((prev) =>
           prev.map((account) => {
             if (normalizeAccountType(account.account_type) !== 'general') return account
-            if (account.profile_id !== user.id) return account
+            if (account.profile_id !== userId) return account
             return {
               ...account,
               profile_data: {
@@ -917,7 +918,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
         )
         setActiveAccount((prev) => {
           if (!prev || normalizeAccountType(prev.account_type) !== 'general') return prev
-          if (prev.profile_id !== user.id) return prev
+          if (prev.profile_id !== userId) return prev
           return {
             ...prev,
             profile_data: {

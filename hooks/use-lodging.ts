@@ -299,7 +299,7 @@ interface UseLodgingOptions {
   event_id?: string
   tour_id?: string
   /** When set, only these slices load on mount (avoids N× full prefetch). */
-  fetchOnMount?: Array<'providers' | 'bookings' | 'analytics' | 'utilization'>
+  fetchOnMount?: Array<'providers' | 'bookings' | 'analytics' | 'utilization' | 'room_types'>
 }
 
 export function useLodging(options: UseLodgingOptions = {}) {

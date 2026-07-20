@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     return jsonError({ status: 500, code: "education_query_failed", message: "Unable to load education content.", retryable: true })
 
   const nowIso = new Date().toISOString()
-  const items = (data || []).map((row) => ({
+  const items = (data || []).map((row: Record<string, any>) => ({
     ...row,
     freshness: policyFreshness({ publishedAt: row.created_at, reviewBy: row.review_by }, nowIso),
     educationalOnly: true,

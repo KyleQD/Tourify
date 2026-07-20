@@ -275,7 +275,7 @@ export class AchievementService {
         .single()
 
       if (error) throw error
-      const map = await this.fetchProfilesMap([data.endorser_id, data.endorsee_id])
+      const map = await fetchProfilesMap([data.endorser_id, data.endorsee_id])
       return {
         ...data,
         endorser: map[data.endorser_id],
@@ -355,7 +355,7 @@ export class AchievementService {
         .single()
 
       if (error) throw error
-      const map = await this.fetchProfilesMap([data.endorser_id, data.endorsee_id])
+      const map = await fetchProfilesMap([data.endorser_id, data.endorsee_id])
       return {
         ...data,
         endorser: map[data.endorser_id],

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     return jsonError({ status: 500, code: "policy_query_failed", message: "Unable to load policy sources.", retryable: true })
 
   const now = new Date().toISOString()
-  const items = (data || []).map((row) => ({
+  const items = (data || []).map((row: Record<string, any>) => ({
     ...row,
     current: policySourceIsCurrent({
       source: {

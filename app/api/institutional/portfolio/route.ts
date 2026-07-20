@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     .select("organization_id")
     .eq("user_id", user.id)
     .eq("status", "active")
-  const orgIds = (memberships || []).map((m) => m.organization_id)
+  const orgIds = (memberships || []).map((m: { organization_id: string }) => m.organization_id)
 
   const { data: commitments } = orgIds.length
     ? await supabase
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       .limit(100)
     : { data: [] }
 
-  const exposures = (commitments || []).map((c) => ({
+  const exposures = (commitments || []).map((c: { fund_vehicle_id: string; amount_minor?: number | null }) => ({
     key: c.fund_vehicle_id,
     amountMinor: BigInt(c.amount_minor || 0),
   }))

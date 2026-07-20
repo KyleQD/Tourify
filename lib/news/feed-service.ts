@@ -386,6 +386,7 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
           slug,
           tags,
           categories,
+          format,
           featured_image_url,
           stats,
           published_at,

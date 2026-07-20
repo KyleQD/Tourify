@@ -27,6 +27,16 @@ import {
   Bell,
 } from "lucide-react"
 
+import type { LucideIcon } from "lucide-react"
+
+interface TabNavItem {
+  title: string
+  icon: LucideIcon
+  href: string
+  description: string
+  badge?: string
+}
+
 export function TabbedNavigation() {
   const [activeTab, setActiveTab] = useState("events")
 
@@ -38,7 +48,7 @@ export function TabbedNavigation() {
     { id: "analytics", label: "Analytics", icon: BarChart3 },
   ]
 
-  const tabContent = {
+  const tabContent: Record<string, TabNavItem[]> = {
     content: [
       { title: "Posts", icon: PenTool, href: "/venue/dashboard", description: "Create and manage your posts" },
       { title: "Videos", icon: Video, href: "/venue/dashboard", description: "Upload and manage your videos" },

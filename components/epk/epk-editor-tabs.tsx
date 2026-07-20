@@ -711,7 +711,7 @@ export function EpkEditorTabs({
       <TabsContent value="music">
         <MusicSection
           tracks={epkData.music}
-          onTracksChange={(tracks) => updateEPKData({ music: tracks })}
+          onTracksChange={(tracks) => updateEPKData({ music: tracks as EPKData['music'] })}
         />
       </TabsContent>
 

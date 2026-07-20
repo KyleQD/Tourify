@@ -18,6 +18,16 @@ interface MessageContextResult {
   context_id: string | null
 }
 
+interface ConversationRow {
+  id: string
+  participant_1: string
+  participant_2: string
+  trust_tier?: string | null
+  accepted_at?: string | null
+  context_type?: string | null
+  context_id?: string | null
+}
+
 class MessageRateLimitError extends Error {
   retryAfterSeconds: number
   constructor(retryAfterSeconds: number) {
@@ -341,7 +351,13 @@ export async function GET(request: NextRequest) {
         .limit(limit)
       if (before) messagesQuery = messagesQuery.lt('created_at', before)
 
-      let { data, error } = await messagesQuery
+      let messageRows: Array<Record<string, unknown>> | null = null
+      let error: { code?: string; message?: string } | null = null
+      {
+        const initial = await messagesQuery
+        messageRows = initial.data as Array<Record<string, unknown>> | null
+        error = initial.error
+      }
 
       if (error && String(error.message || '').toLowerCase().includes('attachments')) {
         let fallbackQuery = supabase
@@ -351,9 +367,10 @@ export async function GET(request: NextRequest) {
           .order('created_at', { ascending: false })
           .limit(limit)
         if (before) fallbackQuery = fallbackQuery.lt('created_at', before)
-        ;({ data, error } = await fallbackQuery)
-        if (!error && data) {
-          data = data.map((row: Record<string, unknown>) => ({
+        const fallback = await fallbackQuery
+        error = fallback.error
+        if (!error && fallback.data) {
+          messageRows = (fallback.data as Array<Record<string, unknown>>).map((row) => ({
             ...row,
             attachments: Array.isArray(row.attachment_urls)
               ? (row.attachment_urls as string[]).map((url) => ({ url, name: 'attachment', type: 'file', size: 0 }))
@@ -367,8 +384,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 })
       }
 
-      const messages = (data || []).slice().reverse()
-      const nextCursor = data && data.length === limit ? data[data.length - 1].created_at : null
+      const messages = (messageRows || []).slice().reverse()
+      const nextCursor = messageRows && messageRows.length === limit
+        ? String(messageRows[messageRows.length - 1].created_at ?? '')
+        : null
 
       return NextResponse.json({ messages, nextCursor })
     }
@@ -457,7 +476,7 @@ export async function GET(request: NextRequest) {
         .select(conversationListSelectBase)
         .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
         .order('updated_at', { ascending: false })
-      conversations = fallback.data
+      conversations = fallback.data as typeof conversations
       error = fallback.error
     }
 
@@ -647,15 +666,7 @@ export async function POST(request: NextRequest) {
       return Boolean(error && (error.code === 'PGRST116' || error.code === 'PGRST123'))
     }
 
-    let conversation: {
-      id: string
-      participant_1: string
-      participant_2: string
-      trust_tier?: string | null
-      accepted_at?: string | null
-      context_type?: string | null
-      context_id?: string | null
-    } | null = null
+    let conversation: ConversationRow | null = null
     let trustColumnsAvailable = true
     let accountColumnsAvailable = true
     let conversationPairFilter = accountAwareFilter
@@ -699,18 +710,18 @@ export async function POST(request: NextRequest) {
             console.error('Error finding conversation:', legacy.error)
             return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
           }
-          conversation = legacy.data
+          conversation = legacy.data as unknown as ConversationRow
         } else if (fallback.error && !isNoRowError(fallback.error)) {
           console.error('Error finding conversation:', fallback.error)
           return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
         } else {
-          conversation = fallback.data
+          conversation = fallback.data as unknown as ConversationRow
         }
       } else if (error && !isNoRowError(error)) {
         console.error('Error finding conversation:', error)
         return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
       } else {
-        conversation = data
+        conversation = data as unknown as ConversationRow
       }
     }
 
@@ -767,7 +778,7 @@ export async function POST(request: NextRequest) {
             .select(selectCols)
             .or(conversationPairFilter)
             .maybeSingle()
-          if (raced.data) conversation = raced.data
+          if (raced.data) conversation = raced.data as unknown as ConversationRow
         }
 
         if (!conversation) {
@@ -775,7 +786,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
         }
       } else {
-        conversation = newConversation
+        conversation = newConversation as unknown as ConversationRow
       }
     }
 

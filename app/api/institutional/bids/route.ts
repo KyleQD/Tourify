@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       now: new Date(),
       requiredProductClass: caseRow.approved_path || "direct_asset_sale",
       requestedAmountMinor: BigInt(payload.amount_minor),
-      assertions: (assertions || []).map((row) => ({
+      assertions: (assertions || []).map((row: Record<string, any>) => ({
         assertionType: row.assertion_type,
         providerId: row.provider_id,
         verified: row.verified,

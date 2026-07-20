@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     .from("music_marketplace_issuers")
     .select("id")
     .eq("owner_user_id", user.id)
-  const issuerIds = (issuers || []).map((row) => row.id)
+  const issuerIds = (issuers || []).map((row: { id: string }) => row.id)
   if (issuerIds.length === 0) return NextResponse.json({ data: [], enabled: true, disclaimer: LIQUIDITY_DISCLAIMER })
 
   const { data, error } = await supabase
