@@ -1,7 +1,7 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T13:19:00Z",
+  "updated_at": "2026-08-04T13:25:00Z",
   "statuses": [
     "not_started",
     "in_progress",
@@ -134,7 +134,7 @@
       "id": "EVT-300",
       "phase": 3,
       "title": "Discovery UX (search, filters, location, sorts, URL state)",
-      "status": "not_started",
+      "status": "complete",
       "dependencies": [
         "EVT-200"
       ],
@@ -142,10 +142,14 @@
         "components/events/discovery/*",
         "app/events/page.tsx"
       ],
-      "evidence": [],
+      "evidence": [
+        "eslint clean on new files",
+        "mounted behind NEXT_PUBLIC_EVENT_DISCOVERY_V2 with legacy fallback + Suspense",
+        "E2E browser evidence pending (dev-server/browser run deferred to Phase 8 validation)"
+      ],
       "tests": [],
       "blockers": [],
-      "notes": "Behind EVENT_DISCOVERY_V2; fallback to enhanced-discover-events"
+      "notes": "Manual city location currently rides the text-query channel until a geocoder is approved; documented limitation."
     },
     {
       "id": "EVT-400",
