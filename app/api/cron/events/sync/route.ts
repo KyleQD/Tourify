@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { validateProviderConfig, isEventFeatureEnabled } from "@/lib/events/providers/flags"
+import { validateProviderConfig, isEventFeatureEnabled, getBandsintownMode } from "@/lib/events/providers/flags"
 import { createTicketmasterAdapter } from "@/lib/events/providers/ticketmaster/adapter"
+import { createBandsintownAdapter } from "@/lib/events/providers/bandsintown/adapter"
 import { ingestExternalEvent } from "@/lib/events/canonical-event-service"
 import { EventProviderError } from "@/lib/events/providers/types"
 
@@ -133,6 +134,86 @@ async function executeJob(
         }
       } else {
         throw new EventProviderError("INVALID_RESPONSE", `Unknown job_type ${job.job_type}`, false, "ticketmaster")
+      }
+    } else if (job.provider === "bandsintown") {
+      if (getBandsintownMode() === "disabled") {
+        throw new EventProviderError("DISABLED", "Bandsintown provider is disabled", false, "bandsintown")
+      }
+      const adapter = createBandsintownAdapter()
+      if (!adapter) throw new EventProviderError("DISABLED", "Bandsintown adapter unavailable", false, "bandsintown")
+
+      if (job.job_type === "verify_connection") {
+        const { connectionId } = job.payload as { connectionId: string }
+        const { data: connection } = await client
+          .from("event_provider_connections")
+          .select("id, owner_type, owner_id, external_identity, display_name, status")
+          .eq("id", connectionId)
+          .single()
+        if (!connection || connection.status === "disconnected") {
+          status = "succeeded"
+        } else {
+          await adapter.getArtistEvents(
+            {
+              connectionId: connection.id,
+              ownerType: connection.owner_type,
+              ownerId: connection.owner_id,
+              provider: "bandsintown",
+              externalIdentity: connection.external_identity,
+              displayName: connection.display_name,
+            },
+            {},
+          )
+          await client
+            .from("event_provider_connections")
+            .update({
+              status: "active",
+              verified_at: new Date().toISOString(),
+              next_sync_at: new Date().toISOString(),
+              last_error_code: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", connection.id)
+        }
+      } else if (job.job_type === "artist_sync") {
+        const { connectionId } = job.payload as { connectionId: string }
+        const { data: connection } = await client
+          .from("event_provider_connections")
+          .select("id, owner_type, owner_id, external_identity, display_name, status")
+          .eq("id", connectionId)
+          .single()
+        if (!connection || connection.status !== "active") {
+          throw new EventProviderError("DISABLED", "Connection is not active", false, "bandsintown")
+        }
+        const result = await adapter.getArtistEvents(
+          {
+            connectionId: connection.id,
+            ownerType: connection.owner_type,
+            ownerId: connection.owner_id,
+            provider: "bandsintown",
+            externalIdentity: connection.external_identity,
+            displayName: connection.display_name,
+          },
+          {},
+        )
+        received += result.events.length
+        for (const event of result.events) {
+          const ingest = await ingestExternalEvent(event)
+          if (ingest.created) created += 1
+          else updated += 1
+        }
+        // Back off when the artist has no upcoming dates (24h vs 6h).
+        const delayHours = result.events.length === 0 ? 24 : 6
+        await client
+          .from("event_provider_connections")
+          .update({
+            last_synced_at: new Date().toISOString(),
+            next_sync_at: new Date(Date.now() + delayHours * 3_600_000).toISOString(),
+            last_error_code: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", connection.id)
+      } else {
+        throw new EventProviderError("INVALID_RESPONSE", `Unknown job_type ${job.job_type}`, false, "bandsintown")
       }
     } else {
       throw new EventProviderError("DISABLED", `No adapter for provider ${job.provider}`, false)

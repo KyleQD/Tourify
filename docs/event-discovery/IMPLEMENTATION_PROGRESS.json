@@ -1,7 +1,7 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T13:37:00Z",
+  "updated_at": "2026-08-04T13:40:00Z",
   "statuses": [
     "not_started",
     "in_progress",
@@ -223,7 +223,7 @@
       "id": "EVT-700",
       "phase": 7,
       "title": "Bandsintown permission-safe pilot",
-      "status": "not_started",
+      "status": "complete",
       "dependencies": [
         "EVT-600"
       ],
@@ -231,7 +231,12 @@
         "lib/events/providers/bandsintown/*",
         "app/api/integrations/bandsintown/*"
       ],
-      "evidence": [],
+      "evidence": [
+        "adapter scoped to connected artists only (no searchEvents)",
+        "connect/status/disconnect routes; ownership enforced via created_by",
+        "verify_connection + artist_sync cron job types with empty-calendar backoff",
+        "68/68 event tests pass incl. BIT fixtures"
+      ],
       "tests": [],
       "blockers": [
         "Partner mode requires Bandsintown partnership approval"

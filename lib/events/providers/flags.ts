@@ -31,12 +31,17 @@ export function isEventFeatureEnabled(flag: EventFeatureFlag): boolean {
 export type BandsintownMode = "disabled" | "artist_owned_key" | "partner"
 
 /**
- * Resolve the Bandsintown operating mode. Production default is
- * `disabled` unless explicit authorization configuration exists.
+ * Resolve the Bandsintown operating mode. An explicit BANDSINTOWN_MODE
+ * value wins; otherwise mode derives from the feature flags. Production
+ * default is `disabled` unless explicit authorization configuration exists.
  * `partner` requires EVENT_PROVIDER_BANDSINTOWN_PARTNER_MODE in addition
  * to the base provider flag.
  */
 export function getBandsintownMode(): BandsintownMode {
+  const explicit = process.env.BANDSINTOWN_MODE?.trim().toLowerCase()
+  if (explicit === "disabled" || explicit === "artist_owned_key" || explicit === "partner") {
+    return explicit
+  }
   if (!isEventFeatureEnabled("EVENT_PROVIDER_BANDSINTOWN")) return "disabled"
   if (isEventFeatureEnabled("EVENT_PROVIDER_BANDSINTOWN_PARTNER_MODE")) return "partner"
   return "artist_owned_key"
