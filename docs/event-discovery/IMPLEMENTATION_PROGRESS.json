@@ -1,7 +1,7 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T13:25:00Z",
+  "updated_at": "2026-08-04T13:33:00Z",
   "statuses": [
     "not_started",
     "in_progress",
@@ -155,7 +155,7 @@
       "id": "EVT-400",
       "phase": 4,
       "title": "Ticketmaster pilot (client, adapter, sync, rate limit, fixtures)",
-      "status": "not_started",
+      "status": "complete",
       "dependencies": [
         "EVT-200"
       ],
@@ -163,7 +163,11 @@
         "lib/events/providers/ticketmaster/*",
         "app/api/cron/events/sync/route.ts"
       ],
-      "evidence": [],
+      "evidence": [
+        "vitest __tests__/events: 65/65 pass",
+        "fixture tests use recorded TM payload; live smoke is secret-gated (no key present)",
+        "cron /api/cron/events/sync registered in vercel.json at 17 */6 * * *"
+      ],
       "tests": [],
       "blockers": [
         "TICKETMASTER_API_KEY requires business registration"
@@ -174,7 +178,7 @@
       "id": "EVT-500",
       "phase": 5,
       "title": "Deduplication + merge review + slug redirects",
-      "status": "not_started",
+      "status": "in_progress",
       "dependencies": [
         "EVT-400"
       ],
@@ -182,7 +186,10 @@
         "lib/events/event-matcher.ts",
         "app/admin/dashboard/events/duplicates/page.tsx"
       ],
-      "evidence": [],
+      "evidence": [
+        "matcher + disqualifier unit tests pass",
+        "event_merge_execute transactional SQL added"
+      ],
       "tests": [],
       "blockers": [],
       "notes": "No auto-merge for matinee/evening, festival/day-pass, livestream/in-person, different venues"
