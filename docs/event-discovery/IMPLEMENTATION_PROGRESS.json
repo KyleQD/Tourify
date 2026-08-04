@@ -1,7 +1,7 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T13:33:00Z",
+  "updated_at": "2026-08-04T13:37:00Z",
   "statuses": [
     "not_started",
     "in_progress",
@@ -178,7 +178,7 @@
       "id": "EVT-500",
       "phase": 5,
       "title": "Deduplication + merge review + slug redirects",
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": [
         "EVT-400"
       ],
@@ -188,7 +188,10 @@
       ],
       "evidence": [
         "matcher + disqualifier unit tests pass",
-        "event_merge_execute transactional SQL added"
+        "event_merge_execute transactional SQL added",
+        "admin merge API + event_merge_execute RPC",
+        "slug redirect resolution in resolve-public-event",
+        "65/65 event tests pass"
       ],
       "tests": [],
       "blockers": [],
@@ -198,7 +201,7 @@
       "id": "EVT-600",
       "phase": 6,
       "title": "Claims, ownership, tour links",
-      "status": "not_started",
+      "status": "complete",
       "dependencies": [
         "EVT-500"
       ],
@@ -206,7 +209,12 @@
         "app/api/events/[eventId]/claim/route.ts",
         "components/events/event-claim-dialog.tsx"
       ],
-      "evidence": [],
+      "evidence": [
+        "claim route with auto-verify via verified provider connection",
+        "admin claims review route",
+        "tour attach route using existing events.tour_id",
+        "65/65 event tests pass"
+      ],
       "tests": [],
       "blockers": [],
       "notes": "Reuse events.tour_id; field overrides preserve native copy on refresh"

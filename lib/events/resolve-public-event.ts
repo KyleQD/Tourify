@@ -69,5 +69,24 @@ export async function resolvePublicEvent(slugOrId: string, viewerId: string | nu
       return { ...artist, artist_id: artist.user_id, event_table: "artist_events" }
     }
   }
+  // Merged-event redirect: a losing slug resolves to the surviving event.
+  const redirect = await findSlugRedirect(normalized)
+  if (redirect) {
+    const target = await findRow("events", redirect)
+    if (target && (viewerId === target.artist_id || canNonOwnerViewArtistEvent(target))) {
+      return { ...target, event_table: "events", merged_from_slug: normalized }
+    }
+  }
   return null
+}
+
+/** Returns the surviving event id for a merged-away slug, if any. */
+export async function findSlugRedirect(slug: string): Promise<string | null> {
+  const client = createServiceRoleClient()
+  const { data } = await client
+    .from("event_slug_redirects")
+    .select("target_event_id")
+    .eq("slug", slug)
+    .maybeSingle()
+  return (data?.target_event_id as string) ?? null
 }
