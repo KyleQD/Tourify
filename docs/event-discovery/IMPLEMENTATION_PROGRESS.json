@@ -1,7 +1,7 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T13:10:00Z",
+  "updated_at": "2026-08-04T13:19:00Z",
   "statuses": [
     "not_started",
     "in_progress",
@@ -108,16 +108,24 @@
       "id": "EVT-200",
       "phase": 2,
       "title": "PostGIS discovery index + nearby search + backfill",
-      "status": "not_started",
+      "status": "complete",
       "dependencies": [
         "EVT-101"
       ],
       "files": [
         "supabase/migrations/*_event_discovery_postgis.sql",
         "lib/events/discovery-index.ts",
-        "lib/events/search-service.ts"
+        "lib/events/search-service.ts",
+        "lib/events/cursors.ts",
+        "lib/events/location.ts",
+        "app/api/events/search/route.ts",
+        "__tests__/events/search/*"
       ],
-      "evidence": [],
+      "evidence": [
+        "vitest __tests__/events: 51/51 pass (incl. pre-existing)",
+        "migration 20260804131000_event_discovery_postgis.sql",
+        "live PostGIS EXPLAIN validation blocked by EVT-000-B1"
+      ],
       "tests": [],
       "blockers": [],
       "notes": "POINT(lng lat) order; ST_DWithin radius; cursor pagination; native parity"
