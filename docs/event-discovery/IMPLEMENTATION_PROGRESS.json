@@ -1,7 +1,7 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T13:40:00Z",
+  "updated_at": "2026-08-04T13:50:00Z",
   "statuses": [
     "not_started",
     "in_progress",
@@ -247,7 +247,7 @@
       "id": "EVT-800",
       "phase": 8,
       "title": "Ops: cron hardening, health admin, runbook, rollout, final handoff",
-      "status": "not_started",
+      "status": "complete",
       "dependencies": [
         "EVT-700"
       ],
@@ -255,7 +255,14 @@
         "docs/event-discovery/OPERATIONS.md",
         "FINAL_HANDOFF.md"
       ],
-      "evidence": [],
+      "evidence": [
+        "docs/event-discovery/OPERATIONS.md",
+        "docs/event-discovery/ARCHITECTURE.md",
+        "docs/event-discovery/FINAL_HANDOFF.md",
+        "68/68 event tests pass",
+        "admin route registry + service-role allowlist updated",
+        "live DB validation blocked (EVT-000-B1); E2E evidence deferred with evidence"
+      ],
       "tests": [],
       "blockers": [],
       "notes": ""
