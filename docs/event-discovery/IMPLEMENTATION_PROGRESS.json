@@ -1,0 +1,160 @@
+{
+  "project": "tourify-event-discovery-integrations",
+  "branch": "feature/event-discovery-integrations",
+  "updated_at": "2026-08-04T12:38:00Z",
+  "statuses": ["not_started", "in_progress", "blocked", "complete", "verified", "deferred"],
+  "tasks": [
+    {
+      "id": "EVT-000",
+      "phase": 0,
+      "title": "Audit existing event schema, routes, RLS, flags, jobs",
+      "status": "complete",
+      "dependencies": [],
+      "files": [
+        "docs/event-discovery/AUDIT.md",
+        "docs/event-discovery/EXISTING_DATA_MODEL.md",
+        "docs/event-discovery/EXISTING_ROUTE_AND_UI_MAP.md",
+        "docs/event-discovery/INTEGRATION_CONFLICTS.md",
+        "docs/event-discovery/REVISED_FILE_TARGETS.md",
+        "docs/event-discovery/PROVIDER_TERMS_CHECKLIST.md",
+        "docs/event-discovery/IMPLEMENTATION_PROGRESS.json"
+      ],
+      "evidence": ["audit docs committed on feature/event-discovery-integrations"],
+      "tests": [],
+      "blockers": [],
+      "notes": "Three event stores (events, events_v2, artist_events) already merged at read time. No PostGIS, no external providers, env-based flags, Vercel cron with CRON_SECRET."
+    },
+    {
+      "id": "EVT-000-B1",
+      "phase": 0,
+      "title": "Live Supabase schema diff + advisors",
+      "status": "blocked",
+      "dependencies": [],
+      "files": [],
+      "evidence": ["supabase list_projects: ndqaenaejzoxxengthsk status=INACTIVE"],
+      "tests": [],
+      "blockers": ["Supabase project supabase-TourifyApp (ndqaenaejzoxxengthsk) is INACTIVE; cannot run live diff, RLS verification, or advisors"],
+      "notes": "Migrations treated as source of truth; all new SQL written defensively. Re-run when project restored."
+    },
+    {
+      "id": "EVT-001",
+      "phase": 0,
+      "title": "Baseline build/lint/test results",
+      "status": "in_progress",
+      "dependencies": ["EVT-000"],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": "Record pre-existing failures separately; HEAD recently fixed build-blocking TS errors."
+    },
+    {
+      "id": "EVT-100",
+      "phase": 1,
+      "title": "Provider foundation: registry, adapter interface, normalized contract, zod schemas, flags",
+      "status": "not_started",
+      "dependencies": ["EVT-001"],
+      "files": ["lib/events/providers/*"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-101",
+      "phase": 1,
+      "title": "Migration: event provider foundation tables + RLS",
+      "status": "not_started",
+      "dependencies": ["EVT-100"],
+      "files": ["supabase/migrations/*_event_provider_foundation.sql"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": "event_external_sources, event_ticket_offers, event_provider_connections, event_sync_jobs, event_sync_runs; RLS from creation; additive only"
+    },
+    {
+      "id": "EVT-200",
+      "phase": 2,
+      "title": "PostGIS discovery index + nearby search + backfill",
+      "status": "not_started",
+      "dependencies": ["EVT-101"],
+      "files": ["supabase/migrations/*_event_discovery_postgis.sql", "lib/events/discovery-index.ts", "lib/events/search-service.ts"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": "POINT(lng lat) order; ST_DWithin radius; cursor pagination; native parity"
+    },
+    {
+      "id": "EVT-300",
+      "phase": 3,
+      "title": "Discovery UX (search, filters, location, sorts, URL state)",
+      "status": "not_started",
+      "dependencies": ["EVT-200"],
+      "files": ["components/events/discovery/*", "app/events/page.tsx"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": "Behind EVENT_DISCOVERY_V2; fallback to enhanced-discover-events"
+    },
+    {
+      "id": "EVT-400",
+      "phase": 4,
+      "title": "Ticketmaster pilot (client, adapter, sync, rate limit, fixtures)",
+      "status": "not_started",
+      "dependencies": ["EVT-200"],
+      "files": ["lib/events/providers/ticketmaster/*", "app/api/cron/events/sync/route.ts"],
+      "evidence": [],
+      "tests": [],
+      "blockers": ["TICKETMASTER_API_KEY requires business registration"],
+      "notes": "Flag EVENT_PROVIDER_TICKETMASTER default off; fixture-based tests; live smoke secret-gated"
+    },
+    {
+      "id": "EVT-500",
+      "phase": 5,
+      "title": "Deduplication + merge review + slug redirects",
+      "status": "not_started",
+      "dependencies": ["EVT-400"],
+      "files": ["lib/events/event-matcher.ts", "app/admin/dashboard/events/duplicates/page.tsx"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": "No auto-merge for matinee/evening, festival/day-pass, livestream/in-person, different venues"
+    },
+    {
+      "id": "EVT-600",
+      "phase": 6,
+      "title": "Claims, ownership, tour links",
+      "status": "not_started",
+      "dependencies": ["EVT-500"],
+      "files": ["app/api/events/[eventId]/claim/route.ts", "components/events/event-claim-dialog.tsx"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": "Reuse events.tour_id; field overrides preserve native copy on refresh"
+    },
+    {
+      "id": "EVT-700",
+      "phase": 7,
+      "title": "Bandsintown permission-safe pilot",
+      "status": "not_started",
+      "dependencies": ["EVT-600"],
+      "files": ["lib/events/providers/bandsintown/*", "app/api/integrations/bandsintown/*"],
+      "evidence": [],
+      "tests": [],
+      "blockers": ["Partner mode requires Bandsintown partnership approval"],
+      "notes": "Modes disabled|artist_owned_key|partner; default disabled"
+    },
+    {
+      "id": "EVT-800",
+      "phase": 8,
+      "title": "Ops: cron hardening, health admin, runbook, rollout, final handoff",
+      "status": "not_started",
+      "dependencies": ["EVT-700"],
+      "files": ["docs/event-discovery/OPERATIONS.md", "FINAL_HANDOFF.md"],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    }
+  ]
+}
