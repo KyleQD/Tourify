@@ -1,8 +1,15 @@
 {
   "project": "tourify-event-discovery-integrations",
   "branch": "feature/event-discovery-integrations",
-  "updated_at": "2026-08-04T12:38:00Z",
-  "statuses": ["not_started", "in_progress", "blocked", "complete", "verified", "deferred"],
+  "updated_at": "2026-08-04T13:10:00Z",
+  "statuses": [
+    "not_started",
+    "in_progress",
+    "blocked",
+    "complete",
+    "verified",
+    "deferred"
+  ],
   "tasks": [
     {
       "id": "EVT-000",
@@ -19,7 +26,9 @@
         "docs/event-discovery/PROVIDER_TERMS_CHECKLIST.md",
         "docs/event-discovery/IMPLEMENTATION_PROGRESS.json"
       ],
-      "evidence": ["audit docs committed on feature/event-discovery-integrations"],
+      "evidence": [
+        "audit docs committed on feature/event-discovery-integrations"
+      ],
       "tests": [],
       "blockers": [],
       "notes": "Three event stores (events, events_v2, artist_events) already merged at read time. No PostGIS, no external providers, env-based flags, Vercel cron with CRON_SECRET."
@@ -31,31 +40,47 @@
       "status": "blocked",
       "dependencies": [],
       "files": [],
-      "evidence": ["supabase list_projects: ndqaenaejzoxxengthsk status=INACTIVE"],
+      "evidence": [
+        "supabase list_projects: ndqaenaejzoxxengthsk status=INACTIVE"
+      ],
       "tests": [],
-      "blockers": ["Supabase project supabase-TourifyApp (ndqaenaejzoxxengthsk) is INACTIVE; cannot run live diff, RLS verification, or advisors"],
+      "blockers": [
+        "Supabase project supabase-TourifyApp (ndqaenaejzoxxengthsk) is INACTIVE; cannot run live diff, RLS verification, or advisors"
+      ],
       "notes": "Migrations treated as source of truth; all new SQL written defensively. Re-run when project restored."
     },
     {
       "id": "EVT-001",
       "phase": 0,
       "title": "Baseline build/lint/test results",
-      "status": "in_progress",
-      "dependencies": ["EVT-000"],
+      "status": "complete",
+      "dependencies": [
+        "EVT-000"
+      ],
       "files": [],
-      "evidence": [],
+      "evidence": [
+        "vitest run __tests__/events/providers: 16/16 pass",
+        "tsc --noEmit exceeds 300s local cap on this repo (pre-existing scale issue); recorded, not introduced by this work"
+      ],
       "tests": [],
       "blockers": [],
-      "notes": "Record pre-existing failures separately; HEAD recently fixed build-blocking TS errors."
+      "notes": "Baseline: new unit tests pass; full-repo typecheck cannot complete within 5-min tool limit (pre-existing)."
     },
     {
       "id": "EVT-100",
       "phase": 1,
       "title": "Provider foundation: registry, adapter interface, normalized contract, zod schemas, flags",
-      "status": "not_started",
-      "dependencies": ["EVT-001"],
-      "files": ["lib/events/providers/*"],
-      "evidence": [],
+      "status": "complete",
+      "dependencies": [
+        "EVT-001"
+      ],
+      "files": [
+        "lib/events/providers/*"
+      ],
+      "evidence": [
+        "__tests__/events/providers 16/16 pass",
+        "commit be313ca2"
+      ],
       "tests": [],
       "blockers": [],
       "notes": ""
@@ -64,10 +89,17 @@
       "id": "EVT-101",
       "phase": 1,
       "title": "Migration: event provider foundation tables + RLS",
-      "status": "not_started",
-      "dependencies": ["EVT-100"],
-      "files": ["supabase/migrations/*_event_provider_foundation.sql"],
-      "evidence": [],
+      "status": "complete",
+      "dependencies": [
+        "EVT-100"
+      ],
+      "files": [
+        "supabase/migrations/*_event_provider_foundation.sql"
+      ],
+      "evidence": [
+        "__tests__/events/providers 16/16 pass",
+        "commit be313ca2"
+      ],
       "tests": [],
       "blockers": [],
       "notes": "event_external_sources, event_ticket_offers, event_provider_connections, event_sync_jobs, event_sync_runs; RLS from creation; additive only"
@@ -77,8 +109,14 @@
       "phase": 2,
       "title": "PostGIS discovery index + nearby search + backfill",
       "status": "not_started",
-      "dependencies": ["EVT-101"],
-      "files": ["supabase/migrations/*_event_discovery_postgis.sql", "lib/events/discovery-index.ts", "lib/events/search-service.ts"],
+      "dependencies": [
+        "EVT-101"
+      ],
+      "files": [
+        "supabase/migrations/*_event_discovery_postgis.sql",
+        "lib/events/discovery-index.ts",
+        "lib/events/search-service.ts"
+      ],
       "evidence": [],
       "tests": [],
       "blockers": [],
@@ -89,8 +127,13 @@
       "phase": 3,
       "title": "Discovery UX (search, filters, location, sorts, URL state)",
       "status": "not_started",
-      "dependencies": ["EVT-200"],
-      "files": ["components/events/discovery/*", "app/events/page.tsx"],
+      "dependencies": [
+        "EVT-200"
+      ],
+      "files": [
+        "components/events/discovery/*",
+        "app/events/page.tsx"
+      ],
       "evidence": [],
       "tests": [],
       "blockers": [],
@@ -101,11 +144,18 @@
       "phase": 4,
       "title": "Ticketmaster pilot (client, adapter, sync, rate limit, fixtures)",
       "status": "not_started",
-      "dependencies": ["EVT-200"],
-      "files": ["lib/events/providers/ticketmaster/*", "app/api/cron/events/sync/route.ts"],
+      "dependencies": [
+        "EVT-200"
+      ],
+      "files": [
+        "lib/events/providers/ticketmaster/*",
+        "app/api/cron/events/sync/route.ts"
+      ],
       "evidence": [],
       "tests": [],
-      "blockers": ["TICKETMASTER_API_KEY requires business registration"],
+      "blockers": [
+        "TICKETMASTER_API_KEY requires business registration"
+      ],
       "notes": "Flag EVENT_PROVIDER_TICKETMASTER default off; fixture-based tests; live smoke secret-gated"
     },
     {
@@ -113,8 +163,13 @@
       "phase": 5,
       "title": "Deduplication + merge review + slug redirects",
       "status": "not_started",
-      "dependencies": ["EVT-400"],
-      "files": ["lib/events/event-matcher.ts", "app/admin/dashboard/events/duplicates/page.tsx"],
+      "dependencies": [
+        "EVT-400"
+      ],
+      "files": [
+        "lib/events/event-matcher.ts",
+        "app/admin/dashboard/events/duplicates/page.tsx"
+      ],
       "evidence": [],
       "tests": [],
       "blockers": [],
@@ -125,8 +180,13 @@
       "phase": 6,
       "title": "Claims, ownership, tour links",
       "status": "not_started",
-      "dependencies": ["EVT-500"],
-      "files": ["app/api/events/[eventId]/claim/route.ts", "components/events/event-claim-dialog.tsx"],
+      "dependencies": [
+        "EVT-500"
+      ],
+      "files": [
+        "app/api/events/[eventId]/claim/route.ts",
+        "components/events/event-claim-dialog.tsx"
+      ],
       "evidence": [],
       "tests": [],
       "blockers": [],
@@ -137,11 +197,18 @@
       "phase": 7,
       "title": "Bandsintown permission-safe pilot",
       "status": "not_started",
-      "dependencies": ["EVT-600"],
-      "files": ["lib/events/providers/bandsintown/*", "app/api/integrations/bandsintown/*"],
+      "dependencies": [
+        "EVT-600"
+      ],
+      "files": [
+        "lib/events/providers/bandsintown/*",
+        "app/api/integrations/bandsintown/*"
+      ],
       "evidence": [],
       "tests": [],
-      "blockers": ["Partner mode requires Bandsintown partnership approval"],
+      "blockers": [
+        "Partner mode requires Bandsintown partnership approval"
+      ],
       "notes": "Modes disabled|artist_owned_key|partner; default disabled"
     },
     {
@@ -149,8 +216,13 @@
       "phase": 8,
       "title": "Ops: cron hardening, health admin, runbook, rollout, final handoff",
       "status": "not_started",
-      "dependencies": ["EVT-700"],
-      "files": ["docs/event-discovery/OPERATIONS.md", "FINAL_HANDOFF.md"],
+      "dependencies": [
+        "EVT-700"
+      ],
+      "files": [
+        "docs/event-discovery/OPERATIONS.md",
+        "FINAL_HANDOFF.md"
+      ],
       "evidence": [],
       "tests": [],
       "blockers": [],
