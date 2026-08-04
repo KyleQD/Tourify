@@ -48,10 +48,6 @@ export function CreateBookingForm({ onClose }: CreateBookingFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    // In a real app, you would submit the form data to your API
-    console.log("Form submitted:", { ...formData, date })
-
     // Close the form
     onClose()
   }

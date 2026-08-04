@@ -10,19 +10,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Camera, MapPin, Save, Plus, Search, Moon, Sun } from "lucide-react"
+import { ArrowLeft, Camera, MapPin, Save, Plus, Search, Moon, Sun, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
 import { useProfile } from "@/context/venue/profile-context"
 import { LoadingSpinner } from "./loading-spinner"
-import { useState, type FormEvent, useEffect } from "react"
+import { useState, useRef, type FormEvent, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { SkillBadge } from "./skill-badge"
 import { ExperienceItem } from "./experience-item"
 import { CertificationItem } from "./certification-item"
 import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { motion, AnimatePresence } from "framer-motion"
+import { supabase } from "@/lib/supabase/client"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { useToast } from "@/hooks/use-toast"
 
 export default function EditProfileContent() {
   const {
@@ -42,6 +45,36 @@ export default function EditProfileContent() {
   } = useProfile()
 
   const router = useRouter()
+  const { venue, updateVenue } = useCurrentVenue()
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+
+  const handleAvatarUpload = async (file: File) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    setIsUploadingAvatar(true)
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true })
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+      // Update both the local profile context and the persisted venue profile
+      updateProfile({ avatar: publicUrl })
+      if (venue?.id) {
+        await updateVenue({ avatarUrl: publicUrl })
+      }
+      toast({ title: "Photo updated", description: "Your profile photo has been saved." })
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message || "Could not upload photo.", variant: "destructive" })
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
   const [newSkill, setNewSkill] = useState("")
   const [skillSearchQuery, setSkillSearchQuery] = useState("")
   const [skillSearchResults, setSkillSearchResults] = useState<string[]>([])
@@ -223,19 +256,25 @@ export default function EditProfileContent() {
                         .join("") || "U"}
                     </AvatarFallback>
                   </Avatar>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleAvatarUpload(file)
+                      e.target.value = ""
+                    }}
+                  />
                   <Button
                     size="icon"
                     className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-purple-600 hover:bg-purple-700"
-                    onClick={() => {
-                      // In a real app, this would open a file picker
-                      const randomNum = Math.floor(Math.random() * 100)
-                      updateProfile({
-                        avatar: `/placeholder.svg?height=96&width=96&text=Profile+${randomNum}`,
-                      })
-                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
                     aria-label="Change profile photo"
                   >
-                    <Camera className="h-4 w-4" />
+                    {isUploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                   </Button>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">Upload a professional profile photo</p>

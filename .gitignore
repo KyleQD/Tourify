@@ -48,3 +48,5 @@ docs/audits/flow-notes/*.json
 
 # macOS
 .DS_Store
+
+.bob/mcp.json

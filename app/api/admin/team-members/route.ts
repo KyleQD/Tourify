@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest, checkAdminPermissions, withAdminAuth } from '@/lib/auth/api-auth'
+import { authenticateApiRequest, checkAdminPermissions, withAdminCapability } from '@/lib/auth/api-auth'
+import {
+  adminAccessErrorResponse,
+  assertAdminEventAccess,
+  assertAdminTourAccess,
+} from '@/lib/admin/admin-tour-event-access'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase: _supabase, user: _user }) => {
+export const GET = withAdminCapability('workforce.view', async (request: NextRequest, { supabase: _supabase, user: _user, admin }) => {
   const auth = { supabase: _supabase, user: _user }
 
   try {
@@ -13,6 +18,24 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase: _supab
     const employerEntityId = searchParams.get('employer_entity_id')
     const eventId = searchParams.get('event_id')
     const tourId = searchParams.get('tour_id')
+
+    // VEND-101 — gate tour/event-scoped workforce reads through canonical access.
+    if (tourId) {
+      await assertAdminTourAccess({
+        supabase: auth.supabase,
+        userId: auth.user.id,
+        tourId,
+        orgId: admin.orgId,
+      })
+    }
+    if (eventId) {
+      await assertAdminEventAccess({
+        supabase: auth.supabase,
+        userId: auth.user.id,
+        eventId,
+        orgId: admin.orgId,
+      })
+    }
 
     // Prefer the unified workforce people graph when employer/event/tour scope is present.
     if (employerEntityId || eventId || tourId || venueId) {
@@ -91,6 +114,10 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase: _supab
     return NextResponse.json({ members: data || [], source: 'venue_team_members' })
   } catch (error: any) {
     console.error('[Team Members] GET exception:', error)
+    const resolved = adminAccessErrorResponse(error, 'Failed to fetch team members', 500)
+    if (resolved.status < 500) {
+      return NextResponse.json({ error: resolved.message }, { status: resolved.status })
+    }
     return NextResponse.json({ error: 'Failed to fetch team members' }, { status: 500 })
   }
 })

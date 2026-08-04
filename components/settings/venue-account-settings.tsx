@@ -41,6 +41,8 @@ import {
   Palette
 } from 'lucide-react'
 
+import { PostStylesSettingsPanel } from '@/components/settings/post-styles-settings-panel'
+
 interface VenueAccountSettingsProps {
   activeTab: string
 }
@@ -2207,6 +2209,9 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
             </form>
           </Form>
         )
+
+      case 'appearance':
+        return <PostStylesSettingsPanel />
 
       default:
         return <div className="text-gray-400">Settings content not found for {activeTab}</div>

@@ -1,6 +1,6 @@
 import { OnboardingKanban } from "@/components/hiring/onboarding-kanban"
 import { HiringMissingScope } from "@/components/hiring"
-import { WorkforceHero, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { WorkforcePageShell } from "@/components/hiring/workforce-ui"
 import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workforce-employer"
 
 interface AdminCandidatesPageProps {
@@ -23,11 +23,6 @@ export default async function AdminCandidatesPage({ searchParams }: AdminCandida
 
   return (
     <WorkforcePageShell>
-      <WorkforceHero
-        title="Candidate Pipeline"
-        description={`Track onboarding progress, compliance review, and document readiness for ${employer.displayName}.`}
-        badge={employer.entityType}
-      />
       <OnboardingKanban employer={employer} initialCandidateId={initialCandidateId} />
     </WorkforcePageShell>
   )

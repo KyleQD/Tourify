@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/context/auth"
-import { useSocial } from "@/contexts/social-context"
 import { useToast } from "@/hooks/venue/use-toast"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
@@ -45,6 +44,11 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import { useRouter } from "next/navigation"
 import type { Post } from "@/components/social/types"
+import {
+  createPostComment,
+  setPostLike,
+  sharePostExternally,
+} from "@/lib/feed/post-engagement-client"
 
 interface User {
   id: string
@@ -93,7 +97,6 @@ export function PostItem({
   className = "",
 }: PostItemProps) {
   const { user: currentUser } = useAuth()
-  const { likePost, unlikePost, addComment } = useSocial()
   const { toast } = useToast()
   const router = useRouter()
 
@@ -115,14 +118,9 @@ export function PostItem({
 
   const handleLikeToggle = async () => {
     try {
-      if (isLiked) {
-        await unlikePost(post.id)
-        setLikeCount((prev) => prev - 1)
-      } else {
-        await likePost(post.id)
-        setLikeCount((prev) => prev + 1)
-      }
-      setIsLiked(!isLiked)
+      const result = await setPostLike(post.id, isLiked ? "unlike" : "like")
+      setLikeCount(result.likes_count)
+      setIsLiked(result.is_liked)
     } catch (error) {
       console.error("Error toggling like:", error)
       toast({
@@ -149,7 +147,7 @@ export function PostItem({
     setIsSubmittingComment(true)
 
     try {
-      await addComment(post.id, commentText)
+      await createPostComment(post.id, commentText)
       setCommentText("")
       toast({
         title: "Comment added",
@@ -167,13 +165,20 @@ export function PostItem({
     }
   }
 
-  const handleShare = () => {
-    // In a real app, this would open a share dialog
-    navigator.clipboard.writeText(`https://tourify.com/posts/${post.id}`)
-    toast({
-      title: "Link copied",
-      description: "Post link has been copied to clipboard.",
-    })
+  const handleShare = async () => {
+    try {
+      await sharePostExternally(post.id, { preferNative: false })
+      toast({
+        title: "Link copied",
+        description: "Post link was copied and the share was saved.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to share post.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePostClick = () => {

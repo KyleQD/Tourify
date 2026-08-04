@@ -1,23 +1,21 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { BriefcaseBusiness, ClipboardCheck, Clock, LayoutDashboard, ScrollText, ShieldCheck, Users } from "lucide-react"
+import { BarChart3, CalendarPlus, Clock, LayoutDashboard, MessageSquare, Users } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
 import type { HiringEntity } from "@/types/hiring-entity"
-import type { HiringDashboardStats } from "@/types/hiring-dashboard"
-import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
-import { useHiringDashboardFetch } from "@/hooks/use-hiring-dashboard-fetch"
-import { ApplicationReviewPanel } from "./application-review-panel"
-import { HiringAuditPanel } from "./hiring-audit-panel"
-import { HiringJobsPanel } from "./hiring-jobs-panel"
-import { OnboardingKanban } from "./onboarding-kanban"
-import { StaffOperationsKpiBar } from "./staff-operations-kpi-bar"
 import { StaffOperationsOverview } from "./staff-operations-overview"
+import { StaffOperationsAnalytics } from "./staff-operations-analytics"
+import { StaffOperationsChannelsDialog } from "./staff-operations-channels-dialog"
 import { TeamRosterPanel } from "./team-roster-panel"
-import { WorkforcePanel } from "./workforce-ui"
+import { WorkforceHero, WorkforcePanel } from "./workforce-ui"
 import { StaffSchedulingTab } from "@/components/admin/staff-scheduling-tab"
+import { WorkforceSLOBanner } from "@/components/admin/workforce/workforce-slo-banner"
+import { SchedulingConflictsPanel } from "@/components/admin/workforce/scheduling-conflicts-panel"
+import { AttendanceCorrectionPanel } from "@/components/admin/workforce/attendance-correction-panel"
 
 interface StaffOperationsTabsProps {
   employer: HiringEntity
@@ -26,12 +24,9 @@ interface StaffOperationsTabsProps {
 
 type StaffOperationsTab =
   | "overview"
-  | "roster"
-  | "applications"
-  | "onboarding"
-  | "jobs"
-  | "audit"
   | "scheduling"
+  | "team"
+  | "analytics"
 
 interface TabConfig {
   value: StaffOperationsTab
@@ -41,42 +36,19 @@ interface TabConfig {
 
 const STAFF_OPERATIONS_TABS: TabConfig[] = [
   { value: "overview", label: "Overview", icon: LayoutDashboard },
-  { value: "roster", label: "Roster", icon: Users },
   { value: "scheduling", label: "Scheduling", icon: Clock },
-  { value: "applications", label: "Applications", icon: ClipboardCheck },
-  { value: "onboarding", label: "Onboarding", icon: ShieldCheck },
-  { value: "jobs", label: "Jobs", icon: BriefcaseBusiness },
-  { value: "audit", label: "Audit", icon: ScrollText },
+  { value: "team", label: "Team", icon: Users },
+  { value: "analytics", label: "Analytics", icon: BarChart3 },
 ]
 
 const VALID_TABS = new Set<string>(STAFF_OPERATIONS_TABS.map((tab) => tab.value))
-
-const EMPTY_STATS: HiringDashboardStats = {
-  totalJobs: 0,
-  publishedJobs: 0,
-  totalApplications: 0,
-  pendingApplications: 0,
-  approvedApplications: 0,
-  rejectedApplications: 0,
-  onboardingTotal: 0,
-  onboardingInProgress: 0,
-  onboardingCompleted: 0,
-  rosterTotal: 0,
-  rosterActive: 0,
-  averageOnboardingProgress: 0,
-  recentActivity: [],
-}
 
 export function StaffOperationsTabs({ employer, initialTab = "overview" }: StaffOperationsTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const queryString = getEmployerQueryString(employer)
-  const { data: stats, isLoading } = useHiringDashboardFetch<HiringDashboardStats>({
-    url: `/api/hiring/dashboard?${queryString}`,
-    initialData: EMPTY_STATS,
-  })
+  const [channelsOpen, setChannelsOpen] = useState(false)
 
   const tabParam = searchParams.get("tab")
   const activeTab = tabParam && VALID_TABS.has(tabParam) ? (tabParam as StaffOperationsTab) : initialTab
@@ -90,13 +62,40 @@ export function StaffOperationsTabs({ employer, initialTab = "overview" }: Staff
     [pathname, router, searchParams],
   )
 
+  const openCreateShift = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "scheduling")
+    params.set("view", "create")
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [pathname, router, searchParams])
+
   return (
-    <div className="space-y-6">
-      <StaffOperationsKpiBar stats={stats} isLoading={isLoading} />
+    <div className="space-y-4">
+      <WorkforceHero
+        eyebrow="Staff Operations"
+        title="Crew command center"
+        description={`Prioritize workforce tasks, cover shifts, coordinate ${employer.displayName}, and keep the active team moving.`}
+        badge={employer.displayName}
+        actions={
+          <>
+            <Button type="button" onClick={openCreateShift} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Create shift
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setChannelsOpen(true)} className="border-slate-600 text-slate-200">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Message teams
+            </Button>
+          </>
+        }
+      />
+
+      {/* WORK-603 — Workforce SLO health banner */}
+      <WorkforceSLOBanner />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <WorkforcePanel className="p-2">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-[1.15rem] bg-slate-900/70 p-1 sm:grid-cols-4 lg:grid-cols-7">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-[1.15rem] bg-slate-900/70 p-1 sm:grid-cols-4">
             {STAFF_OPERATIONS_TABS.map((tab) => {
               const Icon = tab.icon
               return (
@@ -114,27 +113,30 @@ export function StaffOperationsTabs({ employer, initialTab = "overview" }: Staff
         </WorkforcePanel>
 
         <TabsContent value="overview">
-          <StaffOperationsOverview employer={employer} stats={stats} isLoading={isLoading} />
-        </TabsContent>
-        <TabsContent value="roster">
-          <TeamRosterPanel employer={employer} />
+          <StaffOperationsOverview employer={employer} onOpenChannels={() => setChannelsOpen(true)} />
         </TabsContent>
         <TabsContent value="scheduling">
-          <StaffSchedulingTab employer={employer} />
+          <div className="space-y-4">
+            {/* WORK-408 / WORK-410 — Scheduling conflict review */}
+            <SchedulingConflictsPanel />
+            {/* WORK-601 — Attendance and correction ledger */}
+            <AttendanceCorrectionPanel />
+            <StaffSchedulingTab employer={employer} />
+          </div>
         </TabsContent>
-        <TabsContent value="applications">
-          <ApplicationReviewPanel employer={employer} />
+        <TabsContent value="team">
+          <TeamRosterPanel employer={employer} />
         </TabsContent>
-        <TabsContent value="onboarding">
-          <OnboardingKanban employer={employer} />
-        </TabsContent>
-        <TabsContent value="jobs">
-          <HiringJobsPanel employer={employer} />
-        </TabsContent>
-        <TabsContent value="audit">
-          <HiringAuditPanel employer={employer} />
+        <TabsContent value="analytics">
+          <StaffOperationsAnalytics employer={employer} />
         </TabsContent>
       </Tabs>
+
+      <StaffOperationsChannelsDialog
+        open={channelsOpen}
+        onOpenChange={setChannelsOpen}
+        employer={employer}
+      />
     </div>
   )
 }

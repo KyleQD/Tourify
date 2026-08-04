@@ -381,11 +381,18 @@ export async function POST(request: NextRequest) {
     if (updateError)
       return NextResponse.json({ success: false, error: 'Failed to check in ticket' }, { status: 500 })
 
+    const canViewContact = await hasTicketingPermission({
+      supabase,
+      userId: auth.user.id,
+      eventId,
+      permission: 'view_attendee_contact',
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Welcome!',
       buyer_name: sale.buyer_name || sale.buyer_email || 'Guest',
-      buyer_email: sale.buyer_email,
+      buyer_email: canViewContact ? sale.buyer_email : undefined,
       ticket_type: (sale.ticket_types as any)?.name || 'General',
       event_title: (sale.events_v2 as any)?.title || '',
     })
@@ -404,6 +411,13 @@ export async function GET(request: NextRequest) {
   if (!eventId) return NextResponse.json({ error: 'event_id required' }, { status: 400 })
 
   const supabase = createServiceRoleClient()
+  const allowed = await authorizeScanner({
+    supabase,
+    userId: auth.user.id,
+    eventId,
+  })
+  if (!allowed)
+    return NextResponse.json({ error: 'Check-in permission required', code: 'FORBIDDEN' }, { status: 403 })
 
   if (isTicketingV2Enabled()) {
     const [totalRes, checkedInRes, capRes] = await Promise.allSettled([

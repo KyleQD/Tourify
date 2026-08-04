@@ -42,6 +42,7 @@ export async function GET(
           .from('staff_shifts')
           .select('*')
           .eq('event_id', reference.id)
+          .is('deleted_at', null)
           .order('shift_date', { ascending: true }),
         supabase
           .from('staff_members')
@@ -107,6 +108,8 @@ export async function POST(
           event_id: reference.id,
           created_by: user.id,
           status: 'scheduled',
+          // Pass org_id so scheduling queries filtering by org_id can find this shift
+          ...(reference.orgId ? { org_id: reference.orgId } : {}),
         })
         .select('*')
         .single()

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withLogisticsParentOrgId } from '@/lib/admin/logistics-tenant-keys'
 
 export async function POST(
   request: NextRequest,
@@ -36,25 +37,37 @@ export async function POST(
       if (hasOverlap) return NextResponse.json({ error: 'Asset time window conflicts with another reservation' }, { status: 409 })
     }
 
-    const { data, error } = await supabase
-      .from('logistics_task_equipment')
-      .insert({
+    const stamped = await withLogisticsParentOrgId({
+      supabase,
+      parentTable: 'logistics_tasks',
+      parentId: taskId,
+      payload: {
         task_id: taskId,
         equipment_asset_id: equipmentAssetId,
         start_time: startTime,
         end_time: endTime,
-        quantity
-      })
+        quantity,
+      },
+    })
+    if (!stamped.org_id)
+      return NextResponse.json(
+        { error: 'Task parent is outside a resolvable organization scope' },
+        { status: 422 },
+      )
+
+    const { data, error } = await supabase
+      .from('logistics_task_equipment')
+      .insert(stamped)
       .select('*')
       .single()
 
     if (error) throw error
 
-    // Log activity
     await supabase.from('logistics_activity').insert({
       task_id: taskId,
       action: 'equipment_attached',
-      metadata: { equipment_asset_id: equipmentAssetId, start_time: startTime, end_time: endTime, quantity }
+      org_id: stamped.org_id,
+      metadata: { equipment_asset_id: equipmentAssetId, start_time: startTime, end_time: endTime, quantity },
     })
 
     return NextResponse.json({ link: data }, { status: 201 })
@@ -80,12 +93,17 @@ export async function DELETE(
 
     if (error) throw error
 
-    // Log activity
-    await supabase.from('logistics_activity').insert({
-      task_id: taskId,
-      action: 'equipment_detached',
-      metadata: { equipment_asset_id: equipmentAssetId }
+    const activity = await withLogisticsParentOrgId({
+      supabase,
+      parentTable: 'logistics_tasks',
+      parentId: taskId,
+      payload: {
+        task_id: taskId,
+        action: 'equipment_detached',
+        metadata: { equipment_asset_id: equipmentAssetId },
+      },
     })
+    await supabase.from('logistics_activity').insert(activity)
 
     return NextResponse.json({ success: true })
   })(request)

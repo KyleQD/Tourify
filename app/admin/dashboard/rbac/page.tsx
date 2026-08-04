@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from 'react'
+import { useActingContext } from '@/hooks/use-acting-context'
+import { AdminEmptyState } from '../components/admin-empty-state'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,10 +16,14 @@ import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
-import { 
-  useRoleManagement, 
+import {
+  useRoleManagement,
   useRolesAndPermissions,
 } from '@/hooks/use-rbac'
+import { MembershipWorkspace } from '@/components/admin/rbac/membership-workspace'
+import { EntityGrantsPanel } from '@/components/admin/rbac/entity-grants-panel'
+import { AccessReviewPanel } from '@/components/admin/rbac/access-review-panel'
+import { RetentionControlsPanel } from '@/components/admin/rbac/retention-controls-panel'
 import {
   Shield,
   Plus,
@@ -39,12 +45,13 @@ import {
   MessageSquare,
   BarChart3,
   Truck,
-  Music
+  Music,
+  Key,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/types/rbac'
 import { PermissionsMatrix } from '@/components/admin/permissions-matrix'
 import { RbacRoleAssignment } from '@/components/admin/rbac-role-assignment'
-import { WorkforceHero, WorkforcePageShell } from '@/components/hiring/workforce-ui'
+import { WorkforcePageShell } from '@/components/hiring/workforce-ui'
 import type { 
   SystemRole, 
   Permission, 
@@ -77,6 +84,7 @@ const ROLE_COLORS = {
 }
 
 export default function RBACManagementPage() {
+  const { isActingReady } = useActingContext()
   const { toast } = useToast()
   const { roles, permissions, loading, error, refreshData } = useRolesAndPermissions()
   const { assignRole, removeRole } = useRoleManagement()
@@ -187,14 +195,18 @@ export default function RBACManagementPage() {
     return (role as any).active_users ?? 0
   }
 
+  if (!isActingReady) {
+    return (
+      <AdminEmptyState
+        icon={Shield}
+        title="No organization selected"
+        description="Select an organization from the account switcher in the top navigation to continue."
+      />
+    )
+  }
+
   return (
     <WorkforcePageShell>
-      <WorkforceHero
-        title="Roles & Permissions"
-        description="Manage entity RBAC, role assignments, permission matrices, and operational access across Workforce."
-        badge="Entity RBAC"
-      />
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">
@@ -221,8 +233,24 @@ export default function RBACManagementPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="roles" className="space-y-6">
-        <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+      <Tabs defaultValue="membership" className="space-y-6">
+        <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+          <TabsTrigger value="membership" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+            <Users className="h-4 w-4 mr-2" />
+            Members
+          </TabsTrigger>
+          <TabsTrigger value="grants" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+            <Key className="h-4 w-4 mr-2" />
+            Grants
+          </TabsTrigger>
+          <TabsTrigger value="review" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+            <Eye className="h-4 w-4 mr-2" />
+            Access Review
+          </TabsTrigger>
+          <TabsTrigger value="retention" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+            <Lock className="h-4 w-4 mr-2" />
+            Retention
+          </TabsTrigger>
           <TabsTrigger value="roles" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Crown className="h-4 w-4 mr-2" />
             Roles
@@ -233,9 +261,29 @@ export default function RBACManagementPage() {
           </TabsTrigger>
           <TabsTrigger value="matrix" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Settings className="h-4 w-4 mr-2" />
-            Permission Matrix
+            Matrix
           </TabsTrigger>
         </TabsList>
+
+        {/* W11 — SEC-102, SEC-604 — Membership workspace */}
+        <TabsContent value="membership" className="space-y-4">
+          <MembershipWorkspace />
+        </TabsContent>
+
+        {/* W11 — SEC-204 — Entity grants panel */}
+        <TabsContent value="grants" className="space-y-4">
+          <EntityGrantsPanel />
+        </TabsContent>
+
+        {/* W11 — SEC-604 — Access review panel */}
+        <TabsContent value="review" className="space-y-4">
+          <AccessReviewPanel />
+        </TabsContent>
+
+        {/* W11 — SEC-605 — Retention controls */}
+        <TabsContent value="retention" className="space-y-4">
+          <RetentionControlsPanel />
+        </TabsContent>
 
         {/* Roles Tab */}
         <TabsContent value="roles" className="space-y-4">

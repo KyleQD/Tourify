@@ -88,12 +88,35 @@ export default function AnalyticsPage() {
       const rangeStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
       const rangeEnd = new Date().toISOString()
 
-      const [analytics, bookingRequests, reviews, events] = await Promise.all([
+      const [analytics, bookingRequests, reviews, events, ticketingRes] = await Promise.all([
         venueService.getVenueAnalytics(venue.id, days),
         venueService.getVenueBookingRequests(venue.id),
         venueService.getVenueReviews(venue.id),
         venueService.getVenueEventsByRange(venue.id, rangeStart, rangeEnd),
+        fetch(`/api/venue/ticketing?venue_id=${encodeURIComponent(venue.id)}`, {
+          credentials: "include",
+          cache: "no-store",
+        }).catch(() => null),
       ])
+
+      const ticketingPayload = ticketingRes && ticketingRes.ok ? await ticketingRes.json() : null
+      const ticketingEvents = Array.isArray(ticketingPayload?.summary?.events)
+        ? ticketingPayload.summary.events
+        : []
+      const ticketsSold = ticketingEvents.reduce(
+        (sum: number, event: { tickets_sold?: number }) => sum + Number(event.tickets_sold || 0),
+        0,
+      )
+      const ticketRevenue = ticketingEvents.reduce(
+        (sum: number, event: { gross_revenue?: number }) => sum + Number(event.gross_revenue || 0),
+        0,
+      )
+      const ticketingById = new Map(
+        ticketingEvents.map((event: { id: string; tickets_sold?: number; gross_revenue?: number }) => [
+          String(event.id),
+          event,
+        ]),
+      )
 
       // Process analytics data
       const totalRevenue = analytics.reduce((sum, day) => sum + (day.revenue || 0), 0)
@@ -129,7 +152,10 @@ export default function AnalyticsPage() {
           ? (event.settings as Record<string, unknown>)
           : {}
         const type = String(settings.event_type || event.type || "other")
-        const revenue = Number(settings.ticket_price || 0) * Number(event.capacity || 0)
+        const ticketRow = ticketingById.get(String(event.id)) as
+          | { gross_revenue?: number }
+          | undefined
+        const revenue = Number(ticketRow?.gross_revenue || 0)
         const current = eventTypeMap.get(type) || { count: 0, revenue: 0 }
         current.count += 1
         current.revenue += Number.isFinite(revenue) ? revenue : 0
@@ -147,10 +173,13 @@ export default function AnalyticsPage() {
         const settings = event.settings && typeof event.settings === "object"
           ? (event.settings as Record<string, unknown>)
           : {}
+        const ticketRow = ticketingById.get(String(event.id)) as
+          | { tickets_sold?: number; gross_revenue?: number }
+          | undefined
         return {
           name: String(event.title || "Event"),
-          revenue: Number(settings.ticket_price || 0) * Number(event.capacity || 0),
-          attendance: Number(event.capacity || 0),
+          revenue: Number(ticketRow?.gross_revenue || 0),
+          attendance: Number(ticketRow?.tickets_sold || 0),
           type: String(settings.event_type || event.type || "other"),
           rating: Number(averageRating.toFixed(1)),
         }
@@ -168,8 +197,8 @@ export default function AnalyticsPage() {
           change: previousAttendance > 0 ? ((currentAttendance - previousAttendance) / previousAttendance) * 100 : 0
         },
         ticketSales: {
-          current: approvedBookings.reduce((sum, request) => sum + Number(request.expected_attendance || 0), 0),
-          previous: Math.max(0, approvedBookings.length > 0 ? approvedBookings.length * 50 : 0),
+          current: ticketsSold,
+          previous: ticketRevenue,
           change: conversionRate
         },
         avgDuration: {

@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AdminFilterBar } from "@/app/admin/dashboard/components/admin-filter-bar"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 interface StaffMember {
@@ -235,19 +237,20 @@ export function StaffRosterPanel() {
 
       {/* Add Member Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white">Add Staff Member</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Add Staff Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">Search existing user</Label>
+              <Label className={cn(detailSurfacePattern.label, "text-xs")}>Search existing user</Label>
               <div className="relative">
                 <Input
                   value={userSearch}
                   onChange={e => { setUserSearch(e.target.value); void searchUsers(e.target.value) }}
                   placeholder="Search by name or email..."
-                  className="bg-slate-800/50 border-slate-700/50 text-white text-sm"
+                  className={cn(detailSurfacePattern.input, "text-sm")}
                 />
                 {userResults.length > 0 && (
                   <div className="absolute top-full left-0 right-0 bg-slate-900 border border-slate-700 rounded-sm mt-1 z-50 max-h-40 overflow-y-auto">
@@ -267,19 +270,19 @@ export function StaffRosterPanel() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-xs">Full Name *</Label>
-                <Input value={addForm.full_name} onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                <Label className={cn(detailSurfacePattern.label, "text-xs")}>Full Name *</Label>
+                <Input value={addForm.full_name} onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} className={cn(detailSurfacePattern.input, "text-sm")} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-xs">Email</Label>
-                <Input type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                <Label className={cn(detailSurfacePattern.label, "text-xs")}>Email</Label>
+                <Input type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} className={cn(detailSurfacePattern.input, "text-sm")} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-xs">Role</Label>
+                <Label className={cn(detailSurfacePattern.label, "text-xs")}>Role</Label>
                 <Select value={addForm.role} onValueChange={v => setAddForm(p => ({ ...p, role: v }))}>
-                  <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={cn(detailSurfacePattern.selectTrigger, "text-sm")}><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     {['tour_manager','event_coordinator','crew_chief','crew_member','security','vendor','sound_engineer','stage_manager','production_manager'].map(r => (
                       <SelectItem key={r} value={r}>{r.replace(/_/g, ' ')}</SelectItem>
@@ -288,9 +291,9 @@ export function StaffRosterPanel() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-xs">Scope</Label>
+                <Label className={cn(detailSurfacePattern.label, "text-xs")}>Scope</Label>
                 <Select value={addForm.entity_type} onValueChange={v => setAddForm(p => ({ ...p, entity_type: v }))}>
-                  <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={cn(detailSurfacePattern.selectTrigger, "text-sm")}><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     <SelectItem value="org">Org-wide</SelectItem>
                     <SelectItem value="event">Event</SelectItem>
@@ -302,8 +305,8 @@ export function StaffRosterPanel() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-slate-700 text-slate-300">Cancel</Button>
-            <Button onClick={addMember} disabled={saving} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
+            <Button variant="outline" onClick={() => setShowAdd(false)} className={detailSurfacePattern.btnOutline}>Cancel</Button>
+            <Button onClick={addMember} disabled={saving} className={detailSurfacePattern.btnPrimary}>
               {saving ? 'Adding...' : 'Add Member'}
             </Button>
           </DialogFooter>
@@ -312,14 +315,15 @@ export function StaffRosterPanel() {
 
       {/* Delete confirm */}
       <AlertDialog open={!!deleteMember} onOpenChange={() => setDeleteMember(null)}>
-        <AlertDialogContent className="bg-slate-900 border-slate-700">
+        <AlertDialogContent className={cn(detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Remove Staff Member?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">Remove {deleteMember?.full_name || deleteMember?.email} from the roster?</AlertDialogDescription>
+            <AlertDialogTitle className={detailSurfacePattern.title}>Remove Staff Member?</AlertDialogTitle>
+            <AlertDialogDescription className={detailSurfacePattern.description}>Remove {deleteMember?.full_name || deleteMember?.email} from the roster?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-700 text-slate-300">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white border-0">Remove</AlertDialogAction>
+            <AlertDialogCancel className={detailSurfacePattern.btnOutline}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className={detailSurfacePattern.btnDestructive}>Remove</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

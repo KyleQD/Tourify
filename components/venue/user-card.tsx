@@ -35,7 +35,7 @@ export function UserCard({
       onConnect()
     } else {
       // Mock sendConnectionRequest for now
-      console.log("Sending connection request to:", user.id)
+      
     }
   }
 

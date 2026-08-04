@@ -1,48 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
-
-const VALID_STATUS = new Set(['pending','confirmed','in_progress','completed','cancelled','needs_attention'])
+import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { resolveActingAdminContext } from '@/lib/auth/admin-context'
+import {
+  executeLogisticsCommand,
+  getLogisticsCommandErrorStatus,
+  LogisticsCommandError,
+} from '@/lib/admin/logistics-command.service'
+import {
+  LogisticsStatusTransitionError,
+  parseLogisticsCommand,
+} from '@/lib/admin/logistics-command-schemas'
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-  return withAdminAuth(async (req) => {
-    const supabase = await createClient()
-    const { status } = await req.json()
+  const auth = await authenticateApiRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    if (!VALID_STATUS.has(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
+  const admin = await resolveActingAdminContext(request, auth)
+  if (admin instanceof NextResponse) return admin
 
-    // Fetch current status
-    const { data: current, error: fetchErr } = await supabase
-      .from('logistics_tasks')
-      .select('id, status')
-      .eq('id', id)
-      .single()
-    if (fetchErr || !current) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
-
-    const { data, error } = await supabase
-      .from('logistics_tasks')
-      .update({ status })
-      .eq('id', id)
-      .select('*')
-      .single()
-    if (error) throw error
-
-    // Log activity
-    await supabase.from('logistics_activity').insert({
-      task_id: id,
-      action: 'status_changed',
-      prev_status: current.status,
-      new_status: status
+  try {
+    const body = await request.json()
+    const parsed = parseLogisticsCommand({
+      action: 'transition_task_status',
+      id,
+      status: body.status,
     })
-
-    return NextResponse.json({ item: data })
-  })(request)
+    if (!parsed.ok) {
+      return NextResponse.json(
+        { success: false, error: parsed.error, details: parsed.details, code: 'validation_failed' },
+        { status: 400 },
+      )
+    }
+    const result = await executeLogisticsCommand({
+      supabase: auth.supabase,
+      userId: auth.user.id,
+      orgId: admin.orgId,
+      command: parsed.data,
+    })
+    return NextResponse.json({ item: result.data, message: result.message })
+  } catch (error) {
+    const status = getLogisticsCommandErrorStatus(error, 500)
+    const message = error instanceof Error ? error.message : 'Failed to update status'
+    const code =
+      error instanceof LogisticsCommandError || error instanceof LogisticsStatusTransitionError
+        ? error.code
+        : 'status_failed'
+    return NextResponse.json({ success: false, error: message, code }, { status })
+  }
 }
-
-

@@ -54,6 +54,16 @@ export async function POST(
 
     const body = await request.json()
 
+    // Valid values for the site_map_elements_element_type_check constraint
+    const VALID_ELEMENT_TYPES = new Set([
+      'path', 'road', 'fence', 'tree', 'building', 'utility_line',
+      'water_source', 'power_station', 'waste_disposal', 'sign', 'marker', 'custom',
+    ])
+    const normalizeElementType = (raw: string | undefined): string => {
+      if (raw && VALID_ELEMENT_TYPES.has(raw)) return raw
+      return 'custom'
+    }
+
     // Batch upsert mode for canvas sync/autosave
     if (Array.isArray(body.elements)) {
       const incomingElements = body.elements as any[]
@@ -63,7 +73,7 @@ export async function POST(
         id: element.id,
         site_map_id: id,
         name: element.name || element.label || `element_${Date.now()}`,
-        element_type: element.elementType || element.type || 'custom',
+        element_type: normalizeElementType(element.elementType || element.type),
         x: element.x ?? 0,
         y: element.y ?? 0,
         width: element.width ?? 0,

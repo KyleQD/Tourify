@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/use-toast'
 import { ArrowRight, ExternalLink, Globe, Loader2, Save, Sparkles, Users } from 'lucide-react'
+import { PostStylesSettingsPanel } from '@/components/settings/post-styles-settings-panel'
 import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import {
   ORGANIZATION_SUBTYPES,
@@ -125,6 +126,10 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
     }
   }
 
+  if (activeTab === 'appearance') {
+    return <PostStylesSettingsPanel />
+  }
+
   if (activeTab === 'team') {
     return (
       <Card className={isBand ? "rounded-lg border-slate-700/50 bg-slate-950/60 shadow-xl shadow-black/25 backdrop-blur" : "bg-white/5 border-white/10"}>
@@ -195,6 +200,10 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
         </CardContent>
       </Card>
     )
+  }
+
+  if (activeTab === 'appearance') {
+    return <PostStylesSettingsPanel />
   }
 
   if (activeTab !== 'profile') {

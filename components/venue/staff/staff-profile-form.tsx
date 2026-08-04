@@ -11,6 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { 
   User, 
@@ -201,13 +203,13 @@ export function StaffProfileForm({
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card className="bg-gray-900 border-gray-800">
+      <Card className={detailSurfacePattern.panel}>
         <CardHeader>
-          <CardTitle className="text-white text-xl font-bold flex items-center space-x-2">
+          <CardTitle className={cn(detailSurfacePattern.title, "text-xl font-bold flex items-center space-x-2")}>
             {isEditing ? <Edit className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
             <span>{isEditing ? "Edit Staff Profile" : "Create New Staff Profile"}</span>
           </CardTitle>
-          <CardDescription className="text-gray-400">
+          <CardDescription className={detailSurfacePattern.description}>
             {isEditing 
               ? "Update staff member information and details"
               : "Add a new staff member to your venue team"
@@ -218,12 +220,12 @@ export function StaffProfileForm({
         <form onSubmit={handleSubmit}>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-5 bg-gray-800 border-gray-700">
-                <TabsTrigger value="personal" className="text-gray-300">Personal</TabsTrigger>
-                <TabsTrigger value="employment" className="text-gray-300">Employment</TabsTrigger>
-                <TabsTrigger value="contact" className="text-gray-300">Contact</TabsTrigger>
-                <TabsTrigger value="emergency" className="text-gray-300">Emergency</TabsTrigger>
-                <TabsTrigger value="avatar" className="text-gray-300">Avatar</TabsTrigger>
+              <TabsList className={cn(detailSurfacePattern.tabsList, "grid grid-cols-5")}>
+                <TabsTrigger value="personal" className={detailSurfacePattern.tabsTrigger}>Personal</TabsTrigger>
+                <TabsTrigger value="employment" className={detailSurfacePattern.tabsTrigger}>Employment</TabsTrigger>
+                <TabsTrigger value="contact" className={detailSurfacePattern.tabsTrigger}>Contact</TabsTrigger>
+                <TabsTrigger value="emergency" className={detailSurfacePattern.tabsTrigger}>Emergency</TabsTrigger>
+                <TabsTrigger value="avatar" className={detailSurfacePattern.tabsTrigger}>Avatar</TabsTrigger>
               </TabsList>
 
               <ScrollArea className="h-[60vh] mt-6">
@@ -232,93 +234,93 @@ export function StaffProfileForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="first_name" className="text-gray-300">First Name *</Label>
+                        <Label htmlFor="first_name" className={detailSurfacePattern.label}>First Name *</Label>
                         <Input
                           id="first_name"
                           value={formData.first_name}
                           onChange={(e) => handleInputChange('first_name', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="Enter first name"
                           required
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="last_name" className="text-gray-300">Last Name *</Label>
+                        <Label htmlFor="last_name" className={detailSurfacePattern.label}>Last Name *</Label>
                         <Input
                           id="last_name"
                           value={formData.last_name}
                           onChange={(e) => handleInputChange('last_name', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="Enter last name"
                           required
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="pronouns" className="text-gray-300">Pronouns</Label>
+                        <Label htmlFor="pronouns" className={detailSurfacePattern.label}>Pronouns</Label>
                         <Input
                           id="pronouns"
                           value={formData.pronouns}
                           onChange={(e) => handleInputChange('pronouns', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="e.g., they/them, she/her, he/him"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="date_of_birth" className="text-gray-300">Date of Birth</Label>
+                        <Label htmlFor="date_of_birth" className={detailSurfacePattern.label}>Date of Birth</Label>
                         <Input
                           id="date_of_birth"
                           type="date"
                           value={formData.date_of_birth}
                           onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                         />
                       </div>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="bio" className="text-gray-300">Bio</Label>
+                        <Label htmlFor="bio" className={detailSurfacePattern.label}>Bio</Label>
                         <Textarea
                           id="bio"
                           value={formData.bio}
                           onChange={(e) => handleInputChange('bio', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white min-h-[120px]"
+                          className={cn(detailSurfacePattern.textarea, "min-h-[120px]")}
                           placeholder="Tell us about this staff member..."
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="address" className="text-gray-300">Address</Label>
+                        <Label htmlFor="address" className={detailSurfacePattern.label}>Address</Label>
                         <Textarea
                           id="address"
                           value={formData.address}
                           onChange={(e) => handleInputChange('address', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="Enter full address"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="city" className="text-gray-300">City</Label>
+                          <Label htmlFor="city" className={detailSurfacePattern.label}>City</Label>
                           <Input
                             id="city"
                             value={formData.city}
                             onChange={(e) => handleInputChange('city', e.target.value)}
-                            className="bg-gray-800 border-gray-700 text-white"
+                            className={detailSurfacePattern.input}
                             placeholder="City"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="state" className="text-gray-300">State</Label>
+                          <Label htmlFor="state" className={detailSurfacePattern.label}>State</Label>
                           <Input
                             id="state"
                             value={formData.state}
                             onChange={(e) => handleInputChange('state', e.target.value)}
-                            className="bg-gray-800 border-gray-700 text-white"
+                            className={detailSurfacePattern.input}
                             placeholder="State"
                           />
                         </div>
@@ -326,22 +328,22 @@ export function StaffProfileForm({
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="postal_code" className="text-gray-300">Postal Code</Label>
+                          <Label htmlFor="postal_code" className={detailSurfacePattern.label}>Postal Code</Label>
                           <Input
                             id="postal_code"
                             value={formData.postal_code}
                             onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                            className="bg-gray-800 border-gray-700 text-white"
+                            className={detailSurfacePattern.input}
                             placeholder="Postal code"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="country" className="text-gray-300">Country</Label>
+                          <Label htmlFor="country" className={detailSurfacePattern.label}>Country</Label>
                           <Input
                             id="country"
                             value={formData.country}
                             onChange={(e) => handleInputChange('country', e.target.value)}
-                            className="bg-gray-800 border-gray-700 text-white"
+                            className={detailSurfacePattern.input}
                             placeholder="Country"
                           />
                         </div>
@@ -355,38 +357,38 @@ export function StaffProfileForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="role" className="text-gray-300">Role/Position *</Label>
+                        <Label htmlFor="role" className={detailSurfacePattern.label}>Role/Position *</Label>
                         <Input
                           id="role"
                           value={formData.role}
                           onChange={(e) => handleInputChange('role', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="e.g., Sound Engineer, Bar Manager"
                           required
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="department" className="text-gray-300">Department</Label>
+                        <Label htmlFor="department" className={detailSurfacePattern.label}>Department</Label>
                         <Input
                           id="department"
                           value={formData.department}
                           onChange={(e) => handleInputChange('department', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="e.g., Technical, Operations"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="role_category" className="text-gray-300">Role Category</Label>
+                        <Label htmlFor="role_category" className={detailSurfacePattern.label}>Role Category</Label>
                         <Select 
                           value={formData.role_category} 
                           onValueChange={(value) => handleInputChange('role_category', value)}
                         >
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                             <SelectValue placeholder="Select role category" />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
+                          <SelectContent className={detailSurfacePattern.input}>
                             {roleCategories.map((category) => {
                               const Icon = category.icon
                               return (
@@ -403,15 +405,15 @@ export function StaffProfileForm({
                       </div>
 
                       <div>
-                        <Label htmlFor="role_level" className="text-gray-300">Role Level</Label>
+                        <Label htmlFor="role_level" className={detailSurfacePattern.label}>Role Level</Label>
                         <Select 
                           value={formData.role_level} 
                           onValueChange={(value) => handleInputChange('role_level', value)}
                         >
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
+                          <SelectContent className={detailSurfacePattern.input}>
                             {roleLevels.map((level) => (
                               <SelectItem key={level.value} value={level.value}>
                                 {level.label}
@@ -424,15 +426,15 @@ export function StaffProfileForm({
 
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="employment_type" className="text-gray-300">Employment Type</Label>
+                        <Label htmlFor="employment_type" className={detailSurfacePattern.label}>Employment Type</Label>
                         <Select 
                           value={formData.employment_type} 
                           onValueChange={(value) => handleInputChange('employment_type', value)}
                         >
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
+                          <SelectContent className={detailSurfacePattern.input}>
                             {employmentTypes.map((type) => (
                               <SelectItem key={type.value} value={type.value}>
                                 {type.label}
@@ -443,7 +445,7 @@ export function StaffProfileForm({
                       </div>
 
                       <div>
-                        <Label htmlFor="hourly_rate" className="text-gray-300">Hourly Rate ($)</Label>
+                        <Label htmlFor="hourly_rate" className={detailSurfacePattern.label}>Hourly Rate ($)</Label>
                         <Input
                           id="hourly_rate"
                           type="number"
@@ -451,32 +453,32 @@ export function StaffProfileForm({
                           min="0"
                           value={formData.hourly_rate || ""}
                           onChange={(e) => handleInputChange('hourly_rate', e.target.value ? parseFloat(e.target.value) : undefined)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="0.00"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="hire_date" className="text-gray-300">Hire Date</Label>
+                        <Label htmlFor="hire_date" className={detailSurfacePattern.label}>Hire Date</Label>
                         <Input
                           id="hire_date"
                           type="date"
                           value={formData.hire_date}
                           onChange={(e) => handleInputChange('hire_date', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="pay_frequency" className="text-gray-300">Pay Frequency</Label>
+                        <Label htmlFor="pay_frequency" className={detailSurfacePattern.label}>Pay Frequency</Label>
                         <Select 
                           value={formData.pay_frequency} 
                           onValueChange={(value) => handleInputChange('pay_frequency', value)}
                         >
-                          <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                          <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                             <SelectValue placeholder="Select pay frequency" />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
+                          <SelectContent className={detailSurfacePattern.input}>
                             {payFrequencies.map((frequency) => (
                               <SelectItem key={frequency.value} value={frequency.value}>
                                 {frequency.label}
@@ -494,44 +496,44 @@ export function StaffProfileForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="email" className="text-gray-300">Email Address *</Label>
+                        <Label htmlFor="email" className={detailSurfacePattern.label}>Email Address *</Label>
                         <Input
                           id="email"
                           type="email"
                           value={formData.email}
                           onChange={(e) => handleInputChange('email', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="staff@venue.com"
                           required
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="phone" className="text-gray-300">Phone Number</Label>
+                        <Label htmlFor="phone" className={detailSurfacePattern.label}>Phone Number</Label>
                         <Input
                           id="phone"
                           type="tel"
                           value={formData.phone}
                           onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="(555) 123-4567"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-4">
-                      <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                      <div className={cn("p-4", detailSurfacePattern.panel)}>
                         <h4 className="text-white font-medium mb-3 flex items-center space-x-2">
                           <Mail className="h-4 w-4" />
                           <span>Contact Information</span>
                         </h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Email:</span>
+                            <span className={detailSurfacePattern.description}>Email:</span>
                             <span className="text-white">{formData.email || "Not provided"}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Phone:</span>
+                            <span className={detailSurfacePattern.description}>Phone:</span>
                             <span className="text-white">{formData.phone || "Not provided"}</span>
                           </div>
                         </div>
@@ -545,24 +547,24 @@ export function StaffProfileForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="emergency_name" className="text-gray-300">Emergency Contact Name</Label>
+                        <Label htmlFor="emergency_name" className={detailSurfacePattern.label}>Emergency Contact Name</Label>
                         <Input
                           id="emergency_name"
                           value={emergencyContact.name}
                           onChange={(e) => handleEmergencyContactChange('name', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="Full name"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="emergency_phone" className="text-gray-300">Emergency Contact Phone</Label>
+                        <Label htmlFor="emergency_phone" className={detailSurfacePattern.label}>Emergency Contact Phone</Label>
                         <Input
                           id="emergency_phone"
                           type="tel"
                           value={emergencyContact.phone}
                           onChange={(e) => handleEmergencyContactChange('phone', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="(555) 123-4567"
                         />
                       </div>
@@ -570,50 +572,50 @@ export function StaffProfileForm({
 
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="emergency_relationship" className="text-gray-300">Relationship</Label>
+                        <Label htmlFor="emergency_relationship" className={detailSurfacePattern.label}>Relationship</Label>
                         <Input
                           id="emergency_relationship"
                           value={emergencyContact.relationship}
                           onChange={(e) => handleEmergencyContactChange('relationship', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="e.g., Spouse, Parent, Friend"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="emergency_email" className="text-gray-300">Emergency Contact Email</Label>
+                        <Label htmlFor="emergency_email" className={detailSurfacePattern.label}>Emergency Contact Email</Label>
                         <Input
                           id="emergency_email"
                           type="email"
                           value={emergencyContact.email}
                           onChange={(e) => handleEmergencyContactChange('email', e.target.value)}
-                          className="bg-gray-800 border-gray-700 text-white"
+                          className={detailSurfacePattern.input}
                           placeholder="emergency@email.com"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                  <div className={cn("p-4", detailSurfacePattern.panel)}>
                     <h4 className="text-white font-medium mb-3 flex items-center space-x-2">
                       <Heart className="h-4 w-4" />
                       <span>Emergency Contact Summary</span>
                     </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-400">Name:</span>
+                        <span className={detailSurfacePattern.description}>Name:</span>
                         <span className="text-white ml-2">{emergencyContact.name || "Not provided"}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Phone:</span>
+                        <span className={detailSurfacePattern.description}>Phone:</span>
                         <span className="text-white ml-2">{emergencyContact.phone || "Not provided"}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Relationship:</span>
+                        <span className={detailSurfacePattern.description}>Relationship:</span>
                         <span className="text-white ml-2">{emergencyContact.relationship || "Not provided"}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400">Email:</span>
+                        <span className={detailSurfacePattern.description}>Email:</span>
                         <span className="text-white ml-2">{emergencyContact.email || "Not provided"}</span>
                       </div>
                     </div>
@@ -648,7 +650,7 @@ export function StaffProfileForm({
 
                     <div className="text-center space-y-4">
                       <div>
-                        <Label htmlFor="avatar_upload" className="text-gray-300 cursor-pointer">
+                        <Label htmlFor="avatar_upload" className={cn(detailSurfacePattern.label, "cursor-pointer")}>
                           <div className="flex items-center space-x-2">
                             <Upload className="h-5 w-5" />
                             <span>Upload Profile Picture</span>
@@ -662,7 +664,7 @@ export function StaffProfileForm({
                           className="hidden"
                         />
                       </div>
-                      <p className="text-gray-400 text-sm">
+                      <p className={detailSurfacePattern.subtleText}>
                         Recommended: Square image, 400x400 pixels or larger
                       </p>
                     </div>
@@ -679,14 +681,14 @@ export function StaffProfileForm({
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                className={detailSurfacePattern.btnOutline}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={!validateForm() || isLoading}
-                className="bg-blue-600 hover:bg-blue-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">

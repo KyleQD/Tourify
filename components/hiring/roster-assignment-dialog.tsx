@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
+import { useActingContext } from "@/hooks/use-acting-context"
 
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 import type { HiringEntity } from "@/types/hiring-entity"
 import type { RosterMember } from "@/types/hiring-roster-work-mode"
 
@@ -27,6 +30,7 @@ interface ShiftOption {
 interface EventOption {
   id: string
   label: string
+  tourId?: string
 }
 
 interface ManagerOption {
@@ -58,6 +62,7 @@ export function RosterAssignmentDialog({
   contextEventId = null,
   contextTourId = null,
 }: RosterAssignmentDialogProps) {
+  const { actingHeaders } = useActingContext()
   const [eventId, setEventId] = useState(contextEventId || "")
   const [tourId, setTourId] = useState(contextTourId || employer.scope?.tourId || "")
   const [events, setEvents] = useState<EventOption[]>([])
@@ -66,7 +71,7 @@ export function RosterAssignmentDialog({
   const [shifts, setShifts] = useState<ShiftOption[]>([])
   const [managers, setManagers] = useState<ManagerOption[]>([])
   const [isLoadingShifts, setIsLoadingShifts] = useState(false)
-  const [zone, setZone] = useState(member?.assignedZone ?? "")
+  const [zone, setZone] = useState(member?.position ?? "")
   const [assignedManagerId, setAssignedManagerId] = useState(member?.assignedManagerId ?? "")
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -77,7 +82,7 @@ export function RosterAssignmentDialog({
       setEventId(contextEventId || "")
       setTourId(contextTourId || employer.scope?.tourId || "")
       setShiftId("")
-      setZone(member?.assignedZone ?? "")
+      setZone(member?.position ?? "")
       setAssignedManagerId(member?.assignedManagerId ?? "")
       setNotes("")
       setError(null)
@@ -91,13 +96,13 @@ export function RosterAssignmentDialog({
     async function loadOptions() {
       try {
         const [eventsResponse, toursResponse, managersResponse] = await Promise.allSettled([
-          fetch("/api/admin/events", { credentials: "include", cache: "no-store" }),
-          fetch("/api/admin/tours", { credentials: "include", cache: "no-store" }),
+          fetch("/api/admin/events", { credentials: "include", cache: "no-store", headers: actingHeaders }),
+          fetch("/api/admin/tours", { credentials: "include", cache: "no-store", headers: actingHeaders }),
           fetch(
             `/api/hiring/roster?entity_type=${encodeURIComponent(employer.entityType)}&entity_id=${encodeURIComponent(
               employer.entityId
             )}&status=active&limit=200`,
-            { credentials: "include", cache: "no-store" }
+            { credentials: "include", cache: "no-store", headers: actingHeaders }
           ),
         ])
 
@@ -111,6 +116,8 @@ export function RosterAssignmentDialog({
               .map((event: any) => ({
                 id: String(event.id),
                 label: String(event.name ?? event.title ?? "Untitled event"),
+                // events_v2 response includes a `tours` array from the join — grab the first tour's id
+                tourId: event.tours?.[0]?.id ? String(event.tours[0].id) : undefined,
               }))
               .filter((event: EventOption) => event.id)
           )
@@ -156,8 +163,23 @@ export function RosterAssignmentDialog({
     }
   }, [employer.entityId, employer.entityType, member?.id, open])
 
+  // When tour changes, clear the event selection so the filtered list takes effect
   useEffect(() => {
-    if (!open || !eventId) {
+    if (!contextEventId) setEventId("")
+    setShiftId("")
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourId])
+
+  // Events visible in the dropdown — filtered by selected tour when one is chosen
+  const visibleEvents = tourId
+    ? events.filter((e) => e.tourId === tourId)
+    : events
+
+  // The effective single eventId for shift loading (not "__all_tour_events__")
+  const singleEventId = eventId && eventId !== "__all_tour_events__" ? eventId : ""
+
+  useEffect(() => {
+    if (!open || !singleEventId) {
       setShifts([])
       return
     }
@@ -166,7 +188,7 @@ export function RosterAssignmentDialog({
     async function loadShifts() {
       setIsLoadingShifts(true)
       try {
-        const response = await fetch(`/api/events/${eventId}/staff`, { credentials: "include", cache: "no-store" })
+        const response = await fetch(`/api/events/${singleEventId}/staff`, { credentials: "include", cache: "no-store", headers: actingHeaders })
         const data = await response.json().catch(() => ({}))
         if (cancelled) return
         const rows = Array.isArray(data?.shifts) ? data.shifts : []
@@ -192,16 +214,16 @@ export function RosterAssignmentDialog({
     return () => {
       cancelled = true
     }
-  }, [open, eventId])
+  }, [open, singleEventId])
 
-  async function ensureShiftStub(): Promise<string | undefined> {
-    if (shiftId) return shiftId
-    if (!eventId || !member) return undefined
+  async function ensureShiftStub(targetEventId: string): Promise<string | undefined> {
+    if (shiftId && eventId === targetEventId) return shiftId
+    if (!targetEventId || !member) return undefined
 
-    const response = await fetch(`/api/events/${eventId}/staff`, {
+    const response = await fetch(`/api/events/${targetEventId}/staff`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actingHeaders },
       body: JSON.stringify({
         staff_member_id: member.id,
         shift_date: new Date().toISOString().slice(0, 10),
@@ -216,6 +238,27 @@ export function RosterAssignmentDialog({
     return data?.shift?.id || data?.data?.id
   }
 
+  async function callAssignmentApi(targetEventId?: string, targetTourId?: string, resolvedShiftId?: string) {
+    const response = await fetch(`/api/hiring/roster/${member!.id}/assignment`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...actingHeaders },
+      body: JSON.stringify({
+        employer_entity_type: employer.entityType,
+        employer_entity_id: employer.entityId,
+        event_id: targetEventId || undefined,
+        tour_id: targetTourId || undefined,
+        shift_id: resolvedShiftId || undefined,
+        zone: zone || undefined,
+        assigned_manager_id: assignedManagerId || undefined,
+        notes: notes || undefined,
+      }),
+    })
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload.error ?? "Failed to assign staff member")
+    return payload.data
+  }
+
   async function handleSubmit() {
     if (!member) return
 
@@ -223,27 +266,43 @@ export function RosterAssignmentDialog({
     setError(null)
 
     try {
-      const resolvedShiftId = eventId ? await ensureShiftStub() : undefined
-      const response = await fetch(`/api/hiring/roster/${member.id}/assignment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          employer_entity_type: employer.entityType,
-          employer_entity_id: employer.entityId,
-          event_id: eventId || undefined,
-          tour_id: tourId || undefined,
-          shift_id: resolvedShiftId || undefined,
-          zone: zone || undefined,
-          assigned_manager_id: assignedManagerId || undefined,
-          notes: notes || undefined,
-        }),
-      })
+      if (eventId === "__all_tour_events__") {
+        // Fan-out: assign to every event in the selected tour individually,
+        // then record one tour-level assignment with no specific event.
+        const tourEvents = visibleEvents // already filtered to this tour
+        let failed = 0
+        let lastMember = null
 
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload.error ?? "Failed to assign staff member")
+        for (const ev of tourEvents) {
+          try {
+            const resolvedShiftId = await ensureShiftStub(ev.id)
+            lastMember = await callAssignmentApi(ev.id, tourId || undefined, resolvedShiftId)
+          } catch {
+            failed++
+          }
+        }
 
-      onAssigned(payload.data)
-      onOpenChange(false)
+        // Tour-level record (no event_id)
+        try {
+          lastMember = await callAssignmentApi(undefined, tourId || undefined, undefined)
+        } catch {
+          failed++
+        }
+
+        if (failed > 0 && failed >= tourEvents.length + 1) {
+          throw new Error(`All assignments failed (${failed})`)
+        }
+
+        if (lastMember) onAssigned(lastMember)
+        if (failed > 0) setError(`${failed} of ${tourEvents.length + 1} assignments failed — the rest succeeded.`)
+        else onOpenChange(false)
+      } else {
+        // Single event or tour-only assignment
+        const resolvedShiftId = singleEventId ? await ensureShiftStub(singleEventId) : undefined
+        const data = await callAssignmentApi(singleEventId || undefined, tourId || undefined, resolvedShiftId)
+        onAssigned(data)
+        onOpenChange(false)
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Failed to assign staff member")
     } finally {
@@ -253,22 +312,23 @@ export function RosterAssignmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className={cn(detailSurfacePattern.dialogContent, "sm:max-w-lg")}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle>Assign staff member</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className={detailSurfacePattern.title}>Assign {member?.profile.fullName ?? "staff member"}</DialogTitle>
+          <DialogDescription className={detailSurfacePattern.description}>
             Assign {member?.profile.fullName ?? "this staff member"} to a tour, event, shift, zone, or manager.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="tour-id">Tour</Label>
+            <Label htmlFor="tour-id" className={detailSurfacePattern.label}>Tour</Label>
             {contextTourId || employer.scope?.tourId ? (
-              <Input id="tour-id" value={tourId} readOnly />
+              <Input id="tour-id" className={detailSurfacePattern.input} value={tourId} readOnly />
             ) : (
               <Select value={tourId || "__none__"} onValueChange={(value) => setTourId(value === "__none__" ? "" : value)}>
-                <SelectTrigger id="tour-id">
+                <SelectTrigger id="tour-id" className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Select tour" />
                 </SelectTrigger>
                 <SelectContent>
@@ -283,17 +343,22 @@ export function RosterAssignmentDialog({
             )}
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="event-id">Event</Label>
+            <Label htmlFor="event-id" className={detailSurfacePattern.label}>Event</Label>
             {contextEventId ? (
-              <Input id="event-id" value={eventId} readOnly />
+              <Input id="event-id" className={detailSurfacePattern.input} value={eventId} readOnly />
             ) : (
               <Select value={eventId || "__none__"} onValueChange={(value) => setEventId(value === "__none__" ? "" : value)}>
-                <SelectTrigger id="event-id">
+                <SelectTrigger id="event-id" className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Select event" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">No event</SelectItem>
-                  {events.map((event) => (
+                  {tourId && visibleEvents.length > 0 && (
+                    <SelectItem value="__all_tour_events__">
+                      All events in {tours.find((t) => t.id === tourId)?.label ?? "this tour"}
+                    </SelectItem>
+                  )}
+                  {visibleEvents.map((event) => (
                     <SelectItem key={event.id} value={event.id}>
                       {event.label}
                     </SelectItem>
@@ -303,22 +368,24 @@ export function RosterAssignmentDialog({
             )}
           </div>
           <div className="grid gap-2">
-            <Label>Shift</Label>
+            <Label className={detailSurfacePattern.label}>Shift</Label>
             <Select
               value={shiftId || "__create__"}
               onValueChange={(value) => setShiftId(value === "__create__" ? "" : value)}
-              disabled={!eventId || isLoadingShifts}
+              disabled={!singleEventId || isLoadingShifts || eventId === "__all_tour_events__"}
             >
-              <SelectTrigger>
+              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                 <SelectValue
                   placeholder={
-                    !eventId
-                      ? "Select an event first"
-                      : isLoadingShifts
-                        ? "Loading shifts…"
-                        : shifts.length
-                          ? "Select a shift"
-                          : "Create shift stub on assign"
+                    eventId === "__all_tour_events__"
+                      ? "Shift stubs created per event"
+                      : !singleEventId
+                        ? "Select an event first"
+                        : isLoadingShifts
+                          ? "Loading shifts…"
+                          : shifts.length
+                            ? "Select a shift"
+                            : "Create shift stub on assign"
                   }
                 />
               </SelectTrigger>
@@ -335,16 +402,22 @@ export function RosterAssignmentDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="zone">Zone</Label>
-            <Input id="zone" value={zone} onChange={(event) => setZone(event.target.value)} placeholder="Main gate, FOH, backstage" />
+            <Label htmlFor="zone" className={detailSurfacePattern.label}>Zone</Label>
+            <Input
+              id="zone"
+              className={detailSurfacePattern.input}
+              value={zone}
+              onChange={(event) => setZone(event.target.value)}
+              placeholder="Main gate, FOH, backstage"
+            />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="manager-id">Assigned manager ID</Label>
+            <Label htmlFor="manager-id" className={detailSurfacePattern.label}>Assigned manager</Label>
             <Select
               value={assignedManagerId || "__none__"}
               onValueChange={(value) => setAssignedManagerId(value === "__none__" ? "" : value)}
             >
-              <SelectTrigger id="manager-id">
+              <SelectTrigger id="manager-id" className={detailSurfacePattern.selectTrigger}>
                 <SelectValue placeholder="Select manager" />
               </SelectTrigger>
               <SelectContent>
@@ -358,17 +431,31 @@ export function RosterAssignmentDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="assignment-notes">Notes</Label>
-            <Textarea id="assignment-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+            <Label htmlFor="assignment-notes" className={detailSurfacePattern.label}>Notes</Label>
+            <Textarea
+              id="assignment-notes"
+              className={detailSurfacePattern.textarea}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-sm text-red-300">{error}</p> : null}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+        <DialogFooter className={detailSurfacePattern.footer}>
+          <Button
+            variant="outline"
+            className={detailSurfacePattern.btnOutline}
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !member}>
+          <Button
+            className={detailSurfacePattern.btnPrimary}
+            onClick={handleSubmit}
+            disabled={isSubmitting || !member}
+          >
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Assign
           </Button>

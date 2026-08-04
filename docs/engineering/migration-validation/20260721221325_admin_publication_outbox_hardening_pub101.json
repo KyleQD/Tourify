@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260721221325_admin_publication_outbox_hardening_pub101.sql",
+  "taskId": "PUB-101",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["publication", "delivery", "audit"],
+  "riskLevel": "high",
+  "representativeSnapshot": { "kind": "isolated production-like Supabase branch", "evidenceArtifact": null },
+  "preflight": { "rowCountQueries": ["outbox rows by org/state/attempt count plus stale claims"], "expectedAffectedRows": "Function replacement only; zero persisted rows changed during migration", "artifact": null },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 60000, "batchSize": 0, "resumeStrategy": "Transactional CREATE OR REPLACE functions; retry from migration version", "resumeCursor": "supabase migration version 20260721221325", "idempotency": "Function definitions converge; runtime commands retain caller idempotency keys" },
+  "quarantine": { "required": false, "table": null, "strategy": "No migration backfill; malformed or cross-org runtime work fails closed" },
+  "constraintsAndIndexes": { "constraints": [], "indexes": [], "validationPlan": "Exercise claim, stale recovery, replay, dead-letter, and conflicting-key cases under concurrency" },
+  "recovery": { "rollback": "Replace functions with last reviewed definitions without deleting outbox history", "forwardFix": "Apply later function replacements and replay only explicitly selected failed work" },
+  "postflight": { "queries": ["function/grant inventory and concurrent outbox lifecycle checks"], "artifact": null, "securityAdvisorArtifact": null, "performanceAdvisorArtifact": null },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

@@ -64,6 +64,7 @@ function authorFromArtistRow(resolvedProfileId: string, data: Record<string, any
     username: data?.url_slug || data?.username || slugLike(name),
     avatarUrl: data?.avatar_url || data?.profile_image_url || data?.image_url || null,
     isVerified: Boolean(data?.is_verified || data?.verified),
+    subtype: data?.profile_type || data?.account_type || null,
   }
 }
 
@@ -76,6 +77,7 @@ function authorFromVenueRow(resolvedProfileId: string, data: Record<string, any>
     username: data?.username || data?.url_slug || slugLike(name),
     avatarUrl: data?.avatar_url || data?.profile_image_url || data?.image_url || null,
     isVerified: Boolean(data?.is_verified || data?.verified),
+    subtype: data?.venue_type || data?.profile_type || null,
   }
 }
 
@@ -88,6 +90,7 @@ function authorFromOrgRow(resolvedProfileId: string, data: Record<string, any> |
     username: data?.username || data?.url_slug || slugLike(name),
     avatarUrl: data?.avatar_url || data?.logo_url || data?.image_url || null,
     isVerified: Boolean(data?.is_verified || data?.verified),
+    subtype: data?.organization_type || data?.subtype || data?.account_type || null,
   }
 }
 
@@ -148,6 +151,7 @@ export async function resolveAccountAuthorSnapshotsBatch(
   for (const item of parsed) {
     if (item.accountType === 'artist' || item.accountType === 'service') {
       const row = item.profileId ? artistMap.get(item.profileId) || null : null
+      if (!row) continue
       const author = authorFromArtistRow(item.profileId, row)
       author.type = item.accountType
       result.set(item.key, author)
@@ -155,25 +159,31 @@ export async function resolveAccountAuthorSnapshotsBatch(
     }
 
     if (item.accountType === 'venue') {
+      const row = item.profileId ? venueMap.get(item.profileId) || null : null
+      if (!row) continue
       result.set(
         item.key,
-        authorFromVenueRow(item.profileId, item.profileId ? venueMap.get(item.profileId) || null : null)
+        authorFromVenueRow(item.profileId, row)
       )
       continue
     }
 
     if (item.accountType === 'organization') {
+      const row = item.profileId ? orgMap.get(item.profileId) || null : null
+      if (!row) continue
       result.set(
         item.key,
-        authorFromOrgRow(item.profileId, item.profileId ? orgMap.get(item.profileId) || null : null)
+        authorFromOrgRow(item.profileId, row)
       )
       continue
     }
 
     const generalId = item.userId || item.profileId || ''
+    const row = generalId ? profileMap.get(generalId) || null : null
+    if (!row) continue
     result.set(
       item.key,
-      authorFromProfileRow(generalId, generalId ? profileMap.get(generalId) || null : null)
+      authorFromProfileRow(generalId, row)
     )
   }
 

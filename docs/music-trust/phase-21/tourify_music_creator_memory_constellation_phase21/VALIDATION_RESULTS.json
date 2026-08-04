@@ -1,0 +1,26 @@
+{
+  "phase": 21,
+  "generatedAt": "2026-07-20T00:00:00Z",
+  "checks": {
+    "jsonSchema": "passed",
+    "uniqueTaskIds": "passed",
+    "taskDependencies": "passed",
+    "typescript": "passed",
+    "manifestChecksums": "passed",
+    "zipIntegrity": "passed"
+  },
+  "errors": [],
+  "counts": {
+    "numberedDocuments": 69,
+    "stages": 25,
+    "tasks": 425,
+    "featureFlags": 45,
+    "typescriptReferences": 12,
+    "referenceTests": 4,
+    "sqlOutlines": 4,
+    "apiExamples": 7,
+    "totalFiles": 105,
+    "zipMembers": 105
+  },
+  "status": "passed"
+}

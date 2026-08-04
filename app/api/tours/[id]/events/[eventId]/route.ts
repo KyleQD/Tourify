@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
+import {
+  adminAccessErrorResponse,
+  assertAdminTourAccess,
+} from '@/lib/admin/admin-tour-event-access'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
+
+/** SEC-201 — retire owner-only tour.user_id checks. */
 
 const updateEventSchema = z.object({
   name: z.string().min(1, 'Event name is required').optional(),
@@ -73,22 +79,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
   const { id, eventId } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability('event.view', async (_request, { user, supabase, admin }) => {
     try {
-
-    // Verify tour ownership
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      if (tourError.code === 'PGRST116') return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
-
-    if (tour.user_id !== user.id) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    await assertAdminTourAccess({
+      supabase,
+      userId: user.id,
+      tourId: id,
+      orgId: admin.orgId,
+    })
 
     const { data: link } = await supabase
       .from('tour_events')
@@ -125,10 +123,9 @@ export async function GET(
 
       return NextResponse.json({ success: true, event })
     } catch (error) {
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      const resolved = adminAccessErrorResponse(error, 'Internal server error', 500)
+      return NextResponse.json({ error: resolved.message }, { status: resolved.status })
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
 }
 
@@ -137,25 +134,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
   const { id, eventId } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability('event.manage', async (_request, { user, supabase, admin }) => {
     try {
+    await assertAdminTourAccess({
+      supabase,
+      userId: user.id,
+      tourId: id,
+      orgId: admin.orgId,
+    })
 
     const body = await request.json()
     const validatedData = updateEventSchema.parse(body)
-
-    // Verify tour ownership
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      if (tourError.code === 'PGRST116') return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
-
-    if (tour.user_id !== user.id) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
 
     const { data: link } = await supabase
       .from('tour_events')
@@ -268,10 +257,9 @@ export async function PATCH(
       if (error instanceof z.ZodError) {
         return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
       }
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      const resolved = adminAccessErrorResponse(error, 'Internal server error', 500)
+      return NextResponse.json({ error: resolved.message }, { status: resolved.status })
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
 }
 
@@ -280,22 +268,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
   const { id, eventId } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability('event.manage', async (_request, { user, supabase, admin }) => {
     try {
-
-    // Verify tour ownership
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      if (tourError.code === 'PGRST116') return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
-
-    if (tour.user_id !== user.id) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    await assertAdminTourAccess({
+      supabase,
+      userId: user.id,
+      tourId: id,
+      orgId: admin.orgId,
+    })
 
     const { data: link } = await supabase
       .from('tour_events')
@@ -334,10 +314,9 @@ export async function DELETE(
 
       return NextResponse.json({ success: true, message: 'Event deleted successfully' })
     } catch (error) {
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      const resolved = adminAccessErrorResponse(error, 'Internal server error', 500)
+      return NextResponse.json({ error: resolved.message }, { status: resolved.status })
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
 }
 

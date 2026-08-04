@@ -4,8 +4,8 @@ import dynamic from "next/dynamic"
 import { BriefcaseBusiness, ClipboardCheck, FileText, LayoutDashboard, ScrollText, ShieldCheck, Users } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { HiringDashboardProps, HiringDashboardTab } from "@/types/hiring-dashboard"
-import { getEmployerLabel } from "@/lib/hiring/hiring-dashboard-utils"
-import { WorkforceHero, WorkforcePanel } from "./workforce-ui"
+import { WorkforcePanel } from "./workforce-ui"
+import { WorkforceSLOBanner } from "@/components/admin/workforce/workforce-slo-banner"
 
 const HiringOverviewPanel = dynamic(
   () => import("./hiring-overview-panel").then((mod) => ({ default: mod.HiringOverviewPanel })),
@@ -62,12 +62,9 @@ const HIRING_DASHBOARD_TABS: TabConfig[] = [
 
 export function HiringDashboardShell({ employer, initialTab = "overview" }: HiringDashboardProps) {
   return (
-    <section className="space-y-6">
-      <WorkforceHero
-        title="Hiring & Onboarding"
-        description={`Real-time hiring, onboarding, roster, and Work Mode readiness for ${getEmployerLabel(employer)}.`}
-        badge={employer.entityType}
-      />
+    <section className="space-y-4">
+      {/* WORK-603 — Workforce SLO health banner */}
+      <WorkforceSLOBanner />
 
       <Tabs defaultValue={initialTab} className="space-y-6">
         <WorkforcePanel className="p-2">

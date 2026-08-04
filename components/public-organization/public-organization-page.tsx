@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Building2, CalendarDays, Briefcase, Users, MapPin, ExternalLink, MessageCircle } from 'lucide-react'
+import { Building2, CalendarDays, Briefcase, Users, MapPin, ExternalLink, MessageCircle, Heart, Share2 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ import {
   hasPublicEventsModule,
   hasServicesJobsModule,
 } from '@/lib/organizations/org-subtypes'
+import { PostAppearanceBoundary } from '@/components/posts/appearance/post-appearance-boundary'
+import { usePostStyleFlags } from '@/hooks/use-post-style-flags'
 
 function eventHref(event: { id: string; slug: string | null }) {
   return event.slug ? `/events/${encodeURIComponent(event.slug)}` : `/events/${event.id}`
@@ -29,6 +31,7 @@ function initials(name: string) {
 }
 
 export function PublicOrganizationPage({ dto }: { dto: PublicOrganizationPageDTO }) {
+  const { flags: postStyleFlags } = usePostStyleFlags()
   const [isMessageOpen, setIsMessageOpen] = useState(false)
   const website =
     typeof dto.contactInfo.website === 'string' ? dto.contactInfo.website : null
@@ -147,16 +150,38 @@ export function PublicOrganizationPage({ dto }: { dto: PublicOrganizationPageDTO
           ) : (
             <ul className="space-y-3">
               {dto.posts.map((post) => (
-                <li
-                  key={post.id}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
-                >
-                  <p className="text-slate-200 whitespace-pre-wrap text-sm">{post.content}</p>
-                  <div className="text-xs text-slate-500 mt-2 flex gap-3">
-                    {post.createdAt ? <span>{new Date(post.createdAt).toLocaleDateString()}</span> : null}
-                    <span>{post.likesCount} likes</span>
-                    <span>{post.commentsCount} comments</span>
+                <li key={post.id}>
+                  <PostAppearanceBoundary
+                    postId={post.id}
+                    appearance={post.appearance}
+                    enabled={postStyleFlags.post_styles_read}
+                    surface="profile"
+                  >
+                  <div data-slot="card" className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <div data-post-region="header" className="mb-3 flex items-center gap-3">
+                      <Avatar className="h-9 w-9 border border-white/15">
+                        <AvatarImage src={dto.avatarUrl || undefined} alt={dto.name} />
+                        <AvatarFallback className="bg-slate-800 text-xs">{initials(dto.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <Link href={`/organization/${encodeURIComponent(dto.slug)}`} className="font-medium text-slate-100 hover:underline">
+                          {dto.name}
+                        </Link>
+                        {post.createdAt ? (
+                          <p data-post-region="metadata" className="text-xs text-slate-500">
+                            {new Date(post.createdAt).toLocaleDateString()}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <p data-post-region="body" className="whitespace-pre-wrap text-sm text-slate-200">{post.content}</p>
+                    <div data-post-region="actions" className="mt-3 flex gap-4 border-t border-white/10 pt-3 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5" />{post.likesCount}</span>
+                      <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" />{post.commentsCount}</span>
+                      <span className="inline-flex items-center gap-1"><Share2 className="h-3.5 w-3.5" />{post.sharesCount}</span>
+                    </div>
                   </div>
+                  </PostAppearanceBoundary>
                 </li>
               ))}
             </ul>

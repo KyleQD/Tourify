@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
+import { useActingContext } from "@/hooks/use-acting-context"
 import Link from "next/link"
+import { FreshnessWatermark } from "@/components/admin/analytics/freshness-watermark"
+import { DataQualityAlerts } from "@/components/admin/analytics/data-quality-alerts"
+import { ExportJobsPanel } from "@/components/admin/analytics/export-jobs-panel"
+import { TourBookPanel } from "@/components/admin/analytics/tour-book-panel"
+import { CalendarFeedsPanel } from "@/components/admin/analytics/calendar-feeds-panel"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,10 +18,12 @@ import type { AdminDashboardStats } from "@/types/admin"
 import type { LucideIcon } from "lucide-react"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminStatCard } from "../components/admin-stat-card"
+import { AdminEmptyState } from "../components/admin-empty-state"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import { PollAnalyticsPanel } from "@/components/polls/poll-analytics-panel"
 import {
   BarChart3,
+  Building2,
   TrendingUp,
   TrendingDown,
   Users,
@@ -133,6 +141,7 @@ interface LiveFeedItem {
 }
 
 export default function AnalyticsPage() {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const [stats, setStats] = useState<AdminDashboardStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -146,7 +155,7 @@ export default function AnalyticsPage() {
   const [liveFeed, setLiveFeed] = useState<LiveFeedItem[]>([])
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  function buildNoStoreInit(): RequestInit {
+  function buildNoStoreInit(extraHeaders?: Record<string, string>): RequestInit {
     return {
       credentials: "include",
       cache: "no-store",
@@ -154,6 +163,7 @@ export default function AnalyticsPage() {
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
         Pragma: "no-cache",
+        ...extraHeaders,
       },
     }
   }
@@ -174,7 +184,6 @@ export default function AnalyticsPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (err: any) {
-      // eslint-disable-next-line no-console
       console.error(err)
     } finally {
       setIsExporting(false)
@@ -182,6 +191,7 @@ export default function AnalyticsPage() {
   }
 
   const fetchStats = useCallback(async () => {
+    if (!isActingReady) return
     setIsLoading(true)
     setError(null)
     try {
@@ -190,10 +200,10 @@ export default function AnalyticsPage() {
       if (dateTo) params.set('to', dateTo)
       const paramStr = params.toString() ? `?${params}` : ''
       const [statsRes, finRes, eventsRes, topRes] = await Promise.allSettled([
-        fetch(`/api/admin/dashboard/stats${paramStr}`, buildNoStoreInit()).then(r => r.json()),
-        fetch(`/api/admin/finances?type=overview${paramStr ? `&${params}` : ''}`, buildNoStoreInit()).then(r => r.json()),
-        fetch("/api/admin/events", buildNoStoreInit()).then(r => r.json()),
-        fetch(`/api/admin/analytics/top-performers${paramStr}`, buildNoStoreInit()).then(r => r.ok ? r.json() : { artists: [], events: [] }),
+        fetch(`/api/admin/dashboard/stats${paramStr}`, buildNoStoreInit(actingHeaders)).then(r => r.json()),
+        fetch(`/api/admin/finances?type=overview${paramStr ? `&${params}` : ''}`, buildNoStoreInit(actingHeaders)).then(r => r.json()),
+        fetch("/api/admin/events", buildNoStoreInit(actingHeaders)).then(r => r.json()),
+        fetch(`/api/admin/analytics/top-performers${paramStr}`, buildNoStoreInit(actingHeaders)).then(r => r.ok ? r.json() : { artists: [], events: [] }),
       ])
 
       if (statsRes.status === 'fulfilled' && statsRes.value.success) {
@@ -220,7 +230,7 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [dateFrom, dateTo])
+  }, [dateFrom, dateTo, isActingReady, actingHeaders])
 
   const revenueChartData = useMemo(() => {
     const grouped: Record<string, { month: string; income: number; expenses: number }> = {}
@@ -284,6 +294,16 @@ export default function AnalyticsPage() {
 
   const s = stats ?? EMPTY_STATS
 
+  if (!isActingReady) {
+    return (
+      <AdminEmptyState
+        icon={Building2}
+        title="No organization selected"
+        description="Select an organization from the account switcher in the top navigation to continue."
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -303,6 +323,9 @@ export default function AnalyticsPage() {
                 className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
               />
               Refresh
+            </Button>
+            <Button asChild variant="outline" className="border-slate-700 text-slate-300">
+              <Link href="/admin/dashboard/finances">Finances</Link>
             </Button>
             <Button
               type="button"
@@ -378,6 +401,21 @@ export default function AnalyticsPage() {
           <AdminStatCard title="Total Events" value={s.totalEvents} icon={CalendarIcon} color="blue" size="lg" isLoading={isLoading && stats === null} />
           <AdminStatCard title="Tickets Sold" value={s.ticketsSold} icon={Users} color="purple" size="lg" isLoading={isLoading && stats === null} />
           <AdminStatCard title="Upcoming Events" value={s.upcomingEvents} icon={Ticket} color="amber" size="lg" isLoading={isLoading && stats === null} />
+        </div>
+
+        {/* REP-601/602 — Data freshness watermark and quality alerts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <FreshnessWatermark />
+          <DataQualityAlerts />
+        </div>
+
+        {/* EXP-601/602 — Export jobs */}
+        <ExportJobsPanel />
+
+        {/* EXP-603 / EXP-604 — Tour book and calendar feeds */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TourBookPanel />
+          <CalendarFeedsPanel />
         </div>
 
         <Tabs defaultValue="performance" className="w-full">

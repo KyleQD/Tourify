@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -24,6 +24,14 @@ import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useAuth } from "@/contexts/auth-context"
 import { PollVoteCard } from "@/components/polls/poll-vote-card"
+import { usePostStyleFlags } from "@/hooks/use-post-style-flags"
+import { resolvePostAppearanceDTO } from "@/lib/feed/resolve-post-appearance-dto"
+import {
+  createPostComment,
+  setPostLike,
+  sharePostExternally,
+} from "@/lib/feed/post-engagement-client"
+import { StyledPostRoot } from "@/components/posts/appearance/styled-post-root"
 
 interface Post {
   id: string
@@ -45,6 +53,18 @@ interface Post {
     avatar_url?: string
     is_verified: boolean
   }
+  /**
+   * Optional appearance snapshot from post_appearances LEFT JOIN.
+   * Populated via /api/feed/posts when POST_SELECT_COLUMNS includes the join (Task 5).
+   */
+  appearance?: {
+    template_id?: string | null
+    template_version?: number | null
+    schema_version?: number | null
+    snapshot_hash?: string | null
+    status?: string | null
+    snapshot?: unknown
+  } | null
 }
 
 interface Comment {
@@ -70,15 +90,16 @@ interface ProfilePostsProps {
   className?: string
 }
 
-export function ProfilePosts({ 
-  profileId, 
-  profileUsername, 
+export function ProfilePosts({
+  profileId,
+  profileUsername,
   ownerUserId,
-  isOwnProfile = false, 
+  isOwnProfile = false,
   compact = false,
-  className 
+  className
 }: ProfilePostsProps) {
   const { user: currentUser } = useAuth()
+  const { flags } = usePostStyleFlags()
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())
@@ -140,6 +161,8 @@ export function ProfilePosts({
           avatar_url: post.profiles?.avatar_url || '',
           is_verified: Boolean(post.profiles?.is_verified),
         },
+        // Pass through post_appearances snapshot when present (Task 5 JOIN)
+        appearance: post.post_appearances ?? post.appearance ?? null,
       }))
 
       setPosts(transformedPosts)
@@ -161,38 +184,18 @@ export function ProfilePosts({
       const isLiked = likedPosts.has(postId)
       const action = isLiked ? 'unlike' : 'like'
 
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ action })
+      const result = await setPostLike(postId, action)
+      setLikedPosts(prev => {
+        const next = new Set(prev)
+        if (result.is_liked) next.add(postId)
+        else next.delete(postId)
+        return next
       })
-
-      if (response.ok) {
-        // Update like state
-        setLikedPosts(prev => {
-          const newSet = new Set(prev)
-          if (isLiked) {
-            newSet.delete(postId)
-          } else {
-            newSet.add(postId)
-          }
-          return newSet
-        })
-
-        // Update like count in posts
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { 
-                ...post, 
-                likes_count: post.likes_count + (isLiked ? -1 : 1),
-                is_liked: !isLiked
-              }
-            : post
-        ))
-      }
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, likes_count: result.likes_count, is_liked: result.is_liked }
+          : post
+      ))
     } catch (error) {
       console.error('Error toggling like:', error)
       toast.error('Failed to update like')
@@ -235,37 +238,33 @@ export function ProfilePosts({
     if (!currentUser || !newComment.trim()) return
 
     try {
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ content: newComment.trim() })
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        
-        // Add the new comment to local state
-        setComments(prev => ({
-          ...prev,
-          [postId]: [...(prev[postId] || []), result.comment]
-        }))
-        
-        // Update comments count
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, comments_count: post.comments_count + 1 }
-            : post
-        ))
-
-        setNewComment('')
-        setShowComments(postId)
-      }
+      const result = await createPostComment(postId, newComment.trim())
+      setComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), result.comment]
+      }))
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, comments_count: result.comments_count }
+          : post
+      ))
+      setNewComment('')
+      setShowComments(postId)
     } catch (error) {
       console.error('Error adding comment:', error)
       toast.error('Failed to add comment')
+    }
+  }
+
+  const handleShare = async (postId: string) => {
+    try {
+      const result = await sharePostExternally(postId)
+      setPosts(prev => prev.map(post =>
+        post.id === postId ? { ...post, shares_count: result.shares_count } : post
+      ))
+      toast.success('Post shared')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to share post')
     }
   }
 
@@ -325,13 +324,10 @@ export function ProfilePosts({
             <MessageCircle className="h-16 w-16 mx-auto mb-6 opacity-50" />
             <h3 className="text-xl font-semibold text-white mb-3">No Posts Yet</h3>
             <p className="text-gray-400">
-              {isOwnProfile ? "You haven't shared any posts yet." : `${profileUsername} hasn't shared any posts yet.`}
+              {isOwnProfile
+                ? "You haven't shared any posts yet."
+                : `${profileUsername} hasn't shared any posts yet.`}
             </p>
-            {isOwnProfile && (
-              <Button className="mt-4 bg-purple-600 hover:bg-purple-700">
-                Create Your First Post
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -349,10 +345,15 @@ export function ProfilePosts({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {posts.map((post) => (
-          <div key={post.id} className="space-y-4">
+        {posts.map((post) => {
+          const postAppearanceDTO = flags.post_styles_read
+            ? resolvePostAppearanceDTO(post.appearance ?? null, post.id)
+            : { mode: 'standard' as const }
+
+          const postCardInner = (
+          <div key={post.id} data-slot="card" className="space-y-4 p-5">
             {/* Post Header */}
-            <div className="flex items-center justify-between">
+            <div data-post-region="header" className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={post.user?.avatar_url} alt={post.user?.full_name} />
@@ -384,7 +385,7 @@ export function ProfilePosts({
             </div>
 
             {/* Post Content */}
-            <div className="space-y-3">
+            <div data-post-region="body" className="space-y-3">
               {post.type === 'poll' && post.poll ? (
                 <PollVoteCard postId={post.id} poll={post.poll} />
               ) : post.content ? (
@@ -392,7 +393,7 @@ export function ProfilePosts({
               ) : null}
               
               {post.media_url && post.type !== 'poll' && (
-                <div className="rounded-xl overflow-hidden bg-white/5">
+                <div data-post-media className="rounded-xl overflow-hidden bg-white/5">
                   {post.type === 'image' && (
                     <img 
                       src={post.media_url} 
@@ -419,7 +420,7 @@ export function ProfilePosts({
             </div>
 
             {/* Post Actions */}
-            <div className="flex items-center justify-between border-t border-white/10 pt-4">
+            <div data-post-region="actions" className="flex items-center justify-between border-t border-white/10 pt-4">
               <div className="flex items-center gap-6">
                 <Button
                   variant="ghost"
@@ -447,6 +448,7 @@ export function ProfilePosts({
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => handleShare(post.id)}
                   className="text-white/80 hover:bg-white/10 gap-2"
                 >
                   <Share2 className="h-4 w-4" />
@@ -457,7 +459,7 @@ export function ProfilePosts({
 
             {/* Comments Section */}
             {showComments === post.id && (
-              <div className="space-y-4 border-t border-white/10 pt-4">
+              <div data-post-region="comments" className="space-y-4 border-t border-white/10 pt-4">
                 {loadingComments[post.id] ? (
                   <div className="text-center py-4">
                     <div className="animate-spin h-6 w-6 border-2 border-white/20 border-t-white/60 rounded-full mx-auto"></div>
@@ -510,7 +512,19 @@ export function ProfilePosts({
               </div>
             )}
           </div>
-        ))}
+          )
+
+          // --- Styled path ---
+          if (postAppearanceDTO.mode === 'styled') {
+            return (
+              <StyledPostRoot key={post.id} postId={post.id} appearance={postAppearanceDTO} surface="profile">
+                {postCardInner}
+              </StyledPostRoot>
+            )
+          }
+
+          return <React.Fragment key={post.id}>{postCardInner}</React.Fragment>
+        })}
 
         {!compact && posts.length >= 5 && (
           <div className="text-center pt-4">

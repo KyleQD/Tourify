@@ -560,6 +560,15 @@ export class EnhancedStaffProfilesService {
         throw error
       }
 
+      if (typeof window !== 'undefined' && data?.id) {
+        void fetch('/api/workforce/requests/notify', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: data.id, requestType: 'availability' }),
+        }).catch(() => {})
+      }
+
       return data
     } catch (error) {
       console.error('Error in updateAvailability:', error)
@@ -602,6 +611,15 @@ export class EnhancedStaffProfilesService {
       if (error) {
         console.error('Error creating time off request:', error)
         throw error
+      }
+
+      if (typeof window !== 'undefined' && data?.id) {
+        void fetch('/api/workforce/requests/notify', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: data.id, requestType: 'time_off' }),
+        }).catch(() => {})
       }
 
       return data
@@ -735,4 +753,4 @@ export class EnhancedStaffProfilesService {
       throw error
     }
   }
-} 
+}

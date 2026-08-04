@@ -1,0 +1,12 @@
+{
+  "request": {
+    "researchType": "orbital",
+    "productionDeploymentRequested": true
+  },
+  "response": {
+    "allowed": false,
+    "reasons": [
+      "production_orbital_deployment_disabled"
+    ]
+  }
+}

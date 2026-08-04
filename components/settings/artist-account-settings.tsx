@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -38,6 +39,22 @@ import {
   Palette,
   BarChart3
 } from 'lucide-react'
+import { PostStylesSettingsPanel } from '@/components/settings/post-styles-settings-panel'
+
+const ArtistProfileThemeStudio = dynamic(
+  () =>
+    import('@/components/settings/artist-profile-theme-studio').then(
+      (module) => module.ArtistProfileThemeStudio
+    ),
+  {
+    loading: () => (
+      <div className="flex min-h-72 items-center justify-center text-sm text-white/60">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        Loading Profile Studio…
+      </div>
+    ),
+  }
+)
 
 interface ArtistAccountSettingsProps {
   activeTab: string
@@ -400,7 +417,7 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
     }
   }
 
-  if (isLoading && !artistProfile) {
+  if (activeTab !== 'appearance' && isLoading && !artistProfile) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
@@ -410,6 +427,15 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'appearance':
+        return (
+          <div className="space-y-8">
+            <ArtistProfileThemeStudio />
+            <Separator className="bg-white/10" />
+            <PostStylesSettingsPanel />
+          </div>
+        )
+
       case 'profile':
         return (
           <div className="space-y-6">
@@ -1018,4 +1044,4 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
       {renderTabContent()}
     </div>
   )
-} 
+}

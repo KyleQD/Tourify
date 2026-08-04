@@ -6,6 +6,10 @@ import {
   resolvePollFollowerFlags,
 } from '@/lib/polls/poll-eligibility'
 import { buildPollPayload } from '@/lib/polls/hydrate-polls'
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from '@/lib/config/audit-feature-gates'
 
 async function loadPollBundle(supabase: any, postId: string) {
   const { data: post, error: postError } = await supabase
@@ -36,6 +40,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAuditFeatureApproved('polls')) return auditFeatureUnavailable('polls')
   try {
     const resolved = await params
     const postId = resolved.id
@@ -82,6 +87,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAuditFeatureApproved('polls')) return auditFeatureUnavailable('polls')
   try {
     const resolved = await params
     const postId = resolved.id

@@ -12,12 +12,48 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  production-debug:
+    name: Production Debug Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Scanner fixtures
+        run: node --test scripts/check-production-debug-artifacts.test.mjs
+      - name: Production debug scan
+        run: npm run check:production-debug
+
+  vitest:
+    name: Vitest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Vitest
+        run: npm run test:unit
+
   checks:
     name: Lint And Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Detect parity-sensitive changes
         id: changes
@@ -41,14 +77,38 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      - name: Verify runtime and package-manager contract
+        run: npm run check:toolchain
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify supported peer dependency graph
+        run: npm run check:peer-deps
 
       - name: Lint
         run: npm run lint
 
+      - name: ESLint warning no-growth budget
+        run: npm run check:eslint-warning-budget
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Migration validation lint
+        run: npm run check:migration-validation
+
+      - name: Admin API route registry
+        run: npm run check:admin-route-registry
+
+      - name: Legacy tour route inventory (TOUR-103)
+        run: npm run check:legacy-tour-route-inventory
+
+      - name: Service-role allowlist (SEC-109)
+        run: npm run check:service-role-allowlist
+
+      - name: Dependency audit (critical)
+        run: npm audit --audit-level=critical
 
       - name: Contract tests
         run: npm test -- lib/api/__tests__/contracts.test.ts
@@ -80,3 +140,12 @@ jobs:
 
       - name: Build
         run: npm run build:vercel
+        env:
+          # Non-secret build fixtures. Runtime deployments must supply real values.
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-build.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-anon-key
+          NEXT_PUBLIC_SITE_URL: https://ci.tourify.invalid
+          SUPABASE_SERVICE_ROLE_KEY: ci-private-service-role-key
+          ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          INTERNAL_API_SECRET: ci-internal-api-secret
+          CRON_SECRET: ci-cron-secret

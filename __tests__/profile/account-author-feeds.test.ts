@@ -68,4 +68,15 @@ describe('account-scoped author feed contracts', () => {
     expect(source).toContain('ownerUserId={venue.user_id || undefined}')
     expect(source).toContain('<TabsTrigger value="posts">Posts</TabsTrigger>')
   })
+
+  it('keeps organization posts styled and attributed on the public page', () => {
+    const loader = read('lib/public-organization/get-public-organization-profile.ts')
+    const page = read('components/public-organization/public-organization-page.tsx')
+
+    expect(loader).toContain(".from('post_appearances')")
+    expect(loader).toContain(".eq('posted_as_profile_id', organizerAccountId)")
+    expect(page).toContain('PostAppearanceBoundary')
+    expect(page).toContain('{dto.name}')
+    expect(page).toContain('/organization/${encodeURIComponent(dto.slug)}')
+  })
 })

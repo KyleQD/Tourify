@@ -1,0 +1,629 @@
+/**
+ * Tourify — Accounts, Profiles, Layouts, Onboarding, Permissions
+ * --------------------------------------------------------------
+ * Person / Place / Thing model with paid tiers:
+ * - Primary (free)
+ * - Industry (paid upgrade on Primary for work/booking tools)
+ * - Creator (paid tier for all types of creators)
+ *
+ * Admin is a capability, not a profile type.
+ * NEVER RESET THE DATABASE
+ */
+
+//////////////////////////////
+// Public API (named exports)
+//////////////////////////////
+
+export function getTierConfig({ tier }: { tier: TierKey }) {
+  return TIER_CONFIG[tier]
+}
+
+export function getProfileType({ key }: { key: ProfileKey }) {
+  return PROFILE_TYPES[key]
+}
+
+export function getProfilesByCategory({ category }: { category: CategoryKey }) {
+  const types = Object.values(PROFILE_TYPES)
+  return types.filter(t => t.category === category)
+}
+
+export function getAllowedProfileKeysForTier({ tier }: { tier: TierKey }) {
+  return TIER_CONFIG[tier].allowedProfileKeys
+}
+
+export function getDashboardModules({ profileKey }: { profileKey: ProfileKey }) {
+  const profile = PROFILE_TYPES[profileKey]
+  if (!profile) return []
+  return LAYOUT_TEMPLATES[profile.layoutTemplate]?.modules ?? []
+}
+
+export function getOnboardingSteps({ profileKey }: { profileKey: ProfileKey }) {
+  return ONBOARDING_FLOWS[profileKey]?.steps ?? []
+}
+
+export function getDefaultPermissionsForProfile({ profileKey }: { profileKey: ProfileKey }) {
+  return PROFILE_DEFAULT_PERMISSIONS[profileKey] ?? []
+}
+
+export function canUseFeature({ tier, feature }: { tier: TierKey, feature: FeatureKey }) {
+  const t = TIER_CONFIG[tier]
+  if (!t) return false
+  return t.features.includes(feature)
+}
+
+export function isIndustryUpgrade({ tier }: { tier: TierKey }) {
+  return tier === 'industry'
+}
+
+export function isCreatorTier({ tier }: { tier: TierKey }) {
+  return tier === 'creator'
+}
+
+export function getDiscoveryTags({ profileKey }: { profileKey: ProfileKey }) {
+  return PROFILE_TYPES[profileKey]?.discoveryTags ?? []
+}
+
+//////////////////////////////
+// Core Maps (source of truth)
+//////////////////////////////
+
+// Tiers — Industry is an upgrade to Primary. Creator is a separate paid tier.
+export const TIER_CONFIG: Record<TierKey, TierConfig> = {
+  primary: {
+    key: 'primary',
+    label: 'Primary (Free)',
+    isPaid: false,
+    inheritsFrom: null,
+    features: [
+      'basic-profile',
+      'follow-accounts',
+      'event-attendance'
+    ],
+    allowedProfileKeys: [
+      'individual'
+    ]
+  },
+  industry: {
+    key: 'industry',
+    label: 'Industry (Upgrade)',
+    isPaid: true,
+    inheritsFrom: 'primary', // upgrade on top of primary
+    features: [
+      'basic-profile',
+      'follow-accounts',
+      'event-attendance',
+      'jobs-read',
+      'jobs-post',
+      'availability-calendar',
+      'pro-directory-listing',
+      'contracting',
+      'inbox-networking'
+    ],
+    allowedProfileKeys: [
+      'individual',
+      'organizer',
+      'productionCompany',
+      'promoter',
+      'staffingAgency',
+      'performanceAgency',
+      'rentalCompany'
+    ]
+  },
+  creator: {
+    key: 'creator',
+    label: 'Creator (Paid)',
+    isPaid: true,
+    inheritsFrom: null,
+    features: [
+      'basic-profile',
+      'portfolio-storefront',
+      'media-gallery',
+      'collaboration-board',
+      'jobs-read',
+      'jobs-apply',
+      'sell-digital',
+      'sell-physical',
+      'inbox-networking',
+      'analytics-light'
+    ],
+    allowedProfileKeys: [
+      'artist' // umbrella: musicians, DJs, dancers, photographers, videographers, designers, makers, merchants, etc.
+    ]
+  }
+} as const
+
+// Profile Types — categorized as Person, Place, or Thing
+export const PROFILE_TYPES: Record<ProfileKey, ProfileTypeConfig> = {
+  // Person
+  individual: {
+    key: 'individual',
+    category: 'person',
+    displayName: 'Individual',
+    layoutTemplate: 'personProfile',
+    primaryPurpose: 'Represents a single human user and their identity',
+    defaultFields: ['bio', 'skills', 'availability', 'aliases', 'contactInfo'],
+    discoveryTags: ['person', 'user', 'member']
+  },
+  organizer: {
+    key: 'organizer',
+    category: 'person',
+    displayName: 'Organizer',
+    layoutTemplate: 'personProfile',
+    primaryPurpose: 'Plans and manages tours, events, and projects',
+    defaultFields: ['bio', 'experience', 'services', 'contactInfo', 'availability'],
+    discoveryTags: ['organizer', 'event manager', 'coordinator']
+  },
+
+  // Thing (organizations & creators)
+  artist: {
+    key: 'artist',
+    category: 'thing',
+    displayName: 'Creator',
+    layoutTemplate: 'artistProfile',
+    primaryPurpose: 'Umbrella profile for all creators (performers, musicians, photographers, videographers, VJs, designers, makers, merchants)',
+    defaultFields: [
+      'bio', 'disciplines', 'roleTags', 'portfolio', 'mediaLinks',
+      'shop', 'services', 'members', 'upcomingEvents', 'locationBase'
+    ],
+    discoveryTags: ['artist', 'creator', 'band', 'dj', 'performer', 'photographer', 'videographer', 'designer', 'maker', 'merchant']
+  },
+  performanceAgency: {
+    key: 'performanceAgency',
+    category: 'thing',
+    displayName: 'Performance Agency',
+    layoutTemplate: 'organizationProfile',
+    primaryPurpose: 'Represents multiple artists/acts and books performances',
+    defaultFields: ['bio', 'artistRoster', 'bookingInfo', 'contactInfo'],
+    discoveryTags: ['agency', 'performance', 'representation']
+  },
+  staffingAgency: {
+    key: 'staffingAgency',
+    category: 'thing',
+    displayName: 'Staffing Agency',
+    layoutTemplate: 'organizationProfile',
+    primaryPurpose: 'Supplies crew/staff for events',
+    defaultFields: ['bio', 'staffRoster', 'services', 'coverageAreas', 'contactInfo'],
+    discoveryTags: ['staff', 'crew', 'security', 'av', 'rigging']
+  },
+  rentalCompany: {
+    key: 'rentalCompany',
+    category: 'thing',
+    displayName: 'Rental Company',
+    layoutTemplate: 'organizationProfile',
+    primaryPurpose: 'Provides equipment or materials for events',
+    defaultFields: ['bio', 'inventory', 'rentalTerms', 'contactInfo', 'deliveryZones'],
+    discoveryTags: ['equipment', 'rental', 'lighting', 'audio', 'staging', 'backline']
+  },
+  productionCompany: {
+    key: 'productionCompany',
+    category: 'thing',
+    displayName: 'Production Company',
+    layoutTemplate: 'organizationProfile',
+    primaryPurpose: 'Oversees event execution end-to-end',
+    defaultFields: ['bio', 'services', 'caseStudies', 'contactInfo'],
+    discoveryTags: ['production', 'event services', 'project management']
+  },
+  promoter: {
+    key: 'promoter',
+    category: 'thing',
+    displayName: 'Promoter',
+    layoutTemplate: 'organizationProfile',
+    primaryPurpose: 'Markets events and manages ticketing campaigns',
+    defaultFields: ['bio', 'events', 'regions', 'ticketLinks', 'contactInfo'],
+    discoveryTags: ['promotion', 'marketing', 'tickets']
+  },
+
+  // Place
+  venue: {
+    key: 'venue',
+    category: 'place',
+    displayName: 'Venue',
+    layoutTemplate: 'venueProfile',
+    primaryPurpose: 'Hosts events at a fixed location',
+    defaultFields: ['address', 'capacity', 'amenities', 'techSpecs', 'bookingInfo', 'rooms'],
+    discoveryTags: ['venue', 'club', 'theater', 'hall', 'space']
+  },
+  publicLocation: {
+    key: 'publicLocation',
+    category: 'place',
+    displayName: 'Public Location',
+    layoutTemplate: 'placeProfile',
+    primaryPurpose: 'Outdoor/public space for temporary events',
+    defaultFields: ['locationMap', 'permitsInfo', 'accessibility', 'noiseOrdinances'],
+    discoveryTags: ['park', 'plaza', 'street', 'outdoor', 'festival']
+  },
+  privateLocation: {
+    key: 'privateLocation',
+    category: 'place',
+    displayName: 'Private Location',
+    layoutTemplate: 'placeProfile',
+    primaryPurpose: 'Privately owned property for events',
+    defaultFields: ['address', 'capacity', 'bookingTerms', 'houseRules'],
+    discoveryTags: ['warehouse', 'estate', 'backyard', 'loft']
+  },
+  virtualLocation: {
+    key: 'virtualLocation',
+    category: 'place',
+    displayName: 'Virtual Location',
+    layoutTemplate: 'virtualProfile',
+    primaryPurpose: 'Online/virtual space for events',
+    defaultFields: ['platform', 'accessLink', 'capacity', 'timezones'],
+    discoveryTags: ['virtual', 'stream', 'vr', 'metaverse']
+  }
+} as const
+
+// Layout Template → modules (UI skeleton per profile)
+export const LAYOUT_TEMPLATES: Record<LayoutKey, LayoutTemplate> = {
+  personProfile: {
+    template: 'personProfile',
+    modules: [
+      'hero-summary',
+      'about',
+      'skills-and-disciplines',
+      'availability-calendar',
+      'portfolio',
+      'messages',
+      'reviews'
+    ]
+  },
+  artistProfile: {
+    template: 'artistProfile',
+    modules: [
+      'hero-media',
+      'about',
+      'disciplines-and-role-tags',
+      'media-gallery',
+      'shop',
+      'services',
+      'events-calendar',
+      'members',
+      'collaboration-board',
+      'messages',
+      'analytics-lite'
+    ]
+  },
+  organizationProfile: {
+    template: 'organizationProfile',
+    modules: [
+      'hero-summary',
+      'about',
+      'roster-or-inventory',
+      'services',
+      'booking-or-hire-form',
+      'regions-or-delivery',
+      'messages',
+      'case-studies-or-portfolio'
+    ]
+  },
+  venueProfile: {
+    template: 'venueProfile',
+    modules: [
+      'hero-photos',
+      'address-map',
+      'capacity-amenities',
+      'tech-specs',
+      'rooms-and-floorplans',
+      'availability-calendar',
+      'booking-requests',
+      'events-calendar',
+      'staff-assignments'
+    ]
+  },
+  placeProfile: {
+    template: 'placeProfile',
+    modules: [
+      'map',
+      'access-and-permits',
+      'capacity-and-restrictions',
+      'events-calendar'
+    ]
+  },
+  virtualProfile: {
+    template: 'virtualProfile',
+    modules: [
+      'platform-and-access',
+      'timezones',
+      'events-calendar',
+      'support-links'
+    ]
+  }
+} as const
+
+// Onboarding flows — minimal, progressive, Zod-validated
+export const ONBOARDING_FLOWS: Record<ProfileKey, OnboardingFlow> = {
+  individual: {
+    profileKey: 'individual',
+    steps: [
+      { key: 'basics', fields: ['displayName', 'location', 'bio'] },
+      { key: 'contact', fields: ['email', 'phone', 'social'] }
+    ]
+  },
+  organizer: {
+    profileKey: 'organizer',
+    steps: [
+      { key: 'experience', fields: ['years', 'services', 'regions'] },
+      { key: 'ops', fields: ['availability', 'teamSize', 'tools'] }
+    ]
+  },
+  artist: {
+    profileKey: 'artist',
+    steps: [
+      { key: 'identity', fields: ['artistName', 'disciplines', 'roleTags'] },
+      { key: 'media', fields: ['mediaLinks', 'heroMedia'] },
+      { key: 'commerce', fields: ['shopSetup', 'payouts'] }
+    ]
+  },
+  performanceAgency: {
+    profileKey: 'performanceAgency',
+    steps: [
+      { key: 'basics', fields: ['name', 'regions', 'genres'] },
+      { key: 'roster', fields: ['artistRoster'] }
+    ]
+  },
+  staffingAgency: {
+    profileKey: 'staffingAgency',
+    steps: [
+      { key: 'basics', fields: ['name', 'coverageAreas'] },
+      { key: 'staff', fields: ['staffRoster'] }
+    ]
+  },
+  rentalCompany: {
+    profileKey: 'rentalCompany',
+    steps: [
+      { key: 'basics', fields: ['name', 'deliveryZones'] },
+      { key: 'inventory', fields: ['inventory', 'rentalTerms'] }
+    ]
+  },
+  productionCompany: {
+    profileKey: 'productionCompany',
+    steps: [
+      { key: 'basics', fields: ['name', 'services'] },
+      { key: 'portfolio', fields: ['caseStudies'] }
+    ]
+  },
+  promoter: {
+    profileKey: 'promoter',
+    steps: [
+      { key: 'basics', fields: ['name', 'regions'] },
+      { key: 'events', fields: ['events', 'ticketLinks'] }
+    ]
+  },
+  venue: {
+    profileKey: 'venue',
+    steps: [
+      { key: 'location', fields: ['address', 'map'] },
+      { key: 'specs', fields: ['capacity', 'amenities', 'techSpecs'] },
+      { key: 'booking', fields: ['bookingInfo'] }
+    ]
+  },
+  publicLocation: {
+    profileKey: 'publicLocation',
+    steps: [
+      { key: 'location', fields: ['map', 'access'] },
+      { key: 'permits', fields: ['permitsInfo', 'restrictions'] }
+    ]
+  },
+  privateLocation: {
+    profileKey: 'privateLocation',
+    steps: [
+      { key: 'address', fields: ['address'] },
+      { key: 'terms', fields: ['bookingTerms', 'houseRules'] }
+    ]
+  },
+  virtualLocation: {
+    profileKey: 'virtualLocation',
+    steps: [
+      { key: 'platform', fields: ['platform', 'accessLink'] },
+      { key: 'capacity', fields: ['capacity', 'timezones'] }
+    ]
+  }
+} as const
+
+// Default permissions per profile (RBAC layer binds capabilities at entity scope)
+export const PROFILE_DEFAULT_PERMISSIONS: Record<ProfileKey, PermissionKey[]> = {
+  individual: ['view-self', 'edit-self', 'message'],
+  organizer: ['view', 'edit', 'manage-projects', 'assign-roles', 'post-jobs'],
+  artist: ['view', 'edit', 'post-collabs', 'apply-jobs', 'sell', 'manage-events'],
+  performanceAgency: ['view', 'edit', 'manage-members', 'book'],
+  staffingAgency: ['view', 'edit', 'manage-members', 'assign-roles'],
+  rentalCompany: ['view', 'edit', 'manage-assets'],
+  productionCompany: ['view', 'edit', 'manage-projects', 'assign-roles', 'book'],
+  promoter: ['view', 'edit', 'manage-campaigns'],
+  venue: ['view', 'edit', 'manage-calendar', 'manage-staff', 'manage-tech'],
+  publicLocation: ['view', 'edit', 'manage-permits'],
+  privateLocation: ['view', 'edit', 'manage-permits'],
+  virtualLocation: ['view', 'edit']
+} as const
+
+// UI Module Registry (used by layout templates)
+export const UI_MODULES: Record<ModuleKey, ModuleConfig> = {
+  'hero-summary': { key: 'hero-summary', serverOnly: false },
+  'hero-media': { key: 'hero-media', serverOnly: false },
+  'about': { key: 'about', serverOnly: false },
+  'skills-and-disciplines': { key: 'skills-and-disciplines', serverOnly: false },
+  'disciplines-and-role-tags': { key: 'disciplines-and-role-tags', serverOnly: false },
+  'availability-calendar': { key: 'availability-calendar', serverOnly: false },
+  'portfolio': { key: 'portfolio', serverOnly: false },
+  'media-gallery': { key: 'media-gallery', serverOnly: false },
+  'shop': { key: 'shop', serverOnly: false },
+  'services': { key: 'services', serverOnly: false },
+  'events-calendar': { key: 'events-calendar', serverOnly: false },
+  'members': { key: 'members', serverOnly: false },
+  'collaboration-board': { key: 'collaboration-board', serverOnly: false },
+  'messages': { key: 'messages', serverOnly: false },
+  'analytics-lite': { key: 'analytics-lite', serverOnly: true },
+  'roster-or-inventory': { key: 'roster-or-inventory', serverOnly: false },
+  'booking-or-hire-form': { key: 'booking-or-hire-form', serverOnly: false },
+  'regions-or-delivery': { key: 'regions-or-delivery', serverOnly: false },
+  'case-studies-or-portfolio': { key: 'case-studies-or-portfolio', serverOnly: false },
+  'hero-photos': { key: 'hero-photos', serverOnly: false },
+  'address-map': { key: 'address-map', serverOnly: false },
+  'capacity-amenities': { key: 'capacity-amenities', serverOnly: false },
+  'tech-specs': { key: 'tech-specs', serverOnly: false },
+  'rooms-and-floorplans': { key: 'rooms-and-floorplans', serverOnly: false },
+  'booking-requests': { key: 'booking-requests', serverOnly: false },
+  'staff-assignments': { key: 'staff-assignments', serverOnly: false },
+  'map': { key: 'map', serverOnly: false },
+  'access-and-permits': { key: 'access-and-permits', serverOnly: false },
+  'capacity-and-restrictions': { key: 'capacity-and-restrictions', serverOnly: false },
+  'platform-and-access': { key: 'platform-and-access', serverOnly: false },
+  'timezones': { key: 'timezones', serverOnly: false },
+  'support-links': { key: 'support-links', serverOnly: false }
+} as const
+
+//////////////////////////////
+// UI/UX Guidance (high level)
+//////////////////////////////
+
+/**
+ * Dashboards by profile (primary CTAs first, reduce cognitive load)
+ * - Organizer: "Create project", "Add team", "Assign schedule", overview cards (budget/schedule/risks)
+ * - Artist: "Post collab", "Add media", "Add product", upcoming shows and store snapshot
+ * - Venue: "Review bookings", "Update availability", today’s events & staff assignments
+ * - Agencies/Companies: "Add to roster/inventory", "Respond to requests"
+ * - Individual/Industry: "Update availability", "Apply to jobs", messages, references
+ *
+ * UX rules:
+ * - Quick Switcher for users with multiple profiles
+ * - Context-aware actions per profile type
+ * - RSC-first; client components only where necessary (messages, media upload)
+ * - Zod-validated forms; progressive disclosure (only show fields relevant to selected discipline/role)
+ * - Mobile-first: primary actions sticky at bottom on small screens
+ */
+
+//////////////////////////////
+// Types & Interfaces (at end)
+//////////////////////////////
+
+export interface TierConfig {
+  key: TierKey
+  label: string
+  isPaid: boolean
+  inheritsFrom: TierKey | null
+  features: FeatureKey[]
+  allowedProfileKeys: ProfileKey[]
+}
+
+export interface ProfileTypeConfig {
+  key: ProfileKey
+  category: CategoryKey
+  displayName: string
+  layoutTemplate: LayoutKey
+  primaryPurpose: string
+  defaultFields: string[]
+  discoveryTags: string[]
+}
+
+export interface LayoutTemplate {
+  template: LayoutKey
+  modules: ModuleKey[]
+}
+
+export interface OnboardingFlow {
+  profileKey: ProfileKey
+  steps: { key: string, fields: string[] }[]
+}
+
+export interface ModuleConfig {
+  key: ModuleKey
+  serverOnly: boolean
+}
+
+// string literal keys (maps over enums)
+export type TierKey = 'primary' | 'industry' | 'creator'
+export type CategoryKey = 'person' | 'place' | 'thing'
+export type ProfileKey =
+  | 'individual'
+  | 'organizer'
+  | 'artist'
+  | 'performanceAgency'
+  | 'staffingAgency'
+  | 'rentalCompany'
+  | 'productionCompany'
+  | 'promoter'
+  | 'venue'
+  | 'publicLocation'
+  | 'privateLocation'
+  | 'virtualLocation'
+
+export type LayoutKey =
+  | 'personProfile'
+  | 'artistProfile'
+  | 'organizationProfile'
+  | 'venueProfile'
+  | 'placeProfile'
+  | 'virtualProfile'
+
+export type ModuleKey =
+  | 'hero-summary'
+  | 'hero-media'
+  | 'hero-photos'
+  | 'about'
+  | 'skills-and-disciplines'
+  | 'disciplines-and-role-tags'
+  | 'availability-calendar'
+  | 'portfolio'
+  | 'media-gallery'
+  | 'shop'
+  | 'services'
+  | 'events-calendar'
+  | 'members'
+  | 'collaboration-board'
+  | 'messages'
+  | 'analytics-lite'
+  | 'roster-or-inventory'
+  | 'booking-or-hire-form'
+  | 'regions-or-delivery'
+  | 'case-studies-or-portfolio'
+  | 'address-map'
+  | 'capacity-amenities'
+  | 'tech-specs'
+  | 'rooms-and-floorplans'
+  | 'booking-requests'
+  | 'staff-assignments'
+  | 'map'
+  | 'access-and-permits'
+  | 'capacity-and-restrictions'
+  | 'platform-and-access'
+  | 'timezones'
+  | 'support-links'
+
+export type FeatureKey =
+  | 'basic-profile'
+  | 'follow-accounts'
+  | 'event-attendance'
+  | 'jobs-read'
+  | 'jobs-post'
+  | 'jobs-apply'
+  | 'availability-calendar'
+  | 'pro-directory-listing'
+  | 'contracting'
+  | 'inbox-networking'
+  | 'portfolio-storefront'
+  | 'media-gallery'
+  | 'collaboration-board'
+  | 'sell-digital'
+  | 'sell-physical'
+  | 'analytics-light'
+
+export type PermissionKey =
+  | 'view'
+  | 'view-self'
+  | 'edit'
+  | 'edit-self'
+  | 'manage-members'
+  | 'manage-assets'
+  | 'manage-calendar'
+  | 'manage-staff'
+  | 'manage-tech'
+  | 'manage-projects'
+  | 'assign-roles'
+  | 'manage-permits'
+  | 'book'
+  | 'post-jobs'
+  | 'apply-jobs'
+  | 'post-collabs'
+  | 'sell'
+  | 'manage-events'
+  | 'manage-campaigns'
+  | 'message'

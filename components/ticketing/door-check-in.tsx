@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TicketQrScanner } from "@/components/ticketing/ticket-qr-scanner"
+import { OFFLINE_CHECK_IN_RESULT } from "@/lib/venue/door-check-in-state"
 
 interface CheckInResult {
   success: boolean
@@ -36,7 +37,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
   const [result, setResult] = useState<CheckInResult | null>(null)
   const [processing, setProcessing] = useState(false)
   const [stats, setStats] = useState<Stats>({ total: 0, checked_in: 0, capacity: 0 })
-  const [queuedScans, setQueuedScans] = useState(0)
+  const [isOnline, setIsOnline] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -56,36 +57,15 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
   }, [fetchStats])
 
   useEffect(() => {
-    const key = `tourify-check-in-queue-${eventId}`
-    const readQueue = () => {
-      const rows = JSON.parse(window.localStorage.getItem(key) || "[]") as string[]
-      setQueuedScans(rows.length)
-      return rows
+    const updateConnection = () => setIsOnline(navigator.onLine)
+    updateConnection()
+    window.addEventListener("online", updateConnection)
+    window.addEventListener("offline", updateConnection)
+    return () => {
+      window.removeEventListener("online", updateConnection)
+      window.removeEventListener("offline", updateConnection)
     }
-
-    async function flushQueue() {
-      if (!navigator.onLine) return
-      const rows = readQueue()
-      if (rows.length === 0) return
-      const remaining: string[] = []
-      for (const code of rows) {
-        try {
-          await submitCheckIn(code)
-        } catch {
-          remaining.push(code)
-        }
-      }
-      window.localStorage.setItem(key, JSON.stringify(remaining))
-      setQueuedScans(remaining.length)
-      if (remaining.length === 0) void fetchStats()
-    }
-
-    readQueue()
-    window.addEventListener("online", flushQueue)
-    void flushQueue()
-
-    return () => window.removeEventListener("online", flushQueue)
-  }, [eventId, fetchStats])
+  }, [])
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -112,12 +92,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
 
     try {
       if (!navigator.onLine) {
-        const key = `tourify-check-in-queue-${eventId}`
-        const rows = JSON.parse(window.localStorage.getItem(key) || "[]") as string[]
-        window.localStorage.setItem(key, JSON.stringify([...rows, codeOrId.trim()]))
-        setQueuedScans(rows.length + 1)
-        setManualCode("")
-        setResult({ success: true, message: "Scan queued for sync", buyer_name: "Offline scan" })
+        setResult(OFFLINE_CHECK_IN_RESULT)
         return
       }
 
@@ -149,7 +124,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
           <span className="text-sm font-medium text-white">
             {stats.checked_in} / {stats.total} checked in
           </span>
-          {queuedScans > 0 ? <span className="text-sm text-amber-300">{queuedScans} queued offline</span> : null}
+          {!isOnline ? <span className="text-sm text-amber-300">Offline — scans paused</span> : null}
           {stats.capacity > 0 ? <span className="text-sm text-zinc-400">({pct}%)</span> : null}
         </div>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400" onClick={() => void fetchStats()}>
@@ -164,7 +139,14 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
             style={{ width: `${pct}%` }}
           />
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/80 px-4 py-2 text-sm text-zinc-400">
+          <span>No tickets sold for this event yet.</span>
+          <Button variant="outline" size="sm" className="h-7 border-zinc-700 text-zinc-200" asChild>
+            <Link href={`/admin/dashboard/events/${eventId}?tab=tickets`}>Open tickets</Link>
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col items-center justify-center gap-8 p-6">
         {result ? (
@@ -174,6 +156,8 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
                 ? "border-green-500/60 bg-green-950/50"
                 : result.code === "ALREADY_CHECKED_IN"
                   ? "border-yellow-500/60 bg-yellow-950/50"
+                  : result.code === "OFFLINE"
+                    ? "border-amber-500/60 bg-amber-950/50"
                   : "border-red-500/60 bg-red-950/50"
             }`}
           >
@@ -188,7 +172,9 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
               <>
                 <XCircle
                   className={`mx-auto mb-3 h-16 w-16 ${
-                    result.code === "ALREADY_CHECKED_IN" ? "text-yellow-400" : "text-red-400"
+                    result.code === "ALREADY_CHECKED_IN" || result.code === "OFFLINE"
+                      ? "text-yellow-400"
+                      : "text-red-400"
                   }`}
                 />
                 <p
@@ -196,7 +182,11 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
                     result.code === "ALREADY_CHECKED_IN" ? "text-yellow-300" : "text-red-300"
                   }`}
                 >
-                  {result.code === "ALREADY_CHECKED_IN" ? "Already Checked In" : "Invalid Ticket"}
+                  {result.code === "ALREADY_CHECKED_IN"
+                    ? "Already Checked In"
+                    : result.code === "OFFLINE"
+                      ? "Connection Required"
+                      : "Invalid Ticket"}
                 </p>
                 {result.buyer_name ? <p className="text-sm text-zinc-300">{result.buyer_name}</p> : null}
                 <p

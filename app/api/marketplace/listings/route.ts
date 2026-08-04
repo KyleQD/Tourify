@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import { resolveActingContext } from "@/lib/auth/acting-context"
+import { resolveMarketplaceEntitlements } from "@/lib/marketplace/entitlement-resolver"
 import { isValidMarketplaceProductType } from "@/lib/marketplace/catalog"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
 import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
@@ -24,7 +27,11 @@ const listingSchema = z.object({
   description: z.string().max(4000).optional().nullable(),
   category: z.string().min(1).max(80),
   productType: z.string().min(1).max(80),
-  status: z.enum(["draft", "published", "archived"]).optional(),
+  // P2 fields
+  listingKind: z.enum(["physical", "service", "external"]).optional(),
+  serviceMode: z.enum(["fixed_price", "booking_request", "quote_request"]).optional().nullable(),
+  publicSlug: z.string().min(2).max(120).regex(/^[a-z0-9-]+$/).optional().nullable(),
+  status: z.enum(["draft", "published", "paused", "sold_out", "archived"]).optional(),
   currency: z.string().length(3).optional(),
   basePrice: z.number().min(0).optional().nullable(),
   compareAtPrice: z.number().min(0).optional().nullable(),
@@ -44,6 +51,9 @@ const listingSchema = z.object({
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const supabase = await createClient()
     const searchParams = request.nextUrl.searchParams
@@ -108,12 +118,47 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
-    const authResult = await requireApiUser(request)
-    if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
+    const { user: { id: userId }, accountType, supabase } = ctx
+    const user = { id: userId }
+
+    // Account-type entitlement check
+    const entitlements = resolveMarketplaceEntitlements(accountType)
 
     const payload = listingSchema.parse(await request.json())
+
+    // Music is never a marketplace category
+    if (payload.category?.toLowerCase() === "music") {
+      return jsonError({
+        status: 400,
+        code: "music_category_blocked",
+        message: "Music is not a marketplace category",
+      })
+    }
+
+    // listing_kind entitlement checks
+    const listingKind = payload.listingKind ?? "physical"
+    if (listingKind === "service" && !entitlements.canSellServices) {
+      return jsonError({ status: 403, code: "service_listing_not_permitted", message: "Service listings are not permitted for this account type." })
+    }
+    if (listingKind === "external" && !entitlements.canCreateExternalListings) {
+      return jsonError({ status: 403, code: "external_listing_not_permitted", message: "External listings are not permitted for this account type." })
+    }
+
+    // Organizations may only manage ticket collections
+    if (!entitlements.canSellPhysicalGoods && payload.productType !== "digital_asset") {
+      return jsonError({
+        status: 403,
+        code: "org_cannot_sell_physical_goods",
+        message: "Organizations may only manage ticket collections",
+      })
+    }
+
     if (!isValidMarketplaceProductType(payload.productType)) {
       return jsonError({
         status: 400,
@@ -244,6 +289,9 @@ export async function POST(request: NextRequest) {
       description: payload.description || null,
       category: payload.category,
       product_type: payload.productType,
+      listing_kind: listingKind,
+      service_mode: payload.serviceMode ?? null,
+      public_slug: payload.publicSlug ?? null,
       status: payload.status || "draft",
       currency: payload.currency?.toUpperCase() || "USD",
       base_price: payload.basePrice ?? null,

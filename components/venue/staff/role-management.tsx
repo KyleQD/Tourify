@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { detailSurfacePattern } from '@/components/dashboard/detail-surface-pattern'
+import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { 
   Plus, 
@@ -279,12 +281,13 @@ export function RoleManagement({ venueId }: RoleManagementProps) {
               Create Role
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className={cn("max-w-4xl max-h-[90vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+            <div className={detailSurfacePattern.topAccent} />
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className={detailSurfacePattern.title}>
                 {isEditing ? 'Edit Role' : 'Create New Role'}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className={detailSurfacePattern.description}>
                 Define a new role with specific permissions for your venue staff
               </DialogDescription>
             </DialogHeader>
@@ -293,24 +296,25 @@ export function RoleManagement({ venueId }: RoleManagementProps) {
               {/* Basic Role Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="roleName">Role Name</Label>
+                  <Label htmlFor="roleName" className={detailSurfacePattern.label}>Role Name</Label>
                   <Input
                     id="roleName"
                     value={formData.roleName}
                     onChange={(e) => setFormData(prev => ({ ...prev, roleName: e.target.value }))}
                     placeholder="e.g., Event Coordinator"
+                    className={detailSurfacePattern.input}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="roleLevel">Role Level</Label>
+                  <Label htmlFor="roleLevel" className={detailSurfacePattern.label}>Role Level</Label>
                   <Select
                     value={formData.roleLevel.toString()}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, roleLevel: parseInt(value) }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-slate-900 border-white/10">
                       <SelectItem value="1">Entry Level</SelectItem>
                       <SelectItem value="2">Mid Level</SelectItem>
                       <SelectItem value="3">Senior Level</SelectItem>
@@ -322,13 +326,14 @@ export function RoleManagement({ venueId }: RoleManagementProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="roleDescription">Description</Label>
+                <Label htmlFor="roleDescription" className={detailSurfacePattern.label}>Description</Label>
                 <Textarea
                   id="roleDescription"
                   value={formData.roleDescription}
                   onChange={(e) => setFormData(prev => ({ ...prev, roleDescription: e.target.value }))}
                   placeholder="Describe the responsibilities and scope of this role..."
                   rows={3}
+                  className={detailSurfacePattern.textarea}
                 />
               </div>
 
@@ -383,12 +388,13 @@ export function RoleManagement({ venueId }: RoleManagementProps) {
 
               {/* Action Buttons */}
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} className={detailSurfacePattern.btnOutline}>
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleCreateRole} 
                   disabled={isCreating || !formData.roleName.trim()}
+                  className={detailSurfacePattern.btnPrimary}
                 >
                   {isCreating ? 'Creating...' : (isEditing ? 'Update Role' : 'Create Role')}
                 </Button>

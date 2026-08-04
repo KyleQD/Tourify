@@ -28,6 +28,7 @@ interface Venue {
   country: string
   capacity: number
   venue_types: string[]
+  url_slug?: string | null
   created_at: string
   updated_at: string
 }
@@ -65,9 +66,10 @@ export default function VenuesPage() {
   )
 
   const handleVenueClick = (venue: Venue) => {
-    // Generate a URL-friendly slug from venue name
-    const slug = venue.venue_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-    router.push(`/venues/${slug}`)
+    const slug =
+      (venue.url_slug && String(venue.url_slug).trim()) ||
+      venue.id
+    router.push(`/venues/${encodeURIComponent(slug)}`)
   }
 
   if (loading) {

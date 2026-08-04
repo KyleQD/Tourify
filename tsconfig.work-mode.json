@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/api/work-mode/**/*.ts",
+    "app/api/ux/**/*.ts",
+    "app/work/**/*.ts",
+    "app/work/**/*.tsx",
+    "components/account/work-mode-widget.tsx",
+    "components/work-mode/**/*.tsx",
+    "hooks/use-work-mode.ts",
+    "lib/services/staff-shift-assignment-sync.ts",
+    "lib/ux/**/*.ts",
+    "lib/work-mode/**/*.ts",
+    "types/hiring-roster-work-mode.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions/**",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
 import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
+import { sendWorkforceActivityNotification } from '@/lib/rebuild/workforce-activity-notify'
 
 const createTaskSchema = z.object({
   title: z.string().min(1).max(240),
@@ -162,7 +163,7 @@ export async function PATCH(
       const validated = updateTaskSchema.parse(body)
       const { data: existingTask } = await supabase
         .from('workflow_tasks')
-        .select('id, status')
+        .select('id, status, title, created_by')
         .eq('id', validated.task_id)
         .eq('thread_id', id)
         .maybeSingle()
@@ -204,18 +205,29 @@ export async function PATCH(
         existingTask?.status !== 'done' &&
         (validated.status === 'done' || data.status === 'done')
       if (becameDone) {
-        await recordAchievementMetricEvent({
-          supabase,
-          userId: user.id,
-          metricKey: 'tasks_completed_total',
-          eventType: 'workflow_task_completed',
-          delta: 1,
-          eventData: {
-            thread_id: id,
-            task_id: validated.task_id,
-          },
-          relatedCollaborationId: id,
-        })
+        await Promise.all([
+          recordAchievementMetricEvent({
+            supabase,
+            userId: user.id,
+            metricKey: 'tasks_completed_total',
+            eventType: 'workflow_task_completed',
+            delta: 1,
+            eventData: { thread_id: id, task_id: validated.task_id },
+            relatedCollaborationId: id,
+          }),
+          existingTask?.created_by
+            ? sendWorkforceActivityNotification({
+                recipientUserId: existingTask.created_by,
+                actorUserId: user.id,
+                type: 'workflow_task_completed',
+                title: 'Workflow task completed',
+                content: `${existingTask.title || data.title || 'A workflow task'} was marked complete.`,
+                sourceType: 'workflow_task',
+                sourceId: validated.task_id,
+                link: `/workflows/threads/${id}`,
+              }).catch((notifyError) => console.warn('[workflow tasks PATCH] completion notification failed', notifyError))
+            : Promise.resolve(),
+        ])
       }
 
       return NextResponse.json({ success: true, task: data })

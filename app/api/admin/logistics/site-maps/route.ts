@@ -1,26 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { hasEntityPermission } from '@/lib/services/rbac'
 import { assertGroundSizeWithinLimit } from '@/lib/site-map/ground-size'
-import type { CreateSiteMapRequest, UpdateSiteMapRequest } from '@/types/site-map'
+import {
+  authorizedOrgScopeErrorResponse,
+  resolveAuthorizedOrgLogisticsScope,
+} from '@/lib/admin/resolve-authorized-org'
+import { withAdminCapability } from '@/lib/auth/api-auth'
+import type { CreateSiteMapRequest } from '@/types/site-map'
 
-
-
-export async function GET(request: NextRequest) {
+export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { user, admin, supabase }) => {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
-    
-
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('eventId')
     const tourId = searchParams.get('tourId')
     const status = searchParams.get('status')
+    const requestedOrgId = admin.orgId
     const includeData = searchParams.get('includeData') === 'true'
+
+    // MAP-101: resolve acting org scope (capability inheritance via RLS + optional org filter)
+    // RLS on site_maps already scopes results to created_by / collaborators — scopeOrgId is
+    // only used for the response metadata, so a resolution failure is non-fatal.
+    let scopeOrgId: string | null = requestedOrgId ?? null
+    try {
+      const scope = await resolveAuthorizedOrgLogisticsScope({
+        userId: user.id,
+        requestedOrgId,
+        eventId,
+        tourId,
+      })
+      scopeOrgId = scope.orgId
+    } catch (scopeError) {
+      const scopeResponse = authorizedOrgScopeErrorResponse(scopeError)
+      if (scopeResponse) return scopeResponse
+      const message = scopeError instanceof Error ? scopeError.message : 'Organization scope denied'
+      if (/not available/i.test(message))
+        return NextResponse.json({ error: message }, { status: 403 })
+      // Non-fatal: log the scope error but continue — RLS on site_maps handles access control.
+      console.warn('[Site Maps API] Scope resolution failed (non-fatal, RLS still applies):', message)
+    }
 
     const listSelect = '*'
     const detailSelect = `
@@ -34,7 +50,8 @@ export async function GET(request: NextRequest) {
       )
     `
 
-    // Use the authenticated client — never interpolate an empty nested block after `*,`
+    // Discovery relies on MAP-101 RLS (owner | collaborator | can_logistics).
+    // Do not restrict to created_by — that blocked tour/event capability users.
     let query = supabase
       .from('site_maps')
       .select(includeData ? detailSelect : listSelect)
@@ -43,57 +60,36 @@ export async function GET(request: NextRequest) {
     if (eventId) query = query.eq('event_id', eventId)
     if (tourId) query = query.eq('tour_id', tourId)
     if (status) query = query.eq('status', status)
-
-    // Include maps the user owns OR is a collaborator on
-    const { data: collaboratorMapIds } = await supabase
-      .from('site_map_collaborators')
-      .select('site_map_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-
-    const collabIds = (collaboratorMapIds || []).map(c => c.site_map_id)
-    if (collabIds.length > 0) {
-      query = query.or(`created_by.eq.${user.id},id.in.(${collabIds.join(',')})`)
-    } else {
-      query = query.eq('created_by', user.id)
-    }
+    // org_id column does not exist on site_maps — RLS (created_by / collaborator) handles scoping
 
     const { data, error } = await query
 
     if (error) {
       console.error('[Site Maps API] Database query error:', error)
-      console.error('[Site Maps API] Query details:', JSON.stringify(error, null, 2))
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Failed to fetch site maps',
-        details: error.message 
+        details: error.message,
       }, { status: 500 })
     }
 
-
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data: data || [],
-      count: data?.length || 0
+      count: data?.length || 0,
+      orgId: scopeOrgId,
+      discovery: 'org_capability_owner_collaborator',
     })
   } catch (error) {
     console.error('[Site Maps API] GET Error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch site maps' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch site maps',
     }, { status: 500 })
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminCapability('logistics.manage', async (request: NextRequest, { user, supabase }) => {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
-    
-
     // Handle both FormData and JSON requests
     let body: CreateSiteMapRequest
     const contentType = request.headers.get('content-type')
@@ -166,39 +162,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: groundCheck.error }, { status: 400 })
     }
 
-    if (body.eventId) {
-      try {
-        const hasPermission = await hasEntityPermission({
-          userId: user.id,
-          entityType: 'Event',
-          entityId: body.eventId,
-          permission: 'EDIT_EVENT_LOGISTICS'
-        })
-        if (!hasPermission) {
-          return NextResponse.json({ error: 'Insufficient permissions for event' }, { status: 403 })
-        }
-      } catch (error) {
-        console.error('[Site Maps API] Permission check error:', error)
-        return NextResponse.json({ error: 'Permission check failed' }, { status: 500 })
-      }
-    }
-
-    if (body.tourId) {
-      try {
-        const hasPermission = await hasEntityPermission({
-          userId: user.id,
-          entityType: 'Tour',
-          entityId: body.tourId,
-          permission: 'EDIT_TOUR_LOGISTICS'
-        })
-        if (!hasPermission) {
-          return NextResponse.json({ error: 'Insufficient permissions for tour' }, { status: 403 })
-        }
-      } catch (error) {
-        console.error('[Site Maps API] Permission check error:', error)
-        return NextResponse.json({ error: 'Permission check failed' }, { status: 500 })
-      }
-    }
+    // withAdminCapability('logistics.manage') already verified org membership + capability.
+    // Fine-grained entity RBAC (rbac_user_entity_roles) is not populated for org-level owners
+    // and would incorrectly deny them. Org capability is sufficient authorization here.
 
     const basePayload = {
       event_id: body.eventId || null,
@@ -309,10 +275,10 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Site Maps API] POST Error:', error)
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       error: 'Failed to create site map',
       details: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 })
   }
-}
+})

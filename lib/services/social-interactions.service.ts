@@ -1,4 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import {
+  createPostComment,
+  getPostComments,
+  setPostLike,
+  sharePostExternally,
+} from '@/lib/feed/post-engagement-client'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -126,24 +132,12 @@ class SocialInteractionsService {
         return { success: false, message: 'Please log in to like posts' }
       }
 
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'like' }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to like post')
-      }
+      const result = await setPostLike(postId, 'like')
 
       return { 
         success: true, 
         message: 'Post liked! ❤️',
-        data: { action: 'like', postId, userId }
+        data: { action: 'like', postId, userId, ...result }
       }
     } catch (error) {
       console.error('Error liking post - Full error:', error)
@@ -162,24 +156,12 @@ class SocialInteractionsService {
         return { success: false, message: 'Please log in to unlike posts' }
       }
 
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'unlike' }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to unlike post')
-      }
+      const result = await setPostLike(postId, 'unlike')
 
       return { 
         success: true, 
         message: 'Post unliked',
-        data: { action: 'unlike', postId, userId }
+        data: { action: 'unlike', postId, userId, ...result }
       }
     } catch (error) {
       console.error('Error unliking post - Full error:', error)
@@ -202,19 +184,7 @@ class SocialInteractionsService {
         return { success: false, message: 'Comment cannot be empty' }
       }
 
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.trim() }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to add comment')
-      }
-
-      const data = await response.json()
+      const data = await createPostComment(postId, content.trim())
 
       return { 
         success: true, 
@@ -231,12 +201,10 @@ class SocialInteractionsService {
     try {
       if (!userId) return false
 
-      const response = await fetch(`/api/posts/${postId}/likes`, {
+      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/likes`, {
         credentials: 'include',
       })
-
       if (!response.ok) return false
-
       const data = await response.json()
       return Boolean(data.is_liked)
     } catch (error) {
@@ -247,7 +215,7 @@ class SocialInteractionsService {
 
   async getPostLikes(postId: string): Promise<{ count: number; isLiked: boolean; userId?: string }> {
     try {
-      const response = await fetch(`/api/posts/${postId}/likes`, {
+      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/likes`, {
         credentials: 'include',
       })
 
@@ -269,13 +237,7 @@ class SocialInteractionsService {
 
   async getPostComments(postId: string): Promise<any[]> {
     try {
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        credentials: 'include',
-      })
-
-      if (!response.ok) return []
-
-      const data = await response.json()
+      const data = await getPostComments(postId)
       return Array.isArray(data.comments) ? data.comments : []
     } catch (error) {
       console.error('Error getting post comments:', error)
@@ -361,22 +323,16 @@ class SocialInteractionsService {
 
   async sharePost(postId: string, platform?: string): Promise<InteractionResponse> {
     try {
-      const shareData = {
+      const result = await sharePostExternally(postId, {
         title: 'Check out this post on Tourify',
         text: 'Check out this post on Tourify',
-        url: `${window.location.origin}/posts/${postId}`,
-      }
-
-      if (navigator.share && !platform) {
-        await navigator.share(shareData)
-      } else {
-        await navigator.clipboard.writeText(shareData.url)
-      }
+        preferNative: !platform,
+      })
 
       return {
         success: true,
         message: 'Post shared! 🔗',
-        data: { action: 'share', postId, shareData },
+        data: { action: 'share', postId, result },
       }
     } catch (error) {
       console.error('Error sharing post:', error)

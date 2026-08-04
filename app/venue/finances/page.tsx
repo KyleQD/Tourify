@@ -180,10 +180,31 @@ export default function FinancesPage() {
     
     try {
       setIsLoading(true)
-      const [bookingRequests, analytics] = await Promise.all([
-        venueService.getVenueBookingRequests(venue.id),
-        venueService.getVenueAnalytics(venue.id, 90),
-      ])
+
+      // Load persisted manual transactions from DB
+      let latestManual: Transaction[] = []
+      const manualRes = await fetch(
+        `/api/venue/finances?venue_id=${encodeURIComponent(venue.id)}`,
+        { credentials: "include", cache: "no-store" }
+      )
+      if (manualRes.ok) {
+        const { data } = await manualRes.json()
+        latestManual = (data || []).map((r: any) => ({
+          id: r.id,
+          type: r.type,
+          category: r.category,
+          description: r.description,
+          amount: Number(r.amount),
+          date: r.date,
+          status: r.status,
+          reference: r.reference || undefined,
+          event_id: r.event_id || undefined,
+          created_at: r.created_at,
+        }))
+        setManualTransactions(latestManual)
+      }
+
+      const bookingRequests = await venueService.getVenueBookingRequests(venue.id)
 
       const derivedTransactions: Transaction[] = bookingRequests.map((request) => {
         const parsedBudget = Number((request.budget_range || "").replace(/[^0-9.]/g, ""))
@@ -205,22 +226,36 @@ export default function FinancesPage() {
         }
       })
 
-      const utilityExpenses: Transaction[] = analytics
-        .filter((item) => item.revenue > 0)
-        .slice(0, 3)
-        .map((item, index) => ({
-          id: `ops-${item.id}`,
-          type: "expense" as const,
-          category: "Utilities",
-          description: `Estimated operating cost for ${format(new Date(item.date), "MMM yyyy")}`,
-          amount: Number((item.revenue * 0.18).toFixed(2)),
-          date: item.date,
-          status: "completed" as const,
-          reference: `OPS-${index + 1}`,
-          created_at: item.created_at,
-        }))
+      // Ticket settlement income from live ticketing API (no synthetic expense models)
+      let ticketTransactions: Transaction[] = []
+      try {
+        const ticketingRes = await fetch(
+          `/api/venue/ticketing?venue_id=${encodeURIComponent(venue.id)}`,
+          { credentials: "include", cache: "no-store" },
+        )
+        if (ticketingRes.ok) {
+          const payload = await ticketingRes.json()
+          const events = Array.isArray(payload?.summary?.events) ? payload.summary.events : []
+          ticketTransactions = events
+            .filter((event: { gross_revenue?: number }) => Number(event.gross_revenue || 0) > 0)
+            .map((event: { id: string; title?: string; start_at?: string; date?: string; gross_revenue?: number }) => ({
+              id: `ticket-${event.id}`,
+              type: "income" as const,
+              category: "Ticket Sales",
+              description: String(event.title || "Event tickets"),
+              amount: Number(event.gross_revenue || 0),
+              date: String(event.start_at || event.date || new Date().toISOString()),
+              status: "completed" as const,
+              reference: event.id,
+              event_id: event.id,
+              created_at: String(event.start_at || event.date || new Date().toISOString()),
+            }))
+        }
+      } catch {
+        ticketTransactions = []
+      }
 
-      const nextTransactions = [...manualTransactions, ...derivedTransactions, ...utilityExpenses]
+      const nextTransactions = [...latestManual, ...derivedTransactions, ...ticketTransactions]
         .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
 
       setTransactions(nextTransactions)
@@ -261,48 +296,73 @@ export default function FinancesPage() {
   })
 
   const handleAddTransaction = async () => {
+    if (!venue?.id) return
     try {
-    const transaction: Transaction = {
-        id: `manual-${Date.now()}`,
-        type: newTransaction.type,
-        category: newTransaction.category,
-        description: newTransaction.description,
-        amount: parseFloat(newTransaction.amount),
-        date: newTransaction.date.toISOString().split('T')[0],
-        status: "completed",
-        reference: newTransaction.reference,
-        event_id: newTransaction.event_id || undefined,
-        created_at: new Date().toISOString()
+      const res = await fetch("/api/venue/finances", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venue_id: venue.id,
+          type: newTransaction.type,
+          category: newTransaction.category,
+          description: newTransaction.description,
+          amount: parseFloat(newTransaction.amount),
+          date: newTransaction.date.toISOString().split("T")[0],
+          status: "completed",
+          reference: newTransaction.reference || null,
+          event_id: newTransaction.event_id || null,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to save transaction")
+      }
+      const { data: saved } = await res.json()
+      const transaction: Transaction = {
+        id: saved.id,
+        type: saved.type,
+        category: saved.category,
+        description: saved.description,
+        amount: Number(saved.amount),
+        date: saved.date,
+        status: saved.status,
+        reference: saved.reference || undefined,
+        event_id: saved.event_id || undefined,
+        created_at: saved.created_at,
+      }
+      setManualTransactions(current => [transaction, ...current])
+      setTransactions(current => {
+        const next = [transaction, ...current]
+        setSummary(calculateSummary(next))
+        return next
+      })
+      setIsAddTransactionOpen(false)
+      setNewTransaction({ type: "income", category: "", description: "", amount: "", date: new Date(), reference: "", event_id: "" })
+      toast({ title: "Transaction Added", description: "Financial transaction has been recorded successfully." })
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to add transaction", variant: "destructive" })
     }
+  }
 
-    setManualTransactions((current) => [transaction, ...current])
-    setTransactions((current) => {
-      const next = [transaction, ...current]
-      setSummary(calculateSummary(next))
-      return next
-    })
-    setIsAddTransactionOpen(false)
-    setNewTransaction({
-      type: "income",
-        category: "",
-        description: "",
-        amount: "",
-        date: new Date(),
-        reference: "",
-        event_id: ""
-    })
-    
-    toast({
-      title: "Transaction Added",
-        description: "Financial transaction has been recorded successfully.",
+  const handleDeleteTransaction = async (transaction: Transaction) => {
+    // Only allow deleting manual transactions (prefixed id won't be a uuid for derived ones)
+    if (transaction.id.startsWith("booking-") || transaction.id.startsWith("ticket-")) return
+    try {
+      const res = await fetch(
+        `/api/venue/finances?id=${encodeURIComponent(transaction.id)}`,
+        { method: "DELETE", credentials: "include" }
+      )
+      if (!res.ok) throw new Error("Failed to delete transaction")
+      setManualTransactions(current => current.filter(t => t.id !== transaction.id))
+      setTransactions(current => {
+        const next = current.filter(t => t.id !== transaction.id)
+        setSummary(calculateSummary(next))
+        return next
       })
-      
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add transaction",
-        variant: "destructive"
-      })
+      toast({ title: "Transaction Removed", description: "Transaction has been deleted." })
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete transaction", variant: "destructive" })
     }
   }
 
@@ -685,10 +745,22 @@ export default function FinancesPage() {
                             {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                             </Badge>
                         </div>
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                    </Button>
+                        {!transaction.id.startsWith("booking-") && !transaction.id.startsWith("ticket-") ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:border-red-300"
+                            onClick={() => handleDeleteTransaction(transaction)}
+                          >
+                            <Trash className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" disabled>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        )}
                   </div>
           </div>
         </CardContent>

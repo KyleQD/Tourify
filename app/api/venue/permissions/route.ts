@@ -11,6 +11,7 @@ const permissions = [
   { key: "manage_documents", label: "Manage documents", group: "Operations" },
   { key: "view_analytics", label: "View analytics", group: "Reporting" },
   { key: "view_finances", label: "View finances", group: "Finance" },
+  { key: "manage_finances", label: "Manage finances", group: "Finance" },
 ]
 
 export async function GET() {

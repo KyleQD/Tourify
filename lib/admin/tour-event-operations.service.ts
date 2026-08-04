@@ -6,6 +6,67 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { buildUniqueEventSlug, mapIncomingStatusToV2, mapV2StatusToUi } from "@/app/api/events/_lib/events-v2-admin"
 import { resolveAdminOrgIdForUser } from "@/app/api/events/_lib/admin-event-persistence"
 import { getEventReadiness, getTourReadiness } from "@/lib/admin/operations-readiness"
+import {
+  requireTourAccess,
+  requireTourCapability,
+  TourAccessDeniedError,
+  TourCapabilityDeniedError,
+} from "@/lib/admin/tour-access.service"
+import {
+  EventAccessDeniedError,
+  EventCapabilityDeniedError,
+  requireEventAccess,
+  requireEventCapability,
+} from "@/lib/admin/event-access.service"
+import {
+  normalizeEventSetupFields,
+  readEventSetupFromSettings,
+} from "@/lib/admin/event-setup-fields"
+import {
+  buildEventSetupChecklist,
+  mergeSetupChecklistIntoSettings,
+} from "@/lib/admin/event-setup-checklist"
+import {
+  buildEventVersionConflictDiff,
+  EventVersionConflictError,
+} from "@/lib/admin/event-version-diff"
+import {
+  applyTourPortfolioQuery,
+  parseTourPortfolioQuery,
+  type TourPortfolioPage,
+  type TourPortfolioQueryInput,
+  type TourPortfolioRow,
+  TourPortfolioQueryError,
+} from "@/lib/admin/tour-portfolio-query"
+import {
+  actorCanViewAllOrgTours,
+  buildAccessibleTourIdSet,
+  filterTourPortfolioByAccess,
+} from "@/lib/admin/tour-portfolio-visibility"
+import { loadTourTagsByTourIds, replaceTourTags } from "@/lib/admin/tour-tags.service"
+import {
+  assertTourStopReconcileMode,
+  planTourStopReconciliation,
+  type TourStopReconcileMode,
+  type TourStopReconcilePlan,
+} from "@/lib/admin/tour-stop-reconciliation"
+import {
+  assertStateAllowsAction,
+  assertTourMutationAllowed,
+  StateAwareAuthDeniedError,
+} from "@/lib/admin/state-aware-authorization"
+import {
+  buildTourMetadataConflictDiff,
+  TourMetadataVersionConflictError,
+} from "@/lib/admin/tour-metadata-version-diff"
+import {
+  assertTourHardDeleteEligible,
+  TourDeleteEligibilityError,
+} from "@/lib/admin/tour-delete-eligibility"
+import { logAuditEvent } from "@/lib/audit"
+import { commitDomainWithOutbox } from "@/lib/admin/publication-outbox.service"
+import { buildPublicationOutboxIdempotencyKey } from "@/lib/admin/publication-outbox"
+import type { AdminCapability } from "@/lib/auth/admin-capabilities"
 
 type SupabaseLike = SupabaseClient | any
 
@@ -42,6 +103,11 @@ export const adminEventInputBaseSchema = z.object({
     venue_id: z.string().uuid().optional().nullable(),
     venue_name: z.string().optional().nullable(),
     venue_address: z.string().optional().nullable(),
+    venue_city: z.string().optional().nullable(),
+    venue_state: z.string().optional().nullable(),
+    venue_postal_code: z.string().optional().nullable(),
+    venue_country: z.string().optional().nullable(),
+    venue_website: z.string().optional().nullable(),
     venue_room: z.string().optional().nullable(),
     venue_contact_name: z.string().optional().nullable(),
     venue_contact_email: z.string().optional().nullable(),
@@ -56,6 +122,11 @@ export const adminEventInputBaseSchema = z.object({
     curfew: z.string().optional().nullable(),
     load_in_time: z.string().optional().nullable(),
     sound_check_time: z.string().optional().nullable(),
+    age_restriction: z.string().max(120).optional().nullable(),
+    age_restrictions: z.string().max(120).optional().nullable(),
+    ops_owner_user_id: z.string().uuid().optional().nullable(),
+    department_owner: z.string().max(120).optional().nullable(),
+    production_windows: z.record(z.unknown()).optional().nullable(),
     sound_requirements: z.string().max(5000).optional().nullable(),
     lighting_requirements: z.string().max(5000).optional().nullable(),
     stage_requirements: z.string().max(5000).optional().nullable(),
@@ -63,6 +134,8 @@ export const adminEventInputBaseSchema = z.object({
     set_times: z.array(z.record(z.unknown())).optional(),
     ticket_price: z.number().optional(),
     vip_price: z.number().optional(),
+    /** TIX-105 — incomplete | not_ticketed | explicit_setup; never invents inventory. */
+    ticketing_setup: z.enum(["incomplete", "not_ticketed", "explicit_setup"]).optional(),
     expected_revenue: z.number().optional(),
     expected_expenses: z.number().optional(),
     artist_ids: z.array(z.string()).optional(),
@@ -88,6 +161,15 @@ export const adminEventInputBaseSchema = z.object({
     template_key: z.string().optional().nullable(),
     setup_checklist: z.record(z.boolean()).optional(),
     setup_context: z.record(z.unknown()).optional().nullable(),
+    quick_start_placeholder: z.boolean().optional(),
+    quick_start_label: z.string().max(120).optional().nullable(),
+    quick_start_completed_at: z.string().optional().nullable(),
+    /** EVENT-104 optimistic concurrency — client must send current event_version to avoid silent overwrite. */
+    expected_version: z.number().int().positive().optional(),
+    event_version: z.number().int().positive().optional(),
+    /** Client's last known tour-plan touch timestamp for conflict messaging. */
+    tour_plan_touched_at: z.string().optional().nullable(),
+    schedule_details: z.record(z.unknown()).optional().nullable(),
 })
 
 export const adminEventInputSchema = adminEventInputBaseSchema
@@ -116,6 +198,8 @@ export const adminTourInputSchema = z.object({
   markets: z.array(z.string()).optional(),
   settings: z.record(z.unknown()).optional(),
   event_ids: z.array(z.string().uuid()).optional(),
+  /** PLAN-103 — how omitted stops are handled (default exact). */
+  reconcile_mode: z.enum(["exact", "merge", "attach_only"]).optional(),
   routing: z.array(z.record(z.unknown())).optional(),
   events: z
     .array(
@@ -152,6 +236,13 @@ export const adminTourInputSchema = z.object({
         .refine((event) => Boolean(event.date?.trim()), { message: "date is required" })
     )
     .optional(),
+  /** TOUR-201 optimistic concurrency — send current metadata_version to avoid silent overwrite. */
+  expected_version: z.number().int().positive().optional(),
+  metadata_version: z.number().int().positive().optional(),
+  /** TOUR-209 — portfolio owner / lead + tag links. */
+  owner_user_id: z.string().uuid().optional().nullable(),
+  lead_user_id: z.string().uuid().optional().nullable(),
+  tag_ids: z.array(z.string().uuid()).optional(),
 })
 
 export const plannerTourInputSchema = z.object({
@@ -288,8 +379,12 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
-/** Best-effort bridge from builder settings into operational tables used by hub managers. */
-async function seedOperationalRecordsFromInput(args: {
+/**
+ * PLAN-105 — Builder records setup intent only.
+ * Does NOT invent staff_shifts or ticket inventory. Those require
+ * explicit reviewed provisioning via provisionEventOperations.
+ */
+async function recordSetupIntentFromInput(args: {
   supabase: SupabaseLike
   userId: string
   eventId: string
@@ -298,35 +393,84 @@ async function seedOperationalRecordsFromInput(args: {
   eventStartAt?: string | null
 }) {
   const { artistIds, staffIds, vendorEntries, artists, crew } = readSetupSelections(args.input)
+  const ticketPrice = typeof args.input.ticket_price === "number" ? args.input.ticket_price : null
+  const vipPrice = typeof args.input.vip_price === "number" ? args.input.vip_price : null
 
-  // Artists / participants
+  const { data: eventRow, error: loadError } = await args.supabase
+    .from("events_v2")
+    .select("id, settings")
+    .eq("id", args.eventId)
+    .maybeSingle()
+  if (loadError) {
+    console.warn("[AdminTourEventOperations] setup intent load skipped:", loadError.message)
+    return
+  }
+
+  const settings = readSettings(eventRow || {})
+  const setupIntent = {
+    recorded_at: new Date().toISOString(),
+    recorded_by: args.userId,
+    artists: artistIds.map((id) => {
+      const meta = artists.find((item: any) => String(item?.id) === id) as any
+      return { id, label: meta?.label || null, role: meta?.meta || null }
+    }),
+    crew: staffIds.map((id) => {
+      const meta = crew.find((item: any) => String(item?.id) === id) as any
+      return { id, label: meta?.label || null, role: meta?.meta || null }
+    }),
+    vendors: vendorEntries.map((vendor) => ({
+      id: vendor.id,
+      label: vendor.label || null,
+      service_type: vendor.meta || null,
+    })),
+    ticketing_intent: {
+      general_admission_price: ticketPrice,
+      vip_price: vipPrice,
+      // No quantities — inventory requires explicit provision command.
+    },
+    staffing_intent: {
+      event_start_at: args.eventStartAt || null,
+      // Shifts require explicit provision command (PLAN-105).
+      proposed_staff_ids: staffIds,
+    },
+    status: "intent_only",
+  }
+
+  const { error } = await args.supabase
+    .from("events_v2")
+    .update({
+      settings: {
+        ...settings,
+        setup_intent: setupIntent,
+      },
+    })
+    .eq("id", args.eventId)
+  if (error) console.warn("[AdminTourEventOperations] setup intent save skipped:", error.message)
+
+  // Soft party invites remain allowed (not inventory/shifts).
   for (const [index, artistId] of artistIds.entries()) {
     if (!isUuid(artistId)) continue
     const artistMeta = artists.find((item: any) => String(item?.id) === artistId) as any
     const role = index === 0 ? "headliner" : "support"
-    const { error } = await args.supabase.from("event_participants").upsert(
+    const { error: participantError } = await args.supabase.from("event_participants").upsert(
       {
         event_id: args.eventId,
         participant_id: artistId,
         participant_type: "Artist",
         role: artistMeta?.meta?.includes?.("support") ? "support" : role,
         status: "invited",
-        metadata: { seeded_from_builder: true, label: artistMeta?.label || null },
+        metadata: { setup_intent: true, label: artistMeta?.label || null },
       },
-      { onConflict: "event_id,participant_id", ignoreDuplicates: true }
+      { onConflict: "event_id,participant_id", ignoreDuplicates: true },
     )
-    if (error) console.warn("[AdminTourEventOperations] participant seed skipped:", error.message)
+    if (participantError) {
+      console.warn("[AdminTourEventOperations] participant invite skipped:", participantError.message)
+    }
   }
-
-  // Crew as participants + optional staff_shifts when a staff_members row exists
-  const shiftDate = args.eventStartAt
-    ? new Date(args.eventStartAt).toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10)
 
   for (const staffId of staffIds) {
     if (!isUuid(staffId)) continue
     const crewMeta = crew.find((item: any) => String(item?.id) === staffId) as any
-
     const { error: participantError } = await args.supabase.from("event_participants").upsert(
       {
         event_id: args.eventId,
@@ -334,115 +478,26 @@ async function seedOperationalRecordsFromInput(args: {
         participant_type: "Individual",
         role: "staff",
         status: "invited",
-        metadata: { seeded_from_builder: true, label: crewMeta?.label || null },
+        metadata: { setup_intent: true, label: crewMeta?.label || null },
       },
-      { onConflict: "event_id,participant_id", ignoreDuplicates: true }
+      { onConflict: "event_id,participant_id", ignoreDuplicates: true },
     )
-    if (participantError) console.warn("[AdminTourEventOperations] staff participant seed skipped:", participantError.message)
-
-    let staffMemberId: string | null = null
-    const byId = await args.supabase.from("staff_members").select("id").eq("id", staffId).maybeSingle()
-    if (byId.data?.id) staffMemberId = byId.data.id
-    if (!staffMemberId) {
-      const byUser = await args.supabase
-        .from("staff_members")
-        .select("id")
-        .eq("user_id", staffId)
-        .limit(1)
-        .maybeSingle()
-      if (byUser.data?.id) staffMemberId = byUser.data.id
-    }
-
-    if (!staffMemberId) continue
-
-    const { data: existingShift } = await args.supabase
-      .from("staff_shifts")
-      .select("id")
-      .eq("event_id", args.eventId)
-      .eq("staff_member_id", staffMemberId)
-      .limit(1)
-      .maybeSingle()
-    if (existingShift?.id) continue
-
-    const { error: shiftError } = await args.supabase.from("staff_shifts").insert({
-      event_id: args.eventId,
-      staff_member_id: staffMemberId,
-      shift_date: shiftDate,
-      start_time: "09:00",
-      end_time: "17:00",
-      role_assignment: crewMeta?.meta || crewMeta?.label || "crew",
-      status: "scheduled",
-      created_by: args.userId,
-      notes: "Seeded from event producer builder",
-    })
-    if (shiftError) console.warn("[AdminTourEventOperations] staff shift seed skipped:", shiftError.message)
-  }
-
-  // Vendors → event_vendor_requests
-  for (const vendor of vendorEntries) {
-    const vendorName = vendor.label || vendor.id
-    if (!vendorName) continue
-    const { data: existingVendor } = await args.supabase
-      .from("event_vendor_requests")
-      .select("id")
-      .eq("event_id", args.eventId)
-      .ilike("vendor_name", vendorName)
-      .limit(1)
-      .maybeSingle()
-    if (existingVendor?.id) continue
-
-    const insertPayload: Record<string, unknown> = {
-      event_id: args.eventId,
-      vendor_name: vendorName.slice(0, 200),
-      service_type: (vendor.meta || "general").slice(0, 120),
-      status: "pending",
-      created_by: args.userId,
-      notes: "Seeded from event producer builder",
-    }
-    if (args.orgId) insertPayload.org_id = args.orgId
-
-    const { error: vendorError } = await args.supabase.from("event_vendor_requests").insert(insertPayload)
-    if (vendorError) console.warn("[AdminTourEventOperations] vendor seed skipped:", vendorError.message)
-  }
-
-  // Ticket types from scalar prices
-  const ticketPrice = typeof args.input.ticket_price === "number" ? args.input.ticket_price : null
-  const vipPrice = typeof args.input.vip_price === "number" ? args.input.vip_price : null
-  if (ticketPrice != null || vipPrice != null) {
-    const { data: existingTypes } = await args.supabase
-      .from("ticket_types")
-      .select("id, name")
-      .eq("event_id", args.eventId)
-
-    const names = new Set((existingTypes ?? []).map((row: { name?: string }) => String(row.name || "").toLowerCase()))
-    const inserts: Array<Record<string, unknown>> = []
-    if (ticketPrice != null && !names.has("general admission")) {
-      inserts.push({
-        event_id: args.eventId,
-        name: "General Admission",
-        price: ticketPrice,
-        quantity_available: 100,
-        quantity_sold: 0,
-        category: "general",
-        is_active: true,
-      })
-    }
-    if (vipPrice != null && !names.has("vip")) {
-      inserts.push({
-        event_id: args.eventId,
-        name: "VIP",
-        price: vipPrice,
-        quantity_available: 25,
-        quantity_sold: 0,
-        category: "vip",
-        is_active: true,
-      })
-    }
-    if (inserts.length) {
-      const { error: ticketError } = await args.supabase.from("ticket_types").insert(inserts)
-      if (ticketError) console.warn("[AdminTourEventOperations] ticket_types seed skipped:", ticketError.message)
+    if (participantError) {
+      console.warn("[AdminTourEventOperations] staff invite skipped:", participantError.message)
     }
   }
+}
+
+/** @deprecated PLAN-105 — use recordSetupIntentFromInput / provisionEventOperations */
+async function seedOperationalRecordsFromInput(args: {
+  supabase: SupabaseLike
+  userId: string
+  eventId: string
+  orgId: string | null
+  input: Partial<z.infer<typeof adminEventInputBaseSchema>>
+  eventStartAt?: string | null
+}) {
+  return recordSetupIntentFromInput(args)
 }
 
 async function resolveVenuesV2IdForAccount(args: {
@@ -518,6 +573,11 @@ function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBas
   copy("tags")
   copy("venue_name", "venue_label")
   copy("venue_address")
+  copy("venue_city")
+  copy("venue_state")
+  copy("venue_postal_code")
+  copy("venue_country")
+  copy("venue_website")
   copy("venue_room")
   copy("venue_contact_name")
   copy("venue_contact_email")
@@ -534,6 +594,7 @@ function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBas
   copy("set_times")
   if (input.ticket_price !== undefined) settings.ticket_price = input.ticket_price
   if (input.vip_price !== undefined) settings.vip_price = input.vip_price
+  if (input.ticketing_setup !== undefined) settings.ticketing_setup = input.ticketing_setup
   if (input.expected_revenue !== undefined) settings.expected_revenue = input.expected_revenue
   if (input.expected_expenses !== undefined) settings.expected_expenses = input.expected_expenses
   if (input.artist_ids !== undefined) {
@@ -566,6 +627,10 @@ function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBas
   copy("template_key")
   copy("setup_checklist")
   copy("setup_context")
+  copy("quick_start_placeholder")
+  copy("quick_start_label")
+  copy("quick_start_completed_at")
+  copy("schedule_details")
   return settings
 }
 
@@ -613,9 +678,41 @@ export class AdminTourPublishReadinessError extends Error {
   }
 }
 
+/** EVENT-201 — Server publish rejects when contract blockers remain. */
+export class AdminEventPublishReadinessError extends Error {
+  status = 422
+  readiness: ReturnType<typeof getEventReadiness>
+
+  constructor(readiness: ReturnType<typeof getEventReadiness>) {
+    super("Event is not ready to publish.")
+    this.name = "AdminEventPublishReadinessError"
+    this.readiness = readiness
+  }
+}
+
+export class AdminReadinessOverrideReasonError extends Error {
+  status = 422
+
+  constructor() {
+    super("A reason is required when overriding readiness warnings.")
+    this.name = "AdminReadinessOverrideReasonError"
+  }
+}
+
 export function getAdminTourEventErrorStatus(error: unknown, fallback = 500): number {
   if (error instanceof AdminTourEventAuthError) return error.status
   if (error instanceof AdminTourPublishReadinessError) return error.status
+  if (error instanceof AdminEventPublishReadinessError) return error.status
+  if (error instanceof AdminReadinessOverrideReasonError) return error.status
+  if (error instanceof TourDeleteEligibilityError) return error.status
+  if (error instanceof TourAccessDeniedError) return error.status
+  if (error instanceof TourCapabilityDeniedError) return error.status
+  if (error instanceof EventAccessDeniedError) return error.status
+  if (error instanceof EventCapabilityDeniedError) return error.status
+  if (error instanceof EventVersionConflictError) return error.status
+  if (error instanceof TourPortfolioQueryError) return error.status
+  if (error instanceof StateAwareAuthDeniedError) return error.status
+  if (error instanceof TourMetadataVersionConflictError) return error.status
   if (error && typeof error === "object" && "name" in error && (error as { name?: string }).name === "ZodError") return 400
   const message = error && typeof error === "object" && "message" in error
     ? String((error as { message?: unknown }).message ?? "")
@@ -710,9 +807,18 @@ function presentTour(row: Record<string, unknown>, events: unknown[] = []) {
   const linkedShows = events.length
   const storedShows = typeof row.total_shows === "number" ? row.total_shows : 0
   const totalShows = linkedShows > 0 ? linkedShows : storedShows
+  const metadataVersion =
+    typeof row.metadata_version === "number" && Number.isFinite(row.metadata_version)
+      ? row.metadata_version
+      : 1
   return {
     ...row,
     id: row.id,
+    metadata_version: metadataVersion,
+    metadataVersion,
+    owner_user_id: row.owner_user_id ?? null,
+    lead_user_id: row.lead_user_id ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     artist: settings.main_artist ?? settings.mainArtist ?? row.artist ?? row.main_artist ?? "Tour",
     main_artist: settings.main_artist ?? settings.mainArtist ?? row.main_artist ?? null,
     genre: settings.genre ?? null,
@@ -747,6 +853,50 @@ function presentTour(row: Record<string, unknown>, events: unknown[] = []) {
   }
 }
 
+async function loadTeamTourIdsForUser(args: {
+  supabase: SupabaseLike
+  userId: string
+  orgId: string
+}): Promise<string[]> {
+  const { data, error } = await args.supabase
+    .from("tour_team_members")
+    .select("tour_id, tours!inner(id, org_id)")
+    .eq("user_id", args.userId)
+    .eq("tours.org_id", args.orgId)
+  if (error) {
+    if (error.code === "42P01" || error.code === "PGRST200") {
+      const fallback = await args.supabase
+        .from("tour_team_members")
+        .select("tour_id")
+        .eq("user_id", args.userId)
+      if (fallback.error) return []
+      return [...new Set(((fallback.data ?? []) as unknown[]).map((row) => String((row as { tour_id: string }).tour_id)))]
+    }
+    return []
+  }
+  return [...new Set(((data ?? []) as unknown[]).map((row) => String((row as { tour_id: string }).tour_id)))]
+}
+
+async function loadGrantedTourIdsForUser(args: {
+  supabase: SupabaseLike
+  userId: string
+  orgId: string
+}): Promise<string[]> {
+  const { data, error } = await args.supabase
+    .from("entity_grants")
+    .select("resource_id")
+    .eq("org_id", args.orgId)
+    .eq("resource_type", "tour")
+    .eq("grantee_user_id", args.userId)
+    .eq("status", "active")
+    .gt("expires_at", new Date().toISOString())
+  if (error) {
+    if (error.code === "42P01") return []
+    return []
+  }
+  return [...new Set(((data ?? []) as unknown[]).map((row) => String((row as { resource_id: string }).resource_id)))]
+}
+
 function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metrics?: { sold?: number; revenue?: number; expenses?: number }) {
   const settings = readSettings(row)
   const primaryTour = (tours as Array<{ id?: string; is_primary?: boolean }>).find((tour) => tour.is_primary) ?? tours[0] ?? null
@@ -770,15 +920,27 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     venue_id: row.venue_id,
     venue_name: settings.venue_label ?? null,
     venue_address: settings.venue_address ?? null,
+    venue_city: settings.venue_city ?? null,
+    venue_state: settings.venue_state ?? null,
+    venue_postal_code: settings.venue_postal_code ?? null,
+    venue_country: settings.venue_country ?? null,
+    venue_website: settings.venue_website ?? null,
     venue_contact_name: settings.venue_contact_name ?? null,
     venue_contact_email: settings.venue_contact_email ?? null,
     venue_contact_phone: settings.venue_contact_phone ?? null,
     location: settings.location ?? null,
     capacity: row.capacity ?? 0,
+    timezone: row.timezone ?? settings.timezone ?? "UTC",
+    age_restrictions: row.age_restrictions ?? settings.age_restrictions ?? null,
     doors_open: settings.doors_open ?? null,
     curfew: settings.curfew ?? null,
     load_in_time: settings.load_in_time ?? null,
     sound_check_time: settings.sound_check_time ?? null,
+    promoter_contact: settings.promoter_contact ?? null,
+    setup: readEventSetupFromSettings(settings),
+    setup_checklist: settings.setup_checklist_status ?? null,
+    event_version: typeof row.event_version === "number" ? row.event_version : 1,
+    tour_plan_touched_at: typeof settings.tour_plan_touched_at === "string" ? settings.tour_plan_touched_at : null,
     ticket_price: settings.ticket_price ?? 0,
     vip_price: settings.vip_price ?? 0,
     expected_revenue: settings.expected_revenue ?? 0,
@@ -800,7 +962,10 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     tours,
     created_at: row.created_at,
     settings,
+    schedule_details: settings.schedule_details ?? null,
     readiness: getEventReadiness({
+      eventId: typeof row.id === "string" ? row.id : null,
+      orgId: typeof row.org_id === "string" ? row.org_id : null,
       title: typeof row.title === "string" ? row.title : "",
       start_at: typeof row.start_at === "string" ? row.start_at : null,
       venue_name: typeof settings.venue_label === "string" ? settings.venue_label : null,
@@ -822,6 +987,11 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
       advance_status: typeof settings.advance_status === "string" ? settings.advance_status : null,
       expected_revenue: settings.expected_revenue as string | number | null,
       expected_expenses: settings.expected_expenses as string | number | null,
+      has_logistics: Boolean(settings.has_logistics || settings.logistics),
+      has_site_map: Boolean(settings.site_map_id || settings.has_site_map),
+      has_documents: Boolean(settings.has_documents),
+      has_comms: Boolean(settings.has_comms),
+      day_sheet_notes: typeof settings.day_sheet_notes === "string" ? settings.day_sheet_notes : null,
       team_count: [
         ...(Array.isArray(settings.artist_ids) ? settings.artist_ids : []),
         ...(Array.isArray(settings.staff_ids) ? settings.staff_ids : []),
@@ -848,13 +1018,35 @@ export class AdminTourEventOperationsService {
     return resolveAdminOrgIdForUser(args.supabase, args.userId, args.tourId)
   }
 
-  static async listEvents(args: { supabase: SupabaseLike; userId: string; orgId?: string | null; status?: string | null }) {
-    const orgId = await resolveAuthorizedOrgId({
-      supabase: args.supabase,
-      userId: args.userId,
-      requestedOrgId: args.orgId,
-    })
+  static async listEvents(args: {
+    supabase: SupabaseLike
+    userId: string
+    orgId?: string | null
+    status?: string | null
+    allowedTourIds?: readonly string[]
+  }) {
+    const scopedTourIds = Array.from(new Set(args.allowedTourIds || []))
+    const orgId = scopedTourIds.length > 0
+      ? args.orgId || null
+      : await resolveAuthorizedOrgId({
+          supabase: args.supabase,
+          userId: args.userId,
+          requestedOrgId: args.orgId,
+        })
     if (!orgId) return []
+
+    let scopedEventIds: string[] | null = null
+    if (scopedTourIds.length > 0) {
+      const { data: links, error: linksError } = await args.supabase
+        .from("tour_events")
+        .select("event_id")
+        .in("tour_id", scopedTourIds)
+      if (linksError) throw new Error(linksError.message)
+      scopedEventIds = Array.from(new Set(
+        (links || []).map((link: { event_id: string }) => link.event_id).filter(Boolean),
+      ))
+      if (scopedEventIds.length === 0) return []
+    }
 
     let query = args.supabase
       .from("events_v2")
@@ -862,6 +1054,8 @@ export class AdminTourEventOperationsService {
       .eq("org_id", orgId)
       .order("start_at", { ascending: false })
       .limit(200)
+
+    if (scopedEventIds) query = query.in("id", scopedEventIds)
 
     if (args.status && args.status !== "all") query = query.eq("status", mapIncomingStatusToV2(args.status))
 
@@ -922,6 +1116,23 @@ export class AdminTourEventOperationsService {
     eventId: string
     orgId?: string
   }) {
+    // EVENT-101: all event panel/legacy reads share the canonical access service.
+    let accessOrgId: string | null = null
+    try {
+      const access = await requireEventAccess({
+        supabase: args.supabase,
+        userId: args.userId,
+        eventId: args.eventId,
+        orgId: args.orgId,
+      })
+      accessOrgId = access.orgId
+    } catch (error) {
+      if (error instanceof EventAccessDeniedError) {
+        throw new AdminTourEventAuthError("Event not found.", 404)
+      }
+      throw error
+    }
+
     const { data, error } = await args.supabase
       .from("events_v2")
       .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id, created_by")
@@ -930,22 +1141,11 @@ export class AdminTourEventOperationsService {
     if (error) throw new Error(error.message)
     if (!data) throw new Error("Event not found.")
 
-    if (args.orgId && data.org_id !== args.orgId) {
-      throw new AdminTourEventAuthError("Event is not available to the acting organization.")
-    }
-
-    const orgId = await assertUserCanAccessOrg({
-      supabase: args.supabase,
-      userId: args.userId,
-      orgId: data.org_id,
-      ownerUserId: data.created_by,
-    })
-
     const assignments = await this.getTourAssignments({
       supabase: args.supabase,
       userId: args.userId,
       eventId: args.eventId,
-      orgId: orgId || data.org_id,
+      orgId: accessOrgId || data.org_id,
     })
     return presentEvent(data, assignments)
   }
@@ -989,6 +1189,14 @@ export class AdminTourEventOperationsService {
       venueName: input.venue_name,
     })
 
+    // EVENT-102: typed destinations for venue/promoter/times/capacity/age/ownership.
+    const setup = normalizeEventSetupFields({
+      raw: input as Record<string, unknown>,
+      createdBy: args.userId,
+      bridgedVenueId,
+    })
+    Object.assign(settings, setup.settingsPatch)
+
     const slug = await buildUniqueEventSlug(args.supabase, orgId, title)
     const { data: inserted, error } = await args.supabase
       .from("events_v2")
@@ -1003,12 +1211,13 @@ export class AdminTourEventOperationsService {
             ? new Date(Date.parse(startAt) + input.duration_minutes * 60 * 1000).toISOString()
             : defaultEndAt(startAt)),
         venue_id: bridgedVenueId,
-        capacity: parseCapacity(input.capacity),
-        timezone: input.timezone || "UTC",
+        capacity: setup.columns.capacity,
+        timezone: setup.columns.timezone,
+        age_restrictions: setup.columns.age_restrictions,
         created_by: args.userId,
         settings,
       })
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, timezone, age_restrictions, settings, created_at, org_id, created_by")
       .single()
 
     if (error || !inserted?.id) throw new Error(error?.message || "Failed to create event.")
@@ -1034,7 +1243,32 @@ export class AdminTourEventOperationsService {
       eventStartAt: startAt,
     })
 
-    return presentEvent(inserted, assignments.map((assignment) => ({ id: assignment.tour_id, ...assignment })))
+    // EVENT-103 — reload settings (incl. setup_intent) and attach explicit checklist.
+    const { data: withIntent } = await args.supabase
+      .from("events_v2")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, timezone, age_restrictions, settings, created_at, org_id, created_by")
+      .eq("id", inserted.id)
+      .maybeSingle()
+
+    const eventRow = withIntent || inserted
+    const checklist = buildEventSetupChecklist({
+      eventId: inserted.id,
+      event: eventRow as Record<string, unknown>,
+    })
+    const nextSettings = mergeSetupChecklistIntoSettings(readSettings(eventRow), checklist)
+    await args.supabase
+      .from("events_v2")
+      .update({ settings: nextSettings })
+      .eq("id", inserted.id)
+
+    const presented = presentEvent(
+      { ...eventRow, settings: nextSettings },
+      assignments.map((assignment) => ({ id: assignment.tour_id, ...assignment })),
+    )
+    return {
+      ...presented,
+      setup_checklist: checklist,
+    }
   }
 
   static async updateEvent(args: {
@@ -1043,10 +1277,11 @@ export class AdminTourEventOperationsService {
     eventId: string
     input: Partial<z.infer<typeof adminEventInputSchema>>
     orgId?: string
+    capabilities?: readonly AdminCapability[]
   }) {
     const { data: existing, error: existingError } = await args.supabase
       .from("events_v2")
-      .select("id, org_id, settings, created_by, start_at, end_at")
+      .select("id, org_id, settings, created_by, start_at, end_at, title, status, venue_id, capacity, timezone, age_restrictions, event_version")
       .eq("id", args.eventId)
       .maybeSingle()
     if (existingError) throw new Error(existingError.message)
@@ -1057,15 +1292,90 @@ export class AdminTourEventOperationsService {
     }
 
     const input = adminEventInputBaseSchema.partial().parse(args.input)
+    const currentVersion = typeof existing.event_version === "number" ? existing.event_version : 1
+    const expectedVersion = input.expected_version ?? input.event_version
+    const settingsExisting = readSettings(existing)
+    const capabilities = args.capabilities ?? (["event.manage"] as const)
 
-    const orgId = await assertUserCanAccessOrg({
-      supabase: args.supabase,
-      userId: args.userId,
-      orgId: existing.org_id,
-      ownerUserId: existing.created_by,
+    assertStateAllowsAction({
+      domain: "event",
+      state: existing.status,
+      action: input.status && input.status !== existing.status
+        ? "update_status_direct"
+        : "update_metadata",
+      capabilities,
+      actorUserId: args.userId,
+      priorActorUserId: existing.created_by,
+      legallyRetained: Boolean(
+        settingsExisting.legal_hold === true
+        || settingsExisting.legal_retention === true
+        || settingsExisting.legally_retained === true,
+      ),
     })
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    if (typeof expectedVersion === "number" && expectedVersion !== currentVersion) {
+      const presented = presentEvent(existing, [])
+      const diff = buildEventVersionConflictDiff({
+        expectedVersion,
+        server: {
+          eventVersion: currentVersion,
+          title: existing.title ?? null,
+          status: existing.status ?? null,
+          start_at: existing.start_at ?? null,
+          end_at: existing.end_at ?? null,
+          venue_id: existing.venue_id ?? null,
+          capacity: typeof existing.capacity === "number" ? existing.capacity : null,
+          timezone: existing.timezone ?? null,
+          age_restrictions: existing.age_restrictions ?? null,
+        },
+        client: {
+          eventVersion: expectedVersion,
+          title: input.title ?? input.name ?? null,
+          status: input.status ?? null,
+          start_at: input.start_at ?? null,
+          end_at: input.end_at ?? null,
+          venue_id: input.venue_id ?? null,
+          capacity: parseCapacity(input.capacity),
+          timezone: input.timezone ?? null,
+          age_restrictions: input.age_restrictions ?? input.age_restriction ?? null,
+        },
+        serverTourPlanTouchedAt:
+          typeof settingsExisting.tour_plan_touched_at === "string"
+            ? settingsExisting.tour_plan_touched_at
+            : null,
+        clientTourPlanTouchedAt: input.tour_plan_touched_at ?? null,
+      })
+      throw new EventVersionConflictError({
+        currentVersion,
+        expectedVersion,
+        diff,
+        serverEvent: presented as Record<string, unknown>,
+      })
+    }
+
+    let eventAccess
+    try {
+      eventAccess = await requireEventCapability({
+        supabase: args.supabase,
+        userId: args.userId,
+        eventId: args.eventId,
+        orgId: args.orgId || existing.org_id,
+        capability: "event.manage",
+        capabilities,
+      })
+    } catch (error) {
+      if (error instanceof EventAccessDeniedError || error instanceof EventCapabilityDeniedError) {
+        throw new AdminTourEventAuthError(error.message, error.status)
+      }
+      throw error
+    }
+    const orgId = eventAccess.orgId || existing.org_id
+    if (!orgId) throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+      event_version: currentVersion + 1,
+    }
     if (input.title || input.name) patch.title = (input.title || input.name || "").trim()
     if (input.status) patch.status = mapIncomingStatusToV2(input.status)
     const existingStartMs = Date.parse(String(existing.start_at || ""))
@@ -1112,8 +1422,9 @@ export class AdminTourEventOperationsService {
         throw new Error("Event end time must be after its start time.")
       }
     }
+    let bridgedVenueId: string | null | undefined
     if ("venue_id" in input) {
-      const bridgedVenueId = await resolveVenuesV2IdForAccount({
+      bridgedVenueId = await resolveVenuesV2IdForAccount({
         supabase: args.supabase,
         orgId: orgId || existing.org_id,
         userId: args.userId,
@@ -1122,8 +1433,56 @@ export class AdminTourEventOperationsService {
       })
       patch.venue_id = bridgedVenueId
     }
-    if ("capacity" in input) patch.capacity = parseCapacity(input.capacity)
-    patch.settings = { ...(existing.settings ?? {}), ...eventSettingsFromInput(input) }
+
+    const setupKeys = [
+      "timezone",
+      "capacity",
+      "age_restriction",
+      "age_restrictions",
+      "venue_id",
+      "venue_name",
+      "venue_address",
+      "venue_city",
+      "venue_state",
+      "venue_postal_code",
+      "venue_country",
+      "venue_website",
+      "venue_room",
+      "venue_contact_name",
+      "venue_contact_email",
+      "venue_contact_phone",
+      "doors_open",
+      "curfew",
+      "load_in_time",
+      "sound_check_time",
+      "promoter_contact",
+      "ops_owner_user_id",
+      "department_owner",
+      "production_windows",
+    ] as const
+    const hasSetupField = setupKeys.some((key) => Object.prototype.hasOwnProperty.call(input, key))
+    const settingsFromInput = eventSettingsFromInput(input)
+
+    if (hasSetupField) {
+      const setup = normalizeEventSetupFields({
+        raw: input as Record<string, unknown>,
+        createdBy: existing.created_by,
+        bridgedVenueId: bridgedVenueId ?? (typeof patch.venue_id === "string" ? patch.venue_id : null),
+      })
+      if ("timezone" in input) patch.timezone = setup.columns.timezone
+      if ("capacity" in input) patch.capacity = setup.columns.capacity
+      if ("age_restriction" in input || "age_restrictions" in input) {
+        patch.age_restrictions = setup.columns.age_restrictions
+      }
+      patch.settings = {
+        ...(existing.settings ?? {}),
+        ...settingsFromInput,
+        ...setup.settingsPatch,
+      }
+    } else {
+      if ("capacity" in input) patch.capacity = parseCapacity(input.capacity)
+      patch.settings = { ...(existing.settings ?? {}), ...settingsFromInput }
+    }
 
     if (input.tour_id !== undefined || input.tour_ids !== undefined || input.tour_assignments !== undefined || input.primary_tour_id !== undefined) {
       if (!orgId && !existing.org_id) {
@@ -1147,11 +1506,58 @@ export class AdminTourEventOperationsService {
       .from("events_v2")
       .update(patch)
       .eq("id", args.eventId)
+      .eq("event_version", currentVersion)
     if (existing.org_id) updateQuery = updateQuery.eq("org_id", existing.org_id)
     const { data, error } = await updateQuery
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
-      .single()
+      .select("id, title, status, start_at, end_at, venue_id, capacity, timezone, age_restrictions, event_version, settings, created_at, org_id, created_by")
+      .maybeSingle()
     if (error) throw new Error(error.message)
+    if (!data) {
+      // Lost the race — another writer bumped the version.
+      const { data: latest } = await args.supabase
+        .from("events_v2")
+        .select("id, org_id, settings, created_by, start_at, end_at, title, status, venue_id, capacity, timezone, age_restrictions, event_version")
+        .eq("id", args.eventId)
+        .maybeSingle()
+      const latestVersion = typeof latest?.event_version === "number" ? latest.event_version : currentVersion + 1
+      const latestSettings = readSettings(latest || {})
+      const diff = buildEventVersionConflictDiff({
+        expectedVersion: currentVersion,
+        server: {
+          eventVersion: latestVersion,
+          title: latest?.title ?? null,
+          status: latest?.status ?? null,
+          start_at: latest?.start_at ?? null,
+          end_at: latest?.end_at ?? null,
+          venue_id: latest?.venue_id ?? null,
+          capacity: typeof latest?.capacity === "number" ? latest.capacity : null,
+          timezone: latest?.timezone ?? null,
+          age_restrictions: latest?.age_restrictions ?? null,
+        },
+        client: {
+          eventVersion: currentVersion,
+          title: input.title ?? input.name ?? null,
+          status: input.status ?? null,
+          start_at: input.start_at ?? null,
+          end_at: input.end_at ?? null,
+          venue_id: input.venue_id ?? null,
+          capacity: parseCapacity(input.capacity),
+          timezone: input.timezone ?? null,
+          age_restrictions: input.age_restrictions ?? input.age_restriction ?? null,
+        },
+        serverTourPlanTouchedAt:
+          typeof latestSettings.tour_plan_touched_at === "string"
+            ? latestSettings.tour_plan_touched_at
+            : null,
+        clientTourPlanTouchedAt: input.tour_plan_touched_at ?? null,
+      })
+      throw new EventVersionConflictError({
+        currentVersion: latestVersion,
+        expectedVersion: currentVersion,
+        diff,
+        serverEvent: latest ? (presentEvent(latest, []) as Record<string, unknown>) : null,
+      })
+    }
 
     await seedOperationalRecordsFromInput({
       supabase: args.supabase,
@@ -1170,10 +1576,11 @@ export class AdminTourEventOperationsService {
     userId: string
     eventId: string
     orgId?: string
+    capabilities?: readonly AdminCapability[]
   }) {
     const { data: existing, error: existingError } = await args.supabase
       .from("events_v2")
-      .select("id, org_id, created_by")
+      .select("id, org_id, created_by, status, settings")
       .eq("id", args.eventId)
       .maybeSingle()
     if (existingError) throw new Error(existingError.message)
@@ -1188,6 +1595,21 @@ export class AdminTourEventOperationsService {
       userId: args.userId,
       orgId: existing.org_id,
       ownerUserId: existing.created_by,
+    })
+
+    const settings = readSettings(existing)
+    assertStateAllowsAction({
+      domain: "event",
+      state: existing.status,
+      action: "delete",
+      capabilities: args.capabilities ?? (["event.manage"] as const),
+      actorUserId: args.userId,
+      priorActorUserId: existing.created_by,
+      legallyRetained: Boolean(
+        settings.legal_hold === true
+        || settings.legal_retention === true
+        || settings.legally_retained === true,
+      ),
     })
 
     await args.supabase.from("tour_events").delete().eq("event_id", args.eventId)
@@ -1345,11 +1767,14 @@ export class AdminTourEventOperationsService {
     orgId: string
     tourId: string
     assignments: Array<z.infer<typeof tourStopAssignmentSchema>>
-  }) {
+    /** PLAN-103 — default exact (omit = detach link only, never delete event). */
+    mode?: TourStopReconcileMode
+  }): Promise<{ links: unknown[]; reconciliation: TourStopReconcilePlan }> {
     if (!args.orgId) {
       throw new AdminTourEventAuthError("Organization is not available to this admin account.")
     }
 
+    const mode = assertTourStopReconcileMode(args.mode || "exact")
     const normalized = args.assignments
       .map((assignment) => tourStopAssignmentSchema.parse(assignment))
       .sort((left, right) => (left.ordinal ?? Number.MAX_SAFE_INTEGER) - (right.ordinal ?? Number.MAX_SAFE_INTEGER))
@@ -1361,7 +1786,69 @@ export class AdminTourEventOperationsService {
       ),
     )
 
-    const links = normalized.map((assignment, index) => ({
+    const { data: currentRows, error: currentError } = await args.supabase
+      .from("tour_events")
+      .select("event_id, ordinal, is_primary, leg_name, market, advance_status, routing_notes")
+      .eq("tour_id", args.tourId)
+    if (currentError) throw new Error(currentError.message)
+
+    const current = (currentRows ?? []).map((row: any) => ({
+      event_id: String(row.event_id),
+      ordinal: typeof row.ordinal === "number" ? row.ordinal : 0,
+      is_primary: Boolean(row.is_primary),
+      leg_name: row.leg_name ?? null,
+      market: row.market ?? null,
+      advance_status: row.advance_status ?? "not_started",
+      routing_notes: row.routing_notes ?? null,
+    }))
+
+    const desired = normalized.map((assignment, index) => ({
+      event_id: assignment.event_id,
+      ordinal: assignment.ordinal ?? index,
+      is_primary: Boolean(assignment.is_primary),
+      leg_name: assignment.leg_name ?? null,
+      market: assignment.market ?? null,
+      advance_status: assignment.advance_status ?? "not_started",
+      routing_notes: assignment.routing_notes ?? null,
+    }))
+
+    const reconciliation = planTourStopReconciliation({ mode, current, desired })
+
+    if (mode === "attach_only") {
+      // Upsert desired links only — never detach omitted links or delete events.
+      for (const [index, link] of reconciliation.upserts.entries()) {
+        await this.addTourAssignment({
+          supabase: args.supabase,
+          orgId: args.orgId,
+          eventId: link.event_id,
+          assignment: {
+            tour_id: args.tourId,
+            ordinal: link.ordinal ?? index,
+            is_primary: link.is_primary,
+            leg_name: link.leg_name,
+            market: link.market,
+            advance_status: (link.advance_status as any) || "not_started",
+            routing_notes: link.routing_notes,
+          },
+        })
+      }
+      await this.touchEventsForTourPlanChange({
+        supabase: args.supabase,
+        orgId: args.orgId,
+        tourId: args.tourId,
+        eventIds: reconciliation.upserts.map((link) => link.event_id),
+      })
+      const { data: links, error: linksError } = await args.supabase
+        .from("tour_events")
+        .select("*")
+        .eq("tour_id", args.tourId)
+        .order("ordinal", { ascending: true })
+      if (linksError) throw new Error(linksError.message)
+      return { links: links ?? [], reconciliation }
+    }
+
+    // exact + merge: persist the planned full (exact) or merged set via RPC (link detach only).
+    const links = reconciliation.upserts.map((assignment, index) => ({
       event_id: assignment.event_id,
       ordinal: index,
       is_primary: Boolean(assignment.is_primary),
@@ -1377,35 +1864,140 @@ export class AdminTourEventOperationsService {
       p_links: links,
     })
     if (error) throw new Error(error.message)
-    return data ?? []
+
+    // EVENT-104 — tour-plan stop changes bump event versions so concurrent editors conflict.
+    const touchedIds = Array.from(
+      new Set([
+        ...reconciliation.upserts.map((link) => link.event_id),
+        ...reconciliation.detachEventIds,
+        ...reconciliation.updatedEventIds,
+        ...reconciliation.addedEventIds,
+      ]),
+    )
+    await this.touchEventsForTourPlanChange({
+      supabase: args.supabase,
+      orgId: args.orgId,
+      tourId: args.tourId,
+      eventIds: touchedIds,
+    })
+
+    return { links: data ?? [], reconciliation }
   }
 
-  static async listTours(args: { supabase: SupabaseLike; userId: string; orgId?: string | null; status?: string | null }) {
-    const orgId = await resolveAuthorizedOrgId({
-      supabase: args.supabase,
-      userId: args.userId,
-      requestedOrgId: args.orgId,
-    })
-    if (!orgId) return []
+  /** EVENT-104 — bump event_version + tour_plan_touched_at after tour-plan reconciliation. */
+  static async touchEventsForTourPlanChange(args: {
+    supabase: SupabaseLike
+    orgId: string
+    tourId: string
+    eventIds: string[]
+  }) {
+    const touchedAt = new Date().toISOString()
+    const uniqueIds = Array.from(new Set(args.eventIds.filter(Boolean)))
+    for (const eventId of uniqueIds) {
+      const { data: row } = await args.supabase
+        .from("events_v2")
+        .select("id, event_version, settings")
+        .eq("id", eventId)
+        .eq("org_id", args.orgId)
+        .maybeSingle()
+      if (!row?.id) continue
+      const currentVersion = typeof row.event_version === "number" ? row.event_version : 1
+      const settings = readSettings(row)
+      await args.supabase
+        .from("events_v2")
+        .update({
+          event_version: currentVersion + 1,
+          updated_at: touchedAt,
+          settings: {
+            ...settings,
+            tour_plan_touched_at: touchedAt,
+            tour_plan_touch_tour_id: args.tourId,
+          },
+        })
+        .eq("id", eventId)
+        .eq("org_id", args.orgId)
+        .eq("event_version", currentVersion)
+    }
+  }
 
-    const applyStatus = (query: any) => {
-      if (!args.status || args.status === "all") return query
-      const statuses = args.status.split(",").map((value) => value.trim()).filter(Boolean)
-      return statuses.length > 1 ? query.in("status", statuses) : query.eq("status", args.status)
+  static async listTourPortfolio(args: {
+    supabase: SupabaseLike
+    userId: string
+    orgId?: string | null
+    query?: TourPortfolioQueryInput | URLSearchParams
+    /** @deprecated Prefer query.status — kept for callers that only pass status. */
+    status?: string | null
+    /** TOUR-209 — effective capabilities for portfolio visibility. */
+    capabilities?: readonly string[]
+    /** Tour-only account projection; when present, org-wide enumeration is forbidden. */
+    allowedTourIds?: readonly string[]
+  }): Promise<{ orgId: string; page: TourPortfolioPage; tours: ReturnType<typeof presentTour>[] }> {
+    const scopedTourIds = Array.from(new Set(args.allowedTourIds || []))
+    const orgId = scopedTourIds.length > 0
+      ? args.orgId || null
+      : await resolveAuthorizedOrgId({
+          supabase: args.supabase,
+          userId: args.userId,
+          requestedOrgId: args.orgId,
+        })
+    if (!orgId) {
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.", 403)
     }
 
-    const orgResult = await applyStatus(
-      args.supabase
-        .from("tours")
-        .select("*")
-        .eq("org_id", orgId)
-        .order("start_date", { ascending: true, nullsFirst: false }),
-    )
+    const queryInput =
+      args.query instanceof URLSearchParams
+        ? args.query
+        : {
+            ...(args.query || {}),
+            status: (args.query && "status" in args.query ? args.query.status : undefined) ?? args.status,
+          }
+
+    const query = parseTourPortfolioQuery(queryInput)
+
+    let orgQuery = args.supabase
+      .from("tours")
+      .select("*")
+      .eq("org_id", orgId)
+    if (scopedTourIds.length > 0) orgQuery = orgQuery.in("id", scopedTourIds)
+    const orgResult = await orgQuery
 
     if (orgResult.error) throw new Error(orgResult.error.message)
 
-    const tours = (orgResult.data ?? []) as Array<Record<string, unknown>>
-    const tourIds = tours.map((tour) => String(tour.id))
+    let rows = (orgResult.data ?? []) as TourPortfolioRow[]
+
+    // TOUR-209 — attach tags before filter/query so tag filters and projections work.
+    const allTourIds = rows.map((row) => String(row.id))
+    const tagsByTour = await loadTourTagsByTourIds({
+      supabase: args.supabase,
+      tourIds: allTourIds,
+    })
+    rows = rows.map((row) => ({
+      ...row,
+      tags: tagsByTour.get(String(row.id)) ?? [],
+    }))
+
+    const canViewAll = scopedTourIds.length === 0 && actorCanViewAllOrgTours(args.capabilities ?? ["tour.view"])
+    const [teamTourIds, grantTourIds] = canViewAll
+      ? [[], []]
+      : await Promise.all([
+          loadTeamTourIdsForUser({ supabase: args.supabase, userId: args.userId, orgId }),
+          loadGrantedTourIdsForUser({ supabase: args.supabase, userId: args.userId, orgId }),
+        ])
+    const accessibleTourIds = scopedTourIds.length > 0
+      ? new Set(scopedTourIds)
+      : canViewAll
+      ? null
+      : buildAccessibleTourIdSet({
+          rows,
+          userId: args.userId,
+          canViewAllOrgTours: false,
+          teamTourIds,
+          grantTourIds,
+        })
+    const visible = filterTourPortfolioByAccess({ rows, accessibleTourIds })
+    const page = applyTourPortfolioQuery({ rows: visible.rows, query, orgId })
+
+    const tourIds = page.items.map((tour) => String(tour.id))
     let links: any[] = []
     if (tourIds.length) {
       const { data: linkRows, error: linkError } = await args.supabase
@@ -1413,7 +2005,6 @@ export class AdminTourEventOperationsService {
         .select("tour_id, ordinal, is_primary, events_v2(id, title, status, start_at, end_at, venue_id, settings, capacity)")
         .in("tour_id", tourIds)
         .order("ordinal", { ascending: true })
-      // tour_events / events_v2 may be missing on older environments; still return tours.
       if (!linkError) links = linkRows ?? []
     }
 
@@ -1425,7 +2016,34 @@ export class AdminTourEventOperationsService {
       events.push(presentEvent(event, [{ id: link.tour_id, ordinal: link.ordinal, is_primary: link.is_primary }]))
       eventsByTour.set(link.tour_id, events)
     }
-    return tours.map((tour) => presentTour(tour, eventsByTour.get(String(tour.id)) ?? []))
+
+    const tours = page.items.map((tour) =>
+      presentTour(
+        {
+          ...(tour as Record<string, unknown>),
+          tags: tour.tags ?? tagsByTour.get(String(tour.id)) ?? [],
+        },
+        eventsByTour.get(String(tour.id)) ?? [],
+      ),
+    )
+    return { orgId, page, tours }
+  }
+
+  static async listTours(args: {
+    supabase: SupabaseLike
+    userId: string
+    orgId?: string | null
+    status?: string | null
+    query?: TourPortfolioQueryInput | URLSearchParams
+    allowedTourIds?: readonly string[]
+  }) {
+    try {
+      const { tours } = await this.listTourPortfolio(args)
+      return tours
+    } catch (error) {
+      if (error instanceof AdminTourEventAuthError && error.status === 403) return []
+      throw error
+    }
   }
 
   static async getTour(args: {
@@ -1434,20 +2052,24 @@ export class AdminTourEventOperationsService {
     tourId: string
     orgId?: string
   }) {
+    // TOUR-102: all tour panel/legacy reads share the canonical access service.
+    try {
+      await requireTourAccess({
+        supabase: args.supabase,
+        userId: args.userId,
+        tourId: args.tourId,
+        orgId: args.orgId,
+      })
+    } catch (error) {
+      if (error instanceof TourAccessDeniedError) {
+        throw new AdminTourEventAuthError("Tour not found.", 404)
+      }
+      throw error
+    }
+
     const { data: tour, error } = await args.supabase.from("tours").select("*").eq("id", args.tourId).maybeSingle()
     if (error) throw new Error(error.message)
     if (!tour) throw new Error("Tour not found.")
-
-    if (args.orgId && tour.org_id !== args.orgId) {
-      throw new AdminTourEventAuthError("Tour is not available to the acting organization.")
-    }
-
-    await assertUserCanAccessOrg({
-      supabase: args.supabase,
-      userId: args.userId,
-      orgId: tour.org_id,
-      ownerUserId: tour.created_by ?? tour.user_id,
-    })
 
     const { data: links, error: linkError } = await args.supabase
       .from("tour_events")
@@ -1522,6 +2144,8 @@ export class AdminTourEventOperationsService {
         expenses: parseNumber(input.expenses),
         settings,
         ...(input.artist_id ? { artist_id: input.artist_id } : {}),
+        owner_user_id: input.owner_user_id ?? args.userId,
+        lead_user_id: input.lead_user_id ?? null,
         created_by: args.userId,
         // Legacy column still used by older RLS/policies and UI paths
         user_id: args.userId,
@@ -1529,6 +2153,17 @@ export class AdminTourEventOperationsService {
       .select("*")
       .single()
     if (error || !tour?.id) throw new Error(error?.message || "Failed to create tour.")
+
+    let tags: unknown[] = []
+    if (input.tag_ids !== undefined) {
+      tags = await replaceTourTags({
+        supabase: args.supabase,
+        tourId: tour.id,
+        orgId,
+        userId: args.userId,
+        tagIds: input.tag_ids,
+      })
+    }
 
     if (input.event_ids !== undefined || input.events !== undefined) {
       return this.updateTour({
@@ -1538,12 +2173,15 @@ export class AdminTourEventOperationsService {
         tourId: tour.id,
         input: {
           ...input,
-          status: input.status === "active" ? "planning" : input.status,
+          // Do not synthesize `status: undefined`: updateTour treats presence as
+          // an intentional lifecycle write. Active creation remains planning
+          // until the readiness-gated publish command succeeds.
+          ...(input.status === "active" ? { status: "planning" as const } : {}),
         },
       })
     }
 
-    return presentTour(tour)
+    return presentTour({ ...tour, tags })
   }
 
   static async updateTour(args: {
@@ -1552,15 +2190,18 @@ export class AdminTourEventOperationsService {
     tourId: string
     input: Partial<z.input<typeof adminTourInputSchema>> & Record<string, unknown>
     orgId?: string
+    /** SEC-202 — effective capabilities for state-aware gates. */
+    capabilities?: readonly AdminCapability[]
   }) {
     // Accept management-page payloads that may include extra UI-only fields.
     // Known fields are never allowed to fall back to unvalidated raw values.
     const input = adminTourInputSchema.partial().parse(args.input)
     const raw = args.input ?? {}
+    const capabilities = args.capabilities ?? (["tour.manage"] as const)
 
     const { data: existing, error: lookupError } = await args.supabase
       .from("tours")
-      .select("id, org_id, settings, created_by, user_id, status")
+      .select("id, org_id, settings, created_by, user_id, status, name, description, start_date, end_date, budget, revenue, expenses, metadata_version")
       .eq("id", args.tourId)
       .maybeSingle()
     if (lookupError) throw new Error(lookupError.message)
@@ -1570,18 +2211,114 @@ export class AdminTourEventOperationsService {
       throw new AdminTourEventAuthError("Tour is not available to the acting organization.")
     }
 
-    await assertUserCanAccessOrg({
-      supabase: args.supabase,
-      userId: args.userId,
-      orgId: existing.org_id,
-      ownerUserId: existing.created_by ?? existing.user_id,
-    })
+    try {
+      await requireTourCapability({
+        supabase: args.supabase,
+        userId: args.userId,
+        tourId: args.tourId,
+        orgId: args.orgId || existing.org_id,
+        capability: "tour.manage",
+        capabilities,
+      })
+    } catch (error) {
+      if (error instanceof TourAccessDeniedError || error instanceof TourCapabilityDeniedError) {
+        throw new AdminTourEventAuthError(error.message, error.status)
+      }
+      throw error
+    }
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    const currentVersion =
+      typeof existing.metadata_version === "number" && Number.isFinite(existing.metadata_version)
+        ? existing.metadata_version
+        : 1
+    const expectedVersion = input.expected_version ?? input.metadata_version
+    const settingsExisting = readSettings(existing)
+
+    if (typeof expectedVersion === "number" && expectedVersion !== currentVersion) {
+      const diff = buildTourMetadataConflictDiff({
+        expectedVersion,
+        server: {
+          metadataVersion: currentVersion,
+          name: existing.name ?? null,
+          description: existing.description ?? null,
+          status: existing.status ?? null,
+          start_date: existing.start_date ?? null,
+          end_date: existing.end_date ?? null,
+          budget: existing.budget != null ? String(existing.budget) : null,
+          revenue: existing.revenue != null ? String(existing.revenue) : null,
+          expenses: existing.expenses != null ? String(existing.expenses) : null,
+          main_artist: String(settingsExisting.main_artist ?? settingsExisting.mainArtist ?? "") || null,
+          genre: typeof settingsExisting.genre === "string" ? settingsExisting.genre : null,
+        },
+        client: {
+          metadataVersion: expectedVersion,
+          name: input.name ?? (typeof raw.name === "string" ? raw.name : null),
+          description: input.description ?? (raw.description as string | null | undefined) ?? null,
+          status: (input.status as string | undefined) ?? (raw.status as string | undefined) ?? null,
+          start_date: input.start_date ?? (raw.start_date as string | null | undefined) ?? null,
+          end_date: input.end_date ?? (raw.end_date as string | null | undefined) ?? null,
+          budget: input.budget != null ? String(input.budget) : raw.budget != null ? String(raw.budget) : null,
+          revenue:
+            input.revenue != null
+              ? String(input.revenue)
+              : raw.revenue != null
+                ? String(raw.revenue)
+                : null,
+          expenses:
+            input.expenses != null
+              ? String(input.expenses)
+              : raw.expenses != null
+                ? String(raw.expenses)
+                : null,
+          main_artist:
+            (input.main_artist as string | null | undefined)
+            ?? (raw.main_artist as string | null | undefined)
+            ?? null,
+          genre: (input.genre as string | null | undefined) ?? (raw.genre as string | null | undefined) ?? null,
+        },
+      })
+      throw new TourMetadataVersionConflictError({
+        currentVersion,
+        expectedVersion,
+        diff,
+        serverTour: presentTour(existing, []) as Record<string, unknown>,
+      })
+    }
+
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+      metadata_version: currentVersion + 1,
+    }
     for (const key of ["name", "description", "status", "start_date", "end_date"] as const) {
       if (key in input) patch[key] = input[key] ?? null
       else if (key in raw) patch[key] = raw[key] ?? null
     }
+    if ("owner_user_id" in input) patch.owner_user_id = input.owner_user_id ?? null
+    if ("lead_user_id" in input) patch.lead_user_id = input.lead_user_id ?? null
+
+    const hasStatusChange =
+      Object.prototype.hasOwnProperty.call(patch, "status")
+      && patch.status !== existing.status
+    if (hasStatusChange) {
+      assertTourMutationAllowed({
+        status: existing.status,
+        action: "update_status_direct",
+        capabilities,
+        actorUserId: args.userId,
+        settings: existing.settings,
+        createdBy: existing.created_by ?? existing.user_id,
+      })
+    }
+
+    assertTourMutationAllowed({
+      status: existing.status,
+      action: "update_metadata",
+      capabilities,
+      actorUserId: args.userId,
+      settings: existing.settings,
+      createdBy: existing.created_by ?? existing.user_id,
+    })
+
     if (patch.status === "active" && existing.status !== "active") {
       throw new AdminTourEventAuthError(
         "Use the publish action to activate a tour after readiness validation.",
@@ -1640,11 +2377,57 @@ export class AdminTourEventOperationsService {
       ...(incomingRoute !== undefined ? { route: incomingRoute } : {}),
     }
 
-    const { data, error } = await args.supabase.from("tours").update(patch).eq("id", args.tourId).select("*").single()
-    if (error) throw new Error(error.message)
+    // SEC-110 + TOUR-201: mutation predicates include id, org, and optimistic metadata_version.
+    let updateQuery = args.supabase
+      .from("tours")
+      .update(patch)
+      .eq("id", args.tourId)
+      .eq("metadata_version", currentVersion)
+    if (args.orgId) updateQuery = updateQuery.eq("org_id", args.orgId)
+    else if (existing.org_id) updateQuery = updateQuery.eq("org_id", existing.org_id)
+    const { data, error } = await updateQuery.select("*").maybeSingle()
+    if (error) {
+      // Column missing until migration — retry without version predicate.
+      if (error.code === "42703" || /metadata_version/i.test(error.message || "")) {
+        const { metadata_version: _mv, ...legacyPatch } = patch
+        let legacyQuery = args.supabase.from("tours").update(legacyPatch).eq("id", args.tourId)
+        if (args.orgId) legacyQuery = legacyQuery.eq("org_id", args.orgId)
+        else if (existing.org_id) legacyQuery = legacyQuery.eq("org_id", existing.org_id)
+        const legacy = await legacyQuery.select("*").maybeSingle()
+        if (legacy.error) throw new Error(legacy.error.message)
+        if (!legacy.data) throw new AdminTourEventAuthError("Tour not found.", 404)
+        return presentTour(legacy.data)
+      }
+      throw new Error(error.message)
+    }
+    if (!data) {
+      throw new TourMetadataVersionConflictError({
+        currentVersion,
+        expectedVersion: expectedVersion ?? currentVersion,
+        diff: buildTourMetadataConflictDiff({
+          expectedVersion: expectedVersion ?? currentVersion,
+          server: {
+            metadataVersion: currentVersion,
+            name: existing.name ?? null,
+            description: existing.description ?? null,
+            status: existing.status ?? null,
+            start_date: existing.start_date ?? null,
+            end_date: existing.end_date ?? null,
+            budget: existing.budget != null ? String(existing.budget) : null,
+            revenue: existing.revenue != null ? String(existing.revenue) : null,
+            expenses: existing.expenses != null ? String(existing.expenses) : null,
+            main_artist: String(settingsExisting.main_artist ?? "") || null,
+            genre: typeof settingsExisting.genre === "string" ? settingsExisting.genre : null,
+          },
+          client: {},
+        }),
+        serverTour: presentTour(existing, []) as Record<string, unknown>,
+      })
+    }
 
     const orgId = String(existing.org_id || data?.org_id || "")
     const exactStopsRequested = input.event_ids !== undefined || input.events !== undefined
+    let stopReconciliation: TourStopReconcilePlan | null = null
     if (orgId && exactStopsRequested) {
       const { data: currentLinks, error: currentLinksError } = await args.supabase
         .from("tour_events")
@@ -1719,12 +2502,14 @@ export class AdminTourEventOperationsService {
         })
       }
 
-      await this.reconcileTourAssignments({
+      const reconciled = await this.reconcileTourAssignments({
         supabase: args.supabase,
         orgId,
         tourId: args.tourId,
         assignments: Array.from(desiredByEvent.values()),
+        mode: input.reconcile_mode || "exact",
       })
+      stopReconciliation = reconciled.reconciliation
     }
 
     const { data: links, error: linksError } = await args.supabase
@@ -1782,7 +2567,27 @@ export class AdminTourEventOperationsService {
       data.settings = nextSettings
     }
 
-    return presentTour(data, linkedEvents)
+    let tags: unknown[] | undefined
+    if (input.tag_ids !== undefined && orgId) {
+      tags = await replaceTourTags({
+        supabase: args.supabase,
+        tourId: args.tourId,
+        orgId,
+        userId: args.userId,
+        tagIds: input.tag_ids,
+      })
+    } else if (orgId) {
+      const tagMap = await loadTourTagsByTourIds({
+        supabase: args.supabase,
+        tourIds: [args.tourId],
+      })
+      tags = tagMap.get(args.tourId) ?? []
+    }
+
+    const presented = presentTour({ ...data, tags: tags ?? [] }, linkedEvents)
+    return stopReconciliation
+      ? { ...presented, reconciliation: stopReconciliation }
+      : presented
   }
 
   static async deleteTour(args: {
@@ -1790,10 +2595,12 @@ export class AdminTourEventOperationsService {
     userId: string
     tourId: string
     orgId?: string
+    capabilities?: readonly AdminCapability[]
+    correlationId?: string | null
   }) {
     const { data: existing, error: lookupError } = await args.supabase
       .from("tours")
-      .select("id, org_id, created_by, user_id")
+      .select("id, org_id, created_by, user_id, status, settings, name, start_date, end_date")
       .eq("id", args.tourId)
       .maybeSingle()
     if (lookupError) throw new Error(lookupError.message)
@@ -1810,11 +2617,97 @@ export class AdminTourEventOperationsService {
       ownerUserId: existing.created_by ?? existing.user_id,
     })
 
+    assertTourMutationAllowed({
+      status: existing.status,
+      action: "delete",
+      capabilities: args.capabilities ?? (["tour.delete"] as const),
+      actorUserId: args.userId,
+      settings: existing.settings,
+      createdBy: existing.created_by ?? existing.user_id,
+    })
+
+    // TOUR-208 — block when published/ticketed/contracted/paid/staffed/referenced.
+    const eligibility = await assertTourHardDeleteEligible({
+      supabase: args.supabase,
+      tourId: args.tourId,
+      orgId: existing.org_id,
+      tour: existing as Record<string, unknown>,
+    })
+
+    const correlationId = args.correlationId?.trim() || crypto.randomUUID()
+    const orgId = args.orgId || existing.org_id
+
     // Detach only — never cascade-delete events_v2 rows.
-    await args.supabase.from("tour_events").delete().eq("tour_id", args.tourId)
-    const { error } = await args.supabase.from("tours").delete().eq("id", args.tourId)
+    const { error: detachError } = await args.supabase
+      .from("tour_events")
+      .delete()
+      .eq("tour_id", args.tourId)
+    if (detachError) throw new Error(detachError.message)
+
+    // SEC-110: delete predicates include target id + acting/resolved org_id.
+    let deleteQuery = args.supabase.from("tours").delete().eq("id", args.tourId)
+    if (orgId) deleteQuery = deleteQuery.eq("org_id", orgId)
+    const { data: deleted, error } = await deleteQuery.select("id").maybeSingle()
     if (error) throw new Error(error.message)
-    return { success: true }
+    if (!deleted) throw new AdminTourEventAuthError("Tour not found.", 404)
+
+    await logAuditEvent({
+      actorId: args.userId,
+      orgId,
+      action: "delete",
+      entityType: "tour",
+      entityId: args.tourId,
+      correlationId,
+      oldValues: {
+        id: existing.id,
+        name: existing.name,
+        status: existing.status,
+        start_date: existing.start_date,
+        end_date: existing.end_date,
+      },
+      newValues: {
+        kind: "tour.hard_delete",
+        detached_event_links: eligibility.willDetachEventLinks,
+        eligibility_counts: eligibility.counts,
+      },
+    })
+
+    try {
+      await commitDomainWithOutbox(args.supabase as SupabaseClient, {
+        orgId,
+        commandName: "tour.delete",
+        correlationId,
+        actorUserId: args.userId,
+        domainPayload: {
+          tourId: args.tourId,
+          detachedEventLinks: eligibility.willDetachEventLinks,
+        },
+        eventType: "tour.deleted",
+        aggregateType: "tour",
+        aggregateId: args.tourId,
+        outboxPayload: {
+          tourId: args.tourId,
+          name: existing.name,
+          priorStatus: existing.status,
+        },
+        idempotencyKey: buildPublicationOutboxIdempotencyKey({
+          orgId,
+          eventType: "tour.deleted",
+          aggregateType: "tour",
+          aggregateId: args.tourId,
+          naturalKey: `tour.hard_delete:${args.tourId}`,
+        }),
+      })
+    } catch (outboxError) {
+      // Deletion already committed; surface audit trail but do not resurrect the tour.
+      console.error("[TOUR-208] tour.deleted outbox commit failed after hard delete", outboxError)
+    }
+
+    return {
+      success: true,
+      detachedEventLinks: eligibility.willDetachEventLinks,
+      correlationId,
+    }
   }
 
   static async publishEvent(args: {
@@ -1822,12 +2715,70 @@ export class AdminTourEventOperationsService {
     userId: string
     eventId: string
     orgId?: string
+    /** EVENT-201 — warning finding ids authorized for override. */
+    overrideFindingIds?: readonly string[]
+    overrideReason?: string | null
+    capabilities?: readonly AdminCapability[]
   }) {
-    const event = await this.updateEvent({
+    const overrideReason = args.overrideReason?.trim() || null
+    if ((args.overrideFindingIds?.length ?? 0) > 0 && !overrideReason) {
+      throw new AdminReadinessOverrideReasonError()
+    }
+
+    const existing = await this.getEvent({
       supabase: args.supabase,
       userId: args.userId,
       eventId: args.eventId,
       orgId: args.orgId,
+    })
+
+    const orgId = String((existing as { org_id?: string }).org_id || args.orgId || "")
+    if (!orgId) {
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+    }
+
+    // EVENT-201 — reload persisted event and evaluate inside publish path (not UI-bypassable).
+    const { evaluateEventReadinessFromPersisted } = await import(
+      "@/lib/admin/event-readiness-engine.service"
+    )
+    const evaluation = await evaluateEventReadinessFromPersisted({
+      supabase: args.supabase,
+      userId: args.userId,
+      eventId: args.eventId,
+      orgId,
+      overrideFindingIds: args.overrideFindingIds,
+      hasOverrideCapability: (args.capabilities || []).includes("event.publish"),
+    })
+    if (!evaluation.ok) {
+      const legacyShape = {
+        score: 0,
+        items: [],
+        blockers: evaluation.blockers.map((row) => ({
+          id: row.id,
+          label: row.label,
+          state: "missing" as const,
+          blocksPublish: true,
+          detail: row.message,
+          remediationUrl: row.remediationUrl,
+          evidence: row.evidence,
+        })),
+        conflicts: evaluation.warnings.map((row) => ({
+          id: row.id,
+          severity: "warning" as const,
+          label: row.label,
+          detail: row.message,
+          remediationUrl: row.remediationUrl,
+        })),
+        evaluation,
+      }
+      throw new AdminEventPublishReadinessError(legacyShape as ReturnType<typeof getEventReadiness>)
+    }
+
+    const event = await this.updateEvent({
+      supabase: args.supabase,
+      userId: args.userId,
+      eventId: args.eventId,
+      orgId,
       input: { status: "confirmed" },
     })
 
@@ -1839,6 +2790,9 @@ export class AdminTourEventOperationsService {
         payload: {
           event_id: args.eventId,
           status: "confirmed",
+          readiness_overrides: args.overrideFindingIds || [],
+          readiness_override_reason: overrideReason,
+          readiness_ok: true,
         },
         published_by: args.userId,
         published_at: new Date().toISOString(),
@@ -1847,7 +2801,10 @@ export class AdminTourEventOperationsService {
       console.warn("[AdminTourEventOperations] event work-mode publish skipped:", error)
     }
 
-    return event
+    return {
+      ...event,
+      readiness: evaluation,
+    }
   }
 
   static async publishTour(args: {
@@ -1855,6 +2812,12 @@ export class AdminTourEventOperationsService {
     userId: string
     tourId: string
     orgId?: string
+    /** PUB-201 — warning finding ids authorized for override. */
+    overrideFindingIds?: readonly string[]
+    capabilities?: readonly AdminCapability[]
+    /** PUB-204 — required for durable publish; duplicates return original publication. */
+    idempotencyKey?: string | null
+    correlationId?: string | null
   }) {
     const tour = await this.getTour({
       supabase: args.supabase,
@@ -1862,32 +2825,87 @@ export class AdminTourEventOperationsService {
       tourId: args.tourId,
       orgId: args.orgId,
     })
-    const readiness = (tour as { readiness: ReturnType<typeof getTourReadiness> }).readiness
-    const hasCriticalConflicts = readiness.conflicts.some(
-      (conflict) => conflict.severity === "critical",
-    )
-    if (readiness.blockers.length > 0 || hasCriticalConflicts) {
-      throw new AdminTourPublishReadinessError(readiness)
-    }
 
     const orgId = String((tour as { org_id?: string }).org_id || args.orgId || "")
     if (!orgId) {
       throw new AdminTourEventAuthError("Organization is not available to this admin account.")
     }
 
-    const { error } = await args.supabase.rpc("publish_admin_tour", {
-      p_org_id: orgId,
-      p_tour_id: args.tourId,
-      p_actor_user_id: args.userId,
+    // PUB-201 — reload persisted plan and evaluate inside publish path (not UI-bypassable).
+    const { evaluateTourReadinessFromPersistedPlan } = await import(
+      "@/lib/admin/tour-readiness-engine.service"
+    )
+    const evaluation = await evaluateTourReadinessFromPersistedPlan({
+      supabase: args.supabase,
+      userId: args.userId,
+      tourId: args.tourId,
+      orgId,
+      overrideFindingIds: args.overrideFindingIds,
+      hasOverrideCapability: (args.capabilities || []).includes("tour.publish"),
     })
-    if (error) throw new Error(error.message)
+    if (!evaluation.ok) {
+      const legacyShape = {
+        score: 0,
+        blockers: evaluation.blockers.map((row) => row.message),
+        warnings: evaluation.warnings.map((row) => row.message),
+        conflicts: evaluation.blockers.map((row) => ({
+          severity: "critical" as const,
+          message: row.message,
+          id: row.id,
+        })),
+        evaluation,
+      }
+      throw new AdminTourPublishReadinessError(legacyShape as unknown as ReturnType<typeof getTourReadiness>)
+    }
 
-    return this.getTour({
+    // PUB-204 — snapshot, audience, deliveries, lifecycle, audit, outbox in one commit.
+    const {
+      publishTourBookTransactionally,
+      resolveTourPublishIdempotencyKey,
+    } = await import("@/lib/admin/publication-transactional-publish.service")
+
+    const planVersion =
+      typeof (tour as Record<string, unknown>).plan_version === "number"
+        ? Number((tour as Record<string, unknown>).plan_version)
+        : 1
+    const idempotencyKey = resolveTourPublishIdempotencyKey({
+      orgId,
+      tourId: args.tourId,
+      headerKey: args.idempotencyKey,
+      sourcePlanVersion: planVersion,
+    })
+
+    const published = await publishTourBookTransactionally({
+      supabase: args.supabase,
+      orgId,
+      actorUserId: args.userId,
+      tourId: args.tourId,
+      idempotencyKey,
+      correlationId: args.correlationId,
+      sourcePlanVersion: planVersion,
+    })
+
+    const refreshed = await this.getTour({
       supabase: args.supabase,
       userId: args.userId,
       tourId: args.tourId,
       orgId,
     })
+
+    return {
+      ...refreshed,
+      publication: {
+        snapshotId: published.result.snapshotId,
+        alreadyExisted: published.result.alreadyExisted,
+        sequence: published.result.sequence,
+        version: published.result.version,
+        checksum: published.result.checksum,
+        correlationId: published.result.correlationId,
+        outboxId: published.result.outboxId,
+        deliveryCount: published.assembly.deliveries.length,
+        recipientCount: published.assembly.audience.recipient_count,
+      },
+    }
   }
 
   static async createTourFromPlanner(args: { supabase: SupabaseLike; userId: string; input: z.infer<typeof plannerTourInputSchema> }) {

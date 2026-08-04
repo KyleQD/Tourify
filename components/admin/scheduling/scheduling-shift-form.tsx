@@ -289,7 +289,7 @@ interface FormSelectProps {
 
 function FormSelect({ value, onChange, placeholder, options, render }: FormSelectProps) {
   return (
-    <Select value={value || undefined} onValueChange={(v) => onChange(v ?? "")}>
+    <Select value={value} onValueChange={(v) => onChange(v ?? "")}>
       <SelectTrigger className="w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>

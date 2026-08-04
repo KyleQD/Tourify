@@ -11,6 +11,7 @@ export type VenuePermission =
   | "manage_documents"
   | "view_analytics"
   | "view_finances"
+  | "manage_finances"
   | "door_check_in"
 
 export interface VenueAccessResult {
@@ -51,6 +52,7 @@ const DEFAULT_OWNER_PERMISSIONS: Record<string, boolean> = {
   manage_documents: true,
   view_analytics: true,
   view_finances: true,
+  manage_finances: true,
   door_check_in: true,
 }
 

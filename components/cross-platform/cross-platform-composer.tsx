@@ -39,6 +39,8 @@ import { useActingContext } from '@/hooks/use-acting-context'
 import { useAuth } from '@/contexts/auth-context'
 import { cn } from '@/lib/utils'
 import type { PostTemplate } from '@/lib/services/cross-platform-posting.service'
+import { ComposerStyleControl } from '@/components/posts/appearance/composer-style-control'
+import type { PostAppearanceInput } from '@/lib/appearance/contracts'
 import Link from 'next/link'
 import {
   ARTIST_CARD,
@@ -108,6 +110,7 @@ export function CrossPlatformComposer({
   const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
   const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
   const [alsoPostToTourify, setAlsoPostToTourify] = useState(true)
+  const [appearanceInput, setAppearanceInput] = useState<PostAppearanceInput | null>(null)
   const platformLimits: Record<string, number> = { twitter: 280, instagram: 2200, facebook: 63206, youtube: 5000, tiktok: 2200 }
 
   useEffect(() => {
@@ -420,6 +423,7 @@ export function CrossPlatformComposer({
             media_urls: mediaUrls,
             poll_options: postType === 'poll' ? pollOptions : undefined,
             poll_duration: postType === 'poll' ? pollDuration : undefined,
+            appearance: appearanceInput ?? { mode: 'standard' },
           }),
         })
         const payload = await response.json().catch(() => ({}))
@@ -463,6 +467,7 @@ export function CrossPlatformComposer({
       setTemplateVariables({})
       setPollOptions(['', ''])
       setPollDuration('7d')
+      setAppearanceInput(null)
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : (isScheduled ? 'Failed to schedule post' : 'Failed to create post'))
@@ -809,6 +814,16 @@ export function CrossPlatformComposer({
                 disabled={postType === 'poll'}
               />
               <span className="text-sm text-slate-300">Also post to Tourify feed</span>
+              <ComposerStyleControl
+                value={appearanceInput}
+                onChange={setAppearanceInput}
+                preview={{
+                  content,
+                  mediaCount: mediaUrls.length,
+                  pollOptions: postType === 'poll' ? pollOptions : undefined,
+                }}
+                className="ml-auto border-purple-400/25 bg-purple-500/10 text-purple-100"
+              />
             </div>
 
             {/* Scheduling Options */}
@@ -1247,4 +1262,4 @@ export function CrossPlatformComposer({
       </CardContent>
     </Card>
   )
-} 
+}

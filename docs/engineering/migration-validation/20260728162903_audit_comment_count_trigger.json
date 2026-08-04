@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728162903_audit_comment_count_trigger.sql",
+  "taskId": "AUDIT:API-006",
+  "status": "planned",
+  "owner": "feed-backend",
+  "reviewer": "security-data",
+  "domains": ["feed", "comments", "authorization"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "newly provisioned production-like disposable database",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count post_comments grouped by post_id and compare with posts.comments_count",
+      "Inventory all triggers on public.post_comments"
+    ],
+    "expectedAffectedRows": "Migration changes no persisted counters; the separately invoked reconciliation updates at most batch_size mismatches",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 500,
+    "resumeStrategy": "Call private.audit_reconcile_post_comment_counts with the last returned post_id",
+    "resumeCursor": "post_id UUID",
+    "idempotency": "Trigger definitions converge; reconciliation writes only mismatched counters to exact aggregate values"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No identity mapping occurs; stop and preserve evidence if aggregate validation differs"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Assert one canonical comment-count trigger and exercise concurrent inserts and deletes"
+  },
+  "recovery": {
+    "rollback": "Disable the application comment capability and install a reviewed forward trigger replacement; preserve comments and counters",
+    "forwardFix": "Replace the private trigger function or trigger in a later reviewed migration without deleting comment data"
+  },
+  "postflight": {
+    "queries": [
+      "Assert exactly one enabled count trigger on public.post_comments",
+      "Compare posts.comments_count to grouped post_comments after every reconciliation batch",
+      "Assert anon and authenticated cannot execute private reconciliation functions"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

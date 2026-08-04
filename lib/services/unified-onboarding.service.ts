@@ -1,4 +1,8 @@
 import { supabase } from '@/lib/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
+
+type OnboardingClient = SupabaseClient<Database>
 
 export interface OnboardingField {
   id: string
@@ -26,7 +30,7 @@ export interface OnboardingFlow {
   id: string
   user_id: string
   flow_type: 'artist' | 'venue' | 'staff' | 'invitation'
-  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  status: 'in_progress' | 'completed' | 'abandoned'
   template_id?: string
   responses: Record<string, any>
   metadata: Record<string, any>
@@ -44,7 +48,7 @@ export interface CreateOnboardingFlowParams {
 
 export interface UpdateOnboardingFlowParams {
   id: string
-  status?: 'pending' | 'in_progress' | 'completed' | 'failed'
+  status?: 'in_progress' | 'completed' | 'abandoned'
   responses?: Record<string, any>
   metadata?: Record<string, any>
   completed_at?: string
@@ -54,9 +58,12 @@ export class UnifiedOnboardingService {
   /**
    * Get onboarding template by flow type
    */
-  static async getTemplateByFlowType(flowType: string): Promise<OnboardingTemplate | null> {
+  static async getTemplateByFlowType(
+    flowType: string,
+    client: OnboardingClient = supabase,
+  ): Promise<OnboardingTemplate | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('onboarding_templates')
         .select('*')
         .eq('flow_type', flowType)
@@ -69,7 +76,7 @@ export class UnifiedOnboardingService {
         return null
       }
 
-      return data
+      return data as unknown as OnboardingTemplate
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error fetching template:', error)
       return null
@@ -79,9 +86,12 @@ export class UnifiedOnboardingService {
   /**
    * Get onboarding template by ID
    */
-  static async getTemplateById(templateId: string): Promise<OnboardingTemplate | null> {
+  static async getTemplateById(
+    templateId: string,
+    client: OnboardingClient = supabase,
+  ): Promise<OnboardingTemplate | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('onboarding_templates')
         .select('*')
         .eq('id', templateId)
@@ -93,7 +103,7 @@ export class UnifiedOnboardingService {
         return null
       }
 
-      return data
+      return data as unknown as OnboardingTemplate
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error fetching template:', error)
       return null
@@ -103,9 +113,13 @@ export class UnifiedOnboardingService {
   /**
    * Get user's onboarding flow
    */
-  static async getUserOnboardingFlow(userId: string, flowType: string): Promise<OnboardingFlow | null> {
+  static async getUserOnboardingFlow(
+    userId: string,
+    flowType: string,
+    client: OnboardingClient = supabase,
+  ): Promise<OnboardingFlow | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('onboarding_flows')
         .select('*')
         .eq('user_id', userId)
@@ -121,26 +135,48 @@ export class UnifiedOnboardingService {
         return null
       }
 
-      return data
+      return data as unknown as OnboardingFlow
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error fetching user flow:', error)
       return null
     }
   }
 
+  static async getUserOnboardingFlowById(
+    userId: string,
+    flowId: string,
+    client: OnboardingClient = supabase,
+  ): Promise<OnboardingFlow | null> {
+    const { data, error } = await client
+      .from('onboarding_flows')
+      .select('*')
+      .eq('id', flowId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('❌ [Unified Onboarding Service] Error fetching flow by id:', error)
+      return null
+    }
+    return data as OnboardingFlow | null
+  }
+
   /**
    * Create a new onboarding flow
    */
-  static async createOnboardingFlow(params: CreateOnboardingFlowParams): Promise<OnboardingFlow | null> {
+  static async createOnboardingFlow(
+    params: CreateOnboardingFlowParams,
+    client: OnboardingClient = supabase,
+  ): Promise<OnboardingFlow | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('onboarding_flows')
         .insert({
           user_id: params.user_id,
           flow_type: params.flow_type,
           template_id: params.template_id,
           metadata: params.metadata || {},
-          status: 'pending'
+          status: 'in_progress'
         })
         .select()
         .single()
@@ -150,7 +186,7 @@ export class UnifiedOnboardingService {
         return null
       }
 
-      return data
+      return data as unknown as OnboardingFlow
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error creating flow:', error)
       return null
@@ -160,7 +196,11 @@ export class UnifiedOnboardingService {
   /**
    * Update onboarding flow
    */
-  static async updateOnboardingFlow(params: UpdateOnboardingFlowParams): Promise<OnboardingFlow | null> {
+  static async updateOnboardingFlow(
+    params: UpdateOnboardingFlowParams,
+    client: OnboardingClient = supabase,
+    userId?: string,
+  ): Promise<OnboardingFlow | null> {
     try {
       const updateData: any = {}
       
@@ -169,10 +209,12 @@ export class UnifiedOnboardingService {
       if (params.metadata) updateData.metadata = params.metadata
       if (params.completed_at) updateData.completed_at = params.completed_at
 
-      const { data, error } = await supabase
+      let query = client
         .from('onboarding_flows')
         .update(updateData)
         .eq('id', params.id)
+      if (userId) query = query.eq('user_id', userId)
+      const { data, error } = await query
         .select()
         .single()
 
@@ -181,7 +223,7 @@ export class UnifiedOnboardingService {
         return null
       }
 
-      return data
+      return data as unknown as OnboardingFlow
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error updating flow:', error)
       return null
@@ -191,9 +233,14 @@ export class UnifiedOnboardingService {
   /**
    * Complete onboarding flow
    */
-  static async completeOnboardingFlow(flowId: string, responses: Record<string, any>): Promise<OnboardingFlow | null> {
+  static async completeOnboardingFlow(
+    flowId: string,
+    responses: Record<string, any>,
+    client: OnboardingClient = supabase,
+    userId?: string,
+  ): Promise<OnboardingFlow | null> {
     try {
-      const { data, error } = await supabase
+      let query = client
         .from('onboarding_flows')
         .update({
           status: 'completed',
@@ -201,6 +248,8 @@ export class UnifiedOnboardingService {
           completed_at: new Date().toISOString()
         })
         .eq('id', flowId)
+      if (userId) query = query.eq('user_id', userId)
+      const { data, error } = await query
         .select()
         .single()
 
@@ -209,7 +258,7 @@ export class UnifiedOnboardingService {
         return null
       }
 
-      return data
+      return data as unknown as OnboardingFlow
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error completing flow:', error)
       return null
@@ -232,7 +281,7 @@ export class UnifiedOnboardingService {
         return []
       }
 
-      return data || []
+      return (data || []) as unknown as OnboardingFlow[]
     } catch (error) {
       console.error('❌ [Unified Onboarding Service] Error fetching user flows:', error)
       return []
@@ -345,11 +394,12 @@ export class UnifiedOnboardingService {
   static async getOrCreateOnboardingFlow(
     userId: string, 
     flowType: string, 
-    templateId?: string
+    templateId?: string,
+    client: OnboardingClient = supabase,
   ): Promise<OnboardingFlow | null> {
     try {
       // Try to get existing flow
-      let flow = await this.getUserOnboardingFlow(userId, flowType)
+      let flow = await this.getUserOnboardingFlow(userId, flowType, client)
       
       if (!flow) {
         // Create new flow if it doesn't exist
@@ -358,7 +408,7 @@ export class UnifiedOnboardingService {
           flow_type: flowType as any,
           template_id: templateId,
           metadata: {}
-        })
+        }, client)
       }
 
       return flow

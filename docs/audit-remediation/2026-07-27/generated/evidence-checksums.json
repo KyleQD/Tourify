@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T17:53:29.098Z",
+  "files": [
+    {
+      "path": "docs/audit-remediation/2026-07-27/environment-registry.json",
+      "sha256": "a9289afa37049d0f527eced1f190f50b714f91a0116cbe7e1379402ce5e1a91d",
+      "bytes": 1232
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/evidence/remote-migration-export-receipt.json",
+      "sha256": "5a819d01eb11ca9bf205d7a60244fa33a231a55889d7669bcd4bbe2d75eaf0be",
+      "bytes": 747
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/evidence/remote-migrations.template.json",
+      "sha256": "23ceb69067f4601bf1e9faca246922c6ff1c944ad2da3bf2ef690c91bd33dccb",
+      "bytes": 191
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/EXECUTION_STATUS.md",
+      "sha256": "68f0eefc67245478b61d79215de4398dcfb164825b56536734c0a09d3846d1b8",
+      "bytes": 4126
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/live-read-only-evidence.json",
+      "sha256": "e0c462872ab070cd19b5163e6e460f00633a0e6f2801079183d6c13d1cbd554d",
+      "bytes": 3323
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/migration-reconciliation-decisions.json",
+      "sha256": "c5add923b8b7951d974548d2794fa9e6f221954024b26168b3fab8817464ca65",
+      "bytes": 2578
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/owners.json",
+      "sha256": "e5480ec1fffc62f2724c3269b87e02f7d6a9736b40daff2fc1688e9160cee169",
+      "bytes": 732
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/PHASE_0_MANUAL_GATE.md",
+      "sha256": "0f071649c152cd720a3247d8f196706b75eb4a9c11dba1911e0418cb0ea2e56c",
+      "bytes": 2647
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/README.md",
+      "sha256": "ae016eb6cc524a766fed6e2dbbb36d7e0876f5a1c56f70d29904eeb9d44d4c61",
+      "bytes": 1643
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/RECOVERY_AND_CONTINUITY_PLAN.md",
+      "sha256": "5d8b73619d8829313c8daa6946b6a635ff532bcb4aa060c66ed354ebc71f9ed3",
+      "bytes": 6360
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/recovery-readiness.json",
+      "sha256": "6458491ec48013203686580123345df8014f8c74d18b2af6e5fcec325ae9f1fa",
+      "bytes": 1955
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/runtime-error-register.json",
+      "sha256": "a8e988e01db7b56d7d5c95c496fdfbc48f2a9d45a9576b7a35d116d9e8479f01",
+      "bytes": 2506
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/schema-contract-decisions.json",
+      "sha256": "65573359ef0570053845c492528010a1ff5140e1a991bf69a343162bb1d5f7ec",
+      "bytes": 2286
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/00_EXECUTIVE_SUMMARY.md",
+      "sha256": "590ac779083786b85e02f748db58162f08729e35d74555e2066c3b0b7509378f",
+      "bytes": 5916
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/01_NON_DESTRUCTIVE_DATABASE_RECOVERY.md",
+      "sha256": "12f59440f52227515c8077a56e80b671744de4f37767297be69733ba087fcf81",
+      "bytes": 7546
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/02_SECURITY_AND_AUTHORIZATION.md",
+      "sha256": "2c6c160b90fe3d480ecd7126f254a25f263edac9c6be4d8006cedbf09c2278e8",
+      "bytes": 7736
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/03_RUNTIME_SCHEMA_AND_API_CONTRACTS.md",
+      "sha256": "c84c6996c29807076d44ddb9289a86a4f32e5378f6babb890a2813f72ac80d83",
+      "bytes": 7159
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/04_CI_TESTING_AND_BUILD_QUALITY.md",
+      "sha256": "43f7ac316957349b0ff4525337fe03c07c366faa948a24ae96fcc12dcee54dec",
+      "bytes": 5731
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/05_DATABASE_AND_APPLICATION_PERFORMANCE.md",
+      "sha256": "f6b3e4c4b2117943ec4693ba1bcf528609258868a5006dec6d01355b0d35f4ef",
+      "bytes": 4327
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/06_AUTH_STORAGE_AND_OBSERVABILITY.md",
+      "sha256": "b2c70028dff0fc420cd5e2da2e499411df5c56fc74cbbd6fa8fef536f72c2cde",
+      "bytes": 5801
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/07_PRODUCT_SURFACE_GOVERNANCE.md",
+      "sha256": "173f8f4fcb4ac72c720c956c9432b7d0d42061554312c9d0e83dcea20db8697a",
+      "bytes": 4912
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/08_PHASED_IMPLEMENTATION_ROADMAP.md",
+      "sha256": "7f2f4af6f121f230927b2e2e2b88f618821fad71027deac1ccd0968788d22ca0",
+      "bytes": 6352
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/09_MASTER_TASK_TRACKER.md",
+      "sha256": "b6f0c23739689a76ced545533e5dbffdcb909526c58bead9cbf6a69fd0357968",
+      "bytes": 4385
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/10_VALIDATION_RELEASE_AND_ROLLBACK.md",
+      "sha256": "c60ee89b86b284fa0cb770c105d19e78d3cf8424407e9865611b8d4d7a32db57",
+      "bytes": 5560
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/11_RISK_AND_DECISION_REGISTER.md",
+      "sha256": "702eaad1bede06827148affde560ddb9bc964a44fe0abfeaf777ff92841282bf",
+      "bytes": 5190
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/12_FIRST_30_DAYS_EXECUTION_PLAN.md",
+      "sha256": "28113559ab5f1539666219728333e0ac56c998e3ba270b99809e4dec4dda079f",
+      "bytes": 5107
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/13_FINDINGS_TRACEABILITY.md",
+      "sha256": "aa08409e2576d20edf9efbdb90d26a7e1522bd2202cbce097ba42218c02afc4b",
+      "bytes": 5406
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/README.md",
+      "sha256": "7957b83b40b49139e50bc4da00ce9b4459e80085e605c7e44b9d0a9845918fee",
+      "bytes": 5077
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/source/TASK_TRACKER.csv",
+      "sha256": "f22da8f44d34a0b11e49612b65e592cd3b037d3d73243fec8d04a29017c47709",
+      "bytes": 25202
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/task-overrides.json",
+      "sha256": "dfd7ac899f77e4816ebb7f154838f78bcc7b9a467882ff150a6ca37e5f1c5d72",
+      "bytes": 5152
+    },
+    {
+      "path": "docs/audit-remediation/2026-07-27/VITEST_DECISION_SHEET.md",
+      "sha256": "360f56c9491c6fd2639ff1922636cf17f6b35ed29eaa391d80f38f5d19aedeb1",
+      "bytes": 5251
+    }
+  ]
+}

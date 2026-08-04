@@ -114,12 +114,13 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
     <div className={className}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            className="relative h-10 px-3 bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 rounded-full"
+          <Button
+            variant="ghost"
+            className="relative h-10 max-w-full px-2 sm:px-3 bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 rounded-full"
             disabled={isLoading || isSwitching}
+            aria-label={`Switch account (${displayName})`}
           >
-            <div className="flex items-center space-x-2 min-w-0 max-w-full">
+            <div className="flex min-w-0 max-w-full items-center space-x-1.5 sm:space-x-2">
               <div className="relative shrink-0">
                 <Avatar className="h-6 w-6 border border-slate-600">
                   <AvatarImage src={currentAccount.profile_data?.avatar_url} />
@@ -135,22 +136,22 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                   <Crown className="absolute -top-1 -right-1 h-2 w-2 text-yellow-400" />
                 )}
               </div>
-              
+
               <span
-                className="text-sm font-medium text-white truncate min-w-0 max-w-[7rem] sm:max-w-[11rem] md:max-w-[14rem]"
+                className="hidden min-w-0 truncate text-sm font-medium text-white sm:inline max-w-[5rem] md:max-w-[7rem] xl:max-w-[11rem]"
                 title={displayName}
               >
                 {displayName}
               </span>
-              
-              <Badge 
-                variant="secondary" 
-                className={`${accountColor} text-white text-xs px-1.5 py-0.5`}
+
+              <Badge
+                variant="secondary"
+                className={`${accountColor} hidden text-xs px-1.5 py-0.5 text-white xl:inline-flex`}
               >
                 {getAccountTypeLabel(currentAccount.account_type)}
               </Badge>
-              
-              <ChevronDown className="h-3 w-3 text-slate-400" />
+
+              <ChevronDown className="h-3 w-3 shrink-0 text-slate-400" />
             </div>
           </Button>
         </DropdownMenuTrigger>

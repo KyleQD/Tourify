@@ -11,16 +11,26 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { EmojiPicker } from "@/components/venue/social/emoji-picker"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
-import { ArrowLeft, Loader2, Send, Users } from "lucide-react"
+import { ArrowLeft, Loader2, Send, SmilePlus, Users } from "lucide-react"
+
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "🔥", "👀"]
 
 interface GroupMessageSender {
   id: string
   username: string
   full_name: string
   avatar_url?: string | null
+}
+
+interface MessageReaction {
+  emoji: string
+  count: number
+  user_ids: string[]
 }
 
 interface GroupMessage {
@@ -31,6 +41,7 @@ interface GroupMessage {
   message_type: string
   mentions: string[]
   created_at: string
+  reactions: MessageReaction[]
   sender?: GroupMessageSender | null
 }
 
@@ -53,6 +64,7 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
   const [loading, setLoading] = useState(true)
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
+  const [reactionPicker, setReactionPicker] = useState<string | null>(null) // messageId with open picker
   const endRef = useRef<HTMLDivElement>(null)
 
   const loadThread = useCallback(async () => {
@@ -96,6 +108,7 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
     void loadMessages()
   }, [isAuthenticated, loadThread, loadMessages])
 
+  // Real-time: new messages
   useEffect(() => {
     if (!user) return
     const channel = supabase
@@ -111,7 +124,7 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
         (payload) => {
           const incoming = payload.new as GroupMessage
           if (incoming.sender_id === user.id) return
-          setMessages((prev) => [...prev, incoming])
+          setMessages((prev) => [...prev, { ...incoming, reactions: incoming.reactions ?? [] }])
         },
       )
       .subscribe()
@@ -120,6 +133,30 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
       void supabase.removeChannel(channel)
     }
   }, [threadId, user])
+
+  // Real-time: reaction changes (INSERT / DELETE on group_message_reactions)
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`group-reactions-${threadId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_message_reactions",
+        },
+        () => {
+          // Re-fetch messages to get fresh aggregated reactions
+          void loadMessages()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [threadId, user, loadMessages])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -144,13 +181,56 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
         return
       }
       const data = await response.json()
-      setMessages((prev) => [...prev, data.message])
+      setMessages((prev) => [...prev, { ...data.message, reactions: data.message.reactions ?? [] }])
     } catch (error) {
       console.error("Group send error:", error)
       toast.error("Failed to send message")
       setDraft(content)
     } finally {
       setSending(false)
+    }
+  }
+
+  async function toggleReaction(messageId: string, emoji: string) {
+    if (!user) return
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m
+        const reactions = m.reactions ? [...m.reactions] : []
+        const idx = reactions.findIndex((r) => r.emoji === emoji)
+        if (idx >= 0) {
+          const r = reactions[idx]
+          if (r.user_ids.includes(user.id)) {
+            // Remove
+            const newUserIds = r.user_ids.filter((id) => id !== user.id)
+            if (newUserIds.length === 0) reactions.splice(idx, 1)
+            else reactions[idx] = { ...r, count: r.count - 1, user_ids: newUserIds }
+          } else {
+            // Add to existing emoji group
+            reactions[idx] = { ...r, count: r.count + 1, user_ids: [...r.user_ids, user.id] }
+          }
+        } else {
+          // New emoji
+          reactions.push({ emoji, count: 1, user_ids: [user.id] })
+        }
+        return { ...m, reactions }
+      }),
+    )
+
+    setReactionPicker(null)
+
+    try {
+      await fetch(`/api/groups/threads/${threadId}/messages/${messageId}/reactions`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      })
+    } catch {
+      // Revert optimistic update on failure
+      void loadMessages()
     }
   }
 
@@ -173,6 +253,7 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
       <div className="container mx-auto h-screen max-w-4xl">
         <div className="flex h-full flex-col bg-slate-900/50 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
+          {/* Header */}
           <div className="flex items-center gap-3 p-4 border-b border-slate-700/60">
             <Button
               variant="ghost"
@@ -189,13 +270,15 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
               )}
             </div>
             <Badge variant="outline" className="border-slate-600 text-slate-300 text-[10px]">
-              <Users className="h-3 w-3 mr-1" /> {thread?.thread_type || "group"}
+              <Users className="h-3 w-3 mr-1" />
+              {thread?.thread_type === "logistics" ? "Logistics" : thread?.thread_type || "group"}
             </Badge>
             {membership?.role && (
               <Badge className="bg-slate-700/60 text-slate-200 text-[10px]">{membership.role}</Badge>
             )}
           </div>
 
+          {/* Messages */}
           <ScrollArea className="flex-1 p-4">
             {loading ? (
               <div className="flex items-center justify-center py-12">
@@ -214,22 +297,24 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
                   return (
                     <div
                       key={message.id}
-                      className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}
+                      className={cn("flex gap-2 group", isOwn ? "justify-end" : "justify-start")}
                     >
                       {!isOwn && (
-                        <Avatar className="h-7 w-7 mt-1">
+                        <Avatar className="h-7 w-7 mt-1 shrink-0">
                           <AvatarImage src={message.sender?.avatar_url || ""} />
                           <AvatarFallback className="bg-slate-700 text-white text-[10px]">
                             {(message.sender?.full_name ?? "?").charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       )}
+
                       <div className={cn("max-w-[70%]", isOwn ? "items-end" : "items-start")}>
                         {!isOwn && (
                           <p className="text-[11px] text-slate-400 mb-0.5">
                             {message.sender?.full_name || `@${message.sender?.username ?? "user"}`}
                           </p>
                         )}
+
                         <div
                           className={cn(
                             "p-3 rounded-2xl text-sm whitespace-pre-wrap break-words",
@@ -240,6 +325,68 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
                         >
                           {message.content}
                         </div>
+
+                        {/* Reactions row */}
+                        <div className={cn("flex flex-wrap items-center gap-1 mt-1", isOwn && "justify-end")}>
+                          {(message.reactions ?? []).map((r) => {
+                            const myReaction = user && r.user_ids.includes(user.id)
+                            return (
+                              <button
+                                key={r.emoji}
+                                type="button"
+                                onClick={() => toggleReaction(message.id, r.emoji)}
+                                className={cn(
+                                  "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[12px] border transition-colors",
+                                  myReaction
+                                    ? "bg-purple-600/30 border-purple-500/50 text-purple-200"
+                                    : "bg-slate-700/60 border-slate-600/40 text-slate-300 hover:bg-slate-700",
+                                )}
+                                title={r.user_ids.length > 0 ? `${r.user_ids.length} reaction${r.user_ids.length > 1 ? "s" : ""}` : ""}
+                              >
+                                {r.emoji} <span className="text-slate-400 text-[10px]">{r.count}</span>
+                              </button>
+                            )
+                          })}
+
+                          {/* Add reaction button — visible on hover */}
+                          <Popover
+                            open={reactionPicker === message.id}
+                            onOpenChange={(open) => setReactionPicker(open ? message.id : null)}
+                          >
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="opacity-0 group-hover:opacity-100 inline-flex items-center justify-center h-6 w-6 rounded-full bg-slate-700/60 border border-slate-600/40 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                                aria-label="Add reaction"
+                              >
+                                <SmilePlus className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align={isOwn ? "end" : "start"}
+                              className="p-2 border-slate-700 bg-slate-900 w-auto"
+                            >
+                              {/* Quick reactions */}
+                              <div className="flex gap-1 mb-2">
+                                {QUICK_REACTIONS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => toggleReaction(message.id, emoji)}
+                                    className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-slate-700 text-lg transition-colors"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                              {/* Full emoji picker */}
+                              <EmojiPicker
+                                onEmojiSelect={(emoji) => toggleReaction(message.id, emoji)}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
                         <p className="text-[10px] text-slate-500 mt-1 text-right">
                           {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                         </p>
@@ -252,6 +399,7 @@ export function GroupThreadClient({ threadId }: { threadId: string }) {
             )}
           </ScrollArea>
 
+          {/* Compose */}
           <div className="p-4 border-t border-slate-700/60 flex gap-3">
             <Textarea
               value={draft}

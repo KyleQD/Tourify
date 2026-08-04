@@ -3,7 +3,7 @@ import { z } from "zod"
 
 import {
   adminAccessErrorResponse,
-  assertAdminTourAccess,
+  assertTourAuthority,
 } from "@/lib/admin/admin-tour-event-access"
 import { withAdminAuth } from "@/lib/auth/api-auth"
 
@@ -64,7 +64,8 @@ export const POST = withAdminAuth(async (req: NextRequest, { supabase, user }) =
     if (!parsed.success)
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-    await assertAdminTourAccess({ supabase, userId: user.id, tourId })
+    // TOUR-102: authority-only gate via canonical tour access service
+    await assertTourAuthority({ supabase, userId: user.id, tourId })
 
     const { data: tourRow } = await supabase
       .from("tours")

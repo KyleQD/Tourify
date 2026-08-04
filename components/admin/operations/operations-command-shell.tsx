@@ -24,6 +24,8 @@ interface OperationsCommandShellProps {
   metrics?: React.ReactNode
   className?: string
   tabColsClassName?: string
+  /** When false, skips WorkforceHero but keeps actions toolbar + tabs. Default true. */
+  showHero?: boolean
 }
 
 export function OperationsCommandShell({
@@ -39,6 +41,7 @@ export function OperationsCommandShell({
   metrics,
   className,
   tabColsClassName,
+  showHero = true,
 }: OperationsCommandShellProps) {
   const cols =
     tabColsClassName ||
@@ -50,13 +53,19 @@ export function OperationsCommandShell({
 
   return (
     <section className={cn("space-y-6", className)}>
-      <WorkforceHero
-        eyebrow={eyebrow}
-        title={title}
-        description={description}
-        badge={badge}
-        actions={actions}
-      />
+      {showHero ? (
+        <WorkforceHero
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          badge={badge}
+          actions={actions}
+        />
+      ) : actions ? (
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {actions}
+        </div>
+      ) : null}
 
       {metrics ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics}</div> : null}
 

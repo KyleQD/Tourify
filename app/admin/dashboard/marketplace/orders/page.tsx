@@ -107,7 +107,12 @@ export default function MarketplaceOrdersPage() {
       ) : error ? (
         <AdminErrorCard title="Could not load orders" message={error} onRetry={fetchOrders} />
       ) : filtered.length === 0 ? (
-        <AdminEmptyState icon={ShoppingBag} title="No orders found" description="Orders will appear here once customers make purchases." />
+        <AdminEmptyState
+          icon={ShoppingBag}
+          title="No orders found"
+          description="Orders will appear here once customers make purchases."
+          action={{ label: "Open store", href: "/admin/dashboard/store" }}
+        />
       ) : (
         <div className="space-y-2">
           {filtered.map((order) => (

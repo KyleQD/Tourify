@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728181917_work_mode_ux_telemetry.sql",
+  "taskId": "UX-019C",
+  "status": "planned",
+  "owner": "work-mode",
+  "reviewer": "security-data",
+  "domains": ["work-mode", "telemetry", "accessibility"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with authenticated persona",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm public.ux_telemetry_events does not already exist",
+      "Record current authenticated and anon grants for similarly scoped telemetry tables"
+    ],
+    "expectedAffectedRows": "No existing rows are updated; one empty table, three indexes, and one insert policy are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "The migration is additive and can be rerun; IF NOT EXISTS guards converge objects",
+    "resumeCursor": "not applicable; no backfill",
+    "idempotency": "Table and indexes use IF NOT EXISTS; the policy is created only when absent"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant or legacy rows are mapped or backfilled"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "event_name allowlist",
+      "flow/route/step/source length checks",
+      "latency and error category allowlists",
+      "context must be a JSON object"
+    ],
+    "indexes": [
+      "ux_telemetry_events_created_at_idx",
+      "ux_telemetry_events_flow_event_idx",
+      "ux_telemetry_events_user_created_idx"
+    ],
+    "validationPlan": "Verify authenticated insert-own succeeds, spoofed user_id fails, and anon/select/update/delete access fails"
+  },
+  "recovery": {
+    "rollback": "Disable the UX telemetry client flag or endpoint; preserve collected evidence and leave the additive table in place",
+    "forwardFix": "Apply a reviewed additive policy, constraint, retention, or indexing migration"
+  },
+  "postflight": {
+    "queries": [
+      "Verify RLS and FORCE RLS are enabled on public.ux_telemetry_events",
+      "Verify authenticated has INSERT only and anon has no grants",
+      "Verify exactly one insert-own policy exists",
+      "Insert an event as an authenticated persona and confirm service-role reporting can read it"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

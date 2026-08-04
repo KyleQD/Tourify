@@ -1,280 +1,255 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Flag, RefreshCw, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
+
 import { AdminPageHeader } from "../components/admin-page-header"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { AdminPageSkeleton } from "../components/admin-page-skeleton"
+import { AdminErrorCard } from "../components/admin-error-card"
+import { AdminEmptyState } from "../components/admin-empty-state"
+import { AdminSurfaceCard } from "../components/admin-surface-card"
+import { statusBadgeClass } from "../components/admin-badge-utils"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Slider } from "@/components/ui/slider"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import {
-  Flag, Plus, Trash2, Loader2, RefreshCw, AlertCircle,
-} from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { useActingContext } from "@/hooks/use-acting-context"
 
-interface FeatureFlag {
-  id: string
+interface FlagDefinition {
   key: string
-  name: string
-  description: string | null
+  display_name: string
+  purpose: string
+  owner: string
+  environments: string[]
+  safe_default: boolean
+  metrics_contract: Record<string, string>
+  rollback_instructions: string
+  expires_at: string
+  removal_issue: string
+  state: "active" | "retired"
+}
+
+interface FlagAssignment {
+  id: string
+  flag_key: string
+  environment: string
   enabled: boolean
   rollout_percentage: number
-  target_org_ids: string[] | null
-  created_at: string
+  assignment_version: number
+  change_reason: string
   updated_at: string
 }
 
-export default function FeaturesPage() {
-  const [flags, setFlags] = useState<FeatureFlag[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isCreating, setIsCreating] = useState(false)
-  const [isSaving, setIsSaving] = useState<string | null>(null)
+interface PendingChange {
+  definition: FlagDefinition
+  assignment: FlagAssignment | null
+  enabled: boolean
+  rolloutPercentage: number
+}
 
-  // Create form
-  const [newKey, setNewKey] = useState("")
-  const [newName, setNewName] = useState("")
-  const [newDescription, setNewDescription] = useState("")
+export default function FeaturesPage() {
+  const { actingHeaders, actingContextKey, isActingReady } = useActingContext()
+  const [definitions, setDefinitions] = useState<FlagDefinition[]>([])
+  const [assignments, setAssignments] = useState<FlagAssignment[]>([])
+  const [environment, setEnvironment] = useState("production")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState<PendingChange | null>(null)
+  const [reason, setReason] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
-    setIsLoading(true)
+    if (!isActingReady) return
+    setLoading(true)
+    setError(null)
+    setDefinitions([])
+    setAssignments([])
     try {
-      const res = await fetch('/api/admin/features', { credentials: 'include', cache: 'no-store' })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
-      setFlags(data.flags || [])
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to load feature flags')
+      const response = await fetch("/api/admin/features", {
+        credentials: "include",
+        cache: "no-store",
+        headers: { ...actingHeaders },
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || "Feature governance is unavailable.")
+      setDefinitions(payload.definitions || [])
+      setAssignments(payload.assignments || [])
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Feature governance is unavailable.")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
-  }, [])
+  }, [actingHeaders, isActingReady])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    void load()
+  }, [actingContextKey, load])
 
-  async function createFlag() {
-    if (!newKey.trim() || !newName.trim()) {
-      toast.error('Key and name are required')
-      return
-    }
+  const assignmentByKey = useMemo(() => new Map(
+    assignments
+      .filter((assignment) => assignment.environment === environment)
+      .map((assignment) => [assignment.flag_key, assignment]),
+  ), [assignments, environment])
+
+  async function saveChange() {
+    if (!pending || reason.trim().length < 3) return
+    setSaving(true)
     try {
-      const res = await fetch('/api/admin/features', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: newKey.trim(), name: newName.trim(), description: newDescription || undefined }),
+      const existing = pending.assignment
+      const endpoint = existing
+        ? `/api/admin/features/${encodeURIComponent(pending.definition.key)}`
+        : "/api/admin/features"
+      const body = existing
+        ? {
+            environment,
+            enabled: pending.enabled,
+            rollout_percentage: pending.rolloutPercentage,
+            reason: reason.trim(),
+            expected_version: existing.assignment_version,
+            idempotency_key: crypto.randomUUID(),
+          }
+        : {
+            flag_key: pending.definition.key,
+            environment,
+            enabled: pending.enabled,
+            rollout_percentage: pending.rolloutPercentage,
+            reason: reason.trim(),
+            idempotency_key: crypto.randomUUID(),
+          }
+      const response = await fetch(endpoint, {
+        method: existing ? "PATCH" : "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...actingHeaders },
+        body: JSON.stringify(body),
       })
-      if (!res.ok) {
-        const d = await res.json()
-        throw new Error(JSON.stringify(d.error) || 'Failed to create flag')
-      }
-      const data = await res.json()
-      setFlags(prev => [data.flag, ...prev])
-      setNewKey(""); setNewName(""); setNewDescription("")
-      setIsCreating(false)
-      toast.success('Feature flag created')
-    } catch (err: any) {
-      toast.error(err.message)
-    }
-  }
-
-  async function updateFlag(key: string, updates: Partial<FeatureFlag>) {
-    setIsSaving(key)
-    try {
-      const res = await fetch(`/api/admin/features/${encodeURIComponent(key)}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
-      setFlags(prev => prev.map(f => f.key === key ? data.flag : f))
-      toast.success('Flag updated')
-    } catch (err: any) {
-      toast.error(err.message)
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || "Could not save this assignment.")
+      const assignment = payload.assignment as FlagAssignment
+      setAssignments((current) => [
+        ...current.filter((item) => item.id !== assignment.id),
+        assignment,
+      ])
+      setPending(null)
+      setReason("")
+      toast.success("Feature assignment saved", { description: "The reason and prior value are retained in immutable history." })
+    } catch (saveError) {
+      toast.error(saveError instanceof Error ? saveError.message : "Could not save this assignment.")
     } finally {
-      setIsSaving(null)
-    }
-  }
-
-  async function deleteFlag(key: string) {
-    if (!confirm(`Delete feature flag "${key}"? This cannot be undone.`)) return
-    try {
-      const res = await fetch(`/api/admin/features/${encodeURIComponent(key)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (!res.ok) throw new Error(await res.text())
-      setFlags(prev => prev.filter(f => f.key !== key))
-      toast.success('Flag deleted')
-    } catch (err: any) {
-      toast.error(err.message)
+      setSaving(false)
     }
   }
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        title="Feature Flags"
-        subtitle="Control feature availability and rollout percentages"
+        title="Feature Governance"
+        subtitle="Organization-scoped rollouts with safe defaults, expiry, rollback, and immutable reasons"
         icon={Flag}
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={load} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0" onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Flag
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading || !isActingReady} className="border-slate-700 text-slate-300">
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
         }
       />
 
-      {/* Info banner */}
-      <Card className="bg-amber-500/10 border-amber-500/30 rounded-sm">
-        <CardContent className="p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-200">
-            Flags are stored in the database. Set <code className="bg-amber-500/20 px-1 rounded">NEXT_PUBLIC_FEATURE_[KEY]=true</code> as an env var to override at deploy time. DB flags take precedence at runtime.
-          </p>
-        </CardContent>
-      </Card>
-
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <AdminSurfaceCard className="flex flex-wrap items-end justify-between gap-4 p-4">
+        <div>
+          <p className="text-sm font-medium text-slate-200">Acting organization policy</p>
+          <p className="mt-1 text-xs text-slate-500">Definitions are governed in code. This page only assigns them to the active organization.</p>
         </div>
-      ) : flags.length === 0 ? (
-        <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur-sm rounded-sm">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Flag className="h-10 w-10 text-slate-600 mb-4" />
-            <p className="text-slate-400 text-sm">No feature flags yet. Create one to get started.</p>
-            <Button size="sm" className="mt-4 bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Create First Flag
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-1">
+          <Label htmlFor="flag-environment" className="text-xs text-slate-400">Environment</Label>
+          <select id="flag-environment" value={environment} onChange={(event) => setEnvironment(event.target.value)} className="h-9 rounded-sm border border-slate-700 bg-slate-900 px-3 text-sm text-slate-200">
+            <option value="local">Local</option>
+            <option value="staging">Staging</option>
+            <option value="pilot">Pilot</option>
+            <option value="production">Production</option>
+          </select>
+        </div>
+      </AdminSurfaceCard>
+
+      {!isActingReady || loading ? (
+        <AdminPageSkeleton />
+      ) : error ? (
+        <AdminErrorCard title="Feature governance unavailable" message={error} onRetry={() => void load()} />
+      ) : definitions.length === 0 ? (
+        <AdminEmptyState icon={Flag} title="No governed flags" description="No active governed definitions are available. Legacy flags are preserved but are not treated as organization assignments." />
       ) : (
-        <div className="space-y-3">
-          {flags.map(flag => (
-            <Card key={flag.key} className={`bg-slate-900/60 border-slate-700/50 backdrop-blur-sm rounded-sm transition-all ${flag.enabled ? 'border-purple-500/30' : ''}`}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-white font-medium text-sm">{flag.name}</h3>
-                      <code className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono">{flag.key}</code>
-                      <Badge className={`text-xs ${flag.enabled ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
-                        {flag.enabled ? 'Enabled' : 'Disabled'}
+        <div className="grid gap-4 xl:grid-cols-2">
+          {definitions.map((definition) => {
+            const assignment = assignmentByKey.get(definition.key) || null
+            const expired = new Date(definition.expires_at) <= new Date()
+            const unavailable = definition.state === "retired" || expired || !definition.environments.includes(environment)
+            const enabled = Boolean(assignment?.enabled && assignment.rollout_percentage > 0 && !unavailable)
+            return (
+              <AdminSurfaceCard key={definition.key} className="space-y-4 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-medium text-slate-100">{definition.display_name}</h2>
+                      <Badge className={statusBadgeClass(unavailable ? "unavailable" : enabled ? "ready" : "disabled")}>
+                        {unavailable ? "Unavailable" : enabled ? "Enabled" : "Safe default"}
                       </Badge>
-                      {isSaving === flag.key && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
                     </div>
-                    {flag.description && (
-                      <p className="text-xs text-slate-400 mt-1">{flag.description}</p>
-                    )}
-                    <p className="text-xs text-slate-600 mt-1">
-                      Updated {formatDistanceToNow(new Date(flag.updated_at), { addSuffix: true })}
-                    </p>
+                    <code className="mt-1 block text-xs text-slate-500">{definition.key}</code>
                   </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <Switch
-                      checked={flag.enabled}
-                      onCheckedChange={enabled => updateFlag(flag.key, { enabled })}
-                      disabled={isSaving === flag.key}
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-slate-400 hover:text-red-400 h-8 w-8 p-0"
-                      onClick={() => deleteFlag(flag.key)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <ShieldCheck className="h-5 w-5 text-purple-400" aria-hidden="true" />
                 </div>
-
-                {/* Rollout slider */}
-                <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-slate-400">Rollout: {flag.rollout_percentage}%</Label>
-                    {flag.rollout_percentage === 0 ? (
-                      <span className="text-xs text-slate-500">Not rolling out</span>
-                    ) : flag.rollout_percentage === 100 ? (
-                      <span className="text-xs text-green-400">Full rollout</span>
-                    ) : (
-                      <span className="text-xs text-yellow-400">{flag.rollout_percentage}% of users</span>
-                    )}
-                  </div>
-                  <Slider
-                    value={[flag.rollout_percentage]}
-                    min={0}
-                    max={100}
-                    step={5}
-                    disabled={isSaving === flag.key}
-                    onValueCommit={([val]) => updateFlag(flag.key, { rollout_percentage: val })}
-                    className="w-full"
-                  />
+                <p className="text-sm text-slate-300">{definition.purpose}</p>
+                <dl className="grid gap-2 text-xs text-slate-400 sm:grid-cols-2">
+                  <div><dt className="text-slate-500">Owner</dt><dd>{definition.owner}</dd></div>
+                  <div><dt className="text-slate-500">Rollout</dt><dd>{assignment ? `${assignment.rollout_percentage}%` : "Not assigned"}</dd></div>
+                  <div><dt className="text-slate-500">Expiry</dt><dd>{new Date(definition.expires_at).toLocaleDateString()}</dd></div>
+                  <div><dt className="text-slate-500">Removal issue</dt><dd>{definition.removal_issue}</dd></div>
+                </dl>
+                <div className="rounded-sm border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-400">
+                  <span className="font-medium text-slate-300">Rollback:</span> {definition.rollback_instructions}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <Button
+                  size="sm"
+                  disabled={unavailable}
+                  onClick={() => {
+                    setPending({
+                      definition,
+                      assignment,
+                      enabled: assignment ? !assignment.enabled : true,
+                      rolloutPercentage: assignment?.rollout_percentage || 100,
+                    })
+                    setReason("")
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white"
+                >
+                  {assignment ? (assignment.enabled ? "Review disable" : "Review enable") : "Configure assignment"}
+                </Button>
+              </AdminSurfaceCard>
+            )
+          })}
         </div>
       )}
 
-      {/* Create Flag Dialog */}
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Flag className="h-5 w-5 text-purple-400" />
-              New Feature Flag
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-slate-300 text-sm">Key <span className="text-slate-500">(lowercase, a-z, 0-9, _, -)</span></Label>
-              <Input
-                value={newKey}
-                onChange={e => setNewKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                placeholder="e.g. advanced_analytics"
-                className="bg-slate-800/50 border-slate-700/50 text-white font-mono"
-              />
+      <Dialog open={Boolean(pending)} onOpenChange={(open) => !open && setPending(null)}>
+        <DialogContent className="border-slate-700 bg-slate-900">
+          <DialogHeader><DialogTitle className="text-slate-100">Review organization rollout</DialogTitle></DialogHeader>
+          {pending ? (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300">{pending.definition.display_name} will be {pending.enabled ? "enabled" : "disabled"} for {environment}.</p>
+              <div className="space-y-1">
+                <Label htmlFor="rollout">Rollout percentage</Label>
+                <Input id="rollout" type="number" min={0} max={100} value={pending.rolloutPercentage} onChange={(event) => setPending({ ...pending, rolloutPercentage: Math.max(0, Math.min(100, Number(event.target.value))) })} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="reason">Reason (required)</Label>
+                <Textarea id="reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this safe, and what evidence supports the rollout?" />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => void saveChange()} disabled={saving || reason.trim().length < 3}>Confirm change</Button>
+                <Button variant="outline" onClick={() => setPending(null)} disabled={saving}>Cancel</Button>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-300 text-sm">Display Name</Label>
-              <Input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="e.g. Advanced Analytics"
-                className="bg-slate-800/50 border-slate-700/50 text-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-300 text-sm">Description</Label>
-              <Textarea
-                value={newDescription}
-                onChange={e => setNewDescription(e.target.value)}
-                placeholder="What does this flag control?"
-                className="bg-slate-800/50 border-slate-700/50 text-white min-h-[60px]"
-              />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Button onClick={createFlag} disabled={!newKey || !newName} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
-                Create Flag
-              </Button>
-              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => setIsCreating(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

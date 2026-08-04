@@ -143,10 +143,19 @@ function TicketsPageInner() {
             <Calendar className="h-4 w-4 mr-2" />
             Create Event
           </Button>
-          <Button>
-            <TicketIcon className="h-4 w-4 mr-2" />
-            Generate Tickets
-          </Button>
+          {myEvents.length > 0 ? (
+            <Button asChild>
+              <Link href={`/venue/events/${myEvents[0].id}?tab=tickets`}>
+                <TicketIcon className="h-4 w-4 mr-2" />
+                Manage tickets
+              </Link>
+            </Button>
+          ) : (
+            <Button onClick={() => setShowCreateEventModal(true)}>
+              <TicketIcon className="h-4 w-4 mr-2" />
+              Generate Tickets
+            </Button>
+          )}
         </div>
       </div>
 

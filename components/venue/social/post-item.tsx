@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/auth-context"
-import { useSocial } from "@/contexts/social-context"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
@@ -45,6 +44,11 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import { useRouter } from "next/navigation"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import {
+  createPostComment,
+  setPostLike,
+  sharePostExternally,
+} from "@/lib/feed/post-engagement-client"
 
 interface PostItemProps {
   post: any
@@ -86,12 +90,11 @@ export function PostItem({
   className = "",
 }: PostItemProps) {
   const { user: currentUser } = useAuth()
-  const { } = useSocial()
   const { toast } = useToast()
   const router = useRouter()
 
-  const [isLiked, setIsLiked] = useState(post.likes.includes(currentUser?.id))
-  const [likeCount, setLikeCount] = useState(post.likes.length)
+  const [isLiked, setIsLiked] = useState(Boolean(post.is_liked || post.likes?.includes(currentUser?.id)))
+  const [likeCount, setLikeCount] = useState(Number(post.likes_count ?? post.likes?.length ?? 0))
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [showCommentForm, setShowCommentForm] = useState(showComments)
   const [commentText, setCommentText] = useState("")
@@ -101,16 +104,9 @@ export function PostItem({
 
   const handleLikeToggle = async () => {
     try {
-      if (isLiked) {
-        // Mock unlikePost for now
-        console.log("Unliking post:", post.id)
-        setLikeCount((prev: number) => prev - 1)
-      } else {
-        // Mock likePost for now
-        console.log("Liking post:", post.id)
-        setLikeCount((prev: number) => prev + 1)
-      }
-      setIsLiked(!isLiked)
+      const result = await setPostLike(post.id, isLiked ? "unlike" : "like")
+      setLikeCount(result.likes_count)
+      setIsLiked(result.is_liked)
     } catch (error) {
       console.error("Error toggling like:", error)
       toast({
@@ -137,8 +133,7 @@ export function PostItem({
     setIsSubmittingComment(true)
 
     try {
-      // Mock addComment for now
-      console.log("Adding comment to post:", post.id, commentText)
+      await createPostComment(post.id, commentText)
       setCommentText("")
       toast({
         title: "Comment added",
@@ -156,13 +151,20 @@ export function PostItem({
     }
   }
 
-  const handleShare = () => {
-    // In a real app, this would open a share dialog
-    navigator.clipboard.writeText(`https://tourify.com/posts/${post.id}`)
-    toast({
-      title: "Link copied",
-      description: "Post link has been copied to clipboard.",
-    })
+  const handleShare = async () => {
+    try {
+      await sharePostExternally(post.id, { preferNative: false })
+      toast({
+        title: "Link copied",
+        description: "Post link was copied and the share was saved.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to share post.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePostClick = () => {

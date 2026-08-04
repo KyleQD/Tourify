@@ -57,6 +57,10 @@ interface MarketplaceListing {
   description: string | null
   category: string
   product_type: string
+  listing_kind?: "physical" | "service" | "external" | null
+  service_mode?: "fixed_price" | "booking_request" | "quote_request" | null
+  public_slug?: string | null
+  optimistic_version?: number
   status: string
   currency: string
   base_price: number | null
@@ -322,6 +326,20 @@ export function SellerStoreDashboard({
     pendingItems: number
   } | null>(null)
 
+  // External import state
+  const [externalImportUrl, setExternalImportUrl] = useState("")
+  const [isImportingExternal, setIsImportingExternal] = useState(false)
+  const [externalImportPreview, setExternalImportPreview] = useState<{
+    title: string | null
+    description: string | null
+    imageUrl: string | null
+    displayedPrice: string | null
+    displayedCurrency: string | null
+    providerName: string | null
+    providerDomain: string | null
+    _canonicalUrlHash: string
+  } | null>(null)
+
   const [listingForm, setListingForm] = useState({
     title: "",
     description: "",
@@ -335,6 +353,9 @@ export function SellerStoreDashboard({
     trackId: "",
     rightsConfirmed: false,
     licenseType: "personal_use" as "personal_use" | "commercial_use" | "exclusive",
+    // P2 fields
+    listingKind: "physical" as "physical" | "service" | "external",
+    serviceMode: "fixed_price" as "fixed_price" | "booking_request" | "quote_request",
   })
 
   const [storefrontForm, setStorefrontForm] = useState({
@@ -396,6 +417,8 @@ export function SellerStoreDashboard({
     const config = OFFER_CONFIG[nextOfferType]
     setSelectedOfferType(nextOfferType)
     setEditingListing(null)
+    setExternalImportUrl("")
+    setExternalImportPreview(null)
     setListingForm({
       title: "",
       description: "",
@@ -409,6 +432,8 @@ export function SellerStoreDashboard({
       trackId: "",
       rightsConfirmed: false,
       licenseType: "personal_use",
+      listingKind: nextOfferType === "service" ? "service" : "physical",
+      serviceMode: "fixed_price",
     })
   }
 
@@ -628,6 +653,8 @@ export function SellerStoreDashboard({
     const offerType = inferOfferType(listing)
     setSelectedOfferType(offerType)
     setEditingListing(listing)
+    setExternalImportUrl("")
+    setExternalImportPreview(null)
     setListingForm({
       title: listing.title || "",
       description: listing.description || "",
@@ -641,6 +668,8 @@ export function SellerStoreDashboard({
       trackId: listing.music_track_id || "",
       rightsConfirmed: Boolean(listing.rights_confirmed),
       licenseType: listing.license_type || "personal_use",
+      listingKind: (listing.listing_kind as "physical" | "service" | "external") ?? "physical",
+      serviceMode: (listing.service_mode as "fixed_price" | "booking_request" | "quote_request") ?? "fixed_price",
     })
   }
 
@@ -710,6 +739,8 @@ export function SellerStoreDashboard({
         description: listingForm.description.trim() || null,
         category: selectedConfig.category,
         productType: selectedConfig.productType,
+        listingKind: listingForm.listingKind,
+        serviceMode: listingForm.listingKind === "service" ? listingForm.serviceMode : null,
         status: listingForm.status,
         currency: listingForm.currency.toUpperCase(),
         basePrice: price,
@@ -820,6 +851,38 @@ export function SellerStoreDashboard({
       return
     }
     setSyncMessage("Listing shared to your feed.")
+  }
+
+  async function fetchExternalImport() {
+    if (!externalImportUrl.trim()) return
+    setIsImportingExternal(true)
+    setSyncMessage(null)
+    try {
+      const response = await fetch("/api/marketplace/listings/import-external", buildNoStoreInit({
+        method: "POST",
+        body: JSON.stringify({ url: externalImportUrl.trim() }),
+      }))
+      const body = await response.json()
+      if (!response.ok) {
+        setSyncMessage(body?.error?.message || "Could not import from that URL. Check it is publicly accessible.")
+        return
+      }
+      const preview = body.data
+      setExternalImportPreview(preview)
+      // Pre-fill the form with imported metadata
+      setListingForm(c => ({
+        ...c,
+        title: preview.title || c.title,
+        description: preview.description || c.description,
+        coverImageUrl: preview.imageUrl || c.coverImageUrl,
+        basePrice: preview.displayedPrice || c.basePrice,
+        listingKind: "external",
+      }))
+    } catch {
+      setSyncMessage("Failed to fetch URL metadata.")
+    } finally {
+      setIsImportingExternal(false)
+    }
   }
 
   async function deleteListing(listing: MarketplaceListing) {
@@ -1355,6 +1418,97 @@ export function SellerStoreDashboard({
                     })}
                   </div>
 
+                  {/* Listing kind selector */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Listing type</div>
+                    <div className="flex gap-2">
+                      {(["physical", "service", "external"] as const).map(kind => (
+                        <button
+                          key={kind}
+                          type="button"
+                          onClick={() => setListingForm(c => ({ ...c, listingKind: kind }))}
+                          className={[
+                            "rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition",
+                            listingForm.listingKind === kind
+                              ? "border-purple-500/60 bg-purple-500/15 text-purple-200"
+                              : "border-slate-700 bg-slate-950/40 text-slate-400 hover:border-slate-600",
+                          ].join(" ")}
+                        >
+                          {kind === "physical" ? "Physical / Digital" : kind === "service" ? "Service" : "External link"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Service mode — only when listing_kind = service */}
+                  {listingForm.listingKind === "service" && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Transaction mode</div>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          { value: "fixed_price", label: "Fixed price" },
+                          { value: "booking_request", label: "Booking request" },
+                          { value: "quote_request", label: "Quote / custom" },
+                        ] as const).map(mode => (
+                          <button
+                            key={mode.value}
+                            type="button"
+                            onClick={() => setListingForm(c => ({ ...c, serviceMode: mode.value }))}
+                            className={[
+                              "rounded-md border px-3 py-1.5 text-xs font-medium transition",
+                              listingForm.serviceMode === mode.value
+                                ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-200"
+                                : "border-slate-700 bg-slate-950/40 text-slate-400 hover:border-slate-600",
+                            ].join(" ")}
+                          >
+                            {mode.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* External import — only when listing_kind = external */}
+                  {listingForm.listingKind === "external" && (
+                    <div className="space-y-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+                      <div className="text-xs font-medium text-amber-300">Import from external URL</div>
+                      <p className="text-xs text-slate-400">
+                        Paste the URL of your product on another platform. Buyers will be redirected safely after clicking "Continue to [Provider]".
+                        The destination URL is never shown to buyers directly.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={externalImportUrl}
+                          onChange={e => setExternalImportUrl(e.target.value)}
+                          placeholder="https://yourshop.com/products/..."
+                          className="flex-1"
+                          disabled={isImportingExternal}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isImportingExternal || !externalImportUrl.trim()}
+                          onClick={() => void fetchExternalImport()}
+                        >
+                          {isImportingExternal ? "Fetching…" : "Import"}
+                        </Button>
+                      </div>
+                      {externalImportPreview && (
+                        <div className="rounded-md border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300 space-y-1">
+                          <div className="font-medium text-white">{externalImportPreview.title ?? "—"}</div>
+                          {externalImportPreview.providerName && (
+                            <div className="text-slate-400">Provider: {externalImportPreview.providerName} ({externalImportPreview.providerDomain})</div>
+                          )}
+                          {externalImportPreview.displayedPrice && (
+                            <div className="text-slate-400">Listed price: {externalImportPreview.displayedPrice} {externalImportPreview.displayedCurrency}</div>
+                          )}
+                          <div className="text-emerald-400 text-xs mt-1">✓ Metadata imported — review and edit the fields below before saving.</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-3">
                     <Input value={listingForm.title} onChange={e => setListingForm(c => ({ ...c, title: e.target.value }))} placeholder="Listing title" />
                     <Textarea value={listingForm.description} onChange={e => setListingForm(c => ({ ...c, description: e.target.value }))} placeholder="Describe what fans are buying" rows={3} />
@@ -1389,6 +1543,8 @@ export function SellerStoreDashboard({
                       <select className="h-10 rounded-md border border-slate-700 bg-slate-900 px-3 text-sm" value={listingForm.status} onChange={e => setListingForm(c => ({ ...c, status: e.target.value }))}>
                         <option value="draft">Draft</option>
                         <option value="published">Published</option>
+                        <option value="paused">Paused</option>
+                        <option value="sold_out">Sold out</option>
                         <option value="archived">Archived</option>
                       </select>
                       <Input value={listingForm.basePrice} onChange={e => setListingForm(c => ({ ...c, basePrice: e.target.value }))} placeholder="Price" type="number" step="0.01" min="0" />

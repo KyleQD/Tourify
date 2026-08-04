@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { ZodTypeAny, z } from 'zod'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
@@ -7,8 +8,98 @@ import {
   requireAdminCapability,
   resolveActingAdminContext,
   type ActingAdminContext,
+  type AuthenticatedAdminRequest,
 } from '@/lib/auth/admin-context'
 import type { AdminCapability } from '@/lib/auth/admin-capabilities'
+import {
+  adminErrorResponse,
+  executeOrgCommand,
+  withCorrelationHeaders,
+  type AdminCommandTarget,
+} from '@/lib/auth/org-command'
+import { requireTourCapability } from '@/lib/admin/tour-access.service'
+import { requireEventCapability } from '@/lib/admin/event-access.service'
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function pathEntityId(pathname: string, segment: 'tours' | 'events'): string | null {
+  const parts = pathname.split('/')
+  const index = parts.indexOf(segment)
+  const candidate = index >= 0 ? parts[index + 1] || '' : ''
+  return UUID_PATTERN.test(candidate) ? candidate : null
+}
+
+async function requireCollaboratorRequestScope(args: {
+  request: NextRequest
+  auth: AuthenticatedAdminRequest
+  admin: ActingAdminContext
+  capability: AdminCapability
+}): Promise<NextResponse | null> {
+  if (args.admin.scope !== 'tour_collaborator') return null
+
+  const url = new URL(args.request.url)
+  const pathname = url.pathname
+  const tourId =
+    pathEntityId(pathname, 'tours')
+    || url.searchParams.get('tourId')
+    || url.searchParams.get('tour_id')
+  const eventId =
+    pathEntityId(pathname, 'events')
+    || url.searchParams.get('eventId')
+    || url.searchParams.get('event_id')
+
+  try {
+    if (tourId) {
+      if (!(args.admin.allowedTourIds || []).includes(tourId)) {
+        return adminErrorResponse(404, 'entity_not_found', 'Tour not found.', args.admin.correlationId)
+      }
+      await requireTourCapability({
+        supabase: args.auth.supabase,
+        userId: args.auth.user.id,
+        tourId,
+        orgId: args.admin.orgId,
+        capability: args.capability,
+        capabilities: args.admin.capabilities,
+      })
+      return null
+    }
+
+    if (eventId) {
+      await requireEventCapability({
+        supabase: args.auth.supabase,
+        userId: args.auth.user.id,
+        eventId,
+        orgId: args.admin.orgId,
+        capability: args.capability,
+        capabilities: args.admin.capabilities,
+      })
+      return null
+    }
+
+    const isScopedList =
+      args.request.method === 'GET'
+      && (pathname === '/api/admin/tours' || pathname === '/api/admin/events')
+    const isCollaboratorSearch = pathname === '/api/admin/users/search'
+    if (isScopedList || isCollaboratorSearch) return null
+
+    return adminErrorResponse(
+      403,
+      'tour_scope_required',
+      'This administrator account is limited to an assigned tour.',
+      args.admin.correlationId,
+    )
+  } catch (error) {
+    const status = error && typeof error === 'object' && 'status' in error
+      ? Number((error as { status?: number }).status) || 403
+      : 403
+    return adminErrorResponse(
+      status,
+      status === 404 ? 'entity_not_found' : 'capability_denied',
+      error instanceof Error ? error.message : 'Tour-scoped access denied.',
+      args.admin.correlationId,
+    )
+  }
+}
 
 /**
  * Create a service role Supabase client for API operations
@@ -168,10 +259,112 @@ export function withAdminCapability(
     if (admin instanceof NextResponse) return admin
 
     const denied = requireAdminCapability(admin, capability)
-    if (denied) return denied
+    if (denied) {
+      denied.headers.set('x-correlation-id', admin.correlationId)
+      return denied
+    }
 
-    return handler(request, { ...auth, admin })
+    const scopeDenied = await requireCollaboratorRequestScope({
+      request,
+      auth,
+      admin,
+      capability,
+    })
+    if (scopeDenied) return scopeDenied
+
+    const response = await handler(request, { ...auth, admin })
+    return withCorrelationHeaders(response, admin.correlationId)
   })
+}
+
+export {
+  executeOrgCommand,
+  requireEntityAccess,
+  adminErrorResponse,
+} from '@/lib/auth/org-command'
+
+export interface WithOrgCommandOptions<TSchema extends ZodTypeAny> {
+  capability: AdminCapability
+  schema: TSchema
+  readInput?: (request: NextRequest) => Promise<unknown> | unknown
+  /** Every new command declares organization or concrete entity ownership. */
+  target: AdminCommandTarget<z.infer<TSchema>>
+  commandName?: string
+  requireIdempotency?: boolean
+  handler: (args: {
+    request: NextRequest
+    context: ActingAdminContext
+    auth: AuthenticatedAdminRequest
+    input: z.infer<TSchema>
+    idempotencyKey?: string | null
+  }) => Promise<NextResponse> | NextResponse
+}
+
+/**
+ * SEC-103 HTTP wrapper: auth → acting context → capability → schema → entity → handler.
+ */
+export function withOrgCommand<TSchema extends ZodTypeAny>(
+  options: WithOrgCommandOptions<TSchema>,
+) {
+  return async (request: NextRequest) => {
+    const authResult = await authenticateApiRequest(request)
+    if (!authResult) {
+      return adminErrorResponse(401, 'unauthenticated', 'Authentication required.')
+    }
+
+    const admin = await resolveActingAdminContext(request, authResult)
+    if (admin instanceof NextResponse) {
+      const incoming = request.headers.get('x-correlation-id')
+      if (incoming) admin.headers.set('x-correlation-id', incoming)
+      return admin
+    }
+
+    const readInput =
+      options.readInput ||
+      (async (req: NextRequest) => {
+        if (req.method === 'GET' || req.method === 'HEAD') {
+          return Object.fromEntries(new URL(req.url).searchParams.entries())
+        }
+        return req.json().catch(() => ({}))
+      })
+
+    let input: unknown
+    try {
+      input = await readInput(request)
+    } catch {
+      return adminErrorResponse(422, 'validation_failed', 'Request body could not be parsed.', admin.correlationId)
+    }
+    const idempotencyKey =
+      request.headers.get('idempotency-key') || request.headers.get('x-idempotency-key')
+
+    if (options.requireIdempotency && !idempotencyKey) {
+      return adminErrorResponse(
+        422,
+        'validation_failed',
+        'Idempotency-Key header is required for this command.',
+        admin.correlationId,
+      )
+    }
+
+    return executeOrgCommand({
+      context: admin,
+      auth: authResult,
+      schema: options.schema,
+      input,
+      capability: options.capability,
+      target: options.target,
+      idempotencyKey,
+      commandName: options.commandName,
+      handler: ({ input: parsed, idempotencyKey: key }) =>
+        options.handler({
+          request,
+          context: admin,
+          auth: authResult,
+          input: parsed,
+          idempotencyKey: key,
+        }),
+    })
+  }
 }
 
 /**

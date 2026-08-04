@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Superseded by admin-calendar-view.tsx (cmp-enhanced-calendar wont-fix). */
+
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

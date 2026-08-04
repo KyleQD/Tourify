@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import type { PublicArtistTrackDTO, PublicArtistViewerDTO } from "@/lib/public-artist/public-artist-types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Library, Play, Pause, Pin, ListPlus, Shuffle, Music, ShoppingBag, Star } from "lucide-react"
 import { paBtnRound, paCard, paInset, paRow } from "@/components/public-artist/public-artist-ui"
 import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-context"
+import { ProviderBadge } from "@/components/music/provider-badge"
 import { toast } from "sonner"
 
 function dtoToJukeboxTrack(
@@ -19,13 +20,18 @@ function dtoToJukeboxTrack(
     title: track.title,
     artist_name: artistName || "Artist",
     duration: track.durationSeconds ?? undefined,
-    file_url: track.audioUrl || "",
+    // Audius tracks have no audioUrl — they resolve at playback time via /api/music/playback/resolve
+    file_url: track.provider === "audius" ? "" : (track.audioUrl || ""),
     cover_art_url: track.artworkUrl ?? undefined,
     genre: track.genre ?? undefined,
     is_public: true,
     listing_id: track.listingId ?? null,
+    provider: track.provider ?? "tourify",
+    provider_track_id: track.providerTrackId ?? undefined,
   }
 }
+
+const isAudiusEnabled = process.env.NEXT_PUBLIC_AUDIUS_PROFILE_PLAYBACK_ENABLED === "true"
 
 export function PublicArtistMusicSection({
   viewer,
@@ -41,9 +47,12 @@ export function PublicArtistMusicSection({
   defaultTrackId: string | null
   artistName?: string
 }) {
-  const playableTracks = useMemo(() => tracks.filter(t => Boolean(t.audioUrl)), [tracks])
+  // For Audius tracks with no audioUrl, they are still "playable" via the resolve endpoint
+  const playableTracks = useMemo(
+    () => tracks.filter(t => Boolean(t.audioUrl) || (isAudiusEnabled && t.provider === "audius")),
+    [tracks]
+  )
   const jukebox = useJukeboxOptional()
-  const [optimisticPinnedById, setOptimisticPinnedById] = useState<Record<string, boolean>>({})
 
   // Public URL always uses visitor empty rules — no setup CTAs here
   if (tracks.length === 0) return null
@@ -52,7 +61,10 @@ export function PublicArtistMusicSection({
     jukebox?.state.currentTrack?.id === trackId && jukebox?.state.isPlaying
 
   const handlePlay = (track: PublicArtistTrackDTO) => {
-    if (!jukebox || !track.audioUrl) return
+    const isAudius = track.provider === "audius"
+    if (!jukebox) return
+    if (!isAudius && !track.audioUrl) return
+    if (isAudius && !isAudiusEnabled) return
     const jTrack = dtoToJukeboxTrack(track, artistName)
     if (isTrackPlaying(track.id)) {
       jukebox.pause()
@@ -125,25 +137,6 @@ export function PublicArtistMusicSection({
   const buyTrack = (track: PublicArtistTrackDTO) => {
     if (track.listingId && typeof window !== "undefined") {
       window.location.href = `/marketplace/listings/${track.listingId}`
-    }
-  }
-
-  const togglePin = async (track: PublicArtistTrackDTO) => {
-    if (!viewer.isOwner) return
-
-    const nextPinned = !(optimisticPinnedById[track.id] ?? track.isPinned)
-    setOptimisticPinnedById(prev => ({ ...prev, [track.id]: nextPinned }))
-
-    try {
-      const res = await fetch("/api/artist/music/pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ musicId: track.id, isPinned: nextPinned })
-      })
-
-      if (!res.ok) setOptimisticPinnedById(prev => ({ ...prev, [track.id]: track.isPinned }))
-    } catch {
-      setOptimisticPinnedById(prev => ({ ...prev, [track.id]: track.isPinned }))
     }
   }
 
@@ -271,7 +264,7 @@ export function PublicArtistMusicSection({
           <div className="grid gap-2.5">
             {tracks.map(t => {
               const playing = isTrackPlaying(t.id)
-              const isPinned = optimisticPinnedById[t.id] ?? t.isPinned
+              const isPinned = t.isPinned
               return (
                 <button
                   key={t.id}
@@ -298,6 +291,12 @@ export function PublicArtistMusicSection({
                     <div className="text-white text-sm truncate flex items-center gap-2">
                       {t.title}
                       {isPinned ? <Pin className="h-3.5 w-3.5 text-purple-300" /> : null}
+                      {t.provider === "audius" && isAudiusEnabled && (
+                        <ProviderBadge
+                          provider="audius"
+                          canonicalUrl={t.canonicalUrl}
+                        />
+                      )}
                     </div>
                     <div className="text-white/55 text-xs mt-1">
                       {t.genre || "Track"} · {t.playCount.toLocaleString()} plays
@@ -305,20 +304,6 @@ export function PublicArtistMusicSection({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {viewer.isOwner ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          togglePin(t)
-                        }}
-                      >
-                        <Pin className={["h-4 w-4", isPinned ? "text-purple-300" : "text-white/60"].join(" ")} />
-                      </Button>
-                    ) : null}
                     {!viewer.isOwner && t.accessMode === "paid" && t.listingId ? (
                       <Button
                         variant="ghost"

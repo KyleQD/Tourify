@@ -103,20 +103,56 @@ export default function CreateVenuePage() {
     setSaving(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const locationParts = venueData.location.split(",").map((part) => part.trim())
+      const city = locationParts[0] || ""
+      const state = locationParts[1] || ""
+      const amenitiesRecord = Object.fromEntries(
+        venueData.amenities.map((amenity) => [amenity.id, amenity.enabled]),
+      )
 
+      const response = await fetch("/api/venues", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venue_name: venueData.name,
+          description: venueData.description || undefined,
+          address: venueData.address || undefined,
+          city: city || undefined,
+          state: state || undefined,
+          capacity_total: venueData.capacity ? Number(venueData.capacity) : undefined,
+          venue_types: venueData.type ? [venueData.type] : ["Venue"],
+          contact_info: {
+            manager_name: venueData.bookingContact.name || undefined,
+            email: venueData.bookingContact.email || undefined,
+            booking_email: venueData.bookingContact.email || undefined,
+            phone: venueData.bookingContact.phone || undefined,
+          },
+          settings: {
+            amenities: amenitiesRecord,
+            technical_specs: venueData.specs,
+          },
+          is_public: true,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create venue")
+      }
+
+      const createdId = payload?.venue?.id || payload?.data?.id
       toast({
         title: "Venue Created",
         description: "Your venue has been created successfully.",
       })
 
-      router.push("/venues")
+      router.push(createdId ? `/venue/dashboard/venues/${createdId}` : "/venue/dashboard/venues")
     } catch (error) {
       console.error("Error creating venue:", error)
       toast({
         title: "Creation Error",
-        description: "There was an error creating your venue. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error creating your venue.",
         variant: "destructive",
       })
     } finally {
@@ -125,7 +161,7 @@ export default function CreateVenuePage() {
   }
 
   const handleCancel = () => {
-    router.push("/venues")
+    router.push("/venue/dashboard/venues")
   }
 
   // Helper function to render amenity icon

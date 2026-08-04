@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import OnboardingWizard from "./onboarding-wizard"
 import {
@@ -1252,29 +1254,30 @@ export default function JobBoardIntegration() {
 
       {/* Create Job Dialog */}
       <Dialog open={showCreateJob} onOpenChange={setShowCreateJob}>
-        <DialogContent className="max-w-4xl bg-slate-900 border-slate-700 max-h-[90vh] overflow-y-auto">
+        <DialogContent className={cn("max-w-4xl max-h-[90vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-green-400">Create New Job Posting</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Create New Job Posting</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="job-title">Job Title</Label>
+                <Label htmlFor="job-title" className={detailSurfacePattern.label}>Job Title</Label>
                 <Input
                   id="job-title"
                   value={newJob.title}
                   onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department" className={detailSurfacePattern.label}>Department</Label>
                 <Select value={newJob.department} onValueChange={(value) => setNewJob({ ...newJob, department: value })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="Technical">Technical</SelectItem>
                     <SelectItem value="Security">Security</SelectItem>
                     <SelectItem value="Operations">Operations</SelectItem>
@@ -1286,12 +1289,12 @@ export default function JobBoardIntegration() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="job-type">Job Type</Label>
+                <Label htmlFor="job-type" className={detailSurfacePattern.label}>Job Type</Label>
                 <Select value={newJob.type} onValueChange={(value) => setNewJob({ ...newJob, type: value as any })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="full-time">Full-time</SelectItem>
                     <SelectItem value="part-time">Part-time</SelectItem>
                     <SelectItem value="contract">Contract</SelectItem>
@@ -1300,21 +1303,21 @@ export default function JobBoardIntegration() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="location" className={detailSurfacePattern.label}>Location</Label>
                 <Input
                   id="location"
                   value={newJob.location}
                   onChange={(e) => setNewJob({ ...newJob, location: e.target.value })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label htmlFor="priority">Priority</Label>
+                <Label htmlFor="priority" className={detailSurfacePattern.label}>Priority</Label>
                 <Select value={newJob.priority} onValueChange={(value) => setNewJob({ ...newJob, priority: value as any })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
@@ -1326,7 +1329,7 @@ export default function JobBoardIntegration() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="min-salary">Min Salary</Label>
+                <Label htmlFor="min-salary" className={detailSurfacePattern.label}>Min Salary</Label>
                 <Input
                   id="min-salary"
                   type="number"
@@ -1335,11 +1338,11 @@ export default function JobBoardIntegration() {
                     ...newJob, 
                     salaryRange: { ...newJob.salaryRange!, min: parseInt(e.target.value) || 0 }
                   })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label htmlFor="max-salary">Max Salary</Label>
+                <Label htmlFor="max-salary" className={detailSurfacePattern.label}>Max Salary</Label>
                 <Input
                   id="max-salary"
                   type="number"
@@ -1348,18 +1351,18 @@ export default function JobBoardIntegration() {
                     ...newJob, 
                     salaryRange: { ...newJob.salaryRange!, max: parseInt(e.target.value) || 0 }
                   })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="description">Job Description</Label>
+              <Label htmlFor="description" className={detailSurfacePattern.label}>Job Description</Label>
               <Textarea
                 id="description"
                 value={newJob.description}
                 onChange={(e) => setNewJob({ ...newJob, description: e.target.value })}
-                className="bg-slate-800 border-slate-600"
+                className={detailSurfacePattern.textarea}
                 rows={4}
               />
             </div>
@@ -1368,13 +1371,13 @@ export default function JobBoardIntegration() {
             {['requirements', 'responsibilities', 'benefits'].map((field) => (
               <div key={field}>
                 <div className="flex items-center justify-between mb-3">
-                  <Label className="capitalize">{field}</Label>
+                  <Label className={cn("capitalize", detailSurfacePattern.label)}>{field}</Label>
                   <Button 
                     type="button" 
                     variant="outline" 
                     size="sm"
                     onClick={() => addArrayItem(field as any)}
-                    className="border-slate-600"
+                    className={detailSurfacePattern.btnOutline}
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Add {field.slice(0, -1)}
@@ -1387,7 +1390,7 @@ export default function JobBoardIntegration() {
                         value={item}
                         onChange={(e) => updateArrayItem(field as any, index, e.target.value)}
                         placeholder={`${field.slice(0, -1)} ${index + 1}`}
-                        className="bg-slate-800 border-slate-600"
+                        className={detailSurfacePattern.input}
                       />
                       {(newJob[field as keyof typeof newJob] as string[])?.length > 1 && (
                         <Button
@@ -1395,7 +1398,7 @@ export default function JobBoardIntegration() {
                           variant="ghost"
                           size="sm"
                           onClick={() => removeArrayItem(field as any, index)}
-                          className="text-red-400 hover:text-red-300"
+                          className={detailSurfacePattern.btnDestructive}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -1407,10 +1410,10 @@ export default function JobBoardIntegration() {
             ))}
 
             <div className="flex justify-end space-x-3">
-              <Button variant="outline" onClick={() => setShowCreateJob(false)}>
+              <Button variant="outline" onClick={() => setShowCreateJob(false)} className={detailSurfacePattern.btnOutline}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateJob} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleCreateJob} className={detailSurfacePattern.btnPrimary}>
                 Create Job Posting
               </Button>
             </div>
@@ -1420,9 +1423,10 @@ export default function JobBoardIntegration() {
 
       {/* Application Detail Dialog */}
       <Dialog open={showApplicationDetail} onOpenChange={setShowApplicationDetail}>
-        <DialogContent className="max-w-3xl bg-slate-900 border-slate-700">
+        <DialogContent className={cn("max-w-3xl", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-blue-400">Application Review</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Application Review</DialogTitle>
           </DialogHeader>
           {selectedApplication && (
             <div className="space-y-6">
@@ -1435,7 +1439,7 @@ export default function JobBoardIntegration() {
                 </Avatar>
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold text-white">{selectedApplication.applicantName}</h3>
-                  <div className="text-slate-400 space-y-1">
+                  <div className={cn("space-y-1", detailSurfacePattern.subtleText)}>
                     <div className="flex items-center space-x-2">
                       <Mail className="h-4 w-4" />
                       <span>{selectedApplication.email}</span>
@@ -1472,42 +1476,42 @@ export default function JobBoardIntegration() {
               {/* Skills and Experience */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-white font-medium mb-3">Skills</h4>
+                  <h4 className={cn("mb-3 font-medium", detailSurfacePattern.title)}>Skills</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedApplication.skills.map((skill, i) => (
-                      <Badge key={i} variant="outline" className="bg-blue-500/20 border-blue-500/30 text-blue-400">
+                      <Badge key={i} variant="outline" className={detailSurfacePattern.badge}>
                         {skill}
                       </Badge>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-3">Experience</h4>
-                  <p className="text-slate-300">{selectedApplication.experience} years</p>
-                  <p className="text-slate-400 text-sm mt-1">Availability: {selectedApplication.availability}</p>
+                  <h4 className={cn("mb-3 font-medium", detailSurfacePattern.title)}>Experience</h4>
+                  <p className={detailSurfacePattern.label}>{selectedApplication.experience} years</p>
+                  <p className={cn("mt-1", detailSurfacePattern.subtleText)}>Availability: {selectedApplication.availability}</p>
                 </div>
               </div>
 
               {/* Notes */}
               {selectedApplication.notes && (
                 <div>
-                  <h4 className="text-white font-medium mb-3">Notes</h4>
-                  <p className="text-slate-300 bg-slate-800/50 p-3 rounded-lg">{selectedApplication.notes}</p>
+                  <h4 className={cn("mb-3 font-medium", detailSurfacePattern.title)}>Notes</h4>
+                  <p className={cn("rounded-lg p-3", detailSurfacePattern.panel, detailSurfacePattern.label)}>{selectedApplication.notes}</p>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+              <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-4">
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="border-slate-600">
+                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                     <MessageSquare className="h-4 w-4 mr-1" />
                     Message
                   </Button>
-                  <Button size="sm" variant="outline" className="border-slate-600">
+                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                     <Calendar className="h-4 w-4 mr-1" />
                     Schedule Interview
                   </Button>
-                  <Button size="sm" variant="outline" className="border-slate-600">
+                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                     <FileText className="h-4 w-4 mr-1" />
                     View Resume
                   </Button>
@@ -1516,7 +1520,7 @@ export default function JobBoardIntegration() {
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    className="border-red-600 text-red-400"
+                    className={detailSurfacePattern.btnDestructive}
                     onClick={() => handleApplicationAction(selectedApplication.id, 'rejected')}
                   >
                     <XCircle className="h-4 w-4 mr-1" />
@@ -1524,7 +1528,7 @@ export default function JobBoardIntegration() {
                   </Button>
                   <Button 
                     size="sm" 
-                    className="bg-green-600 hover:bg-green-700"
+                    className={detailSurfacePattern.btnPrimary}
                     onClick={() => handleApplicationAction(selectedApplication.id, 'hired')}
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />

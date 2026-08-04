@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
     } catch (error) {
     }
 
-    // Get view count (mock data for now)
-    stats.views = Math.floor(Math.random() * 10000) + 1000
+    // Views remain zero until a verified analytics source is connected.
+    stats.views = 0
 
     const customDesign = getCustomProfileDesignState((profile as any).metadata)
     const publishedCustomLayout =
@@ -171,4 +171,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

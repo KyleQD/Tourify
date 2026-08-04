@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import type { PublicArtistPageDTO } from "@/lib/public-artist/public-artist-types"
 import { PublicProfileLayout } from "@/components/layouts/public-profile-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowRight, Briefcase, ExternalLink, Handshake, Image as ImageIcon, Pencil, ShoppingBag, Users } from "lucide-react"
+import { ArrowRight, Briefcase, ExternalLink, Handshake, Image as ImageIcon, ShoppingBag, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PublicArtistMusicSection } from "@/components/public-artist/music/public-artist-music-section"
@@ -14,10 +14,15 @@ import { PublicArtistEventsSection } from "@/components/public-artist/events/pub
 import { PublicArtistEPKSection } from "@/components/public-artist/epk/public-artist-epk-section"
 import { PublicArtistHero } from "@/components/public-artist/hero/public-artist-hero"
 import { BookThisArtistModal } from "@/components/public-artist/events/book-this-artist-modal"
-import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { MessageModal } from "@/components/messaging/message-modal"
 import { extractApiError } from "@/lib/api/extract-error"
-import { paCard, paInset, paShell } from "@/components/public-artist/public-artist-ui"
+import { epkFontClass } from "@/components/epk/epk-preview-fonts"
+import { resolvePublicArtistAppearanceForRender } from "@/lib/public-artist/public-artist-appearance"
+import {
+  getDefaultPublicArtistUi,
+  getThemedPublicArtistUi,
+} from "@/lib/public-artist/public-artist-themed-ui"
+import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { AnimatedProductCard } from "@/components/marketplace/animated-product-card"
@@ -30,6 +35,13 @@ import {
   normalizeStorefrontSections,
 } from "@/lib/marketplace/storefront-curation"
 import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
+import {
+  artistProfileAppearanceStyle,
+  artistProfileAppearanceToLegacyTheme,
+  type ArtistProfileSectionId,
+} from "@/lib/public-artist/artist-profile-appearance"
+import themeStyles from "@/components/public-artist/artist-profile-theme.module.css"
+import { PublicArtistMediaLightbox } from "@/components/public-artist/media/public-artist-media-lightbox"
 
 interface MarketplaceListing {
   id: string
@@ -67,23 +79,26 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
   const [storefrontTagline, setStorefrontTagline] = useState<string | null>(null)
   const [storefrontSections, setStorefrontSections] = useState<string[]>([...DEFAULT_STOREFRONT_SECTIONS])
   const [hasLoadedStorefront, setHasLoadedStorefront] = useState(false)
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null)
 
   const openBooking = () => setIsBookingOpen(true)
-  const scrollToMusic = () =>
-    document.getElementById("public-artist-music")?.scrollIntoView({ behavior: "smooth", block: "start" })
-  const scrollToEvents = () =>
-    document.getElementById("public-artist-events")?.scrollIntoView({ behavior: "smooth", block: "start" })
 
   useEffect(() => {
-    if (isBand) {
-      setHasLoadedStorefront(true)
-      return
-    }
-    void loadMarketplaceListings()
-    void loadStorefrontLinks()
-  }, [hero.userId, isBand])
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('booking') !== '1') return
 
-  async function loadMarketplaceListings() {
+    setIsBookingOpen(true)
+    params.delete('booking')
+    const nextSearch = params.toString()
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`,
+    )
+  }, [])
+  const scrollToMusic = () =>
+    document.getElementById("public-artist-music")?.scrollIntoView({ behavior: "smooth", block: "start" })
+  const loadMarketplaceListings = useCallback(async () => {
     try {
       const response = await fetch(`/api/marketplace/discover?sellerUserId=${encodeURIComponent(hero.userId)}&limit=18`)
       if (!response.ok) return
@@ -104,9 +119,9 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
     } finally {
       setHasLoadedStorefront(true)
     }
-  }
+  }, [hero.userId])
 
-  async function loadStorefrontLinks() {
+  const loadStorefrontLinks = useCallback(async () => {
     try {
       const response = await fetch(`/api/marketplace/storefront?sellerUserId=${encodeURIComponent(hero.userId)}`)
       if (!response.ok) return
@@ -120,7 +135,16 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
       setStorefrontTagline(body.data?.tagline || null)
       setStorefrontSections(normalizeStorefrontSections(body.data?.sections))
     } catch {}
-  }
+  }, [hero.userId])
+
+  useEffect(() => {
+    if (isBand) {
+      setHasLoadedStorefront(true)
+      return
+    }
+    void loadMarketplaceListings()
+    void loadStorefrontLinks()
+  }, [isBand, loadMarketplaceListings, loadStorefrontLinks])
 
   async function checkoutListing(listing: MarketplaceListing) {
     try {
@@ -170,6 +194,55 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
     }
   }
 
+  const profileAppearance = !isBand ? dto.profileAppearance : null
+  const visualAppearance = useMemo(
+    () =>
+      profileAppearance
+        ? artistProfileAppearanceToLegacyTheme(profileAppearance)
+        : dto.appearance,
+    [dto.appearance, profileAppearance]
+  )
+  const themedUi = useMemo(() => {
+    if (!visualAppearance) return getDefaultPublicArtistUi()
+    return getThemedPublicArtistUi(resolvePublicArtistAppearanceForRender(visualAppearance))
+  }, [visualAppearance])
+  const paShell = themedUi.shell
+  const paCard = themedUi.card
+  const paInset = themedUi.inset
+  const fontClass = visualAppearance ? epkFontClass(visualAppearance.epkFont) : ""
+  const isSectionVisible = (section: ArtistProfileSectionId) =>
+    !profileAppearance || profileAppearance.sectionVisibility[section]
+  const fullThemeClass = profileAppearance
+    ? cn(
+        themeStyles.root,
+        themeStyles[profileAppearance.templateId.replaceAll("-", "_")],
+        themeStyles[`texture_${profileAppearance.texture}`]
+      )
+    : undefined
+  const fullThemeStyle = profileAppearance
+    ? artistProfileAppearanceStyle(profileAppearance)
+    : undefined
+
+  useEffect(() => {
+    if (!profileAppearance) return
+    const root = document.documentElement
+    const profileRadius = { square: "0px", soft: "18px", round: "32px" }[profileAppearance.cornerStyle]
+    const variables = {
+      "--profile-player-surface": profileAppearance.surfaceColor,
+      "--profile-player-background": profileAppearance.backgroundColor,
+      "--profile-player-text": profileAppearance.textColor,
+      "--profile-player-muted": profileAppearance.mutedTextColor,
+      "--profile-player-accent": profileAppearance.accentColor,
+      "--profile-player-radius": profileRadius,
+    }
+    for (const [name, value] of Object.entries(variables)) {
+      root.style.setProperty(name, value)
+    }
+    return () => {
+      for (const name of Object.keys(variables)) root.style.removeProperty(name)
+    }
+  }, [profileAppearance])
+
   const featuredListings = marketplaceListings.filter(isFeaturedListing)
   const hasMusic = tracks.tracks.length > 0
   const showStorefront = !isBand && (!hasLoadedStorefront || marketplaceListings.length > 0)
@@ -190,44 +263,40 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
   const visibleCategories = marketplaceListings.length
     ? storefrontCategories.filter(cat => cat.value === "featured" || cat.listings.length > 0)
     : storefrontCategories.filter(cat => cat.value === "featured").slice(0, 1)
+  const mergedExternalLinks = [...socialLinks, ...storefrontExternalLinks.map(link => ({
+    platform: "website",
+    label: link.label,
+    url: link.url,
+  }))].filter((link, index, links) => links.findIndex(candidate => candidate.url === link.url) === index)
+  const sectionRank = (section: ArtistProfileSectionId, zoneBase: number) =>
+    zoneBase + (profileAppearance?.sectionOrder.indexOf(section) ?? 0)
+  const hasServices = Boolean(
+    creator.availableForHire ||
+    creator.collaborationInterest ||
+    creator.serviceOfferings.length ||
+    creator.productsForSale.length ||
+    creator.credentials.length ||
+    creator.workHighlights.length
+  )
+  const sectionLinks = [
+    posts.pinnedPosts.length + posts.posts.length > 0 && isSectionVisible("posts") ? { id: "posts", label: "Feed" } : null,
+    hasMusic && isSectionVisible("music") ? { id: "public-artist-music", label: "Music" } : null,
+    events.upcomingEvents.length > 0 && isSectionVisible("events") ? { id: "public-artist-events", label: "Events" } : null,
+    showStorefront && isSectionVisible("storefront") ? { id: "public-artist-storefront", label: "Store" } : null,
+    about.bio && isSectionVisible("about") ? { id: "artist-about", label: "About" } : null,
+  ].filter(Boolean) as Array<{ id: string; label: string }>
 
   return (
-    <PublicProfileLayout profileName={hero.artistName} profileType="artist">
-      <div className="relative">
-        {dto.viewer.isOwner ? (
-          <div className="border-b border-white/10 bg-black/60 backdrop-blur-md">
-            <div className={`${paShell} flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between`}>
-              <div className="min-w-0 text-sm text-white/75">
-                <span>You’re viewing your public profile</span>
-                {!dto.viewer.isPublicProfile ? (
-                  <span className="mt-1 block text-xs text-amber-200/90 sm:mt-0 sm:ml-2 sm:inline">
-                    This profile is private — visitors cannot see it
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="secondary" className="rounded-full px-4">
-                  <Link href={isBand ? "/admin/dashboard/settings" : "/artist/profile"}>
-                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                    Edit Profile
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  variant={isBand ? "secondary" : "outline"}
-                  className={isBand ? "rounded-full bg-cyan-300/15 px-4 text-cyan-100 hover:bg-cyan-300/25" : "rounded-full border-white/20 px-4 text-white hover:bg-white/10"}
-                >
-                  <Link href={isBand ? "/admin/dashboard/organization" : "/artist"}>
-                    {isBand ? <Users className="mr-1.5 h-3.5 w-3.5" /> : null}
-                    {isBand ? "Band Hub" : "Manage"}
-                    {isBand ? <ArrowRight className="ml-1.5 h-3.5 w-3.5" /> : null}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+    <PublicProfileLayout
+      profileName={hero.artistName}
+      profileType="artist"
+      className={cn(themedUi.pageClassName, fontClass, fullThemeClass)}
+      style={{ ...themedUi.pageStyle, ...fullThemeStyle }}
+    >
+      <div
+        className="relative"
+        data-artist-profile-theme={profileAppearance?.templateId}
+      >
 
         {/* Hero */}
         <PublicArtistHero
@@ -237,48 +306,106 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           isAvailableForHire={creator.availableForHire}
           hasMusic={hasMusic}
           allowBooking={!isBand}
-          onBookNow={() => {
-            openBooking()
-            scrollToEvents()
-          }}
+          themedUi={visualAppearance ? themedUi : undefined}
+          profileAppearance={profileAppearance}
+          onBookNow={openBooking}
           onPlayMusic={scrollToMusic}
           onMessage={() => setShowMessageModal(true)}
+          sectionLinks={sectionLinks}
         />
 
-        {socialLinks.length > 0 ? (
-          <section className={`${paShell} pt-2`}>
-            <div className={`${paCard} p-4`}>
-              <p className="text-xs uppercase tracking-[0.16em] text-white/50 mb-3">Connect</p>
-              <div className="flex flex-wrap gap-2">
-                {socialLinks.map(link => (
-                  <a
-                    key={`${link.platform}-${link.url}`}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/90 hover:bg-white/10"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-                    {link.label}
-                  </a>
-                ))}
-              </div>
+        {dto.viewer.isOwner && !dto.viewer.isPublicProfile ? (
+          <section className={`${paShell} py-2`} aria-label="Private profile preview">
+            <div className={`${paCard} flex flex-col gap-3 border-amber-300/30 bg-amber-300/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between`}>
+              <span className="text-[var(--artist-theme-text,white)]">Only you can see this profile. Publish it when it is ready for visitors.</span>
+              <Button asChild size="sm" variant="secondary"><Link href="/artist/profile">Privacy settings</Link></Button>
             </div>
           </section>
         ) : null}
 
-        <main className={`${paShell} space-y-8 pb-28 pt-2 sm:pt-4`}>
-          <section>
-            <ProfileShareCard
-              username={username}
-              displayName={hero.artistName}
-              sharePath="/artist"
-            />
+        <main data-artist-layout={isBand ? "legacy" : "feed-first"} className={cn(paShell, "space-y-8 pb-28 pt-2 sm:pt-4", !isBand && themeStyles.profileGrid)}>
+          {!isBand && isSectionVisible("posts") ? (
+            <div data-artist-zone="feed" style={{ order: sectionRank("posts", 0) }}>
+              <PublicArtistPostsSection
+                viewer={dto.viewer}
+                artistProfileId={hero.artistId}
+                artistUserId={hero.userId}
+                artistName={hero.artistName}
+                pinnedPosts={posts.pinnedPosts}
+                posts={posts.posts}
+                nextCursor={posts.nextCursor}
+                enablePostStyles={Boolean(dto.postStylesRead)}
+                cardStyle={themedUi.cardStyle}
+              />
+            </div>
+          ) : null}
+
+          {mergedExternalLinks.length > 0 && isSectionVisible("social") ? (
+            <section data-artist-section="social" data-artist-zone={!isBand ? "rail" : undefined} style={!isBand ? { order: sectionRank("social", 100) } : undefined}>
+              <div className={`${paCard} p-4`} style={themedUi.cardStyle}>
+                <p className="mb-3 text-xs uppercase tracking-[0.16em] text-white/50">Connect</p>
+                <div className="flex flex-wrap gap-2">
+                  {mergedExternalLinks.map(link => (
+                    <a
+                      key={`${link.platform}-${link.url}`}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/90 hover:bg-white/10"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Stats — moved to top, right after Social Links */}
+          {isSectionVisible("stats") ? <section data-artist-section="stats" data-artist-zone={!isBand ? "rail" : undefined} style={!isBand ? { order: sectionRank("stats", 100) } : undefined}>
+            <Card className={paCard} style={themedUi.cardStyle}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-semibold tracking-tight text-white">Stats</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className={`${paInset} p-4`}>
+                    <div className="text-xs text-white/55">Followers</div>
+                    <div className="mt-1 text-lg font-semibold tabular-nums text-white">{stats.followersCount.toLocaleString()}</div>
+                  </div>
+                  <div className={`${paInset} p-4`}>
+                    <div className="text-xs text-white/55">{isBand ? "Members" : "Monthly Listeners"}</div>
+                    <div className="mt-1 text-lg font-semibold tabular-nums text-white">{stats.futureMonthlyListeners.toLocaleString()}</div>
+                  </div>
+                  <div className={`${paInset} col-span-2 p-4 sm:col-span-1`}>
+                    <div className="text-xs text-white/55">{isBand ? "Upcoming Events" : "Total Streams"}</div>
+                    <div className="mt-1 text-lg font-semibold tabular-nums text-white">
+                      {(isBand ? stats.totalEvents : stats.totalStreams).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section> : null}
+
+          {/* About — moved to top, beneath Stats */}
+          {about.bio && isSectionVisible("about") ? (
+          <section id="artist-about" data-artist-section="about" data-artist-zone={!isBand ? "rail" : undefined} style={!isBand ? { order: sectionRank("about", 100) } : undefined}>
+            <Card className={paCard} style={themedUi.cardStyle}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-semibold tracking-tight text-white">About</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className={`${paInset} p-5 text-sm leading-relaxed text-white/80`}>{about.bio}</div>
+              </CardContent>
+            </Card>
           </section>
+          ) : null}
 
           {isBand ? (
             <section>
-              <Card className={paCard}>
+              <Card className={paCard} style={themedUi.cardStyle}>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
                     <Users className="h-4 w-4 opacity-90" />
@@ -343,8 +470,8 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           ) : null}
 
           {/* Music */}
-          {(!isBand || hasMusic) ? (
-          <section id="public-artist-music" className="scroll-mt-28">
+          {(hasMusic || dto.viewer.isOwner) && isSectionVisible("music") ? (
+          <section id="public-artist-music" data-artist-section="music" data-artist-zone={!isBand ? "showcase" : undefined} style={!isBand ? { order: sectionRank("music", 200) } : undefined} className="scroll-mt-28">
             <PublicArtistMusicSection
               viewer={dto.viewer}
               creatorType={creator.primaryCreatorType}
@@ -357,9 +484,9 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           ) : null}
 
           {/* Storefront — hide when empty for everyone */}
-          {showStorefront && (
-          <section id="public-artist-storefront" className="scroll-mt-28">
-            <Card className={paCard}>
+          {showStorefront && isSectionVisible("storefront") && (
+          <section id="public-artist-storefront" data-artist-section="storefront" data-artist-zone="showcase" style={{ order: sectionRank("storefront", 200) }} className="scroll-mt-28">
+            <Card className={paCard} style={themedUi.cardStyle}>
               <CardContent className="p-0">
                 <StorefrontBanner
                   displayName={storefrontDisplayName || hero.artistName + "'s Store"}
@@ -402,7 +529,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           )}
 
           {/* Events */}
-          <section id="public-artist-events" className="scroll-mt-28">
+          {(events.upcomingEvents.length > 0 || dto.viewer.isOwner) && isSectionVisible("events") ? <section id="public-artist-events" data-artist-section="events" data-artist-zone={!isBand ? "showcase" : undefined} style={!isBand ? { order: sectionRank("events", 200) } : undefined} className="scroll-mt-28">
             <PublicArtistEventsSection
               viewer={dto.viewer}
               artistName={hero.artistName}
@@ -411,12 +538,12 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
               upcomingEvents={events.upcomingEvents}
               onBookThisArtist={openBooking}
             />
-          </section>
+          </section> : null}
 
           {/* Services */}
-          {!isBand ? (
-          <section>
-            <Card className={paCard}>
+          {!isBand && hasServices && isSectionVisible("services") ? (
+          <section data-artist-section="services" data-artist-zone="rail" style={{ order: sectionRank("services", 100) }}>
+            <Card className={paCard} style={themedUi.cardStyle}>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
                   <Briefcase className="h-4 w-4 opacity-90" />
@@ -492,53 +619,9 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           </section>
           ) : null}
 
-          {/* External Links */}
-          {storefrontExternalLinks.length > 0 && (
-            <section>
-              <Card className={paCard}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
-                    <ExternalLink className="h-4 w-4 opacity-90" />
-                    Links
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex flex-wrap gap-2">
-                    {storefrontExternalLinks.map((link, idx) => (
-                      <a
-                        key={idx}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/85 transition hover:bg-white/10"
-                      >
-                        <ExternalLink className="h-3 w-3 opacity-60" />
-                        {link.label}
-                      </a>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          )}
-
-          {/* About — hide empty bio for everyone */}
-          {about.bio ? (
-          <section>
-            <Card className={paCard}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold tracking-tight text-white">About</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className={`${paInset} p-5 text-sm leading-relaxed text-white/80`}>{about.bio}</div>
-              </CardContent>
-            </Card>
-          </section>
-          ) : null}
-
-          {(organizations?.length ?? 0) > 0 ? (
-            <section>
-              <Card className={paCard}>
+          {(organizations?.length ?? 0) > 0 && isSectionVisible("memberships") ? (
+            <section data-artist-section="memberships" data-artist-zone={!isBand ? "rail" : undefined} style={!isBand ? { order: sectionRank("memberships", 100) } : undefined}>
+              <Card className={paCard} style={themedUi.cardStyle}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg font-semibold tracking-tight text-white">Member of</CardTitle>
                 </CardHeader>
@@ -575,9 +658,9 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           ) : null}
 
           {/* Media — hide empty gallery for everyone */}
-          {media.items.length > 0 ? (
-          <section>
-            <Card className={paCard}>
+          {media.items.length > 0 && isSectionVisible("gallery") ? (
+          <section data-artist-section="gallery" data-artist-zone={!isBand ? "showcase" : undefined} style={!isBand ? { order: sectionRank("gallery", 200) } : undefined}>
+            <Card className={paCard} style={themedUi.cardStyle}>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
                   <ImageIcon className="h-4 w-4 opacity-90" />
@@ -586,14 +669,17 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {media.items.slice(0, 6).map(item => (
-                    <div
+                  {media.items.slice(0, 6).map((item, index) => (
+                    <button
+                      type="button"
                       key={item.id}
-                      className="aspect-square overflow-hidden rounded-2xl border border-white/10 bg-black/30 ring-1 ring-white/5"
+                      onClick={() => setGalleryIndex(index)}
+                      className="aspect-square cursor-zoom-in overflow-hidden rounded-2xl border border-white/10 bg-black/30 ring-1 ring-white/5 focus-visible:outline-none"
+                      aria-label={`Open ${item.caption || `media item ${index + 1}`}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.thumbnailUrl || item.url} alt={item.caption || 'Media item'} className="h-full w-full object-cover" loading="lazy" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               </CardContent>
@@ -602,58 +688,54 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           ) : null}
 
           {/* Posts */}
-          <section>
+          {isBand && isSectionVisible("posts") ? <section data-artist-section="posts">
             <PublicArtistPostsSection
               viewer={dto.viewer}
+              artistProfileId={hero.artistId}
+              artistUserId={hero.userId}
+              artistName={hero.artistName}
               pinnedPosts={posts.pinnedPosts}
               posts={posts.posts}
+              nextCursor={posts.nextCursor}
+              enablePostStyles={Boolean(dto.postStylesRead)}
+              cardStyle={themedUi.cardStyle}
             />
-          </section>
-
-          {/* Stats */}
-          <section>
-            <Card className={paCard}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold tracking-tight text-white">Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div className={`${paInset} p-4`}>
-                    <div className="text-xs text-white/55">Followers</div>
-                    <div className="mt-1 text-lg font-semibold tabular-nums text-white">{stats.followersCount.toLocaleString()}</div>
-                  </div>
-                  <div className={`${paInset} p-4`}>
-                    <div className="text-xs text-white/55">{isBand ? "Members" : "Monthly Listeners"}</div>
-                    <div className="mt-1 text-lg font-semibold tabular-nums text-white">{stats.futureMonthlyListeners.toLocaleString()}</div>
-                  </div>
-                  <div className={`${paInset} col-span-2 p-4 sm:col-span-1`}>
-                    <div className="text-xs text-white/55">{isBand ? "Upcoming Events" : "Total Streams"}</div>
-                    <div className="mt-1 text-lg font-semibold tabular-nums text-white">
-                      {(isBand ? stats.totalEvents : stats.totalStreams).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
+          </section> : null}
 
           {/* EPK Preview */}
-          {!isBand ? (
-          <section>
+          {!isBand && (epk.isPublic || dto.viewer.isOwner) && isSectionVisible("epk") ? (
+          <section data-artist-section="epk" data-artist-zone="showcase" style={{ order: sectionRank("epk", 200) }}>
             <PublicArtistEPKSection hero={hero} stats={stats} epk={epk} viewer={dto.viewer} />
           </section>
           ) : null}
         </main>
       </div>
 
+      {galleryIndex !== null ? (
+        <PublicArtistMediaLightbox
+          artistName={hero.artistName}
+          items={media.items.map((item) => ({
+            url: item.url,
+            type: item.kind === "video" ? "video" : "image",
+            caption: item.caption,
+            thumbnailUrl: item.thumbnailUrl,
+          }))}
+          index={galleryIndex}
+          onIndexChange={setGalleryIndex}
+          onOpenChange={(open) => { if (!open) setGalleryIndex(null) }}
+        />
+      ) : null}
+
       {!isBand ? (
       <BookThisArtistModal
         isOpen={isBookingOpen}
         onOpenChange={setIsBookingOpen}
         artistUserId={hero.userId}
+        artistProfileId={hero.artistId}
         artistName={hero.artistName}
         creatorType={creator.primaryCreatorType}
         serviceOfferings={creator.serviceOfferings}
+        profileAppearance={profileAppearance}
       />
       ) : null}
 
@@ -666,6 +748,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           full_name: hero.artistName,
           avatar_url: hero.avatarUrl || undefined,
         }}
+        profileAppearance={profileAppearance}
         recipientAccount={{
           profileId: hero.artistId,
           accountType: 'artist',

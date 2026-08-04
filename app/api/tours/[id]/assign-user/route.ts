@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/admin-tour-event-access"
+import { withAdminCapability } from "@/lib/auth/api-auth"
+
+/** VEND-101 — Assign user to tour team via canonical tour access. */
 
 const assignSchema = z.object({
   userId: z.string().uuid(),
@@ -8,69 +12,70 @@ const assignSchema = z.object({
   name: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
-  status: z.enum(['confirmed', 'pending', 'declined']).default('confirmed')
+  status: z.enum(["confirmed", "pending", "declined"]).default("confirmed"),
 })
+
+function routeError(error: unknown, fallback: string) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: "Validation error", details: error.errors },
+      { status: 400 },
+    )
+  }
+  const resolved = adminAccessErrorResponse(error, fallback, 500)
+  return NextResponse.json({ error: resolved.message }, { status: resolved.status })
+}
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability("workforce.manage", async (_request, { user, supabase, admin }) => {
     try {
-
-    // Verify tour ownership
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (tourError) return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    if (tour.user_id !== user.id) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-
-    const body = await request.json()
-    const validated = assignSchema.parse(body)
-
-    // Fetch profile for defaults
-    let displayName = validated.name
-    let email = validated.email
-    if (!displayName || !email) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('display_name, email')
-        .eq('id', validated.userId)
-        .single()
-      displayName = displayName || profile?.display_name || ''
-      email = email || profile?.email || ''
-    }
-
-    const { data: member, error: insertError } = await supabase
-      .from('tour_team_members')
-      .insert({
-        tour_id: id,
-        user_id: validated.userId,
-        name: displayName,
-        role: validated.role,
-        email,
-        phone: validated.phone,
-        status: validated.status,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      await assertAdminTourAccess({
+        supabase,
+        userId: user.id,
+        tourId: id,
+        orgId: admin.orgId,
       })
-      .select('*')
-      .single()
 
-    if (insertError) return NextResponse.json({ error: 'Failed to assign user' }, { status: 500 })
+      const validated = assignSchema.parse(await request.json())
 
-      return NextResponse.json({ success: true, member })
+      let displayName = validated.name
+      let email = validated.email
+      if (!displayName || !email) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, email")
+          .eq("id", validated.userId)
+          .maybeSingle()
+        displayName = displayName || profile?.display_name || ""
+        email = email || profile?.email || ""
+      }
+
+      const now = new Date().toISOString()
+      const { data: member, error: insertError } = await supabase
+        .from("tour_team_members")
+        .insert({
+          tour_id: id,
+          user_id: validated.userId,
+          name: displayName,
+          role: validated.role,
+          email,
+          phone: validated.phone,
+          status: validated.status,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("*")
+        .single()
+
+      if (insertError) throw new Error(insertError.message)
+
+      return NextResponse.json({ success: true, member }, { status: 201 })
     } catch (error) {
-      if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      return routeError(error, "Failed to assign user")
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
 }
-
-

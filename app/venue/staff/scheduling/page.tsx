@@ -106,6 +106,20 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
         .from('staff_shifts')
         .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
         .or(`venue_id.eq.${venueId},adhoc_venue_id.eq.${mappedVenue.venuesV2Id}`)
+        .is('deleted_at', null)
+        .gte('shift_date', today.toISOString().slice(0, 10))
+        .lte('shift_date', weekEnd.toISOString().slice(0, 10))
+    : service
+        .from('staff_shifts')
+        .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
+        .eq('venue_id', venueId)
+        .is('deleted_at', null)
+        .gte('shift_date', today.toISOString().slice(0, 10))
+        .lte('shift_date', weekEnd.toISOString().slice(0, 10))
+    ? service
+        .from('staff_shifts')
+        .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
+        .or(`venue_id.eq.${venueId},adhoc_venue_id.eq.${mappedVenue.venuesV2Id}`)
         .gte('shift_date', today.toISOString().slice(0, 10))
         .lte('shift_date', weekEnd.toISOString().slice(0, 10))
     : service
@@ -143,8 +157,13 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Staff Scheduling</h1>
           <p className="text-muted-foreground break-words">
-            Manage shifts, assignments, and scheduling for your venue
+            {venue?.venue_name
+              ? `Shifts and assignments for ${venue.venue_name}`
+              : "Manage shifts, assignments, and scheduling for your venue"}
           </p>
+          <Button asChild variant="link" className="mt-1 h-auto px-0 text-emerald-400">
+            <a href="/venue/staff">Back to staff hub</a>
+          </Button>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button variant="outline" size="sm">

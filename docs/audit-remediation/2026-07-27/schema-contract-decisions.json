@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-28",
+  "default": "FUTURE_GATED",
+  "contracts": [
+    {
+      "domain": "feed-comments",
+      "objects": ["public.posts", "public.post_comments", "public.profiles", "public.follows", "public.account_follows"],
+      "classification": "ACTIVE_REQUIRED",
+      "owner_role": "feed-backend",
+      "server_gate": null,
+      "authorization": "parent visibility before child access; caller-scoped Supabase client",
+      "evidence": [
+        "__tests__/feed/post-comment-access.test.ts",
+        "docs/engineering/migration-validation/20260728162903_audit_comment_count_trigger.json"
+      ],
+      "open_dependency": "Blocked-user schema contract is not discoverable and remains UNKNOWN_BLOCKING"
+    },
+    {
+      "domain": "feed-polls",
+      "objects": ["public.poll_options", "public.poll_votes", "public.posts.poll_ends_at", "public.posts.poll_total_votes"],
+      "classification": "FUTURE_GATED",
+      "owner_role": "feed-product",
+      "server_gate": "FEATURE_AUDIT_POLLS_APPROVED",
+      "authorization": "Gate is evaluated before any schema query",
+      "evidence": ["__tests__/config/audit-feature-gates.test.ts"]
+    },
+    {
+      "domain": "marketplace-integrations",
+      "objects": [
+        "public.marketplace_integrations",
+        "public.marketplace_integration_products",
+        "public.marketplace_integration_sync_runs",
+        "public.marketplace_fulfillment_requests",
+        "public.marketplace_provider_webhook_events"
+      ],
+      "classification": "FUTURE_GATED",
+      "owner_role": "marketplace-product",
+      "server_gate": "FEATURE_AUDIT_MARKETPLACE_INTEGRATIONS_APPROVED",
+      "authorization": "Gate is evaluated before authentication, service-role creation, webhook parsing, or schema query",
+      "evidence": ["__tests__/config/audit-feature-gates.test.ts"]
+    },
+    {
+      "domain": "music-finance-offerings",
+      "objects": ["public.music_finance_offering_orders"],
+      "classification": "FUTURE_GATED",
+      "owner_role": "music-finance-security",
+      "server_gate": "FEATURE_AUDIT_MUSIC_FINANCE_OFFERINGS_APPROVED",
+      "authorization": "Must remain unavailable until ownership, eligibility, compliance, and legal rules are approved",
+      "evidence": []
+    }
+  ]
+}
+

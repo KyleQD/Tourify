@@ -165,6 +165,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
       .from('staff_shifts')
       .select('staff_members(full_name, role)')
       .eq('event_id', id)
+      .is('deleted_at', null)
       .limit(50)
 
     const { data: sales } = await supabase

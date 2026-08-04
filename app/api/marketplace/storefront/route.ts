@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { normalizeUsername } from "@/lib/auth/tourify-auth-helpers"
+import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 
 const externalLinkSchema = z.object({
   label: z.string().min(1).max(100),
@@ -72,6 +73,9 @@ async function loadSellerProfile(
 }
 
 export async function GET(request: NextRequest) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const supabase = await createClient()
     const searchParams = request.nextUrl.searchParams
@@ -169,6 +173,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const supabase = await createClient()
     const {

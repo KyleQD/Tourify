@@ -1,6 +1,6 @@
 import { TeamRosterPanel } from "@/components/hiring/team-roster-panel"
 import { HiringMissingScope } from "@/components/hiring/hiring-missing-scope"
-import { WorkforceHero, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { WorkforcePageShell } from "@/components/hiring/workforce-ui"
 import { resolveEmployerFromEventRow } from "@/lib/admin/admin-ops-context"
 import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workforce-employer"
 import { createClient } from "@/lib/supabase/server"
@@ -67,17 +67,8 @@ export default async function RosterPage({ searchParams }: RosterPageProps) {
     )
   }
 
-  const contextHint = [tourId ? `Tour ${tourId.slice(0, 8)}…` : null, eventId ? `Event ${eventId.slice(0, 8)}…` : null]
-    .filter(Boolean)
-    .join(" · ")
-
   return (
     <WorkforcePageShell>
-      <WorkforceHero
-        title="Team Roster"
-        description={`Manage active staff, compliance status, Work Mode assignments, and roster exports for ${employer.displayName}.${contextHint ? ` Context: ${contextHint}` : ""}`}
-        badge={employer.entityType}
-      />
       <TeamRosterPanel employer={employer} eventId={eventId} tourId={tourId} />
     </WorkforcePageShell>
   )

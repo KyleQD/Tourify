@@ -220,42 +220,57 @@ export async function POST(request: NextRequest) {
     }
 
     if (shared_content_type === 'post') {
-      const { data: existing } = await supabase
+      if (!isUuid(shared_content_id)) {
+        return NextResponse.json({ error: 'post id must be a valid UUID' }, { status: 400 })
+      }
+      const { data: existing, error: existingError } = await supabase
         .from('posts')
-        .select('id, shares_count')
+        .select('id')
         .eq('id', shared_content_id)
         .maybeSingle()
-
-      if (existing) {
-        await supabase
-          .from('posts')
-          .update({ shares_count: (existing.shares_count || 0) + 1 })
-          .eq('id', shared_content_id)
+      if (existingError || !existing) {
+        return NextResponse.json({ error: 'Post not found' }, { status: 404 })
       }
+      contentRefType = 'post'
+      contentRefId = existing.id
     }
 
     const safeVisibility = visibility === 'followers' ? 'followers' : 'public'
     const postContent = content?.trim() || defaultPostContent
 
-    const { data: post, error: postError } = await supabase
-      .from('posts')
-      .insert({
-        user_id: userId,
-        content: postContent,
-        type: 'share',
-        visibility: safeVisibility,
-        content_ref_type: contentRefType,
-        content_ref_id: contentRefId,
-        // Acting-entity attribution
-        posted_as_type: accountType,
-        posted_as_profile_id: profileId,
-        account_display_name: author.name,
-        account_username: author.username,
-        account_avatar_url: author.avatarUrl,
-        metadata: sharedMetadata,
-      })
-      .select()
-      .single()
+    const postMutation = shared_content_type === 'post'
+      ? await supabase
+          .rpc('create_post_reshare', {
+            target_post_id: shared_content_id,
+            reshare_content: postContent,
+            reshare_visibility: safeVisibility,
+            acting_type: accountType,
+            acting_profile_id: profileId,
+            acting_display_name: author.name,
+            acting_username: author.username,
+            acting_avatar_url: author.avatarUrl,
+            reshare_metadata: sharedMetadata,
+          })
+          .single()
+      : await supabase
+          .from('posts')
+          .insert({
+            user_id: userId,
+            content: postContent,
+            type: 'share',
+            visibility: safeVisibility,
+            content_ref_type: contentRefType,
+            content_ref_id: contentRefId,
+            posted_as_type: accountType,
+            posted_as_profile_id: profileId,
+            account_display_name: author.name,
+            account_username: author.username,
+            account_avatar_url: author.avatarUrl,
+            metadata: sharedMetadata,
+          })
+          .select()
+          .single()
+    const { data: post, error: postError } = postMutation
 
     if (postError) {
       console.error('Failed to create share post:', postError)

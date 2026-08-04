@@ -6,6 +6,7 @@ export interface EventReference {
   status: string | null
   ownerUserId: string | null
   isPublic: boolean | null
+  orgId?: string | null
 }
 
 function isUuid(value: string) {
@@ -51,7 +52,7 @@ export async function resolveEventReference(
 
     const { data: eventV2 } = await supabase
       .from('events_v2')
-      .select('id, status, created_by')
+      .select('id, status, created_by, org_id')
       .eq('id', eventIdOrSlug)
       .maybeSingle()
 
@@ -62,6 +63,7 @@ export async function resolveEventReference(
         status: eventV2.status,
         ownerUserId: eventV2.created_by,
         isPublic: null,
+        orgId: eventV2.org_id ?? null,
       }
     }
 
@@ -102,7 +104,7 @@ export async function resolveEventReference(
 
   const { data: eventV2BySlug } = await supabase
     .from('events_v2')
-    .select('id, status, created_by')
+    .select('id, status, created_by, org_id')
     .eq('slug', eventIdOrSlug)
     .maybeSingle()
 
@@ -113,6 +115,7 @@ export async function resolveEventReference(
       status: eventV2BySlug.status,
       ownerUserId: eventV2BySlug.created_by,
       isPublic: null,
+      orgId: eventV2BySlug.org_id ?? null,
     }
   }
 

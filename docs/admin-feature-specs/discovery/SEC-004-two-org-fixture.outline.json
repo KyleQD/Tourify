@@ -1,0 +1,33 @@
+{
+  "name": "admin-feature-two-org-fixture",
+  "description": "SEC-004 deterministic two-org security fixture contract",
+  "source": "lib/testing/admin-feature-factory.ts",
+  "organizations": ["a", "b"],
+  "roles_per_organization": ["owner", "tour_manager", "viewer", "worker"],
+  "multi_org_memberships": [
+    { "organization": "a", "role": "viewer" },
+    { "organization": "b", "role": "tour_manager" }
+  ],
+  "domains_with_distinct_parent_child_ids": [
+    "tours",
+    "events",
+    "travel",
+    "lodging",
+    "equipment",
+    "catering",
+    "ticketing",
+    "finance",
+    "vendors",
+    "contracts",
+    "site_maps",
+    "publications",
+    "workforce"
+  ],
+  "database_seed_status": "blocked",
+  "blockers": [
+    "canonical contracts and contract_obligations persistence does not exist yet",
+    "isolated database seed and direct-client RLS execution have not run"
+  ],
+  "hosted_database_execution": "not_permitted_for_fixture",
+  "implements": "SEC-004"
+}

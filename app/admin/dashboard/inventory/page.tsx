@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Box, Download, FileText, Package, Plus, Search, Truck, Edit, Trash2, UserCheck } from "lucide-react"
 import { AdminPageHeader } from "../components/admin-page-header"
@@ -170,9 +171,14 @@ export default function InventoryPage() {
         icon={Package}
         subtitle="Track and manage all equipment and supplies for your events"
         actions={
-          <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" /> Add Item
-          </Button>
+          <>
+            <Button asChild variant="outline" className="border-slate-600 text-slate-200">
+              <Link href="/admin/dashboard/logistics?tab=equipment">Logistics equipment</Link>
+            </Button>
+            <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" /> Add Item
+            </Button>
+          </>
         }
       />
 

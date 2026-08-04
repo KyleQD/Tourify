@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { 
   Users,
@@ -163,7 +165,7 @@ export default function EnhancedStaffOnboarding() {
             color: "from-purple-500 to-pink-500" 
           }
         ].map((stat, i) => (
-          <Card key={i} className="bg-slate-800/30 border-slate-700/50">
+          <Card key={i} className={detailSurfacePattern.panel}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -224,7 +226,7 @@ export default function EnhancedStaffOnboarding() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button 
-              className="bg-purple-600 hover:bg-purple-700"
+              className={detailSurfacePattern.btnPrimary}
               onClick={() => setShowInviteDialog(true)}
             >
               <UserPlus className="h-4 w-4 mr-2" />
@@ -232,7 +234,7 @@ export default function EnhancedStaffOnboarding() {
             </Button>
             <Button 
               variant="outline" 
-              className="border-slate-600"
+              className={detailSurfacePattern.btnOutline}
               onClick={() => setShowBulkInviteDialog(true)}
             >
               <Users className="h-4 w-4 mr-2" />
@@ -240,7 +242,7 @@ export default function EnhancedStaffOnboarding() {
             </Button>
             <Button 
               variant="outline" 
-              className="border-slate-600"
+              className={detailSurfacePattern.btnOutline}
               onClick={() => setShowManageInvitationsDialog(true)}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -252,7 +254,7 @@ export default function EnhancedStaffOnboarding() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {candidates.map((candidate) => (
-          <Card key={candidate.id} className="bg-slate-800/30 border-slate-700/50">
+          <Card key={candidate.id} className={detailSurfacePattern.panel}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -284,10 +286,10 @@ export default function EnhancedStaffOnboarding() {
               </div>
 
               <div className="flex justify-between">
-                <Button size="sm" variant="outline" className="border-slate-600">
+                <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                   View Details
                 </Button>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" className={detailSurfacePattern.btnPrimary}>
                   Continue
                 </Button>
               </div>
@@ -298,30 +300,31 @@ export default function EnhancedStaffOnboarding() {
 
       {/* Cross-Account Invitation Dialog */}
       <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+        <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-purple-400">Invite External Team Member</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Invite External Team Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className={detailSurfacePattern.label}>Email Address</Label>
                 <Input
                   id="email"
                   type="email"
                   value={newInvitation.email}
                   onChange={(e) => setNewInvitation({ ...newInvitation, email: e.target.value })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                   placeholder="user@example.com"
                 />
               </div>
               <div>
-                <Label htmlFor="name">Full Name (Optional)</Label>
+                <Label htmlFor="name" className={detailSurfacePattern.label}>Full Name (Optional)</Label>
                 <Input
                   id="name"
                   value={newInvitation.name}
                   onChange={(e) => setNewInvitation({ ...newInvitation, name: e.target.value })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                   placeholder="John Doe"
                 />
               </div>
@@ -329,12 +332,12 @@ export default function EnhancedStaffOnboarding() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role" className={detailSurfacePattern.label}>Role</Label>
                 <Select value={newInvitation.role} onValueChange={(value) => setNewInvitation({ ...newInvitation, role: value })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="consultant">Consultant</SelectItem>
                     <SelectItem value="contractor">Contractor</SelectItem>
                     <SelectItem value="collaborator">Collaborator</SelectItem>
@@ -343,12 +346,12 @@ export default function EnhancedStaffOnboarding() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department" className={detailSurfacePattern.label}>Department</Label>
                 <Select value={newInvitation.department} onValueChange={(value) => setNewInvitation({ ...newInvitation, department: value })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="technical">Technical</SelectItem>
                     <SelectItem value="security">Security</SelectItem>
                     <SelectItem value="operations">Operations</SelectItem>
@@ -357,12 +360,12 @@ export default function EnhancedStaffOnboarding() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="account-type">Expected Account Type</Label>
+                <Label htmlFor="account-type" className={detailSurfacePattern.label}>Expected Account Type</Label>
                 <Select value={newInvitation.accountType} onValueChange={(value) => setNewInvitation({ ...newInvitation, accountType: value })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Account type" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="artist">Artist</SelectItem>
                     <SelectItem value="venue">Venue</SelectItem>
                     <SelectItem value="general">General User</SelectItem>
@@ -372,22 +375,22 @@ export default function EnhancedStaffOnboarding() {
             </div>
 
             <div>
-              <Label htmlFor="message">Personal Message</Label>
+              <Label htmlFor="message" className={detailSurfacePattern.label}>Personal Message</Label>
               <Textarea
                 id="message"
                 value={newInvitation.message}
                 onChange={(e) => setNewInvitation({ ...newInvitation, message: e.target.value })}
-                className="bg-slate-800 border-slate-600"
+                className={detailSurfacePattern.textarea}
                 placeholder="Add a personal message to your invitation..."
                 rows={3}
               />
             </div>
 
             <div className="flex justify-end space-x-3">
-              <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
+              <Button variant="outline" onClick={() => setShowInviteDialog(false)} className={detailSurfacePattern.btnOutline}>
                 Cancel
               </Button>
-              <Button onClick={handleSendInvitation} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={handleSendInvitation} className={detailSurfacePattern.btnPrimary}>
                 <Send className="h-4 w-4 mr-2" />
                 Send Invitation
               </Button>
@@ -398,14 +401,15 @@ export default function EnhancedStaffOnboarding() {
 
       {/* Manage Invitations Dialog */}
       <Dialog open={showManageInvitationsDialog} onOpenChange={setShowManageInvitationsDialog}>
-        <DialogContent className="max-w-4xl bg-slate-900 border-slate-700 max-h-[80vh] overflow-y-auto">
+        <DialogContent className={cn("max-w-4xl max-h-[80vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-green-400">Manage Cross-Account Invitations</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Manage Cross-Account Invitations</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
               {externalInvitations.map((invitation) => (
-                <Card key={invitation.id} className="bg-slate-800/30 border-slate-700/50">
+                <Card key={invitation.id} className={detailSurfacePattern.panel}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">

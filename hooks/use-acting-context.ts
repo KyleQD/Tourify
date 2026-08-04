@@ -19,19 +19,6 @@ import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account
 export function useActingContext() {
   const { currentAccount, isAccountsReady } = useMultiAccount()
 
-  const actingHeaders = useMemo<Record<string, string>>(() => {
-    if (!currentAccount) return {} as Record<string, string>
-    const headers: Record<string, string> = {
-      'x-acting-profile-id': currentAccount.profile_id,
-      'x-acting-account-type': normalizeAccountType(currentAccount.account_type) as string,
-    }
-    const orgId = currentAccount.profile_data?.ops_org_id
-    if (isOrganizationType(currentAccount.account_type) && typeof orgId === 'string' && orgId)
-      headers['x-acting-org-id'] = orgId
-
-    return headers
-  }, [currentAccount])
-
   const actingContextKey = currentAccount
     ? [
         normalizeAccountType(currentAccount.account_type),
@@ -39,6 +26,27 @@ export function useActingContext() {
         currentAccount.profile_data?.ops_org_id || '',
       ].join(':')
     : ''
+
+  // New correlation id whenever the visible acting account changes (SEC-101 cache/switch).
+  const correlationId = useMemo(() => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      return crypto.randomUUID()
+    return `acting-${Date.now()}`
+  }, [actingContextKey])
+
+  const actingHeaders = useMemo<Record<string, string>>(() => {
+    if (!currentAccount) return {} as Record<string, string>
+    const headers: Record<string, string> = {
+      'x-acting-profile-id': currentAccount.profile_id,
+      'x-acting-account-type': normalizeAccountType(currentAccount.account_type) as string,
+      'x-correlation-id': correlationId,
+    }
+    const orgId = currentAccount.profile_data?.ops_org_id
+    if (isOrganizationType(currentAccount.account_type) && typeof orgId === 'string' && orgId)
+      headers['x-acting-org-id'] = orgId
+
+    return headers
+  }, [currentAccount, correlationId])
 
   return {
     /** The currently active account (alias for currentAccount). */
@@ -49,6 +57,8 @@ export function useActingContext() {
     actingHeaders,
     /** Stable key for preventing one account's data from flashing after a switch. */
     actingContextKey,
+    /** Per-acting-context correlation id forwarded as x-correlation-id. */
+    correlationId,
     /** Shortcut: current account type (normalized). */
     actingType: currentAccount ? normalizeAccountType(currentAccount.account_type) : 'general',
     /** Whether the user is acting as a non-general entity. */

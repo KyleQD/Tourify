@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Users, Mail, Phone, Calendar, User, UserPlus, Building, Copy } from "lucide-react"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useActingContext } from "@/hooks/use-acting-context"
@@ -903,74 +905,75 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Add Member Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-800 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white">Add Team Member</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Add Team Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Name</Label>
+                <Label className={detailSurfacePattern.label}>Name</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label className="text-slate-300">Role</Label>
+                <Label className={detailSurfacePattern.label}>Role</Label>
                 <Input
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
             
             <div>
-              <Label className="text-slate-300">Email</Label>
+              <Label className={detailSurfacePattern.label}>Email</Label>
               <Input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
 
             <div>
-              <Label className="text-slate-300">Phone (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Phone (Optional)</Label>
               <Input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Arrival Date</Label>
+                <Label className={detailSurfacePattern.label}>Arrival Date</Label>
                 <Input
                   type="date"
                   value={formData.arrival_date}
                   onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label className="text-slate-300">Departure Date</Label>
+                <Label className={detailSurfacePattern.label}>Departure Date</Label>
                 <Input
                   type="date"
                   value={formData.departure_date}
                   onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-slate-300">Status</Label>
+              <Label className={detailSurfacePattern.label}>Status</Label>
               <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -982,9 +985,9 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             </div>
 
             <div>
-              <Label className="text-slate-300">Team (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Team (Optional)</Label>
               <Select value={formData.team_id} onValueChange={(value: any) => setFormData({ ...formData, team_id: value })}>
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
                 <SelectContent>
@@ -996,11 +999,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             </div>
 
             <div>
-              <Label className="text-slate-300">Responsibilities (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Responsibilities (Optional)</Label>
               <Textarea
                 value={formData.responsibilities}
                 onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.textarea}
                 rows={3}
               />
             </div>
@@ -1009,14 +1012,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
               <Button
                 variant="outline"
                 onClick={() => setIsAddDialogOpen(false)}
-                className="border-slate-600 text-slate-300"
+                className={detailSurfacePattern.btnOutline}
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => handleSubmit(false)}
                 disabled={isSubmitting}
-                className="bg-purple-600 hover:bg-purple-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 {isSubmitting ? 'Adding...' : 'Add Member'}
               </Button>
@@ -1027,74 +1030,75 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Edit Member Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-800 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white">Edit Team Member</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Edit Team Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Name</Label>
+                <Label className={detailSurfacePattern.label}>Name</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label className="text-slate-300">Role</Label>
+                <Label className={detailSurfacePattern.label}>Role</Label>
                 <Input
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
             
             <div>
-              <Label className="text-slate-300">Email</Label>
+              <Label className={detailSurfacePattern.label}>Email</Label>
               <Input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
 
             <div>
-              <Label className="text-slate-300">Phone (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Phone (Optional)</Label>
               <Input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Arrival Date</Label>
+                <Label className={detailSurfacePattern.label}>Arrival Date</Label>
                 <Input
                   type="date"
                   value={formData.arrival_date}
                   onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label className="text-slate-300">Departure Date</Label>
+                <Label className={detailSurfacePattern.label}>Departure Date</Label>
                 <Input
                   type="date"
                   value={formData.departure_date}
                   onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-slate-300">Status</Label>
+              <Label className={detailSurfacePattern.label}>Status</Label>
               <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1106,9 +1110,9 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             </div>
 
             <div>
-              <Label className="text-slate-300">Team (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Team (Optional)</Label>
               <Select value={formData.team_id} onValueChange={(value: any) => setFormData({ ...formData, team_id: value })}>
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1120,11 +1124,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             </div>
 
             <div>
-              <Label className="text-slate-300">Responsibilities (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Responsibilities (Optional)</Label>
               <Textarea
                 value={formData.responsibilities}
                 onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.textarea}
                 rows={3}
               />
             </div>
@@ -1133,14 +1137,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
               <Button
                 variant="outline"
                 onClick={() => setIsEditDialogOpen(false)}
-                className="border-slate-600 text-slate-300"
+                className={detailSurfacePattern.btnOutline}
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => handleSubmit(true)}
                 disabled={isSubmitting}
-                className="bg-purple-600 hover:bg-purple-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 {isSubmitting ? 'Updating...' : 'Update Member'}
               </Button>
@@ -1151,19 +1155,20 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className={cn(detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Remove Team Member</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
+            <AlertDialogTitle className={detailSurfacePattern.title}>Remove Team Member</AlertDialogTitle>
+            <AlertDialogDescription className={detailSurfacePattern.description}>
               Are you sure you want to remove &ldquo;{selectedMember?.name}&rdquo; from the tour team? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-600 text-slate-300">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className={detailSurfacePattern.btnOutline}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               disabled={isSubmitting}
-              className="bg-red-600 hover:bg-red-700"
+              className={detailSurfacePattern.btnDestructive}
             >
               {isSubmitting ? 'Removing...' : 'Remove Member'}
             </AlertDialogAction>
@@ -1172,16 +1177,17 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       </AlertDialog>
 
       <AlertDialog open={isDeleteTeamDialogOpen} onOpenChange={setIsDeleteTeamDialogOpen}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className={cn(detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Team</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
+            <AlertDialogTitle className={detailSurfacePattern.title}>Delete Team</AlertDialogTitle>
+            <AlertDialogDescription className={detailSurfacePattern.description}>
               Delete &ldquo;{selectedTeam?.name}&rdquo; and remove its {selectedTeam?.members.length || 0} members from this tour? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-600 text-slate-300">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTeam} disabled={isSubmitting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogCancel className={detailSurfacePattern.btnOutline}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTeam} disabled={isSubmitting} className={detailSurfacePattern.btnDestructive}>
               {isSubmitting ? 'Deleting...' : 'Delete Team'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1190,38 +1196,39 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Create/Edit Team Dialog */}
       <Dialog open={isCreateTeamDialogOpen} onOpenChange={setIsCreateTeamDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-800 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white">{isEditingTeam ? 'Edit Team' : 'Create New Team'}</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>{isEditingTeam ? 'Edit Team' : 'Create New Team'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-slate-300">Team Name</Label>
+              <Label className={detailSurfacePattern.label}>Team Name</Label>
               <Input
                 value={newTeam.name}
                 onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
                 placeholder="e.g., Sound Crew, Lighting Team"
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
             
             <div>
-              <Label className="text-slate-300">Team Role</Label>
+              <Label className={detailSurfacePattern.label}>Team Role</Label>
               <Input
                 value={newTeam.role}
                 onChange={(e) => setNewTeam({ ...newTeam, role: e.target.value })}
                 placeholder="e.g., Technical Support, Stage Management"
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
 
             <div>
-              <Label className="text-slate-300">Description (Optional)</Label>
+              <Label className={detailSurfacePattern.label}>Description (Optional)</Label>
               <Textarea
                 value={newTeam.description}
                 onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
                 placeholder="Describe the team's responsibilities..."
-                className="bg-slate-700 border-slate-600 text-white"
+                className={detailSurfacePattern.textarea}
                 rows={3}
               />
             </div>
@@ -1230,14 +1237,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
               <Button
                 variant="outline"
                 onClick={() => setIsCreateTeamDialogOpen(false)}
-                className="border-slate-600 text-slate-300"
+                className={detailSurfacePattern.btnOutline}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSaveTeam}
                 disabled={!newTeam.name || !newTeam.role || isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 {isSubmitting ? 'Saving...' : isEditingTeam ? 'Save Team' : 'Create Team'}
               </Button>
@@ -1248,21 +1255,22 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Add User to Team Dialog */}
       <Dialog open={isAddUserToTeamDialogOpen} onOpenChange={setIsAddUserToTeamDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-800 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white">Add User to {selectedTeam?.name}</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Add User to {selectedTeam?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-slate-300">Search existing users (email)</Label>
+              <Label className={detailSurfacePattern.label}>Search existing users (email)</Label>
               <div className="flex gap-2">
                 <Input 
                   value={userQuery} 
                   onChange={(e) => setUserQuery(e.target.value)} 
                   placeholder="jane@company.com" 
-                  className="bg-slate-700 border-slate-600 text-white" 
+                  className={detailSurfacePattern.input} 
                 />
-                <Button variant="outline" onClick={searchExistingUsers} className="border-slate-600 text-slate-300">
+                <Button variant="outline" onClick={searchExistingUsers} className={detailSurfacePattern.btnOutline}>
                   {isSearchLoading ? '...' : 'Search'}
                 </Button>
               </div>
@@ -1277,7 +1285,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                       <Button 
                         size="sm" 
                         onClick={() => handleAssignUserToTeam(u.id, selectedTeam!.id)} 
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className={detailSurfacePattern.btnPrimary}
                       >
                         Add to Team
                       </Button>
@@ -1288,7 +1296,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddUserToTeamDialogOpen(false)} className="border-slate-600 text-slate-300">
+              <Button variant="outline" onClick={() => setIsAddUserToTeamDialogOpen(false)} className={detailSurfacePattern.btnOutline}>
                 Cancel
               </Button>
             </div>
@@ -1298,16 +1306,17 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Invite Dialog */}
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-        <DialogContent className="max-w-md bg-slate-800 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white">Invite Team Member</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Invite Team Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-slate-300">Search existing users (email)</Label>
+              <Label className={detailSurfacePattern.label}>Search existing users (email)</Label>
               <div className="flex gap-2">
-                <Input value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="jane@company.com" className="bg-slate-700 border-slate-600 text-white" />
-                <Button variant="outline" onClick={searchExistingUsers} className="border-slate-600 text-slate-300">
+                <Input value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="jane@company.com" className={detailSurfacePattern.input} />
+                <Button variant="outline" onClick={searchExistingUsers} className={detailSurfacePattern.btnOutline}>
                   {isSearchLoading ? '...' : 'Search'}
                 </Button>
               </div>
@@ -1319,7 +1328,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                         <div className="font-medium">{u.display_name || u.full_name || u.email}</div>
                         <div className="text-xs text-slate-400">{u.email}</div>
                       </div>
-                      <Button size="sm" onClick={() => assignExistingUser(u.id, formData.role || 'Member')} className="bg-purple-600 hover:bg-purple-700">Assign</Button>
+                      <Button size="sm" onClick={() => assignExistingUser(u.id, formData.role || 'Member')} className={detailSurfacePattern.btnPrimary}>Assign</Button>
                     </div>
                   ))}
                 </div>
@@ -1328,12 +1337,12 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Invite Email</Label>
-                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="bg-slate-700 border-slate-600 text-white" />
+                <Label className={detailSurfacePattern.label}>Invite Email</Label>
+                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={detailSurfacePattern.input} />
               </div>
               <div>
-                <Label className="text-slate-300">Role</Label>
-                <Input value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="bg-slate-700 border-slate-600 text-white" />
+                <Label className={detailSurfacePattern.label}>Role</Label>
+                <Input value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={detailSurfacePattern.input} />
               </div>
             </div>
 
@@ -1341,10 +1350,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
               <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
                 <Label className="text-amber-200">Shareable onboarding link</Label>
                 <div className="flex gap-2">
-                  <Input value={inviteLink} readOnly className="bg-slate-900 border-slate-600 text-slate-200" />
+                  <Input value={inviteLink} readOnly className={detailSurfacePattern.input} />
                   <Button
                     type="button"
                     variant="outline"
+                    className={detailSurfacePattern.btnOutline}
                     onClick={() => {
                       void navigator.clipboard.writeText(inviteLink)
                       toast.success('Invitation link copied')
@@ -1358,11 +1368,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             ) : null}
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="border-slate-600 text-slate-300">Cancel</Button>
+              <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className={detailSurfacePattern.btnOutline}>Cancel</Button>
               <Button
                 onClick={() => inviteMember({ email: formData.email, role: formData.role })}
                 disabled={isSubmitting || !formData.role.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)}
-                className="bg-purple-600 hover:bg-purple-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 {isSubmitting ? 'Creating...' : 'Send Invite'}
               </Button>

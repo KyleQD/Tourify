@@ -114,6 +114,15 @@ class FakeRawSupabase {
 }
 
 describe('feed posts route helpers', () => {
+  it('keeps unstable poll and appearance relations out of the canonical posts select', () => {
+    const fullVariant = FEED_POST_SELECT_VARIANTS.find(variant => variant.name === 'full')!
+
+    expect(fullVariant.selectColumns).toContain('posted_as_profile_id')
+    expect(fullVariant.selectColumns).toContain('account_display_name')
+    expect(fullVariant.selectColumns).not.toContain('poll_ends_at')
+    expect(fullVariant.selectColumns).not.toContain('poll_total_votes')
+    expect(fullVariant.selectColumns).not.toContain('post_appearances(')
+  })
   it('includes the signed-in user and followed users in the following feed', () => {
     expect(
       getFollowingFeedUserIds('user-1', [
@@ -441,13 +450,13 @@ describe('feed posts route helpers', () => {
     )
 
     expect(result.error).toBeNull()
-    expect(result.variantName).toBe('core_with_profile')
+    expect(result.variantName).toBe('account_minimal')
     expect(result.data).toHaveLength(1)
     expect(supabase.queries).toHaveLength(3)
     expect(supabase.queries[2].operations).toContainEqual({
-      method: 'in',
-      column: 'user_id',
-      value: ['user-1', 'friend-1'],
+      method: 'or',
+      column: 'or',
+      value: 'user_id.in.(user-1,friend-1)',
     })
   })
 
@@ -502,7 +511,7 @@ describe('feed posts route helpers', () => {
     )
 
     expect(result.error).toBeNull()
-    expect(result.variantName).toBe('minimal')
+    expect(result.variantName).toBe('account_minimal')
     expect(result.data).toEqual([
       { id: 'post-1', user_id: 'user-1', content: 'Legacy post', created_at: '2026-07-03T00:00:00Z' },
     ])
@@ -695,8 +704,7 @@ describe('feed posts route helpers', () => {
     const source = read('app/api/feed/posts/route.ts')
     const createSource = read('app/api/posts/create/route.ts')
 
-    expect(source).toContain('post: normalizedPost')
-    expect(source).toContain('data: normalizedPost')
+    expect(source).toContain('return createPost(createRequest)')
     expect(createSource).toContain('data: normalizedPost')
     expect(createSource).toContain('post: normalizedPost')
   })
@@ -709,8 +717,39 @@ describe('feed posts route helpers', () => {
     expect(source).toContain('resolved_author')
   })
 
-  it('returns article linkage metadata from normalized feed posts', () => {
+  it('hydrates and returns immutable post appearances even after a posts-query fallback', () => {
     const source = read('app/api/feed/posts/route.ts')
+    const dtoSource = read('lib/feed/feed-post-dto.ts')
+
+    expect(source).toContain('fetchPostAppearances')
+    expect(source).toContain(".from('post_appearances')")
+    expect(source).toContain('appearancesByPost.get(post.id)')
+    expect(dtoSource).toContain('post_appearances: appearance')
+    expect(dtoSource).toContain('appearance,')
+  })
+
+  it('returns the canonical author contract and current entity profile path', () => {
+    const source = read('app/api/feed/posts/route.ts')
+    const dtoSource = read('lib/feed/feed-post-dto.ts')
+
+    expect(source).toContain('resolveAuthorsForPosts(supabase, safePosts)')
+    expect(source).not.toContain('.filter(authorNeedsRefresh)')
+    expect(dtoSource).toContain('displayName: author.name')
+    expect(dtoSource).toContain('profilePath,')
+    expect(dtoSource).toContain('author: {')
+    expect(source).toContain('normalizeFeedPostDTO')
+  })
+
+  it('renders dashboard posts through the shared appearance boundary', () => {
+    const source = read('components/dashboard/dashboard-feed.tsx')
+
+    expect(source).toContain('PostAppearanceBoundary')
+    expect(source).toContain('appearance={post.appearance ?? post.post_appearances}')
+    expect(source).toContain('enabled={postStyleFlags.post_styles_read}')
+  })
+
+  it('returns article linkage metadata from normalized feed posts', () => {
+    const source = read('lib/feed/feed-post-dto.ts')
     const querySource = read('lib/feed/feed-posts-query.ts')
 
     expect(querySource).toContain('content_ref_type')
@@ -721,21 +760,23 @@ describe('feed posts route helpers', () => {
 
   it('enriches article-linked feed posts with clickable article previews', () => {
     const source = read('app/api/feed/posts/route.ts')
+    const dtoSource = read('lib/feed/feed-post-dto.ts')
 
     expect(source).toContain('fetchArticlePreviews')
     expect(source).toContain("post?.content_ref_type === 'article'")
     expect(source).toContain("url: slug ? `/blog/${slug}` : null")
-    expect(source).toContain('article_preview: post.article_preview || null')
+    expect(dtoSource).toContain('article_preview: post.article_preview || null')
     expect(source).toContain('.from(\'artist_blog_posts\')')
     expect(source).toContain(".eq('status', 'published')")
   })
 
   it('enriches music feed posts with track previews', () => {
     const source = read('app/api/feed/posts/route.ts')
+    const dtoSource = read('lib/feed/feed-post-dto.ts')
 
     expect(source).toContain('fetchTrackPreviews')
     expect(source).toContain('track_preview: trackPreview')
-    expect(source).toContain('track_preview: post.track_preview || null')
+    expect(dtoSource).toContain('track_preview: post.track_preview || null')
   })
 
   it('renders article previews in both feed surfaces', () => {

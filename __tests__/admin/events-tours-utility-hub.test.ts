@@ -53,7 +53,7 @@ describe("utility hub ops employer hrefs", () => {
 })
 
 describe("utility hub readiness blockers", () => {
-  it("blocks publish when venue account and staff are missing", () => {
+  it("treats missing venue profile and staff as warnings when a venue draft exists (ADR-006)", () => {
     const readiness = getEventReadiness({
       title: "Show",
       start_at: "2026-08-01T20:00:00.000Z",
@@ -61,8 +61,19 @@ describe("utility hub readiness blockers", () => {
       staff_count: 0,
     })
     const blockerIds = readiness.blockers.map((item) => item.id)
-    expect(blockerIds).toContain("venue")
-    expect(blockerIds).toContain("team")
+    expect(blockerIds).not.toContain("venue")
+    expect(blockerIds).not.toContain("team")
+    expect(readiness.conflicts.some((item) => item.id === "venue_profile")).toBe(true)
+    expect(readiness.conflicts.some((item) => item.id === "team")).toBe(true)
+  })
+
+  it("still blocks publish when no venue identity exists", () => {
+    const readiness = getEventReadiness({
+      title: "Show",
+      start_at: "2026-08-01T20:00:00.000Z",
+      staff_count: 0,
+    })
+    expect(readiness.blockers.map((item) => item.id)).toContain("venue")
   })
 
   it("blocks tour publish without stops or headliner account", () => {

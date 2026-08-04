@@ -1,9 +1,11 @@
-import { validateEnv } from "@/lib/utils/env-check"
+import { assertProductionEnvironment } from "@/lib/config/environment-contract"
+
+let productionEnvironmentValidated = false
 
 export async function register() {
-  const { valid, missing } = validateEnv()
-  if (!valid) {
-    console.error(`[env-check] Missing required environment variables: ${missing.join(', ')}`)
+  if (process.env.NODE_ENV === "production" && !productionEnvironmentValidated) {
+    assertProductionEnvironment("runtime")
+    productionEnvironmentValidated = true
   }
 
   if (process.env.NODE_ENV === "development") return

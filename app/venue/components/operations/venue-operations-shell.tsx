@@ -3,7 +3,7 @@
 import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -12,9 +12,11 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { MobileVenueNav } from "@/components/venue/mobile-venue-nav"
+import { getVenuePublicProfilePath } from "@/lib/utils/public-profile-routes"
 import {
   Activity,
   BarChart3,
+  BookOpen,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -27,6 +29,7 @@ import {
   MessageSquare,
   Package,
   ScanLine,
+  ExternalLink,
   Search,
   Settings,
   ShieldCheck,
@@ -89,6 +92,7 @@ function buildNavGroups(venueId?: string | null): VenueNavGroup[] {
       label: "Physical Venue",
       items: [
         { label: "Profile", href: "/venue/overview", icon: Building2 },
+        { label: "Venue Kit", href: "/venue/kit", icon: BookOpen },
         { label: "Documents", href: "/venue/documents", icon: FileText },
         { label: "Equipment", href: "/venue/equipment", icon: Package },
         { label: "Site Maps", href: "/venue/dashboard/site-maps", icon: Wrench },
@@ -208,11 +212,28 @@ function VenueSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </nav>
       </ScrollArea>
 
-      <div className="border-t border-zinc-800 p-3">
+      <div className="space-y-2 border-t border-zinc-800 p-3">
+        {venue?.id ? (
+          <Button asChild variant="outline" className="w-full justify-start border-zinc-700 bg-zinc-900 text-zinc-200">
+            <Link
+              href={
+                getVenuePublicProfilePath({
+                  id: venue.id,
+                  url_slug: venue.url_slug || venue.username || null,
+                }) || "/venues"
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View public page
+            </Link>
+          </Button>
+        ) : null}
         <Button asChild variant="outline" className="w-full justify-start border-zinc-700 bg-zinc-900 text-zinc-200">
           <Link href="/venues">
             <Search className="mr-2 h-4 w-4" />
-            View Public Directory
+            Venue directory
           </Link>
         </Button>
       </div>
@@ -288,7 +309,9 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
         </div>
       </div>
       <Separator className="bg-zinc-900" />
-      <MobileVenueNav />
+      <Suspense fallback={null}>
+        <MobileVenueNav />
+      </Suspense>
     </div>
   )
 }

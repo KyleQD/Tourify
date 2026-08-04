@@ -13,8 +13,9 @@ function adaptVenueProfile(dbVenue: VenueProfile) {
     type: dbVenue.venue_types?.[0] || 'Venue',
     location: `${dbVenue.city || ''}, ${dbVenue.state || ''}`.replace(/^,\s*|,\s*$/g, '') || dbVenue.address || 'Location not set',
     website: dbVenue.social_links?.website || '',
-    avatar: dbVenue.avatar_url || '/vibrant-urban-gathering.png', // Use DB avatar or default
-    coverImage: dbVenue.cover_image_url || '/vibrant-music-venue.png', // Use DB cover or default
+    avatar: dbVenue.avatar_url || '',
+    coverImage: dbVenue.cover_image_url || '',
+    url_slug: (dbVenue as { url_slug?: string | null }).url_slug || null,
     amenities: [], // Will be populated from equipment table later
     specs: {}, // Will be populated from equipment table later
     bookingContact: {
@@ -209,8 +210,6 @@ export function useCurrentVenue(): UseCurrentVenueReturn {
       // Convert component fields to database fields
       const dbUpdates = adaptVenueForUpdate(updates)
       
-      console.log('Updating venue with database fields:', dbUpdates)
-      
       const updatedVenue = await venueService.updateVenueProfile(venue.id, dbUpdates)
       
       if (updatedVenue) {
@@ -228,7 +227,16 @@ export function useCurrentVenue(): UseCurrentVenueReturn {
   }
 
   useEffect(() => {
-    fetchVenueData()
+    void fetchVenueData()
+
+    function handleActiveVenueChanged() {
+      void fetchVenueData()
+    }
+
+    window.addEventListener('tourify:active-venue-changed', handleActiveVenueChanged)
+    return () => {
+      window.removeEventListener('tourify:active-venue-changed', handleActiveVenueChanged)
+    }
   }, [])
 
   return {

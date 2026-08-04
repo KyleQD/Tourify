@@ -67,6 +67,8 @@ export interface ShiftTemplate {
   instructions: string
   shiftType: ShiftType
   useCount: number
+  /** WORK-104 — demo fixtures only; never treat as live org templates. */
+  isDemoFixture?: boolean
 }
 
 export interface Shift {
@@ -750,9 +752,11 @@ export function formatDate(date: string, opts?: Intl.DateTimeFormatOptions) {
   )
 }
 
-// ---- Shift templates ------------------------------------------------------
+// ---- Shift templates (DEMO FIXTURES ONLY — WORK-104) ----------------------
+// Live mode must not consume these. Prefer empty live templates until
+// organization-owned templates (WORK-407) persist.
 
-export const TEMPLATES: ShiftTemplate[] = [
+export const DEMO_SHIFT_TEMPLATES: ShiftTemplate[] = [
   {
     id: "t1",
     name: "Standard Concert Load-In",
@@ -766,6 +770,7 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Check in with Stage Manager on radio channel 2 before load-in.",
     shiftType: "event",
     useCount: 42,
+    isDemoFixture: true,
   },
   {
     id: "t2",
@@ -780,6 +785,7 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Doors open 18:00. Will-call priority for VIP guests.",
     shiftType: "venue",
     useCount: 28,
+    isDemoFixture: true,
   },
   {
     id: "t3",
@@ -794,6 +800,7 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Brief crew on evacuation routes at call time.",
     shiftType: "event",
     useCount: 35,
+    isDemoFixture: true,
   },
   {
     id: "t4",
@@ -808,6 +815,7 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Report to Ops tent. Hydration mandatory.",
     shiftType: "tour",
     useCount: 19,
+    isDemoFixture: true,
   },
   {
     id: "t5",
@@ -822,6 +830,7 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Restock between sets. Card readers charged.",
     shiftType: "venue",
     useCount: 24,
+    isDemoFixture: true,
   },
   {
     id: "t6",
@@ -836,6 +845,7 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Confirm dietary requirements with tour manager.",
     shiftType: "event",
     useCount: 31,
+    isDemoFixture: true,
   },
   {
     id: "t7",
@@ -850,10 +860,14 @@ export const TEMPLATES: ShiftTemplate[] = [
     instructions: "Coordinate runs through Production office.",
     shiftType: "operations",
     useCount: 15,
+    isDemoFixture: true,
   },
 ]
 
-// ---- Weekly availability matrix ------------------------------------------
+/** @deprecated Use DEMO_SHIFT_TEMPLATES — kept for demo-mode imports. */
+export const TEMPLATES = DEMO_SHIFT_TEMPLATES
+
+// ---- Weekly availability matrix (DEMO FIXTURES ONLY — WORK-104) ----------
 
 const AVAIL_CYCLE = ["available", "preferred", "unavailable", "scheduled", "pending"] as const
 

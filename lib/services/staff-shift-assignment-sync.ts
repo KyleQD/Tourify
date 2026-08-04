@@ -5,6 +5,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import {
+  assertAssignmentTransition,
+  mapAssignmentStatusToShift,
+  mapShiftStatusToAssignment,
+} from "@/lib/admin/workforce-assignment-status"
 import { resolveHiringEntityDisplayName } from "@/lib/auth/hiring-entity-resolver"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
 import {
@@ -14,6 +19,7 @@ import {
   sendShiftUpdateNotification,
 } from "@/lib/rebuild/shift-assignment-notify"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import type { EmploymentAssignmentStatus } from "@/types/hiring-roster-work-mode"
 
 export interface StaffShiftRow {
   id: string
@@ -36,7 +42,7 @@ export interface SyncShiftAssignmentOptions {
   /** When true, send invite/update notification to the worker. */
   notify?: boolean
   /** Force assignment status (defaults from shift.status). */
-  assignmentStatus?: "invited" | "confirmed" | "cancelled"
+  assignmentStatus?: "invited" | "confirmed" | "declined" | "cancelled"
   actorUserId?: string | null
   changeSummary?: string | null
   /** Treat as cancellation (cancel assignment + notify). */
@@ -69,10 +75,14 @@ function assignmentStatusFromShift(
   shiftStatus: string | null | undefined,
   override?: SyncShiftAssignmentOptions["assignmentStatus"],
   cancelled?: boolean
-): "invited" | "confirmed" | "cancelled" {
-  if (override) return override
-  if (cancelled || shiftStatus === "cancelled") return "cancelled"
-  if (shiftStatus === "confirmed" || shiftStatus === "completed") return "confirmed"
+): EmploymentAssignmentStatus {
+  const mapped = mapShiftStatusToAssignment(shiftStatus, {
+    override: override as EmploymentAssignmentStatus | undefined,
+    cancelled,
+  })
+  if (mapped === "cancelled") return "cancelled"
+  if (mapped === "declined") return "declined"
+  if (mapped === "confirmed" || mapped === "active" || mapped === "completed") return "confirmed"
   return "invited"
 }
 
@@ -306,14 +316,30 @@ export async function respondToShiftAssignment(
     return { ok: false, error: "Assignment not found" }
   }
 
+  const requestedStatus: EmploymentAssignmentStatus = args.action === "accept" ? "confirmed" : "declined"
+  if (assignment.status === requestedStatus) {
+    return {
+      ok: true,
+      assignmentId: assignment.id,
+      shiftId: (assignment.staff_shift_id as string | null) ?? null,
+      status: requestedStatus,
+    }
+  }
+
   if (assignment.status !== "invited" && assignment.status !== "confirmed") {
     return { ok: false, error: "This assignment can no longer be updated" }
   }
 
-  const nextAssignmentStatus = args.action === "accept" ? "confirmed" : "cancelled"
-  const nextShiftStatus = args.action === "accept" ? "confirmed" : "cancelled"
-  const now = new Date().toISOString()
+  const nextAssignmentStatus = requestedStatus
+  const fromStatus = String(assignment.status || "invited") as EmploymentAssignmentStatus
 
+  try {
+    assertAssignmentTransition(fromStatus, nextAssignmentStatus)
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Illegal assignment transition" }
+  }
+
+  const now = new Date().toISOString()
   const { error: updateError } = await db
     .from("employment_assignments")
     .update({ status: nextAssignmentStatus, updated_at: now })
@@ -336,7 +362,10 @@ export async function respondToShiftAssignment(
     if (shift) {
       shiftCreatedBy = shift.created_by ?? null
       shiftDate = shift.shift_date ?? null
-      await db.from("staff_shifts").update({ status: nextShiftStatus, updated_at: now }).eq("id", shiftId)
+      await db
+        .from("staff_shifts")
+        .update({ status: mapAssignmentStatusToShift(nextAssignmentStatus), updated_at: now })
+        .eq("id", shiftId)
     }
   }
 
@@ -392,13 +421,14 @@ export async function publishStaffShifts(args: {
     .from("staff_shifts")
     .select("*")
     .in("id", args.shiftIds)
+    .is("deleted_at", null)
 
   if (error) return { published: 0, notified: 0, errors: [error.message] }
 
   for (const shift of shifts ?? []) {
     try {
       // Keep scheduled (pending) so workers must still confirm; confirmed stays confirmed
-      if (shift.status === "cancelled") continue
+      if (shift.status === "cancelled" || shift.status === "declined") continue
 
       const result = await syncEmploymentAssignmentForShift({
         supabase: db,

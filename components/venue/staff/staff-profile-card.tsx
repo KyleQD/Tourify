@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { cn } from "@/lib/utils"
 import { 
   User, 
   Mail, 
@@ -154,7 +156,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
 
   return (
     <>
-      <Card className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-all duration-200 group">
+      <Card className={cn(detailSurfacePattern.panel, "transition-all duration-200 group hover:border-white/20")}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-3">
@@ -263,7 +265,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
             <Button 
               size="sm" 
               variant="outline" 
-              className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+              className={cn("flex-1", detailSurfacePattern.btnOutline)}
               onClick={() => setIsProfileDialogOpen(true)}
             >
               <Eye className="h-4 w-4 mr-1" />
@@ -273,7 +275,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
               <Button 
                 size="sm" 
                 variant="outline" 
-                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                className={detailSurfacePattern.btnOutline}
                 onClick={() => onEdit(staff.id)}
               >
                 <Edit className="h-4 w-4" />
@@ -285,9 +287,10 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
 
       {/* Detailed Profile Dialog */}
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] bg-gray-900 border-gray-800">
+        <DialogContent className={cn("max-w-4xl max-h-[90vh]", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white text-xl font-bold">
+            <DialogTitle className={cn(detailSurfacePattern.title, "text-xl font-bold")}>
               Staff Profile: {staff.first_name && staff.last_name 
                 ? `${staff.first_name} ${staff.last_name}`
                 : staff.name
@@ -296,13 +299,13 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 bg-gray-800 border-gray-700">
-              <TabsTrigger value="overview" className="text-gray-300">Overview</TabsTrigger>
-              <TabsTrigger value="certifications" className="text-gray-300">Certifications</TabsTrigger>
-              <TabsTrigger value="performance" className="text-gray-300">Performance</TabsTrigger>
-              <TabsTrigger value="skills" className="text-gray-300">Skills</TabsTrigger>
-              <TabsTrigger value="documents" className="text-gray-300">Documents</TabsTrigger>
-              <TabsTrigger value="availability" className="text-gray-300">Availability</TabsTrigger>
+            <TabsList className={cn(detailSurfacePattern.tabsList, "grid grid-cols-6")}>
+              <TabsTrigger value="overview" className={detailSurfacePattern.tabsTrigger}>Overview</TabsTrigger>
+              <TabsTrigger value="certifications" className={detailSurfacePattern.tabsTrigger}>Certifications</TabsTrigger>
+              <TabsTrigger value="performance" className={detailSurfacePattern.tabsTrigger}>Performance</TabsTrigger>
+              <TabsTrigger value="skills" className={detailSurfacePattern.tabsTrigger}>Skills</TabsTrigger>
+              <TabsTrigger value="documents" className={detailSurfacePattern.tabsTrigger}>Documents</TabsTrigger>
+              <TabsTrigger value="availability" className={detailSurfacePattern.tabsTrigger}>Availability</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="h-[60vh] mt-4">
@@ -310,7 +313,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Personal Information */}
-                  <Card className="bg-gray-800 border-gray-700">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-white flex items-center space-x-2">
                         <User className="h-5 w-5" />
@@ -359,7 +362,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                   </Card>
 
                   {/* Employment Information */}
-                  <Card className="bg-gray-800 border-gray-700">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-white flex items-center space-x-2">
                         <Briefcase className="h-5 w-5" />
@@ -411,7 +414,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                   </Card>
 
                   {/* Performance Metrics */}
-                  <Card className="bg-gray-800 border-gray-700">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-white flex items-center space-x-2">
                         <TrendingUp className="h-5 w-5" />
@@ -455,7 +458,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                   </Card>
 
                   {/* Status & Availability */}
-                  <Card className="bg-gray-800 border-gray-700">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-white flex items-center space-x-2">
                         <Activity className="h-5 w-5" />
@@ -508,7 +511,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
 
                 {/* Bio Section */}
                 {staff.bio && (
-                  <Card className="bg-gray-800 border-gray-700">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-white flex items-center space-x-2">
                         <User className="h-5 w-5" />
@@ -523,7 +526,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
 
                 {/* Emergency Contact */}
                 {staff.emergency_contact && Object.keys(staff.emergency_contact).length > 0 && (
-                  <Card className="bg-gray-800 border-gray-700">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-white flex items-center space-x-2">
                         <Heart className="h-5 w-5" />
@@ -555,7 +558,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                 {staff.certifications && staff.certifications.length > 0 ? (
                   <div className="space-y-3">
                     {staff.certifications.map((cert) => (
-                      <Card key={cert.id} className="bg-gray-800 border-gray-700">
+                      <Card key={cert.id} className={detailSurfacePattern.panel}>
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -599,11 +602,11 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                             </div>
                             <div className="flex space-x-2">
                               {cert.file_url && (
-                                <Button size="sm" variant="outline" className="border-gray-600">
+                                <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                                   <Download className="h-4 w-4" />
                                 </Button>
                               )}
-                              <Button size="sm" variant="outline" className="border-gray-600">
+                              <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </div>
@@ -637,7 +640,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                 {staff.performance_reviews && staff.performance_reviews.length > 0 ? (
                   <div className="space-y-3">
                     {staff.performance_reviews.map((review) => (
-                      <Card key={review.id} className="bg-gray-800 border-gray-700">
+                      <Card key={review.id} className={detailSurfacePattern.panel}>
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-3">
                             <div>
@@ -699,11 +702,11 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                           )}
 
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" className="border-gray-600">
+                            <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                               <Edit className="h-4 w-4 mr-1" />
                               Edit
                             </Button>
-                            <Button size="sm" variant="outline" className="border-gray-600">
+                            <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                               <Eye className="h-4 w-4 mr-1" />
                               View Details
                             </Button>
@@ -737,7 +740,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                 {staff.skills && staff.skills.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {staff.skills.map((skill) => (
-                      <Card key={skill.id} className="bg-gray-800 border-gray-700">
+                      <Card key={skill.id} className={detailSurfacePattern.panel}>
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -774,7 +777,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                               </div>
                             </div>
                             <div className="flex space-x-2">
-                              <Button size="sm" variant="outline" className="border-gray-600">
+                              <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </div>
@@ -808,7 +811,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                 {staff.documents && staff.documents.length > 0 ? (
                   <div className="space-y-3">
                     {staff.documents.map((doc) => (
-                      <Card key={doc.id} className="bg-gray-800 border-gray-700">
+                      <Card key={doc.id} className={detailSurfacePattern.panel}>
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -856,10 +859,10 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                               </div>
                             </div>
                             <div className="flex space-x-2">
-                              <Button size="sm" variant="outline" className="border-gray-600">
+                              <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                                 <Download className="h-4 w-4" />
                               </Button>
-                              <Button size="sm" variant="outline" className="border-gray-600">
+                              <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </div>
@@ -894,7 +897,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                   {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => {
                     const availability = staff.availability?.find(a => a.day_of_week === index)
                     return (
-                      <Card key={day} className="bg-gray-800 border-gray-700">
+                      <Card key={day} className={detailSurfacePattern.panel}>
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -951,7 +954,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
                     <h4 className="text-lg font-semibold text-white mb-4">Time Off Requests</h4>
                     <div className="space-y-3">
                       {staff.time_off_requests.map((request) => (
-                        <Card key={request.id} className="bg-gray-800 border-gray-700">
+                        <Card key={request.id} className={detailSurfacePattern.panel}>
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">

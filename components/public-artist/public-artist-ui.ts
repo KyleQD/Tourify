@@ -23,7 +23,7 @@ export const paHeroFrame =
 
 /** Banner proportion: wide stage (~21:9), clamped height for mobile */
 export const paHeroAspect =
-  "relative w-full aspect-[21/9] min-h-[200px] sm:min-h-[260px] max-h-[min(46vh,440px)] isolate"
+  "relative w-full aspect-[21/9] min-h-[300px] sm:min-h-[260px] max-h-[min(54vh,440px)] isolate"
 
 /** Primary CTAs in hero */
 export const paBtnRound = "rounded-full"

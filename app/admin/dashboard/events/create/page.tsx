@@ -11,6 +11,7 @@ import {
   MapPin,
   MessageSquare,
   Music,
+  Plus,
   Route,
   Search,
   ShieldCheck,
@@ -115,6 +116,24 @@ const COMMON_TIMEZONES = [
   "Asia/Tokyo",
   "Australia/Sydney",
   "UTC",
+]
+
+const US_TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Phoenix",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+]
+
+const CANADA_TIMEZONES = [
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Edmonton",
+  "America/Winnipeg",
+  "America/Halifax",
 ]
 
 const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"))

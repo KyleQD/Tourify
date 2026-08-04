@@ -8,7 +8,16 @@ const FORBIDDEN_PATTERNS = [
   { label: 'localhost debug ingest URL', pattern: /https?:\/\/(?:127\.0\.0\.1|localhost):7556\/ingest\b/ },
   { label: '127.0.0.1:7556 debug endpoint', pattern: /127\.0\.0\.1:7556/ },
   { label: 'agent log region marker', pattern: /#region agent log/ },
+  { label: 'agent hypothesis marker', pattern: /\bhypothesisId\s*:/ },
+  { label: 'debug session header', pattern: /\bX-Debug-Session-Id\b/i },
+  { label: 'temporary production bypass flag', pattern: /\b(?:TEMP|DEBUG)_BYPASS_(?:AUTH|RLS|SCHEMA)\b/ },
 ]
+
+export function scanProductionDebugSource(source) {
+  return FORBIDDEN_PATTERNS
+    .filter((forbidden) => forbidden.pattern.test(source))
+    .map((forbidden) => forbidden.label)
+}
 
 async function walk(dir, files = []) {
   let entries = []
@@ -43,10 +52,8 @@ const failures = []
 
 for (const file of files) {
   const source = await readFile(file, 'utf8')
-  for (const forbidden of FORBIDDEN_PATTERNS) {
-    if (forbidden.pattern.test(source)) {
-      failures.push(`${path.relative(ROOT, file)} contains ${forbidden.label}`)
-    }
+  for (const label of scanProductionDebugSource(source)) {
+    failures.push(`${path.relative(ROOT, file)} contains ${label}`)
   }
 }
 

@@ -23,6 +23,7 @@ import {
   SummaryLine,
 } from "@/components/admin/operations-builder/primitives"
 import { EventPageDesignPanel } from "@/components/events/event-page-design-panel"
+import { PlanningVenueAutocomplete } from "@/components/planning/planning-venue-autocomplete"
 import { artistEventStatusClass, artistEventUI } from "@/components/events/artist-event-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,16 +43,7 @@ import {
 import { useBuilderAutosave } from "@/lib/admin/use-builder-autosave"
 import type { ReadinessState } from "@/lib/admin/operations-readiness"
 import { cn } from "@/lib/utils"
-
-interface VenueOption {
-  id: string
-  name: string
-  city?: string
-  state?: string
-  capacity?: number
-  fullAddress?: string
-  contact?: { email?: string; phone?: string; name?: string }
-}
+import type { PlanningVenueResult } from "@/lib/planning/venue-search"
 
 const sectionConfig: BuilderSection[] = [
   { id: "basics", label: "Basics", mode: "plan", icon: Music },
@@ -124,8 +116,6 @@ export default function ArtistEventCreatePage() {
   const [saveStatus, setSaveStatus] = React.useState<"saved" | "saving" | "unsaved" | "error">("unsaved")
   const [isSaving, setIsSaving] = React.useState(false)
   const [venueQuery, setVenueQuery] = React.useState("")
-  const [venueResults, setVenueResults] = React.useState<VenueOption[]>([])
-  const [isVenueLoading, setIsVenueLoading] = React.useState(false)
   const [artistQuery, setArtistQuery] = React.useState("")
   const [artistResults, setArtistResults] = React.useState<ArtistProducerSelection[]>([])
   const [isArtistLoading, setIsArtistLoading] = React.useState(false)
@@ -205,30 +195,6 @@ export default function ArtistEventCreatePage() {
   }, [activeMode, activeSection])
 
   React.useEffect(() => {
-    if (venueQuery.trim().length < 2) {
-      setVenueResults([])
-      return
-    }
-    const handle = window.setTimeout(async () => {
-      setIsVenueLoading(true)
-      try {
-        const params = new URLSearchParams({ query: venueQuery.trim(), limit: "8" })
-        const response = await fetch(`/api/tours/planner/venues?${params.toString()}`, {
-          credentials: "include",
-          cache: "no-store",
-        })
-        const data = await response.json().catch(() => ({}))
-        setVenueResults(response.ok ? data.venues || [] : [])
-      } catch {
-        setVenueResults([])
-      } finally {
-        setIsVenueLoading(false)
-      }
-    }, 250)
-    return () => window.clearTimeout(handle)
-  }, [venueQuery])
-
-  React.useEffect(() => {
     if (artistQuery.trim().length < 2) {
       setArtistResults([])
       return
@@ -303,20 +269,24 @@ export default function ArtistEventCreatePage() {
     }
   }
 
-  const selectVenue = (venue: VenueOption) => {
+  const selectVenue = (venue: PlanningVenueResult) => {
     updateForm({
-      venueId: venue.id,
+      venueId: "",
       venueName: venue.name,
-      address: venue.fullAddress || form.address,
+      address: venue.address || form.address,
       city: venue.city || form.city,
       state: venue.state || form.state,
+      postalCode: venue.postalCode || form.postalCode,
+      website: venue.website || form.website,
       capacity: venue.capacity ? String(venue.capacity) : form.capacity,
-      venueContactEmail: venue.contact?.email || form.venueContactEmail,
-      venueContactPhone: venue.contact?.phone || form.venueContactPhone,
-      venueContactName: venue.contact?.name || form.venueContactName,
+      venueContactEmail: venue.contactEmail || form.venueContactEmail,
+      venueContactPhone: venue.contactPhone || form.venueContactPhone,
+      venueContactName: venue.contactName || form.venueContactName,
+      technicalSpecs: Object.keys(venue.technicalSpecs).length
+        ? JSON.stringify(venue.technicalSpecs, null, 2)
+        : form.technicalSpecs,
     })
     setVenueQuery(venue.name)
-    setVenueResults([])
   }
 
   const persistEvent = React.useCallback(async (
@@ -684,33 +654,12 @@ export default function ArtistEventCreatePage() {
         {activeSection === "venue" && (
           <BuilderPanel title="Venue" description="Search venue profiles or enter details manually.">
             <Field label="Search venues">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                <Input
-                  value={venueQuery}
-                  onChange={(e) => setVenueQuery(e.target.value)}
-                  className={cn(artistEventUI.input, "pl-9")}
-                  placeholder="Search venues..."
-                />
-              </div>
-              {isVenueLoading ? <p className="mt-2 text-xs text-slate-500">Searching…</p> : null}
-              {venueResults.length > 0 && (
-                <div className={cn(artistEventUI.inset, "mt-2 space-y-1 p-2")}>
-                  {venueResults.map((venue) => (
-                    <button
-                      key={venue.id}
-                      type="button"
-                      onClick={() => selectVenue(venue)}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2 text-left text-sm text-slate-200 transition hover:border-cyan-400/30 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-                    >
-                      <span className="min-w-0 truncate">{venue.name}</span>
-                      <span className="shrink-0 text-xs text-slate-500">
-                        {[venue.city, venue.state].filter(Boolean).join(", ")}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <PlanningVenueAutocomplete
+                value={venueQuery}
+                onValueChange={setVenueQuery}
+                onSelect={selectVenue}
+                inputClassName={artistEventUI.input}
+              />
             </Field>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Venue name">
@@ -755,6 +704,12 @@ export default function ArtistEventCreatePage() {
                   className={artistEventUI.input}
                 />
               </Field>
+              <Field label="Postal code">
+                <Input value={form.postalCode} onChange={(e) => updateForm({ postalCode: e.target.value })} className={artistEventUI.input} />
+              </Field>
+              <Field label="Venue website">
+                <Input value={form.website} onChange={(e) => updateForm({ website: e.target.value })} className={artistEventUI.input} />
+              </Field>
               <Field label="Contact name">
                 <Input
                   value={form.venueContactName}
@@ -769,7 +724,13 @@ export default function ArtistEventCreatePage() {
                   className={artistEventUI.input}
                 />
               </Field>
+              <Field label="Contact phone">
+                <Input value={form.venueContactPhone} onChange={(e) => updateForm({ venueContactPhone: e.target.value })} className={artistEventUI.input} />
+              </Field>
             </div>
+            <Field label="Technical / stage specifications">
+              <Textarea value={form.technicalSpecs} onChange={(e) => updateForm({ technicalSpecs: e.target.value })} className={artistEventUI.input} placeholder="Leave blank when unavailable" />
+            </Field>
           </BuilderPanel>
         )}
 

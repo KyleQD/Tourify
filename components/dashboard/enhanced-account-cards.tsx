@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { normalizeAccountType } from "@/lib/accounts/account-types"
+import { readJsonResponse } from "@/lib/http/read-json-response"
 import { toast } from "sonner"
 import {
   Music,
@@ -61,8 +62,12 @@ export function EnhancedAccountCards() {
           throw new Error("Failed to load account metrics")
         }
 
-        const payload = await response.json()
-        const accountMetrics = payload.metrics || []
+        type AccountMetricEntry = { accountId: string; urgentCount?: number; stats?: { followers?: number } }
+        const payload = await readJsonResponse<{ metrics?: AccountMetricEntry[] }>(response)
+        if (!payload) {
+          throw new Error("Failed to load account metrics")
+        }
+        const accountMetrics: AccountMetricEntry[] = payload.metrics || []
 
         const cards: AccountCard[] = accounts.map(account => {
           const isCurrent =
@@ -70,7 +75,7 @@ export function EnhancedAccountCards() {
             normalizeAccountType(currentAccount?.account_type) ===
               normalizeAccountType(account.account_type)
           const metrics = accountMetrics.find(
-            (m: { accountId: string }) => m.accountId === account.profile_id
+            (m: AccountMetricEntry) => m.accountId === account.profile_id
           )
           const urgentCount = metrics?.urgentCount || 0
 

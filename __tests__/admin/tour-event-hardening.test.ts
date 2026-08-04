@@ -2,6 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
+vi.mock("@/lib/audit", () => ({
+  logAuditEvent: vi.fn(async () => undefined),
+}))
+
+vi.mock("@/lib/admin/publication-outbox.service", () => ({
+  commitDomainWithOutbox: vi.fn(async () => ({
+    transactionId: "tx-1",
+    outboxId: "ob-1",
+    alreadyExisted: false,
+    correlationId: "corr-1",
+  })),
+}))
+
 const ensureAdminOrgScope = vi.fn()
 const resolveAdminOrgIdForUser = vi.fn()
 const buildUniqueEventSlug = vi.fn()
@@ -22,6 +35,7 @@ vi.mock("@/app/api/events/_lib/events-v2-admin", async () => {
 })
 
 import {
+  AdminReadinessOverrideReasonError,
   AdminTourEventAuthError,
   AdminTourEventOperationsService,
   AdminTourPublishReadinessError,
@@ -45,8 +59,14 @@ interface MockState {
 }
 
 function createMockSupabase(state: MockState) {
+  // Mirror database defaults introduced by optimistic concurrency migrations.
+  // Without these, version predicates incorrectly miss otherwise-current rows.
+  state.tours = state.tours.map((row) => ({ metadata_version: 1, ...row }))
+  state.events = state.events.map((row) => ({ event_version: 1, ...row }))
+
   function matchesFilters(row: Record<string, unknown>, filters: Record<string, unknown>) {
     return Object.entries(filters).every(([key, value]) => {
+      if (key.startsWith("__neq__")) return row[key.slice("__neq__".length)] !== value
       if (Array.isArray(value)) return value.includes(row[key])
       return row[key] === value
     })
@@ -62,7 +82,8 @@ function createMockSupabase(state: MockState) {
 
     const builder: any = {
       select(columns?: string) {
-        if (op !== "insert" && op !== "update") op = "select"
+        // Keep delete/insert/update ops when .select() is chained for returning rows.
+        if (op !== "insert" && op !== "update" && op !== "delete") op = "select"
         void columns
         return builder
       },
@@ -87,6 +108,10 @@ function createMockSupabase(state: MockState) {
       },
       eq(column: string, value: unknown) {
         filters[column] = value
+        return builder
+      },
+      neq(column: string, value: unknown) {
+        filters[`__neq__${column}`] = value
         return builder
       },
       in(column: string, values: unknown[]) {
@@ -136,13 +161,17 @@ function createMockSupabase(state: MockState) {
           if (table === "tours") {
             if (op === "insert") {
               const row = Array.isArray(payload) ? payload[0] : payload
-              const inserted = { id: TOUR_A, ...row }
+              const inserted = { id: TOUR_A, metadata_version: 1, ...row }
               state.tours.push(inserted as Record<string, unknown>)
               return Promise.resolve({ data: preferSingle || preferMaybeSingle ? inserted : [inserted], error: null }).then(resolve, reject)
             }
             if (op === "delete") {
+              const removed = state.tours.filter((row) => matchesFilters(row, filters))
               state.tours = state.tours.filter((row) => !matchesFilters(row, filters))
-              return Promise.resolve({ data: null, error: null }).then(resolve, reject)
+              return Promise.resolve({
+                data: preferSingle || preferMaybeSingle ? removed[0] ?? null : removed,
+                error: null,
+              }).then(resolve, reject)
             }
             if (op === "update") {
               const updated = state.tours
@@ -169,6 +198,7 @@ function createMockSupabase(state: MockState) {
               const row = Array.isArray(payload) ? payload[0] : payload
               const inserted = {
                 id: EVENT_A,
+                event_version: 1,
                 created_at: "2026-07-09T00:00:00.000Z",
                 ...row,
               }
@@ -278,6 +308,29 @@ function createMockSupabase(state: MockState) {
         )
         return { data: [{ tour_id: args.p_tour_id, status: "active" }], error: null }
       }
+      if (fn === "admin_publication_transactional_publish") {
+        const tourId = args.p_lifecycle?.tour_id || args.p_snapshot?.tour_id
+        if (tourId) {
+          state.tours = state.tours.map((tour) =>
+            tour.id === tourId ? { ...tour, status: "active" } : tour,
+          )
+        }
+        return {
+          data: [
+            {
+              snapshot_id: "55555555-5555-4555-8555-555555555555",
+              domain_transaction_id: "66666666-6666-4666-8666-666666666666",
+              outbox_id: "77777777-7777-4777-8777-777777777777",
+              already_existed: false,
+              sequence: 1,
+              version: 1,
+              checksum: args.p_snapshot?.checksum || "checksum",
+              correlation_id: args.p_correlation_id || "corr-pub",
+            },
+          ],
+          error: null,
+        }
+      }
       return { data: null, error: null }
     }),
   }
@@ -309,17 +362,14 @@ describe("admin tour/event hardening", () => {
       }),
     ).rejects.toBeInstanceOf(AdminTourEventAuthError)
 
-    try {
-      await AdminTourEventOperationsService.listTours({
+    // listTours swallows 403 into an empty portfolio for UI safety.
+    await expect(
+      AdminTourEventOperationsService.listTours({
         supabase,
         userId: USER_ID,
         orgId: ORG_B,
-      })
-      expect.fail("expected org mismatch to throw")
-    } catch (error) {
-      expect(error).toBeInstanceOf(AdminTourEventAuthError)
-      expect(getAdminTourEventErrorStatus(error)).toBe(403)
-    }
+      }),
+    ).resolves.toEqual([])
   })
 
   it("creates a standalone event with no tour_events inserts", async () => {
@@ -459,13 +509,23 @@ describe("admin tour/event hardening", () => {
   it("deletes a tour by detaching tour_events only and never deletes events_v2", async () => {
     const state: MockState = {
       memberships: [{ org_id: ORG_A }],
-      tours: [{ id: TOUR_A, org_id: ORG_A, name: "Tour A", created_by: USER_ID }],
+      tours: [
+        {
+          id: TOUR_A,
+          org_id: ORG_A,
+          name: "Tour A",
+          status: "draft",
+          settings: {},
+          created_by: USER_ID,
+        },
+      ],
       events: [
         {
           id: EVENT_A,
           org_id: ORG_A,
           title: "Night one",
-          status: "confirmed",
+          status: "draft",
+          tickets_sold: 0,
           start_at: "2026-08-14T20:00:00.000Z",
           end_at: "2026-08-14T22:00:00.000Z",
           settings: {},
@@ -481,9 +541,12 @@ describe("admin tour/event hardening", () => {
       supabase,
       userId: USER_ID,
       tourId: TOUR_A,
+      orgId: ORG_A,
+      capabilities: ["tour.delete"],
     })
 
-    expect(result).toEqual({ success: true })
+    expect(result.success).toBe(true)
+    expect(result.detachedEventLinks).toBe(1)
     expect(state.tours).toHaveLength(0)
     expect(state.tourEvents).toHaveLength(0)
     expect(state.events).toHaveLength(1)
@@ -664,7 +727,7 @@ describe("admin tour/event hardening", () => {
     ).rejects.toBeInstanceOf(AdminTourEventAuthError)
   })
 
-  it("seeds participants and ticket_types from builder selections on createEvent", async () => {
+  it("records setup intent + checklist without inventing ticket_types or vendor rows", async () => {
     const artistId = "44444444-4444-4444-8444-444444444444"
     const state: MockState = {
       memberships: [{ org_id: ORG_A }],
@@ -675,7 +738,7 @@ describe("admin tour/event hardening", () => {
     }
     const supabase = createMockSupabase(state)
 
-    await AdminTourEventOperationsService.createEvent({
+    const event = await AdminTourEventOperationsService.createEvent({
       supabase,
       userId: USER_ID,
       input: {
@@ -697,8 +760,14 @@ describe("admin tour/event hardening", () => {
       ? participantInsert?.payload[0]
       : participantInsert?.payload
     expect((participantPayload as any)?.participant_type).toBe("Artist")
-    expect(state.ops.some((op) => op.table === "ticket_types" && op.op === "insert")).toBe(true)
-    expect(state.ops.some((op) => op.table === "event_vendor_requests" && op.op === "insert")).toBe(true)
+    // EVENT-103 / PLAN-105 — never invent inventory or vendor requests on create.
+    expect(state.ops.some((op) => op.table === "ticket_types" && op.op === "insert")).toBe(false)
+    expect(state.ops.some((op) => op.table === "event_vendor_requests" && op.op === "insert")).toBe(false)
+    expect(state.ops.some((op) => op.table === "staff_shifts" && op.op === "insert")).toBe(false)
+    expect((event as any).setup_checklist?.items?.map((item: any) => item.domain)).toEqual(
+      expect.arrayContaining(["staffing", "ticketing", "advance", "logistics", "finance"]),
+    )
+    expect((event as any).setup_checklist?.items?.every((item: any) => item.inventsData === false)).toBe(true)
   })
 
   it("writes venue_account_id into settings when attaching a venue profile id", async () => {
@@ -740,7 +809,12 @@ describe("admin tour/event hardening", () => {
           status: "inquiry",
           start_at: "2026-08-14T20:00:00.000Z",
           end_at: "2026-08-14T22:00:00.000Z",
-          settings: {},
+          venue_id: "55555555-5555-4555-8555-555555555555",
+          event_version: 1,
+          settings: {
+            venue_label: "Publish Hall",
+            venue_account_id: "55555555-5555-4555-8555-555555555555",
+          },
           created_by: USER_ID,
         },
       ],
@@ -753,10 +827,68 @@ describe("admin tour/event hardening", () => {
       supabase,
       userId: USER_ID,
       eventId: EVENT_A,
+      orgId: ORG_A,
+      capabilities: ["event.publish"],
     })
 
     expect(String((event as any).status || "").toLowerCase()).toMatch(/confirm|active|published/)
     expect(state.ops.some((op) => op.table === "work_mode_publications" && op.op === "insert")).toBe(true)
+  })
+
+  it("publishEvent rejects when contract blockers remain", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [],
+      events: [
+        {
+          id: EVENT_A,
+          org_id: ORG_A,
+          title: "",
+          status: "inquiry",
+          start_at: null,
+          end_at: null,
+          settings: {},
+          created_by: USER_ID,
+        },
+      ],
+      tourEvents: [],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await expect(
+      AdminTourEventOperationsService.publishEvent({
+        supabase,
+        userId: USER_ID,
+        eventId: EVENT_A,
+        orgId: ORG_A,
+        capabilities: ["event.publish"],
+      }),
+    ).rejects.toMatchObject({ name: "AdminEventPublishReadinessError", status: 422 })
+  })
+
+  it("requires an audited reason before applying warning overrides", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [],
+      events: [],
+      tourEvents: [],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await expect(
+      AdminTourEventOperationsService.publishEvent({
+        supabase,
+        userId: USER_ID,
+        eventId: EVENT_A,
+        orgId: ORG_A,
+        overrideFindingIds: ["team"],
+        capabilities: ["event.publish"],
+      }),
+    ).rejects.toBeInstanceOf(AdminReadinessOverrideReasonError)
+
+    expect(state.ops).toHaveLength(0)
   })
 
   it("createTour accepts venue_name/event_date aliases and persists settings.route", async () => {
@@ -1146,6 +1278,9 @@ describe("admin tour/event hardening", () => {
     })
 
     expect((published as any).status).toBe("active")
-    expect(state.ops.some((op) => op.table === "publish_admin_tour")).toBe(true)
+    expect(state.ops.some((op) => op.table === "admin_publication_transactional_publish")).toBe(
+      true,
+    )
+    expect((published as any).publication?.snapshotId).toBeTruthy()
   })
 })

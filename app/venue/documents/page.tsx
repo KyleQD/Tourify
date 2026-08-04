@@ -152,28 +152,28 @@ export default function DocumentsPage() {
       setIsLoading(true)
       const documentsData = await venueService.getVenueDocuments(venue.id)
       
-      // Mock enhanced document data with additional fields
-      const enhancedDocuments: Document[] = documentsData.map((doc, i) => ({
+      const enhancedDocuments: Document[] = documentsData.map((doc) => ({
         ...doc,
         description: doc.description || undefined,
         file_size: doc.file_size || 0,
-        mime_type: doc.mime_type || 'application/octet-stream',
-        uploaded_by: doc.uploaded_by || 'Unknown',
-        tags: i % 3 === 0 ? ["Important", "Updated"] : i % 2 === 0 ? ["Draft"] : [],
-        version: Math.floor(Math.random() * 3) + 1,
-        download_count: Math.floor(Math.random() * 50),
-        last_accessed: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        mime_type: doc.mime_type || "application/octet-stream",
+        uploaded_by: doc.uploaded_by || "Unknown",
+        tags: Array.isArray((doc as { tags?: string[] }).tags)
+          ? ((doc as { tags?: string[] }).tags as string[])
+          : [],
+        version: Number((doc as { version?: number }).version || 1),
+        download_count:
+          typeof (doc as { download_count?: number }).download_count === "number"
+            ? (doc as { download_count?: number }).download_count
+            : undefined,
+        last_accessed:
+          (doc as { last_accessed?: string; updated_at?: string }).last_accessed ||
+          (doc as { updated_at?: string }).updated_at ||
+          doc.created_at,
       }))
-      
+
       setDocuments(enhancedDocuments)
-      
-      // Mock folders
-      setFolders([
-        { id: "folder-1", name: "Contracts", document_count: 5, created_at: "2024-01-15T10:00:00Z", color: "blue" },
-        { id: "folder-2", name: "Marketing Materials", document_count: 12, created_at: "2024-02-01T10:00:00Z", color: "purple" },
-        { id: "folder-3", name: "Technical Specs", document_count: 8, created_at: "2024-02-15T10:00:00Z", color: "green" },
-        { id: "folder-4", name: "Legal Documents", document_count: 3, created_at: "2024-03-01T10:00:00Z", color: "red" },
-      ])
+      setFolders([])
       
     } catch (error) {
       console.error('Error fetching documents:', error)

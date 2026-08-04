@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Download, Loader2, Plus, Users } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -12,7 +13,8 @@ import { RosterAssignmentDialog } from "@/components/hiring/roster-assignment-di
 import { RosterAddStaffDialog } from "@/components/hiring/roster-add-staff-dialog"
 import { RosterFilters } from "@/components/hiring/roster-filters"
 import { RosterMemberDetailDrawer } from "@/components/hiring/roster-member-detail-drawer"
-import { WorkforceMetricCard, WorkforcePanel } from "@/components/hiring/workforce-ui"
+import { WorkforcePanel } from "@/components/hiring/workforce-ui"
+import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
 import type { HiringEntity } from "@/types/hiring-entity"
 import type {
   ComplianceStatus,
@@ -191,13 +193,6 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <WorkforceMetricCard label="Total staff" value={result?.total ?? 0} description="Roster members" icon={Users} accent="purple" isLoading={isLoading} />
-        <WorkforceMetricCard label="Active" value={result?.statusCounts?.active ?? 0} description="Ready for work" icon={Users} accent="green" isLoading={isLoading} />
-        <WorkforceMetricCard label="Needs review" value={result?.complianceCounts?.needs_review ?? 0} description="Compliance queue" icon={Users} accent="amber" isLoading={isLoading} />
-        <WorkforceMetricCard label="Compliant" value={result?.complianceCounts?.compliant ?? 0} description="Approved records" icon={Users} accent="cyan" isLoading={isLoading} />
-      </div>
-
       <RosterFilters
         search={search}
         status={status}
@@ -221,7 +216,7 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
             </div>
           ) : members.length ? (
             <Table>
-              <TableHeader className="bg-slate-900/70">
+              <TableHeader className="bg-white/[0.04]">
                 <TableRow>
                   <TableHead>Staff member</TableHead>
                   <TableHead>Role</TableHead>
@@ -234,7 +229,7 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
               </TableHeader>
               <TableBody>
                 {members.map((member) => (
-                  <TableRow key={member.id} className="border-slate-800/80 hover:bg-slate-900/60">
+                  <TableRow key={member.id} className="border-white/10 hover:bg-white/[0.06]">
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
@@ -280,12 +275,17 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
               </TableBody>
             </Table>
           ) : (
-            <div className="flex flex-col items-center justify-center p-10 text-center">
-              <Users className="mb-3 h-8 w-8 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+              <Users className="mb-1 h-8 w-8 text-muted-foreground" />
               <h3 className="font-semibold">No roster members found</h3>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              <p className="max-w-md text-sm text-muted-foreground">
                 Staff will appear here after onboarding completion creates real staff_members and employment_assignments rows.
               </p>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/admin/dashboard/staff?tab=scheduling&${getEmployerQueryString(employer)}`}>
+                  Open scheduling
+                </Link>
+              </Button>
             </div>
           )}
         </CardContent>

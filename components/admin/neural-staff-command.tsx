@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Placeholder AI surface; staff ops tabs are canonical (cmp-neural-staff wont-fix). */
+
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

@@ -1,40 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { resolveActingAdminContext } from '@/lib/auth/admin-context'
+import {
+  executeLogisticsCommand,
+  getLogisticsCommandErrorStatus,
+  LogisticsCommandError,
+} from '@/lib/admin/logistics-command.service'
 
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-  return withAdminAuth(async (req) => {
-    const supabase = await createClient()
-    const body = await req.json()
+  const auth = await authenticateApiRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const updates: Record<string, any> = {}
-    if (body.type) updates.type = body.type
-    if (body.title) updates.title = body.title
-    if (typeof body.description !== 'undefined') updates.description = body.description
-    if (body.status) updates.status = body.status
-    if (body.priority) updates.priority = body.priority
-    if (typeof body.assignedTo !== 'undefined') updates.assigned_to_user_id = body.assignedTo
-    if (typeof body.dueDate !== 'undefined') updates.due_date = body.dueDate
-    if (typeof body.budget !== 'undefined') updates.budget = body.budget
-    if (typeof body.actualCost !== 'undefined') updates.actual_cost = body.actualCost
-    if (typeof body.notes !== 'undefined') updates.notes = body.notes
-    if (typeof body.tags !== 'undefined') updates.tags = body.tags
+  const admin = await resolveActingAdminContext(request, auth)
+  if (admin instanceof NextResponse) return admin
 
-    const { data, error } = await supabase
-      .from('logistics_tasks')
-      .update(updates)
-      .eq('id', id)
-      .select('*')
-      .single()
+  try {
+    const body = await request.json()
 
-    if (error) throw error
+    // Status changes must go through transition_task_status (LOG-103).
+    if (body.status != null) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Status updates must use POST /status or action transition_task_status',
+          code: 'use_status_transition',
+        },
+        { status: 422 },
+      )
+    }
 
-    return NextResponse.json({ item: data })
-  })(request)
+    const result = await executeLogisticsCommand({
+      supabase: auth.supabase,
+      userId: auth.user.id,
+      orgId: admin.orgId,
+      command: {
+        action: 'update_task',
+        id,
+        title: body.title,
+        description: body.description,
+        type: body.type,
+        category: body.category,
+        priority: body.priority,
+        assigned_to_user_id:
+          typeof body.assignedTo !== 'undefined' ? body.assignedTo : body.assigned_to_user_id,
+        due_date: typeof body.dueDate !== 'undefined' ? body.dueDate : body.due_date,
+        budget: typeof body.budget !== 'undefined' ? body.budget : undefined,
+        actual_cost: typeof body.actualCost !== 'undefined' ? body.actualCost : body.actual_cost,
+        notes: body.notes,
+        tags: body.tags,
+        source_type: body.sourceType || body.source_type,
+        source_id: body.sourceId || body.source_id,
+      },
+    })
+    return NextResponse.json({ item: result.data, message: result.message })
+  } catch (error) {
+    const status = getLogisticsCommandErrorStatus(error, 500)
+    const message = error instanceof Error ? error.message : 'Failed to update task'
+    const code = error instanceof LogisticsCommandError ? error.code : 'update_failed'
+    return NextResponse.json({ success: false, error: message, code }, { status })
+  }
 }
 
 export async function DELETE(
@@ -42,18 +72,26 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params
-  return withAdminAuth(async () => {
-    const supabase = await createClient()
+  const auth = await authenticateApiRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const { error } = await supabase
-      .from('logistics_tasks')
-      .delete()
-      .eq('id', id)
+  const admin = await resolveActingAdminContext(request, auth)
+  if (admin instanceof NextResponse) return admin
 
-    if (error) throw error
-
-    return NextResponse.json({ success: true })
-  })(request)
+  try {
+    const result = await executeLogisticsCommand({
+      supabase: auth.supabase,
+      userId: auth.user.id,
+      orgId: admin.orgId,
+      command: { action: 'delete_task', id },
+    })
+    return NextResponse.json({ success: true, data: result.data, message: result.message })
+  } catch (error) {
+    const status = getLogisticsCommandErrorStatus(error, 500)
+    const message = error instanceof Error ? error.message : 'Failed to delete task'
+    const code = error instanceof LogisticsCommandError ? error.code : 'delete_failed'
+    return NextResponse.json({ success: false, error: message, code }, { status })
+  }
 }
-
-

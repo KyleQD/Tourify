@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
@@ -88,6 +90,110 @@ const conditionIcons = {
   out_of_service: XCircle,
 }
 
+type EquipmentFormState = {
+  name: string
+  category: VenueEquipment["category"]
+  description: string
+  quantity: number
+  condition: NonNullable<VenueEquipment["condition"]>
+  purchase_date: string
+  last_maintenance: string
+  next_maintenance: string
+  is_available_for_rent: boolean
+  rental_price: string | number
+}
+
+function EquipmentForm({
+  form,
+  setForm,
+}: {
+  form: EquipmentFormState
+  setForm: React.Dispatch<React.SetStateAction<EquipmentFormState>>
+}) {
+  const set = (field: keyof EquipmentFormState, value: any) =>
+    setForm(prev => ({ ...prev, [field]: value }))
+
+  return (
+    <div className="grid gap-4 py-2">
+      <div className="grid gap-1.5">
+        <Label htmlFor="eq-name">Name <span className="text-red-500">*</span></Label>
+        <Input id="eq-name" value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Shure SM58 Microphone" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
+          <Label>Category</Label>
+          <Select value={form.category} onValueChange={v => set("category", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(["sound","lighting","stage","seating","catering","security","other"] as const).map(c => (
+                <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Condition</Label>
+          <Select value={form.condition} onValueChange={v => set("condition", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="excellent">Excellent</SelectItem>
+              <SelectItem value="good">Good</SelectItem>
+              <SelectItem value="fair">Fair</SelectItem>
+              <SelectItem value="needs_repair">Needs Repair</SelectItem>
+              <SelectItem value="out_of_service">Out of Service</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid gap-1.5">
+        <Label>Description</Label>
+        <Textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="Optional notes…" rows={2} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-qty">Quantity</Label>
+          <Input id="eq-qty" type="number" min={1} value={form.quantity} onChange={e => set("quantity", e.target.value)} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-rental">Rental Price ($)</Label>
+          <Input id="eq-rental" type="number" min={0} step="0.01" value={form.rental_price} onChange={e => set("rental_price", e.target.value)} placeholder="Optional" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-last-maint">Last Maintenance</Label>
+          <Input id="eq-last-maint" type="date" value={form.last_maintenance} onChange={e => set("last_maintenance", e.target.value)} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-next-maint">Next Maintenance</Label>
+          <Input id="eq-next-maint" type="date" value={form.next_maintenance} onChange={e => set("next_maintenance", e.target.value)} />
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Switch
+          id="eq-rent"
+          checked={form.is_available_for_rent}
+          onCheckedChange={v => set("is_available_for_rent", v)}
+        />
+        <Label htmlFor="eq-rent">Available for rent</Label>
+      </div>
+    </div>
+  )
+}
+
+const emptyForm = {
+  name: "",
+  category: "other" as VenueEquipment["category"],
+  description: "",
+  quantity: 1,
+  condition: "good" as VenueEquipment["condition"],
+  purchase_date: "",
+  last_maintenance: "",
+  next_maintenance: "",
+  is_available_for_rent: false,
+  rental_price: "" as string | number,
+}
+
 export default function EquipmentPage() {
   const router = useRouter()
   const { venue, isLoading: venueLoading } = useCurrentVenue()
@@ -99,6 +205,9 @@ export default function EquipmentPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [addForm, setAddForm] = useState({ ...emptyForm })
+  const [editForm, setEditForm] = useState({ ...emptyForm })
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState("")
@@ -188,6 +297,81 @@ export default function EquipmentPage() {
       title: "Export Started",
       description: "Equipment inventory has been exported to CSV.",
     })
+  }
+
+  const handleAddSubmit = async () => {
+    if (!venue?.id || !addForm.name) return
+    setIsSaving(true)
+    try {
+      const created = await venueService.addVenueEquipment(venue.id, {
+        ...addForm,
+        quantity: Number(addForm.quantity) || 1,
+        rental_price: addForm.rental_price !== "" ? Number(addForm.rental_price) : null,
+        purchase_date: addForm.purchase_date || null,
+        last_maintenance: addForm.last_maintenance || null,
+        next_maintenance: addForm.next_maintenance || null,
+        description: addForm.description || null,
+      })
+      setEquipment(prev => [created, ...prev])
+      setIsAddModalOpen(false)
+      setAddForm({ ...emptyForm })
+      toast({ title: "Equipment added", description: `${created.name} has been added to inventory.` })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to add equipment", variant: "destructive" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleEditSubmit = async () => {
+    if (!venue?.id || !selectedEquipment) return
+    setIsSaving(true)
+    try {
+      const updated = await venueService.updateVenueEquipment(selectedEquipment.id, venue.id, {
+        ...editForm,
+        quantity: Number(editForm.quantity) || 1,
+        rental_price: editForm.rental_price !== "" ? Number(editForm.rental_price) : null,
+        purchase_date: editForm.purchase_date || null,
+        last_maintenance: editForm.last_maintenance || null,
+        next_maintenance: editForm.next_maintenance || null,
+        description: editForm.description || null,
+      })
+      setEquipment(prev => prev.map(e => e.id === updated.id ? updated : e))
+      setIsEditModalOpen(false)
+      toast({ title: "Equipment updated", description: `${updated.name} has been updated.` })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update equipment", variant: "destructive" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async (item: VenueEquipment) => {
+    if (!venue?.id) return
+    try {
+      await venueService.deleteVenueEquipment(item.id, venue.id)
+      setEquipment(prev => prev.filter(e => e.id !== item.id))
+      toast({ title: "Equipment removed", description: `${item.name} has been removed from inventory.` })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to delete equipment", variant: "destructive" })
+    }
+  }
+
+  const openEdit = (item: VenueEquipment) => {
+    setSelectedEquipment(item)
+    setEditForm({
+      name: item.name,
+      category: item.category,
+      description: item.description || "",
+      quantity: item.quantity,
+      condition: item.condition || "good",
+      purchase_date: item.purchase_date || "",
+      last_maintenance: item.last_maintenance || "",
+      next_maintenance: item.next_maintenance || "",
+      is_available_for_rent: item.is_available_for_rent,
+      rental_price: item.rental_price ?? "",
+    })
+    setIsEditModalOpen(true)
   }
 
   const generateQRCode = (equipmentItem: VenueEquipment) => {
@@ -441,10 +625,7 @@ export default function EquipmentPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedEquipment(item)
-                              setIsEditModalOpen(true)
-                            }}>
+                            <DropdownMenuItem onClick={() => openEdit(item)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
@@ -452,11 +633,7 @@ export default function EquipmentPage() {
                               <QrCode className="h-4 w-4 mr-2" />
                               Generate QR Code
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <History className="h-4 w-4 mr-2" />
-                              View History
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(item)}>
                               <Trash className="h-4 w-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -659,6 +836,40 @@ export default function EquipmentPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add Equipment Modal */}
+      <Dialog open={isAddModalOpen} onOpenChange={(open) => { setIsAddModalOpen(open); if (!open) setAddForm({ ...emptyForm }) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Equipment</DialogTitle>
+            <DialogDescription>Add a new item to your venue's equipment inventory.</DialogDescription>
+          </DialogHeader>
+          <EquipmentForm form={addForm} setForm={setAddForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddSubmit} disabled={isSaving || !addForm.name}>
+              {isSaving ? "Saving…" : "Add Equipment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Equipment Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Equipment</DialogTitle>
+            <DialogDescription>Update the details for this equipment item.</DialogDescription>
+          </DialogHeader>
+          <EquipmentForm form={editForm} setForm={setEditForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit} disabled={isSaving || !editForm.name}>
+              {isSaving ? "Saving…" : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* QR Code Modal */}
       <Dialog open={isQrModalOpen} onOpenChange={setIsQrModalOpen}>

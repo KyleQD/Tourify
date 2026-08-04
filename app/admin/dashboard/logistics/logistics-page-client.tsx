@@ -1,8 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Box, Building, Calendar, Clock, FileText, MapPin, MessageSquare, Plane, Truck, Users, Utensils, Edit, Trash2, AlertCircle, Loader2, Zap, Guitar, Mic, Piano, Drum, CheckCircle, Target } from "lucide-react"
+import { Box, Building, Building2, Calendar, Clock, FileText, MapPin, MessageSquare, Plane, Truck, Users, Utensils, Edit, Trash2, AlertCircle, Loader2, Zap, Guitar, Mic, Piano, Drum, CheckCircle } from "lucide-react"
+import { AdminEmptyState } from "../components/admin-empty-state"
+import { LogisticsMetricsCard } from "@/components/admin/logistics/logistics-metrics-card"
+import { TravelSLOBanner } from "@/components/admin/logistics/travel-slo-banner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -10,19 +13,33 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useLogistics } from "@/hooks/use-logistics"
-import { EventSelect } from "@/components/events/event-select"
+import { LogisticsScopeBar } from "@/components/admin/logistics/logistics-scope-bar"
+import {
+  assertLogisticsScopeOrgConsistency,
+  buildLogisticsScopeSearchParams,
+  formatLogisticsScopeBadge,
+  parseLogisticsScopeParams,
+} from "@/lib/admin/logistics-scope"
 import { useRentalAgreements, useRentalAnalytics, useEquipmentUtilization } from "@/hooks/use-rentals"
 import { useLodging } from "@/hooks/use-lodging"
 import { useTravelCoordination } from "@/hooks/use-travel-coordination"
 import dynamic from "next/dynamic"
 import { LogisticsCollaboration } from "@/components/admin/logistics-collaboration"
 import { OperationsCommandShell } from "@/components/admin/operations/operations-command-shell"
-import { WorkforceMetricCard } from "@/components/hiring/workforce-ui"
 import { TransportManager } from "@/components/admin/logistics/transport/transport-manager"
 import { TravelOpsHub } from "@/components/admin/logistics/travel/travel-ops-hub"
+import { PartyTravelMatrixPanel } from "@/components/admin/logistics/travel/party-travel-matrix-panel"
+import { TravelCommandsPanel } from "@/components/admin/logistics/travel/travel-commands-panel"
+import { TravelDocumentsPanel } from "@/components/admin/logistics/travel/travel-documents-panel"
+import { LogisticsAlertsPanel } from "@/components/admin/logistics/logistics-alerts-panel"
+import { LodgingManagement } from "@/components/admin/lodging-management"
 import { EquipmentOpsPanel } from "@/components/admin/logistics/equipment-ops-panel"
 import { BacklineOpsPanel } from "@/components/admin/logistics/backline/backline-ops-panel"
 import { CateringOpsPanel } from "@/components/admin/logistics/catering/catering-ops-panel"
+import { useMultiAccount } from "@/hooks/use-multi-account"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { hiringEntityFromAccount } from "@/lib/hiring/hiring-entity-from-account"
+import type { RosterMember } from "@/types/hiring-roster-work-mode"
 
 const LogisticsDynamicManager = dynamic(
   () =>
@@ -58,21 +75,40 @@ import { useAuth } from "@/contexts/auth-context"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 
-interface TeamMember {
-  id: string
-  user_id?: string
-  role?: string
-  status?: string
-  profiles?: {
-    id: string
-    full_name?: string
-    email?: string
-    avatar_url?: string
+interface TeamGroup {
+  key: string
+  label: string
+  members: RosterMember[]
+}
+
+function groupActiveRosterMembers(members: RosterMember[]): TeamGroup[] {
+  const hasDepartments = members.some((member) => Boolean(member.department?.trim()))
+
+  if (!hasDepartments) {
+    return members.length > 0
+      ? [{ key: "team", label: "Team", members }]
+      : []
   }
-  full_name?: string
-  email?: string
-  avatar_url?: string
-  account_type?: string
+
+  const groups = new Map<string, TeamGroup>()
+
+  for (const member of members) {
+    const department = member.department?.trim()
+    const key = department ? department.toLowerCase() : "unassigned"
+    const label = department || "Unassigned"
+    const existing = groups.get(key)
+    if (existing) {
+      existing.members.push(member)
+      continue
+    }
+    groups.set(key, { key, label, members: [member] })
+  }
+
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.key === "unassigned") return 1
+    if (b.key === "unassigned") return -1
+    return a.label.localeCompare(b.label)
+  })
 }
 
 const LOGISTICS_OPS_TABS = [
@@ -91,64 +127,165 @@ const logisticsTabs = LOGISTICS_OPS_TABS.map((tab) => tab.value)
 export default function LogisticsPageClient() {
   const { toast } = useToast()
   const { user } = useAuth()
+  const { currentAccount } = useMultiAccount()
+  const { isActingReady } = useActingContext()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null)
   const [selectedEventName, setSelectedEventName] = useState<string | null>(null)
+  const [selectedEventOwnerId, setSelectedEventOwnerId] = useState<string | null>(null)
+  const [commsThreadId, setCommsThreadId] = useState<string | null>(null)
   const [selectedTour, setSelectedTour] = useState<string | null>(null)
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [selectedTourName, setSelectedTourName] = useState<string | null>(null)
+  const [selectedLegId, setSelectedLegId] = useState<string | null>(null)
+  const [teamMembers, setTeamMembers] = useState<RosterMember[]>([])
   const [teamLoading, setTeamLoading] = useState(false)
   const requestedTab = searchParams.get('tab')
   const defaultTab = logisticsTabs.includes(requestedTab as typeof logisticsTabs[number])
     ? requestedTab!
     : 'overview'
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const employer = useMemo(() => hiringEntityFromAccount(currentAccount), [currentAccount])
+  // Server resolves orgId as ops_org_id; profile_id is the organizer_account.id — use ops_org_id for comparison
+  const actingOrgId = (currentAccount?.profile_data?.ops_org_id as string | undefined) || employer?.entityId || null
+  const orgLabel = useMemo(() => {
+    const data = currentAccount?.profile_data
+    return (
+      data?.organization_name
+      || data?.name
+      || data?.display_name
+      || currentAccount?.account_type
+      || 'Organization'
+    )
+  }, [currentAccount])
+  const teamGroups = useMemo(() => groupActiveRosterMembers(teamMembers), [teamMembers])
 
-  const updateLogisticsUrl = useCallback((updates: { tab?: string; eventId?: string | null; tourId?: string | null }) => {
-    const params = new URLSearchParams(searchParams.toString())
-
-    if (updates.tab) params.set('tab', updates.tab)
-    if ('eventId' in updates) {
-      if (updates.eventId) params.set('eventId', updates.eventId)
-      else params.delete('eventId')
-    }
-    if ('tourId' in updates) {
-      if (updates.tourId) params.set('tourId', updates.tourId)
-      else params.delete('tourId')
-    }
-
+  const updateLogisticsUrl = useCallback((updates: {
+    tab?: string | null
+    eventId?: string | null
+    tourId?: string | null
+    legId?: string | null
+    orgId?: string | null
+  }) => {
+    const params = buildLogisticsScopeSearchParams({
+      current: searchParams,
+      updates: {
+        tab: updates.tab,
+        eventId: updates.eventId,
+        tourId: updates.tourId,
+        legId: updates.legId,
+        orgId: updates.orgId,
+      },
+    })
+    // Always stamp acting org when known — never invent a different org.
+    if (actingOrgId && !params.get('orgId')) params.set('orgId', actingOrgId)
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [pathname, router, searchParams])
+  }, [actingOrgId, pathname, router, searchParams])
 
   useEffect(() => {
-    const eventIdParam = searchParams.get('eventId')
-    const tourIdParam = searchParams.get('tourId')
-    const tabParam = searchParams.get('tab')
+    const scope = parseLogisticsScopeParams(searchParams)
+    const consistency = assertLogisticsScopeOrgConsistency({
+      actingOrgId,
+      urlOrgId: scope.orgId,
+    })
+    if (!consistency.ok) {
+      // Refuse silent org switch: clear foreign org/tour/event from URL.
+      const params = buildLogisticsScopeSearchParams({
+        current: searchParams,
+        updates: {
+          orgId: actingOrgId,
+          tourId: null,
+          eventId: null,
+          legId: null,
+          tab: scope.tab,
+        },
+      })
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+      return
+    }
 
-    setSelectedEvent(eventIdParam)
-    if (!eventIdParam) setSelectedEventName(null)
-    setSelectedTour(tourIdParam)
-    setActiveTab(logisticsTabs.includes(tabParam as typeof logisticsTabs[number]) ? tabParam! : 'overview')
-  }, [searchParams])
+    setSelectedEvent(scope.eventId)
+    if (!scope.eventId) setSelectedEventName(null)
+    setSelectedTour(scope.tourId)
+    if (!scope.tourId) setSelectedTourName(null)
+    setSelectedLegId(scope.legId)
+    setActiveTab(
+      logisticsTabs.includes(scope.tab as typeof logisticsTabs[number]) ? scope.tab! : 'overview',
+    )
+
+    if (actingOrgId && !scope.orgId) {
+      const params = buildLogisticsScopeSearchParams({
+        current: searchParams,
+        updates: { orgId: actingOrgId },
+      })
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+  }, [actingOrgId, pathname, router, searchParams])
 
   useEffect(() => {
-    async function fetchTeam() {
+    async function fetchActiveRoster() {
+      if (!employer) {
+        setTeamMembers([])
+        return
+      }
+
       setTeamLoading(true)
       try {
-        const res = await fetch('/api/admin/team-members', { credentials: 'include' })
-        if (res.ok) {
-          const data = await res.json()
-          setTeamMembers(data.members || [])
+        const params = new URLSearchParams({
+          status: "active",
+          entity_type: employer.entityType,
+          entity_id: employer.entityId,
+        })
+        if (selectedEvent) params.set("event_id", selectedEvent)
+        if (selectedTour) params.set("tour_id", selectedTour)
+
+        const res = await fetch(`/api/hiring/roster?${params.toString()}`, { credentials: "include" })
+        if (!res.ok) {
+          setTeamMembers([])
+          return
         }
+
+        const payload = await res.json()
+        const members = (payload?.data?.members ?? []) as RosterMember[]
+        setTeamMembers(members.filter((member) => member.status === "active"))
       } catch {
-        // Team data is non-critical
+        setTeamMembers([])
       } finally {
         setTeamLoading(false)
       }
     }
-    if (user) fetchTeam()
-  }, [user])
+
+    if (user) void fetchActiveRoster()
+  }, [user, employer, selectedEvent, selectedTour])
+
+  // Fetch event owner + existing comms thread ID when selected event changes
+  useEffect(() => {
+    if (!selectedEvent) {
+      setSelectedEventOwnerId(null)
+      setCommsThreadId(null)
+      return
+    }
+    async function fetchEventMeta() {
+      try {
+        const [eventRes, threadRes] = await Promise.all([
+          fetch(`/api/admin/events/${selectedEvent}`, { credentials: 'include' }),
+          fetch(`/api/admin/logistics/comms-thread?event_id=${selectedEvent}`, { credentials: 'include' }),
+        ])
+        if (eventRes.ok) {
+          const eventData = await eventRes.json()
+          setSelectedEventOwnerId(eventData?.event?.created_by ?? eventData?.created_by ?? null)
+        }
+        if (threadRes.ok) {
+          const threadData = await threadRes.json()
+          setCommsThreadId(threadData?.threadId ?? null)
+        }
+      } catch {
+        // non-fatal — owner check defaults to false
+      }
+    }
+    void fetchEventMeta()
+  }, [selectedEvent])
 
   // Fetch logistics data (combined — one hook, no transportation/equipment/analytics fan-out)
   const { data: logisticsData, loading: logisticsLoading, error: logisticsError, refetch: refetchLogistics } = useLogistics({
@@ -317,46 +454,29 @@ export default function LogisticsPageClient() {
   // authenticated the session server-side; cookie fetches work without
   // waiting for client user.
 
-  const overallProgress = Math.round(
-    ((metrics?.transportation?.percentage || 0) +
-      (metrics?.accommodations?.percentage || 0) +
-      (metrics?.equipment?.percentage || 0) +
-      (metrics?.backline?.percentage || 0) +
-      (metrics?.rentals?.percentage || 0) +
-      (metrics?.lodging?.percentage || 0) +
-      (metrics?.travelCoordination?.percentage || 0) +
-      (metrics?.catering?.percentage || 0) +
-      (metrics?.communication?.percentage || 0)) /
-      9
-  )
-  const activeItems =
-    (metrics?.transportation?.items || 0) +
-    (metrics?.accommodations?.items || 0) +
-    (metrics?.equipment?.items || 0) +
-    (metrics?.backline?.items || 0) +
-    (metrics?.rentals?.items || 0) +
-    (metrics?.lodging?.items || 0) +
-    (metrics?.travelCoordination?.items || 0) +
-    (metrics?.catering?.items || 0) +
-    (metrics?.communication?.items || 0)
-  const completedItems =
-    (metrics?.transportation?.completed || 0) +
-    (metrics?.accommodations?.completed || 0) +
-    (metrics?.equipment?.completed || 0) +
-    (metrics?.backline?.completed || 0) +
-    (metrics?.rentals?.completed || 0) +
-    (metrics?.lodging?.completed || 0) +
-    (metrics?.travelCoordination?.completed || 0) +
-    (metrics?.catering?.completed || 0) +
-    (metrics?.communication?.completed || 0)
+  if (!isActingReady) {
+    return (
+      <AdminEmptyState
+        icon={Building2}
+        title="No organization selected"
+        description="Select an organization from the account switcher in the top navigation to continue."
+      />
+    )
+  }
 
   return (
     <div className="space-y-6 px-1 pb-8">
       <OperationsCommandShell
+        showHero={false}
         eyebrow="Logistics"
         title="Logistics Management"
         description="Coordinate transportation, equipment, and venue layouts for events and tours"
-        badge={selectedEventName || (selectedEvent ? 'Event scoped' : 'All events')}
+        badge={formatLogisticsScopeBadge({
+          orgLabel,
+          tourName: selectedTourName || (selectedTour ? 'Tour scoped' : null),
+          eventName: selectedEventName || (selectedEvent ? 'Stop scoped' : null),
+          legLabel: selectedLegId,
+        })}
         tabs={[...LOGISTICS_OPS_TABS]}
         activeTab={activeTab}
         onTabChange={(tab) => {
@@ -365,52 +485,42 @@ export default function LogisticsPageClient() {
         }}
         tabColsClassName="md:grid-cols-4 xl:grid-cols-8"
         actions={
-          <div className="w-full min-w-[220px] max-w-sm">
-            <EventSelect
-              defaultEventId={selectedEvent || undefined}
-              onSelect={(evt) => {
-                const eventId = evt?.id || null
-                setSelectedEvent(eventId)
-                setSelectedEventName(evt?.name || null)
-                updateLogisticsUrl({ eventId })
-              }}
-              placeholder="Filter by event (optional)"
-              className="[&_button]:border-slate-600 [&_button]:bg-slate-900/70 [&_button]:text-slate-200"
-            />
-          </div>
-        }
-        metrics={
-          activeTab === 'overview' ? (
-            <>
-              <WorkforceMetricCard
-                label="Overall progress"
-                value={`${overallProgress}%`}
-                description="Across all categories"
-                icon={Target}
-                accent="blue"
-                isLoading={isLoading}
-              />
-              <WorkforceMetricCard
-                label="Active items"
-                value={String(activeItems)}
-                description="Total logistics items"
-                icon={CheckCircle}
-                accent="green"
-                isLoading={isLoading}
-              />
-              <WorkforceMetricCard
-                label="Completed"
-                value={String(completedItems)}
-                description="Items completed"
-                icon={Zap}
-                accent="cyan"
-                isLoading={isLoading}
-              />
-            </>
-          ) : undefined
+          <LogisticsScopeBar
+            orgLabel={orgLabel}
+            actingOrgId={actingOrgId}
+            tourId={selectedTour}
+            eventId={selectedEvent}
+            legId={selectedLegId}
+            onChange={(next) => {
+              if ('tourId' in next) {
+                setSelectedTour(next.tourId ?? null)
+                setSelectedTourName(next.tourName ?? null)
+              }
+              if ('eventId' in next) {
+                setSelectedEvent(next.eventId ?? null)
+                setSelectedEventName(next.eventName ?? null)
+              }
+              if ('legId' in next) setSelectedLegId(next.legId ?? null)
+              updateLogisticsUrl({
+                orgId: actingOrgId,
+                tourId: 'tourId' in next ? next.tourId ?? null : selectedTour,
+                eventId: 'eventId' in next ? next.eventId ?? null : selectedEvent,
+                legId: 'legId' in next ? next.legId ?? null : selectedLegId,
+              })
+            }}
+          />
         }
       >
         <TabsContent value="overview" className="mt-0 space-y-6">
+          {/* TRAVEL-601 — Travel SLO alert banner */}
+          <TravelSLOBanner />
+
+          {/* LOG-601 — Logistics metrics snapshot card */}
+          <LogisticsMetricsCard tourId={selectedTour} eventId={selectedEvent} />
+
+          {/* LOG-601 / LOG-602 — Equipment, rental, catering alerts */}
+          <LogisticsAlertsPanel tourId={selectedTour} eventId={selectedEvent} />
+
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
@@ -470,36 +580,41 @@ export default function LogisticsPageClient() {
             <CardHeader className="pb-2">
               <CardTitle className="text-slate-100 flex items-center text-base">
                 <Users className="mr-2 h-5 w-5 text-purple-500" />
-                Logistics Team
+                Teams
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               {teamLoading ? (
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
-                  <span className="ml-2 text-slate-400 text-sm">Loading team...</span>
+                  <span className="ml-2 text-slate-400 text-sm">Loading teams...</span>
                 </div>
-              ) : teamMembers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {teamMembers.slice(0, 9).map((member) => {
-                    const name = member.profiles?.full_name || member.full_name || 'Team Member'
-                    const email = member.profiles?.email || member.email || ''
-                    const role = member.role || member.account_type || 'Team Member'
-                    return (
-                      <TeamMemberCard
-                        key={member.id}
-                        name={name}
-                        role={role}
-                        email={email}
-                        phone=""
-                      />
-                    )
-                  })}
-                </div>
+              ) : teamGroups.length > 0 ? (
+                teamGroups.map((group) => (
+                  <div key={group.key} className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-medium text-slate-200">{group.label}</h3>
+                      <Badge className="bg-slate-800 text-slate-300 border-slate-700">
+                        {group.members.length}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {group.members.map((member) => (
+                        <TeamMemberCard
+                          key={member.id}
+                          name={member.profile?.fullName || "Team Member"}
+                          role={member.position || member.department || "Team Member"}
+                          email={member.profile?.email || ""}
+                          phone={member.profile?.phone || ""}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
               ) : (
                 <div className="text-center py-6">
                   <Users className="h-10 w-10 text-slate-500 mx-auto mb-2" />
-                  <p className="text-sm text-slate-400">No team members found. Add team members to see them here.</p>
+                  <p className="text-sm text-slate-400">No onboarded team members yet.</p>
                 </div>
               )}
             </CardContent>
@@ -524,7 +639,16 @@ export default function LogisticsPageClient() {
         </TabsContent>
 
         <TabsContent value="accommodations" className="mt-0">
-          <TravelOpsHub eventId={selectedEvent || undefined} tourId={selectedTour || undefined} />
+          <div className="space-y-6">
+            {/* TRAVEL-301 / LODGE-302 — Party travel matrix */}
+            <PartyTravelMatrixPanel tourId={selectedTour} eventId={selectedEvent} />
+            {/* TRAVEL-302 / TRAVEL-104 — Travel segment commands */}
+            <TravelCommandsPanel tourId={selectedTour} eventId={selectedEvent} />
+            {/* TRAVEL-501 / TRAVEL-502 — Protected travel documents */}
+            <TravelDocumentsPanel tourId={selectedTour} eventId={selectedEvent} />
+            <TravelOpsHub eventId={selectedEvent || undefined} tourId={selectedTour || undefined} />
+            <LodgingManagement eventId={selectedEvent || undefined} tourId={selectedTour || undefined} />
+          </div>
         </TabsContent>
 
         <TabsContent value="equipment" className="mt-0">
@@ -551,14 +675,13 @@ export default function LogisticsPageClient() {
 
         <TabsContent value="communication" className="mt-0">
           <div className="space-y-6">
-            <LogisticsCollaboration 
+            <LogisticsCollaboration
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
-              siteMapId={searchParams.get('siteMapId') || undefined}
-              teamMembers={teamMembers.map(m => ({
-                id: m.user_id || m.profiles?.id || m.id,
-                name: m.profiles?.full_name || m.full_name || 'Team Member',
-              }))}
+              eventName={selectedEventName || undefined}
+              isOwner={!!(selectedEvent && selectedEventOwnerId && user?.id && selectedEventOwnerId === user.id)}
+              threadId={commsThreadId || undefined}
+              onThreadProvisioned={(id) => setCommsThreadId(id)}
             />
 
             <LogisticsDynamicManager

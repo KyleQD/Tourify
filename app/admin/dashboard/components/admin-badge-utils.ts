@@ -29,6 +29,15 @@ export function getStatusColor(status: string): string {
     failed: "red",
     inactive: "slate",
     archived: "slate",
+    healthy: "green",
+    ready: "green",
+    at_risk: "yellow",
+    warning: "yellow",
+    unhealthy: "red",
+    error: "red",
+    degraded: "slate",
+    unknown: "slate",
+    unavailable: "slate",
   }
   return map[status?.toLowerCase()] || "slate"
 }

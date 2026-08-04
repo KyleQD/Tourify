@@ -46,7 +46,7 @@ export function WorkModeWidget() {
         >
           <Briefcase className="h-3.5 w-3.5 mr-1.5" />
           <span className="text-xs font-medium">
-            {isInWorkMode ? activeAssignment?.role_title ?? 'Work Mode' : 'Shifts'}
+            {isInWorkMode ? activeAssignment?.roleTitle ?? 'Work Mode' : 'Shifts'}
           </span>
           {assignments.some((a) => a.status === 'invited') && (
             <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400" />
@@ -60,7 +60,7 @@ export function WorkModeWidget() {
             <div className="mb-2 rounded-lg border border-indigo-500/30 bg-indigo-600/20 px-3 py-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-white">{activeAssignment.role_title}</div>
+                  <div className="text-sm font-medium text-white">{activeAssignment.roleTitle}</div>
                   {activeAssignment.department && (
                     <div className="text-xs text-indigo-300">{activeAssignment.department}</div>
                   )}
@@ -76,17 +76,15 @@ export function WorkModeWidget() {
                 </Button>
               </div>
               <div className="mt-1 text-xs text-indigo-400">Work Mode active</div>
-              {activeAssignment.href && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mt-2 h-7 w-full justify-start px-0 text-xs text-indigo-200 hover:text-white"
-                  onClick={() => router.push(activeAssignment.href!)}
-                >
-                  <ExternalLink className="mr-1.5 h-3 w-3" />
-                  Open worker map
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-2 h-7 w-full justify-start px-0 text-xs text-indigo-200 hover:text-white"
+                onClick={() => router.push(`/work/today?assignment=${activeAssignment.id}`)}
+              >
+                <ExternalLink className="mr-1.5 h-3 w-3" />
+                Open Work Mode
+              </Button>
             </div>
             <DropdownMenuSeparator className="my-1 bg-slate-700" />
           </>
@@ -109,17 +107,13 @@ export function WorkModeWidget() {
                   return
                 }
                 activateWorkMode(assignment.id)
-                if (assignment.publication_type === 'site_map' && assignment.href)
-                  router.push(assignment.href)
+                router.push(`/work/today?assignment=${assignment.id}`)
               }}
             >
               <div className="flex-1">
-                <div className="text-sm font-medium text-white">{assignment.role_title}</div>
+                <div className="text-sm font-medium text-white">{assignment.roleTitle}</div>
                 {assignment.department && (
                   <div className="text-xs text-slate-400">{assignment.department}</div>
-                )}
-                {assignment.source === 'publication' && (
-                  <div className="mt-0.5 text-xs text-indigo-300">Published work package</div>
                 )}
               </div>
 
@@ -136,7 +130,7 @@ export function WorkModeWidget() {
                 {assignment.status}
               </Badge>
 
-              {assignment.status === 'invited' && assignment.source !== 'publication' && (
+              {assignment.status === 'invited' && (
                 <div className="flex items-center gap-0.5">
                   <Button
                     size="sm"

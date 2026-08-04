@@ -275,11 +275,11 @@ export function Nav() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-purple-400/20 shadow-lg shadow-purple-500/10">
+    <nav className="sticky top-0 z-50 w-full backdrop-blur-xl bg-slate-900/80 border-b border-purple-400/20 shadow-lg shadow-purple-500/10">
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-pink-500/5"></div>
-      <div className="relative container flex h-16 items-center justify-between">
+      <div className="relative container mx-auto grid h-16 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:gap-3 lg:gap-4">
         {/* Logo - Home Button */}
-        <div 
+        <div
           className="flex shrink-0 items-center space-x-3 group hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
           onClick={handleHomeClick}
         >
@@ -293,79 +293,85 @@ export function Nav() {
           </div>
         </div>
 
-        {/* Center Navigation */}
-        <div className="hidden md:flex items-center space-x-2 bg-slate-800/50 backdrop-blur-sm rounded-full p-1 border border-purple-400/20">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`rounded-full transition-all duration-300 ${
-              pathname === '/dashboard' || pathname === '/artist' || pathname === '/venue' || pathname === '/admin/dashboard'
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' 
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-            }`}
-            onClick={handleHomeClick}
-          >
-            <Home className="h-4 w-4 mr-2" />
-            Home
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`rounded-full transition-all duration-300 ${
-              pathname === '/news'
-                ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg' 
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-            }`}
-            onClick={() => router.push('/news')}
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            News
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm" 
-            className={`rounded-full transition-all duration-300 ${
-              pathname === '/discover' 
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' 
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-            }`}
-            onClick={() => router.push('/discover')}
-          >
-            <Search className="h-4 w-4 mr-2" />
-            Discover
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm" 
-            className={`rounded-full transition-all duration-300 ${
-              pathname === '/jobs' 
-                ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg' 
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-            }`}
-            onClick={() => router.push('/jobs')}
-          >
-            <Briefcase className="h-4 w-4 mr-2" />
-            Jobs
-          </Button>
-        </div>
+        {/* Center: nav pills + search (shrink-safe) */}
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
+          <div className="hidden min-w-0 shrink md:flex items-center space-x-1 xl:space-x-2 bg-slate-800/50 backdrop-blur-sm rounded-full p-1 border border-purple-400/20">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-full transition-all duration-300 ${
+                pathname === '/dashboard' || pathname === '/artist' || pathname === '/venue' || pathname === '/admin/dashboard'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+              onClick={handleHomeClick}
+              aria-label="Home"
+            >
+              <Home className="h-4 w-4 xl:mr-2" />
+              <span className="hidden xl:inline">Home</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-full transition-all duration-300 ${
+                pathname === '/news'
+                  ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+              onClick={() => router.push('/news')}
+              aria-label="News"
+            >
+              <Sparkles className="h-4 w-4 xl:mr-2" />
+              <span className="hidden xl:inline">News</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-full transition-all duration-300 ${
+                pathname === '/discover'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+              onClick={() => router.push('/discover')}
+              aria-label="Discover"
+            >
+              <Search className="h-4 w-4 xl:mr-2" />
+              <span className="hidden xl:inline">Discover</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-full transition-all duration-300 ${
+                pathname === '/jobs'
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              }`}
+              onClick={() => router.push('/jobs')}
+              aria-label="Jobs"
+            >
+              <Briefcase className="h-4 w-4 xl:mr-2" />
+              <span className="hidden xl:inline">Jobs</span>
+            </Button>
+          </div>
 
-        {/* Search */}
-        <div className="hidden lg:flex flex-1 max-w-lg mx-8">
-          <EnhancedAccountSearch 
-            placeholder="Search artists, venues, and users..." 
-            className="w-full"
-            showRecentSearches={true}
-          />
+          <div className="hidden min-w-0 flex-1 lg:flex">
+            <EnhancedAccountSearch
+              placeholder="Search Tourify…"
+              className="w-full min-w-0 max-w-lg"
+              showRecentSearches={true}
+            />
+          </div>
         </div>
 
         {/* Right Navigation */}
-        <div className="flex items-center space-x-4">
+        <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2 md:gap-3">
           {/* Mobile Search Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowMobileSearch(true)}
             className="lg:hidden relative p-2 hover:bg-slate-800/50 rounded-full"
+            aria-label="Search"
           >
             <Search className="h-5 w-5 text-slate-300" />
           </Button>
@@ -394,19 +400,21 @@ export function Nav() {
             variant="ghost"
             size="sm"
             onClick={() => router.push('/friends/search')}
-            className="relative p-2 hover:bg-slate-800/50 rounded-full transition-all duration-200"
+            className="relative hidden p-2 hover:bg-slate-800/50 rounded-full transition-all duration-200 sm:inline-flex"
+            aria-label="Find friends"
           >
             <Users className="h-5 w-5 text-slate-300" />
           </Button>
 
-          {/* Create Button */}
+          {/* Create Button — icon-only below xl */}
           <Button
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 rounded-full shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
-            size="sm" 
+            size="sm"
             onClick={() => router.push('/create')}
+            aria-label="Create"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Create
+            <Plus className="h-4 w-4 xl:mr-2" />
+            <span className="hidden xl:inline">Create</span>
           </Button>
 
           {/* Compact Account Switcher */}
@@ -415,7 +423,7 @@ export function Nav() {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-purple-400/30 hover:ring-purple-400/50 transition-all duration-300">
+              <Button variant="ghost" className="relative h-10 w-10 shrink-0 rounded-full ring-2 ring-purple-400/30 hover:ring-purple-400/50 transition-all duration-300">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={navAvatarUrl} alt={navDisplayName} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
@@ -425,8 +433,8 @@ export function Nav() {
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full border-2 border-slate-900"></div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
+            <DropdownMenuContent
+              align="end"
               className="w-64 bg-slate-800/95 backdrop-blur-xl border border-purple-400/20 shadow-xl shadow-purple-500/10"
             >
               <DropdownMenuLabel className="space-y-1">
@@ -455,14 +463,14 @@ export function Nav() {
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Help and guides
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-slate-200 hover:bg-slate-700/50 cursor-pointer"
                 onClick={() => router.push('/profile')}
               >
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-slate-200 hover:bg-slate-700/50 cursor-pointer"
                 onClick={() => router.push('/settings')}
               >
@@ -470,7 +478,7 @@ export function Nav() {
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-slate-700" />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-red-400 hover:bg-red-500/10 cursor-pointer"
                 onClick={handleSignOut}
               >

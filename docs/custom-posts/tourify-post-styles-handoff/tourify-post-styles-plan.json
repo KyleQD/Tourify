@@ -1,0 +1,371 @@
+{
+  "plan_id": "tourify-custom-post-styles-v1",
+  "title": "Tourify Custom Post Styles",
+  "version": 1,
+  "prepared_at": "2026-07-27",
+  "objective": "Allow every authorized Tourify author to style each authored post with the shared Artist EPK templates and approved editor controls without changing the surrounding feed or other authors' posts.",
+  "source_documents": [
+    "README.md",
+    "01-product-requirements.md",
+    "02-ux-ui-spec.md",
+    "03-technical-architecture.md",
+    "04-data-api-security.md",
+    "05-implementation-plan.md",
+    "06-qa-release.md",
+    "07-codex-implementation-prompt.md"
+  ],
+  "product_decisions": {
+    "scope": "per_post_render_boundary",
+    "template_source": "canonical_epk_registry",
+    "editor_source": "shared_epk_appearance_controls",
+    "author_model": "default_style_plus_per_post_override",
+    "publication_model": "immutable_sanitized_snapshot",
+    "legacy_posts": "current_standard_renderer",
+    "custom_code": "prohibited",
+    "base_availability": "all_authorized_account_types",
+    "existing_post_default_change": "no_automatic_update"
+  },
+  "feature_flags": [
+    "post_styles_read",
+    "post_styles_write",
+    "post_styles_editor",
+    "post_styles_all_templates",
+    "post_styles_compact_surfaces"
+  ],
+  "statuses": [
+    "pending",
+    "in_progress",
+    "blocked",
+    "complete"
+  ],
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Audit and baseline",
+      "status": "pending",
+      "depends_on": [],
+      "tasks": [
+        {
+          "id": "P0-T01",
+          "title": "Read repository instructions and map architecture",
+          "status": "pending",
+          "completion_gate": "All applicable AGENTS.md and project instructions are recorded with the canonical application paths."
+        },
+        {
+          "id": "P0-T02",
+          "title": "Inventory EPK templates and editor",
+          "status": "pending",
+          "completion_gate": "Every template ID, alias, lifecycle, version, control, asset, persistence field, and renderer is represented in the audit and parity matrix."
+        },
+        {
+          "id": "P0-T03",
+          "title": "Inventory post creation and rendering surfaces",
+          "status": "pending",
+          "completion_gate": "Every authoring action, canonical type/query/serializer, and viewer or operational renderer is classified."
+        },
+        {
+          "id": "P0-T04",
+          "title": "Audit ownership, RLS, flags, cache, drafts, revisions, moderation, and analytics",
+          "status": "pending",
+          "completion_gate": "Existing canonical patterns and risks are documented with exact paths."
+        },
+        {
+          "id": "P0-T05",
+          "title": "Capture EPK and legacy post baselines",
+          "status": "pending",
+          "completion_gate": "Reproducible visual and performance baselines exist for desktop and mobile."
+        },
+        {
+          "id": "P0-T06",
+          "title": "Reconcile plan with repository",
+          "status": "pending",
+          "completion_gate": "Implementation JSON contains actual paths, commands, dependencies, owners, and gates; all architecture deviations are recorded."
+        }
+      ],
+      "phase_gate": "No EPK template, editor path, post render surface, or authorization path remains unknown."
+    },
+    {
+      "id": "phase-1",
+      "name": "Shared appearance foundation",
+      "status": "pending",
+      "depends_on": [
+        "phase-0"
+      ],
+      "tasks": [
+        {
+          "id": "P1-T01",
+          "title": "Create typed versioned appearance contracts",
+          "status": "pending",
+          "completion_gate": "Schema, template, token, asset, lifecycle, entitlement, and surface-capability types have runtime and compile-time validation."
+        },
+        {
+          "id": "P1-T02",
+          "title": "Centralize registry and alias resolution",
+          "status": "pending",
+          "completion_gate": "EPK and future post adapters consume one registry; uniqueness and alias tests pass."
+        },
+        {
+          "id": "P1-T03",
+          "title": "Implement sanitizer, compiler, migration, and fallback",
+          "status": "pending",
+          "completion_gate": "Semantic tokens compile deterministically; unsafe/invalid inputs fail to documented reason codes."
+        },
+        {
+          "id": "P1-T04",
+          "title": "Migrate EPK consumption without visual change",
+          "status": "pending",
+          "completion_gate": "All existing EPK functional and visual tests pass with no unapproved visual diff."
+        }
+      ],
+      "phase_gate": "Shared appearance code is in use by EPK while EPK output and stored data remain compatible."
+    },
+    {
+      "id": "phase-2",
+      "name": "Data, RLS, services, and DTO",
+      "status": "pending",
+      "depends_on": [
+        "phase-1"
+      ],
+      "tasks": [
+        {
+          "id": "P2-T01",
+          "title": "Add additive schema and RLS",
+          "status": "pending",
+          "completion_gate": "Profile, appearance, draft/revision support, constraints, indexes, and tested RLS exist without modifying legacy rows."
+        },
+        {
+          "id": "P2-T02",
+          "title": "Implement profile CRUD and default transaction",
+          "status": "pending",
+          "completion_gate": "Authorized owners can manage profiles and concurrent updates cannot create multiple active defaults."
+        },
+        {
+          "id": "P2-T03",
+          "title": "Implement preview and publish snapshot services",
+          "status": "pending",
+          "completion_gate": "Preview and publish use the same server-authoritative resolver; post and appearance publish atomically."
+        },
+        {
+          "id": "P2-T04",
+          "title": "Extend canonical post DTO and cache keys",
+          "status": "pending",
+          "completion_gate": "All consumers can receive styled or standard appearance without per-post fetches, and cache keys include appearance revision/hash."
+        },
+        {
+          "id": "P2-T05",
+          "title": "Add verification and negative authorization tests",
+          "status": "pending",
+          "completion_gate": "Cross-user and cross-account references fail; data integrity queries return no unexpected rows."
+        }
+      ],
+      "phase_gate": "Backend supports safe styled-post publication and reading while flags-off behavior remains unchanged."
+    },
+    {
+      "id": "phase-3",
+      "name": "One-template vertical slice",
+      "status": "pending",
+      "depends_on": [
+        "phase-2"
+      ],
+      "tasks": [
+        {
+          "id": "P3-T01",
+          "title": "Build isolated post style boundary",
+          "status": "pending",
+          "completion_gate": "Computed-style sentinel and forbidden-selector tests prove no leakage outside the post root."
+        },
+        {
+          "id": "P3-T02",
+          "title": "Build semantic post regions and standard fallback",
+          "status": "pending",
+          "completion_gate": "All current content/actions render and one post failure cannot crash the feed."
+        },
+        {
+          "id": "P3-T03",
+          "title": "Implement one template feed/detail adapter",
+          "status": "pending",
+          "completion_gate": "Representative template renders in feed and permalink with responsive fixtures."
+        },
+        {
+          "id": "P3-T04",
+          "title": "Implement compose preview publish flow",
+          "status": "pending",
+          "completion_gate": "An authorized author can select, preview, publish, and view the same sanitized style end to end."
+        },
+        {
+          "id": "P3-T05",
+          "title": "Measure vertical slice",
+          "status": "pending",
+          "completion_gate": "No hydration warnings and performance remains within documented launch guardrails."
+        }
+      ],
+      "phase_gate": "The one-template vertical slice passes functional, isolation, regression, and performance tests."
+    },
+    {
+      "id": "phase-4",
+      "name": "Shared editor and style profiles",
+      "status": "pending",
+      "depends_on": [
+        "phase-3"
+      ],
+      "tasks": [
+        {
+          "id": "P4-T01",
+          "title": "Share schema-driven EPK editor controls",
+          "status": "pending",
+          "completion_gate": "Controls are reused by EPK and post modes with a documented capability state for every control."
+        },
+        {
+          "id": "P4-T02",
+          "title": "Build registry-driven template gallery and previews",
+          "status": "pending",
+          "completion_gate": "Gallery and deterministic thumbnails come from the registry and use the production post renderer."
+        },
+        {
+          "id": "P4-T03",
+          "title": "Build saved/default style management",
+          "status": "pending",
+          "completion_gate": "Create, rename, duplicate, edit, archive, and one-default flows pass for every posting account type."
+        },
+        {
+          "id": "P4-T04",
+          "title": "Build per-post overrides and reusable-save flow",
+          "status": "pending",
+          "completion_gate": "A one-post customization does not mutate its source profile and may be deliberately saved as a new profile."
+        },
+        {
+          "id": "P4-T05",
+          "title": "Complete draft recovery and accessible authoring",
+          "status": "pending",
+          "completion_gate": "Refresh/offline recovery, keyboard, screen reader, contrast, reduced-motion, and field-error behaviors pass."
+        }
+      ],
+      "phase_gate": "Authors can use the shared EPK tools to manage reusable and per-post appearances with preview/publish parity."
+    },
+    {
+      "id": "phase-5",
+      "name": "All template adapters",
+      "status": "pending",
+      "depends_on": [
+        "phase-4"
+      ],
+      "tasks": [
+        {
+          "id": "P5-T01",
+          "title": "Implement every active template adapter",
+          "status": "pending",
+          "completion_gate": "Every active template supports required feed/detail variants or is blocked by an explicit product decision."
+        },
+        {
+          "id": "P5-T02",
+          "title": "Implement alias and lifecycle behavior",
+          "status": "pending",
+          "completion_gate": "Legacy aliases, retired historical posts, disabled fallbacks, and new-selection rules pass."
+        },
+        {
+          "id": "P5-T03",
+          "title": "Complete template fixtures and visual tests",
+          "status": "pending",
+          "completion_gate": "Every template passes content-type, mobile/desktop, accessibility, asset-missing, and nested-style fixtures."
+        }
+      ],
+      "phase_gate": "The EPK-to-post parity matrix has no unresolved active template."
+    },
+    {
+      "id": "phase-6",
+      "name": "All audited post surfaces",
+      "status": "pending",
+      "depends_on": [
+        "phase-5"
+      ],
+      "tasks": [
+        {
+          "id": "P6-T01",
+          "title": "Integrate core viewer surfaces",
+          "status": "pending",
+          "completion_gate": "Home/following, own feed, public profile, permalink, and quote/repost use the canonical renderer."
+        },
+        {
+          "id": "P6-T02",
+          "title": "Integrate secondary viewer surfaces",
+          "status": "pending",
+          "completion_gate": "Groups, discovery/search, event/tour/community feeds and every audit-discovered viewer surface are classified and implemented."
+        },
+        {
+          "id": "P6-T03",
+          "title": "Classify compact and operational surfaces",
+          "status": "pending",
+          "completion_gate": "Notifications, moderation, embeds, and link previews have approved full, compact, neutral, or intentionally unstyled behavior."
+        },
+        {
+          "id": "P6-T04",
+          "title": "Verify cache and privacy transitions",
+          "status": "pending",
+          "completion_gate": "Appearance edits, post visibility changes, blocks, and deletion invalidate all relevant output without cross-user leakage."
+        }
+      ],
+      "phase_gate": "The render-surface inventory has no unresolved row and equivalent viewer surfaces show one canonical appearance."
+    },
+    {
+      "id": "phase-7",
+      "name": "Hardening and release",
+      "status": "pending",
+      "depends_on": [
+        "phase-6"
+      ],
+      "tasks": [
+        {
+          "id": "P7-T01",
+          "title": "Complete security and abuse testing",
+          "status": "pending",
+          "completion_gate": "RLS matrix, fuzzing, injection, asset, deception, race, and moderation tests have no unresolved critical/high finding."
+        },
+        {
+          "id": "P7-T02",
+          "title": "Complete accessibility testing",
+          "status": "pending",
+          "completion_gate": "WCAG AA, keyboard, screen reader, zoom, reduced motion, and forced-color checks pass."
+        },
+        {
+          "id": "P7-T03",
+          "title": "Complete performance optimization",
+          "status": "pending",
+          "completion_gate": "Mixed-template feed meets platform baselines and documented launch guardrails on representative mobile conditions."
+        },
+        {
+          "id": "P7-T04",
+          "title": "Complete regression suite and observability",
+          "status": "pending",
+          "completion_gate": "EPK, legacy post, sharing, moderation, analytics, and viewer regressions pass; dashboards and alerts exist."
+        },
+        {
+          "id": "P7-T05",
+          "title": "Rehearse rollback and stage rollout",
+          "status": "pending",
+          "completion_gate": "Flags restore standard rendering without data loss; controlled cohort rollout and stop conditions are documented."
+        }
+      ],
+      "phase_gate": "All mandatory product, design, data, security, accessibility, performance, regression, observability, and rollback evidence is approved."
+    }
+  ],
+  "global_completion_gates": [
+    "Existing EPKs render identically after shared-code extraction.",
+    "Styles never escape the authored post boundary.",
+    "All active EPK templates have verified post adapters or an explicit approved exception.",
+    "Home feed, author feed, public profile, and permalink show the same canonical post appearance.",
+    "Legacy and unstyled posts remain unchanged.",
+    "Server authorization and RLS prevent cross-user and cross-account style use.",
+    "Invalid or unsafe appearance data falls back per post without feed failure.",
+    "Mixed-style feed meets accessibility and performance budgets.",
+    "Feature flags and rollback are tested without deleting stored appearance data."
+  ],
+  "evidence_required_per_task": [
+    "files_changed",
+    "commands_run",
+    "test_results",
+    "visual_or_runtime_evidence",
+    "migration_or_rls_evidence_if_applicable",
+    "blockers",
+    "rollback_notes"
+  ]
+}

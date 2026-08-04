@@ -182,11 +182,22 @@ async function loadTours(supabase: any, opsOrgId: string | null) {
 async function loadPosts(supabase: any, organizerAccountId: string) {
   const { data: rows } = await supabase
     .from('posts')
-    .select('id, content, created_at, likes_count, comments_count')
+    .select('id, content, created_at, likes_count, comments_count, shares_count')
     .eq('posted_as_profile_id', organizerAccountId)
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .limit(12)
+
+  const postIds = (rows || []).map((row: any) => String(row.id))
+  const { data: appearanceRows } = postIds.length
+    ? await supabase
+        .from('post_appearances')
+        .select('post_id, template_id, template_version, schema_version, snapshot, snapshot_hash, status')
+        .in('post_id', postIds)
+    : { data: [] }
+  const appearances = new Map(
+    (appearanceRows || []).map((row: any) => [String(row.post_id), row])
+  )
 
   return (rows || []).map((row: any) => ({
     id: String(row.id),
@@ -194,6 +205,8 @@ async function loadPosts(supabase: any, organizerAccountId: string) {
     createdAt: row.created_at ? String(row.created_at) : null,
     likesCount: Number(row.likes_count || 0),
     commentsCount: Number(row.comments_count || 0),
+    sharesCount: Number(row.shares_count || 0),
+    appearance: appearances.get(String(row.id)) || null,
   }))
 }
 

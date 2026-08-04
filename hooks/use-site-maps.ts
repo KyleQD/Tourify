@@ -84,6 +84,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
 
   const upsertSiteMap = useCallback((map: SiteMap) => {
     if (!map?.id) return
+    setError(null)
     setSiteMaps((prev) => {
       const exists = prev.some((row) => row.id === map.id)
       if (exists) return prev.map((row) => (row.id === map.id ? { ...row, ...map } : row))
@@ -108,6 +109,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       const result = await response.json()
 
       if (result.success) {
+        setError(null)
         setSiteMaps(prev => [result.data, ...prev])
         setSelectedSiteMap(result.data)
         return result.data

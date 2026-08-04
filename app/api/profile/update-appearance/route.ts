@@ -5,17 +5,7 @@ import {
   getDashboardTheme,
   isDashboardThemeId,
 } from '@/lib/dashboard/dashboard-themes'
-
-function resolveImageField(
-  incoming: string | null | undefined,
-  existing: string | null | undefined
-): string | null {
-  // Explicit clear
-  if (incoming === '' || incoming === null) return null
-  // Omitted / undefined keeps existing
-  if (incoming === undefined) return existing ?? null
-  return incoming
-}
+import { resolveAppearanceImageField } from '@/lib/profile/profile-image-events'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -85,11 +75,11 @@ export async function PUT(request: NextRequest) {
         ? existingAccountSettings.appearance
         : {}
 
-    const nextAvatarUrl = resolveImageField(
+    const nextAvatarUrl = resolveAppearanceImageField(
       profileImages?.avatarUrl,
       existingProfile.avatar_url
     )
-    const nextHeaderUrl = resolveImageField(
+    const nextHeaderUrl = resolveAppearanceImageField(
       profileImages?.headerUrl,
       existingProfile.cover_image || existingMetadata?.header_url
     )
