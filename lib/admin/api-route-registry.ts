@@ -62,6 +62,42 @@ export interface AdminApiMethodContract {
 
 export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
+    route: "/api/admin/event-merges",
+    methods: ["GET", "POST"],
+    authClass: "capability_gated",
+    capability: "tour.manage",
+    idempotency: true,
+    audit: true,
+    owner: "event-discovery",
+  },
+  {
+    route: "/api/admin/event-claims",
+    methods: ["GET", "POST"],
+    authClass: "capability_gated",
+    capability: "tour.manage",
+    idempotency: true,
+    audit: true,
+    owner: "event-discovery",
+  },
+  {
+    route: "/api/admin/event-providers",
+    methods: ["GET"],
+    authClass: "capability_gated",
+    capability: "event.view",
+    idempotency: false,
+    audit: false,
+    owner: "event-discovery",
+  },
+  {
+    route: "/api/admin/event-sync",
+    methods: ["GET"],
+    authClass: "capability_gated",
+    capability: "event.view",
+    idempotency: false,
+    audit: false,
+    owner: "event-discovery",
+  },
+  {
     route: "/api/admin/analytics/export",
     methods: ["GET"],
     authClass: "legacy_pending_migration",
