@@ -1,0 +1,337 @@
+{
+  "project": "Tourify Music Page UX/UI Completion",
+  "version": "1.0.0",
+  "updated_at": "2026-08-06T05:25:25.470985+00:00",
+  "overall_status": "in_progress",
+  "current_phase": "P2",
+  "completion_percentage": 10,
+  "rules": {
+    "execute_in_order": true,
+    "audit_before_code": true,
+    "additive_database_only": true,
+    "global_player_only": true,
+    "no_fabricated_data": true,
+    "evidence_required_for_completion": true
+  },
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Preparation",
+      "status": "complete",
+      "completion_gate_passed": true,
+      "started_at": "2026-08-06T05:25:25.470985+00:00",
+      "completed_at": "2026-08-06T05:25:25.470985+00:00",
+      "tasks": [
+        {
+          "id": "P0-read",
+          "name": "Read full suite",
+          "status": "complete"
+        },
+        {
+          "id": "P0-env",
+          "name": "Record branch/environment",
+          "status": "complete"
+        },
+        {
+          "id": "P0-baseline",
+          "name": "Baseline checks",
+          "status": "complete"
+        }
+      ],
+      "files_created": [
+        "artifacts/"
+      ],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [
+        "artifacts/music-audit-report.md baseline commands table"
+      ],
+      "blockers": [],
+      "known_limitations": [
+        "Full lint/build/test deferred to Phase 14; repo has 1059 pre-existing tsc errors"
+      ],
+      "notes": []
+    },
+    {
+      "id": "P1",
+      "name": "Full Audit",
+      "status": "complete",
+      "completion_gate_passed": true,
+      "started_at": "2026-08-06T05:25:25.470985+00:00",
+      "completed_at": "2026-08-06T05:25:25.470985+00:00",
+      "tasks": [
+        {
+          "id": "P1-audit",
+          "name": "Full audit + artifacts",
+          "status": "complete"
+        }
+      ],
+      "files_created": [
+        "artifacts/music-audit-report.md",
+        "artifacts/music-route-map.md",
+        "artifacts/music-data-map.md",
+        "artifacts/music-component-inventory.md",
+        "artifacts/music-risk-register.md"
+      ],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [
+        "Audit completion gate checklist passed in artifacts/music-audit-report.md"
+      ],
+      "blockers": [
+        {
+          "id": "B1",
+          "description": "Pre-existing TS errors in app/api/jukebox/following-tracks/route.ts and app/api/music/comment/route.ts",
+          "pre_existing": true
+        },
+        {
+          "id": "B2",
+          "description": "Repo-wide tsc baseline failing (1059 errors) \u2014 scoped gate strategy adopted",
+          "pre_existing": true
+        }
+      ],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P2",
+      "name": "Architecture and Page Shell",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P3",
+      "name": "Shared Components",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P4",
+      "name": "Music Home",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P5",
+      "name": "Library",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P6",
+      "name": "Discover",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P7",
+      "name": "Audius",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P8",
+      "name": "Playlists",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P9",
+      "name": "Search",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P10",
+      "name": "Global Player Integration",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P11",
+      "name": "Account-Aware Actions",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P12",
+      "name": "States, Responsive, Accessibility",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P13",
+      "name": "Performance, Security, Data",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P14",
+      "name": "Full QA and Regression",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    },
+    {
+      "id": "P15",
+      "name": "Final Handoff",
+      "status": "not_started",
+      "completion_gate_passed": false,
+      "started_at": null,
+      "completed_at": null,
+      "tasks": [],
+      "files_created": [],
+      "files_modified": [],
+      "migrations": [],
+      "tests": [],
+      "evidence": [],
+      "blockers": [],
+      "known_limitations": [],
+      "notes": []
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "name": "Tourify Music Page Kimi Implementation Suite",
+  "created_at": "2026-08-06T04:55:32.557985",
+  "file_count": 35,
+  "files": [
+    {
+      "path": "00_AGENT_OPERATING_RULES.md",
+      "size_bytes": 4662
+    },
+    {
+      "path": "01_PRODUCT_OBJECTIVE.md",
+      "size_bytes": 3056
+    },
+    {
+      "path": "02_BASELINE_AUDIT.md",
+      "size_bytes": 3978
+    },
+    {
+      "path": "03_UX_INFORMATION_ARCHITECTURE.md",
+      "size_bytes": 3214
+    },
+    {
+      "path": "04_VISUAL_DESIGN_SYSTEM.md",
+      "size_bytes": 3384
+    },
+    {
+      "path": "05_TECHNICAL_ARCHITECTURE.md",
+      "size_bytes": 3563
+    },
+    {
+      "path": "06_SHARED_COMPONENT_SYSTEM.md",
+      "size_bytes": 2800
+    },
+    {
+      "path": "07_MUSIC_HOME.md",
+      "size_bytes": 2746
+    },
+    {
+      "path": "08_LIBRARY.md",
+      "size_bytes": 2392
+    },
+    {
+      "path": "09_DISCOVER.md",
+      "size_bytes": 1925
+    },
+    {
+      "path": "10_AUDIUS.md",
+      "size_bytes": 2997
+    },
+    {
+      "path": "11_PLAYLISTS.md",
+      "size_bytes": 2469
+    },
+    {
+      "path": "12_SEARCH.md",
+      "size_bytes": 1720
+    },
+    {
+      "path": "13_GLOBAL_PLAYER.md",
+      "size_bytes": 2588
+    },
+    {
+      "path": "14_ACCOUNT_AWARE_CREATOR_ACTIONS.md",
+      "size_bytes": 2081
+    },
+    {
+      "path": "15_STATES_ACCESSIBILITY_RESPONSIVE.md",
+      "size_bytes": 2544
+    },
+    {
+      "path": "16_PERFORMANCE_SECURITY_DATA.md",
+      "size_bytes": 2325
+    },
+    {
+      "path": "17_TESTING_AND_QA.md",
+      "size_bytes": 2860
+    },
+    {
+      "path": "18_PHASED_BUILD_PLAN.md",
+      "size_bytes": 5118
+    },
+    {
+      "path": "19_DEFINITION_OF_DONE.md",
+      "size_bytes": 3041
+    },
+    {
+      "path": "20_ROLLBACK_RISK_RELEASE.md",
+      "size_bytes": 3166
+    },
+    {
+      "path": "KIMI_MASTER_PROMPT.md",
+      "size_bytes": 3597
+    },
+    {
+      "path": "MASTER_EXECUTION_ORDER.md",
+      "size_bytes": 2216
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 2548
+    },
+    {
+      "path": "reference/current-music-page.png",
+      "size_bytes": 1263887
+    },
+    {
+      "path": "templates/audit-report.md",
+      "size_bytes": 1700
+    },
+    {
+      "path": "templates/change-log.md",
+      "size_bytes": 519
+    },
+    {
+      "path": "templates/decision-log.md",
+      "size_bytes": 302
+    },
+    {
+      "path": "templates/final-implementation-summary.md",
+      "size_bytes": 561
+    },
+    {
+      "path": "templates/phase-handoff.md",
+      "size_bytes": 431
+    },
+    {
+      "path": "templates/validation-report.md",
+      "size_bytes": 1973
+    },
+    {
+      "path": "tracking/completion-checklist.md",
+      "size_bytes": 3017
+    },
+    {
+      "path": "tracking/progress.json",
+      "size_bytes": 6817
+    },
+    {
+      "path": "tracking/progress.schema.json",
+      "size_bytes": 2307
+    },
+    {
+      "path": "tracking/task-status-guide.md",
+      "size_bytes": 782
+    }
+  ]
+}

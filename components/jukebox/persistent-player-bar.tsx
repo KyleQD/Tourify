@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -15,6 +16,7 @@ import {
   Repeat1,
   Shuffle,
   X,
+  Music,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useJukeboxOptional } from "@/contexts/jukebox-context"
@@ -269,6 +271,18 @@ export function PersistentPlayerBar() {
             variant="ghost"
             size="sm"
             className="h-9 w-9"
+            asChild
+            aria-label="Go to music page"
+          >
+            <Link href="/music">
+              <Music className="h-4 w-4 text-slate-400" />
+            </Link>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9"
             onClick={() => setExpanded(true)}
             aria-label="Expand player"
           >
@@ -285,6 +299,18 @@ export function PersistentPlayerBar() {
             <X className="h-4 w-4 text-slate-400" />
           </Button>
         </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 flex-shrink-0 sm:hidden"
+          asChild
+          aria-label="Go to music page"
+        >
+          <Link href="/music">
+            <Music className="h-4 w-4 text-slate-400" />
+          </Link>
+        </Button>
 
         <Button
           variant="ghost"
