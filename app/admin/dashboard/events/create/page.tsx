@@ -47,6 +47,7 @@ import {
   ProducerSelection,
 } from "@/lib/admin/event-producer-builder"
 import { useBuilderAutosave } from "@/lib/admin/use-builder-autosave"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface VenueOption {
   id: string
@@ -233,8 +234,12 @@ export default function CreateEventPage() {
   const [autosaveReady, setAutosaveReady] = React.useState(false)
   const [timezones, setTimezones] = React.useState(COMMON_TIMEZONES)
   const skipAutosaveRef = React.useRef(true)
+  const { actingHeaders, isActingReady } = useActingContext()
 
   React.useEffect(() => {
+    // Wait until the acting account (and its headers) are resolved; otherwise the
+    // request goes out without x-acting-* headers and the API cannot resolve the org.
+    if (!isActingReady) return
     const params = new URLSearchParams(window.location.search)
     const id = params.get("draft") || params.get("id")
     if (!id) {
@@ -245,7 +250,11 @@ export default function CreateEventPage() {
     async function hydrate() {
       setIsHydrating(true)
       try {
-        const response = await fetch(`/api/admin/events/${id}`, { credentials: "include", cache: "no-store" })
+        const response = await fetch(`/api/admin/events/${id}`, {
+          credentials: "include",
+          cache: "no-store",
+          headers: { ...actingHeaders },
+        })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || "Failed to load draft")
         if (cancelled) return
@@ -273,7 +282,9 @@ export default function CreateEventPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+    // actingHeaders identifies the acting org; re-run if the user switches accounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActingReady, actingHeaders])
 
   React.useEffect(() => {
     const currentTimezone = browserTimezone()
@@ -286,15 +297,24 @@ export default function CreateEventPage() {
       setForm((current) => ({ ...current, timezone: currentTimezone }))
     }
   // Run once for new drafts; hydration will preserve a saved event timezone.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [])
 
   React.useEffect(() => {
-    const sectionsForMode = sectionConfig.filter((section) => section.mode === activeMode)
-    if (sectionsForMode.length && !sectionsForMode.some((section) => section.id === activeSection)) {
-      setActiveSection(sectionsForMode[0].id)
+    // With the unified left-nav ("all" navigation), any configured section may be
+    // active regardless of mode; only reset if the section id is unknown.
+    if (!sectionConfig.some((section) => section.id === activeSection)) {
+      setActiveSection(sectionConfig[0].id)
     }
-  }, [activeMode, activeSection])
+  }, [activeSection])
+
+  // Selecting a section in the unified nav also syncs its mode so readiness
+  // navigation and mode-dependent UI stay consistent.
+  const selectSection = React.useCallback((sectionId: string) => {
+    const target = sectionConfig.find((section) => section.id === sectionId)
+    if (target) setActiveMode(target.mode)
+    setActiveSection(sectionId)
+  }, [])
 
   React.useEffect(() => {
     if (venueQuery.trim().length < 2) {
@@ -500,7 +520,7 @@ export default function CreateEventPage() {
       const response = await fetch(eventId ? `/api/admin/events/${eventId}` : "/api/admin/events", {
         method: eventId ? "PATCH" : "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...actingHeaders },
         body: JSON.stringify(payload),
       })
       const data = await response.json().catch(() => ({}))
@@ -560,7 +580,7 @@ export default function CreateEventPage() {
   }, [form.title, form.date, isHydrating])
 
   useBuilderAutosave({
-    enabled: !isHydrating && autosaveReady && Boolean(form.title?.trim() || form.date),
+    enabled: !isHydrating && isActingReady && autosaveReady && Boolean(form.title?.trim() || form.date),
     delayMs: 1600,
     deps: [form],
     onSave: async () => {
@@ -570,8 +590,8 @@ export default function CreateEventPage() {
     },
   })
 
-  const visibleSections = sections.filter((section) => section.mode === activeMode)
-  const activeSections = visibleSections.length ? visibleSections : sections
+  // Unified left-nav shows every section; pass the full, readiness-annotated list.
+  const activeSections = sections
 
   if (isHydrating) {
     return (
@@ -589,9 +609,10 @@ export default function CreateEventPage() {
         badge={eventId ? "Editing draft" : "New event"}
         sections={activeSections}
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={selectSection}
         activeMode={activeMode}
         onModeChange={setActiveMode}
+        navigationMode="all"
         readiness={readiness}
         readinessActions={Object.fromEntries(readiness.items.map((item) => [item.id, () => moveToReadinessItem(item.id)]))}
         summary={
