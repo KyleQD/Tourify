@@ -400,8 +400,8 @@ export default function ArtistEventCreatePage() {
     },
   })
 
-  const visibleSections = sections.filter((section) => section.mode === activeMode)
-  const activeSections = visibleSections.length ? visibleSections : sections
+  // Unified left-nav shows every section; pass the full, readiness-annotated list.
+  const activeSections = sections
   const sharePath = publicSlug ? `/events/${publicSlug}` : eventId ? `/events/${eventId}` : null
   const openPageDesign = React.useCallback(() => {
     setActiveMode("plan")
@@ -432,6 +432,7 @@ export default function ArtistEventCreatePage() {
         onSectionChange={setActiveSection}
         activeMode={activeMode}
         onModeChange={setActiveMode}
+        navigationMode="all"
         readiness={readiness}
         readinessActions={Object.fromEntries(readiness.items.map((item) => [item.id, () => moveToReadinessItem(item.id)]))}
         headerActions={
