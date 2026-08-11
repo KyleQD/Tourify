@@ -233,7 +233,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
             {/* Search */}
             <div className="hidden lg:flex flex-1 max-w-lg mx-8">
               <EnhancedAccountSearch
-                placeholder="Search artists, venues, and users..."
+                placeholder="Search Tourify…"
                 className="w-full max-w-xs"
                 showRecentSearches={true}
               />

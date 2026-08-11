@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-28",
+  "production_project_ref": "auqddrodjezjlypkzfpi",
+  "accountable_owner": "Kyle Daley",
+  "status": "NOT_READY",
+  "database_writes_authorized": false,
+  "provisional_objectives": {
+    "daily_backup_rpo_hours": 24,
+    "pitr_target_rpo_minutes": 15,
+    "database_rto_hours": 4,
+    "storage_object_rpo_hours": 24
+  },
+  "backup_mode": "UNVERIFIED",
+  "most_recent_restore_point": null,
+  "earliest_restore_point": null,
+  "pitr_enabled": null,
+  "pitr_retention_days": null,
+  "restore_strategy": "RESTORE_TO_NEW_ISOLATED_PROJECT",
+  "restore_over_production_allowed": false,
+  "production_restore_prohibition": {
+    "confirmed_by": "Kyle Daley",
+    "confirmed_at": "2026-07-28",
+    "rule": "Never restore, reset, overwrite, or recreate the current Supabase production database."
+  },
+  "storage_object_backup": {
+    "status": "NOT_IMPLEMENTED",
+    "note": "Database backups contain Storage metadata but do not restore deleted Storage objects."
+  },
+  "configuration_recovery": {
+    "status": "NOT_TESTED",
+    "components": [
+      "Auth settings",
+      "Storage buckets and policies",
+      "Storage objects",
+      "Edge Functions",
+      "Realtime publications",
+      "database extensions and settings",
+      "Vercel environment assignments",
+      "third-party providers and webhooks"
+    ]
+  },
+  "drill": {
+    "status": "NOT_RUN",
+    "target": "new isolated Supabase project",
+    "production_traffic_allowed": false,
+    "due_before_shared_database_write": true
+  },
+  "open_gates": [
+    "record current Supabase backup mode and recovery window",
+    "decide whether to purchase and enable PITR",
+    "create Storage object inventory and independent copy strategy",
+    "run and time a restore-to-new-project drill",
+    "validate schema, data, RLS, grants, advisors, types, and critical journeys",
+    "identify an independent reviewer for an actual production restore"
+  ]
+}

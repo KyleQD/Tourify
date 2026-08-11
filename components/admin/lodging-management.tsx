@@ -120,6 +120,7 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
     guest_email: "",
     guest_phone: "",
     guest_type: "crew" as const,
+    assigned_user_id: "",
     staff_id: "",
     crew_member_id: "",
     team_member_id: "",
@@ -133,9 +134,11 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
 
   // Filtered data
   const filteredBookings = bookings?.filter(booking => {
-    const matchesSearch = booking.primary_guest_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.lodging_providers?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.booking_number.toLowerCase().includes(searchTerm.toLowerCase())
+    const q = searchTerm.toLowerCase()
+    const matchesSearch = booking.primary_guest_name.toLowerCase().includes(q) ||
+                         booking.lodging_providers?.name.toLowerCase().includes(q) ||
+                         booking.booking_number.toLowerCase().includes(q) ||
+                         (booking.confirmation_number || '').toLowerCase().includes(q)
     const matchesStatus = statusFilter === "all" || booking.status === statusFilter
     return matchesSearch && matchesStatus
   }) || []
@@ -266,6 +269,7 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
         guest_email: "",
         guest_phone: "",
         guest_type: "crew",
+        assigned_user_id: "",
         staff_id: "",
         crew_member_id: "",
         team_member_id: "",
@@ -610,11 +614,12 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
                   <div className="space-y-2">
                     <Label>Roster member</Label>
                     <Select
-                      value={guestAssignmentForm.team_member_id || "__manual__"}
+                      value={guestAssignmentForm.assigned_user_id || "__manual__"}
                       onValueChange={(value) => {
                         if (value === "__manual__") {
                           setGuestAssignmentForm({
                             ...guestAssignmentForm,
+                            assigned_user_id: "",
                             team_member_id: "",
                             staff_id: "",
                             crew_member_id: "",
@@ -624,7 +629,9 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
                         const person = workforcePeople.find((row) => row.userId === value)
                         setGuestAssignmentForm({
                           ...guestAssignmentForm,
-                          team_member_id: value,
+                          assigned_user_id: value,
+                          // Do not treat auth user ids as venue_team_members FKs
+                          team_member_id: "",
                           staff_id: person?.staffMemberId || "",
                           crew_member_id: person?.staffMemberId || "",
                           guest_name: person?.name || guestAssignmentForm.guest_name,

@@ -1,213 +1,238 @@
 "use client"
 
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
-  Activity,
-  BriefcaseBusiness,
+  AlertTriangle,
+  CalendarClock,
+  CheckCheck,
+  ChevronRight,
   ClipboardCheck,
-  Download,
-  ShieldCheck,
-  ShieldHalf,
-  UserPlus,
+  Clock3,
+  MessageSquare,
+  RefreshCw,
+  ShieldAlert,
+  UserRoundCheck,
   Users,
 } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+
+import { AdminErrorCard } from "@/app/admin/dashboard/components/admin-error-card"
+import { AdminPageSkeleton } from "@/app/admin/dashboard/components/admin-page-skeleton"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { useNotifications, type Notification } from "@/hooks/use-notifications"
+import { isWorkforceNotificationType } from "@/lib/notifications/workforce-notification-types"
+import { serializeHiringEntity } from "@/types/hiring-entity"
 import type { HiringEntity } from "@/types/hiring-entity"
-import type { HiringDashboardStats } from "@/types/hiring-dashboard"
-import {
-  formatDashboardDate,
-  getEmployerQueryString,
-  getProgressPercent,
-} from "@/lib/hiring/hiring-dashboard-utils"
-import { cn } from "@/lib/utils"
-import { WorkforceEmptyState, WorkforcePanel } from "./workforce-ui"
+import type {
+  StaffOperationsPriority,
+  StaffOperationsSummary,
+  StaffOperationsTask,
+} from "@/types/staff-operations"
+import { WorkforceEmptyState, WorkforceMetricCard, WorkforcePanel } from "./workforce-ui"
 
 interface StaffOperationsOverviewProps {
   employer: HiringEntity
-  stats: HiringDashboardStats
-  isLoading?: boolean
+  onOpenChannels: () => void
 }
 
-interface FunnelStage {
-  label: string
-  value: number
-  icon: LucideIcon
-  accent: string
+const PRIORITY_CLASS: Record<StaffOperationsPriority, string> = {
+  critical: "border-red-500/30 bg-red-500/10 text-red-300",
+  high: "border-orange-500/30 bg-orange-500/10 text-orange-300",
+  normal: "border-blue-500/30 bg-blue-500/10 text-blue-300",
+  low: "border-slate-600 bg-slate-800/70 text-slate-300",
 }
 
-interface QuickAction {
-  label: string
-  description: string
-  href: string
-  icon: LucideIcon
-  external?: boolean
+function notificationHref(notification: Notification): string | null {
+  const link = notification.metadata?.link
+  return typeof link === "string" && link.startsWith("/") ? link : null
 }
 
-export function StaffOperationsOverview({ employer, stats, isLoading = false }: StaffOperationsOverviewProps) {
-  const queryString = getEmployerQueryString(employer)
+function formatRelativeTime(value: string): string {
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) return "Recently"
+  const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60_000))
+  if (minutes < 1) return "Just now"
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
 
-  const funnel: FunnelStage[] = [
-    { label: "Applications received", value: stats.totalApplications, icon: ClipboardCheck, accent: "bg-blue-500" },
-    { label: "Pending review", value: stats.pendingApplications, icon: Activity, accent: "bg-amber-500" },
-    { label: "Approved", value: stats.approvedApplications, icon: ShieldCheck, accent: "bg-purple-500" },
-    { label: "In onboarding", value: stats.onboardingInProgress, icon: ShieldHalf, accent: "bg-cyan-500" },
-    { label: "Active staff", value: stats.rosterActive, icon: Users, accent: "bg-emerald-500" },
-  ]
-  const funnelMax = Math.max(...funnel.map((stage) => stage.value), 1)
-
-  const quickActions: QuickAction[] = [
-    {
-      label: "New Job Posting",
-      description: "Open a role to start hiring",
-      href: `/admin/dashboard/jobs/new?${queryString}`,
-      icon: BriefcaseBusiness,
-    },
-    {
-      label: "Invite Candidate",
-      description: "Send an onboarding invite",
-      href: `/admin/dashboard/candidates?${queryString}`,
-      icon: UserPlus,
-    },
-    {
-      label: "Export Roster",
-      description: "Download active staff CSV",
-      href: `/api/hiring/roster/export?${queryString}`,
-      icon: Download,
-      external: true,
-    },
-    {
-      label: "Manage Roles",
-      description: "Permissions and access",
-      href: "/admin/dashboard/rbac",
-      icon: ShieldHalf,
-    },
-  ]
-
-  const recentActivity = stats.recentActivity.slice(0, 5)
-  const onboardingProgress = getProgressPercent(stats.averageOnboardingProgress)
-
+function TaskRow({ task }: { task: StaffOperationsTask }) {
   return (
-    <div className="space-y-6">
-      <WorkforcePanel className="p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-semibold text-white">Quick actions</h3>
-            <p className="text-xs text-slate-400">Jump into the most common workforce tasks.</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {quickActions.map((action) => {
-            const Icon = action.icon
-            return (
-              <Button
-                key={action.label}
-                asChild
-                variant="outline"
-                className="h-auto justify-start gap-3 border-slate-700/60 bg-slate-900/50 p-3 text-left hover:border-cyan-400/40 hover:bg-slate-900/80"
-              >
-                <Link
-                  href={action.href}
-                  {...(action.external ? { target: "_blank", rel: "noreferrer" } : {})}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-white">{action.label}</span>
-                    <span className="block truncate text-xs font-normal text-slate-400">{action.description}</span>
-                  </span>
-                </Link>
-              </Button>
-            )
-          })}
-        </div>
-      </WorkforcePanel>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-        <WorkforcePanel className="p-5">
-          <div className="mb-5">
-            <h3 className="text-base font-semibold text-white">Hiring pipeline</h3>
-            <p className="text-xs text-slate-400">From application to an active member of the crew.</p>
-          </div>
-          <div className="space-y-4">
-            {funnel.map((stage) => {
-              const Icon = stage.icon
-              const widthPercent = Math.max(Math.round((stage.value / funnelMax) * 100), stage.value > 0 ? 6 : 2)
-              return (
-                <div key={stage.label} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-slate-300">
-                      <Icon className="h-4 w-4 text-slate-400" />
-                      {stage.label}
-                    </span>
-                    <span className="font-semibold text-white tabular-nums">{isLoading ? "..." : stage.value}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-800/70">
-                    <div
-                      className={cn("h-full rounded-full transition-all", stage.accent)}
-                      style={{ width: `${widthPercent}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <OnboardingStat label="In progress" value={stats.onboardingInProgress} />
-            <OnboardingStat label="Completed" value={stats.onboardingCompleted} />
-            <OnboardingStat label="Avg completion" value={`${onboardingProgress}%`} />
-          </div>
-          <div className="mt-4 space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Average onboarding completion</span>
-              <span>{onboardingProgress}%</span>
-            </div>
-            <Progress value={onboardingProgress} />
-          </div>
-        </WorkforcePanel>
-
-        <WorkforcePanel className="p-5">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-white">Recent activity</h3>
-            <p className="text-xs text-slate-400">Latest hiring and onboarding events.</p>
-          </div>
-          {recentActivity.length === 0 ? (
-            <WorkforceEmptyState
-              icon={Activity}
-              title="No activity yet"
-              description="Hiring and onboarding events for this account will appear here."
-              className="min-h-[200px]"
-            />
-          ) : (
-            <ol className="space-y-4">
-              {recentActivity.map((activity) => (
-                <li key={activity.id} className="relative border-l border-slate-700/60 pl-4">
-                  <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-cyan-400" />
-                  <p className="text-sm font-medium text-white">{activity.action}</p>
-                  {activity.description ? (
-                    <p className="mt-0.5 text-xs leading-5 text-slate-400">{activity.description}</p>
-                  ) : null}
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
-                    {formatDashboardDate(activity.createdAt)}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          )}
-        </WorkforcePanel>
-      </div>
-    </div>
+    <Link
+      href={task.actionHref}
+      className="group flex items-start gap-3 rounded-sm border border-slate-700/50 bg-slate-900/55 p-3 transition-colors hover:border-purple-500/40 hover:bg-slate-800/60"
+    >
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border ${PRIORITY_CLASS[task.priority]}`}>
+        {task.source === "scheduling" ? <CalendarClock className="h-4 w-4" /> : <ClipboardCheck className="h-4 w-4" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-medium text-white">{task.title}</span>
+          <Badge className={`border text-[10px] ${PRIORITY_CLASS[task.priority]}`}>{task.priority}</Badge>
+          {task.isOverdue ? <Badge className="bg-red-500/15 text-red-300">Overdue</Badge> : null}
+        </span>
+        {task.description ? <span className="mt-1 block line-clamp-2 text-xs text-slate-400">{task.description}</span> : null}
+        <span className="mt-1.5 block text-[11px] text-slate-500">
+          {task.kind.replaceAll("_", " ")}
+          {task.dueAt ? ` · due ${new Date(task.dueAt).toLocaleDateString()}` : ""}
+        </span>
+      </span>
+      <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-slate-600 transition-colors group-hover:text-purple-300" />
+    </Link>
   )
 }
 
-function OnboardingStat({ label, value }: { label: string; value: number | string }) {
+export function StaffOperationsOverview({ employer, onOpenChannels }: StaffOperationsOverviewProps) {
+  const { actingHeaders, actingContextKey, isActingReady } = useActingContext()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const [summary, setSummary] = useState<StaffOperationsSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadSummary = useCallback(async () => {
+    if (!isActingReady) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/admin/staff-operations/summary", {
+        credentials: "include",
+        cache: "no-store",
+        headers: { ...actingHeaders, "Cache-Control": "no-cache" },
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof payload.error === "string" ? payload.error : "Unable to load staff operations")
+      setSummary(payload as StaffOperationsSummary)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load staff operations")
+      setSummary(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [actingHeaders, isActingReady])
+
+  useEffect(() => {
+    void loadSummary()
+  }, [actingContextKey, loadSummary])
+
+  const workforceUpdates = useMemo(
+    () => notifications.filter((notification) => isWorkforceNotificationType(notification.type)).slice(0, 8),
+    [notifications],
+  )
+  const workforceUnread = workforceUpdates.filter((notification) => !notification.is_read).length
+  const schedulingHref = useMemo(() => {
+    const params = serializeHiringEntity({ employer })
+    params.set("tab", "scheduling")
+    return `/admin/dashboard/staff?${params.toString()}`
+  }, [employer])
+
+  if (loading && !summary) return <AdminPageSkeleton />
+  if (error && !summary) return <AdminErrorCard title="Staff operations unavailable" message={error} onRetry={() => void loadSummary()} />
+  if (!summary) return null
+
   return (
-    <div className="rounded-2xl border border-slate-700/60 bg-slate-900/55 p-3">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <WorkforceMetricCard label="Active staff" value={summary.metrics.activeStaff} description={`${summary.team.onLeave} on leave`} icon={Users} accent="cyan" />
+        <WorkforceMetricCard label="Next 7 days" value={summary.metrics.shiftsNextSevenDays} description="Scheduled shifts" icon={CalendarClock} accent="purple" href={schedulingHref} />
+        <WorkforceMetricCard label="Open shifts" value={summary.metrics.openShifts} description={`${summary.metrics.openConflicts} conflicts`} icon={ShieldAlert} accent="amber" href={`${schedulingHref}&view=open`} />
+        <WorkforceMetricCard label="Pending updates" value={workforceUnread || summary.metrics.pendingRequests} description={`${unreadCount} total unread`} icon={MessageSquare} accent="blue" />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <WorkforcePanel className="p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-white">Top tasks</h2>
+              <p className="text-xs text-slate-400">Highest-priority work across crew, shifts, requests, and event operations.</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => void loadSummary()} className="text-slate-300">
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Refresh
+            </Button>
+          </div>
+          {summary.topTasks.length === 0 ? (
+            <WorkforceEmptyState icon={CheckCheck} title="Operations are caught up" description={`No urgent workforce tasks are waiting for ${employer.displayName}.`} className="min-h-[260px]" />
+          ) : (
+            <div className="space-y-2">{summary.topTasks.map((task) => <TaskRow key={task.id} task={task} />)}</div>
+          )}
+        </WorkforcePanel>
+
+        <WorkforcePanel className="p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-white">Live updates</h2>
+                {workforceUnread > 0 ? <Badge className="bg-blue-500/20 text-blue-300">{workforceUnread} unread</Badge> : null}
+              </div>
+              <p className="text-xs text-slate-400">Task, shift, and workforce request activity.</p>
+            </div>
+            {workforceUnread > 0 ? (
+              <Button variant="ghost" size="sm" onClick={() => void markAllAsRead()} className="px-2 text-xs text-slate-300">Mark read</Button>
+            ) : null}
+          </div>
+          {workforceUpdates.length === 0 ? (
+            <WorkforceEmptyState icon={Clock3} title="No workforce updates" description="Completed tasks, shift responses, and staff requests will appear here." className="min-h-[260px]" />
+          ) : (
+            <div className="space-y-1">
+              {workforceUpdates.map((notification) => {
+                const href = notificationHref(notification)
+                const row = (
+                  <div className={`rounded-sm border p-3 transition-colors ${notification.is_read ? "border-slate-800 bg-slate-900/35" : "border-blue-500/25 bg-blue-500/5"}`}>
+                    <div className="flex items-start gap-2">
+                      {!notification.is_read ? <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-400" /> : null}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-white">{notification.title}</p>
+                        <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">{notification.content}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-500">{formatRelativeTime(notification.created_at)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+                return href ? (
+                  <Link key={notification.id} href={href} onClick={() => !notification.is_read && void markAsRead(notification.id)}>{row}</Link>
+                ) : (
+                  <button key={notification.id} type="button" className="block w-full text-left" onClick={() => !notification.is_read && void markAsRead(notification.id)}>{row}</button>
+                )
+              })}
+            </div>
+          )}
+        </WorkforcePanel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <WorkforcePanel className="p-4">
+          <div className="mb-3 flex items-center gap-2"><CalendarClock className="h-4 w-4 text-purple-300" /><h3 className="text-sm font-semibold text-white">Upcoming schedule</h3></div>
+          {summary.upcomingShifts.length === 0 ? <p className="text-sm text-slate-400">No upcoming shifts scheduled.</p> : (
+            <div className="space-y-2">{summary.upcomingShifts.slice(0, 4).map((shift) => (
+              <div key={shift.id} className="flex items-center justify-between gap-3 rounded-sm bg-slate-900/55 px-3 py-2">
+                <div><p className="text-xs font-medium text-white">{shift.role || "Staff shift"}</p><p className="text-[11px] text-slate-500">{new Date(`${shift.shiftDate}T00:00:00`).toLocaleDateString()} · {shift.startTime || "TBD"}</p></div>
+                <Badge className={shift.isOpen ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}>{shift.isOpen ? "Open" : shift.status}</Badge>
+              </div>
+            ))}</div>
+          )}
+        </WorkforcePanel>
+
+        <WorkforcePanel className="p-4">
+          <div className="mb-3 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-amber-300" /><h3 className="text-sm font-semibold text-white">Coverage health</h3></div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-sm bg-slate-900/55 p-3"><p className="text-xl font-semibold text-emerald-300">{summary.coverage.filledShifts}</p><p className="text-[10px] text-slate-500">Filled</p></div>
+            <div className="rounded-sm bg-slate-900/55 p-3"><p className="text-xl font-semibold text-amber-300">{summary.coverage.openShifts}</p><p className="text-[10px] text-slate-500">Open</p></div>
+            <div className="rounded-sm bg-slate-900/55 p-3"><p className="text-xl font-semibold text-red-300">{summary.coverage.openConflicts}</p><p className="text-[10px] text-slate-500">Conflicts</p></div>
+          </div>
+        </WorkforcePanel>
+
+        <WorkforcePanel className="p-4">
+          <div className="mb-3 flex items-center justify-between gap-2"><span className="flex items-center gap-2"><UserRoundCheck className="h-4 w-4 text-cyan-300" /><h3 className="text-sm font-semibold text-white">Active team</h3></span><Button variant="ghost" size="sm" onClick={onOpenChannels} className="h-7 px-2 text-xs text-cyan-300">Message</Button></div>
+          <div className="flex items-center justify-between rounded-sm bg-slate-900/55 p-3"><div><p className="text-2xl font-semibold text-white">{summary.team.active}</p><p className="text-xs text-slate-500">Approved active members</p></div>{summary.team.pending > 0 ? <Badge className="bg-amber-500/15 text-amber-300">{summary.team.pending} pending</Badge> : <CheckCheck className="h-5 w-5 text-emerald-400" />}</div>
+        </WorkforcePanel>
+      </div>
+
+      {summary.unavailableSources?.length ? (
+        <div className="flex items-center gap-2 text-xs text-amber-300"><AlertTriangle className="h-3.5 w-3.5" />Some sources are unavailable: {summary.unavailableSources.join(", ")}</div>
+      ) : null}
     </div>
   )
 }

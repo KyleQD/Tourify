@@ -17,6 +17,11 @@ import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import Link from 'next/link'
 import { extractFeedErrorMessage } from '@/lib/feed/feed-client'
 import { resolvePublicProfilePath } from '@/lib/utils/public-profile-routes'
+import { PostAppearanceBoundary } from '@/components/posts/appearance/post-appearance-boundary'
+import { usePostStyleFlags } from '@/hooks/use-post-style-flags'
+import type { RawPostAppearanceRow } from '@/lib/feed/resolve-post-appearance-dto'
+import { setPostLike, sharePostExternally } from '@/lib/feed/post-engagement-client'
+import { toast } from 'sonner'
 
 interface Post {
   id: string
@@ -64,6 +69,8 @@ interface Post {
   posted_as_profile_id?: string
   account_type?: string
   is_liked?: boolean
+  appearance?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
+  post_appearances?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
 }
 
 // Helper function to generate profile URL based on account type and username
@@ -85,6 +92,7 @@ export function StreamlinedFeed() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [databaseConnected, setDatabaseConnected] = useState(false)
+  const { flags: postStyleFlags } = usePostStyleFlags()
   
   // Use artist context instead of basic auth
   const { user, profile, isLoading: artistLoading, displayName, avatarInitial } = useArtist()
@@ -146,7 +154,8 @@ export function StreamlinedFeed() {
         posted_as_account_type: post.posted_as_account_type,
         posted_as_profile_id: post.posted_as_profile_id,
         account_type: post.account_type,
-        is_liked: post.is_liked || false
+        is_liked: post.is_liked || false,
+        appearance: post.post_appearances ?? post.appearance ?? null
       }))
       
       console.log('📊 Transformed posts:', transformedPosts.length)
@@ -387,20 +396,12 @@ export function StreamlinedFeed() {
           : post
       ))
 
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ action })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle like')
-      }
-
-      console.log('✅ Successfully toggled like')
+      const result = await setPostLike(postId, action)
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, is_liked: result.is_liked, likes_count: result.likes_count }
+          : post
+      ))
     } catch (error) {
       // Revert on error
       setPosts(prev => prev.map(post => 
@@ -413,6 +414,19 @@ export function StreamlinedFeed() {
           : post
       ))
       console.error('Error toggling like:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update like')
+    }
+  }
+
+  const handleShare = async (postId: string) => {
+    try {
+      const result = await sharePostExternally(postId)
+      setPosts(prev => prev.map(post =>
+        post.id === postId ? { ...post, shares_count: result.shares_count } : post
+      ))
+      toast.success('Post shared')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to share post')
     }
   }
 
@@ -537,9 +551,15 @@ export function StreamlinedFeed() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
+                <PostAppearanceBoundary
+                  postId={post.id}
+                  appearance={post.appearance}
+                  enabled={!post.isDemoPost && postStyleFlags.post_styles_read}
+                  surface="feed"
+                >
                 <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl border-slate-700/50 hover:border-slate-600/50 transition-all duration-300 rounded-2xl">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start gap-3">
+                    <div data-post-region="header" className="flex items-start gap-3">
                       <Link href={getProfileUrl(post.profiles)} className="flex-shrink-0">
                         <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                           <AvatarImage src={post.profiles?.avatar_url || ''} />
@@ -589,7 +609,7 @@ export function StreamlinedFeed() {
 
                   <CardContent className="pt-0 space-y-4">
                     {/* Content */}
-                    <p className="text-slate-200 leading-relaxed">
+                    <p data-post-region="body" className="text-slate-200 leading-relaxed">
                       {post.content}
                     </p>
 
@@ -604,12 +624,13 @@ export function StreamlinedFeed() {
                     {/* Media display */}
                     {(() => {
                       const mediaItems = normalizeMediaData(post)
-                      return renderMediaContent(mediaItems)
+                      const media = renderMediaContent(mediaItems)
+                      return media ? <div data-post-media>{media}</div> : null
                     })()}
 
                     {/* Hashtags */}
                     {post.hashtags && post.hashtags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div data-post-region="tags" className="flex flex-wrap gap-1.5">
                         {post.hashtags.map((hashtag) => (
                           <Badge
                             key={hashtag}
@@ -623,8 +644,8 @@ export function StreamlinedFeed() {
                     )}
 
                     {/* Engagement Stats & Actions */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/30">
-                      <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <div data-post-region="actions" className="flex items-center justify-between pt-2 border-t border-slate-700/30">
+                      <div data-post-region="metadata" className="flex items-center gap-4 text-xs text-slate-400">
                         {post.likes_count > 0 && (
                           <span>{post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}</span>
                         )}
@@ -650,6 +671,7 @@ export function StreamlinedFeed() {
                           variant="ghost"
                           size="sm"
                           className="text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 h-7 px-2"
+                          onClick={() => window.location.assign(`/posts/${post.id}`)}
                         >
                           <MessageCircle className="h-4 w-4" />
                         </Button>
@@ -658,6 +680,7 @@ export function StreamlinedFeed() {
                           variant="ghost"
                           size="sm"
                           className="text-slate-400 hover:text-green-400 hover:bg-green-500/10 h-7 px-2"
+                          onClick={() => handleShare(post.id)}
                         >
                           <Share2 className="h-4 w-4" />
                         </Button>
@@ -665,6 +688,7 @@ export function StreamlinedFeed() {
                     </div>
                   </CardContent>
                 </Card>
+                </PostAppearanceBoundary>
               </motion.div>
             ))}
           </div>

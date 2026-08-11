@@ -4,15 +4,13 @@ import { redirect } from "next/navigation"
 import { AccountsSeed } from "@/components/account/accounts-seed"
 import { loadUserAccountsForSession } from "@/lib/accounts/server-load-accounts"
 import { VenueProviders } from "./providers"
-import { VenueRootChromeOffset } from "./components/venue-root-chrome-offset"
 import { VenueOperationsShell } from "./components/operations/venue-operations-shell"
 import { Toaster } from "@/components/ui/toaster"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = {
-  title: "Tourify - Music Industry Platform",
-  description: "Connect, collaborate, and grow in the music industry",
-    generator: 'v0.dev'
+  title: "Venue Operations | Tourify",
+  description: "Run bookings, events, staff, tickets, and the physical venue from one place.",
 }
 
 async function hasVenueAccess() {
@@ -48,7 +46,7 @@ export default async function VenueLayout({
   const access = await hasVenueAccess()
   if (!access.allowed) {
     if (access.reason === "unauthenticated")
-      redirect("/login?redirectTo=%2Fvenue")
+      redirect("/login?redirectTo=%2Fvenue%2Fdashboard")
     redirect("/dashboard?error=venue-account-required")
   }
 
@@ -59,9 +57,7 @@ export default async function VenueLayout({
       {loaded ? (
         <AccountsSeed accounts={loaded.accounts} activeSession={loaded.activeSession} />
       ) : null}
-      <VenueRootChromeOffset>
-        <VenueOperationsShell>{children}</VenueOperationsShell>
-      </VenueRootChromeOffset>
+      <VenueOperationsShell>{children}</VenueOperationsShell>
       <Toaster />
     </VenueProviders>
   )

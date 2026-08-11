@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Mock workflows deferred; logistics ops panels are canonical (cmp-setup-workflows wont-fix). */
+
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

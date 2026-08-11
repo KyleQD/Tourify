@@ -43,6 +43,9 @@ create index if not exists idx_advancing_docs_share_token
 create index if not exists idx_logistics_vendors_name_text
   on logistics_vendors using gin(to_tsvector('english', name));
 
+alter table if exists public.staff_members
+  add column if not exists event_id uuid references public.events_v2(id) on delete set null;
+
 -- ─────────────────────────────────────────────────────────────
 -- Convenience view: v_staff_roster
 -- Joins staff_members → profiles for a unified roster display

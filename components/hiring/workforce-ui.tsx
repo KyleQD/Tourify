@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 interface WorkforcePageShellProps {
@@ -26,6 +27,7 @@ interface WorkforceMetricCardProps {
   icon: LucideIcon
   accent?: "purple" | "blue" | "cyan" | "green" | "amber"
   isLoading?: boolean
+  href?: string
 }
 
 interface WorkforceEmptyStateProps {
@@ -94,8 +96,9 @@ export function WorkforceMetricCard({
   icon: Icon,
   accent = "blue",
   isLoading = false,
+  href,
 }: WorkforceMetricCardProps) {
-  return (
+  const card = (
     <div className="rounded-[1.25rem] border border-slate-700/60 bg-slate-950/70 p-4 shadow-lg shadow-slate-950/30 transition-colors hover:border-slate-500/70">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 space-y-1">
@@ -108,6 +111,13 @@ export function WorkforceMetricCard({
         </div>
       </div>
     </div>
+  )
+
+  if (!href) return card
+  return (
+    <Link href={href} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 rounded-[1.25rem]">
+      {card}
+    </Link>
   )
 }
 

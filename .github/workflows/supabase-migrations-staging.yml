@@ -5,13 +5,19 @@ name: Supabase migrations (staging)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - staging
-    paths:
-      - "supabase/migrations/**"
-      - ".github/workflows/supabase-migrations-staging.yml"
+    inputs:
+      release_evidence:
+        description: "Access-controlled migration review evidence ID"
+        required: true
+        type: string
+      validated_base_sha:
+        description: "Last reviewed/deployed commit SHA (required for manual dispatch)"
+        required: true
+        type: string
+      target_confirmation:
+        description: "Exact approved Supabase project ref"
+        required: true
+        type: string
 
 concurrency:
   group: supabase-migrations-staging
@@ -27,10 +33,26 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_STAGING_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_STAGING_PROJECT_ID }}
+      EXPECTED_SUPABASE_PROJECT_ID: ${{ secrets.EXPECTED_SUPABASE_STAGING_PROJECT_ID }}
+      SUPABASE_TARGET_CONFIRMATION: ${{ inputs.target_confirmation }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require release evidence reference
+        run: test -n "${{ inputs.release_evidence }}"
+
+      - name: Verify exact Supabase target
+        run: node scripts/ci/verify-supabase-target.mjs
+
+      - name: Validate changed and untracked migration SQL
+        env:
+          MIGRATION_VALIDATION_BASE_SHA: ${{ inputs.validated_base_sha }}
+          MIGRATION_VALIDATION_REQUIRED_STAGE: isolated_validated
+        run: node scripts/ci/check-migration-validation.mjs
 
       - name: Require staging Supabase secrets
         run: |
@@ -42,10 +64,21 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.22.6
 
       - name: Link staging project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Reconcile migration history
+        run: supabase migration list --linked
+
+      - name: Display approved migration checksums
+        env:
+          MIGRATION_CHECKSUM_BASE_SHA: ${{ inputs.validated_base_sha }}
+        run: npm run check:migration-checksums
+
+      - name: Preview pending migrations without applying
+        run: supabase db push --dry-run
 
       - name: Push pending migrations
         run: supabase db push

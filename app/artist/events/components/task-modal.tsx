@@ -11,6 +11,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Task } from "./event-operations"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -50,19 +52,20 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-700">
+      <DialogContent className={cn("sm:max-w-[425px]", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle className="text-slate-100">
+          <DialogTitle className={detailSurfacePattern.title}>
             {initialData ? "Edit Task" : "Add Task"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-slate-300">Title</Label>
+            <Label htmlFor="title" className={detailSurfacePattern.label}>Title</Label>
             <Input
               id="title"
               {...form.register("title")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.title && (
               <p className="text-sm text-red-500">{form.formState.errors.title.message}</p>
@@ -70,24 +73,24 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-slate-300">Description</Label>
+            <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
             <Textarea
               id="description"
               {...form.register("description")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.textarea}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assigned_to" className="text-slate-300">Assign To</Label>
+            <Label htmlFor="assigned_to" className={detailSurfacePattern.label}>Assign To</Label>
             <Select
               value={form.watch("assigned_to")}
               onValueChange={(value) => form.setValue("assigned_to", value)}
             >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                 <SelectValue placeholder="Select staff member" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectContent className="bg-slate-900 border-white/10">
                 {staffMembers.map((member) => (
                   <SelectItem key={member.id} value={member.id} className="text-white">
                     {member.name}
@@ -101,12 +104,12 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="due_date" className="text-slate-300">Due Date</Label>
+            <Label htmlFor="due_date" className={detailSurfacePattern.label}>Due Date</Label>
             <Input
               id="due_date"
               type="date"
               {...form.register("due_date")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.due_date && (
               <p className="text-sm text-red-500">{form.formState.errors.due_date.message}</p>
@@ -115,15 +118,15 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="status" className="text-slate-300">Status</Label>
+              <Label htmlFor="status" className={detailSurfacePattern.label}>Status</Label>
               <Select
                 value={form.watch("status")}
                 onValueChange={(value) => form.setValue("status", value as any)}
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-900 border-white/10">
                   <SelectItem value="pending" className="text-white">Pending</SelectItem>
                   <SelectItem value="in_progress" className="text-white">In Progress</SelectItem>
                   <SelectItem value="completed" className="text-white">Completed</SelectItem>
@@ -132,15 +135,15 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="priority" className="text-slate-300">Priority</Label>
+              <Label htmlFor="priority" className={detailSurfacePattern.label}>Priority</Label>
               <Select
                 value={form.watch("priority")}
                 onValueChange={(value) => form.setValue("priority", value as any)}
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-900 border-white/10">
                   <SelectItem value="low" className="text-white">Low</SelectItem>
                   <SelectItem value="medium" className="text-white">Medium</SelectItem>
                   <SelectItem value="high" className="text-white">High</SelectItem>
@@ -150,10 +153,10 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="border-slate-700">
+            <Button type="button" variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+            <Button type="submit" className={detailSurfacePattern.btnPrimary}>
               {initialData ? "Save Changes" : "Add Task"}
             </Button>
           </div>
@@ -161,4 +164,4 @@ export function TaskModal({ isOpen, onClose, onSubmit, initialData, staffMembers
       </DialogContent>
     </Dialog>
   )
-} 
+}

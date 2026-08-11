@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "npm ci --legacy-peer-deps",
+  "installCommand": "npm ci",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
@@ -57,6 +57,10 @@
     {
       "path": "/api/cron/social-analytics",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/events/sync",
+      "schedule": "17 */6 * * *"
     }
   ],
   "rewrites": [

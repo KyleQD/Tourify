@@ -92,6 +92,7 @@ interface SchedulingContextValue {
     options?: { notify?: boolean }
   ) => Promise<SchedulingMutationResult>
   deleteShift: (shiftId: string) => Promise<SchedulingMutationResult>
+  duplicateShift: (shiftId: string, options?: { date?: string }) => Promise<SchedulingMutationResult>
   assignStaff: (shiftId: string, staffIds: string[]) => Promise<SchedulingMutationResult>
   publishShifts: (shiftIds: string[], options?: { notify?: boolean }) => Promise<SchedulingMutationResult>
 }
@@ -178,6 +179,7 @@ export function SchedulingProvider({
       updateShift: data.updateShift,
       updateShiftStatus: data.updateShiftStatus,
       deleteShift: data.deleteShift,
+      duplicateShift: data.duplicateShift,
       assignStaff: data.assignStaff,
       publishShifts: data.publishShifts,
     }),

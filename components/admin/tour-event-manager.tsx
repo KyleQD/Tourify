@@ -47,6 +47,8 @@ interface Event {
   special_requirements?: string
   load_in_time?: string
   sound_check_time?: string
+  settings?: Record<string, unknown>
+  is_quick_start_placeholder?: boolean
 }
 
 function normalizeManagerEvent(event: any, tourId: string): Event {
@@ -57,9 +59,12 @@ function normalizeManagerEvent(event: any, tourId: string): Event {
   const parsedStart = parseIsoDateParts(startAt)
   const safeDate = parsedStart.date
   const safeTime = parsedStart.time
+  const isQuickStartPlaceholder = settings.quick_start_placeholder === true
   return {
     id: event?.id || `event-${Date.now()}`,
-    name: event?.name || event?.title || 'Event',
+    name: isQuickStartPlaceholder && typeof settings.quick_start_label === 'string'
+      ? settings.quick_start_label
+      : event?.name || event?.title || 'Event',
     description: event?.description || (typeof settings.description === 'string' ? settings.description : ''),
     tour_id: event?.tour_id || tourId,
     venue_name: event?.venue_name || (typeof settings.venue_label === 'string' ? settings.venue_label : ''),
@@ -86,6 +91,8 @@ function normalizeManagerEvent(event: any, tourId: string): Event {
     special_requirements: event?.special_requirements || (typeof settings.special_requirements === 'string' ? settings.special_requirements : ''),
     load_in_time: event?.load_in_time || (typeof settings.load_in_time === 'string' ? settings.load_in_time : ''),
     sound_check_time: event?.sound_check_time || (typeof settings.sound_check_time === 'string' ? settings.sound_check_time : ''),
+    settings,
+    is_quick_start_placeholder: isQuickStartPlaceholder,
   }
 }
 
@@ -335,11 +342,16 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
         method,
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          // Ensure both title and name are set so the service schema accepts it
+          title: formData.name,
+        }),
       }))
 
       if (!response.ok) {
-        throw new Error('Failed to save event')
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData?.error || `Failed to save event (${response.status})`)
       }
 
       const result = await response.json()
@@ -471,6 +483,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
       <div className="grid gap-4">
         {filteredEvents.map((event) => {
           const isHighlighted = highlightEventId === event.id
+          const isQuickStartPlaceholder = event.is_quick_start_placeholder === true
           return (
           <Card id={`tour-event-${event.id}`} key={event.id} className={`bg-slate-900/50 border-slate-700/50 hover:bg-slate-900/70 transition-colors ${isHighlighted ? 'ring-2 ring-purple-500/60 animate-pulse' : ''}`}>
             <CardContent className="p-6">
@@ -481,7 +494,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
                   </div>
                   <div className="flex-1">
                     <h4 className="font-medium text-white">{event.name}</h4>
-                    <p className="text-sm text-slate-400">{event.venue_name}</p>
+                    <p className="text-sm text-slate-400">{event.venue_name || 'Venue TBD'}</p>
                     <div className="flex items-center space-x-4 mt-1">
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-3 w-3 text-slate-500" />
@@ -489,27 +502,42 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
                           {formatSafeDate(event.event_date)}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Users className="h-3 w-3 text-slate-500" />
-                        <span className="text-xs text-slate-500">
-                          {event.tickets_sold}/{event.capacity}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <DollarSign className="h-3 w-3 text-slate-500" />
-                        <span className="text-xs text-slate-500">
-                          {formatSafeCurrency(event.actual_revenue)}
-                        </span>
-                      </div>
+                      {!isQuickStartPlaceholder ? (
+                        <>
+                          <div className="flex items-center space-x-1">
+                            <Users className="h-3 w-3 text-slate-500" />
+                            <span className="text-xs text-slate-500">
+                              {event.tickets_sold}/{event.capacity}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <DollarSign className="h-3 w-3 text-slate-500" />
+                            <span className="text-xs text-slate-500">
+                              {formatSafeCurrency(event.actual_revenue)}
+                            </span>
+                          </div>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge className={getStatusColor(event.status)}>
                     {getStatusIcon(event.status)}
-                    <span className="ml-1 capitalize">{event.status.replace('_', ' ')}</span>
+                    <span className="ml-1 capitalize">{isQuickStartPlaceholder ? 'Planning needed' : event.status.replace('_', ' ')}</span>
                   </Badge>
                   <div className="flex flex-wrap justify-end gap-1">
+                    {isQuickStartPlaceholder ? (
+                      <Button
+                        size="sm"
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 text-white"
+                        onClick={() => router.push(`/admin/dashboard/events/create?draft=${event.id}&tourId=${tourId}`)}
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1" />
+                        Plan Your Event
+                      </Button>
+                    ) : (
+                      <>
                     <Button
                       variant="outline"
                       size="sm"
@@ -554,6 +582,8 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
+                      </>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

@@ -115,10 +115,16 @@ export function presentTourVendor(row: Record<string, unknown>) {
   }
 }
 
-export function buildTourMemberWrite(input: z.infer<typeof tourMemberInputSchema>, actorUserId: string, teamId: string) {
+export function buildTourMemberWrite(
+  input: z.infer<typeof tourMemberInputSchema>,
+  actorUserId: string,
+  teamId: string,
+  orgId?: string | null,
+) {
   return {
     tour_id: input.tour_id,
     team_id: teamId,
+    org_id: orgId ?? null,
     user_id: input.user_id ?? null,
     assigned_by: actorUserId,
     assigned_at: new Date().toISOString(),

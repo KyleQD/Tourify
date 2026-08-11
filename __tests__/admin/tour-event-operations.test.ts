@@ -127,9 +127,19 @@ describe("admin tour/event operation schemas", () => {
       security_notes: "Barricade confirmed",
       ticket_price: "35",
       team_count: 3,
+      staff_count: 1,
     })
     expect(ready.score).toBeGreaterThan(missing.score)
     expect(ready.blockers).toHaveLength(0)
+
+    const draftVenue = getEventReadiness({
+      title: "Opening night",
+      date: "2026-08-14",
+      venue_name: "The Fonda",
+      staff_count: 0,
+    })
+    expect(draftVenue.blockers.map((item) => item.id)).not.toContain("venue")
+    expect(draftVenue.blockers.map((item) => item.id)).not.toContain("team")
   })
 
   it("derives tour readiness and route conflicts", () => {

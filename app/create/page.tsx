@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
@@ -43,6 +43,7 @@ import { buildAccountScopedPath } from "@/lib/navigation/account-context-url"
 import { slugifyOrganizationName, normalizeOrganizationSubtype } from "@/lib/organizations/org-subtypes"
 import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
+import { normalizeAccountSlug } from "@/lib/accounts/account-slug"
 
 interface CreateOption {
   id: string
@@ -111,6 +112,8 @@ const createOptions: CreateOption[] = [
 ]
 
 const AUTH_SLOW_HINT_MS = 8_000
+const ACCOUNT_CREATION_DRAFT_KEY = "tourify.account-creation-draft.v1"
+const ACCOUNT_CREATION_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const bandPanelClass = "rounded-lg border border-slate-700/50 bg-slate-950/60 shadow-xl shadow-black/25 backdrop-blur"
 const bandInsetClass = "rounded-md border border-slate-800/80 bg-slate-950/55"
 const bandIconClass = "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.06]"
@@ -146,6 +149,14 @@ export default function CreatePage() {
   const [bandManagerEmail, setBandManagerEmail] = useState('')
   const [bandManagerRole, setBandManagerRole] = useState<QueuedBandManager['role']>('tour_manager')
   const [queuedBandManagers, setQueuedBandManagers] = useState<QueuedBandManager[]>([])
+  const draftRestoredRef = useRef(false)
+  const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null)
+  const [slugCheck, setSlugCheck] = useState<{
+    slug: string
+    available: boolean | null
+    checking: boolean
+    message: string
+  }>({ slug: "", available: null, checking: false, message: "" })
   
   // Form data
   const [artistData, setArtistData] = useState({
@@ -219,6 +230,150 @@ export default function CreatePage() {
   const bandReadiness = Math.round(
     (bandLaunchItems.filter(item => item.done || item.optional).length / bandLaunchItems.length) * 100
   )
+
+  useEffect(() => {
+    if (loading || !user || draftRestoredRef.current) return
+    draftRestoredRef.current = true
+    try {
+      const raw = localStorage.getItem(ACCOUNT_CREATION_DRAFT_KEY)
+      if (!raw) return
+      const draft = JSON.parse(raw) as {
+        savedAt?: number
+        selectedOption?: string | null
+        artist?: Partial<typeof artistData>
+        venue?: Partial<typeof venueData>
+        organizer?: Partial<typeof organizerData>
+        bandWizardStep?: number
+        bandPublicVisible?: boolean
+      }
+      if (!draft.savedAt || Date.now() - draft.savedAt > ACCOUNT_CREATION_DRAFT_TTL_MS) {
+        localStorage.removeItem(ACCOUNT_CREATION_DRAFT_KEY)
+        return
+      }
+      if (!searchParams.get("type") && draft.selectedOption) {
+        setSelectedOption(draft.selectedOption)
+      }
+      if (draft.artist) setArtistData((current) => ({ ...current, ...draft.artist }))
+      if (draft.venue) setVenueData((current) => ({ ...current, ...draft.venue }))
+      if (draft.organizer) {
+        setOrganizerData((current) => ({ ...current, ...draft.organizer }))
+      }
+      if (typeof draft.bandWizardStep === "number") {
+        setBandWizardStep(Math.max(0, Math.min(4, draft.bandWizardStep)))
+      }
+      if (typeof draft.bandPublicVisible === "boolean") {
+        setBandPublicVisible(draft.bandPublicVisible)
+      }
+      setDraftSavedAt(new Date(draft.savedAt))
+    } catch {
+      localStorage.removeItem(ACCOUNT_CREATION_DRAFT_KEY)
+    }
+  }, [loading, searchParams, user])
+
+  useEffect(() => {
+    if (!draftRestoredRef.current || !selectedOption || isSubmitting) return
+    const timeoutId = window.setTimeout(() => {
+      const savedAt = Date.now()
+      localStorage.setItem(
+        ACCOUNT_CREATION_DRAFT_KEY,
+        JSON.stringify({
+          savedAt,
+          selectedOption,
+          artist: {
+            artist_name: artistData.artist_name,
+            bio: artistData.bio,
+            genres: artistData.genres,
+          },
+          venue: {
+            venue_name: venueData.venue_name,
+            description: venueData.description,
+            capacity: venueData.capacity,
+            venue_types: venueData.venue_types,
+          },
+          organizer: {
+            organization_name: organizerData.organization_name,
+            description: organizerData.description,
+            organization_type: organizerData.organization_type,
+            url_slug: organizerData.url_slug,
+            specialties: organizerData.specialties,
+          },
+          bandWizardStep,
+          bandPublicVisible,
+        }),
+      )
+      setDraftSavedAt(new Date(savedAt))
+    }, 400)
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    artistData.artist_name,
+    artistData.bio,
+    artistData.genres,
+    bandPublicVisible,
+    bandWizardStep,
+    isSubmitting,
+    organizerData.description,
+    organizerData.organization_name,
+    organizerData.organization_type,
+    organizerData.specialties,
+    organizerData.url_slug,
+    selectedOption,
+    venueData.capacity,
+    venueData.description,
+    venueData.venue_name,
+    venueData.venue_types,
+  ])
+
+  useEffect(() => {
+    if (selectedOption !== "organizer-account") return
+    const candidate = normalizeAccountSlug(
+      organizerData.url_slug || organizerData.organization_name,
+    )
+    if (!candidate) {
+      setSlugCheck({ slug: "", available: null, checking: false, message: "" })
+      return
+    }
+    let cancelled = false
+    const timeoutId = window.setTimeout(async () => {
+      setSlugCheck({
+        slug: candidate,
+        available: null,
+        checking: true,
+        message: "Checking URL availability…",
+      })
+      try {
+        const response = await fetch(
+          `/api/accounts/check-slug?slug=${encodeURIComponent(candidate)}`,
+          { credentials: "include", cache: "no-store" },
+        )
+        const body = (await response.json().catch(() => null)) as
+          | { available?: boolean; slug?: string; message?: string; error?: string }
+          | null
+        if (cancelled) return
+        setSlugCheck({
+          slug: body?.slug || candidate,
+          available: response.ok ? Boolean(body?.available) : null,
+          checking: false,
+          message: body?.message || body?.error || "URL availability could not be checked.",
+        })
+      } catch {
+        if (cancelled) return
+        setSlugCheck({
+          slug: candidate,
+          available: null,
+          checking: false,
+          message: "URL availability could not be checked.",
+        })
+      }
+    }, 350)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [
+    organizerData.organization_name,
+    organizerData.url_slug,
+    selectedOption,
+  ])
 
   useEffect(() => {
     if (!loading && !user && !authError) {
@@ -445,9 +600,15 @@ export default function CreatePage() {
         })
         setSuccess('Venue account created successfully! 🏢')
       } else if (selectedOption === 'organizer-account') {
-        const slug =
-          organizerData.url_slug.trim() ||
-          slugifyOrganizationName(organizerData.organization_name)
+        const slug = normalizeAccountSlug(
+          organizerData.url_slug || organizerData.organization_name,
+        )
+        if (slugCheck.checking) {
+          throw new Error("Wait for the public URL check to finish.")
+        }
+        if (slugCheck.slug !== slug || slugCheck.available !== true) {
+          throw new Error(slugCheck.message || "Choose an available public URL.")
+        }
         const subtype = normalizeOrganizationSubtype(organizerData.organization_type)
         const organizerId = await createOrganizerAccount({
           ...organizerData,
@@ -487,6 +648,8 @@ export default function CreatePage() {
       
       // Give a moment for the accounts to refresh before showing success
       await new Promise(resolve => setTimeout(resolve, 100))
+      localStorage.removeItem(ACCOUNT_CREATION_DRAFT_KEY)
+      setDraftSavedAt(null)
       
       // Reset form
       setSelectedOption(null)
@@ -615,6 +778,15 @@ export default function CreatePage() {
               <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
                 Create unlimited specialized accounts to reach different audiences and unlock powerful tools for your creative journey. No limits on how many accounts you can create under one email.
               </p>
+              {draftSavedAt ? (
+                <p className="mt-3 text-sm text-emerald-200" role="status">
+                  Draft saved locally at{" "}
+                  {new Intl.DateTimeFormat(undefined, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  }).format(draftSavedAt)}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -935,6 +1107,20 @@ export default function CreatePage() {
                                 />
                               </div>
                               <p className="text-xs text-gray-400">{bandPublicDisplayPath}</p>
+                              {slugCheck.message ? (
+                                <p
+                                  className={`text-xs ${
+                                    slugCheck.available === true
+                                      ? "text-emerald-300"
+                                      : slugCheck.available === false
+                                        ? "text-rose-300"
+                                        : "text-amber-300"
+                                  }`}
+                                  role="status"
+                                >
+                                  {slugCheck.message}
+                                </p>
+                              ) : null}
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="band_description" className="text-white font-medium">Short bio</Label>
@@ -1511,6 +1697,20 @@ export default function CreatePage() {
                           <p className="text-xs text-gray-400">
                             Optional. Leave blank to generate from the organization name.
                           </p>
+                          {slugCheck.message ? (
+                            <p
+                              className={`text-xs ${
+                                slugCheck.available === true
+                                  ? "text-emerald-300"
+                                  : slugCheck.available === false
+                                    ? "text-rose-300"
+                                    : "text-amber-300"
+                              }`}
+                              role="status"
+                            >
+                              {slugCheck.message}
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="space-y-2">

@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { StaffOnboardingService, StaffOnboardingData } from "@/lib/services/staff-onboarding.service"
 import {
@@ -838,7 +840,8 @@ The Management Team`,
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] bg-slate-900 border-slate-700 overflow-y-auto">
+      <DialogContent className={cn("max-w-6xl max-h-[90vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -857,19 +860,19 @@ The Management Team`,
               ) : null}
             </div>
             <div className="flex items-center space-x-2">
-              <Button onClick={saveProgress} variant="outline" className="border-slate-600">
+              <Button onClick={saveProgress} variant="outline" className={detailSurfacePattern.btnOutline}>
                 <Save className="h-4 w-4 mr-2" />
                 Save Progress
               </Button>
               <Button 
                 onClick={createStaffAccount} 
                 disabled={isCreatingAccount}
-                className="bg-blue-600 hover:bg-blue-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 {isCreatingAccount ? 'Creating Account...' : 'Create Staff Account'}
               </Button>
-              <Button onClick={startOnboardingProcess} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={startOnboardingProcess} className={detailSurfacePattern.btnPrimary}>
                 <Play className="h-4 w-4 mr-2" />
                 Start Onboarding
               </Button>
@@ -889,7 +892,7 @@ The Management Team`,
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Candidate Info */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-green-400">Candidate Information</CardTitle>
                 </CardHeader>
@@ -927,7 +930,7 @@ The Management Team`,
               </Card>
 
               {/* Progress Overview */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-blue-400">Onboarding Progress</CardTitle>
                 </CardHeader>
@@ -977,7 +980,7 @@ The Management Team`,
               </Card>
 
               {/* Quick Actions */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-purple-400">Quick Actions</CardTitle>
                 </CardHeader>
@@ -1006,7 +1009,7 @@ The Management Team`,
 
             {/* Recent Activity */}
             {recentActivity.length > 0 && (
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-orange-400">Recent Activity</CardTitle>
                 </CardHeader>
@@ -1047,9 +1050,15 @@ The Management Team`,
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {templates.map((template) => (
-                <Card key={template.id} className={`bg-slate-800/30 border-slate-700/50 hover:bg-slate-800/50 transition-all cursor-pointer ${
-                  selectedTemplate?.id === template.id ? 'ring-2 ring-blue-500/50' : ''
-                }`} onClick={() => handleTemplateSelect(template)}>
+                <Card
+                  key={template.id}
+                  className={cn(
+                    detailSurfacePattern.panel,
+                    "cursor-pointer transition-all hover:bg-white/[0.06]",
+                    selectedTemplate?.id === template.id && "ring-2 ring-blue-500/50"
+                  )}
+                  onClick={() => handleTemplateSelect(template)}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div>
@@ -1152,7 +1161,7 @@ The Management Team`,
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                   {/* Progress Summary */}
-                  <Card className="bg-slate-800/30 border-slate-700/50">
+                  <Card className={detailSurfacePattern.panel}>
                     <CardHeader>
                       <CardTitle className="text-sm text-slate-400">Progress Summary</CardTitle>
                     </CardHeader>
@@ -1178,7 +1187,7 @@ The Management Team`,
 
                   {/* Steps Timeline */}
                   <div className="lg:col-span-3">
-                    <Card className="bg-slate-800/30 border-slate-700/50">
+                    <Card className={detailSurfacePattern.panel}>
                       <CardHeader>
                         <CardTitle className="text-blue-400">Onboarding Steps</CardTitle>
                       </CardHeader>
@@ -1219,7 +1228,7 @@ The Management Team`,
                                   
                                   <div className="flex items-center space-x-2">
                                     <Select value={step.status} onValueChange={(value) => handleStepStatusUpdate(step.id, value)}>
-                                      <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-xs">
+                                      <SelectTrigger className={cn("w-32 text-xs", detailSurfacePattern.selectTrigger)}>
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent className="bg-slate-800 border-slate-700">
@@ -1313,7 +1322,7 @@ The Management Team`,
                 </div>
               </>
             ) : (
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardContent className="p-12 text-center">
                   <FileText className="h-16 w-16 text-slate-600 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-white mb-2">No Template Selected</h3>
@@ -1344,7 +1353,7 @@ The Management Team`,
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Template Settings */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-green-400">Template Settings</CardTitle>
                 </CardHeader>
@@ -1352,7 +1361,7 @@ The Management Team`,
                   <div>
                     <Label>Template Name</Label>
                     <Input 
-                      className="bg-slate-700 border-slate-600" 
+                      className={detailSurfacePattern.input} 
                       placeholder="Enter template name"
                       value={customTemplate.name}
                       onChange={(e) => setCustomTemplate(prev => ({ ...prev, name: e.target.value }))}
@@ -1361,7 +1370,7 @@ The Management Team`,
                   <div>
                     <Label>Department</Label>
                     <Select value={customTemplate.department} onValueChange={(value) => setCustomTemplate(prev => ({ ...prev, department: value }))}>
-                      <SelectTrigger className="bg-slate-700 border-slate-600">
+                      <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-slate-700">
@@ -1377,7 +1386,7 @@ The Management Team`,
                   <div>
                     <Label>Position</Label>
                     <Input 
-                      className="bg-slate-700 border-slate-600" 
+                      className={detailSurfacePattern.input} 
                       placeholder="Enter position"
                       value={customTemplate.position}
                       onChange={(e) => setCustomTemplate(prev => ({ ...prev, position: e.target.value }))}
@@ -1386,7 +1395,7 @@ The Management Team`,
                   <div>
                     <Label>Description</Label>
                     <Textarea 
-                      className="bg-slate-700 border-slate-600" 
+                      className={detailSurfacePattern.input} 
                       placeholder="Template description"
                       value={customTemplate.description}
                       onChange={(e) => setCustomTemplate(prev => ({ ...prev, description: e.target.value }))}
@@ -1396,7 +1405,7 @@ The Management Team`,
                     <Label>Estimated Days</Label>
                     <Input 
                       type="number" 
-                      className="bg-slate-700 border-slate-600" 
+                      className={detailSurfacePattern.input} 
                       placeholder="14"
                       value={customTemplate.estimatedDays}
                       onChange={(e) => setCustomTemplate(prev => ({ ...prev, estimatedDays: parseInt(e.target.value) || 14 }))}
@@ -1414,7 +1423,7 @@ The Management Team`,
               </Card>
 
               {/* Step Templates */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-blue-400">Available Step Templates</CardTitle>
                 </CardHeader>
@@ -1456,7 +1465,7 @@ The Management Team`,
               </Card>
 
               {/* Custom Template Preview */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-purple-400">Template Preview</CardTitle>
                   <div className="text-sm text-slate-400">
@@ -1527,9 +1536,10 @@ The Management Team`,
 
       {/* Step Editor Dialog */}
       <Dialog open={showStepEditor} onOpenChange={setShowStepEditor}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+        <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-blue-400">
+            <DialogTitle className={detailSurfacePattern.title}>
               {currentEditingStep ? 'Edit Step' : 'Create Step'}
             </DialogTitle>
           </DialogHeader>
@@ -1539,7 +1549,7 @@ The Management Team`,
                 <div>
                   <Label>Step Title</Label>
                                      <Input 
-                     className="bg-slate-700 border-slate-600" 
+                     className={detailSurfacePattern.input} 
                      value={currentEditingStep?.title || ""}
                      onChange={(e) => setCurrentEditingStep(prev => prev ? { ...prev, title: e.target.value } : null)}
                    />
@@ -1550,7 +1560,7 @@ The Management Team`,
                      value={currentEditingStep?.type || ""} 
                      onValueChange={(value) => setCurrentEditingStep(prev => prev ? { ...prev, type: value as any } : null)}
                    >
-                    <SelectTrigger className="bg-slate-700 border-slate-600">
+                    <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-slate-700">
@@ -1569,7 +1579,7 @@ The Management Team`,
               <div>
                 <Label>Description</Label>
                                  <Textarea 
-                   className="bg-slate-700 border-slate-600" 
+                   className={detailSurfacePattern.input} 
                    value={currentEditingStep?.description || ""}
                    onChange={(e) => setCurrentEditingStep(prev => prev ? { ...prev, description: e.target.value } : null)}
                  />
@@ -1582,7 +1592,7 @@ The Management Team`,
                     value={currentEditingStep.category} 
                     onValueChange={(value) => setCurrentEditingStep(prev => prev ? { ...prev, category: value as any } : null)}
                   >
-                    <SelectTrigger className="bg-slate-700 border-slate-600">
+                    <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-slate-700">
@@ -1598,7 +1608,7 @@ The Management Team`,
                   <Label>Estimated Hours</Label>
                   <Input 
                     type="number" 
-                    className="bg-slate-700 border-slate-600" 
+                    className={detailSurfacePattern.input} 
                     value={currentEditingStep.estimatedHours}
                     onChange={(e) => setCurrentEditingStep(prev => prev ? { ...prev, estimatedHours: parseInt(e.target.value) || 1 } : null)}
                   />
@@ -1608,7 +1618,7 @@ The Management Team`,
               <div>
                 <Label>Instructions</Label>
                 <Textarea 
-                  className="bg-slate-700 border-slate-600" 
+                  className={detailSurfacePattern.input} 
                   placeholder="Detailed instructions for completing this step..."
                   value={currentEditingStep.instructions || ''}
                   onChange={(e) => setCurrentEditingStep(prev => prev ? { ...prev, instructions: e.target.value } : null)}
@@ -1618,7 +1628,7 @@ The Management Team`,
               <div>
                 <Label>Assigned To</Label>
                 <Input 
-                  className="bg-slate-700 border-slate-600" 
+                  className={detailSurfacePattern.input} 
                   placeholder="Who should complete this step?"
                   value={currentEditingStep.assignedTo || ''}
                   onChange={(e) => setCurrentEditingStep(prev => prev ? { ...prev, assignedTo: e.target.value } : null)}
@@ -1649,7 +1659,8 @@ The Management Team`,
 
        {/* Welcome Email Dialog */}
        <Dialog open={showWelcomeEmailDialog} onOpenChange={setShowWelcomeEmailDialog}>
-         <DialogContent className="max-w-3xl bg-slate-900 border-slate-700">
+         <DialogContent className={cn("max-w-3xl", detailSurfacePattern.dialogContent)}>
+           <div className={detailSurfacePattern.topAccent} />
            <DialogHeader>
              <DialogTitle className="text-green-400">Send Welcome Email</DialogTitle>
            </DialogHeader>
@@ -1657,7 +1668,7 @@ The Management Team`,
              <div>
                <Label>To</Label>
                <Input 
-                 className="bg-slate-700 border-slate-600" 
+                 className={detailSurfacePattern.input} 
                  value={candidate?.email || ""}
                  disabled
                />
@@ -1665,7 +1676,7 @@ The Management Team`,
              <div>
                <Label>Subject</Label>
                <Input 
-                 className="bg-slate-700 border-slate-600" 
+                 className={detailSurfacePattern.input} 
                  value={emailTemplate.subject}
                  onChange={(e) => setEmailTemplate(prev => ({ ...prev, subject: e.target.value }))}
                />
@@ -1673,7 +1684,7 @@ The Management Team`,
              <div>
                <Label>Message</Label>
                <Textarea 
-                 className="bg-slate-700 border-slate-600 h-64" 
+                 className={cn("h-64", detailSurfacePattern.textarea)} 
                  value={emailTemplate.body}
                  onChange={(e) => setEmailTemplate(prev => ({ ...prev, body: e.target.value }))}
                />
@@ -1703,19 +1714,20 @@ The Management Team`,
 
        {/* Meeting Scheduling Dialog */}
        <Dialog open={showSchedulingDialog} onOpenChange={setShowSchedulingDialog}>
-         <DialogContent className="max-w-4xl bg-slate-900 border-slate-700">
+         <DialogContent className={cn("max-w-4xl", detailSurfacePattern.dialogContent)}>
+           <div className={detailSurfacePattern.topAccent} />
            <DialogHeader>
              <DialogTitle className="text-blue-400">Schedule Onboarding Meetings</DialogTitle>
            </DialogHeader>
            <div className="space-y-4">
              {meetings.map((meeting, index) => (
-               <Card key={meeting.id} className="bg-slate-800/30 border-slate-700/50">
+               <Card key={meeting.id} className={detailSurfacePattern.panel}>
                  <CardContent className="p-4">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                        <Label>Meeting Title</Label>
                        <Input 
-                         className="bg-slate-700 border-slate-600" 
+                         className={detailSurfacePattern.input} 
                          value={meeting.title}
                          onChange={(e) => {
                            const newMeetings = [...meetings]
@@ -1727,7 +1739,7 @@ The Management Team`,
                      <div>
                        <Label>Location</Label>
                        <Input 
-                         className="bg-slate-700 border-slate-600" 
+                         className={detailSurfacePattern.input} 
                          value={meeting.location}
                          onChange={(e) => {
                            const newMeetings = [...meetings]
@@ -1740,7 +1752,7 @@ The Management Team`,
                        <Label>Date</Label>
                        <Input 
                          type="date"
-                         className="bg-slate-700 border-slate-600" 
+                         className={detailSurfacePattern.input} 
                          value={meeting.date}
                          onChange={(e) => {
                            const newMeetings = [...meetings]
@@ -1753,7 +1765,7 @@ The Management Team`,
                        <Label>Time</Label>
                        <Input 
                          type="time"
-                         className="bg-slate-700 border-slate-600" 
+                         className={detailSurfacePattern.input} 
                          value={meeting.time}
                          onChange={(e) => {
                            const newMeetings = [...meetings]
@@ -1765,7 +1777,7 @@ The Management Team`,
                      <div className="md:col-span-2">
                        <Label>Notes</Label>
                        <Textarea 
-                         className="bg-slate-700 border-slate-600" 
+                         className={detailSurfacePattern.input} 
                          value={meeting.notes}
                          onChange={(e) => {
                            const newMeetings = [...meetings]
@@ -1809,13 +1821,14 @@ The Management Team`,
 
        {/* Access Setup Dialog */}
        <Dialog open={showAccessSetupDialog} onOpenChange={setShowAccessSetupDialog}>
-         <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+         <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+           <div className={detailSurfacePattern.topAccent} />
            <DialogHeader>
              <DialogTitle className="text-purple-400">Setup Access & Accounts</DialogTitle>
            </DialogHeader>
            <div className="space-y-6">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <Card className="bg-slate-800/30 border-slate-700/50">
+               <Card className={detailSurfacePattern.panel}>
                  <CardHeader>
                    <CardTitle className="text-sm text-blue-400">Digital Access</CardTitle>
                  </CardHeader>
@@ -1847,7 +1860,7 @@ The Management Team`,
                  </CardContent>
                </Card>
 
-               <Card className="bg-slate-800/30 border-slate-700/50">
+               <Card className={detailSurfacePattern.panel}>
                  <CardHeader>
                    <CardTitle className="text-sm text-green-400">Physical Access</CardTitle>
                  </CardHeader>
@@ -1880,7 +1893,7 @@ The Management Team`,
                </Card>
              </div>
 
-             <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4">
+             <div className={cn(detailSurfacePattern.panel, "p-4")}>
                <h4 className="text-white font-medium mb-2">Access Summary</h4>
                <div className="text-sm text-slate-400">
                  {Object.entries(accessSetup).filter(([_, enabled]) => enabled).length > 0 ? (
@@ -1911,7 +1924,8 @@ The Management Team`,
 
        {/* Account Creation Result Dialog */}
        <Dialog open={showAccountCreationDialog} onOpenChange={setShowAccountCreationDialog}>
-         <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+         <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+           <div className={detailSurfacePattern.topAccent} />
            <DialogHeader>
              <DialogTitle className="text-green-400 flex items-center">
                <CheckCircle className="h-5 w-5 mr-2" />

@@ -10,7 +10,6 @@ import { ChunkLoadRecovery } from "@/components/chunk-load-recovery"
 import { NavigationPerfMarks } from "@/components/performance/navigation-perf-marks"
 import { AppChrome } from "@/components/layout/app-chrome"
 import { Toaster } from "sonner"
-import { warnMissingEnv, warnProductionPublicSiteUrl } from "@/lib/utils/env-check"
 import { getMetadataBase } from "@/lib/seo/site"
 
 const EducationRoot = dynamic(() =>
@@ -64,9 +63,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  if (process.env.NODE_ENV !== "production") warnMissingEnv()
-  warnProductionPublicSiteUrl()
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-gradient-to-br from-indigo-950 to-slate-900 text-slate-100`}>

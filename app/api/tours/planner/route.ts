@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth, withAdminCapability } from '@/lib/auth/api-auth'
 import { AdminTourEventOperationsService } from '@/lib/admin/tour-event-operations.service'
+import {
+  adminAccessErrorResponse,
+  assertAdminTourAccess,
+} from '@/lib/admin/admin-tour-event-access'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 // Validation schemas for each step
@@ -208,9 +212,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
   }
 })
 
-export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
+export const GET = withAdminCapability('tour.view', async (request: NextRequest, { user, supabase, admin }) => {
   try {
-    const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const tourId = searchParams.get('tour_id')
 
@@ -218,7 +221,14 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
       return NextResponse.json({ error: 'Tour ID is required' }, { status: 400 })
     }
 
-    // Fetch tour
+    // SEC-201 — canonical org/collaborator access (retire owner-only filter)
+    await assertAdminTourAccess({
+      supabase,
+      userId: user.id,
+      tourId,
+      orgId: admin.orgId,
+    })
+
     const { data: tour, error } = await supabase
       .from('tours')
       .select(`
@@ -231,7 +241,6 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
         )
       `)
       .eq('id', tourId)
-      .or(`user_id.eq.${user.id},created_by.eq.${user.id}`)
       .single()
 
     if (error) {
@@ -375,11 +384,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
 
   } catch (error) {
     console.error('[Tour Planner API] Unexpected error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}, {
-  tourIdFromRequest: (request: NextRequest) => {
-    const { searchParams } = new URL(request.url)
-    return searchParams.get('tour_id') || undefined
+    const resolved = adminAccessErrorResponse(error, 'Internal server error', 500)
+    return NextResponse.json({ error: resolved.message }, { status: resolved.status })
   }
 })

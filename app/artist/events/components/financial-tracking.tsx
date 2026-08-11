@@ -14,6 +14,7 @@ import { cn, formatCurrency } from "@/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
 
 interface Expense {
   id: string
@@ -247,47 +248,49 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
 
       {/* Add Expense Modal */}
       <Dialog open={isAddExpenseModalOpen} onOpenChange={setIsAddExpenseModalOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className={detailSurfacePattern.dialogContent}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-slate-300">Add New Expense</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Add New Expense</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="category" className="text-slate-300">Category</Label>
+              <Label htmlFor="category" className={detailSurfacePattern.label}>Category</Label>
               <Input
                 id="category"
                 value={newExpense.category}
                 onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-slate-300">Description</Label>
+              <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
               <Textarea
                 id="description"
                 value={newExpense.description}
                 onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.textarea}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-slate-300">Amount</Label>
+              <Label htmlFor="amount" className={detailSurfacePattern.label}>Amount</Label>
               <Input
                 id="amount"
                 type="number"
                 value={newExpense.amount}
                 onChange={(e) => setNewExpense({ ...newExpense, amount: parseFloat(e.target.value) })}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="date" className="text-slate-300">Date</Label>
+              <Label htmlFor="date" className={detailSurfacePattern.label}>Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal bg-slate-800 border-slate-700 text-white",
+                      "w-full justify-start text-left font-normal",
+                      detailSurfacePattern.btnOutline,
                       !newExpense.date && "text-slate-400"
                     )}
                   >
@@ -295,7 +298,7 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
                     {newExpense.date ? format(new Date(newExpense.date), "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700">
+                <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10">
                   <Calendar
                     mode="single"
                     selected={new Date(newExpense.date || new Date())}
@@ -307,22 +310,22 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="payment_method" className="text-slate-300">Payment Method</Label>
+              <Label htmlFor="payment_method" className={detailSurfacePattern.label}>Payment Method</Label>
               <Select
                 value={newExpense.payment_method}
                 onValueChange={(value) => setNewExpense({ ...newExpense, payment_method: value as any })}
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-900 border-white/10">
                   <SelectItem value="credit_card" className="text-white">Credit Card</SelectItem>
                   <SelectItem value="cash" className="text-white">Cash</SelectItem>
                   <SelectItem value="bank_transfer" className="text-white">Bank Transfer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleAddExpense} className="w-full bg-purple-600 hover:bg-purple-700">
+            <Button onClick={handleAddExpense} className={cn("w-full", detailSurfacePattern.btnPrimary)}>
               Add Expense
             </Button>
           </div>
@@ -331,38 +334,40 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
 
       {/* Add Budget Modal */}
       <Dialog open={isAddBudgetModalOpen} onOpenChange={setIsAddBudgetModalOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className={detailSurfacePattern.dialogContent}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-slate-300">Add New Budget</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Add New Budget</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="budget_category" className="text-slate-300">Category</Label>
+              <Label htmlFor="budget_category" className={detailSurfacePattern.label}>Category</Label>
               <Input
                 id="budget_category"
                 value={newBudget.category}
                 onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="allocated_amount" className="text-slate-300">Allocated Amount</Label>
+              <Label htmlFor="allocated_amount" className={detailSurfacePattern.label}>Allocated Amount</Label>
               <Input
                 id="allocated_amount"
                 type="number"
                 value={newBudget.allocated_amount}
                 onChange={(e) => setNewBudget({ ...newBudget, allocated_amount: parseFloat(e.target.value) })}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="start_date" className="text-slate-300">Start Date</Label>
+              <Label htmlFor="start_date" className={detailSurfacePattern.label}>Start Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal bg-slate-800 border-slate-700 text-white",
+                      "w-full justify-start text-left font-normal",
+                      detailSurfacePattern.btnOutline,
                       !newBudget.start_date && "text-slate-400"
                     )}
                   >
@@ -370,7 +375,7 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
                     {newBudget.start_date ? format(new Date(newBudget.start_date), "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700">
+                <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10">
                   <Calendar
                     mode="single"
                     selected={new Date(newBudget.start_date || new Date())}
@@ -382,13 +387,14 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_date" className="text-slate-300">End Date</Label>
+              <Label htmlFor="end_date" className={detailSurfacePattern.label}>End Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal bg-slate-800 border-slate-700 text-white",
+                      "w-full justify-start text-left font-normal",
+                      detailSurfacePattern.btnOutline,
                       !newBudget.end_date && "text-slate-400"
                     )}
                   >
@@ -396,7 +402,7 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
                     {newBudget.end_date ? format(new Date(newBudget.end_date), "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700">
+                <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10">
                   <Calendar
                     mode="single"
                     selected={new Date(newBudget.end_date || new Date())}
@@ -407,7 +413,7 @@ export function FinancialTracking({ eventId, expenses = [], budgets = [], onAddE
                 </PopoverContent>
               </Popover>
             </div>
-            <Button onClick={handleAddBudget} className="w-full bg-purple-600 hover:bg-purple-700">
+            <Button onClick={handleAddBudget} className={cn("w-full", detailSurfacePattern.btnPrimary)}>
               Add Budget
             </Button>
           </div>

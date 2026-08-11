@@ -21,20 +21,35 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const {
     venueEvents,
+    bookings,
     isLoading: isEventsLoading,
     error: eventsError,
     refresh: refreshCalendarData,
   } = useVenueCalendarData({ venueId: venue?.id, month: currentMonth })
   const normalizedEvents = useMemo(() => {
-    return venueEvents.map((event) => ({
+    const venueLabel = venue?.venue_name || venue?.name || "Venue"
+    const location =
+      `${venue?.city || ""}${venue?.city && venue?.state ? ", " : ""}${venue?.state || ""}` || "TBD"
+    const fromEvents = venueEvents.map((event) => ({
       id: event.id,
       title: event.title,
       date: new Date(event.date || Date.now()),
-      venue: venue?.venue_name || venue?.name || "Venue",
-      location: `${venue?.city || ""}${venue?.city && venue?.state ? ", " : ""}${venue?.state || ""}` || "TBD",
+      venue: venueLabel,
+      location,
       type: event.type || "performance",
+      href: `/venue/events/${event.id}`,
     }))
-  }, [venueEvents, venue?.city, venue?.name, venue?.state, venue?.venue_name])
+    const fromBookings = bookings.map((booking) => ({
+      id: `booking-${booking.id}`,
+      title: booking.event_name,
+      date: new Date(booking.event_date || Date.now()),
+      venue: venueLabel,
+      location,
+      type: "booking",
+      href: "/venue/bookings",
+    }))
+    return [...fromEvents, ...fromBookings]
+  }, [venueEvents, bookings, venue?.city, venue?.name, venue?.state, venue?.venue_name])
 
   // Get days in month
   const getDaysInMonth = (year: number, month: number) => {
@@ -278,7 +293,7 @@ export default function CalendarPage() {
                     <div
                       key={index}
                       className="p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800"
-                      onClick={() => router.push(`/venue/events/${event.id}`)}
+                      onClick={() => router.push(event.href || `/venue/events/${event.id}`)}
                     >
                       <div className="flex min-w-0 items-center justify-between gap-2">
                         <h3 className="min-w-0 flex-1 truncate font-medium">{event.title}</h3>
@@ -310,7 +325,7 @@ export default function CalendarPage() {
                     <div
                       key={index}
                       className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-800"
-                      onClick={() => router.push(`/venue/events/${event.id}`)}
+                      onClick={() => router.push(event.href || `/venue/events/${event.id}`)}
                     >
                       <div className="bg-gray-800 p-2 rounded-md text-center min-w-[40px]">
                         <div className="text-xs text-gray-400">

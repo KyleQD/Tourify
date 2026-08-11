@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260722002848_admin_signed_acting_context_sec101.sql",
+  "taskId": "SEC-101",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["tenancy", "authentication", "rbac", "audit"],
+  "riskLevel": "critical",
+  "representativeSnapshot": { "kind": "isolated production-like Supabase branch", "evidenceArtifact": null },
+  "preflight": { "rowCountQueries": ["user_sessions compatibility rows, active org memberships, organizer account/org mappings, and role permission versions"], "expectedAffectedRows": "Create empty canonical context/audit tables and functions; zero compatibility rows are copied, inferred, updated, or removed", "artifact": null },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 120000, "batchSize": 0, "resumeStrategy": "Expand-only tables/indexes and CREATE OR REPLACE functions are rerunnable; retry the complete transaction", "resumeCursor": "supabase migration version 20260722002848", "idempotency": "IF NOT EXISTS plus CREATE OR REPLACE converge; no session row is created until an authenticated explicit switch" },
+  "quarantine": { "required": false, "table": null, "strategy": "Do not backfill or guess acting organizations; users without a new signed selection receive acting_context_required" },
+  "constraintsAndIndexes": { "constraints": ["session user/profile/org foreign keys, positive epoch, bounded expiry shape, SHA-256 binding/nonce shape, reasoned revocation", "immutable audit identity/action/result constraints"], "indexes": ["active user/expiry and org/user session indexes", "audit user/org created-at indexes"], "validationPlan": "Verify table RLS has no authenticated direct policies, grants expose only own-session RPCs, CAS prevents stale switches, membership/capability changes invalidate resolution, and audit rows remain append-only" },
+  "recovery": { "rollback": "Keep the additive schema unused and disable signed-context rollout; do not restore unsigned Admin authority or remove session/audit rows", "forwardFix": "Ship later additive function/policy corrections and require a new explicit selection after invalidation" },
+  "postflight": { "queries": ["table/constraint/index/RLS/grant/function inventory, zero inferred rows, two-session epoch CAS, revoked/expired/membership-changed resolution, and audit action matrix"], "artifact": null, "securityAdvisorArtifact": null, "performanceAdvisorArtifact": null },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

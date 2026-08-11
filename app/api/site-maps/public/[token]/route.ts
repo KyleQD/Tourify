@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { evaluateMapShareTokenGate } from '@/lib/admin/map-access-contract'
 import { siteMapError, siteMapSuccess } from '@/lib/site-map/access'
 
 export async function GET(
@@ -17,9 +18,17 @@ export async function GET(
       .single()
 
     if (shareTokenError || !shareToken) return siteMapError('Invalid share link', 404)
-    if (!shareToken.is_active) return siteMapError('Share link disabled', 403)
-    if (shareToken.expires_at && new Date(shareToken.expires_at).getTime() < Date.now())
-      return siteMapError('Share link expired', 403)
+
+    const gate = evaluateMapShareTokenGate({
+      is_active: shareToken.is_active,
+      expires_at: shareToken.expires_at,
+      site_map_id: shareToken.site_map_id,
+    })
+    if (!gate.ok) {
+      if (gate.reason === 'inactive') return siteMapError('Share link disabled', 403)
+      if (gate.reason === 'expired') return siteMapError('Share link expired', 403)
+      return siteMapError('Invalid share link', 404)
+    }
 
     const { data: siteMap, error: siteMapFetchError } = await supabase
       .from('site_maps')

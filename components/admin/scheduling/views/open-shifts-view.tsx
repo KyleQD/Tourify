@@ -1,9 +1,11 @@
 "use client"
 
 import { useMemo } from "react"
+import Link from "next/link"
 import { AlertTriangle, Clock, UserPlus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/admin/scheduling/ui/card"
 import { useScheduling } from "@/components/admin/scheduling/scheduling-context"
 import { OpenShiftsSection } from "@/components/admin/scheduling/scheduling-open-shifts"
@@ -30,6 +32,19 @@ export function OpenShiftsView() {
           tint="bg-neon-amber/15"
         />
       </div>
+
+      {stats.total === 0 ? (
+        <Card className="border-border/60 bg-card/70 py-0 backdrop-blur">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              No open shifts right now. Check the roster for assignable staff, then publish gaps from the week grid.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/admin/dashboard/roster">Open roster</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <OpenShiftsSection />
     </div>

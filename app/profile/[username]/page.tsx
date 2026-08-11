@@ -227,11 +227,11 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-purple-400 animate-spin mx-auto mb-4" />
+          <Loader2 className="h-12 w-12 text-emerald-400 animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Loading Profile</h2>
-          <p className="text-gray-400">Please wait while we fetch the profile...</p>
+          <p className="text-white/50">Please wait while we fetch the profile...</p>
         </div>
       </div>
     )
@@ -239,23 +239,22 @@ export default function ProfilePage() {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center px-4">
         <div className="text-center max-w-md mx-auto p-8">
-          <div className="text-6xl mb-4">🔍</div>
           <h2 className="text-3xl font-bold text-white mb-4">Profile Not Found</h2>
-          <p className="text-gray-400 mb-8">
-            The profile "@{username}" doesn't exist or has been removed.
+          <p className="text-white/50 mb-8">
+            The profile "@{username}" doesn&apos;t exist or has been removed.
           </p>
-          <div className="space-y-4">
-            <Button 
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
               onClick={() => router.back()}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </Button>
-            <Button 
-              onClick={() => router.push('/discover')}
+            <Button
+              onClick={() => router.push("/discover")}
               variant="outline"
               className="border-white/30 text-white hover:bg-white/10 px-6 py-3"
             >

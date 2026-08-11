@@ -1,0 +1,421 @@
+You are an expert developer in TypeScript, Node.js, Next.js 15 (App Router), React, Supabase, GraphQL (Genql), Tailwind, Radix, and Shadcn UI. Follow ALL rules in the project’s rule set. Build a production-ready “Forums” system with tight integration to existing content (music, videos, news, blogs). Never reset the database—use additive migrations only.
+
+## High-level Goals
+- Reddit-style forums with: communities, threads, nested comments, votes, tags/flairs, sort (hot/new/top), full-text search, subscriptions, notifications, reporting/mod tools, and real-time updates.
+- Cross-content discussions: any Music/Video/News/Blog post can have a linked discussion thread (or multiple cross-posts) inside Forums.
+- Seamless UX: create thread from Forums or from a content detail page (“Start discussion” / “Discuss” widget). Inline embed of discussion under content.
+- Strict RLS, robust rate-limiting, and anti-abuse.
+- App Router + RSC for data fetching, minimal client state, Shadcn/Radix UI, Zod validation, next-safe-action for server actions.
+- GraphQL via Genql for typed reads/writes, optimized selections.
+
+## Deliverables
+1) **Database (Supabase) – migrations + RLS**  
+Additive migrations only. Use enum lookup tables (no Postgres ENUM types).
+
+### 1.1 Lookup tables
+```sql
+-- forum_kind (allows future private/partner forums)
+create table if not exists forum_kind (
+  id text primary key,
+  label text not null
+);
+insert into forum_kind (id, label) values
+  ('public','Public'), ('restricted','Restricted')
+on conflict do nothing;
+
+create table if not exists vote_kind (
+  id text primary key check (id in ('up','down'))
+);
+
+create table if not exists post_kind (
+  id text primary key check (id in ('text','link','media','crosspost'))
+);
+
+create table if not exists content_kind (
+  id text primary key check (id in ('music','video','news','blog','forum'))
+);
+
+-- Forums & tags
+create table if not exists forums (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  title text not null,
+  description text,
+  kind text not null references forum_kind(id) default 'public',
+  is_archived boolean not null default false,
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists forum_tags (
+  id uuid primary key default gen_random_uuid(),
+  forum_id uuid not null references forums(id) on delete cascade,
+  slug text not null,
+  label text not null,
+  unique (forum_id, slug)
+);
+
+-- Global content reference to cross-link external content into forums
+create table if not exists content_refs (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null references content_kind(id),
+  target_id uuid,
+  target_url text,
+  title text,
+  thumbnail_url text,
+  unique (kind, target_id)
+);
+
+-- Threads & comment posts
+create table if not exists forum_threads (
+  id uuid primary key default gen_random_uuid(),
+  forum_id uuid not null references forums(id) on delete cascade,
+  title text not null,
+  kind text not null references post_kind(id) default 'text',
+  content_md text,           -- markdown for text posts
+  link_url text,             -- for link/media posts
+  content_ref_id uuid references content_refs(id) on delete set null, -- cross-post
+  created_by uuid not null references auth.users(id),
+  is_deleted boolean not null default false,
+  is_locked boolean not null default false,
+  score integer not null default 0,   -- denormalized for speed
+  hot_score float8 not null default 0,
+  comments_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists forum_thread_tags (
+  thread_id uuid not null references forum_threads(id) on delete cascade,
+  tag_id uuid not null references forum_tags(id) on delete cascade,
+  primary key (thread_id, tag_id)
+);
+
+create table if not exists forum_posts (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references forum_threads(id) on delete cascade,
+  parent_id uuid references forum_posts(id) on delete cascade,
+  content_md text not null,
+  created_by uuid not null references auth.users(id),
+  is_deleted boolean not null default false,
+  score integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists forum_votes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  target_kind text not null check (target_kind in ('thread','post')),
+  target_id uuid not null,
+  kind text not null references vote_kind(id),
+  created_at timestamptz not null default now(),
+  unique (user_id, target_kind, target_id)
+);
+
+create table if not exists forum_subscriptions (
+  user_id uuid not null references auth.users(id),
+  forum_id uuid references forums(id) on delete cascade,
+  thread_id uuid references forum_threads(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check ((forum_id is not null) != (thread_id is not null)),
+  primary key (user_id, coalesce(forum_id, '00000000-0000-0000-0000-000000000000'::uuid), coalesce(thread_id, '00000000-0000-0000-0000-000000000000'::uuid))
+);
+
+create table if not exists forum_reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references auth.users(id),
+  target_kind text not null check (target_kind in ('thread','post')),
+  target_id uuid not null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists forum_moderators (
+  forum_id uuid not null references forums(id) on delete cascade,
+  user_id uuid not null references auth.users(id),
+  role text not null check (role in ('mod','owner')),
+  primary key (forum_id, user_id)
+);
+
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  kind text not null,
+  payload jsonb not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+
+-- Hot score (Reddit-style)
+create or replace function compute_hot_score(score int, ts timestamptz) returns float8 language sql immutable as $$
+  select (log(greatest(abs(score), 1)) * sign(score)) + extract(epoch from ts)/45000
+$$;
+
+create index if not exists idx_thread_hot on forum_threads (hot_score desc, created_at desc);
+create index if not exists idx_thread_forum on forum_threads (forum_id, created_at desc);
+
+-- Full-text search
+alter table forum_threads add column if not exists tsv tsvector;
+create index if not exists idx_thread_tsv on forum_threads using gin(tsv);
+
+create or replace function forum_threads_tsv_trigger() returns trigger as $$
+begin
+  new.tsv :=
+    setweight(to_tsvector('simple', coalesce(new.title,'')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(new.content_md,'')), 'B');
+  return new;
+end
+$$ language plpgsql;
+
+drop trigger if exists trg_forum_threads_tsv on forum_threads;
+create trigger trg_forum_threads_tsv before insert or update
+  on forum_threads for each row execute function forum_threads_tsv_trigger();
+
+
+alter table forums enable row level security;
+alter table forum_threads enable row level security;
+alter table forum_posts enable row level security;
+alter table forum_votes enable row level security;
+alter table forum_subscriptions enable row level security;
+alter table forum_reports enable row level security;
+alter table forum_moderators enable row level security;
+alter table content_refs enable row level security;
+
+-- Read: public forums visible to all
+create policy "forums:read" on forums for select using (kind = 'public');
+
+-- Create forum: staff only (adjust to your role system if exists)
+create policy "forums:create" on forums for insert with check (auth.role() = 'service_role'); -- or gate via edge function
+
+-- Threads
+create policy "threads:read" on forum_threads for select using (true);
+create policy "threads:insert" on forum_threads for insert
+  with check (auth.uid() = created_by);
+create policy "threads:update-own" on forum_threads for update
+  using (auth.uid() = created_by) with check (auth.uid() = created_by);
+create policy "threads:mod" on forum_threads for update using (
+  exists(select 1 from forum_moderators m where m.forum_id = forum_id and m.user_id = auth.uid())
+);
+
+-- Posts
+create policy "posts:read" on forum_posts for select using (true);
+create policy "posts:insert" on forum_posts for insert with check (auth.uid() = created_by);
+create policy "posts:update-own" on forum_posts for update using (auth.uid() = created_by) with check (auth.uid() = created_by);
+create policy "posts:mod" on forum_posts for update using (
+  exists(select 1 from forum_moderators m where m.forum_id = (select forum_id from forum_threads t where t.id = forum_posts.thread_id) and m.user_id = auth.uid())
+);
+
+-- Votes
+create policy "votes:rwd" on forum_votes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Subs, reports
+create policy "subs:rwd" on forum_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "reports:insert" on forum_reports for insert with check (auth.uid() = reporter_id);
+create policy "reports:read-mod" on forum_reports for select using (
+  exists(select 1 from forum_moderators m where m.user_id = auth.uid())
+);
+
+-- Content refs: read all, insert by any authed
+create policy "content_refs:read" on content_refs for select using (true);
+create policy "content_refs:insert" on content_refs for insert with check (true);
+
+## GraphQL
+
+
+# threads
+type forum_threads {
+  id: uuid!
+  forum_id: uuid!
+  title: String!
+  kind: String!
+  content_md: String
+  link_url: String
+  content_ref_id: uuid
+  created_by: uuid!
+  score: Int!
+  hot_score: Float!
+  comments_count: Int!
+  created_at: timestamptz!
+  updated_at: timestamptz!
+  forum: forums
+  content_ref: content_refs
+}
+
+type forum_posts {
+  id: uuid!
+  thread_id: uuid!
+  parent_id: uuid
+  content_md: String!
+  created_by: uuid!
+  score: Int!
+  created_at: timestamptz!
+  updated_at: timestamptz!
+}
+
+# queries we’ll need (examples)
+query ThreadsByForum($forum_id: uuid!, $limit: Int!, $cursor: timestamptz) {
+  forum_threads(
+    where: {forum_id: {_eq: $forum_id}, created_at: {_lt: $cursor}}
+    order_by: [{hot_score: desc}, {created_at: desc}]
+    limit: $limit
+  ) { ...ThreadCard }
+}
+
+// app/forums/_actions/thread-actions.ts
+'use server'
+
+import { z } from 'zod'
+import { createSafeActionClient } from 'next-safe-action'
+import { createServerClient } from '@/lib/supabase/server'
+
+const action = createSafeActionClient()
+
+const createThreadSchema = z.object({
+  forumId: z.string().uuid(),
+  title: z.string().min(3).max(180),
+  kind: z.enum(['text','link','media','crosspost']),
+  contentMd: z.string().max(20000).optional(),
+  linkUrl: z.string().url().optional(),
+  contentRefId: z.string().uuid().optional(),
+  tagIds: z.array(z.string().uuid()).max(5).optional()
+})
+
+export const createThreadAction = action(createThreadSchema, async (input) => {
+  const supabase = createServerClient()
+  const { data: user } = await supabase.auth.getUser()
+  if (!user?.user) return { ok: false, error: 'not_authenticated' }
+
+  if (input.kind === 'text' && !input.contentMd) return { ok: false, error: 'empty_body' }
+  if ((input.kind === 'link' || input.kind === 'media') && !input.linkUrl) return { ok: false, error: 'missing_link' }
+
+  const { data, error } = await supabase
+    .from('forum_threads')
+    .insert({
+      forum_id: input.forumId,
+      title: input.title,
+      kind: input.kind,
+      content_md: input.contentMd,
+      link_url: input.linkUrl,
+      content_ref_id: input.contentRefId,
+      created_by: user.user.id
+    })
+    .select('id')
+    .single()
+
+  if (error) return { ok: false, error: 'db_insert_failed' }
+
+  if (input.tagIds?.length) {
+    const rows = input.tagIds.map(tagId => ({ thread_id: data.id, tag_id: tagId }))
+    await supabase.from('forum_thread_tags').insert(rows)
+  }
+
+  return { ok: true, threadId: data.id }
+})
+
+Add similar: createPostAction, voteAction, subscribeAction, reportAction. Model expected errors as return values, not exceptions.
+Edge Functions (rate limiting & spam control)
+edge-functions/rate_limit.ts: sliding window in Vercel KV keyed by userId:action. Enforce:
+createThread: 5/min, 50/day
+createPost: 20/min, 500/day
+edge-functions/moderation.ts: lightweight heuristic (length, links, repetition). Return flags for manual review. (Hook it in server actions; block if score > threshold.)
+Realtime
+Use Supabase Realtime on forum_posts (by thread_id) and optional on forum_votes for optimistic score updates.
+
+// app/forums/t/[id]/_client/realtime-thread.tsx
+'use client'
+import { useEffect } from 'react'
+import { createBrowserClient } from '@/lib/supabase/client'
+
+export function useThreadRealtime(threadId: string, onPost: (p: any) => void) {
+  useEffect(() => {
+    const sb = createBrowserClient()
+    const ch = sb.channel(`thread:${threadId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_posts', filter: `thread_id=eq.${threadId}` },
+        payload => onPost(payload.new))
+      .subscribe()
+    return () => { sb.removeChannel(ch) }
+  }, [threadId, onPost])
+}
+
+
+App Router structure
+
+app/
+  forums/
+    page.tsx                 // discovery: tabs All | Business | New Music | Gear | Local, filters via nuqs
+    [slug]/
+      page.tsx               // forum home w/ sort & tag filters
+      new/page.tsx           // create thread form
+    t/[id]/page.tsx          // thread detail w/ comment tree
+    search/page.tsx
+  (components)/
+    forums/
+      thread-card.tsx
+      thread-composer.tsx
+      comment-tree.tsx
+      vote-button.tsx
+      tag-badge.tsx
+      sort-tabs.tsx
+      mod-tools.tsx
+      discussion-embed.tsx   // embeddable widget for Music/Video/News/Blogs
+
+
+Key Components (client only when needed)
+thread-composer
+Tabs: Text | Link | Media | Cross-post
+Zod-validated form, useActionState with createThreadAction.
+For Cross-post: search + select existing content (GraphQL query across content tables) to create content_refs if needed and link thread.
+comment-tree
+Recursive list with collapse, reply form per node, optimistic insert, realtime updates.
+vote-button
+Single source of truth for toggling up/down. Reflect current user vote.
+discussion-embed
+Props: { kind: 'music'|'video'|'news'|'blog', targetId: string }
+Shows linked thread if exists; else CTA “Start a discussion” opens thread-composer prefilled with contentRefId.
+Sorting & filters
+Use nuqs for ?sort=hot|new|top&tag=gear&search=... state.
+SQL order:
+hot: hot_score desc, created_at desc
+new: created_at desc
+top: score desc, created_at desc
+Search
+Server search action that queries forum_threads by tsv @@ plainto_tsquery($q), plus optional tag and forum_id filters. Paginate by created_at cursor.
+Moderation
+forum_moderators gate hide/lock/delete in RLS policy already.
+mod-tools surface: lock thread, remove, tag, view reports, shadow-ban user content (scope: forum).
+Reports list for mods with batch actions.
+Notifications
+Simple server component fetching unread notifications + client toast. Mark-as-read server action. Triggers already insert on new comments.
+UX polish
+Use Shadcn Card, Tabs, Badge, DropdownMenu, AlertDialog.
+Mobile-first: sticky composer on thread page footer.
+Skeletons for loading states; Suspense boundaries for thread list and comments.
+Acceptance Criteria
+Create/read/update (own)/delete (own) threads & comments under RLS.
+Vote up/down threads & comments with immediate visual feedback; scores persist.
+Sort hot/new/top; tag filtering; full-text search.
+Real-time new comments appear without reload.
+From a Music/Video/News/Blog page, user can open or start a discussion (creates content_refs + thread).
+Subscriptions send notifications on new comments.
+Rate limits enforced by edge function; friendly errors.
+All code TypeScript, functional, modular; server actions validated with Zod; App Router + RSC.
+Tasks for Cursor
+Write SQL migration files for all tables, triggers, indexes, and RLS above (idempotent).
+Generate/update Genql client types for new tables.
+Implement server actions: createThreadAction, createPostAction, voteAction, subscribeAction, reportAction, markNotificationReadAction.
+Build components listed in section 6 with Shadcn/Radix and Tailwind; minimize use client.
+Implement discussion-embed and add to Music/Video/News/Blog detail pages.
+Add edge functions for rate limiting; call them inside server actions before inserts.
+Wire realtime hook for comments.
+Add Playwright e2e tests: create thread, comment, vote, search, cross-post, and mod actions.
+Document new env vars and routes in README.
+Code Style Reminders
+Use function for pure functions, TypeScript interfaces, named exports, RORO pattern.
+Early returns for errors; model expected errors as return values.
+Keep static content and interfaces at file end.
+Optimize images (WebP, sizes, lazy) in cards.
+Do not reset the database.
+
+

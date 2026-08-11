@@ -16,6 +16,8 @@ import { ChatMessage } from '../types/chat'
 import { PromotionsTab } from './promotions-tab'
 import { Promotion } from '../types/promotion'
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 interface EventManagementModalProps {
   event: EventFormData | null
@@ -156,14 +158,15 @@ function DeleteConfirmationDialog({ isOpen, onCancel, onConfirm, isLoading }: {
   if (!isOpen) return null
   return (
     <Dialog open={isOpen} onOpenChange={onCancel}>
-      <DialogContent>
+      <DialogContent className={detailSurfacePattern.dialogContent}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle>Confirm Delete</DialogTitle>
+          <DialogTitle className={detailSurfacePattern.title}>Confirm Delete</DialogTitle>
         </DialogHeader>
         <div className="text-red-500 mb-4">Are you sure you want to delete this event? This action cannot be undone.</div>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
+          <Button variant="outline" onClick={onCancel} className={detailSurfacePattern.btnOutline}>Cancel</Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isLoading} className={detailSurfacePattern.btnDestructive}>
             {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : <Trash className="h-4 w-4 mr-1" />} Delete
           </Button>
         </DialogFooter>
@@ -379,20 +382,21 @@ export function EventManagementModal({ event, isOpen, onClose, currentUser, team
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className={cn(detailSurfacePattern.title, "flex items-center gap-2")}>
             Manage Event: <span className="text-purple-400">{event.title}</span>
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col md:flex-row gap-6">
           {/* Left: Event Details */}
           <div className="flex-1 space-y-4">
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className={detailSurfacePattern.panel}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Badge>{event.status}</Badge>
-                  <span className="text-xs text-gray-400">{event.type}</span>
+                  <Badge className={detailSurfacePattern.badge}>{event.status}</Badge>
+                  <span className={cn(detailSurfacePattern.description, "text-xs")}>{event.type}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -403,19 +407,19 @@ export function EventManagementModal({ event, isOpen, onClose, currentUser, team
             <div className="flex gap-2">
               {isEditing ? (
                 <>
-                  <Button variant="default" size="sm" onClick={handleSaveEdit}>
+                  <Button variant="default" size="sm" onClick={handleSaveEdit} className={detailSurfacePattern.btnPrimary}>
                     <Save className="h-4 w-4 mr-1" /> Save
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                  <Button variant="outline" size="sm" onClick={handleCancelEdit} className={detailSurfacePattern.btnOutline}>
                     <X className="h-4 w-4 mr-1" /> Cancel
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="outline" size="sm" onClick={handleEdit}>
+                  <Button variant="outline" size="sm" onClick={handleEdit} className={detailSurfacePattern.btnOutline}>
                     <Edit className="h-4 w-4 mr-1" /> Edit
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={handleDelete}>
+                  <Button variant="destructive" size="sm" onClick={handleDelete} className={detailSurfacePattern.btnDestructive}>
                     <Trash className="h-4 w-4 mr-1" /> Delete
                   </Button>
                 </>
@@ -425,17 +429,17 @@ export function EventManagementModal({ event, isOpen, onClose, currentUser, team
           {/* Right: Tabs for Documents, People, Chat */}
           <div className="flex-1 space-y-4">
             <div className="flex gap-2 mb-2" role="tablist">
-              <Button variant={activeTab === "details" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("details")}>Details</Button>
-              <Button variant={activeTab === "documents" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("documents")}>Documents</Button>
-              <Button variant={activeTab === "people" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("people")}>People</Button>
-              <Button variant={activeTab === "chat" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("chat")}>Chat</Button>
-              <Button variant={activeTab === "promotions" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("promotions")}>Promotions</Button>
+              <Button variant={activeTab === "details" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("details")} className={activeTab === "details" ? detailSurfacePattern.btnPrimary : detailSurfacePattern.btnOutline}>Details</Button>
+              <Button variant={activeTab === "documents" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("documents")} className={activeTab === "documents" ? detailSurfacePattern.btnPrimary : detailSurfacePattern.btnOutline}>Documents</Button>
+              <Button variant={activeTab === "people" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("people")} className={activeTab === "people" ? detailSurfacePattern.btnPrimary : detailSurfacePattern.btnOutline}>People</Button>
+              <Button variant={activeTab === "chat" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("chat")} className={activeTab === "chat" ? detailSurfacePattern.btnPrimary : detailSurfacePattern.btnOutline}>Chat</Button>
+              <Button variant={activeTab === "promotions" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("promotions")} className={activeTab === "promotions" ? detailSurfacePattern.btnPrimary : detailSurfacePattern.btnOutline}>Promotions</Button>
             </div>
             {renderTabContent()}
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}><X className="h-4 w-4 mr-1" /> Close</Button>
+          <Button variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}><X className="h-4 w-4 mr-1" /> Close</Button>
         </DialogFooter>
         <DeleteConfirmationDialog
           isOpen={isDeleteDialogOpen}

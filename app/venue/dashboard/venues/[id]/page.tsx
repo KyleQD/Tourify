@@ -41,100 +41,6 @@ import {
 } from "lucide-react"
 import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
-// Mock venue data - in a real app, this would come from an API
-const mockVenue = {
-  id: "venue-1",
-  name: "The Echo Lounge",
-  username: "echolounge",
-  description:
-    "A premier music venue with state-of-the-art sound and lighting systems, hosting both local and touring artists. The Echo Lounge features multiple performance spaces, a full-service bar, and a dedicated team to ensure your event runs smoothly.",
-  location: "Los Angeles, CA",
-  address: "1234 Sunset Blvd, Los Angeles, CA 90026",
-  website: "https://echolounge.com",
-  avatar: "/vibrant-urban-gathering.png",
-  coverImage: "/vibrant-music-venue.png",
-  capacity: 850,
-  type: "Music Venue",
-  amenities: [
-    { name: "Wi-Fi", icon: "Wifi" },
-    { name: "Parking", icon: "ParkingMeter" },
-    { name: "ADA Access", icon: "Accessibility" },
-    { name: "Green Room", icon: "Coffee" },
-    { name: "Sound System", icon: "Music" },
-  ],
-  specs: {
-    soundSystem: "Meyer Sound with 32-channel Midas console",
-    lighting: "Full DMX system with moving heads and LED pars",
-    stage: "24' x 16' with 3' height",
-    greenRoom: true,
-    parking: "25 spots on-site, street parking available",
-    accessibility: "ADA compliant with wheelchair ramp and accessible restrooms",
-    bar: "Full-service bar with craft cocktails and local beers",
-    foodService: "Small plates menu available until 10pm",
-  },
-  bookingContact: {
-    name: "Alex Johnson",
-    email: "booking@echolounge.com",
-    phone: "(323) 555-1234",
-  },
-  stats: {
-    events: 125,
-    capacity: 850,
-    rating: 4.8,
-  },
-  upcomingEvents: [
-    {
-      id: "event-1",
-      title: "Summer Jam Festival",
-      artist: "Various Artists",
-      date: "2025-06-15T14:00:00",
-      ticketsSold: 450,
-      capacity: 850,
-      status: "On Sale",
-    },
-    {
-      id: "event-2",
-      title: "Midnight Echo",
-      artist: "Sarah Williams",
-      date: "2025-06-22T19:00:00",
-      ticketsSold: 325,
-      capacity: 850,
-      status: "On Sale",
-    },
-    {
-      id: "event-3",
-      title: "Jazz Night",
-      artist: "The Blue Notes",
-      date: "2025-06-28T20:00:00",
-      ticketsSold: 275,
-      capacity: 850,
-      status: "On Sale",
-    },
-  ],
-  gallery: [
-    { id: "img-1", url: "/empty-theater-stage.png", alt: "Main stage" },
-    { id: "img-2", url: "/cozy-corner-bar.png", alt: "Bar area" },
-    { id: "img-3", url: "/grand-entrance.png", alt: "Venue entrance" },
-    { id: "img-4", url: "/placeholder.svg?height=300&width=400&query=Green+Room", alt: "Green room" },
-    { id: "img-5", url: "/placeholder.svg?height=300&width=400&query=Sound+Booth", alt: "Sound booth" },
-    { id: "img-6", url: "/placeholder.svg?height=300&width=400&query=Crowd", alt: "Crowd view" },
-  ],
-  documents: [
-    {
-      id: "doc-1",
-      name: "Stage Plot & Technical Rider",
-      type: "pdf",
-      size: "2.4 MB",
-      uploadDate: "2023-05-15",
-      url: "#",
-    },
-    { id: "doc-2", name: "Floor Plan", type: "pdf", size: "1.8 MB", uploadDate: "2023-05-15", url: "#" },
-    { id: "doc-3", name: "Booking Policy", type: "pdf", size: "0.5 MB", uploadDate: "2023-05-15", url: "#" },
-    { id: "doc-4", name: "Hospitality Information", type: "pdf", size: "0.7 MB", uploadDate: "2023-05-15", url: "#" },
-  ],
-  isOwner: true,
-}
-
 export default function VenuePage() {
   const params = useParams()
   const router = useRouter()
@@ -169,7 +75,7 @@ export default function VenuePage() {
       try {
         const venueId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : ""
         if (!venueId) {
-          setVenue(mockVenue)
+          setVenue(null)
           return
         }
 
@@ -179,27 +85,26 @@ export default function VenuePage() {
         const payload = await response.json()
         const fetchedVenue = payload?.venue
         if (!fetchedVenue) {
-          setVenue(mockVenue)
+          setVenue(null)
           return
         }
 
         const mappedVenue = {
-          ...mockVenue,
-          id: fetchedVenue.id || mockVenue.id,
-          name: fetchedVenue.venue_name || mockVenue.name,
-          username: fetchedVenue.url_slug || fetchedVenue.venue_name?.toLowerCase().replace(/\s+/g, "-") || mockVenue.username,
-          description: fetchedVenue.description || mockVenue.description,
-          location: `${fetchedVenue.city || ""}${fetchedVenue.city && fetchedVenue.state ? ", " : ""}${fetchedVenue.state || ""}` || mockVenue.location,
-          address: fetchedVenue.address || mockVenue.address,
-          website: fetchedVenue.social_links?.website || mockVenue.website,
-          avatar: fetchedVenue.avatar_url || mockVenue.avatar,
-          coverImage: fetchedVenue.cover_image_url || mockVenue.coverImage,
-          capacity: Number(fetchedVenue.capacity || mockVenue.capacity),
-          type: fetchedVenue.venue_types?.[0] || mockVenue.type,
+          id: fetchedVenue.id,
+          name: fetchedVenue.venue_name || "Venue",
+          username: fetchedVenue.url_slug || fetchedVenue.venue_name?.toLowerCase().replace(/\s+/g, "-") || fetchedVenue.id,
+          description: fetchedVenue.description || "",
+          location: `${fetchedVenue.city || ""}${fetchedVenue.city && fetchedVenue.state ? ", " : ""}${fetchedVenue.state || ""}` || "Location not set",
+          address: fetchedVenue.address || "",
+          website: fetchedVenue.social_links?.website || "",
+          avatar: fetchedVenue.avatar_url || "",
+          coverImage: fetchedVenue.cover_image_url || "",
+          capacity: Number(fetchedVenue.capacity || 0),
+          type: fetchedVenue.venue_types?.[0] || "Venue",
           stats: {
-            events: Number(fetchedVenue.stats?.upcoming_events || mockVenue.stats.events),
-            capacity: Number(fetchedVenue.capacity || mockVenue.capacity),
-            rating: Number(fetchedVenue.stats?.average_rating || mockVenue.stats.rating),
+            events: Number(fetchedVenue.stats?.upcoming_events || 0),
+            capacity: Number(fetchedVenue.capacity || 0),
+            rating: Number(fetchedVenue.stats?.average_rating || 0),
           },
           upcomingEvents: (fetchedVenue.recent_events || []).map((event: any) => ({
             id: event.id,
@@ -210,6 +115,18 @@ export default function VenuePage() {
             capacity: Number(fetchedVenue.capacity || 0),
             status: event.status || "On Sale",
           })),
+          amenities: [] as string[],
+          specs: fetchedVenue.settings?.technical_specs || {
+            soundSystem: fetchedVenue.sound_system || "",
+            lighting: fetchedVenue.lighting_rig || "",
+            stage: fetchedVenue.stage_dimensions || "",
+          },
+          bookingContact: {
+            name: fetchedVenue.contact_info?.manager_name || "",
+            email: fetchedVenue.contact_info?.booking_email || fetchedVenue.contact_info?.email || "",
+            phone: fetchedVenue.contact_info?.phone || "",
+          },
+          isOwner: true,
         }
         setVenue(mappedVenue)
       } catch (error) {
@@ -219,7 +136,7 @@ export default function VenuePage() {
           description: "Failed to load venue information",
           variant: "destructive",
         })
-        setVenue(mockVenue)
+        setVenue(null)
       } finally {
         setLoading(false)
       }
@@ -229,8 +146,8 @@ export default function VenuePage() {
   }, [params.id, toast])
 
   const handleShare = () => {
-    // In a real app, use Web Share API or copy to clipboard
-    navigator.clipboard.writeText(`https://tourify.com/venues/${venue.id}`)
+    const slug = venue.username || venue.id
+    navigator.clipboard.writeText(`${window.location.origin}/venues/${encodeURIComponent(slug)}`)
     toast({
       title: "Link copied",
       description: "Venue profile link copied to clipboard",
@@ -238,7 +155,7 @@ export default function VenuePage() {
   }
 
   const handleEdit = () => {
-    router.push(`/venues/${venue.id}/edit`)
+    router.push(`/venue/dashboard/venues/${venue.id}/edit`)
   }
 
   const handleBookingRequest = (date?: Date) => {

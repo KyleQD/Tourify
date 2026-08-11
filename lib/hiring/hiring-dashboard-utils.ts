@@ -1,15 +1,16 @@
 import type { HiringEntity } from "@/types/hiring-entity"
 
 /**
- * Staff shift APIs are venue-scoped. Venue employers use their entity id;
- * org/artist employers require an explicit scoped venue (URL `venue_id` or event context).
+ * Optional venue filter for scheduling. Venue employers default to their entity id;
+ * org/artist employers only have a venue when scoped via URL or event context.
+ * Venue is not required to load or create shifts.
  */
 export function resolveSchedulingVenueId(employer: HiringEntity): string | null {
   if (employer.entityType === "venue") return employer.entityId
   return employer.scope?.venueId ?? null
 }
 
-/** Live-mode gate flags: org can schedule without being a venue employer. */
+/** Live-mode gate flags. Employer is required; venue is optional. */
 export function getLiveSchedulingScopeFlags(args: {
   mode: "demo" | "live"
   employer: HiringEntity | null
@@ -18,7 +19,7 @@ export function getLiveSchedulingScopeFlags(args: {
   const isLive = args.mode === "live"
   return {
     needsEmployer: isLive && !args.employer,
-    needsVenue: isLive && Boolean(args.employer && !args.venueId),
+    needsVenue: false,
   }
 }
 

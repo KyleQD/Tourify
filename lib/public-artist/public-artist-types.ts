@@ -1,4 +1,6 @@
 import type { EPKData } from '@/lib/services/epk.service'
+import type { PublicArtistAppearance } from '@/lib/public-artist/public-artist-appearance'
+import type { ArtistProfileAppearance } from '@/lib/public-artist/artist-profile-appearance'
 
 export type PublicArtistId = string
 export type PublicUserId = string
@@ -53,6 +55,14 @@ export interface PublicArtistTrackDTO {
    */
   audioUrl: string | null
   artworkUrl: string | null
+  /**
+   * Provider that owns the audio. 'tourify' (default) or 'audius'.
+   */
+  provider?: 'tourify' | 'audius' | null
+  /** External provider track ID (e.g. Audius track id). */
+  providerTrackId?: string | null
+  /** Canonical external URL for attribution (e.g. Audius permalink). */
+  canonicalUrl?: string | null
   /**
    * Spotify/Apple/etc deep links (optional).
    */
@@ -156,17 +166,46 @@ export interface PublicArtistPostDTO {
   id: PublicArtistId
   authorUserId: PublicUserId
   authorName: string
+  authorUsername: string | null
+  authorAvatarUrl: string | null
+  authorProfilePath: string | null
+  authorVerified: boolean
   createdAt: string
   content: string
   type: string
+  contentRefType: string | null
+  contentRefId: string | null
   visibility: string | null
   location: string | null
   hashtags: string[]
   mediaUrls: string[]
+  mediaUnavailableCount?: number
+  taggedUsers: string[]
+  collaborators: Array<{
+    userId: string | null
+    profileId: string | null
+    username: string
+    avatarUrl: string | null
+  }>
+  metadata: Record<string, unknown> | null
+  trackPreview?: Record<string, unknown> | null
+  articlePreview?: Record<string, unknown> | null
+  listingPreview?: Record<string, unknown> | null
+  eventPreview?: Record<string, unknown> | null
   likesCount: number
   commentsCount: number
   sharesCount: number
   isPinned: boolean
+  isLiked: boolean
+  viewerCanManage: boolean
+  appearance?: {
+    template_id?: string | null
+    template_version?: number | null
+    schema_version?: number | null
+    snapshot?: unknown
+    snapshot_hash?: string | null
+    status?: string | null
+  } | null
   poll?: {
     question: string
     options: Array<{ id: string; text: string; votes: number; position: number }>
@@ -181,6 +220,7 @@ export interface PublicArtistPostDTO {
 export interface PublicArtistPostsDTO {
   pinnedPosts: PublicArtistPostDTO[]
   posts: PublicArtistPostDTO[]
+  nextCursor: string | null
 }
 
 export interface PublicArtistStatsDTO {
@@ -260,4 +300,16 @@ export interface PublicArtistPageDTO {
   epk: PublicArtistEPKDTO
   organizations: PublicArtistOrganizationMembershipDTO[]
   bandMembers?: PublicArtistBandMemberDTO[]
+  /**
+   * EPK-style public profile appearance. Null when never configured —
+   * page keeps the default purple/dark chrome.
+   */
+  appearance: PublicArtistAppearance | null
+  /**
+   * Published full-page design. Drafts are never returned by the public loader.
+   * Bands intentionally remain on their organization-owned presentation.
+   */
+  profileAppearance: ArtistProfileAppearance | null
+  /** Resolved on the server to avoid unstyled content flashing before hydration. */
+  postStylesRead?: boolean
 }

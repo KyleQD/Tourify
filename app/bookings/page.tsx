@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClient } from "@supabase/supabase-js"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
@@ -231,6 +232,16 @@ export default function BookingsPage() {
           New Booking
         </Button>
       </div>
+
+      <Card className="mb-6 border-purple-500/20 bg-purple-500/10">
+        <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold">Artist booking requests</h2>
+            <p className="text-sm text-muted-foreground">Track requests you sent and open accepted booking workspaces.</p>
+          </div>
+          <Button asChild><Link href="/bookings/requests">Open hire requests</Link></Button>
+        </CardContent>
+      </Card>
 
       {showCreateForm && (
         <Card className="mb-6">

@@ -8,7 +8,11 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "feature_flags_org_isolation" ON feature_flags
       USING (
-        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND org_id = feature_flags.org_id)
+        EXISTS (
+          SELECT 1 FROM org_members m
+          WHERE m.user_id = auth.uid()
+            AND m.org_id = feature_flags.org_id
+        )
       );
   END IF;
 EXCEPTION WHEN undefined_column THEN
@@ -25,13 +29,13 @@ DO $$ BEGIN
       FOR ALL USING (
         EXISTS (
           SELECT 1 FROM events_v2 e
-          JOIN profiles p ON p.org_id = e.org_id
+          JOIN org_members m ON m.org_id = e.org_id
           WHERE e.id = advancing_documents.event_id
-            AND p.id = auth.uid()
+            AND m.user_id = auth.uid()
         )
       );
   END IF;
-EXCEPTION WHEN undefined_table THEN NULL;
+EXCEPTION WHEN undefined_column OR undefined_table THEN NULL;
 END $$;
 
 -- day_sheets: scoped via event
@@ -43,13 +47,13 @@ DO $$ BEGIN
       FOR ALL USING (
         EXISTS (
           SELECT 1 FROM events_v2 e
-          JOIN profiles p ON p.org_id = e.org_id
+          JOIN org_members m ON m.org_id = e.org_id
           WHERE e.id = day_sheets.event_id
-            AND p.id = auth.uid()
+            AND m.user_id = auth.uid()
         )
       );
   END IF;
-EXCEPTION WHEN undefined_table THEN NULL;
+EXCEPTION WHEN undefined_column OR undefined_table THEN NULL;
 END $$;
 
 -- settlements: scoped via event
@@ -61,13 +65,13 @@ DO $$ BEGIN
       FOR ALL USING (
         EXISTS (
           SELECT 1 FROM events_v2 e
-          JOIN profiles p ON p.org_id = e.org_id
+          JOIN org_members m ON m.org_id = e.org_id
           WHERE e.id = settlements.event_id
-            AND p.id = auth.uid()
+            AND m.user_id = auth.uid()
         )
       );
   END IF;
-EXCEPTION WHEN undefined_table THEN NULL;
+EXCEPTION WHEN undefined_column OR undefined_table THEN NULL;
 END $$;
 
 -- ticket_purchases: scoped via event
@@ -79,13 +83,13 @@ DO $$ BEGIN
       FOR SELECT USING (
         EXISTS (
           SELECT 1 FROM events_v2 e
-          JOIN profiles p ON p.org_id = e.org_id
+          JOIN org_members m ON m.org_id = e.org_id
           WHERE e.id = ticket_purchases.event_id
-            AND p.id = auth.uid()
+            AND m.user_id = auth.uid()
         )
       );
   END IF;
-EXCEPTION WHEN undefined_table THEN NULL;
+EXCEPTION WHEN undefined_column OR undefined_table THEN NULL;
 END $$;
 
 -- admin_audit_log RLS already created in the audit log migration; skipped here.

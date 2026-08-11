@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Map, Eye, Calendar, Loader2, ExternalLink } from "lucide-react"
 import { VenueSiteMapViewer } from "@/components/venue/site-map-viewer"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 
 interface SharedSiteMap {
   id: string
@@ -26,6 +27,7 @@ interface SharedSiteMap {
 }
 
 export default function VenueSiteMapsPage() {
+  const { venue } = useCurrentVenue()
   const [maps, setMaps] = useState<SharedSiteMap[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMap, setSelectedMap] = useState<SharedSiteMap | null>(null)
@@ -34,15 +36,27 @@ export default function VenueSiteMapsPage() {
     async function load() {
       setIsLoading(true)
       try {
-        const resp = await fetch('/api/site-maps/shared', { credentials: 'include' })
+        const query = venue?.id ? `?venue_id=${encodeURIComponent(venue.id)}` : ""
+        const resp = await fetch(`/api/site-maps/shared${query}`, { credentials: "include" })
         const data = await resp.json()
-        if (data.success) setMaps(data.data || [])
-      } catch {} finally {
+        const rows = Array.isArray(data.data) ? data.data : []
+        // Prefer venue-scoped rows when the API returns venue_id / venue_profile_id
+        const scoped = venue?.id
+          ? rows.filter((row: { venue_id?: string; venue_profile_id?: string }) => {
+              const venueId = row.venue_id || row.venue_profile_id
+              return !venueId || venueId === venue.id
+            })
+          : rows
+        if (data.success) setMaps(scoped)
+        else setMaps([])
+      } catch {
+        setMaps([])
+      } finally {
         setIsLoading(false)
       }
     }
-    load()
-  }, [])
+    void load()
+  }, [venue?.id])
 
   if (selectedMap) {
     return (

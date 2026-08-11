@@ -35,6 +35,7 @@ export async function resolveAdminSurfaceAccess(
       ownerRelResult,
       legacyRelResult,
       orgMemberResult,
+      tourCollaboratorResult,
     ] = await Promise.all([
       supabaseClient
         .from('profiles')
@@ -70,6 +71,14 @@ export async function resolveAdminSurfaceAccess(
         .in('role', ['owner', 'admin', 'tour_manager', 'production'])
         .limit(1)
         .maybeSingle(),
+      supabaseClient
+        .from('tour_team_members')
+        .select('tour_id, role')
+        .eq('user_id', userId)
+        .eq('status', 'confirmed')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle(),
     ])
 
     const profile = profileResult?.data
@@ -93,6 +102,15 @@ export async function resolveAdminSurfaceAccess(
         role: String(orgMemberResult.data.role || 'admin'),
         profileType: 'organization',
         adminLevel: 'super',
+      }
+    }
+
+    if (tourCollaboratorResult?.data?.tour_id && !tourCollaboratorResult?.error) {
+      return {
+        hasAccess: true,
+        role: String(tourCollaboratorResult.data.role || 'admin'),
+        profileType: 'tour_collaborator',
+        adminLevel: 'support',
       }
     }
 

@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from "next/server"
 import { UnifiedOnboardingService } from "@/lib/services/unified-onboarding.service"
 import { z } from "zod"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/lib/database.types"
 
 // Validation schemas
 const getFlowSchema = z.object({
@@ -16,7 +18,7 @@ const createFlowSchema = z.object({
 
 const updateFlowSchema = z.object({
   id: z.string(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'failed']).optional(),
+  status: z.enum(['in_progress', 'completed', 'abandoned']).optional(),
   responses: z.record(z.any()).optional(),
   metadata: z.record(z.any()).optional()
 })
@@ -31,7 +33,6 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const flowType = searchParams.get('flow_type')
-    const userId = searchParams.get('user_id')
 
     if (!flowType) {
       return NextResponse.json(
@@ -52,22 +53,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Use provided userId or current user's id
-    const targetUserId = userId || user.id
-
-    // Get user's onboarding flow
-    const flow = await UnifiedOnboardingService.getUserOnboardingFlow(targetUserId, validatedParams.flow_type)
-
-    if (!flow) {
-      return NextResponse.json(
-        { error: "Onboarding flow not found" },
-        { status: 404 }
-      )
-    }
+    const [flow, template] = await Promise.all([
+      UnifiedOnboardingService.getUserOnboardingFlow(
+        user.id,
+        validatedParams.flow_type,
+        supabase,
+      ),
+      UnifiedOnboardingService.getTemplateByFlowType(
+        validatedParams.flow_type,
+        supabase,
+      ),
+    ])
 
     return NextResponse.json({
       success: true,
-      data: flow
+      data: { flow, template }
     })
 
   } catch (error) {
@@ -103,16 +103,16 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'create_flow':
-        return await handleCreateFlow(body, user.id)
+        return await handleCreateFlow(body, user.id, supabase)
 
       case 'update_flow':
-        return await handleUpdateFlow(body, user.id)
+        return await handleUpdateFlow(body, user.id, supabase)
 
       case 'complete_flow':
-        return await handleCompleteFlow(body, user.id)
+        return await handleCompleteFlow(body, user.id, supabase)
 
       case 'get_or_create_flow':
-        return await handleGetOrCreateFlow(body, user.id)
+        return await handleGetOrCreateFlow(body, user.id, supabase)
 
       default:
         return NextResponse.json(
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleCreateFlow(body: any, userId: string) {
+async function handleCreateFlow(body: any, userId: string, supabase: SupabaseClient<Database>) {
   const validatedData = createFlowSchema.parse(body)
 
   const flow = await UnifiedOnboardingService.createOnboardingFlow({
@@ -146,7 +146,7 @@ async function handleCreateFlow(body: any, userId: string) {
     flow_type: validatedData.flow_type,
     template_id: validatedData.template_id,
     metadata: validatedData.metadata
-  })
+  }, supabase)
 
   if (!flow) {
     return NextResponse.json(
@@ -161,19 +161,32 @@ async function handleCreateFlow(body: any, userId: string) {
   })
 }
 
-async function handleUpdateFlow(body: any, userId: string) {
+async function handleUpdateFlow(body: any, userId: string, supabase: SupabaseClient<Database>) {
   const validatedData = updateFlowSchema.parse(body)
 
   // Verify the flow belongs to the user
-  const existingFlow = await UnifiedOnboardingService.getUserOnboardingFlow(userId, 'artist') // We'll need to get the flow type from the flow ID
-  if (!existingFlow || existingFlow.id !== validatedData.id) {
+  const existingFlow = await UnifiedOnboardingService.getUserOnboardingFlowById(
+    userId,
+    validatedData.id,
+    supabase,
+  )
+  if (!existingFlow) {
     return NextResponse.json(
       { error: "Flow not found or access denied" },
       { status: 404 }
     )
   }
 
-  const flow = await UnifiedOnboardingService.updateOnboardingFlow(validatedData)
+  const flow = await UnifiedOnboardingService.updateOnboardingFlow(
+    {
+      ...validatedData,
+      metadata: validatedData.metadata
+        ? { ...(existingFlow.metadata || {}), ...validatedData.metadata }
+        : undefined,
+    },
+    supabase,
+    userId,
+  )
 
   if (!flow) {
     return NextResponse.json(
@@ -188,12 +201,16 @@ async function handleUpdateFlow(body: any, userId: string) {
   })
 }
 
-async function handleCompleteFlow(body: any, userId: string) {
+async function handleCompleteFlow(body: any, userId: string, supabase: SupabaseClient<Database>) {
   const validatedData = completeFlowSchema.parse(body)
 
   // Verify the flow belongs to the user
-  const existingFlow = await UnifiedOnboardingService.getUserOnboardingFlow(userId, 'artist') // We'll need to get the flow type from the flow ID
-  if (!existingFlow || existingFlow.id !== validatedData.id) {
+  const existingFlow = await UnifiedOnboardingService.getUserOnboardingFlowById(
+    userId,
+    validatedData.id,
+    supabase,
+  )
+  if (!existingFlow) {
     return NextResponse.json(
       { error: "Flow not found or access denied" },
       { status: 404 }
@@ -202,7 +219,9 @@ async function handleCompleteFlow(body: any, userId: string) {
 
   const flow = await UnifiedOnboardingService.completeOnboardingFlow(
     validatedData.id,
-    validatedData.responses
+    validatedData.responses,
+    supabase,
+    userId,
   )
 
   if (!flow) {
@@ -218,20 +237,14 @@ async function handleCompleteFlow(body: any, userId: string) {
   })
 }
 
-async function handleGetOrCreateFlow(body: any, userId: string) {
-  const { flow_type, template_id } = body
-
-  if (!flow_type) {
-    return NextResponse.json(
-      { error: "flow_type is required" },
-      { status: 400 }
-    )
-  }
+async function handleGetOrCreateFlow(body: any, userId: string, supabase: SupabaseClient<Database>) {
+  const { flow_type, template_id } = createFlowSchema.parse(body)
 
   const flow = await UnifiedOnboardingService.getOrCreateOnboardingFlow(
     userId,
     flow_type,
-    template_id
+    template_id,
+    supabase,
   )
 
   if (!flow) {

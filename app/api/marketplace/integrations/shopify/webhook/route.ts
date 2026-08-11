@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { verifyShopifyWebhookSignature } from "@/lib/marketplace/shopify-adapter"
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from "@/lib/config/audit-feature-gates"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
+  if (!isAuditFeatureApproved("marketplace_integrations"))
+    return auditFeatureUnavailable("marketplace_integrations")
   try {
     const rawBody = await request.text()
     const signature = request.headers.get("x-shopify-hmac-sha256")

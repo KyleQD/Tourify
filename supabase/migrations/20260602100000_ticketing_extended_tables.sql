@@ -139,57 +139,116 @@ alter table ticket_analytics     enable row level security;
 alter table social_media_performance enable row level security;
 
 -- Org members can read; org admins can write (using existing helper functions)
-create policy if not exists "ticket_campaigns_select" on ticket_campaigns
-  for select using (
-    event_id in (select id from events_v2 where org_id in (
-      select org_id from org_members where user_id = auth.uid()
-    ))
-  );
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ticket_campaigns'
+      and policyname = 'ticket_campaigns_select'
+  ) then
+    create policy "ticket_campaigns_select" on ticket_campaigns
+      for select using (
+        event_id in (select id from events_v2 where org_id in (
+          select org_id from org_members where user_id = auth.uid()
+        ))
+      );
+  end if;
 
-create policy if not exists "ticket_campaigns_write" on ticket_campaigns
-  for all using (
-    event_id in (select id from events_v2 where org_id in (
-      select org_id from org_members where user_id = auth.uid()
-    ))
-  );
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ticket_campaigns'
+      and policyname = 'ticket_campaigns_write'
+  ) then
+    create policy "ticket_campaigns_write" on ticket_campaigns
+      for all using (
+        event_id in (select id from events_v2 where org_id in (
+          select org_id from org_members where user_id = auth.uid()
+        ))
+      );
+  end if;
 
-create policy if not exists "promo_codes_select" on promo_codes
-  for select using (true);
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'promo_codes'
+      and policyname = 'promo_codes_select'
+  ) then
+    create policy "promo_codes_select" on promo_codes
+      for select using (true);
+  end if;
 
-create policy if not exists "promo_codes_write" on promo_codes
-  for all using (
-    event_id is null or event_id in (select id from events_v2 where org_id in (
-      select org_id from org_members where user_id = auth.uid()
-    ))
-  );
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'promo_codes'
+      and policyname = 'promo_codes_write'
+  ) then
+    create policy "promo_codes_write" on promo_codes
+      for all using (
+        event_id is null or event_id in (select id from events_v2 where org_id in (
+          select org_id from org_members where user_id = auth.uid()
+        ))
+      );
+  end if;
 
-create policy if not exists "ticket_shares_all" on ticket_shares
-  for all using (user_id = auth.uid() or auth.uid() in (
-    select user_id from org_members where org_id in (
-      select org_id from events_v2 where id = event_id
-    )
-  ));
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ticket_shares'
+      and policyname = 'ticket_shares_all'
+  ) then
+    create policy "ticket_shares_all" on ticket_shares
+      for all using (user_id = auth.uid() or auth.uid() in (
+        select user_id from org_members where org_id in (
+          select org_id from events_v2 where id = event_id
+        )
+      ));
+  end if;
 
-create policy if not exists "ticket_referrals_all" on ticket_referrals
-  for all using (referrer_id = auth.uid() or auth.uid() in (
-    select user_id from org_members where org_id in (
-      select org_id from events_v2 where id = event_id
-    )
-  ));
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ticket_referrals'
+      and policyname = 'ticket_referrals_all'
+  ) then
+    create policy "ticket_referrals_all" on ticket_referrals
+      for all using (referrer_id = auth.uid() or auth.uid() in (
+        select user_id from org_members where org_id in (
+          select org_id from events_v2 where id = event_id
+        )
+      ));
+  end if;
 
-create policy if not exists "ticket_analytics_select" on ticket_analytics
-  for select using (
-    event_id in (select id from events_v2 where org_id in (
-      select org_id from org_members where user_id = auth.uid()
-    ))
-  );
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'ticket_analytics'
+      and policyname = 'ticket_analytics_select'
+  ) then
+    create policy "ticket_analytics_select" on ticket_analytics
+      for select using (
+        event_id in (select id from events_v2 where org_id in (
+          select org_id from org_members where user_id = auth.uid()
+        ))
+      );
+  end if;
 
-create policy if not exists "social_media_performance_select" on social_media_performance
-  for select using (
-    event_id in (select id from events_v2 where org_id in (
-      select org_id from org_members where user_id = auth.uid()
-    ))
-  );
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'social_media_performance'
+      and policyname = 'social_media_performance_select'
+  ) then
+    create policy "social_media_performance_select" on social_media_performance
+      for select using (
+        event_id in (select id from events_v2 where org_id in (
+          select org_id from org_members where user_id = auth.uid()
+        ))
+      );
+  end if;
+end $$;
 
 -- ─── Indexes ─────────────────────────────────────────────────────────────────
 create index if not exists idx_ticket_campaigns_event on ticket_campaigns(event_id);

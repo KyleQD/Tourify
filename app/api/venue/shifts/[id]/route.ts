@@ -11,7 +11,12 @@ function getShiftId(request: NextRequest) {
 }
 
 async function getShiftVenue(service: any, shiftId: string) {
-  const { data } = await service.from("staff_shifts").select("id, venue_id, adhoc_venue_id").eq("id", shiftId).maybeSingle()
+  const { data } = await service
+    .from("staff_shifts")
+    .select("id, venue_id, adhoc_venue_id")
+    .eq("id", shiftId)
+    .is("deleted_at", null)
+    .maybeSingle()
   return data || null
 }
 
@@ -68,7 +73,10 @@ export async function DELETE(request: NextRequest) {
   const access = await canManageVenue(auth.supabase, auth.user.id, venueProfileId, "manage_team")
   if (!access.allowed) return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
 
-  const { error } = await service.from("staff_shifts").delete().eq("id", shiftId)
+  const { error } = await service
+    .from("staff_shifts")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", shiftId)
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

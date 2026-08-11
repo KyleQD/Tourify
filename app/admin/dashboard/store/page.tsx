@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import Link from "next/link"
 import { Store, Plus, Edit, Trash2, RefreshCw, Package, AlertTriangle } from "lucide-react"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminFilterBar } from "../components/admin-filter-bar"
@@ -123,10 +124,15 @@ export default function StorePage() {
         subtitle="Manage your merch store listings"
         icon={Store}
         actions={
-          <Button onClick={openCreate} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
+          <>
+            <Button asChild variant="outline" className="border-slate-600 text-slate-200">
+              <Link href="/admin/dashboard/inventory">Inventory</Link>
+            </Button>
+            <Button onClick={openCreate} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          </>
         }
       />
 

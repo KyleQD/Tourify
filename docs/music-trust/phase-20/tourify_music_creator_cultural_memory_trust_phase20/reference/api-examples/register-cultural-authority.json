@@ -1,0 +1,13 @@
+{
+  "authorityId": "uuid",
+  "communityId": "uuid",
+  "scope": [
+    "collection:example"
+  ],
+  "territories": [
+    "US"
+  ],
+  "effectiveAt": "2026-07-20T00:00:00Z",
+  "expiresAt": null,
+  "evidenceManifestId": "uuid"
+}

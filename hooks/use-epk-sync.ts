@@ -113,6 +113,7 @@ function buildDefaultEPKData(profile: ArtistProfileLike | null): EPKData {
     },
     epkFont: 'sans',
     epkAppearance: getDefaultEpkAppearance('modern'),
+    useEpkStyleOnProfile: false,
   }
 }
 

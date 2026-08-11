@@ -5,6 +5,42 @@
 -- We drop that FK constraint and instead record it as an opaque UUID plus the
 -- known account type. We also broaden the CHECK to include organization / service.
 
+create table if not exists public.user_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  active_profile_id uuid not null,
+  active_account_type text not null default 'general',
+  session_token text unique,
+  session_data jsonb default '{}'::jsonb,
+  device_info jsonb default '{}'::jsonb,
+  ip_address inet,
+  user_agent text,
+  last_accessed timestamptz default now(),
+  last_activity timestamptz default now(),
+  expires_at timestamptz,
+  created_at timestamptz default now()
+);
+
+alter table public.user_sessions enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_sessions'
+      and policyname = 'user_sessions_owner_manage'
+  ) then
+    create policy user_sessions_owner_manage
+      on public.user_sessions
+      for all
+      to authenticated
+      using ((select auth.uid()) = user_id)
+      with check ((select auth.uid()) = user_id);
+  end if;
+end $$;
+
 -- 1. Drop the existing FK on active_profile_id (constraint name may vary by env).
 DO $$
 BEGIN

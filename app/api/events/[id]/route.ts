@@ -119,7 +119,7 @@ export async function GET(
 
       const [tasksCount, staffCount, vendorCount, ticketData, financialData] = await Promise.allSettled([
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('event_id', id),
-        supabase.from('staff_shifts').select('id', { count: 'exact', head: true }).eq('event_id', id),
+        supabase.from('staff_shifts').select('id', { count: 'exact', head: true }).eq('event_id', id).is('deleted_at', null),
         supabase.from('event_vendor_requests').select('id', { count: 'exact', head: true }).eq('event_id', id),
         supabase.from('ticket_sales').select('quantity, total_amount').eq('event_id', id).eq('payment_status', 'completed'),
         supabase.from('financial_transactions').select('type, amount').eq('event_id', id),

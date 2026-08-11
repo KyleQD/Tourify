@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Calendar, Clock, Download, Plus, Ticket, Users } from "lucide-react"
+import { Building2, Calendar, Clock, Download, Plus, Ticket, Users } from "lucide-react"
+import { useActingContext } from "@/hooks/use-acting-context"
 import { Button } from "@/components/ui/button"
 import { AdminFilterBar } from "../components/admin-filter-bar"
 import { AdminEmptyState } from "../components/admin-empty-state"
@@ -49,18 +50,21 @@ interface Event {
     status?: string | null
     is_primary?: boolean
   }>
+  settings?: Record<string, unknown>
+  is_quick_start_placeholder?: boolean
 }
 
-function buildNoStoreInit(): RequestInit {
+function buildNoStoreInit(actingHeaders?: Record<string, string>): RequestInit {
   return {
     credentials: "include",
     cache: "no-store",
-    headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    headers: { "Cache-Control": "no-cache", Pragma: "no-cache", ...actingHeaders },
   }
 }
 
 export default function EventsPage() {
   const router = useRouter()
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const [filterStatus, setFilterStatus] = useState("all")
   const [routeFilter, setRouteFilter] = useState<"all" | "touring" | "standalone">("all")
   const [searchTerm, setSearchTerm] = useState("")
@@ -70,13 +74,14 @@ export default function EventsPage() {
   const [logisticsByEvent, setLogisticsByEvent] = useState<Record<string, LogisticsMetricsSummary>>({})
 
   const fetchEvents = useCallback(async () => {
+    if (!isActingReady) return
     try {
       setIsLoading(true)
       setFetchError(null)
       const params = new URLSearchParams()
       if (filterStatus !== "all") params.append("status", filterStatus)
 
-      const response = await fetch(`/api/admin/events?${params}`, buildNoStoreInit())
+      const response = await fetch(`/api/admin/events?${params}`, buildNoStoreInit(actingHeaders))
       if (!response.ok) throw new Error("Failed to fetch events")
 
       const data = await response.json()
@@ -94,11 +99,11 @@ export default function EventsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [filterStatus])
+  }, [filterStatus, isActingReady, actingHeaders])
 
   useEffect(() => {
     void fetchEvents()
-  }, [fetchEvents])
+  }, [fetchEvents, actingContextKey])
 
   useEffect(() => {
     if (!events.length) {
@@ -106,7 +111,14 @@ export default function EventsPage() {
       return
     }
     let cancelled = false
-    void fetchEventLogisticsBatch(events.map((event) => event.id)).then((result) => {
+    const operationalEventIds = events
+      .filter((event) => !event.is_quick_start_placeholder)
+      .map((event) => event.id)
+    if (!operationalEventIds.length) {
+      setLogisticsByEvent({})
+      return
+    }
+    void fetchEventLogisticsBatch(operationalEventIds).then((result) => {
       if (!cancelled) setLogisticsByEvent(result)
     })
     return () => {
@@ -135,6 +147,16 @@ export default function EventsPage() {
   const upcomingEventsCount = events.filter((event) => isUpcomingAdminEvent(event)).length
   const totalCapacitySum = events.reduce((sum, event) => sum + (event.capacity ?? 0), 0)
   const totalTicketsSold = events.reduce((sum, event) => sum + (event.tickets_sold ?? 0), 0)
+
+  if (!isActingReady) {
+    return (
+      <AdminEmptyState
+        icon={Building2}
+        title="No organization selected"
+        description="Select an organization from the account switcher in the top navigation to continue."
+      />
+    )
+  }
 
   return (
     <div className="container mx-auto space-y-6">
@@ -250,13 +272,29 @@ export default function EventsPage() {
       ) : fetchError ? (
         <AdminErrorCard title="Could not load events" message={fetchError} onRetry={() => void fetchEvents()} />
       ) : filteredEvents.length === 0 ? (
-        <AdminEmptyState
-          icon={Calendar}
-          title="No events scheduled"
-          description="Create an event to get started"
-          action={{ label: "Create Event", href: "/admin/dashboard/events/create" }}
-          learnMoreArticleId="tour-management"
-        />
+        events.length > 0 ? (
+          <AdminEmptyState
+            icon={Calendar}
+            title="No events match"
+            description="Try clearing search, status, or routing filters to see your existing events"
+            action={{
+              label: "Clear filters",
+              onClick: () => {
+                setSearchTerm("")
+                setFilterStatus("all")
+                setRouteFilter("all")
+              },
+            }}
+          />
+        ) : (
+          <AdminEmptyState
+            icon={Calendar}
+            title="No events scheduled"
+            description="Create an event to get started"
+            action={{ label: "Create Event", href: "/admin/dashboard/events/create" }}
+            learnMoreArticleId="tour-management"
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event) => (

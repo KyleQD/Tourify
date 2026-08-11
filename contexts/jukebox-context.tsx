@@ -28,6 +28,10 @@ export interface JukeboxTrack {
   allow_library_add?: boolean
   access_mode?: "free" | "paid"
   in_library?: boolean
+  /** Provider that owns the audio source. Omitting or setting to 'tourify' uses native Supabase storage. */
+  provider?: "tourify" | "audius"
+  /** External provider track ID (e.g. Audius track id). Undefined for native tracks. */
+  provider_track_id?: string
 }
 
 export type JukeboxTab =
@@ -86,6 +90,7 @@ const MAX_PERSISTED_QUEUE = 50
 const PROGRESS_THROTTLE_MS = 250
 
 function stripTrackForPersist(track: JukeboxTrack): JukeboxTrack {
+  const isAudius = track.provider === "audius"
   return {
     id: track.id,
     title: track.title,
@@ -93,7 +98,9 @@ function stripTrackForPersist(track: JukeboxTrack): JukeboxTrack {
     artist_id: track.artist_id,
     artist_avatar_url: track.artist_avatar_url,
     duration: track.duration,
-    file_url: `/api/music/stream?trackId=${track.id}`,
+    // Audius stream URLs are temporary and must never be persisted.
+    // On session restore the player will re-resolve on play via /api/music/playback/resolve.
+    file_url: isAudius ? "" : `/api/music/stream?trackId=${track.id}`,
     cover_art_url: track.cover_art_url,
     genre: track.genre,
     tags: track.tags,
@@ -103,11 +110,15 @@ function stripTrackForPersist(track: JukeboxTrack): JukeboxTrack {
     allow_library_add: track.allow_library_add,
     access_mode: track.access_mode,
     in_library: track.in_library,
+    provider: track.provider,
+    provider_track_id: track.provider_track_id,
   }
 }
 
 function isApiStreamPath(url: string | undefined | null): boolean {
   if (!url) return true
+  // An empty file_url means the track needs re-resolution (used for persisted Audius tracks).
+  if (url === "") return true
   return url.startsWith("/api/music/stream") || url.includes("/api/music/stream?")
 }
 
@@ -421,7 +432,10 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [audioReady])
 
-  const recordPlay = useCallback(async (musicId: string, source = "jukebox") => {
+  // Stable ref for the playback session ID, regenerated per track start
+  const playbackSessionIdRef = useRef<string | null>(null)
+
+  const recordPlay = useCallback(async (musicId: string, source = "jukebox", provider?: string) => {
     if (playRecordedRef.current === musicId) return
     playRecordedRef.current = musicId
     try {
@@ -429,7 +443,11 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ musicId, source }),
+        body: JSON.stringify({
+          musicId,
+          source,
+          ...(provider ? { provider, playback_session_id: playbackSessionIdRef.current } : {}),
+        }),
       })
     } catch {}
   }, [])
@@ -439,6 +457,41 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
       track: JukeboxTrack,
       signal: AbortSignal
     ): Promise<{ url: string | null; error?: string }> => {
+      // ── Audius branch ────────────────────────────────────────────────────
+      if (track.provider === "audius") {
+        try {
+          const sessionId = playbackSessionIdRef.current
+          // UUID regex — canonical artist_music IDs are UUIDs; raw Audius IDs are not
+          const isCanonicalId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(track.id)
+          const endpoint = isCanonicalId
+            ? "/api/music/playback/resolve"
+            : "/api/music/providers/audius/stream"
+          const body = isCanonicalId
+            ? { trackId: track.id, playbackSessionId: sessionId, sourceSurface: "global_player" }
+            : { externalTrackId: track.provider_track_id ?? track.id, playbackSessionId: sessionId }
+
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            signal,
+            body: JSON.stringify(body),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const url = data?.data?.sourceUrl
+            if (url) return { url }
+            return { url: null, error: "Playback URL missing" }
+          }
+          const errorBody = await res.json().catch(() => ({}))
+          return { url: null, error: errorBody?.error?.message || streamErrorMessage(res.status) }
+        } catch (error) {
+          if ((error as Error)?.name === "AbortError") return { url: null }
+          return { url: null, error: "Unable to load Audius stream" }
+        }
+      }
+
+      // ── Native Tourify branch ────────────────────────────────────────────
       try {
         const res = await fetch(`/api/music/stream?trackId=${track.id}`, {
           credentials: "include",
@@ -470,6 +523,8 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
       const abortController = new AbortController()
       streamAbortRef.current = abortController
       playSourceRef.current = options?.source || "jukebox"
+      // Generate a new playback session ID for each track start
+      playbackSessionIdRef.current = crypto.randomUUID()
 
       audio.pause()
       dispatch({ type: "SET_TRACK", track })
@@ -497,7 +552,7 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
           return
         }
         dispatch({ type: "SET_PLAYING", isPlaying: true })
-        recordPlay(track.id, playSourceRef.current)
+        recordPlay(track.id, playSourceRef.current, track.provider)
       } catch {
         if (generation !== playGenerationRef.current) return
         dispatch({

@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  MoreHorizontal, 
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  MoreHorizontal,
   MapPin,
   Globe,
   Users,
@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
+import { resolvePostAppearanceDTO } from '@/lib/feed/resolve-post-appearance-dto'
+import { StyledPostRoot } from '@/components/posts/appearance/styled-post-root'
 
 interface MediaItem {
   id: string
@@ -44,6 +46,18 @@ interface Post {
   comments_count: number
   shares_count: number
   is_liked: boolean
+  /**
+   * Optional post_appearances snapshot.
+   * Populated when the calling context joins post_appearances.
+   */
+  appearance?: {
+    template_id?: string | null
+    template_version?: number | null
+    schema_version?: number | null
+    snapshot_hash?: string | null
+    status?: string | null
+    snapshot?: unknown
+  } | null
 }
 
 interface PostCardModernProps {
@@ -52,15 +66,21 @@ interface PostCardModernProps {
   onComment: (postId: string) => void
   onShare: (postId: string) => void
   className?: string
+  /** When true, wraps in StyledPostRoot if a valid appearance snapshot is present. */
+  enablePostStyles?: boolean
 }
 
-export function PostCardModern({ 
-  post, 
-  onLike, 
-  onComment, 
-  onShare, 
-  className 
+export function PostCardModern({
+  post,
+  onLike,
+  onComment,
+  onShare,
+  className,
+  enablePostStyles = false,
 }: PostCardModernProps) {
+  const appearanceDTO = enablePostStyles
+    ? resolvePostAppearanceDTO(post.appearance ?? null, post.id)
+    : { mode: 'standard' as const }
   const getVisibilityIcon = (visibility: string) => {
     switch (visibility) {
       case 'private':
@@ -209,7 +229,7 @@ export function PostCardModern({
     )
   }
 
-  return (
+  const cardNode = (
     <Card className={cn("bg-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:border-slate-600/50 transition-all duration-300", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
@@ -332,4 +352,15 @@ export function PostCardModern({
       </CardContent>
     </Card>
   )
-} 
+
+  // --- Styled path (appearance.mode === "styled" + enablePostStyles) ---
+  if (appearanceDTO.mode === 'styled') {
+    return (
+      <StyledPostRoot postId={post.id} appearance={appearanceDTO} surface="feed">
+        {cardNode}
+      </StyledPostRoot>
+    )
+  }
+
+  return cardNode
+}

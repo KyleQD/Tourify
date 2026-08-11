@@ -15,8 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities"
 import { useAdminStats } from "../hooks/use-admin-stats"
 import { isOrganizationType, normalizeAccountType } from "@/lib/accounts/account-types"
+import {
+  annotateNavTreeByCapabilities,
+  type CapabilityAccessResult,
+} from "@/lib/admin/capability-aware-ui"
 import {
   Home,
   Globe,
@@ -34,7 +39,6 @@ import {
   ChevronDown,
   ChevronRight,
   Activity,
-  Award,
   Clock,
   Radio,
   RadioTower,
@@ -53,7 +57,6 @@ import {
   Shield,
   UserCheck,
   Briefcase,
-  ClipboardList,
   Cpu,
   Flag,
   Crown,
@@ -105,12 +108,6 @@ function getHiringHref(path: string, currentAccount: ReturnType<typeof useMultiA
   return `${path}?${params.toString()}`
 }
 
-function getStaffTabHref(tab: string, currentAccount?: ReturnType<typeof useMultiAccount>["currentAccount"]) {
-  const base = getHiringHref("/admin/dashboard/staff", currentAccount ?? null)
-  const joiner = base.includes("?") ? "&" : "?"
-  return `${base}${joiner}tab=${encodeURIComponent(tab)}`
-}
-
 function doesNavHrefMatchLocation(
   pathname: string,
   searchParams: URLSearchParams,
@@ -131,6 +128,8 @@ function doesNavHrefMatchLocation(
 interface NavItem {
   label: string
   href: string
+  /** Optional landing route for a collapsible category label. */
+  landingHref?: string
   icon: any
   badge?: string
   badgeColor?: string
@@ -141,12 +140,15 @@ interface NavItem {
   metaShortcutKey?: string
   /** accent color class applied to the left border when category is expanded */
   accentColor?: string
+  /** SEC-205 — capability reflection (UX only; server still enforces). */
+  access?: CapabilityAccessResult
 }
 
 export function OptimizedSidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { currentAccount } = useMultiAccount()
+  const { capabilities } = useAdminCapabilities()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -162,6 +164,7 @@ export function OptimizedSidebar() {
         organization_name?: string
         subtype?: string
         organization_type?: string
+        tour_collaborator?: boolean
       }
     | undefined
   const sidebarHeaderTitle =
@@ -178,6 +181,7 @@ export function OptimizedSidebar() {
         ? profile.organization_type
         : null
   const isBandAccount = isOrganizationType(currentAccount?.account_type) && activeOrganizationSubtype === "band"
+  const isTourCollaborator = profile?.tour_collaborator === true
 
   // ─── Navigation structure: Dashboard + 6 collapsible categories ───────────
   const navItems: NavItem[] = useMemo(
@@ -235,48 +239,38 @@ export function OptimizedSidebar() {
         ],
       },
       {
-        label: "Workforce",
-        href: "__workforce__",
+        label: "Staff Operations",
+        href: "__staff_operations__",
+        landingHref: getHiringHref("/admin/dashboard/staff", currentAccount),
         icon: Users,
         accentColor: "border-l-cyan-500",
-        description: "Staff, scheduling, hiring & permissions",
+        description: "Crew readiness, scheduling, team communications and hiring",
         children: [
           {
-            label: "Hiring Hub",
-            href: getHiringHref("/admin/dashboard/hiring", currentAccount),
-            icon: UserCheck,
+            label: "Staff Operations",
+            href: getHiringHref("/admin/dashboard/staff", currentAccount),
+            icon: Users,
             badge: stats?.staffMembers?.toString() || undefined,
-            badgeColor: "bg-cyan-500/20 text-cyan-400",
-            description: "Jobs, applications, onboarding and roster",
+            badgeColor: "bg-blue-500/20 text-blue-400",
+            description: "Tasks, shifts, team updates and coverage",
             shortcut: "⌘7",
             metaShortcutKey: "7",
           },
           {
-            label: "Scheduling & Shifts",
-            href: getStaffTabHref("scheduling", currentAccount),
-            icon: Clock,
-            description: "Shift calendar and zone assignments",
+            label: "Hiring Hub",
+            href: getHiringHref("/admin/dashboard/hiring", currentAccount),
+            icon: UserCheck,
+            badgeColor: "bg-cyan-500/20 text-cyan-400",
+            description: "Jobs, applications, onboarding and roster",
           },
           {
-            label: "Applications",
-            href: getHiringHref("/admin/dashboard/applications", currentAccount),
-            icon: ClipboardList,
-            description: "Review and manage applicants",
+            label: "Payroll",
+            href: getHiringHref("/admin/dashboard/payroll", currentAccount),
+            icon: DollarSign,
+            description: "Payroll workspace and export batches",
           },
           {
-            label: "Candidates",
-            href: getHiringHref("/admin/dashboard/candidates", currentAccount),
-            icon: Award,
-            description: "Onboarding candidates and compliance",
-          },
-          {
-            label: "Roster",
-            href: getHiringHref("/admin/dashboard/roster", currentAccount),
-            icon: Users,
-            description: "Team roster and Work Mode assignments",
-          },
-          {
-            label: isBandAccount ? "Band Hub" : "Organization team",
+            label: isBandAccount ? "Band Hub" : "Organization Hub",
             href: "/admin/dashboard/organization",
             icon: isBandAccount ? Music : Building,
             description: isBandAccount
@@ -288,12 +282,6 @@ export function OptimizedSidebar() {
             href: "/admin/dashboard/rbac",
             icon: Shield,
             description: "Entity RBAC and access control",
-          },
-          {
-            label: "Staff Operations",
-            href: getHiringHref("/admin/dashboard/staff", currentAccount),
-            icon: Award,
-            description: "Scheduling, communications and analytics",
           },
         ],
       },
@@ -393,6 +381,12 @@ export function OptimizedSidebar() {
             icon: MessageSquare,
             description: "Direct messages and group threads",
           },
+          {
+            label: "Publication deliveries",
+            href: "/admin/dashboard/publications/deliveries",
+            icon: Radio,
+            description: "Delivery status, safe retry, and evidence export",
+          },
         ],
       },
       {
@@ -403,10 +397,10 @@ export function OptimizedSidebar() {
         description: "Library, music, EPK, website & feed",
         children: [
           {
-            label: "Content Library",
+            label: "Content Hub",
             href: "/admin/dashboard/content",
             icon: FileText,
-            description: "Content moderation and management",
+            description: "Social connections, engagement, and org posts",
           },
           {
             label: "Music",
@@ -559,12 +553,23 @@ export function OptimizedSidebar() {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return
       const item = allLeafItems.find((i) => i.metaShortcutKey === e.key)
       if (!item) return
+      if (
+        isTourCollaborator
+        && item.href !== "/admin/dashboard"
+        && !item.href.startsWith("/admin/dashboard/tours")
+        && !item.href.startsWith("/admin/dashboard/events")
+      ) return
+      const access = annotateNavTreeByCapabilities({
+        items: [item],
+        capabilities,
+      })[0]?.access
+      if (access && !access.allowed) return
       e.preventDefault()
       window.location.href = item.href
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [allLeafItems])
+  }, [allLeafItems, capabilities, isTourCollaborator])
 
   const toggleExpanded = useCallback((href: string) => {
     setExpandedItems((prev) =>
@@ -572,15 +577,38 @@ export function OptimizedSidebar() {
     )
   }, [])
 
+  const capabilityNavItems = useMemo(
+    () =>
+      annotateNavTreeByCapabilities({
+        items: navItems,
+        capabilities,
+      }),
+    [navItems, capabilities],
+  )
+
+  const scopedNavItems = useMemo(() => {
+    if (!isTourCollaborator) return capabilityNavItems
+    const allowed = (href: string) =>
+      href === "/admin/dashboard"
+      || href.startsWith("/admin/dashboard/tours")
+      || href.startsWith("/admin/dashboard/events")
+
+    return capabilityNavItems
+      .map((item) => item.children
+        ? { ...item, children: item.children.filter((child) => allowed(child.href)) }
+        : item)
+      .filter((item) => item.children ? item.children.length > 0 : allowed(item.href))
+  }, [capabilityNavItems, isTourCollaborator])
+
   const filteredNavItems = useMemo(() => {
-    if (!searchQuery.trim()) return navItems
+    if (!searchQuery.trim()) return scopedNavItems
     const q = searchQuery.toLowerCase()
-    return navItems.filter(
+    return scopedNavItems.filter(
       (item) =>
         item.label.toLowerCase().includes(q) ||
         item.children?.some((child) => child.label.toLowerCase().includes(q)),
     )
-  }, [navItems, searchQuery])
+  }, [scopedNavItems, searchQuery])
 
   // ─── Render ───────────────────────────────────────────────────────────────
   const SidebarContent = () => (
@@ -620,7 +648,7 @@ export function OptimizedSidebar() {
       </div>
 
       {/* Search */}
-      {!isCollapsed && (
+      {!isCollapsed && !isTourCollaborator && (
         <div className="p-3 pb-1">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -699,7 +727,7 @@ export function OptimizedSidebar() {
             )
           }
 
-          // Category item — no href navigation, just toggle
+          // Category item — optional primary landing route plus a separate expand control.
           const anyChildActive = item.children?.some(
             (child) =>
               doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
@@ -711,10 +739,8 @@ export function OptimizedSidebar() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => !isCollapsed && toggleExpanded(item.href)}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
+                    <div
+                      className={`w-full flex items-center justify-between rounded-lg transition-all duration-200 group text-sm ${
                         isExpanded
                           ? `bg-slate-800/40 text-white border-l-2 ${item.accentColor || "border-l-slate-500"}`
                           : anyChildActive
@@ -722,22 +748,53 @@ export function OptimizedSidebar() {
                             : "hover:bg-slate-800/50 text-slate-300 hover:text-white"
                       }`}
                     >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <item.icon
-                          className={`h-4 w-4 flex-shrink-0 ${
-                            isExpanded || anyChildActive
-                              ? "text-white"
-                              : "text-slate-400 group-hover:text-white"
-                          }`}
-                        />
-                        {!isCollapsed && (
-                          <span className="font-semibold truncate text-xs uppercase tracking-wider">
-                            {item.label}
-                          </span>
-                        )}
-                      </div>
+                      {item.landingHref ? (
+                        <Link
+                          href={item.landingHref}
+                          prefetch={false}
+                          className="flex min-w-0 flex-1 items-center space-x-3 p-2.5"
+                          aria-label={`Open ${item.label}`}
+                        >
+                          <item.icon
+                            className={`h-4 w-4 flex-shrink-0 ${
+                              isExpanded || anyChildActive
+                                ? "text-white"
+                                : "text-slate-400 group-hover:text-white"
+                            }`}
+                          />
+                          {!isCollapsed && (
+                            <span className="font-semibold truncate text-xs uppercase tracking-wider">
+                              {item.label}
+                            </span>
+                          )}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => !isCollapsed && toggleExpanded(item.href)}
+                          className="flex min-w-0 flex-1 items-center space-x-3 p-2.5 text-left"
+                        >
+                          <item.icon
+                            className={`h-4 w-4 flex-shrink-0 ${
+                              isExpanded || anyChildActive
+                                ? "text-white"
+                                : "text-slate-400 group-hover:text-white"
+                            }`}
+                          />
+                          {!isCollapsed && (
+                            <span className="font-semibold truncate text-xs uppercase tracking-wider">
+                              {item.label}
+                            </span>
+                          )}
+                        </button>
+                      )}
                       {!isCollapsed && hasChildren && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(item.href)}
+                          className="flex items-center gap-1.5 shrink-0 p-2.5 pl-1"
+                          aria-label={`${isExpanded ? "Collapse" : "Expand"} ${item.label}`}
+                        >
                           {anyChildActive && (
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
                           )}
@@ -746,9 +803,9 @@ export function OptimizedSidebar() {
                           ) : (
                             <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                           )}
-                        </div>
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </TooltipTrigger>
                   {isCollapsed && (
                     <TooltipContent side="right" className="bg-slate-800 border-slate-700">
@@ -775,6 +832,29 @@ export function OptimizedSidebar() {
                       const isChildActive =
                         doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
                         pathname.startsWith(child.href.split("?")[0] + "/")
+                      const denied = child.access && !child.access.allowed
+                      if (denied) {
+                        return (
+                          <TooltipProvider key={child.href}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="flex items-center justify-between p-2 rounded-lg text-sm text-slate-600 cursor-not-allowed opacity-60"
+                                  aria-disabled="true"
+                                >
+                                  <div className="flex items-center space-x-2 min-w-0">
+                                    <child.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span className="truncate">{child.label}</span>
+                                  </div>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="bg-slate-800 border-slate-700 max-w-xs">
+                                <p className="text-xs text-slate-200">{(child.access as { message?: string })?.message ?? "Access restricted"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )
+                      }
                       return (
                         <Link
                           key={child.href}
@@ -811,27 +891,39 @@ export function OptimizedSidebar() {
                     const isChildActive =
                       doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
                       pathname.startsWith(child.href.split("?")[0] + "/")
+                    const denied = child.access && !child.access.allowed
                     return (
                       <TooltipProvider key={child.href}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link
-                              href={child.href}
-                              prefetch={false}
-                              className={`flex items-center justify-center p-2 rounded-lg transition-all ${
-                                isChildActive
-                                  ? "bg-purple-600/20 text-purple-400"
-                                  : "hover:bg-slate-800/30 text-slate-500 hover:text-white"
-                              }`}
-                            >
-                              <child.icon className="h-3.5 w-3.5" />
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="bg-slate-800 border-slate-700">
-                            <p className="font-medium text-white">{child.label}</p>
-                            {child.shortcut && (
-                              <p className="text-xs text-purple-400">{child.shortcut}</p>
+                            {denied ? (
+                              <span
+                                className="flex items-center justify-center p-2 rounded-lg text-slate-700 cursor-not-allowed opacity-50"
+                                aria-disabled="true"
+                              >
+                                <child.icon className="h-3.5 w-3.5" />
+                              </span>
+                            ) : (
+                              <Link
+                                href={child.href}
+                                prefetch={false}
+                                className={`flex items-center justify-center p-2 rounded-lg transition-all ${
+                                  isChildActive
+                                    ? "bg-purple-600/20 text-purple-400"
+                                    : "hover:bg-slate-800/30 text-slate-500 hover:text-white"
+                                }`}
+                              >
+                                <child.icon className="h-3.5 w-3.5" />
+                              </Link>
                             )}
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="bg-slate-800 border-slate-700 max-w-xs">
+                            <p className="font-medium text-white">{child.label}</p>
+                            {denied ? (
+                              <p className="text-xs text-slate-300">{(child.access as { message?: string })?.message ?? "Access restricted"}</p>
+                            ) : child.shortcut ? (
+                              <p className="text-xs text-purple-400">{child.shortcut}</p>
+                            ) : null}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

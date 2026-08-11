@@ -13,19 +13,33 @@ export interface EventProducerFormState {
   tags: string
   date: string
   time: string
+  endDate: string
   endTime: string
   timezone: string
   doorsOpen: string
+  venueAccess: string
   loadIn: string
+  crewLineCheck: string
+  artistSoundCheck: string
+  supportSoundCheck: string
   soundCheck: string
   curfew: string
+  showStart: string
+  showEnd: string
+  loadOut: string
   setTimes: string
+  scheduleExtras: ScheduleExtraItem[]
   venueName: string
   venueAccountId: string
   venueId: string
   room: string
   capacity: string
   address: string
+  venueCity: string
+  venueState: string
+  venuePostalCode: string
+  venueCountry: string
+  venueWebsite: string
   venueContactName: string
   venueContactEmail: string
   venueContactPhone: string
@@ -53,6 +67,8 @@ export interface EventProducerFormState {
   documents: string
   ticketPrice: string
   vipPrice: string
+  /** TIX-105: incomplete | not_ticketed | explicit_setup — no silent GA/VIP inventory. */
+  ticketingSetup: "incomplete" | "not_ticketed" | "explicit_setup"
   expectedRevenue: string
   expectedExpenses: string
   comps: string
@@ -61,6 +77,13 @@ export interface EventProducerFormState {
   producerIntent: string
   templateKey: string
   setupChecklist: Record<string, boolean>
+}
+
+export interface ScheduleExtraItem {
+  id: string
+  label: string
+  time: string
+  durationMinutes?: string
 }
 
 export const initialEventProducerForm: EventProducerFormState = {
@@ -72,19 +95,33 @@ export const initialEventProducerForm: EventProducerFormState = {
   tags: "",
   date: "",
   time: "",
+  endDate: "",
   endTime: "",
   timezone: "America/Los_Angeles",
   doorsOpen: "",
+  venueAccess: "",
   loadIn: "",
+  crewLineCheck: "",
+  artistSoundCheck: "",
+  supportSoundCheck: "",
   soundCheck: "",
   curfew: "",
+  showStart: "",
+  showEnd: "",
+  loadOut: "",
   setTimes: "",
+  scheduleExtras: [],
   venueName: "",
   venueAccountId: "",
   venueId: "",
   room: "",
   capacity: "",
   address: "",
+  venueCity: "",
+  venueState: "",
+  venuePostalCode: "",
+  venueCountry: "US",
+  venueWebsite: "",
   venueContactName: "",
   venueContactEmail: "",
   venueContactPhone: "",
@@ -112,6 +149,7 @@ export const initialEventProducerForm: EventProducerFormState = {
   documents: "",
   ticketPrice: "",
   vipPrice: "",
+  ticketingSetup: "incomplete",
   expectedRevenue: "",
   expectedExpenses: "",
   comps: "",
@@ -154,8 +192,11 @@ function readSettings(event: any): Record<string, unknown> {
     : {}
 }
 
-export function defaultEndIso(date: string, startTime: string, endTime: string) {
-  if (endTime) return combineIso(date, endTime)
+export function defaultEndIso(date: string, startTime: string, endTime: string, endDate?: string) {
+  if (endTime) {
+    const effectiveDate = endDate || date
+    return combineIso(effectiveDate, endTime)
+  }
   const start = combineIso(date, startTime)
   if (!start) return ""
   return new Date(new Date(start).getTime() + 2 * 60 * 60 * 1000).toISOString()
@@ -186,6 +227,16 @@ function asSelectionList(value: unknown, fallbackLabel: string): ProducerSelecti
   })
 }
 
+function asScheduleExtras(value: unknown): ScheduleExtraItem[] {
+  if (!Array.isArray(value)) return []
+  return value.map((item: any, index) => ({
+    id: String(item?.id || `extra-${index}`),
+    label: String(item?.label || ""),
+    time: String(item?.time || ""),
+    durationMinutes: item?.durationMinutes != null ? String(item.durationMinutes) : undefined,
+  })).filter((item) => item.label)
+}
+
 /** Hydrate producer form state from GET /api/admin/events/[id] payload. */
 export function hydrateEventProducerForm(event: any): EventProducerFormState {
   const start = isoToDateAndTime(event?.start_at || event?.event_date)
@@ -196,10 +247,12 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
   const primaryTour = tours.find((tour: any) => tour.is_primary) || tours[0]
   const setup = event?.setup_context || event?.settings?.setup_context || {}
   const checklist = event?.setup_checklist || event?.settings?.setup_checklist || initialEventProducerForm.setupChecklist
+  const isQuickStartPlaceholder = settings.quick_start_placeholder === true
+  const schedule = settings.schedule_details || event?.schedule_details || {}
 
   return {
     ...initialEventProducerForm,
-    title: event?.title || event?.name || "",
+    title: isQuickStartPlaceholder ? "" : event?.title || event?.name || "",
     status: event?.status || "draft",
     visibility: event?.public_visibility || event?.visibility || "private",
     type: event?.event_type || event?.type || "live",
@@ -207,21 +260,35 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
     tags: Array.isArray(event?.tags) ? event.tags.join(", ") : String(event?.tags || ""),
     date: start.date,
     time: event?.event_time || start.time,
+    endDate: end.date && end.date !== start.date ? end.date : "",
     endTime: end.time,
     timezone: event?.timezone || "America/Los_Angeles",
     doorsOpen: event?.doors_open || "",
+    venueAccess: schedule.venue_access || settings.venue_access || "",
     loadIn: event?.load_in_time || "",
+    crewLineCheck: schedule.crew_line_check || settings.crew_line_check || "",
+    artistSoundCheck: schedule.artist_sound_check || settings.artist_sound_check || "",
+    supportSoundCheck: schedule.support_sound_check || settings.support_sound_check || "",
     soundCheck: event?.sound_check_time || "",
     curfew: event?.curfew || "",
+    showStart: event?.event_time || start.time || "",
+    showEnd: end.time || "",
+    loadOut: schedule.load_out || settings.load_out || "",
     setTimes: Array.isArray(event?.set_times)
       ? event.set_times.map((item: any) => item?.label || item).filter(Boolean).join(", ")
       : "",
+    scheduleExtras: asScheduleExtras(schedule.extras || settings.schedule_extras || []),
     venueName: event?.venue_name || "",
     venueAccountId: String(settings.venue_account_id || settings.venue_profile_id || ""),
     venueId: event?.venue_id || "",
     room: event?.venue_room || event?.location || "",
     capacity: event?.capacity != null ? String(event.capacity) : "",
     address: event?.venue_address || "",
+    venueCity: event?.venue_city || settings.venue_city || "",
+    venueState: event?.venue_state || settings.venue_state || "",
+    venuePostalCode: event?.venue_postal_code || settings.venue_postal_code || "",
+    venueCountry: event?.venue_country || settings.venue_country || "US",
+    venueWebsite: event?.venue_website || settings.venue_website || "",
     venueContactName: event?.venue_contact_name || "",
     venueContactEmail: event?.venue_contact_email || "",
     venueContactPhone: event?.venue_contact_phone || "",
@@ -249,6 +316,12 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
     documents: event?.documents || "",
     ticketPrice: event?.ticket_price != null ? String(event.ticket_price) : "",
     vipPrice: event?.vip_price != null ? String(event.vip_price) : "",
+    ticketingSetup:
+      event?.ticketing_setup === "not_ticketed"
+      || event?.ticketing_setup === "explicit_setup"
+      || event?.ticketing_setup === "incomplete"
+        ? event.ticketing_setup
+        : "incomplete",
     expectedRevenue: event?.expected_revenue != null ? String(event.expected_revenue) : "",
     expectedExpenses: event?.expected_expenses != null ? String(event.expected_expenses) : "",
     comps: event?.comps || "",
@@ -277,11 +350,16 @@ export function buildEventProducerPayload(
     tags: parseList(form.tags),
     status: options.publish ? "confirmed" : form.status,
     start_at: startAt,
-    end_at: defaultEndIso(form.date, form.time, form.endTime),
+    end_at: defaultEndIso(form.date, form.time, form.endTime, form.endDate),
     timezone: form.timezone,
     venue_id: venueAccountId,
     venue_name: form.venueName,
     venue_address: form.address,
+    venue_city: form.venueCity,
+    venue_state: form.venueState,
+    venue_postal_code: form.venuePostalCode,
+    venue_country: form.venueCountry,
+    venue_website: form.venueWebsite,
     venue_room: form.room,
     venue_contact_name: form.venueContactName,
     venue_contact_email: form.venueContactEmail,
@@ -305,6 +383,7 @@ export function buildEventProducerPayload(
     set_times: parseList(form.setTimes).map((value) => ({ label: value })),
     ticket_price: numberOrUndefined(form.ticketPrice),
     vip_price: numberOrUndefined(form.vipPrice),
+    ticketing_setup: form.ticketingSetup,
     expected_revenue: numberOrUndefined(form.expectedRevenue),
     expected_expenses: numberOrUndefined(form.expectedExpenses),
     artist_ids: form.selectedArtists.map((artist) => artist.id),
@@ -315,11 +394,9 @@ export function buildEventProducerPayload(
     technical_rider: form.technicalRider,
     security_notes: form.securityNotes,
     settlement_terms: form.settlementTerms,
-    promoter_contact: {
-      name: form.promoterName,
-      email: form.promoterEmail,
-      phone: form.promoterPhone,
-    },
+    promoter_contact: form.promoterName || form.promoterEmail || form.promoterPhone
+      ? { name: form.promoterName, email: form.promoterEmail, phone: form.promoterPhone }
+      : null,
     travel: form.travel,
     lodging: form.lodging,
     equipment: form.equipment,
@@ -338,9 +415,22 @@ export function buildEventProducerPayload(
       crew: form.selectedCrew,
       vendors: form.selectedVendors,
       venue_account_id: venueAccountId,
+      venue_city: form.venueCity,
+      venue_state: form.venueState,
+      venue_postal_code: form.venuePostalCode,
+      venue_country: form.venueCountry,
+      venue_website: form.venueWebsite,
       handoff_sections: Object.entries(form.setupChecklist)
         .filter(([, enabled]) => enabled)
         .map(([key]) => key),
+    },
+    schedule_details: {
+      venue_access: form.venueAccess || null,
+      crew_line_check: form.crewLineCheck || null,
+      artist_sound_check: form.artistSoundCheck || null,
+      support_sound_check: form.supportSoundCheck || null,
+      load_out: form.loadOut || null,
+      extras: form.scheduleExtras.length > 0 ? form.scheduleExtras : null,
     },
   }
 }

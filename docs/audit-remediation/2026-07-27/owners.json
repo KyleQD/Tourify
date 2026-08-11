@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "effective_at": "2026-07-28",
+  "temporary_single_owner_risk": true,
+  "owners": {
+    "release_lead": "Kyle Daley",
+    "database_lead": "Kyle Daley",
+    "security_lead": "Kyle Daley",
+    "qa_lead": "Kyle Daley",
+    "platform_lead": "Kyle Daley",
+    "feed_social_owner": "Kyle Daley",
+    "music_artist_owner": "Kyle Daley",
+    "marketplace_owner": "Kyle Daley",
+    "hiring_logistics_owner": "Kyle Daley",
+    "auth_storage_owner": "Kyle Daley"
+  },
+  "independent_review_required_when_available": [
+    "production restore",
+    "production target cutover",
+    "grant or policy revocation",
+    "Auth, finance, rights, hiring-PII, or Storage release",
+    "destructive retirement proposal"
+  ]
+}

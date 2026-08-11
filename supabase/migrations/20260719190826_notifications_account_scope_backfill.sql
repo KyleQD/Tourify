@@ -1,6 +1,9 @@
 -- Account-scoped notifications: tag social/DM/contract writers + backfill rows.
 -- Safe / idempotent. Does not drop tables or RLS policies.
 
+alter table if exists public.notifications
+  add column if not exists metadata jsonb not null default '{}'::jsonb;
+
 -- ---------------------------------------------------------------------------
 -- 1) Follow request / acceptance → personal inbox
 -- ---------------------------------------------------------------------------

@@ -215,6 +215,34 @@ describe("staff-shift-assignment-sync", () => {
     expect(createNotification).toHaveBeenCalled()
   })
 
+  it("treats a repeated accept as idempotent", async () => {
+    const supabase = createMockSupabase({
+      assignmentForRespond: {
+        id: "assign_1",
+        user_id: "user_1",
+        status: "confirmed",
+        staff_shift_id: "shift_1",
+        staff_member_id: "staff_1",
+        role_title: "FOH",
+      },
+    })
+
+    const result = await respondToShiftAssignment({
+      supabase,
+      assignmentId: "assign_1",
+      userId: "user_1",
+      action: "accept",
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      assignmentId: "assign_1",
+      shiftId: "shift_1",
+      status: "confirmed",
+    })
+    expect(createNotification).not.toHaveBeenCalled()
+  })
+
   it("publishStaffShifts notifies pending shifts", async () => {
     const supabase = {
       from: vi.fn((table: string) => {

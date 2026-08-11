@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
 import { 
   Calendar, 
@@ -95,6 +94,7 @@ import { buildAdminHiringHref, buildAdminLogisticsHref, buildAdminRosterHref, bu
 import {
   TourEventsPanel,
   TourTeamPanel,
+  TourGrantAdminsPanel,
   TourVendorPanel,
   TourJobsPanel,
   TourJobPostingPanel,
@@ -104,14 +104,34 @@ import {
 } from "@/components/admin/tours/panels"
 import { LayoutDashboard, Briefcase, Ticket, Wallet, CalendarDays } from "lucide-react"
 import { useActingContext } from "@/hooks/use-acting-context"
-import { GrantTourAdminsPanel } from "@/components/admin/grant-tour-admins-panel"
+import { AdminTourSurfaceState } from "../../components/admin-tour-surface-state"
+import {
+  classifyTourFetchFailure,
+  classifyTourSurfaceState,
+  type TourSurfaceState,
+} from "@/lib/admin/tour-surface-state"
+import type { TourCommandCenterDomainAccess } from "@/lib/admin/tour-command-center-summary"
+import type { TourHealthSummary } from "@/lib/admin/tour-health-aggregation"
+import {
+  resolveActiveTourCommandCenterTab,
+  resolveTourCommandCenterVisibleTabs,
+  shouldLoadTourWorkflowFanout,
+  type TourCommandCenterTabId,
+} from "@/lib/admin/tour-command-center-tabs"
+import { TourDuplicatePreviewDialog } from "@/components/admin/tours/tour-duplicate-preview-dialog"
+import { TourArchivePreviewDialog } from "@/components/admin/tours/tour-archive-preview-dialog"
+import { TourDeletePreviewDialog } from "@/components/admin/tours/tour-delete-preview-dialog"
+import { PublicationShareLinkDialog } from "@/components/admin/publication/publication-share-link-dialog"
+import type { TourDuplicatePreview } from "@/lib/admin/tour-duplicate-preview"
+import { TourHealthCard } from "@/components/admin/tours/tour-health-card"
+import { TourStopsCard } from "@/components/admin/tours/tour-stops-card"
 
 interface Tour {
   id: string
   name: string
   description?: string
   artist_id: string
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled'
+  status: 'draft' | 'planning' | 'active' | 'on_hold' | 'completed' | 'settled' | 'cancelled' | 'archived'
   start_date: string
   end_date: string
   total_shows: number
@@ -155,8 +175,10 @@ interface Event {
   lighting_requirements?: string
   stage_requirements?: string
   special_requirements?: string
+  advance_status?: string
   load_in_time?: string
   sound_check_time?: string
+  settings?: Record<string, unknown>
 }
 
 interface TourMember {
@@ -230,17 +252,17 @@ function buildNoStoreInit(
   }
 }
 
-const TOUR_TABS = [
-  { value: "overview", label: "Overview", icon: LayoutDashboard },
-  { value: "events", label: "Shows", icon: Calendar },
-  { value: "team", label: "People", icon: Users },
-  { value: "vendors", label: "Vendors", icon: Truck },
-  { value: "jobs", label: "Jobs", icon: Briefcase },
-  { value: "ticketing", label: "Ticketing", icon: Ticket },
-  { value: "finances", label: "Finances", icon: Wallet },
-  { value: "logistics", label: "Logistics", icon: Map },
-  { value: "calendar-sync", label: "Calendar", icon: CalendarDays },
-]
+const TOUR_TAB_ICONS: Record<TourCommandCenterTabId, typeof LayoutDashboard> = {
+  overview: LayoutDashboard,
+  events: Calendar,
+  team: Users,
+  vendors: Truck,
+  jobs: Briefcase,
+  ticketing: Ticket,
+  finances: Wallet,
+  logistics: Map,
+  "calendar-sync": CalendarDays,
+}
 
 export default function TourManagementPage() {
   const params = useParams()
@@ -259,9 +281,33 @@ export default function TourManagementPage() {
   const [members, setMembers] = useState<TourMember[]>([])
   const [vendors, setVendors] = useState<TourVendor[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("overview")
+  const [surfaceState, setSurfaceState] = useState<TourSurfaceState | null>(null)
+  const [domainAccess, setDomainAccess] = useState<TourCommandCenterDomainAccess | null>(null)
+  const [tourHealth, setTourHealth] = useState<TourHealthSummary | null>(null)
+  const [tourStops, setTourStops] = useState<Array<{
+    id: string
+    ordinal?: number | null
+    name?: string | null
+    stop_type?: string | null
+    local_date?: string | null
+    hold_status?: string | null
+    is_protected?: boolean | null
+  }>>([])
+  const [tourStopsState, setTourStopsState] = useState<"ready" | "empty" | "denied" | "unavailable">("unavailable")
+  const [readinessEvaluation, setReadinessEvaluation] = useState<{
+    ok: boolean
+    blockers: Array<{ id: string; severity: string; message: string; remediationUrl?: string; scope: string }>
+    warnings: Array<{ id: string; severity: string; message: string; remediationUrl?: string; scope: string }>
+    findings: Array<{ id: string; severity: string; message: string; remediationUrl?: string; scope: string }>
+    evaluatedAt?: string
+  } | null>(null)
+  const [readinessLoading, setReadinessLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<TourCommandCenterTabId>("overview")
+  const [financeSeed, setFinanceSeed] = useState<any[] | undefined>(undefined)
   const [isEditing, setIsEditing] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDuplicatePreview, setShowDuplicatePreview] = useState(false)
+  const [archiveDialogMode, setArchiveDialogMode] = useState<"archive" | "restore" | null>(null)
 
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
@@ -288,13 +334,16 @@ export default function TourManagementPage() {
   const [workflowActivityFilter, setWorkflowActivityFilter] = useState<WorkflowActivityFilter>('all')
   const [showWorkflowActivityDialog, setShowWorkflowActivityDialog] = useState(false)
   const [editForm, setEditForm] = useState<Partial<Tour>>({})
-  const [shareUrl, setShareUrl] = useState('')
   const initialEventId = (searchParams.get('eventId') || undefined) as string | undefined
 
   useEffect(() => {
-    const tab = searchParams.get('tab')
-    if (tab) setActiveTab(tab)
-  }, [searchParams])
+    setActiveTab(
+      resolveActiveTourCommandCenterTab({
+        requested: searchParams.get("tab"),
+        domainAccess,
+      }),
+    )
+  }, [domainAccess, searchParams])
 
   useEffect(() => {
     const workflowFilter = parseWorkflowActivityFilter(searchParams.get('workflowFilter'))
@@ -305,67 +354,131 @@ export default function TourManagementPage() {
   }, [searchParams])
 
   useEffect(() => {
-    if (showShareDialog && typeof window !== 'undefined') {
-      setShareUrl(`${window.location.origin}/admin/dashboard/tours/${tourId}`)
+    function normalizeEventsPayload(rawEvents: any[]): Event[] {
+      return (rawEvents || []).map((event: any) => {
+        const normalized = normalizeAdminEvent(event)
+        return {
+          id: normalized.id || event.id,
+          name: normalized.name || event.title || "Untitled",
+          description: normalized.description || "",
+          tour_id: event.tour_id || tourId,
+          venue_name: normalized.venue_name || "Venue TBD",
+          venue_address: event.venue_address || "",
+          event_date: normalized.event_date,
+          event_time: normalized.event_time || "",
+          doors_open: event.doors_open || "",
+          duration_minutes: Number(event.duration_minutes || 0),
+          status: normalized.status,
+          capacity: normalized.capacity || 0,
+          tickets_sold: normalized.tickets_sold || 0,
+          ticket_price: normalized.ticket_price || 0,
+          vip_price: Number(event.vip_price || 0),
+          expected_revenue: normalized.expected_revenue || 0,
+          actual_revenue: normalized.actual_revenue || 0,
+          expenses: normalized.expenses || 0,
+          venue_contact_name: event.venue_contact_name || "",
+          venue_contact_email: event.venue_contact_email || "",
+          venue_contact_phone: event.venue_contact_phone || "",
+          sound_requirements: event.sound_requirements || "",
+          lighting_requirements: event.lighting_requirements || "",
+          stage_requirements: event.stage_requirements || "",
+          special_requirements: event.special_requirements || "",
+          advance_status:
+            event.advance_status
+            || event.tour?.advance_status
+            || "not_started",
+          load_in_time: event.load_in_time || "",
+          sound_check_time: event.sound_check_time || "",
+          settings: event.settings && typeof event.settings === "object" ? event.settings : {},
+        } as Event
+      })
     }
-  }, [showShareDialog, tourId])
 
-  useEffect(() => {
     const fetchTourData = async () => {
       if (!isActingReady) return
       try {
         setIsLoading(true)
+        setSurfaceState(null)
         setTour(null)
         setEvents([])
+        setTourHealth(null)
+        setTourStops([])
+        setTourStopsState("unavailable")
 
+        // TOUR-203 — prefer single summary BFF over 5-request fanout.
+        const summaryResponse = await fetch(`/api/admin/tours/${tourId}/summary`, adminRequest())
+        if (summaryResponse.ok) {
+          const payload = await summaryResponse.json()
+          const tourData = payload.tour || payload.summary?.tour
+          setTour(tourData)
+          setEditForm(tourData || {})
+          setEvents(normalizeEventsPayload(payload.events || payload.summary?.events || []))
+          setMembers(payload.teamMembers || payload.summary?.teamMembers || [])
+          setVendors(payload.vendors || payload.summary?.vendors || [])
+          const financeRows =
+            payload.financeTransactions || payload.summary?.financeTransactions || []
+          setTourFinances(financeRows)
+          setFinanceSeed(financeRows)
+          setDomainAccess(payload.summary?.domainAccess || payload.domainAccess || null)
+          setTourHealth(payload.summary?.health || null)
+          setTourStops(Array.isArray(payload.summary?.stops) ? payload.summary.stops : [])
+          setTourStopsState(payload.summary?.stopsState || "unavailable")
+          setSurfaceState(
+            classifyTourSurfaceState({
+              ok: true,
+              itemCount: 1,
+              correlationId: summaryResponse.headers.get("x-correlation-id"),
+              isStale: Boolean(
+                payload.summary?.freshness?.isStale
+                || summaryResponse.headers.get("x-tour-summary-stale") === "1",
+              ),
+            }),
+          )
+          void fetch("/api/admin/tours/observability", {
+            ...adminRequest({
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                kind: "client_fanout",
+                endpoint: "/admin/dashboard/tours/[id]",
+                tourId,
+                fanoutCount: 1,
+              }),
+            }),
+          }).catch(() => {})
+          return
+        }
+
+        if (summaryResponse.status === 404 || summaryResponse.status === 403) {
+          setSurfaceState(await classifyTourFetchFailure(summaryResponse))
+          return
+        }
+
+        // Fallback fanout if summary endpoint unavailable.
         const tourResponse = await fetch(`/api/admin/tours/${tourId}`, adminRequest())
         if (tourResponse.ok) {
           const tourPayload = await tourResponse.json()
           const tourData = tourPayload.tour || tourPayload
           setTour(tourData)
           setEditForm(tourData)
+          setSurfaceState(
+            classifyTourSurfaceState({
+              ok: true,
+              itemCount: 1,
+              correlationId: tourResponse.headers.get("x-correlation-id"),
+              isStale: Boolean(tourPayload.stale || tourPayload.freshness === "stale"),
+            }),
+          )
         } else {
           setTour(null)
           setEditForm({})
-          toast.error('Could not load tour')
+          setSurfaceState(await classifyTourFetchFailure(tourResponse))
         }
 
         const eventsResponse = await fetch(`/api/admin/tours/${tourId}/events`, adminRequest())
         if (eventsResponse.ok) {
           const eventsData = await eventsResponse.json()
-          const normalizedEvents = (eventsData.events || []).map((event: any) => {
-            const normalized = normalizeAdminEvent(event)
-            return {
-              id: normalized.id || event.id,
-              name: normalized.name,
-              description: normalized.description || '',
-              tour_id: event.tour_id || tourId,
-              venue_name: normalized.venue_name || 'Venue TBD',
-              venue_address: event.venue_address || '',
-              event_date: normalized.event_date,
-              event_time: normalized.event_time || '',
-              doors_open: event.doors_open || '',
-              duration_minutes: Number(event.duration_minutes || 0),
-              status: normalized.status,
-              capacity: normalized.capacity || 0,
-              tickets_sold: normalized.tickets_sold || 0,
-              ticket_price: normalized.ticket_price || 0,
-              vip_price: Number(event.vip_price || 0),
-              expected_revenue: normalized.expected_revenue || 0,
-              actual_revenue: normalized.actual_revenue || 0,
-              expenses: normalized.expenses || 0,
-              venue_contact_name: event.venue_contact_name || '',
-              venue_contact_email: event.venue_contact_email || '',
-              venue_contact_phone: event.venue_contact_phone || '',
-              sound_requirements: event.sound_requirements || '',
-              lighting_requirements: event.lighting_requirements || '',
-              stage_requirements: event.stage_requirements || '',
-              special_requirements: event.special_requirements || '',
-              load_in_time: event.load_in_time || '',
-              sound_check_time: event.sound_check_time || ''
-            } as Event
-          })
-          setEvents(normalizedEvents)
+          setEvents(normalizeEventsPayload(eventsData.events || []))
         } else {
           setEvents([])
         }
@@ -393,14 +506,33 @@ export default function TourManagementPage() {
             setTourFinances(finData.recentTransactions || finData.transactions || [])
           }
         } catch { /* best-effort */ }
+
+        void fetch("/api/admin/tours/observability", {
+          ...adminRequest({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              kind: "client_fanout",
+              endpoint: "/admin/dashboard/tours/[id]",
+              tourId,
+              fanoutCount: 5,
+            }),
+          }),
+        }).catch(() => {})
       } catch (error) {
         console.error('Error fetching tour data:', error)
-        toast.error('Failed to fetch tour data')
         setTour(null)
         setEditForm({})
         setEvents([])
         setMembers([])
         setVendors([])
+        setSurfaceState(
+          classifyTourSurfaceState({
+            ok: false,
+            status: 500,
+            message: error instanceof Error ? error.message : "Failed to fetch tour data",
+          }),
+        )
       } finally {
         setIsLoading(false)
       }
@@ -414,6 +546,16 @@ export default function TourManagementPage() {
   useEffect(() => {
     async function loadWorkflowSummary() {
       if (!tourId) return
+      // TOUR-204 — workflow fanout only for overview (or activity dialog), not every tab.
+      if (
+        !shouldLoadTourWorkflowFanout({
+          activeTab,
+          workflowDialogOpen: showWorkflowActivityDialog,
+        })
+      ) {
+        return
+      }
+
       setIsWorkflowSummaryLoading(true)
 
       try {
@@ -494,7 +636,24 @@ export default function TourManagementPage() {
     }
 
     void loadWorkflowSummary()
-  }, [adminRequest, tourId, members.length, events.length])
+  }, [activeTab, adminRequest, showWorkflowActivityDialog, tourId])
+
+  // PLAN-206 / w1-tour-summary-tab — fetch real readiness evaluation for overview tab
+  useEffect(() => {
+    if (activeTab !== "overview" || !tourId || !isActingReady) return
+    let cancelled = false
+    setReadinessLoading(true)
+    fetch(`/api/admin/tours/${tourId}/readiness`, adminRequest())
+      .then(async (res) => {
+        if (cancelled) return
+        if (!res.ok) { setReadinessLoading(false); return }
+        const payload = await res.json()
+        if (!cancelled) setReadinessEvaluation(payload.evaluation ?? null)
+      })
+      .catch(() => { if (!cancelled) setReadinessEvaluation(null) })
+      .finally(() => { if (!cancelled) setReadinessLoading(false) })
+    return () => { cancelled = true }
+  }, [activeTab, adminRequest, isActingReady, tourId])
 
   const handleStatusChange = async (newStatus: Tour['status']) => {
     try {
@@ -503,7 +662,12 @@ export default function TourManagementPage() {
         isPublish ? `/api/admin/tours/${tourId}/publish` : `/api/admin/tours/${tourId}`,
         adminRequest({
           method: isPublish ? 'POST' : 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(isPublish
+              ? { 'Idempotency-Key': `tour.publish:${tourId}:${crypto.randomUUID()}` }
+              : {}),
+          },
           body: JSON.stringify(isPublish ? {} : { status: newStatus }),
         })
       )
@@ -523,27 +687,18 @@ export default function TourManagementPage() {
     }
   }
 
-  const handleDeleteTour = async () => {
-    try {
-      const response = await fetch(`/api/admin/tours/${tourId}`, adminRequest({ method: 'DELETE' }))
-
-      if (response.ok) {
-        toast.success('Tour deleted. Linked events were detached, not deleted.')
-        router.push('/admin/dashboard/tours')
-      } else {
-        throw new Error('Failed to delete tour')
-      }
-    } catch (error) {
-      console.error('Error deleting tour:', error)
-      toast.error('Failed to delete tour')
-    }
-  }
-
   const handlePublishTour = async () => {
     try {
       const response = await fetch(
         `/api/admin/tours/${tourId}/publish`,
-        adminRequest({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+        adminRequest({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `tour.publish:${tourId}:${crypto.randomUUID()}`,
+          },
+          body: JSON.stringify({}),
+        })
       )
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
@@ -642,35 +797,71 @@ export default function TourManagementPage() {
     }
   }
 
-  const handleDuplicateTour = async () => {
+  const handleDuplicateTour = () => {
+    setShowDuplicatePreview(true)
+  }
+
+  const handleConfirmDuplicatePlan = async (preview: TourDuplicatePreview) => {
     try {
-      const response = await fetch(
-        '/api/admin/tours',
-        adminRequest({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: `${tour?.name} (Copy)`,
-            status: 'planning',
-            description: tour?.description,
-            start_date: tour?.start_date,
-            end_date: tour?.end_date,
-            budget: tour?.budget,
+      const idempotencyKey =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `dup-${Date.now()}`
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          `tour-duplicate-plan:${tourId}`,
+          JSON.stringify({
+            planToken: preview.planToken,
+            selection: preview.selection,
+            proposedName: preview.proposedName,
+            idempotencyKey,
+            savedAt: new Date().toISOString(),
           }),
-        })
+        )
+      }
+      // TOUR-206 — resumable idempotent duplication job.
+      const response = await fetch(
+        `/api/admin/tours/${tourId}/duplicate`,
+        adminRequest({
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify({
+            planToken: preview.planToken,
+            proposedName: preview.proposedName,
+            selection: preview.selection,
+            idempotencyKey,
+            runToCompletion: true,
+          }),
+        }),
       )
 
-      if (response.ok) {
-        const result = await response.json()
-        const tourId = result.tour?.id || result.id
-        toast.success('Tour duplicated successfully')
-        router.push(`/admin/dashboard/tours/${tourId}`)
-      } else {
-        throw new Error('Failed to duplicate tour')
-      }
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || "Failed to execute duplication job")
+
+      const newTourId = result.targetTourId || result.job?.target_tour_id
+      const domainStatus = result.domainStatus || result.job?.domain_status || {}
+      const completedDomains = Object.values(domainStatus).filter(
+        (row: any) => row?.status === "completed",
+      ).length
+      const failedDomains = Object.values(domainStatus).filter(
+        (row: any) => row?.status === "failed",
+      ).length
+
+      if (!newTourId) throw new Error("Duplication job did not produce a target tour")
+
+      toast.success(
+        failedDomains > 0
+          ? `Tour duplicated with ${failedDomains} domain failure(s); ${completedDomains} completed`
+          : `Tour duplicated (${completedDomains} domains completed)`,
+      )
+      setShowDuplicatePreview(false)
+      router.push(`/admin/dashboard/tours/${newTourId}`)
     } catch (error) {
-      console.error('Error duplicating tour:', error)
-      toast.error('Failed to duplicate tour')
+      console.error("Error confirming duplicate plan:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to confirm duplicate plan")
     }
   }
 
@@ -783,20 +974,59 @@ export default function TourManagementPage() {
   }
 
   if (!tour) {
+    const emptyOrError =
+      surfaceState
+      || classifyTourSurfaceState({
+          ok: false,
+          status: 404,
+          code: "entity_not_found",
+          message: "The tour you are looking for does not exist or is not available in this organization.",
+        })
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
-        <div className="container mx-auto text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Tour Not Found</h1>
-          <p className="text-slate-400 mb-6">The tour you are looking for does not exist or has been deleted.</p>
-          <Button onClick={() => router.push('/admin/dashboard/tours')}>
-            Back to Tours
-          </Button>
+        <div className="container mx-auto max-w-xl space-y-4">
+          <AdminTourSurfaceState
+            state={
+              emptyOrError.kind === "system_error" && emptyOrError.title === "Not found"
+                ? { ...emptyOrError, kind: "system_error", canRetry: true }
+                : emptyOrError
+            }
+            onRetry={() => window.location.reload()}
+          />
+          {emptyOrError.kind === "system_error" && !surfaceState ? (
+            <div className="text-center">
+              <h1 className="mb-4 text-2xl font-bold text-white">Tour Not Found</h1>
+              <p className="mb-6 text-slate-400">
+                The tour you are looking for does not exist or has been deleted.
+              </p>
+            </div>
+          ) : null}
+          <div className="text-center">
+            <Button onClick={() => router.push('/admin/dashboard/tours')}>
+              Back to Tours
+            </Button>
+          </div>
         </div>
       </div>
     )
   }
 
+  const staleBanner =
+    surfaceState?.kind === "stale_snapshot" ? (
+      <div className="mb-4">
+        <AdminTourSurfaceState
+          state={surfaceState}
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    ) : null
+
   // Safety check to ensure all required fields exist
+  const visibleTourTabs = resolveTourCommandCenterVisibleTabs({
+    domainAccess,
+    icons: TOUR_TAB_ICONS,
+  })
+
   const safeTour = {
     ...tour,
     total_shows: tour.total_shows || 0,
@@ -821,6 +1051,7 @@ export default function TourManagementPage() {
   return (
     <WorkforcePageShell className="px-0 sm:px-0 lg:px-0">
       <div className="container mx-auto space-y-6 px-4 sm:px-6">
+        {staleBanner}
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
@@ -840,14 +1071,68 @@ export default function TourManagementPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button variant="outline" onClick={handleDuplicateTour} className="border-slate-600 text-slate-300">
+            <Button
+              variant="outline"
+              onClick={handleDuplicateTour}
+              className="border-slate-600 text-slate-300"
+              disabled={tour?.status === "archived"}
+            >
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </Button>
-            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <TourDuplicatePreviewDialog
+              open={showDuplicatePreview}
+              onOpenChange={setShowDuplicatePreview}
+              tourId={tourId}
+              sourceName={tour?.name || "Tour"}
+              onConfirmPlan={(preview) => {
+                void handleConfirmDuplicatePlan(preview)
+              }}
+            />
+            {tour?.status === "archived" ? (
+              <Button
+                variant="outline"
+                className="border-emerald-600/50 text-emerald-200"
+                onClick={() => setArchiveDialogMode("restore")}
+              >
+                Restore
+              </Button>
+            ) : ["completed", "settled", "cancelled"].includes(String(tour?.status)) ? (
+              <Button
+                variant="outline"
+                className="border-amber-600/50 text-amber-200"
+                onClick={() => setArchiveDialogMode("archive")}
+              >
+                Archive
+              </Button>
+            ) : null}
+            <TourArchivePreviewDialog
+              open={archiveDialogMode !== null}
+              onOpenChange={(open) => {
+                if (!open) setArchiveDialogMode(null)
+              }}
+              tourId={tourId}
+              mode={archiveDialogMode || "archive"}
+              onCompleted={({ toState }) => {
+                setTour((prev) => (prev ? { ...prev, status: toState as Tour["status"] } : prev))
+                setArchiveDialogMode(null)
+              }}
+            />
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={tour?.status === "archived" || tour?.status !== "draft"}
+            >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
+            <TourDeletePreviewDialog
+              open={showDeleteDialog}
+              onOpenChange={setShowDeleteDialog}
+              tourId={tourId}
+              tourName={tour?.name}
+              onDeleted={() => router.push("/admin/dashboard/tours")}
+            />
           </div>
         </div>
 
@@ -962,12 +1247,16 @@ export default function TourManagementPage() {
           title={safeTour.name}
           description={`Tour management · ${formatSafeDate(safeTour.start_date)} – ${formatSafeDate(safeTour.end_date)}`}
           badge={safeTour.status.replace('_', ' ')}
-          tabs={TOUR_TABS}
+          tabs={visibleTourTabs}
           activeTab={activeTab}
           onTabChange={(value) => {
-            setActiveTab(value)
+            const next = resolveActiveTourCommandCenterTab({
+              requested: value,
+              domainAccess,
+            })
+            setActiveTab(next)
             const url = new URL(window.location.href)
-            url.searchParams.set('tab', value)
+            url.searchParams.set('tab', next)
             window.history.replaceState({}, '', url.toString())
           }}
           tabColsClassName="md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9"
@@ -997,68 +1286,198 @@ export default function TourManagementPage() {
                 <Briefcase className="h-4 w-4 mr-2" />
                 Hiring
               </Button>
-              <Button
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white"
-                onClick={async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/admin/tours/${tourId}/publish`,
-                      adminRequest({ method: 'POST' }),
-                    )
-                    const data = await res.json().catch(() => ({}))
-                    if (!res.ok) {
-                      const blockers = Array.isArray(data?.readiness?.blockers)
-                        ? data.readiness.blockers
-                            .map((item: { label?: string; detail?: string }) => item.label || item.detail)
-                            .filter(Boolean)
-                        : []
-                      const detail = blockers.length
-                        ? blockers.slice(0, 4).join(' · ')
-                        : data.error || 'Publish failed'
-                      throw new Error(detail)
-                    }
-                    toast.success('Tour published')
-                    router.push(`/admin/dashboard/tours/${tourId}?published=1`)
-                  } catch (error: any) {
-                    toast.error(error.message || 'Publish failed')
-                  }
-                }}
-              >
-                Publish
-              </Button>
+              {/* PLAN-206 / w1-tour-readiness-gate — disable publish when hard blockers confirmed */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 text-white disabled:opacity-50"
+                        disabled={
+                          (readinessEvaluation !== null && readinessEvaluation.blockers.length > 0) ||
+                          ["archived", "completed", "cancelled", "settled"].includes(String(tour?.status))
+                        }
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(
+                              `/api/admin/tours/${tourId}/publish`,
+                              adminRequest({
+                                method: 'POST',
+                                headers: {
+                                  'Idempotency-Key': `tour.publish:${tourId}:${crypto.randomUUID()}`,
+                                },
+                              }),
+                            )
+                            const data = await res.json().catch(() => ({}))
+                            if (!res.ok) {
+                              const blockers = Array.isArray(data?.readiness?.blockers)
+                                ? data.readiness.blockers
+                                    .map((item: { label?: string; detail?: string }) => item.label || item.detail)
+                                    .filter(Boolean)
+                                : []
+                              const detail = blockers.length
+                                ? blockers.slice(0, 4).join(' · ')
+                                : data.error || 'Publish failed'
+                              throw new Error(detail)
+                            }
+                            toast.success('Tour published')
+                            router.push(`/admin/dashboard/tours/${tourId}?published=1`)
+                          } catch (error: any) {
+                            toast.error(error.message || 'Publish failed')
+                          }
+                        }}
+                      >
+                        {readinessEvaluation?.blockers.length
+                          ? `Blocked (${readinessEvaluation.blockers.length})`
+                          : 'Publish'}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {readinessEvaluation?.blockers.length ? (
+                    <TooltipContent side="bottom" className="max-w-xs bg-slate-800 border-slate-700 text-white">
+                      <p className="text-xs font-semibold text-red-300 mb-1">
+                        {readinessEvaluation.blockers.length} blocker{readinessEvaluation.blockers.length !== 1 ? 's' : ''} must be resolved before publishing
+                      </p>
+                      <ul className="text-xs text-slate-300 space-y-0.5">
+                        {readinessEvaluation.blockers.slice(0, 5).map((b) => (
+                          <li key={b.id}>· {b.message}</li>
+                        ))}
+                      </ul>
+                    </TooltipContent>
+                  ) : null}
+                </Tooltip>
+              </TooltipProvider>
             </>
           }
         >
 
           {/* Overview Tab */}
           <OperationsTabPanel value="overview" className="space-y-6">
+            <TourHealthCard health={tourHealth} />
+            <TourStopsCard tourId={tourId} stops={tourStops} state={tourStopsState} />
+            {/* PLAN-206 / w1-tour-summary-tab — Real readiness engine card */}
             <AdminSurfaceCard>
-              <CardHeader>
-                <CardTitle className="text-white">Tour readiness</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-white flex items-center gap-2">
+                  {readinessLoading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin text-slate-400" />
+                  ) : readinessEvaluation?.ok ? (
+                    <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  )}
+                  Tour readiness
+                </CardTitle>
+                {readinessEvaluation && (
+                  <Badge className={readinessEvaluation.ok
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                    : readinessEvaluation.blockers.length > 0
+                      ? "bg-red-500/20 text-red-300 border-red-500/30"
+                      : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                  }>
+                    {readinessEvaluation.ok
+                      ? "Ready to publish"
+                      : readinessEvaluation.blockers.length > 0
+                        ? `${readinessEvaluation.blockers.length} blocker${readinessEvaluation.blockers.length !== 1 ? 's' : ''}`
+                        : `${readinessEvaluation.warnings.length} warning${readinessEvaluation.warnings.length !== 1 ? 's' : ''}`
+                    }
+                  </Badge>
+                )}
               </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-                <div>
-                  <p className="text-slate-400">Stops</p>
-                  <p className="text-white text-lg font-semibold">{events.length}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Missing venue</p>
-                  <p className="text-white text-lg font-semibold">
-                    {events.filter((ev: any) => !ev.venue_name || ev.venue_name === 'Venue TBD').length}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Advance not started</p>
-                  <p className="text-white text-lg font-semibold">
-                    {events.filter((ev: any) => !ev.advance_status || ev.advance_status === 'not_started').length}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Publish state</p>
-                  <p className="text-white text-lg font-semibold capitalize">
-                    {safeTour.status === 'planning' || safeTour.status === 'on_hold' ? 'Unpublished' : safeTour.status.replace('_', ' ')}
-                  </p>
-                </div>
+              <CardContent className="space-y-3">
+                {readinessLoading && !readinessEvaluation && (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-9 animate-pulse rounded bg-slate-700/50" />
+                    ))}
+                  </div>
+                )}
+                {!readinessLoading && !readinessEvaluation && (
+                  <p className="text-sm text-slate-400">Readiness evaluation unavailable.</p>
+                )}
+                {readinessEvaluation && (
+                  <>
+                    {readinessEvaluation.ok && (
+                      <p className="text-sm text-emerald-300">
+                        No blockers or warnings — this tour meets all publish requirements.
+                      </p>
+                    )}
+                    {readinessEvaluation.blockers.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-red-400">Blockers</p>
+                        {readinessEvaluation.blockers.map((finding) => (
+                          <div key={finding.id} className="flex items-start gap-2 rounded border border-red-500/20 bg-red-500/10 px-3 py-2">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-red-200">{finding.message}</p>
+                              <p className="text-xs text-slate-500">{finding.scope}</p>
+                            </div>
+                            {finding.remediationUrl && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 shrink-0 px-2 text-xs text-slate-400 hover:text-white"
+                                onClick={() => router.push(finding.remediationUrl!)}
+                              >
+                                Fix
+                                <ChevronRight className="ml-0.5 h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {readinessEvaluation.warnings.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">Warnings</p>
+                        {readinessEvaluation.warnings.map((finding) => (
+                          <div key={finding.id} className="flex items-start gap-2 rounded border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-amber-200">{finding.message}</p>
+                              <p className="text-xs text-slate-500">{finding.scope}</p>
+                            </div>
+                            {finding.remediationUrl && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 shrink-0 px-2 text-xs text-slate-400 hover:text-white"
+                                onClick={() => router.push(finding.remediationUrl!)}
+                              >
+                                Fix
+                                <ChevronRight className="ml-0.5 h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {readinessEvaluation.evaluatedAt && (
+                      <p className="text-xs text-slate-500">
+                        Evaluated {formatSafeDate(readinessEvaluation.evaluatedAt)}
+                      </p>
+                    )}
+                  </>
+                )}
+                {/* Domain access summary row */}
+                {domainAccess && (
+                  <div className="border-t border-slate-700 pt-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Domain access</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(Object.entries(domainAccess) as [string, boolean][]).map(([domain, enabled]) => (
+                        <Badge
+                          key={domain}
+                          className={enabled
+                            ? "bg-slate-700 text-slate-200 text-[11px]"
+                            : "bg-slate-800 text-slate-500 text-[11px] opacity-50"
+                          }
+                        >
+                          {domain}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </AdminSurfaceCard>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1244,156 +1663,181 @@ export default function TourManagementPage() {
             </div>
           </OperationsTabPanel>
 
-          {/* Events Tab */}
+          {/* TOUR-204 — mount editor bundles only for the active tab. */}
           <OperationsTabPanel value="events" className="space-y-6">
-            <div className="text-sm text-slate-400">Select an event below to view or edit. If you arrived here from the calendar, the targeted event opens automatically.</div>
-            <TourEventsPanel
-              tourId={tourId}
-              events={events}
-              onEventsUpdate={setEvents}
-              initialEventId={initialEventId}
-            />
+            {activeTab === "events" ? (
+              <>
+                <div className="text-sm text-slate-400">Select an event below to view or edit. If you arrived here from the calendar, the targeted event opens automatically.</div>
+                <TourEventsPanel
+                  tourId={tourId}
+                  events={events}
+                  onEventsUpdate={setEvents}
+                  initialEventId={initialEventId}
+                />
+              </>
+            ) : null}
           </OperationsTabPanel>
 
-          {/* Team Tab */}
           <OperationsTabPanel value="team" className="space-y-6">
-            <GrantTourAdminsPanel tourId={tourId} />
-            <TourTeamPanel
-              tourId={tourId}
-              members={members}
-              onMembersUpdate={setMembers}
-            />
+            {activeTab === "team" ? (
+              <>
+                <TourGrantAdminsPanel tourId={tourId} />
+                <TourTeamPanel
+                  tourId={tourId}
+                  members={members}
+                  onMembersUpdate={setMembers}
+                />
+              </>
+            ) : null}
           </OperationsTabPanel>
 
-          {/* Vendors Tab */}
           <OperationsTabPanel value="vendors" className="space-y-6">
-            <TourVendorPanel
-              tourId={tourId}
-              vendors={vendors}
-              onVendorsUpdate={setVendors}
-            />
+            {activeTab === "vendors" ? (
+              <TourVendorPanel
+                tourId={tourId}
+                vendors={vendors}
+                onVendorsUpdate={setVendors}
+              />
+            ) : null}
           </OperationsTabPanel>
 
-          {/* Jobs Tab */}
           <OperationsTabPanel value="jobs" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Tour Jobs</h2>
-                <p className="text-slate-400">Post jobs to find crew and team members for this tour</p>
-              </div>
-              <TourJobPostingPanel
+            {activeTab === "jobs" ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Tour Jobs</h2>
+                    <p className="text-slate-400">Post jobs to find crew and team members for this tour</p>
+                  </div>
+                  <TourJobPostingPanel
+                    tourId={tourId}
+                    tourName={safeTour.name}
+                    tourStartDate={safeTour.start_date}
+                    tourEndDate={safeTour.end_date}
+                    onJobPosted={(job) => {
+                      toast.success(`Job "${job.title}" posted successfully!`)
+                    }}
+                  />
+                </div>
+                <TourJobsPanel tourId={tourId} />
+              </>
+            ) : null}
+          </OperationsTabPanel>
+
+          <OperationsTabPanel value="ticketing" className="space-y-6">
+            {activeTab === "ticketing" ? (
+              <AdminSurfaceCard>
+                <CardHeader>
+                  <CardTitle className="text-white">Tour Ticket Sales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-slate-400 text-sm mb-4">Aggregate ticket sales across all events in this tour.</p>
+                  {events.length === 0 ? (
+                    <p className="text-slate-500 text-sm">No events linked to this tour yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {events.map((ev: any) => (
+                        <div key={ev.id} className="flex items-center justify-between gap-3 p-3 bg-slate-800/50 rounded-lg">
+                          <div>
+                            <p className="text-white text-sm font-medium">{ev.name || ev.title}</p>
+                            <p className="text-slate-400 text-xs">{ev.event_date || ev.start_at ? new Date(ev.event_date || ev.start_at).toLocaleDateString() : '—'}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-white text-sm">{ev.tickets_sold || 0} sold</p>
+                              <p className="text-slate-400 text-xs">{formatSafeCurrency(ev.actual_revenue || 0)}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-slate-600 text-slate-300"
+                              onClick={() => router.push(`/admin/dashboard/events/${ev.id}?tab=tickets`)}
+                            >
+                              Open tickets
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border-t border-slate-700 pt-3 flex justify-between">
+                        <span className="text-slate-300 text-sm font-medium">Tour Total</span>
+                        <span className="text-white text-sm font-bold">{formatSafeCurrency(safeTour.actual_revenue)}</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </AdminSurfaceCard>
+            ) : null}
+          </OperationsTabPanel>
+
+          <OperationsTabPanel value="calendar-sync" className="space-y-6">
+            {activeTab === "calendar-sync" ? (
+              <TourCalendarPanel
                 tourId={tourId}
                 tourName={safeTour.name}
-                tourStartDate={safeTour.start_date}
-                tourEndDate={safeTour.end_date}
-                onJobPosted={(job) => {
-                  toast.success(`Job "${job.title}" posted successfully!`)
-                }}
+                initialCalendarToken={
+                  typeof (tour as { calendar_token?: string | null } | null)?.calendar_token === "string"
+                    ? (tour as { calendar_token?: string }).calendar_token
+                    : undefined
+                }
               />
-            </div>
-            <TourJobsPanel tourId={tourId} />
-          </OperationsTabPanel>
-
-          {/* Finances Tab */}
-          {/* Ticketing Tab */}
-          <OperationsTabPanel value="ticketing" className="space-y-6">
-            <AdminSurfaceCard>
-              <CardHeader>
-                <CardTitle className="text-white">Tour Ticket Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-400 text-sm mb-4">Aggregate ticket sales across all events in this tour.</p>
-                {events.length === 0 ? (
-                  <p className="text-slate-500 text-sm">No events linked to this tour yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {events.map((ev: any) => (
-                      <div key={ev.id} className="flex items-center justify-between gap-3 p-3 bg-slate-800/50 rounded-lg">
-                        <div>
-                          <p className="text-white text-sm font-medium">{ev.name || ev.title}</p>
-                          <p className="text-slate-400 text-xs">{ev.event_date || ev.start_at ? new Date(ev.event_date || ev.start_at).toLocaleDateString() : '—'}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="text-white text-sm">{ev.tickets_sold || 0} sold</p>
-                            <p className="text-slate-400 text-xs">{formatSafeCurrency(ev.actual_revenue || 0)}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-slate-600 text-slate-300"
-                            onClick={() => router.push(`/admin/dashboard/events/${ev.id}?tab=tickets`)}
-                          >
-                            Open tickets
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="border-t border-slate-700 pt-3 flex justify-between">
-                      <span className="text-slate-300 text-sm font-medium">Tour Total</span>
-                      <span className="text-white text-sm font-bold">{formatSafeCurrency(safeTour.actual_revenue)}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </AdminSurfaceCard>
-          </OperationsTabPanel>
-
-          {/* Calendar Sync Tab */}
-          <OperationsTabPanel value="calendar-sync" className="space-y-6">
-            <TourCalendarPanel tourId={tourId} tourName={safeTour.name} />
+            ) : null}
           </OperationsTabPanel>
 
           <OperationsTabPanel value="finances" className="space-y-6">
-            <TourFinancePanel tourId={tourId} />
+            {activeTab === "finances" ? (
+              <TourFinancePanel tourId={tourId} initialTransactions={financeSeed} />
+            ) : null}
           </OperationsTabPanel>
 
-          {/* Logistics Tab */}
           <OperationsTabPanel value="logistics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <AdminSurfaceCard>
-                <CardHeader>
-                  <CardTitle className="text-white">Transportation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-slate-300">{safeTour.transportation || 'Not specified'}</p>
-                </CardContent>
-              </AdminSurfaceCard>
+            {activeTab === "logistics" ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <AdminSurfaceCard>
+                    <CardHeader>
+                      <CardTitle className="text-white">Transportation</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-slate-300">{safeTour.transportation || 'Not specified'}</p>
+                    </CardContent>
+                  </AdminSurfaceCard>
 
-              <AdminSurfaceCard>
-                <CardHeader>
-                  <CardTitle className="text-white">Accommodation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-slate-300">{safeTour.accommodation || 'Not specified'}</p>
-                </CardContent>
-              </AdminSurfaceCard>
+                  <AdminSurfaceCard>
+                    <CardHeader>
+                      <CardTitle className="text-white">Accommodation</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-slate-300">{safeTour.accommodation || 'Not specified'}</p>
+                    </CardContent>
+                  </AdminSurfaceCard>
 
-              <AdminSurfaceCard>
-                <CardHeader>
-                  <CardTitle className="text-white">Equipment Requirements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-slate-300">{safeTour.equipment_requirements || 'Not specified'}</p>
-                </CardContent>
-              </AdminSurfaceCard>
+                  <AdminSurfaceCard>
+                    <CardHeader>
+                      <CardTitle className="text-white">Equipment Requirements</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-slate-300">{safeTour.equipment_requirements || 'Not specified'}</p>
+                    </CardContent>
+                  </AdminSurfaceCard>
 
-              <AdminSurfaceCard>
-                <CardHeader>
-                  <CardTitle className="text-white">Special Requirements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-slate-300">{safeTour.special_requirements || 'No special requirements'}</p>
-                </CardContent>
-              </AdminSurfaceCard>
-            </div>
+                  <AdminSurfaceCard>
+                    <CardHeader>
+                      <CardTitle className="text-white">Special Requirements</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-slate-300">{safeTour.special_requirements || 'No special requirements'}</p>
+                    </CardContent>
+                  </AdminSurfaceCard>
+                </div>
 
-            <TourLogisticsPanel
-              tourId={tourId}
-              enableEditing={true}
-              autoSave={true}
-              showFilters={true}
-            />
+                <TourLogisticsPanel
+                  tourId={tourId}
+                  enableEditing={true}
+                  autoSave={true}
+                  showFilters={true}
+                />
+              </>
+            ) : null}
           </OperationsTabPanel>
         </OperationsCommandShell>
 
@@ -1447,66 +1891,12 @@ export default function TourManagementPage() {
           </DialogContent>
         </Dialog>
 
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <AlertDialogContent className="bg-slate-800 border-slate-700">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-white">Delete Tour</AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-300">
-                Delete this tour? Event assignments will be detached; events will not be deleted. This action cannot be undone and will also detach event assignments (events themselves are kept).
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="border-slate-600 text-slate-300">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteTour} className="bg-red-600 hover:bg-red-700">
-                Delete Tour
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-          <DialogContent className="bg-slate-800 border-slate-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">Share Tour</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label className="text-slate-300">Tour Link</Label>
-                <div className="flex space-x-2 mt-1">
-                  <SurfaceInput
-                    value={shareUrl}
-                    readOnly
-                    className="surface-entry bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-slate-600 text-slate-300 shrink-0"
-                    onClick={async () => {
-                      const url =
-                        shareUrl ||
-                        (typeof window !== 'undefined'
-                          ? `${window.location.origin}/admin/dashboard/tours/${tourId}`
-                          : '')
-                      if (!url) {
-                        toast.error('Link not ready')
-                        return
-                      }
-                      try {
-                        await navigator.clipboard.writeText(url)
-                        toast.success('Link copied')
-                      } catch {
-                        toast.error('Could not copy link')
-                      }
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PublicationShareLinkDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          tourId={tourId}
+          title="Share tour publication"
+        />
 
         <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
           <DialogContent className="bg-slate-800 border-slate-700">

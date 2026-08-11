@@ -1,148 +1,151 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseAuthFromCookies } from '@/lib/auth/api-auth'
-import { achievementEngine } from '@/lib/services/achievement-engine.service'
+import { randomUUID } from "node:crypto"
+import { NextRequest, NextResponse } from "next/server"
+import { checkAuth } from "@/lib/auth/api-auth"
+import { resolvePostCommentAccess } from "@/lib/feed/post-comment-access"
+import { achievementEngine } from "@/lib/services/achievement-engine.service"
+import { createClient as createServerClient } from "@/lib/supabase/server"
 
-export async function GET(
-  request: NextRequest,
-  { params }: any
-) {
-  try {
-    const postId = params.id
-    const supabase = createServiceRoleClient()
-    const auth = await parseAuthFromCookies(request as any)
-    const user = auth?.user
+type RouteContext = { params: Promise<{ id: string }> }
 
-    if (!postId) {
-      return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
-    }
+function correlationIdFor(request: NextRequest) {
+  return request.headers.get("x-request-id") || randomUUID()
+}
 
+function errorResponse(status: number, code: string, message: string, correlationId: string) {
+  return NextResponse.json(
+    { error: { code, message, correlationId } },
+    { status, headers: { "x-correlation-id": correlationId } },
+  )
+}
 
-    // Get total likes count
-    const { count: totalLikes } = await supabase
-      .from('post_likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId)
+async function readLikeState(supabase: any, postId: string, userId?: string | null) {
+  const [postResult, likeResult] = await Promise.all([
+    supabase.from("posts").select("likes_count").eq("id", postId).maybeSingle(),
+    userId
+      ? supabase
+          .from("post_likes")
+          .select("id")
+          .eq("post_id", postId)
+          .eq("user_id", userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ])
 
-    // Check if current user has liked the post
-    let isLiked = false
-    if (user?.id) {
-      const { data: userLike } = await supabase
-        .from('post_likes')
-        .select('id')
-        .eq('post_id', postId)
-        .eq('user_id', user.id)
-        .single()
+  if (postResult.error || !postResult.data) {
+    throw new Error(postResult.error?.message || "Post not found")
+  }
+  if (likeResult.error) throw new Error(likeResult.error.message)
 
-      isLiked = !!userLike
-    }
-
-
-    return NextResponse.json({
-      likes_count: totalLikes || 0,
-      is_liked: isLiked
-    })
-
-  } catch (error) {
-    console.error('Error fetching like status:', error)
-    return NextResponse.json({ error: 'Failed to fetch like status' }, { status: 500 })
+  return {
+    is_liked: Boolean(likeResult.data),
+    likes_count: Number(postResult.data.likes_count || 0),
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: any
-) {
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  const correlationId = correlationIdFor(request)
   try {
-    const postId = params.id
-    const supabase = createServiceRoleClient()
-    const auth = await parseAuthFromCookies(request as any)
-    const user = auth?.user
+    const { id: postId } = await params
+    if (!postId) return errorResponse(400, "INVALID_POST_ID", "Post ID is required", correlationId)
 
-    if (!user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    const auth = await checkAuth(request)
+    const supabase = auth?.supabase || (await createServerClient())
+    const access = await resolvePostCommentAccess({
+      supabase,
+      postId,
+      viewerUserId: auth?.user?.id || null,
+    })
+    if (!access.allowed) {
+      return errorResponse(404, "POST_NOT_FOUND", "Post not found", correlationId)
     }
 
-    if (!postId) {
-      return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
-    }
-
-    const { action } = await request.json()
-
-    // Check if user has already liked the post
-    const { data: existingLike } = await supabase
-      .from('post_likes')
-      .select('id')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .single()
-
-    if (action === 'like') {
-      if (existingLike) {
-        return NextResponse.json({ error: 'Post already liked' }, { status: 400 })
-      }
-
-      // Add like
-      const { error: likeError } = await supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: user.id,
-          created_at: new Date().toISOString()
-        })
-
-      if (likeError) {
-        console.error('Error adding like:', likeError)
-        return NextResponse.json({ error: 'Failed to like post' }, { status: 500 })
-      }
-
-      // Likes count is derived from post_likes; no direct counter update needed
-      const { data: postRow } = await supabase
-        .from('posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single()
-      if (postRow?.user_id) {
-        await achievementEngine.recordMetricEvent({
-          supabase: supabase as any,
-          userId: postRow.user_id,
-          metricKey: 'post_interactions_total',
-          eventType: 'post_like_received',
-          delta: 1,
-          eventSource: 'api_post_like',
-          eventData: { post_id: postId }
-        })
-      }
-
-      return NextResponse.json({ success: true, action: 'liked' })
-
-    } else if (action === 'unlike') {
-      if (!existingLike) {
-        return NextResponse.json({ error: 'Post not liked' }, { status: 400 })
-      }
-
-      // Remove like
-      const { error: unlikeError } = await supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', user.id)
-
-      if (unlikeError) {
-        console.error('Error removing like:', unlikeError)
-        return NextResponse.json({ error: 'Failed to unlike post' }, { status: 500 })
-      }
-
-      // Likes count is derived from post_likes; no direct counter update needed
-
-      return NextResponse.json({ success: true, action: 'unliked' })
-
-    } else {
-      return NextResponse.json({ error: 'Invalid action. Use "like" or "unlike"' }, { status: 400 })
-    }
-
+    const state = await readLikeState(supabase, postId, auth?.user?.id)
+    return NextResponse.json(
+      { success: true, ...state },
+      { headers: { "x-correlation-id": correlationId } },
+    )
   } catch (error) {
-    console.error('Error processing like action:', error)
-    return NextResponse.json({ error: 'Failed to process like action' }, { status: 500 })
+    console.error("[Likes API] read failed", { correlationId, error })
+    return errorResponse(500, "LIKES_READ_FAILED", "Failed to fetch like status", correlationId)
   }
-} 
+}
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
+  const correlationId = correlationIdFor(request)
+  try {
+    const auth = await checkAuth(request)
+    if (!auth?.user) {
+      return errorResponse(401, "AUTHENTICATION_REQUIRED", "Authentication required", correlationId)
+    }
+
+    const { id: postId } = await params
+    if (!postId) return errorResponse(400, "INVALID_POST_ID", "Post ID is required", correlationId)
+
+    const access = await resolvePostCommentAccess({
+      supabase: auth.supabase,
+      postId,
+      viewerUserId: auth.user.id,
+    })
+    if (!access.allowed || !access.post) {
+      return errorResponse(404, "POST_NOT_FOUND", "Post not found", correlationId)
+    }
+
+    let action: unknown
+    try {
+      action = (await request.json())?.action
+    } catch {
+      return errorResponse(400, "INVALID_JSON", "Request body must be valid JSON", correlationId)
+    }
+    if (action !== "like" && action !== "unlike") {
+      return errorResponse(400, "INVALID_ACTION", 'Action must be "like" or "unlike"', correlationId)
+    }
+
+    let created = false
+    if (action === "like") {
+      const { data, error } = await auth.supabase
+        .from("post_likes")
+        .insert({ post_id: postId, user_id: auth.user.id })
+        .select("id")
+        .maybeSingle()
+
+      if (error && error.code !== "23505") {
+        console.error("[Likes API] insert failed", { correlationId, code: error.code })
+        return errorResponse(500, "LIKE_CREATE_FAILED", "Failed to like post", correlationId)
+      }
+      created = Boolean(data)
+    } else {
+      const { error } = await auth.supabase
+        .from("post_likes")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", auth.user.id)
+      if (error) {
+        console.error("[Likes API] delete failed", { correlationId, code: error.code })
+        return errorResponse(500, "LIKE_DELETE_FAILED", "Failed to unlike post", correlationId)
+      }
+    }
+
+    if (created && access.post.user_id) {
+      await Promise.allSettled([
+        achievementEngine.recordMetricEvent({
+          supabase: auth.supabase,
+          userId: access.post.user_id,
+          metricKey: "post_interactions_total",
+          eventType: "post_like_received",
+          delta: 1,
+          eventSource: "api_post_like",
+          eventData: { post_id: postId },
+        }),
+      ])
+    }
+
+    const state = await readLikeState(auth.supabase, postId, auth.user.id)
+    return NextResponse.json(
+      { success: true, ...state },
+      { headers: { "x-correlation-id": correlationId } },
+    )
+  } catch (error) {
+    console.error("[Likes API] mutation failed", { correlationId, error })
+    return errorResponse(500, "LIKE_MUTATION_FAILED", "Failed to update like", correlationId)
+  }
+}

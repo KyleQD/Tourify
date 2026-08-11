@@ -157,6 +157,10 @@ export default function VenueOverviewPage() {
   const { toast } = useToast()
   
   const [overviewData, setOverviewData] = useState<VenueOverviewData | null>(null)
+  const [allReviews, setAllReviews] = useState<any[]>([])
+  const [respondingTo, setRespondingTo] = useState<string | null>(null)
+  const [responseText, setResponseText] = useState("")
+  const [isSubmittingResponse, setIsSubmittingResponse] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedTimeframe, setSelectedTimeframe] = useState("7d")
   const [refreshing, setRefreshing] = useState(false)
@@ -185,6 +189,7 @@ export default function VenueOverviewPage() {
         venueService.getVenueAnalytics(venue.id, days),
         venueService.getVenueEventsByRange(venue.id, rangeStart, rangeEnd),
       ])
+      setAllReviews(reviews)
 
       const approvedBookings = bookings.filter((booking) => booking.status === "approved")
       const pendingBookings = bookings.filter((booking) => booking.status === "pending")
@@ -384,6 +389,15 @@ export default function VenueOverviewPage() {
               </a>
             </Button>
           ) : null}
+          <Button asChild variant="outline" size="sm">
+            <a href="/venue/documents">Documents</a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/venue/equipment">Equipment</a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/venue/dashboard/site-maps">Site maps</a>
+          </Button>
         </div>
       </div>
 
@@ -703,6 +717,103 @@ export default function VenueOverviewPage() {
           </Card>
         </div>
       </div>
+
+      {/* Reviews — Respond to reviews */}
+      {allReviews.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Reviews</CardTitle>
+              <span className="text-sm text-muted-foreground">{allReviews.length} total</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {allReviews.slice(0, 5).map((review: any) => (
+                <div key={review.id} className="rounded-lg border p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex gap-0.5">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} className={`h-3.5 w-3.5 ${i <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                      {review.title && <p className="font-medium text-sm mt-1">{review.title}</p>}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
+                  {review.response_from_venue ? (
+                    <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3">
+                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-1">Your response</p>
+                      <p className="text-sm text-emerald-800 dark:text-emerald-300">{review.response_from_venue}</p>
+                    </div>
+                  ) : (
+                    respondingTo === review.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          rows={3}
+                          className="w-full rounded-md border px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          placeholder="Write your response…"
+                          value={responseText}
+                          onChange={e => setResponseText(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={!responseText.trim() || isSubmittingResponse}
+                            onClick={async () => {
+                              if (!venue?.id) return
+                              setIsSubmittingResponse(true)
+                              try {
+                                const res = await fetch(`/api/venues/${venue.id}/reviews`, {
+                                  method: 'PATCH',
+                                  credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ review_id: review.id, response_from_venue: responseText }),
+                                })
+                                if (!res.ok) throw new Error('Failed to save response')
+                                const { data: updated } = await res.json()
+                                setAllReviews(prev => prev.map(r => r.id === updated.id ? updated : r))
+                                setRespondingTo(null)
+                                setResponseText('')
+                                toast({ title: 'Response saved', description: 'Your response is now visible on your public profile.' })
+                              } catch (err: any) {
+                                toast({ title: 'Error', description: err.message || 'Could not save response', variant: 'destructive' })
+                              } finally {
+                                setIsSubmittingResponse(false)
+                              }
+                            }}
+                          >
+                            {isSubmittingResponse ? 'Saving…' : 'Post Response'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setRespondingTo(null); setResponseText('') }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setRespondingTo(review.id); setResponseText('') }}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                        Respond
+                      </Button>
+                    )
+                  )}
+                </div>
+              ))}
+              {allReviews.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Showing 5 of {allReviews.length} reviews
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions Footer */}
       <Card>

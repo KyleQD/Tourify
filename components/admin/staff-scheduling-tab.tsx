@@ -173,12 +173,8 @@ function SchedulingWorkspace({ employer }: { employer: HiringEntity | null }) {
   const { data, view, setView, goToCreate, openPublish } = useScheduling()
   const meta = VIEW_META[view]
   const isDemo = data.mode === "demo"
-  const isOrgEmployer = employer?.entityType === "organization" || employer?.entityType === "artist"
   const criticalConflicts = data.conflicts.filter((c) => c.severity === "critical").length
   const openShiftCount = data.openShifts.length
-  const scopedEvent = data.eventId && data.eventId !== "all"
-    ? data.events.find((event) => event.id === data.eventId)
-    : null
   const weekEnd = new Date(data.weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
   const weekLabel = `${data.weekStart.toLocaleDateString("en-US", {
@@ -243,7 +239,7 @@ function SchedulingWorkspace({ employer }: { employer: HiringEntity | null }) {
     replaceParams({ venue_id: value })
   }
 
-  const liveActionsDisabled = isDemo || data.needsEmployer || data.needsVenue
+  const liveActionsDisabled = isDemo || data.needsEmployer
 
   return (
     <div className="flex flex-col gap-5">
@@ -399,11 +395,6 @@ function SchedulingWorkspace({ employer }: { employer: HiringEntity | null }) {
                 Demo preview
               </Badge>
             ) : null}
-            {data.needsVenue ? (
-              <Badge variant="outline" className="border-neon-amber/40 bg-neon-amber/10 text-neon-amber">
-                Venue required
-              </Badge>
-            ) : null}
           </div>
           {data.error ? <p className="text-xs text-neon-red">{data.error}</p> : null}
         </div>
@@ -492,68 +483,6 @@ function SchedulingWorkspace({ employer }: { employer: HiringEntity | null }) {
             title="Select a hiring account"
             description="Switch your acting account to an Organization or Artist to schedule real staff. You can keep browsing the Demo preview anytime."
           />
-        ) : !isDemo && data.needsVenue && view !== "templates" && view !== "staff" ? (
-          <div className="rounded-xl border border-neon-amber/40 bg-neon-amber/5 p-8 text-center">
-            <h2 className="text-sm font-semibold text-foreground">
-              {isOrgEmployer
-                ? "Select an event or venue to schedule shifts for this organization"
-                : "Pick a venue to schedule"}
-            </h2>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {isOrgEmployer
-                ? `Choose an event with a venue above, or pick a venue from your events to schedule shifts for ${employer?.displayName ?? "this organization"}.`
-                : "Choose an event with a venue above, or select a venue from the list to load and assign real roster members."}
-            </p>
-            {data.venues.length > 0 ? (
-              <div className="mx-auto mt-4 max-w-xs">
-                <Select value={data.venueId ?? undefined} onValueChange={handleVenueChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select venue" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {data.venues.map((venue) => (
-                        <SelectItem key={venue.id} value={venue.id}>
-                          {venue.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {isOrgEmployer
-                  ? "No venues found on your events yet. Open or create an event with a venue, then return here to assign roster members."
-                  : "No venues found on your events yet. Open an event with a venue to continue."}
-              </p>
-            )}
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {scopedEvent ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push(`/admin/dashboard/events/create?id=${scopedEvent.id}`)}
-                >
-                  Edit event venue
-                </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/admin/dashboard/events?status=draft")}
-              >
-                Open event drafts
-              </Button>
-              <Button
-                size="sm"
-                className="bg-neon-purple text-primary-foreground hover:bg-neon-purple/85"
-                onClick={() => router.push("/admin/dashboard/events/create")}
-              >
-                Create event with venue
-              </Button>
-            </div>
-          </div>
         ) : view === "board" ? (
           <BoardView />
         ) : view === "create" ? (

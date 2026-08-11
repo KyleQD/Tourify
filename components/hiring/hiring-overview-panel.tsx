@@ -1,13 +1,15 @@
 "use client"
 
-import { BriefcaseBusiness, ClipboardCheck, ShieldCheck, TrendingUp, Users } from "lucide-react"
+import Link from "next/link"
+import { BriefcaseBusiness } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { HiringEntity } from "@/types/hiring-entity"
 import type { HiringDashboardStats } from "@/types/hiring-dashboard"
 import { getEmployerQueryString, formatDashboardDate, getProgressPercent } from "@/lib/hiring/hiring-dashboard-utils"
 import { useHiringDashboardFetch } from "@/hooks/use-hiring-dashboard-fetch"
-import { WorkforceMetricCard, WorkforcePanel } from "./workforce-ui"
+import { WorkforceEmptyState, WorkforcePanel } from "./workforce-ui"
 
 interface HiringOverviewPanelProps {
   employer: HiringEntity
@@ -49,48 +51,18 @@ export function HiringOverviewPanel({ employer }: HiringOverviewPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <WorkforceMetricCard
-          label="Jobs"
-          value={stats.totalJobs}
-          description={`${stats.publishedJobs} published`}
+      {!isLoading && stats.totalJobs === 0 ? (
+        <WorkforceEmptyState
           icon={BriefcaseBusiness}
-          accent="purple"
-          isLoading={isLoading}
+          title="No jobs yet"
+          description="Create a job posting to start intake, onboarding, and rostering for this account."
+          action={
+            <Button asChild size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
+              <Link href={`/admin/dashboard/jobs/new?${queryString}`}>Create job</Link>
+            </Button>
+          }
         />
-        <WorkforceMetricCard
-          label="Applications"
-          value={stats.totalApplications}
-          description={`${stats.pendingApplications} pending review`}
-          icon={ClipboardCheck}
-          accent="blue"
-          isLoading={isLoading}
-        />
-        <WorkforceMetricCard
-          label="Onboarding"
-          value={stats.onboardingTotal}
-          description={`${stats.onboardingInProgress} in progress`}
-          icon={ShieldCheck}
-          accent="cyan"
-          isLoading={isLoading}
-        />
-        <WorkforceMetricCard
-          label="Roster"
-          value={stats.rosterTotal}
-          description={`${stats.rosterActive} active`}
-          icon={Users}
-          accent="green"
-          isLoading={isLoading}
-        />
-        <WorkforceMetricCard
-          label="Completion"
-          value={`${getProgressPercent(stats.averageOnboardingProgress)}%`}
-          description="Average onboarding progress"
-          icon={TrendingUp}
-          accent="amber"
-          isLoading={isLoading}
-        />
-      </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <WorkforcePanel>
@@ -148,7 +120,7 @@ export function HiringOverviewPanel({ employer }: HiringOverviewPanelProps) {
 
 function MiniMetric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-2xl border border-slate-700/60 bg-slate-900/55 p-4">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
       <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</p>
       <p className="mt-1 text-xl font-semibold text-white">{value}</p>
     </div>

@@ -1,5 +1,45 @@
 import { describe, expect, it } from 'vitest'
-import { applyOrgLogisticsTaskFilter } from '@/lib/admin/resolve-authorized-org'
+import {
+  AdminActingContextRequiredError,
+  AdminOrganizationAccessDeniedError,
+  applyOrgLogisticsTaskFilter,
+  authorizedOrgScopeErrorResponse,
+  resolveExplicitAuthorizedOrgId,
+} from '@/lib/admin/resolve-authorized-org'
+
+describe('explicit admin organization scope', () => {
+  it('requires acting context instead of selecting the first membership', () => {
+    expect(() => resolveExplicitAuthorizedOrgId(undefined, ['org-a', 'org-b']))
+      .toThrow(AdminActingContextRequiredError)
+  })
+
+  it('accepts the explicitly selected organization', () => {
+    expect(resolveExplicitAuthorizedOrgId('org-b', ['org-a', 'org-b'])).toBe('org-b')
+  })
+
+  it('rejects an organization outside the user memberships', () => {
+    expect(() => resolveExplicitAuthorizedOrgId('org-c', ['org-a', 'org-b']))
+      .toThrow(AdminOrganizationAccessDeniedError)
+  })
+
+  it('maps missing context to the stable 409 route contract', async () => {
+    const response = authorizedOrgScopeErrorResponse(new AdminActingContextRequiredError())
+    expect(response?.status).toBe(409)
+    await expect(response?.json()).resolves.toMatchObject({
+      success: false,
+      code: 'acting_context_required',
+    })
+  })
+
+  it('maps a wrong organization to the stable 403 route contract', async () => {
+    const response = authorizedOrgScopeErrorResponse(new AdminOrganizationAccessDeniedError())
+    expect(response?.status).toBe(403)
+    await expect(response?.json()).resolves.toMatchObject({
+      success: false,
+      code: 'organization_access_denied',
+    })
+  })
+})
 
 function mockQuery() {
   const calls: Array<{ method: string; args: unknown[] }> = []

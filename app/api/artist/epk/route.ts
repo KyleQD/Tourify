@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
 import { normalizeAccountType } from "@/lib/accounts/account-types"
+import { buildEpkAppearanceAiPrompt } from "@/lib/epk/epk-appearance-ai-prompt"
 import { epkService } from "@/lib/services/epk.service"
 
 export const dynamic = "force-dynamic"
@@ -115,6 +116,15 @@ export async function GET(request: NextRequest) {
       supabase
     )
     const saveState = await epkService.getEPKSaveState(user.id, data.artistProfileId || profileId, supabase)
+    const appearancePrompt = buildEpkAppearanceAiPrompt({
+      surface: "epk",
+      artistName: data.artistName ?? null,
+      bio: data.bio ?? null,
+      genres: data.genre ? [data.genre] : [],
+      location: data.location ?? null,
+      currentTemplate: data.template || "modern",
+      currentFont: data.epkFont || "sans",
+    })
 
     return NextResponse.json({
       data,
@@ -123,6 +133,7 @@ export async function GET(request: NextRequest) {
       hasSavedEpk: saveState.hasSavedEpk,
       lastSavedAt: saveState.lastSavedAt,
       isPublic: saveState.isPublic,
+      appearancePrompt,
     })
   } catch (error) {
     console.error("Unexpected artist EPK GET error", error)

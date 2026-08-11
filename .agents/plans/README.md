@@ -3,6 +3,40 @@
 Each file in this folder is a self-contained, ordered roadmap for one phase of the admin build-out.
 Complete them in order; each phase assumes the previous is done.
 
+## Continuous build-out agents
+
+### Admin dashboard
+
+For additive, one-task-at-a-time improvement across every admin page and component (resume across sessions):
+
+- Skill: [`.agents/skills/admin-dashboard-builder/SKILL.md`](../skills/admin-dashboard-builder/SKILL.md)
+- Ledger: [`.agents/admin-dashboard-builder/PROGRESS.md`](../admin-dashboard-builder/PROGRESS.md)
+- Inventory: [`.agents/admin-dashboard-builder/INVENTORY.md`](../admin-dashboard-builder/INVENTORY.md)
+
+Invoke with: *Use the admin-dashboard-builder skill. Resume from the progress ledger and keep going.* Hard rules: never reset the database; no auto-commits unless asked.
+
+### Venue pages
+
+For additive, one-task-at-a-time improvement across venue ops, public `/venues`, and admin venue bridge:
+
+- Skill: [`.agents/skills/venue-pages-builder/SKILL.md`](../skills/venue-pages-builder/SKILL.md)
+- Ledger: [`.agents/venue-pages-builder/PROGRESS.md`](../venue-pages-builder/PROGRESS.md)
+- Inventory: [`.agents/venue-pages-builder/INVENTORY.md`](../venue-pages-builder/INVENTORY.md)
+- IA source: [`docs/audits/venue-canonical-ia.md`](../../docs/audits/venue-canonical-ia.md)
+
+Invoke with: *Use the venue-pages-builder skill. Resume from the progress ledger and keep going.* Hard rules: never reset the database; no auto-commits unless asked; prefer `VenueOperationsShell` canonical routes.
+
+### Admin feature specs (tour management program)
+
+For full acceptance-criteria delivery of every task ID in docs `00`–`14` (Master Roadmap phases 0→6, additive, resume across sessions):
+
+- Skill: [`.agents/skills/admin-feature-spec-builder/SKILL.md`](../skills/admin-feature-spec-builder/SKILL.md)
+- Ledger: [`.agents/admin-feature-spec-builder/PROGRESS.md`](../admin-feature-spec-builder/PROGRESS.md)
+- Inventory: [`.agents/admin-feature-spec-builder/INVENTORY.md`](../admin-feature-spec-builder/INVENTORY.md)
+- Specs: [`docs/admin-feature-specs/`](../../docs/admin-feature-specs/)
+
+Invoke with: *Use the admin-feature-spec-builder skill. Resume from the progress ledger and keep going.* Hard rules: never reset the database; no auto-commits unless asked; one task ID at a time until AC met; phase gates from Master Roadmap (not strict filename order).
+
 | # | File | Focus | Estimate |
 |---|------|--------|----------|
 | 0 | [phase-0-data-integrity.md](phase-0-data-integrity.md) | Schema fixes, broken routes, security blockers | 1–2 days |

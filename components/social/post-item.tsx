@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -14,28 +15,44 @@ import { Badge } from "@/components/ui/badge"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { PollVoteCard } from "@/components/polls/poll-vote-card"
+import { setPostLike, sharePostExternally } from "@/lib/feed/post-engagement-client"
 
 export function PostItem({
   post,
   user,
-  onLike,
-  onUnlike,
   onComment,
-  onShare,
   isLiked,
   className
 }: PostItemProps) {
-  const handleLikeClick = () => {
-    if (isLiked) onUnlike(post.id)
-    else onLike(post.id)
+  const [liked, setLiked] = useState(isLiked)
+  const [likeCount, setLikeCount] = useState(
+    Number((post as any).likes_count ?? post.likes?.length ?? 0),
+  )
+  const [shareCount, setShareCount] = useState(
+    Number((post as any).shares_count ?? post.shares ?? 0),
+  )
+
+  const handleLikeClick = async () => {
+    try {
+      const result = await setPostLike(post.id, liked ? "unlike" : "like")
+      setLiked(result.is_liked)
+      setLikeCount(result.likes_count)
+    } catch (error) {
+      console.error("Unable to update post like", error)
+    }
   }
 
   const handleCommentClick = () => {
     onComment(post.id, "")
   }
 
-  const handleShareClick = () => {
-    onShare(post.id)
+  const handleShareClick = async () => {
+    try {
+      const result = await sharePostExternally(post.id, { preferNative: false })
+      setShareCount(result.shares_count)
+    } catch (error) {
+      console.error("Unable to share post", error)
+    }
   }
 
   const renderMedia = () => {
@@ -296,11 +313,11 @@ export function PostItem({
         <Button
           variant="ghost"
           size="sm"
-          className={cn("gap-2", isLiked && "text-red-500")}
+          className={cn("gap-2", liked && "text-red-500")}
           onClick={handleLikeClick}
         >
           <HeartIcon className="h-4 w-4" />
-          {post.likes.length}
+          {likeCount}
         </Button>
         <Button
           variant="ghost"
@@ -318,9 +335,9 @@ export function PostItem({
           onClick={handleShareClick}
         >
           <ShareIcon className="h-4 w-4" />
-          {post.shares}
+          {shareCount}
         </Button>
       </CardFooter>
     </Card>
   )
-} 
+}

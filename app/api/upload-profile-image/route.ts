@@ -6,11 +6,11 @@ const AVATAR_BUCKET = 'avatars'
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE = 4 * 1024 * 1024
 
-async function resolveBucket(supabase: any): Promise<string | null> {
-  const { data: buckets } = await supabase.storage.listBuckets()
-  if (buckets?.some((bucket: any) => bucket.name === AVATAR_BUCKET)) return AVATAR_BUCKET
-  if (buckets?.some((bucket: any) => bucket.name === 'profile-images')) return 'profile-images'
-  return null
+function extractStoragePath(publicUrl: string, bucket: string): string | null {
+  const marker = `/storage/v1/object/public/${bucket}/`
+  const index = publicUrl.indexOf(marker)
+  if (index === -1) return null
+  return decodeURIComponent(publicUrl.slice(index + marker.length))
 }
 
 async function syncAvatarAuthMetadata(supabase: any, avatarUrl: string | null) {
@@ -21,6 +21,13 @@ async function syncAvatarAuthMetadata(supabase: any, avatarUrl: string | null) {
   } catch (error) {
     console.warn('[upload-profile-image] Failed to sync auth avatar metadata', error)
   }
+}
+
+async function removeStoredImage(supabase: any, publicUrl: string | null | undefined) {
+  if (!publicUrl) return
+  const oldPath = extractStoragePath(publicUrl, AVATAR_BUCKET)
+  if (!oldPath) return
+  await supabase.storage.from(AVATAR_BUCKET).remove([oldPath])
 }
 
 async function persistProfileImage(params: {
@@ -53,8 +60,13 @@ async function persistProfileImage(params: {
 
     if (error) return { ok: false as const, error }
     await syncAvatarAuthMetadata(supabase, publicUrl)
-    return { ok: true as const }
+    return { ok: true as const, previousUrl: existingProfile?.avatar_url as string | null }
   }
+
+  const previousUrl =
+    (existingProfile?.cover_image as string | null) ||
+    (existingMetadata?.header_url as string | null) ||
+    null
 
   const { error } = await supabase
     .from('profiles')
@@ -69,6 +81,7 @@ async function persistProfileImage(params: {
     .eq('id', userId)
 
   if (error) {
+    console.error('[upload-profile-image] cover_image update failed, trying metadata fallback', error)
     // Older envs may lack cover_image — fall back to metadata only
     const { error: metadataError } = await supabase
       .from('profiles')
@@ -82,9 +95,14 @@ async function persistProfileImage(params: {
       .eq('id', userId)
 
     if (metadataError) return { ok: false as const, error: metadataError }
+    // Metadata-only persist still succeeds for clients that resolve header_url,
+    // but surface a warning so callers know cover_image was not written.
+    console.warn(
+      '[upload-profile-image] Persisted header to metadata.header_url only (cover_image unavailable)'
+    )
   }
 
-  return { ok: true as const }
+  return { ok: true as const, previousUrl }
 }
 
 export async function POST(request: NextRequest) {
@@ -127,14 +145,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const bucket = await resolveBucket(supabase)
-    if (!bucket) {
-      return NextResponse.json(
-        { success: false, error: 'Storage is not configured. Contact support.' },
-        { status: 503 }
-      )
-    }
-
     const fileExt = file.name.split('.').pop() || 'jpg'
     const fileName = `${type}-${Date.now()}.${fileExt}`
     // RLS for avatars expects first folder = auth.uid()
@@ -144,7 +154,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     const { error: uploadError } = await supabase.storage
-      .from(bucket)
+      .from(AVATAR_BUCKET)
       .upload(filePath, buffer, {
         contentType: file.type,
         cacheControl: '3600',
@@ -161,7 +171,7 @@ export async function POST(request: NextRequest) {
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from(bucket).getPublicUrl(filePath)
+    } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath)
 
     const persisted = await persistProfileImage({
       supabase,
@@ -177,6 +187,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    await removeStoredImage(supabase, persisted.previousUrl)
 
     return NextResponse.json({
       success: true,
@@ -224,6 +236,8 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    await removeStoredImage(supabase, persisted.previousUrl)
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { resolveAdminOrgIdForUser } from '@/app/api/events/_lib/admin-event-persistence'
+import { NextResponse } from 'next/server'
 
 function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -17,7 +17,7 @@ function createServiceClient() {
 }
 
 export interface AuthorizedOrgScope {
-  orgId: string | null
+  orgId: string
   eventIds: string[]
   tourIds: string[]
   /** Service client — use only after withAdminAuth / membership verification */
@@ -25,15 +25,52 @@ export interface AuthorizedOrgScope {
   service: any
 }
 
+export class AdminActingContextRequiredError extends Error {
+  readonly code = 'acting_context_required'
+  readonly status = 409
+  constructor() {
+    super('Select an organization account before continuing.')
+    this.name = 'AdminActingContextRequiredError'
+  }
+}
+
+export class AdminOrganizationAccessDeniedError extends Error {
+  readonly code = 'organization_access_denied'
+  readonly status = 403
+  constructor() {
+    super('Organization is not available to this admin account.')
+    this.name = 'AdminOrganizationAccessDeniedError'
+  }
+}
+
+export function resolveExplicitAuthorizedOrgId(
+  requestedOrgId: string | null | undefined,
+  memberOrgIds: readonly string[],
+): string {
+  const orgId = requestedOrgId?.trim()
+  if (!orgId) throw new AdminActingContextRequiredError()
+  if (!memberOrgIds.includes(orgId)) throw new AdminOrganizationAccessDeniedError()
+  return orgId
+}
+
+export function authorizedOrgScopeErrorResponse(error: unknown): NextResponse | null {
+  if (error instanceof AdminActingContextRequiredError || error instanceof AdminOrganizationAccessDeniedError) {
+    return NextResponse.json(
+      { success: false, error: error.message, code: error.code },
+      { status: error.status },
+    )
+  }
+  return null
+}
+
 /**
  * Resolve the caller's authorized organization and its event/tour IDs.
- * Mirrors tours admin scoping: org_members first, then organizer fallback via
- * resolveAdminOrgIdForUser. Returns empty ID lists when no org is available
- * (caller should still allow created_by = userId rows).
+ * Resolves only the explicitly selected acting organization. It never infers an
+ * organization from membership ordering, which is ambiguous for multi-org admins.
  */
 export async function resolveAuthorizedOrgLogisticsScope(args: {
   userId: string
-  requestedOrgId?: string | null
+  requestedOrgId: string | null | undefined
   eventId?: string | null
   tourId?: string | null
 }): Promise<AuthorizedOrgScope> {
@@ -51,21 +88,7 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
     .map((row: { org_id?: string | null }) => row.org_id)
     .filter((id: string | null | undefined): id is string => Boolean(id))
 
-  let orgId: string | null = null
-
-  if (requestedOrgId) {
-    if (!memberOrgIds.includes(requestedOrgId))
-      throw new Error('Organization is not available to this admin account.')
-    orgId = requestedOrgId
-  } else if (memberOrgIds[0]) {
-    orgId = memberOrgIds[0]
-  } else {
-    orgId = await resolveAdminOrgIdForUser(service, userId, tourId)
-  }
-
-  if (!orgId) {
-    return { orgId: null, eventIds: [], tourIds: [], service }
-  }
+  const orgId = resolveExplicitAuthorizedOrgId(requestedOrgId, memberOrgIds)
 
   const [{ data: events, error: eventsErr }, { data: tours, error: toursErr }] = await Promise.all([
     service.from('events_v2').select('id').eq('org_id', orgId),

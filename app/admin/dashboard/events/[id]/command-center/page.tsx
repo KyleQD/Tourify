@@ -20,6 +20,8 @@ import {
   Calendar,
 } from "lucide-react"
 import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
+import { buildAdminHiringHref } from "@/lib/admin/admin-ops-context"
+import { EventSetupCompletenessPanel } from "@/components/admin/event-setup-completeness-panel"
 
 function buildNoStoreInit(input?: RequestInit): RequestInit {
   return {
@@ -214,6 +216,8 @@ export default function EventCommandCenterPage() {
         </>
       }
     >
+      <EventSetupCompletenessPanel eventId={eventId} className="mb-2" />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border-slate-700 bg-slate-900/60">
           <CardHeader className="pb-2">
@@ -259,6 +263,16 @@ export default function EventCommandCenterPage() {
               </Badge>
             </div>
             <Button asChild variant="secondary" size="sm">
+              <Link href={buildAdminHiringHref({
+                eventId,
+                entityType: venueId ? "venue" : null,
+                entityId: venueId,
+                venueId,
+              })}>
+                Admin hiring hub
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="border-slate-600">
               <Link href="/jobs?tab=staffing">Public jobs board</Link>
             </Button>
             {venueId ? (
@@ -356,17 +370,20 @@ export default function EventCommandCenterPage() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base text-slate-100">
               <MessageCircle className="h-5 w-5 text-pink-400" />
-              APIs
+              Show day ops
             </CardTitle>
-            <CardDescription>Unified jobs read facade</CardDescription>
+            <CardDescription>Advancing, day sheet, and door</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" size="sm" className="border-slate-600">
-              <Link href={venueId ? `/api/jobs?venue_id=${venueId}&merge=1` : "/api/jobs?merge=1"} target="_blank" rel="noreferrer">
-                GET /api/jobs
-              </Link>
+          <CardContent className="flex flex-col gap-2">
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/admin/dashboard/events/${eventId}/advancing`}>Advancing</Link>
             </Button>
-            <p className="mt-2 text-xs text-slate-500">JSON in a new tab (session on this origin).</p>
+            <Button asChild variant="outline" size="sm" className="border-slate-600">
+              <Link href={`/admin/dashboard/events/${eventId}/day-sheet`}>Day sheet</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="border-slate-600">
+              <Link href={`/admin/dashboard/events/${eventId}/check-in`}>Check-in</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>

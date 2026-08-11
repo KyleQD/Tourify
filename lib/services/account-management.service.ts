@@ -412,6 +412,78 @@ export class AccountManagementService {
         console.warn('[Account Management] org_members grants unavailable (non-fatal):', grantErr)
       }
 
+      // Tour-only collaborators need an Admin acting account without becoming
+      // org_members. Project scope is carried on the account projection and is
+      // re-verified on every Admin request.
+      try {
+        const { data: collaboratorMemberships } = await clientToUse
+          .from('tour_team_members')
+          .select('tour_id, role, status, is_active')
+          .eq('user_id', userId)
+          .eq('status', 'confirmed')
+          .eq('is_active', true)
+
+        const collaboratorTourIds = Array.from(new Set(
+          (collaboratorMemberships || [])
+            .map((row: any) => String(row.tour_id || ''))
+            .filter(Boolean),
+        ))
+
+        if (collaboratorTourIds.length > 0) {
+          const { data: collaboratorTours } = await clientToUse
+            .from('tours')
+            .select('id, name, org_id')
+            .in('id', collaboratorTourIds)
+
+          const collaboratorOrgIds = Array.from(new Set(
+            (collaboratorTours || [])
+              .map((tour: any) => String(tour.org_id || ''))
+              .filter(Boolean),
+          ))
+          const { data: collaboratorOrgs } = collaboratorOrgIds.length
+            ? await clientToUse
+                .from('organizer_accounts')
+                .select('*')
+                .in('ops_org_id', collaboratorOrgIds)
+                .eq('is_active', true)
+            : { data: [] as any[] }
+
+          const existingIds = new Set(accounts.map((account) => account.profile_id))
+          for (const organizer of collaboratorOrgs || []) {
+            if (existingIds.has(organizer.id)) continue
+            const allowedTourIds = (collaboratorTours || [])
+              .filter((tour: any) => String(tour.org_id) === String(organizer.ops_org_id))
+              .map((tour: any) => String(tour.id))
+            if (allowedTourIds.length === 0) continue
+
+            accounts.push({
+              account_type: 'organization',
+              profile_id: organizer.id,
+              profile_data: {
+                ...organizer,
+                display_name: organizer.organization_name,
+                account_display_type: 'Tour collaborator',
+                tour_collaborator: true,
+                allowed_tour_ids: allowedTourIds,
+                grant_role: 'tour_admin',
+              },
+              permissions: {
+                can_post: false,
+                can_manage_settings: false,
+                can_view_analytics: false,
+                can_manage_content: false,
+                can_manage_events: true,
+                can_manage_tours: true,
+              },
+              is_active: true,
+            })
+            existingIds.add(organizer.id)
+          }
+        }
+      } catch (collaborationError) {
+        console.warn('[Account Management] tour collaboration grants unavailable (non-fatal):', collaborationError)
+      }
+
       // Re-enabled: Read account_relationships to surface delegated / multi-owner accounts.
       // Orphan validation: only include rows whose owned_profile_id actually exists in the
       // corresponding entity table (artist_profiles, venue_profiles, organizer_accounts).

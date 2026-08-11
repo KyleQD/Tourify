@@ -1,7 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { withAuth } from '@/lib/auth/api-auth'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { createClient } from "@supabase/supabase-js"
+
+import {
+  adminAccessErrorResponse,
+  assertEventAuthority,
+  extractIdFromPath,
+  requireEventChildAccess,
+} from "@/lib/admin/admin-tour-event-access"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
 function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -12,99 +19,73 @@ function createServiceClient() {
 const documentSchema = z.object({
   title: z.string().min(1).max(200),
   content: z.string().min(1),
-  document_type: z.enum(['general', 'runsheet', 'safety', 'contact_list', 'schedule', 'map_notes', 'technical', 'custom']).default('general'),
-  visible_to: z.array(z.enum(['admin', 'manager', 'staff', 'crew', 'vendor', 'all'])).default(['all']),
+  document_type: z
+    .enum(["general", "runsheet", "safety", "contact_list", "schedule", "map_notes", "technical", "custom"])
+    .default("general"),
+  visible_to: z.array(z.enum(["admin", "manager", "staff", "crew", "vendor", "all"])).default(["all"]),
   pinned: z.boolean().default(false),
 })
 
-export const GET = withAuth(async (request: NextRequest, { user }) => {
+export const GET = withAdminCapability("event.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-    const eventId = request.nextUrl.pathname.split('/')[5]
+    const eventId = extractIdFromPath(request.url, "events")
+    if (!eventId) return NextResponse.json({ error: "Missing event id" }, { status: 400 })
+    if (!admin.orgId) return NextResponse.json({ error: "Organization required" }, { status: 403 })
+
+    await assertEventAuthority({
+      supabase,
+      userId: user.id,
+      eventId,
+      orgId: admin.orgId,
+    })
+
     const svc = createServiceClient()
-
-    const { data: participant } = await svc
-      .from('event_participants')
-      .select('participant_id, participant_type, role')
-      .eq('event_id', eventId)
-      .eq('participant_id', user.id)
-      .eq('participant_type', 'Individual')
-      .maybeSingle()
-
-    const { data: eventOwner } = await svc
-      .from('events_v2')
-      .select('id')
-      .eq('id', eventId)
-      .eq('created_by', user.id)
-      .maybeSingle()
-
-    if (!participant && !eventOwner) {
-      return NextResponse.json({ error: 'Not a member of this event' }, { status: 403 })
-    }
-
-    const userRole = eventOwner ? 'admin' : (participant?.role || 'staff')
-
     const { data, error } = await svc
-      .from('event_documents')
-      .select('*')
-      .eq('event_id', eventId)
-      .order('pinned', { ascending: false })
-      .order('updated_at', { ascending: false })
+      .from("event_documents")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("pinned", { ascending: false })
+      .order("updated_at", { ascending: false })
 
     if (error) {
-      if (error.code === '42P01') {
+      if (error.code === "42P01") {
         return NextResponse.json({
           success: true,
           documents: [],
-          userRole,
-          _notice: 'event_documents table not yet created'
+          userRole: "admin",
+          _notice: "event_documents table not yet created",
         })
       }
-      console.error('[Event Documents] Fetch error:', error)
-      return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 })
+      console.error("[Event Documents] Fetch error:", error)
+      return NextResponse.json({ error: "Failed to fetch documents" }, { status: 500 })
     }
 
-    const visibleDocs = (data || []).filter((d: any) => {
-      if (!d.visible_to || d.visible_to.includes('all')) return true
-      return d.visible_to.includes(userRole)
-    })
-
-    return NextResponse.json({ success: true, documents: visibleDocs, userRole })
+    return NextResponse.json({ success: true, documents: data || [], userRole: "admin" })
   } catch (error) {
-    console.error('[Event Documents] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const { status, message } = adminAccessErrorResponse(error, "Failed to load documents")
+    return NextResponse.json({ error: message }, { status })
   }
 })
 
-export const POST = withAuth(async (request: NextRequest, { user }) => {
+export const POST = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-    const eventId = request.nextUrl.pathname.split('/')[5]
-    const svc = createServiceClient()
+    const eventId = extractIdFromPath(request.url, "events")
+    if (!eventId) return NextResponse.json({ error: "Missing event id" }, { status: 400 })
+    if (!admin.orgId) return NextResponse.json({ error: "Organization required" }, { status: 403 })
 
-    const { data: eventOwner } = await svc
-      .from('events_v2')
-      .select('id')
-      .eq('id', eventId)
-      .eq('created_by', user.id)
-      .maybeSingle()
-
-    const { data: participant } = await svc
-      .from('event_participants')
-      .select('role')
-      .eq('event_id', eventId)
-      .eq('participant_id', user.id)
-      .eq('participant_type', 'Individual')
-      .maybeSingle()
-
-    const isAdmin = !!eventOwner || participant?.role === 'admin' || participant?.role === 'manager'
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Only admins can create documents' }, { status: 403 })
-    }
+    await assertEventAuthority({
+      supabase,
+      userId: user.id,
+      eventId,
+      orgId: admin.orgId,
+    })
 
     const body = await request.json()
     const validated = documentSchema.parse(body)
+    const svc = createServiceClient()
 
     const { data, error } = await svc
-      .from('event_documents')
+      .from("event_documents")
       .insert({
         event_id: eventId,
         author_id: user.id,
@@ -118,103 +99,91 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .single()
 
     if (error) {
-      console.error('[Event Documents] Insert error:', error)
-      return NextResponse.json({ error: 'Failed to create document' }, { status: 500 })
+      console.error("[Event Documents] Insert error:", error)
+      return NextResponse.json({ error: "Failed to create document" }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, document: data })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation error", details: error.errors }, { status: 400 })
     }
-    console.error('[Event Documents] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const { status, message } = adminAccessErrorResponse(error, "Failed to create document")
+    return NextResponse.json({ error: message }, { status })
   }
 })
 
-export const PATCH = withAuth(async (request: NextRequest, { user }) => {
+export const PATCH = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-    const eventId = request.nextUrl.pathname.split('/')[5]
-    const svc = createServiceClient()
+    const eventId = extractIdFromPath(request.url, "events")
+    if (!eventId) return NextResponse.json({ error: "Missing event id" }, { status: 400 })
+    if (!admin.orgId) return NextResponse.json({ error: "Organization required" }, { status: 403 })
+
     const body = await request.json()
     const { id, ...updates } = body
+    if (!id) return NextResponse.json({ error: "Missing document id" }, { status: 400 })
 
-    if (!id) {
-      return NextResponse.json({ error: 'Missing document id' }, { status: 400 })
-    }
+    await requireEventChildAccess({
+      supabase,
+      userId: user.id,
+      eventId,
+      orgId: admin.orgId,
+      childTable: "event_documents",
+      childId: id,
+      parentFkColumn: "event_id",
+    })
 
-    const { data: eventOwner } = await svc
-      .from('events_v2')
-      .select('id')
-      .eq('id', eventId)
-      .eq('created_by', user.id)
-      .maybeSingle()
-
-    const { data: participant } = await svc
-      .from('event_participants')
-      .select('role')
-      .eq('event_id', eventId)
-      .eq('participant_id', user.id)
-      .eq('participant_type', 'Individual')
-      .maybeSingle()
-
-    const isAdmin = !!eventOwner || participant?.role === 'admin' || participant?.role === 'manager'
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Only admins can edit documents' }, { status: 403 })
-    }
-
-    const allowedFields: Record<string, any> = {}
+    const allowedFields: Record<string, unknown> = {}
     if (updates.title) allowedFields.title = updates.title
     if (updates.content) allowedFields.content = updates.content
     if (updates.document_type) allowedFields.document_type = updates.document_type
     if (updates.visible_to) allowedFields.visible_to = updates.visible_to
-    if (typeof updates.pinned === 'boolean') allowedFields.pinned = updates.pinned
+    if (typeof updates.pinned === "boolean") allowedFields.pinned = updates.pinned
     allowedFields.updated_at = new Date().toISOString()
 
+    const svc = createServiceClient()
     const { error } = await svc
-      .from('event_documents')
+      .from("event_documents")
       .update(allowedFields)
-      .eq('id', id)
-      .eq('event_id', eventId)
+      .eq("id", id)
+      .eq("event_id", eventId)
 
     if (error) {
-      console.error('[Event Documents] Update error:', error)
-      return NextResponse.json({ error: 'Failed to update document' }, { status: 500 })
+      console.error("[Event Documents] Update error:", error)
+      return NextResponse.json({ error: "Failed to update document" }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[Event Documents] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const { status, message } = adminAccessErrorResponse(error, "Failed to update document")
+    return NextResponse.json({ error: message }, { status })
   }
 })
 
-export const DELETE = withAuth(async (request: NextRequest, { user }) => {
+export const DELETE = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-    const eventId = request.nextUrl.pathname.split('/')[5]
-    const { searchParams } = new URL(request.url)
-    const docId = searchParams.get('id')
-    if (!docId) {
-      return NextResponse.json({ error: 'Missing document id' }, { status: 400 })
-    }
+    const eventId = extractIdFromPath(request.url, "events")
+    if (!eventId) return NextResponse.json({ error: "Missing event id" }, { status: 400 })
+    if (!admin.orgId) return NextResponse.json({ error: "Organization required" }, { status: 403 })
+
+    const docId = new URL(request.url).searchParams.get("id")
+    if (!docId) return NextResponse.json({ error: "Missing document id" }, { status: 400 })
+
+    await requireEventChildAccess({
+      supabase,
+      userId: user.id,
+      eventId,
+      orgId: admin.orgId,
+      childTable: "event_documents",
+      childId: docId,
+      parentFkColumn: "event_id",
+    })
 
     const svc = createServiceClient()
-
-    const { data: eventOwner } = await svc
-      .from('events_v2')
-      .select('id')
-      .eq('id', eventId)
-      .eq('created_by', user.id)
-      .maybeSingle()
-
-    if (!eventOwner) {
-      return NextResponse.json({ error: 'Only event admin can delete documents' }, { status: 403 })
-    }
-
-    await svc.from('event_documents').delete().eq('id', docId).eq('event_id', eventId)
+    await svc.from("event_documents").delete().eq("id", docId).eq("event_id", eventId)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[Event Documents] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const { status, message } = adminAccessErrorResponse(error, "Failed to delete document")
+    return NextResponse.json({ error: message }, { status })
   }
 })

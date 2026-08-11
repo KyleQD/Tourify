@@ -119,8 +119,8 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
             />
           ) : null}
           {roster.length > 0 ? (
-            <div className="overflow-hidden rounded-[1.15rem] border border-slate-700/60">
-              <div className="grid grid-cols-12 border-b border-slate-800 bg-slate-900/70 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+              <div className="grid grid-cols-12 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
                 <div className="col-span-4">Worker</div>
                 <div className="col-span-3">Role</div>
                 <div className="col-span-2">Status</div>
@@ -131,7 +131,7 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
                   key={member.id}
                   type="button"
                   onClick={() => openMember(member.id)}
-                  className="grid w-full grid-cols-12 gap-2 border-b border-slate-800/80 bg-slate-900/35 px-4 py-4 text-left text-sm transition hover:bg-slate-800/50 last:border-0"
+                  className="grid w-full grid-cols-12 gap-2 border-b border-white/10 bg-transparent px-4 py-4 text-left text-sm transition hover:bg-white/[0.06] last:border-0"
                 >
                   <div className="col-span-4">
                     <p className="font-medium text-white">{member.name}</p>

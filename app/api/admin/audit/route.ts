@@ -19,6 +19,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }: { user: 
     const offset = (page - 1) * limit
     const actorId = searchParams.get("actor_id")
     const entityType = searchParams.get("entity_type")
+    const action = searchParams.get("action")
     const from = searchParams.get("from")
     const to = searchParams.get("to")
 
@@ -45,6 +46,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }: { user: 
 
     if (actorId) query = query.eq("actor_id", actorId)
     if (entityType) query = query.eq("entity_type", entityType)
+    if (action) query = query.eq("action", action)
     if (from) query = query.gte("created_at", from)
     if (to) query = query.lte("created_at", to)
 

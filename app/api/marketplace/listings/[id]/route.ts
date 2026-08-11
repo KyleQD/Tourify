@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import { resolveActingContext } from "@/lib/auth/acting-context"
+import { resolveMarketplaceEntitlements } from "@/lib/marketplace/entitlement-resolver"
 import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
 import { enforceFeaturedRankCap } from "@/lib/marketplace/storefront-curation"
 import { getTrackFullStoragePath, getTrackPreviewStoragePath, getTrackStorageBucket } from "@/lib/music/music-access"
@@ -22,7 +25,11 @@ const updateListingSchema = z.object({
   description: z.string().max(4000).optional().nullable(),
   category: z.string().min(1).max(80).optional(),
   productType: z.string().min(1).max(80).optional(),
-  status: z.enum(["draft", "published", "archived"]).optional(),
+  // P2 fields
+  listingKind: z.enum(["physical", "service", "external"]).optional(),
+  serviceMode: z.enum(["fixed_price", "booking_request", "quote_request"]).optional().nullable(),
+  publicSlug: z.string().min(2).max(120).regex(/^[a-z0-9-]+$/).optional().nullable(),
+  status: z.enum(["draft", "published", "paused", "sold_out", "archived"]).optional(),
   currency: z.string().length(3).optional(),
   basePrice: z.number().min(0).optional().nullable(),
   compareAtPrice: z.number().min(0).optional().nullable(),
@@ -42,6 +49,9 @@ const updateListingSchema = z.object({
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const supabase = await createClient()
     const { id } = await params
@@ -71,13 +81,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
-    const authResult = await requireApiUser(request)
-    if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
+    const { user: { id: userId }, accountType, supabase } = ctx
+    const user = { id: userId }
+
+    // Account-type entitlement check
+    const entitlements = resolveMarketplaceEntitlements(accountType)
 
     const { id } = await params
     const payload = updateListingSchema.parse(await request.json())
+
+    // Music is never a marketplace category
+    if (payload.category?.toLowerCase() === "music") {
+      return jsonError({
+        status: 400,
+        code: "music_category_blocked",
+        message: "Music is not a marketplace category",
+      })
+    }
 
     const { data: existing, error: existingError } = await supabase
       .from("marketplace_listings")
@@ -97,8 +123,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         code: "forbidden",
         message: "Forbidden",
       })
-    const nextCategory = payload.category || existing.category
+
+    // Organizations may only manage ticket collections — block update to physical/service/external listing
     const nextProductType = payload.productType || existing.product_type
+    if (!entitlements.canSellPhysicalGoods && nextProductType !== "digital_asset") {
+      return jsonError({
+        status: 403,
+        code: "org_cannot_sell_physical_goods",
+        message: "Organizations may only manage ticket collections",
+      })
+    }
+
+    const nextCategory = payload.category || existing.category
     const shouldPublish = payload.status === "published"
     if (
       shouldPublish
@@ -217,6 +253,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       description: payload.description,
       category: payload.category,
       product_type: payload.productType,
+      listing_kind: payload.listingKind,
+      service_mode: payload.serviceMode,
+      public_slug: payload.publicSlug,
       status: payload.status,
       currency: payload.currency?.toUpperCase(),
       base_price: payload.basePrice,
@@ -306,6 +345,9 @@ function isPaidListingUpdate({
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const authResult = await requireApiUser(request)
     if (!authResult.success) return authResult.response

@@ -95,7 +95,7 @@ export function EventTicketManager({ eventId }: Props) {
   const [showTypeDialog, setShowTypeDialog] = useState(false)
   const [editingType, setEditingType] = useState<TicketType | null>(null)
   const [typeForm, setTypeForm] = useState({
-    name: '', description: '', price: 0, quantity_available: 100,
+    name: '', description: '', price: 0, quantity_available: 0,
     category: 'general', sale_start: '', sale_end: '',
   })
 
@@ -166,7 +166,7 @@ export function EventTicketManager({ eventId }: Props) {
 
   function openCreateType() {
     setEditingType(null)
-    setTypeForm({ name: '', description: '', price: 0, quantity_available: 100, category: 'general', sale_start: '', sale_end: '' })
+    setTypeForm({ name: '', description: '', price: 0, quantity_available: 0, category: 'general', sale_start: '', sale_end: '' })
     setShowTypeDialog(true)
   }
 
@@ -187,6 +187,10 @@ export function EventTicketManager({ eventId }: Props) {
   async function saveType() {
     if (!isActingReady) { toast.error('Organization account is still loading'); return }
     if (!typeForm.name.trim()) { toast.error('Name is required'); return }
+    if (!Number.isInteger(Number(typeForm.quantity_available)) || Number(typeForm.quantity_available) < 1) {
+      toast.error('Quantity must be an explicit positive number (no default capacity)')
+      return
+    }
     setSavingType(true)
     try {
       const body = {

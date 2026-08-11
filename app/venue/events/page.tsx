@@ -92,9 +92,14 @@ export default function VenueEventsPage() {
             <p className="text-sm text-zinc-400">
               No Venue events yet. Approve a booking request or create a Venue-hosted event.
             </p>
-            <Button asChild variant="outline" className="border-zinc-700 bg-zinc-950">
-              <Link href="/venue/bookings">Review booking requests</Link>
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button asChild variant="outline" className="border-zinc-700 bg-zinc-950">
+                <Link href="/venue/bookings">Review booking requests</Link>
+              </Button>
+              <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+                <Link href="/venue/dashboard/calendar">Open calendar</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (

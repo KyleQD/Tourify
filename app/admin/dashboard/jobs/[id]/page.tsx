@@ -1,8 +1,10 @@
+import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { JobPostingBuilder } from "@/components/hiring/job-posting-builder"
 import { HiringMissingScope } from "@/components/hiring/hiring-missing-scope"
 import { WorkforceHero, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { Button } from "@/components/ui/button"
 import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workforce-employer"
 import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
 import { createHiringServiceClient } from "@/lib/supabase/hiring-service-client"
@@ -83,6 +85,13 @@ export default async function ManageHiringJobPage({ params, searchParams }: Mana
         title="Manage Job Posting"
         description={`Edit, publish, close, or archive this scoped Workforce job posting for ${employer.displayName}.`}
         badge={employer.entityType}
+        actions={
+          <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-200">
+            <Link href={`/admin/dashboard/applications?job_id=${id}&${queryString}`}>
+              View applications
+            </Link>
+          </Button>
+        }
       />
       <JobPostingBuilder
         employer={employer}

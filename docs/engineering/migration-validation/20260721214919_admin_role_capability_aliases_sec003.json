@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260721214919_admin_role_capability_aliases_sec003.sql",
+  "taskId": "SEC-003",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["tenancy", "rbac"],
+  "riskLevel": "high",
+  "representativeSnapshot": { "kind": "isolated production-like Supabase branch", "evidenceArtifact": null },
+  "preflight": { "rowCountQueries": ["role permission rows by role and permission count"], "expectedAffectedRows": "Upsert only the documented alias-role permission rows", "artifact": null },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 60000, "batchSize": 0, "resumeStrategy": "Single deterministic upsert transaction; retry from the migration version", "resumeCursor": "supabase migration version 20260721214919", "idempotency": "ON CONFLICT updates each named role to the canonical permission set" },
+  "quarantine": { "required": false, "table": null, "strategy": "No ownership backfill; unexpected role rows are preserved and reported" },
+  "constraintsAndIndexes": { "constraints": [], "indexes": [], "validationPlan": "Compare affected role permissions with the generated SEC-003 matrix and direct-role denials" },
+  "recovery": { "rollback": "Do not remove roles or grants; restore reviewed permission arrays in a later upsert", "forwardFix": "Apply a corrective role-permission upsert with audit and matrix evidence" },
+  "postflight": { "queries": ["affected role permission arrays and manager/viewer denial matrix"], "artifact": null, "securityAdvisorArtifact": null, "performanceAdvisorArtifact": null },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

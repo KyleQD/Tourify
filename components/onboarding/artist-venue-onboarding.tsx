@@ -1,10 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
-import { UnifiedOnboardingService, OnboardingTemplate } from "@/lib/services/unified-onboarding.service"
+import type {
+  OnboardingFlow,
+  OnboardingTemplate,
+} from "@/lib/services/unified-onboarding.service"
+import {
+  fallbackPersonaTemplate,
+  initializePersonaResponses,
+  personaAccountPayload,
+  validatePersonaResponses,
+} from "@/lib/onboarding/persona-onboarding"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -35,38 +44,6 @@ import {
   Plus
 } from "lucide-react"
 
-interface OnboardingData {
-  accountType: string
-  artistData?: {
-    artist_name: string
-    bio: string
-    genres: string[]
-    social_links: {
-      instagram: string
-      spotify: string
-      youtube: string
-      soundcloud: string
-    }
-  }
-  venueData?: {
-    venue_name: string
-    description: string
-    address: string
-    capacity: number
-    venue_types: string[]
-    contact_info: {
-      phone: string
-      email: string
-      website: string
-    }
-    social_links: {
-      instagram: string
-      facebook: string
-      website: string
-    }
-  }
-}
-
 interface ArtistVenueOnboardingProps {
   accountType: 'artist' | 'venue'
 }
@@ -79,84 +56,141 @@ const steps = [
 
 export default function ArtistVenueOnboarding({ accountType }: ArtistVenueOnboardingProps) {
   const { user } = useAuth()
+  const userId = user?.id
   const { createArtistAccount, createVenueAccount } = useMultiAccount()
   const router = useRouter()
-  const searchParams = useSearchParams()
   
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingFlow, setIsLoadingFlow] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [template, setTemplate] = useState<OnboardingTemplate | null>(null)
+  const [flowId, setFlowId] = useState<string | null>(null)
+  const [createdAccountId, setCreatedAccountId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Record<string, any>>({})
-
-  // Form states
-  const [artistData, setArtistData] = useState({
-    artist_name: '',
-    bio: '',
-    genres: [] as string[],
-    social_links: {
-      instagram: '',
-      spotify: '',
-      youtube: '',
-      soundcloud: ''
-    }
-  })
-  
-  const [venueData, setVenueData] = useState({
-    venue_name: '',
-    description: '',
-    address: '',
-    capacity: 0,
-    venue_types: [] as string[],
-    contact_info: {
-      phone: '',
-      email: '',
-      website: ''
-    },
-    social_links: {
-      instagram: '',
-      facebook: '',
-      website: ''
-    }
-  })
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
+    if (!userId) {
+      router.replace(`/login?redirect=${encodeURIComponent(`/onboarding?type=${accountType}`)}`)
       return
     }
 
-    // Set the account type from props
-    setOnboardingData({ accountType })
+    const controller = new AbortController()
 
-    // Load template for the account type
-    loadTemplate(accountType)
-  }, [user, accountType, router])
+    const loadFlow = async () => {
+      setIsLoadingFlow(true)
+      setError(null)
+      try {
+        const response = await fetch(
+          `/api/onboarding/unified?flow_type=${accountType}`,
+          { signal: controller.signal },
+        )
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || "Unable to load onboarding")
 
-  const loadTemplate = async (accountType: string) => {
-    try {
-      const template = await UnifiedOnboardingService.getTemplateByFlowType(accountType)
-      if (template) {
-        setTemplate(template)
-        
-        // Initialize form data based on template
-        const initialFormData: Record<string, any> = {}
-        template.fields.forEach(field => {
-          if (field.type === "multiselect") {
-            initialFormData[field.id] = []
-          } else if (field.type === "checkbox") {
-            initialFormData[field.id] = false
-          } else {
-            initialFormData[field.id] = ""
+        const resolvedTemplate =
+          (result.data?.template as OnboardingTemplate | null) ||
+          fallbackPersonaTemplate(accountType)
+        let flow = result.data?.flow as OnboardingFlow | null
+
+        if (!flow) {
+          const createResponse = await fetch("/api/onboarding/unified", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              action: "get_or_create_flow",
+              flow_type: accountType,
+              template_id: result.data?.template?.id,
+              metadata: { current_step: 1 },
+            }),
+          })
+          const createResult = await createResponse.json()
+          if (!createResponse.ok) {
+            throw new Error(createResult.error || "Unable to start onboarding")
           }
-        })
-        setFormData(initialFormData)
+          flow = createResult.data as OnboardingFlow
+        }
+
+        setTemplate(resolvedTemplate)
+        setFlowId(flow.id)
+        setFormData(
+          initializePersonaResponses(resolvedTemplate, flow.responses || {}),
+        )
+        setCreatedAccountId(
+          typeof flow.metadata?.created_account_id === "string"
+            ? flow.metadata.created_account_id
+            : null,
+        )
+        const savedStep = Number(flow.metadata?.current_step)
+        setCurrentStep(
+          flow.status === "completed"
+            ? 3
+            : savedStep === 2
+              ? 2
+              : 1,
+        )
+      } catch (loadError) {
+        if ((loadError as Error).name !== "AbortError") {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Unable to load onboarding",
+          )
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingFlow(false)
       }
-    } catch (error) {
-      console.error('Error loading template:', error)
     }
-  }
+
+    void loadFlow()
+    return () => controller.abort()
+  }, [userId, accountType, router, reloadKey])
+
+  const saveFlow = useCallback(
+    async (
+      responses: Record<string, unknown>,
+      step: number,
+      accountId = createdAccountId,
+    ) => {
+      if (!flowId) throw new Error("Onboarding session is unavailable")
+      const response = await fetch("/api/onboarding/unified", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_flow",
+          id: flowId,
+          status: "in_progress",
+          responses,
+          metadata: {
+            current_step: step,
+            ...(accountId ? { created_account_id: accountId } : {}),
+          },
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || "Unable to save progress")
+      return result.data as OnboardingFlow
+    },
+    [createdAccountId, flowId],
+  )
+
+  useEffect(() => {
+    if (isLoadingFlow || isSubmitting || !flowId || currentStep === 3) return
+
+    setSaveState("saving")
+    const timeout = window.setTimeout(() => {
+      void saveFlow(formData, currentStep)
+        .then(() => setSaveState("saved"))
+        .catch(() => setSaveState("error"))
+    }, 700)
+
+    return () => window.clearTimeout(timeout)
+    // createdAccountId is deliberately included so its recovery marker is persisted.
+  }, [formData, currentStep, flowId, isLoadingFlow, isSubmitting, saveFlow])
 
   const handleNext = () => {
     if (currentStep < steps.length) {
@@ -171,41 +205,51 @@ export default function ArtistVenueOnboarding({ accountType }: ArtistVenueOnboar
   }
 
   const handleSubmit = async () => {
-    if (!onboardingData || !user) return
+    if (!template || !flowId || !user) return
 
     setIsSubmitting(true)
     setError(null)
+    setFieldErrors({})
 
     try {
-      // Create or get onboarding flow
-      const flow = await UnifiedOnboardingService.getOrCreateOnboardingFlow(
-        user.id,
-        onboardingData.accountType,
-        template?.id
-      )
-
-      if (!flow) {
-        throw new Error('Failed to create onboarding flow')
+      const validationErrors = validatePersonaResponses(template, formData)
+      if (Object.keys(validationErrors).length > 0) {
+        setFieldErrors(validationErrors)
+        throw new Error("Complete the required fields before creating your profile")
       }
 
-      // Update flow status to in progress
-      await UnifiedOnboardingService.updateOnboardingFlow({
-        id: flow.id,
-        status: 'in_progress',
-        responses: formData
+      await saveFlow(formData, 2)
+      let accountId = createdAccountId
+
+      if (!accountId) {
+        if (accountType === "artist") {
+          const payload = personaAccountPayload("artist", formData)
+          accountId = await createArtistAccount(payload)
+        } else {
+          const payload = personaAccountPayload("venue", formData)
+          accountId = await createVenueAccount(payload)
+        }
+        setCreatedAccountId(accountId)
+        await saveFlow(formData, 2, accountId)
+      }
+
+      const completeResponse = await fetch("/api/onboarding/unified", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "complete_flow",
+          id: flowId,
+          responses: formData,
+        }),
       })
-
-      // Create account based on type
-      if (onboardingData.accountType === 'artist') {
-        await createArtistAccount(artistData)
-      } else if (onboardingData.accountType === 'venue') {
-        await createVenueAccount(venueData)
+      const completeResult = await completeResponse.json()
+      if (!completeResponse.ok) {
+        throw new Error(
+          completeResult.error ||
+            "Your profile was created, but onboarding could not be finalized. Retry to continue safely.",
+        )
       }
 
-      // Complete the onboarding flow
-      await UnifiedOnboardingService.completeOnboardingFlow(flow.id, formData)
-
-      // Move to success step
       setCurrentStep(3)
       
     } catch (err) {
@@ -221,6 +265,17 @@ export default function ArtistVenueOnboarding({ accountType }: ArtistVenueOnboar
 
   if (!user) {
     return null
+  }
+
+  if (isLoadingFlow) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="text-center" role="status">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" aria-hidden="true" />
+          <p>Restoring your onboarding progress…</p>
+        </div>
+      </div>
+    )
   }
 
   const progressValue = (currentStep / steps.length) * 100
@@ -286,6 +341,16 @@ export default function ArtistVenueOnboarding({ accountType }: ArtistVenueOnboar
                 <AlertCircle className="h-5 w-5 text-red-400" />
                 <AlertDescription className="text-red-200">
                   {error}
+                  {!flowId && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="ml-2 h-auto p-0 text-red-100 underline"
+                      onClick={() => setReloadKey((value) => value + 1)}
+                    >
+                      Retry
+                    </Button>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
@@ -374,7 +439,7 @@ export default function ArtistVenueOnboarding({ accountType }: ArtistVenueOnboar
             )}
 
             {/* Step 2: Profile Setup */}
-            {currentStep === 2 && onboardingData && template && (
+            {currentStep === 2 && template && (
               <Card className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
                 <CardHeader className="text-center pb-6">
                   <div className="flex justify-center mb-4">
@@ -465,8 +530,24 @@ export default function ArtistVenueOnboarding({ accountType }: ArtistVenueOnboar
                         {field.description && (
                           <p className="text-gray-400 text-sm">{field.description}</p>
                         )}
+                        {fieldErrors[field.id] && (
+                          <p className="text-sm text-red-300" role="alert">
+                            {fieldErrors[field.id]}
+                          </p>
+                        )}
                       </div>
                     ))}
+
+                    <p
+                      className="text-sm text-gray-300"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {saveState === "saving" && "Saving your progress…"}
+                      {saveState === "saved" && "Progress saved"}
+                      {saveState === "error" &&
+                        "Progress could not be saved. Keep this page open and retry."}
+                    </p>
 
                     <div className="flex gap-4 pt-6">
                       <Button

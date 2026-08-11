@@ -36,6 +36,7 @@ export interface EventOperationsCardData {
 }
 
 function formatEventDate(value: string) {
+  if (!value) return "TBD"
   try {
     return new Date(value).toLocaleDateString(undefined, {
       month: "short",
@@ -56,6 +57,7 @@ export function EventOperationsCard({
 }) {
   const primaryTour = event.tours?.find((tour) => tour.is_primary) || event.tours?.[0] || event.tour
   const settings = event.settings && typeof event.settings === "object" ? event.settings : {}
+  const isQuickStartPlaceholder = settings.quick_start_placeholder === true
   const venueAccountId = typeof settings.venue_account_id === "string" ? settings.venue_account_id : null
   const employer = venueAccountId
     ? { entityType: "venue" as const, entityId: venueAccountId, venueId: venueAccountId }
@@ -100,48 +102,48 @@ export function EventOperationsCard({
               <MapPin className="h-4 w-4 text-cyan-300" />
               <span className="truncate">{event.venue_name || "Venue TBD"}</span>
             </div>
-            <div className="flex items-center gap-2">
+            {!isQuickStartPlaceholder ? <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-cyan-300" />
               <span>
                 {formatSafeNumber(event.tickets_sold || 0)} / {formatSafeNumber(event.capacity || 0)} capacity
               </span>
-            </div>
-            <div className="flex items-center gap-2">
+            </div> : null}
+            {!isQuickStartPlaceholder ? <div className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-cyan-300" />
               <span>
                 {event.ticket_price != null ? formatSafeCurrency(event.ticket_price) : "Pricing TBD"}
                 {event.expected_revenue != null ? ` · ${formatSafeCurrency(event.expected_revenue)} expected` : ""}
               </span>
-            </div>
+            </div> : null}
           </div>
 
-          <LogisticsProgressWidget
+          {!isQuickStartPlaceholder ? <LogisticsProgressWidget
             percentage={logistics?.percentage ?? 0}
             completed={logistics?.completed ?? 0}
             items={logistics?.items ?? 0}
             href={buildAdminLogisticsHref({ eventId: event.id })}
-          />
+          /> : null}
 
           <div className="flex flex-wrap gap-2 pt-1">
             <Button asChild className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600">
-              <Link href={`/admin/dashboard/events/${event.id}`}>
+              <Link href={isQuickStartPlaceholder ? `/admin/dashboard/events/create?draft=${event.id}${primaryTour ? `&tourId=${primaryTour.id}` : ""}` : `/admin/dashboard/events/${event.id}`}>
                 <Settings className="mr-2 h-4 w-4" />
-                Manage Event
+                {isQuickStartPlaceholder ? "Plan Your Event" : "Manage Event"}
               </Link>
             </Button>
-            <Button asChild variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+            {!isQuickStartPlaceholder ? <Button asChild variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
               <Link href={`/admin/dashboard/events/create?draft=${event.id}`}>Edit</Link>
-            </Button>
-            <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Roster">
+            </Button> : null}
+            {!isQuickStartPlaceholder ? <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Roster">
               <Link href={buildAdminRosterHref({ eventId: event.id, ...employer })}>
                 <Users className="h-4 w-4" />
               </Link>
-            </Button>
-            <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Hiring">
+            </Button> : null}
+            {!isQuickStartPlaceholder ? <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Hiring">
               <Link href={buildAdminHiringHref({ eventId: event.id, ...employer })}>
                 <Briefcase className="h-4 w-4" />
               </Link>
-            </Button>
+            </Button> : null}
           </div>
         </CardContent>
       </Card>

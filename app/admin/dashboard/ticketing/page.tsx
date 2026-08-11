@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useState, useEffect, useMemo } from 'react'
+import Link from "next/link"
 import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings, Tag, RotateCcw, Plus, Edit, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +23,12 @@ import { type TicketingMetrics, type TicketType, type TicketSale, type TicketCam
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 import { useActingContext } from "@/hooks/use-acting-context"
 import { mapAdminScopeError, readAdminErrorMessage } from "@/lib/admin/admin-request"
+import { TicketingReadModelPanel } from "@/components/admin/ticketing/ticketing-read-model-panel"
+import { InventoryLedgerTable } from "@/components/admin/ticketing/inventory-ledger-table"
+import { TicketingSetupPanel } from "@/components/admin/ticketing/ticketing-setup-panel"
+import { AllocationMatrixPanel } from "@/components/admin/ticketing/allocation-matrix-panel"
+import { GuestApprovalsPanel } from "@/components/admin/ticketing/guest-approvals-panel"
+import { AdmissionsDevicesPanel } from "@/components/admin/ticketing/admissions-devices-panel"
 
 /** API aggregates use `clicks`, `conversions`, `revenue`; UI uses ticketing types. */
 function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] {
@@ -71,7 +78,7 @@ function buildNoStoreInit(
 type AdminRequestBuilder = (input?: RequestInit) => RequestInit
 
 export default function TicketingPage() {
-  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const { actingAccount, actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const adminRequest = useCallback(
     (input?: RequestInit) => buildNoStoreInit(actingHeaders, input),
     [actingHeaders],
@@ -89,10 +96,9 @@ export default function TicketingPage() {
   const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string }>>([])
   const [activeTab, setActiveTab] = useState('overview')
   const { toast } = useToast()
-  const actingOrgLabel =
-    typeof actingHeaders['x-acting-org-id'] === 'string' && actingHeaders['x-acting-org-id']
-      ? `Showing organization ${actingHeaders['x-acting-org-id'].slice(0, 8)}…`
-      : 'Showing the selected organization account only'
+  const actingOrgLabel = actingAccount?.profile_data?.display_name
+    ? `Showing ${actingAccount.profile_data.display_name}`
+    : 'Showing the selected organization account only'
 
   const fetchEvents = useCallback(async () => {
     if (!isActingReady) return
@@ -298,10 +304,27 @@ export default function TicketingPage() {
         </div>
       ) : null}
 
+      <TicketingReadModelPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+
+      {/* TIX-502 — Canonical inventory ledger */}
+      <InventoryLedgerTable eventId={selectedEvent !== "all" ? selectedEvent : null} />
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm flex flex-wrap gap-0.5">
           <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
             <BarChart3 className="h-4 w-4" />Overview
+          </TabsTrigger>
+          <TabsTrigger value="setup" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Settings className="h-4 w-4" />Setup
+          </TabsTrigger>
+          <TabsTrigger value="allocations" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Download className="h-4 w-4" />Allocations
+          </TabsTrigger>
+          <TabsTrigger value="guests" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <DollarSign className="h-4 w-4" />Guests
+          </TabsTrigger>
+          <TabsTrigger value="admissions" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Ticket className="h-4 w-4" />Admissions
           </TabsTrigger>
           <TabsTrigger value="ticket-types" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
             <Ticket className="h-4 w-4" />Ticket Types
@@ -396,7 +419,12 @@ export default function TicketingPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {ticketTypes.length === 0 ? (
-                      <p className="text-slate-400 text-center py-4">No ticket types available</p>
+                      <div className="space-y-3 py-4 text-center">
+                        <p className="text-slate-400">No ticket types available</p>
+                        <Button asChild size="sm" variant="outline" className="border-slate-600 text-slate-200">
+                          <Link href="/admin/dashboard/events">Open events</Link>
+                        </Button>
+                      </div>
                     ) : (
                       ticketTypes.map((ticketType) => (
                         <TicketTypeItem
@@ -769,6 +797,26 @@ export default function TicketingPage() {
               <RefundsList selectedEvent={selectedEvent} adminRequest={adminRequest} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* TIX-501 — Ticketing Setup */}
+        <TabsContent value="setup" className="space-y-6">
+          <TicketingSetupPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
+
+        {/* TIX-503 — Allocation Matrix */}
+        <TabsContent value="allocations" className="space-y-6">
+          <AllocationMatrixPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
+
+        {/* TIX-504 — Guest & Comp Approvals */}
+        <TabsContent value="guests" className="space-y-6">
+          <GuestApprovalsPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
+
+        {/* TIX-509 / TIX-511 — Admissions & Devices */}
+        <TabsContent value="admissions" className="space-y-6">
+          <AdmissionsDevicesPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
         </TabsContent>
       </Tabs>
     </div>

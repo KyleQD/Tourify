@@ -1,0 +1,9 @@
+{
+  "subjectId": "uuid",
+  "status": "under_review",
+  "sourceVersion": "3",
+  "jurisdiction": "US-NV",
+  "freshnessAt": "2026-07-19T00:00:00Z",
+  "disputed": false,
+  "expiresAt": "2027-01-01T00:00:00Z"
+}

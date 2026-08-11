@@ -517,33 +517,11 @@ export function EnhancedSettingsRouter() {
                 {/* Profile Images */}
                 <div className="space-y-6">
                   <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-white font-semibold text-xl">Profile Images</h3>
-                        <p className="text-white/70 text-sm">
-                          Upload your profile picture and header photo
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const response = await fetch('/api/setup-storage', { method: 'POST' })
-                            const result = await response.json()
-                            if (result.success) {
-                              toast.success('Storage setup completed!')
-                            } else {
-                              toast.error(`Setup failed: ${result.error}`)
-                            }
-                          } catch (error) {
-                            toast.error('Failed to setup storage')
-                          }
-                        }}
-                        className="border-white/30 text-white hover:bg-white/10 rounded-xl px-4 py-2 transition-all duration-200"
-                      >
-                        Setup Storage
-                      </Button>
+                    <div className="mb-6">
+                      <h3 className="text-white font-semibold text-xl">Profile Images</h3>
+                      <p className="text-white/70 text-sm">
+                        Upload your profile picture and header photo
+                      </p>
                     </div>
                     
                     <div className="space-y-6">

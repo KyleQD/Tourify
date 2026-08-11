@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   applyOrgLogisticsTaskFilter,
   resolveAuthorizedOrgLogisticsScope,
 } from '@/lib/admin/resolve-authorized-org'
 import { buildDietaryKitchenSummary, type DietaryPreferenceRecord } from '@/lib/logistics/dietary-privacy'
 import { buildLogisticsTaskInsert } from '@/lib/logistics/tasks-adapter'
+import { projectCateringServiceRecord } from '@/lib/admin/traveler-field-projection'
 
 const serviceSchema = z.object({
   title: z.string().min(1),
@@ -37,48 +38,53 @@ const serviceSchema = z.object({
   create_task: z.boolean().optional(),
 })
 
-export async function GET(request: NextRequest) {
-  return withAdminAuth(async (_req, { user }) => {
-    try {
-      const { searchParams } = new URL(request.url)
-      const eventId = searchParams.get('eventId') || searchParams.get('event_id')
-      const tourId = searchParams.get('tourId') || searchParams.get('tour_id')
-      const scope = await resolveAuthorizedOrgLogisticsScope({
-        userId: user.id,
-        eventId,
-        tourId,
-      })
+export const GET = withAdminCapability('logistics.view', async (request, { user, admin }) => {
+  try {
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get('eventId') || searchParams.get('event_id')
+    const tourId = searchParams.get('tourId') || searchParams.get('tour_id')
+    const scope = await resolveAuthorizedOrgLogisticsScope({
+      userId: user.id,
+      requestedOrgId: admin.orgId,
+      eventId,
+      tourId,
+    })
 
-      let query = scope.service
-        .from('catering_services')
-        .select('*, catering_headcount_snapshots(*), catering_dietary_summaries(*)')
-        .order('window_start', { ascending: true, nullsFirst: false })
-        .limit(200)
+    let query = scope.service
+      .from('catering_services')
+      .select('*, catering_headcount_snapshots(*), catering_dietary_summaries(*)')
+      .order('window_start', { ascending: true, nullsFirst: false })
+      .limit(200)
 
-      query = applyOrgLogisticsTaskFilter({
-        query,
-        userId: user.id,
-        eventIds: scope.eventIds,
-        tourIds: scope.tourIds,
-        eventId,
-        tourId,
-        includeCreatedBy: true,
-      })
+    query = applyOrgLogisticsTaskFilter({
+      query,
+      userId: user.id,
+      eventIds: scope.eventIds,
+      tourIds: scope.tourIds,
+      eventId,
+      tourId,
+      includeCreatedBy: true,
+    })
 
-      const { data, error } = await query
-      if (error) {
-        if (error.code === '42P01') return NextResponse.json({ services: [], needsMigration: true })
-        return NextResponse.json({ error: error.message }, { status: 500 })
-      }
-      return NextResponse.json({ services: data || [] })
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message || 'Failed to load catering' }, { status: 500 })
+    const { data, error } = await query
+    if (error) {
+      if (error.code === '42P01') return NextResponse.json({ services: [], needsMigration: true })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
-  })(request)
-}
+    const services = ((data || []) as Record<string, unknown>[]).map((row) =>
+      projectCateringServiceRecord({
+        row,
+        capabilities: admin.capabilities,
+      }),
+    )
+    return NextResponse.json({ services })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to load catering' }, { status: 500 })
+  }
+})
 
 export async function POST(request: NextRequest) {
-  return withAdminAuth(async (req, { user }) => {
+  return withAdminCapability('logistics.manage', async (req, { user, admin }) => {
     try {
       const body = await req.json()
       const parsed = serviceSchema.safeParse(body)
@@ -88,6 +94,7 @@ export async function POST(request: NextRequest) {
       const input = parsed.data
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId: input.event_id,
         tourId: input.tour_id,
       })
@@ -191,13 +198,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  return withAdminAuth(async (req, { user }) => {
+  return withAdminCapability('logistics.manage', async (req, { user, admin }) => {
     try {
       const body = await req.json()
       const id = body.id as string | undefined
       if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-      const scope = await resolveAuthorizedOrgLogisticsScope({ userId: user.id })
+      const scope = await resolveAuthorizedOrgLogisticsScope({ userId: user.id, requestedOrgId: admin.orgId })
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
       for (const key of ['status', 'menu', 'projected_cost', 'actual_cost', 'notes', 'location_label', 'window_start', 'window_end']) {
         if (body[key] !== undefined) updates[key] = body[key]

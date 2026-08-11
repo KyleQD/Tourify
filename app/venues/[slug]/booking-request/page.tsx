@@ -78,6 +78,29 @@ export default function PublicVenueBookingRequestPage() {
     }
   }, [draftStorageKey])
 
+  useEffect(() => {
+    async function prefillSignedInContact() {
+      try {
+        const response = await fetch("/api/profile/current", { credentials: "include", cache: "no-store" })
+        if (!response.ok) return
+        const payload = await response.json()
+        const profile = payload?.profile || payload?.data || payload
+        const email = profile?.email || profile?.contact_email || ""
+        const phone = profile?.phone || profile?.contact_phone || ""
+        if (!email && !phone) return
+        setForm((current) => ({
+          ...current,
+          contactEmail: current.contactEmail || email,
+          contactPhone: current.contactPhone || phone,
+        }))
+      } catch {
+        // Guest booking remains available without session.
+      }
+    }
+
+    void prefillSignedInContact()
+  }, [])
+
   function updateField(key: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }

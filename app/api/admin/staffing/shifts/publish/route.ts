@@ -22,6 +22,7 @@ export async function POST(req: Request) {
       .from("staff_shifts")
       .select("id, venue_id, event_id")
       .in("id", input.shift_ids)
+      .is("deleted_at", null)
 
     if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 400 })
     if (!shifts?.length) return NextResponse.json({ error: "No shifts found" }, { status: 404 })

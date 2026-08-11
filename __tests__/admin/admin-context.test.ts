@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import {
+  actingAdminCacheKey,
   parseExplicitAdminActingHeaders,
-  selectSingleMembershipFallback,
+  resolveActingAdminContext,
 } from '@/lib/auth/admin-context'
 
 function headers(values: Record<string, string>): Pick<Headers, 'get'> {
@@ -49,21 +51,41 @@ describe('Admin acting context selection', () => {
     expect((result as NextResponse).status).toBe(409)
   })
 
-  it('allows a deterministic single-membership compatibility fallback', () => {
-    expect(selectSingleMembershipFallback([{ org_id: 'org-a', role: 'admin' }]))
-      .toEqual({ org_id: 'org-a', role: 'admin' })
-  })
-
-  it('rejects ambiguous memberships instead of selecting the first row', async () => {
-    const result = selectSingleMembershipFallback([
-      { org_id: 'org-a', role: 'admin' },
-      { org_id: 'org-b', role: 'tour_manager' },
-    ])
+  it('requires explicit header/session selection without consulting membership fallbacks', async () => {
+    const tables: string[] = []
+    const result = await resolveActingAdminContext(
+      new NextRequest('http://localhost/api/admin/tours'),
+      {
+        user: { id: 'user-a' },
+        supabase: {
+          from: (table: string) => {
+            tables.push(table)
+            return {
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: null, error: null }),
+                }),
+              }),
+            }
+          },
+        },
+      },
+    )
 
     expect(result).toBeInstanceOf(NextResponse)
     expect((result as NextResponse).status).toBe(409)
     await expect((result as NextResponse).json()).resolves.toMatchObject({
       code: 'acting_context_required',
     })
+    expect(tables).toEqual(['user_sessions'])
+  })
+
+  it('builds org-scoped cache keys for switch invalidation (SEC-101)', () => {
+    expect(actingAdminCacheKey({ orgId: 'org-a', profileId: 'profile-a' })).toBe(
+      'admin-org:org-a:profile:profile-a',
+    )
+    expect(actingAdminCacheKey({ orgId: 'org-a', profileId: 'profile-a' })).not.toBe(
+      actingAdminCacheKey({ orgId: 'org-b', profileId: 'profile-b' }),
+    )
   })
 })

@@ -14,6 +14,7 @@ export const GET = withAdminCapability("event.view", async (request: NextRequest
       userId: user.id,
       orgId: admin.orgId,
       status: searchParams.get("status"),
+      allowedTourIds: admin.scope === "tour_collaborator" ? admin.allowedTourIds : undefined,
     })
 
     return NextResponse.json({ success: true, events })
@@ -38,7 +39,15 @@ export const POST = withAdminCapability("event.manage", async (request: NextRequ
       orgId: admin.orgId,
     })
 
-    return NextResponse.json({ success: true, event }, { status: 201 })
+    // EVENT-103 — creation returns explicit setup checklist (no invented ops rows).
+    return NextResponse.json(
+      {
+        success: true,
+        event,
+        setupChecklist: (event as { setup_checklist?: unknown }).setup_checklist ?? null,
+      },
+      { status: 201 },
+    )
   } catch (error: any) {
     const status = getAdminTourEventErrorStatus(error, 500)
     console.error("[Admin Events API] POST error:", error)

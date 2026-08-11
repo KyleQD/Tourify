@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { formatSafeDateTime } from '@/lib/events/admin-event-normalization'
+import { detailSurfacePattern } from '@/components/dashboard/detail-surface-pattern'
+import { cn } from '@/lib/utils'
 
 interface EventDetailsModalProps {
   event: {
@@ -23,12 +25,13 @@ export function EventDetailsModal({ event, onEdit, onDelete, onClose }: EventDet
 
   return (
     <Dialog open={!!event} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className={detailSurfacePattern.dialogContent}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle>Event Details</DialogTitle>
+          <DialogTitle className={detailSurfacePattern.title}>Event Details</DialogTitle>
         </DialogHeader>
-        <div>
-          <div className="font-bold text-lg mb-2">{event.title}</div>
+        <div className={cn(detailSurfacePattern.subtleText, "space-y-1 text-slate-200")}>
+          <div className={cn(detailSurfacePattern.title, "font-bold text-lg mb-2")}>{event.title}</div>
           <div>Description: {event.description}</div>
           <div>Date: {formatSafeDateTime(event.date.toISOString())}</div>
           <div>Status: {event.status}</div>
@@ -39,11 +42,11 @@ export function EventDetailsModal({ event, onEdit, onDelete, onClose }: EventDet
           )}
         </div>
         <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="outline" onClick={onEdit}>Edit</Button>
-          <Button variant="destructive" onClick={onDelete}>Delete</Button>
+          <Button onClick={onClose} className={detailSurfacePattern.btnPrimary}>Close</Button>
+          <Button variant="outline" onClick={onEdit} className={detailSurfacePattern.btnOutline}>Edit</Button>
+          <Button variant="destructive" onClick={onDelete} className={detailSurfacePattern.btnDestructive}>Delete</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
-} 
+}

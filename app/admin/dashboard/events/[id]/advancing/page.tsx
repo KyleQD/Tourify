@@ -211,6 +211,9 @@ export default function AdvancingPage() {
               <Download className="h-3.5 w-3.5 mr-1.5" />
               Export
             </Button>
+            <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 h-8" asChild>
+              <Link href={`/admin/dashboard/events/${eventId}/day-sheet`}>Day sheet</Link>
+            </Button>
             <Button size="sm" onClick={save} disabled={saving} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8">
               {saving ? 'Saving...' : 'Save'}
             </Button>
@@ -224,7 +227,7 @@ export default function AdvancingPage() {
         <Card className="bg-slate-800/30 border-slate-700/30 rounded-sm">
           <CardContent className="py-3 px-4 flex items-center justify-between">
             <div>
-              <p className="text-slate-300 text-xs font-medium">Read-only share link (for venue)</p>
+              <p className="text-slate-300 text-xs font-medium">Scoped venue share link (not an Admin URL)</p>
               <p className="text-slate-500 text-xs truncate max-w-sm">{typeof window !== 'undefined' ? `${window.location.origin}/advance/${adv.share_token}` : ''}</p>
             </div>
             <Button
@@ -234,7 +237,7 @@ export default function AdvancingPage() {
               onClick={() => {
                 if (typeof window !== 'undefined') {
                   navigator.clipboard.writeText(`${window.location.origin}/advance/${adv.share_token}`)
-                  toast.success('Link copied')
+                  toast.success('Scoped advance link copied')
                 }
               }}
             >

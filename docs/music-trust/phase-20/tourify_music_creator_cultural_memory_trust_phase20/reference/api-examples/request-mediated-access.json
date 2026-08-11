@@ -1,0 +1,9 @@
+{
+  "packageId": "uuid",
+  "purpose": "scholarly_review",
+  "requestedFields": [
+    "approved_access_copy"
+  ],
+  "researcherId": "uuid",
+  "idempotencyKey": "uuid"
+}

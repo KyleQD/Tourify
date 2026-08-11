@@ -1,20 +1,21 @@
-import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminCapability } from '@/lib/auth/api-auth'
-import { logAuditEvent } from '@/lib/audit'
+import type { ActingAdminContext } from '@/lib/auth/admin-context'
 import {
   assertOrgEntityReferences,
   listOrgEventIds,
   OrgEntityAccessError,
 } from '@/lib/admin/org-entity-access'
 import {
-  assertDateOrder,
-  assertPercentageDiscount,
-  ticketingCreateSchema,
+  executeTicketingCommand,
+  getTicketingCommandErrorStatus,
+  TicketingCommandError,
+} from '@/lib/admin/ticketing-command.service'
+import { parseTicketingCommand } from '@/lib/admin/ticketing-command-schemas'
+import {
   ticketingQuerySchema,
   TicketingValidationError,
-  updateTicketTypeSchema,
 } from '@/lib/admin/ticketing-validation'
 
 const EMPTY_UUID = '00000000-0000-0000-0000-000000000000'
@@ -43,6 +44,12 @@ function routeError(scope: string, error: unknown) {
       { status: 422 },
     )
   }
+  if (error instanceof TicketingCommandError) {
+    return NextResponse.json(
+      { error: error.message, code: error.code },
+      { status: error.status },
+    )
+  }
   if (error instanceof OrgEntityAccessError) {
     return NextResponse.json(
       { error: error.message, code: error.code },
@@ -56,8 +63,44 @@ function routeError(scope: string, error: unknown) {
     )
   }
 
+  const status = getTicketingCommandErrorStatus(error, 500)
+  if (status < 500) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Command failed', code: 'command_failed' },
+      { status },
+    )
+  }
+
   console.error(`[Enhanced Admin Ticketing API] ${scope} failed:`, error)
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+}
+
+async function runTicketingMutation(args: {
+  supabase: any
+  userId: string
+  orgId: string
+  capabilities: ActingAdminContext['capabilities']
+  body: unknown
+  idempotencyKey?: string | null
+}) {
+  const parsed = parseTicketingCommand(args.body)
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error, code: 'validation_error', details: parsed.details },
+      { status: 400 },
+    )
+  }
+
+  const result = await executeTicketingCommand({
+    supabase: args.supabase,
+    userId: args.userId,
+    orgId: args.orgId,
+    capabilities: args.capabilities,
+    command: parsed.data,
+    idempotencyKey: args.idempotencyKey,
+  })
+
+  return NextResponse.json(result.data, { status: result.status || 200 })
 }
 
 async function resolveEventScope(
@@ -70,47 +113,6 @@ async function resolveEventScope(
     return [eventId]
   }
   return listOrgEventIds(supabase, orgId)
-}
-
-async function assertTicketTypesForEvent(
-  supabase: any,
-  eventId: string,
-  ids: string[] | undefined,
-) {
-  const uniqueIds = Array.from(new Set(ids || []))
-  if (uniqueIds.length === 0) return
-
-  const { data, error } = await supabase
-    .from('ticket_types')
-    .select('id')
-    .eq('event_id', eventId)
-    .in('id', uniqueIds)
-
-  if (error) throw new TicketingQueryError('Unable to verify applicable ticket types.')
-  if ((data || []).length !== uniqueIds.length) {
-    throw new TicketingValidationError(
-      'Every applicable ticket type must belong to the selected event.',
-    )
-  }
-}
-
-async function assertCampaignForEvent(
-  supabase: any,
-  eventId: string,
-  campaignId: string | null | undefined,
-) {
-  if (!campaignId) return
-  const { data, error } = await supabase
-    .from('ticket_campaigns')
-    .select('id')
-    .eq('id', campaignId)
-    .eq('event_id', eventId)
-    .maybeSingle()
-
-  if (error) throw new TicketingQueryError('Unable to verify the campaign.')
-  if (!data) {
-    throw new TicketingValidationError('Campaign does not belong to the selected event.')
-  }
 }
 
 async function getOverview(supabase: any, orgId: string, eventId?: string) {
@@ -349,146 +351,17 @@ export const GET = withAdminCapability('ticketing.view', async (request, { supab
   }
 })
 
+/** Compat → TIX-103 command service (prefer POST /api/admin/ticketing/commands). */
 export const POST = withAdminCapability('ticketing.manage', async (request, { supabase, user, admin }) => {
   try {
-    const input = ticketingCreateSchema.parse(await request.json())
-    await assertOrgEntityReferences(supabase, admin.orgId, { eventId: input.event_id })
-
-    if (input.action === 'create_ticket_type') {
-      assertDateOrder(input.sale_start, input.sale_end, 'Sale')
-      if (input.max_per_customer && input.max_per_customer > input.quantity_available) {
-        throw new TicketingValidationError(
-          'Maximum tickets per customer cannot exceed available inventory.',
-        )
-      }
-
-      const { action: _action, ...values } = input
-      const { data, error } = await supabase
-        .from('ticket_types')
-        .insert({
-          ...values,
-          ticket_code: `TKT-${randomUUID()}`,
-          quantity_sold: 0,
-        })
-        .select('*')
-        .single()
-
-      if (error || !data) throw new TicketingQueryError('Failed to create ticket type.')
-      await logAuditEvent({
-        actorId: user.id,
-        orgId: admin.orgId,
-        action: 'create',
-        entityType: 'ticket',
-        entityId: data.id,
-        newValues: { event_id: input.event_id, kind: 'ticket_type' },
-      })
-      return NextResponse.json({ ticket_type: data }, { status: 201 })
-    }
-
-    if (input.action === 'create_campaign') {
-      assertDateOrder(input.start_date, input.end_date, 'Campaign')
-      assertPercentageDiscount(input.discount_type, input.discount_value)
-      await assertTicketTypesForEvent(
-        supabase,
-        input.event_id,
-        input.applicable_ticket_types,
-      )
-
-      const { action: _action, ...values } = input
-      const { data, error } = await supabase
-        .from('ticket_campaigns')
-        .insert({ ...values, current_uses: 0, is_active: true, created_by: user.id })
-        .select('*')
-        .single()
-
-      if (error || !data) throw new TicketingQueryError('Failed to create campaign.')
-      await logAuditEvent({
-        actorId: user.id,
-        orgId: admin.orgId,
-        action: 'create',
-        entityType: 'ticket',
-        entityId: data.id,
-        newValues: { event_id: input.event_id, kind: 'campaign' },
-      })
-      return NextResponse.json({ campaign: data }, { status: 201 })
-    }
-
-    if (input.action === 'create_promo_code') {
-      const startDate = input.start_date || new Date().toISOString()
-      const endDate = input.end_date || input.expires_at
-      assertDateOrder(startDate, endDate, 'Promo code')
-      assertPercentageDiscount(input.discount_type, input.discount_value)
-      await Promise.all([
-        assertCampaignForEvent(supabase, input.event_id, input.campaign_id),
-        assertTicketTypesForEvent(supabase, input.event_id, input.applicable_ticket_types),
-      ])
-
-      const code = input.code.toUpperCase()
-      const { data: existing, error: existingError } = await supabase
-        .from('promo_codes')
-        .select('id')
-        .eq('event_id', input.event_id)
-        .eq('code', code)
-        .maybeSingle()
-      if (existingError) throw new TicketingQueryError('Unable to verify promo code uniqueness.')
-      if (existing) throw new TicketingValidationError('Promo code already exists for this event.')
-
-      const {
-        action: _action,
-        expires_at: _expiresAt,
-        start_date: _startDate,
-        end_date: _endDate,
-        ...values
-      } = input
-      const { data, error } = await supabase
-        .from('promo_codes')
-        .insert({
-          ...values,
-          code,
-          start_date: startDate,
-          end_date: endDate,
-          current_uses: 0,
-          is_active: true,
-          created_by: user.id,
-        })
-        .select('*')
-        .single()
-
-      if (error || !data) throw new TicketingQueryError('Failed to create promo code.')
-      await logAuditEvent({
-        actorId: user.id,
-        orgId: admin.orgId,
-        action: 'create',
-        entityType: 'ticket',
-        entityId: data.id,
-        newValues: { event_id: input.event_id, kind: 'promo_code', code },
-      })
-      return NextResponse.json({ promo_code: data }, { status: 201 })
-    }
-
-    const rows = Array.from({ length: input.count }, () => ({
-      referrer_id: user.id,
-      referred_email: '',
-      event_id: input.event_id,
-      referral_code: `REF-${randomUUID()}`,
-      discount_amount: input.discount_amount,
-    }))
-    const { data, error } = await supabase
-      .from('ticket_referrals')
-      .insert(rows)
-      .select('*')
-
-    if (error || !data || data.length !== rows.length) {
-      throw new TicketingQueryError('Failed to generate referral codes.')
-    }
-    await logAuditEvent({
-      actorId: user.id,
+    return await runTicketingMutation({
+      supabase,
+      userId: user.id,
       orgId: admin.orgId,
-      action: 'create',
-      entityType: 'ticket',
-      newValues: { event_id: input.event_id, kind: 'referral_codes', count: data.length },
+      capabilities: admin.capabilities,
+      body: await request.json(),
+      idempotencyKey: request.headers.get('idempotency-key') || request.headers.get('x-idempotency-key'),
     })
-    return NextResponse.json({ referral_codes: data }, { status: 201 })
   } catch (error) {
     return routeError('POST', error)
   }
@@ -496,71 +369,14 @@ export const POST = withAdminCapability('ticketing.manage', async (request, { su
 
 export const PATCH = withAdminCapability('ticketing.manage', async (request, { supabase, user, admin }) => {
   try {
-    const input = updateTicketTypeSchema.parse(await request.json())
-    const { data: current, error: currentError } = await supabase
-      .from('ticket_types')
-      .select('*')
-      .eq('id', input.id)
-      .maybeSingle()
-
-    if (currentError) throw new TicketingQueryError('Unable to load ticket type.')
-    if (!current) {
-      return NextResponse.json(
-        { error: 'Ticket type not found', code: 'entity_not_found' },
-        { status: 404 },
-      )
-    }
-    await assertOrgEntityReferences(supabase, admin.orgId, { eventId: current.event_id })
-
-    const saleStart = Object.prototype.hasOwnProperty.call(input, 'sale_start')
-      ? input.sale_start
-      : current.sale_start
-    const saleEnd = Object.prototype.hasOwnProperty.call(input, 'sale_end')
-      ? input.sale_end
-      : current.sale_end
-    assertDateOrder(saleStart, saleEnd, 'Sale')
-
-    const available = input.quantity_available ?? current.quantity_available
-    const maxPerCustomer = Object.prototype.hasOwnProperty.call(input, 'max_per_customer')
-      ? input.max_per_customer
-      : current.max_per_customer
-    if (available < (current.quantity_sold || 0)) {
-      throw new TicketingValidationError('Available quantity cannot be lower than tickets sold.')
-    }
-    if (maxPerCustomer && maxPerCustomer > available) {
-      throw new TicketingValidationError(
-        'Maximum tickets per customer cannot exceed available inventory.',
-      )
-    }
-
-    const { action: _action, id, ...updates } = input
-    const { data, error } = await supabase
-      .from('ticket_types')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('event_id', current.event_id)
-      .eq('updated_at', current.updated_at)
-      .select('*')
-      .maybeSingle()
-
-    if (error) throw new TicketingQueryError('Failed to update ticket type.')
-    if (!data) {
-      return NextResponse.json(
-        { error: 'Ticket type changed while it was being updated.', code: 'ticketing_conflict' },
-        { status: 409 },
-      )
-    }
-
-    await logAuditEvent({
-      actorId: user.id,
+    return await runTicketingMutation({
+      supabase,
+      userId: user.id,
       orgId: admin.orgId,
-      action: 'update',
-      entityType: 'ticket',
-      entityId: id,
-      oldValues: current,
-      newValues: updates,
+      capabilities: admin.capabilities,
+      body: await request.json(),
+      idempotencyKey: request.headers.get('idempotency-key') || request.headers.get('x-idempotency-key'),
     })
-    return NextResponse.json({ ticket_type: data })
   } catch (error) {
     return routeError('PATCH', error)
   }
@@ -568,58 +384,20 @@ export const PATCH = withAdminCapability('ticketing.manage', async (request, { s
 
 export const DELETE = withAdminCapability('ticketing.manage', async (request, { supabase, user, admin }) => {
   try {
-    const body = await request.json().catch(() => ({}))
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>
     const id = z.string().uuid().parse(body.id || new URL(request.url).searchParams.get('id'))
-    const { data: current, error: currentError } = await supabase
-      .from('ticket_types')
-      .select('id,event_id,quantity_sold,updated_at')
-      .eq('id', id)
-      .maybeSingle()
-
-    if (currentError) throw new TicketingQueryError('Unable to load ticket type.')
-    if (!current) {
-      return NextResponse.json(
-        { error: 'Ticket type not found', code: 'entity_not_found' },
-        { status: 404 },
-      )
-    }
-    await assertOrgEntityReferences(supabase, admin.orgId, { eventId: current.event_id })
-
-    let softDeleted = Number(current.quantity_sold) > 0
-    if (!softDeleted) {
-      const { error } = await supabase
-        .from('ticket_types')
-        .delete()
-        .eq('id', id)
-        .eq('event_id', current.event_id)
-        .eq('updated_at', current.updated_at)
-
-      if (error?.code === '23503') softDeleted = true
-      else if (error) throw new TicketingQueryError('Failed to delete ticket type.')
-    }
-
-    if (softDeleted) {
-      const { data, error } = await supabase
-        .from('ticket_types')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('event_id', current.event_id)
-        .eq('updated_at', current.updated_at)
-        .select('id')
-        .maybeSingle()
-      if (error || !data) throw new TicketingQueryError('Failed to deactivate ticket type.')
-    }
-
-    await logAuditEvent({
-      actorId: user.id,
+    const reason =
+      typeof body.reason === 'string' && body.reason.trim().length >= 3
+        ? body.reason.trim()
+        : 'admin delete ticket type'
+    return await runTicketingMutation({
+      supabase,
+      userId: user.id,
       orgId: admin.orgId,
-      action: 'delete',
-      entityType: 'ticket',
-      entityId: id,
-      oldValues: { event_id: current.event_id, quantity_sold: current.quantity_sold },
-      newValues: softDeleted ? { is_active: false } : undefined,
+      capabilities: admin.capabilities,
+      body: { action: 'delete_ticket_type', id, reason },
+      idempotencyKey: request.headers.get('idempotency-key') || request.headers.get('x-idempotency-key'),
     })
-    return NextResponse.json({ success: true, soft_deleted: softDeleted })
   } catch (error) {
     return routeError('DELETE', error)
   }

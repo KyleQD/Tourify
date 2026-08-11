@@ -22,6 +22,8 @@ import { useProfile } from "@/context/venue/profile-context"
 import { useToast } from "@/hooks/use-toast"
 import { Briefcase, DollarSign, MapPin, Plus, X } from "lucide-react"
 import type { JobPosting } from "@/lib/venue/types"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 interface CreateJobModalProps {
   isOpen: boolean
@@ -134,68 +136,69 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-gray-900 border-gray-800 text-white">
+      <DialogContent className={cn("sm:max-w-[600px]", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle>Post a Job</DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogTitle className={detailSurfacePattern.title}>Post a Job</DialogTitle>
+          <DialogDescription className={detailSurfacePattern.description}>
             Post a job listing to hire musicians, dancers, security, A/V techs, and more.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Job Title*</Label>
+            <Label htmlFor="title" className={detailSurfacePattern.label}>Job Title*</Label>
             <div className="relative">
-              <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Briefcase className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
                 id="title"
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
                 placeholder="e.g. Guitarist Needed for Tour"
-                className="bg-gray-800 border-gray-700 pl-10"
+                className={cn(detailSurfacePattern.input, "pl-10")}
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Job Description*</Label>
+            <Label htmlFor="description" className={detailSurfacePattern.label}>Job Description*</Label>
             <Textarea
               id="description"
               name="description"
               value={formData.description}
               onChange={handleChange}
               placeholder="Describe the job responsibilities, expectations, and any other relevant details"
-              className="bg-gray-800 border-gray-700 min-h-[120px]"
+              className={cn(detailSurfacePattern.textarea, "min-h-[120px]")}
               required
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location" className={detailSurfacePattern.label}>Location</Label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                 <Input
                   id="location"
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
                   placeholder="City, State or Remote"
-                  className="bg-gray-800 border-gray-700 pl-10"
+                  className={cn(detailSurfacePattern.input, "pl-10")}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category*</Label>
+              <Label htmlFor="category" className={detailSurfacePattern.label}>Category*</Label>
               <select
                 id="category"
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full bg-gray-800 border-gray-700 rounded-md p-2"
+                className={cn(detailSurfacePattern.selectTrigger, "w-full p-2")}
                 required
               >
                 <option value="musician">Musician</option>
@@ -210,13 +213,13 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="type">Job Type*</Label>
+              <Label htmlFor="type" className={detailSurfacePattern.label}>Job Type*</Label>
               <select
                 id="type"
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
-                className="w-full bg-gray-800 border-gray-700 rounded-md p-2"
+                className={cn(detailSurfacePattern.selectTrigger, "w-full p-2")}
                 required
               >
                 <option value="one-time">One-time Gig</option>
@@ -227,13 +230,13 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="compensationType">Compensation Type*</Label>
+              <Label htmlFor="compensationType" className={detailSurfacePattern.label}>Compensation Type*</Label>
               <select
                 id="type"
                 name="type"
                 value={formData.compensation.type}
                 onChange={handleCompensationChange}
-                className="w-full bg-gray-800 border-gray-700 rounded-md p-2"
+                className={cn(detailSurfacePattern.selectTrigger, "w-full p-2")}
                 required
               >
                 <option value="fixed">Fixed Rate</option>
@@ -245,11 +248,11 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
 
           {formData.compensation.type !== "negotiable" && (
             <div className="space-y-2">
-              <Label htmlFor="compensationAmount">
+              <Label htmlFor="compensationAmount" className={detailSurfacePattern.label}>
                 {formData.compensation.type === "hourly" ? "Hourly Rate" : "Fixed Rate"}
               </Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <DollarSign className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                 <Input
                   id="amount"
                   name="amount"
@@ -259,23 +262,23 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
                   value={formData.compensation.amount || ""}
                   onChange={handleCompensationChange}
                   placeholder="0.00"
-                  className="bg-gray-800 border-gray-700 pl-10"
+                  className={cn(detailSurfacePattern.input, "pl-10")}
                 />
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="requirements">Requirements</Label>
+            <Label htmlFor="requirements" className={detailSurfacePattern.label}>Requirements</Label>
             <div className="flex gap-2">
               <Input
                 id="newRequirement"
                 value={newRequirement}
                 onChange={(e) => setNewRequirement(e.target.value)}
                 placeholder="Add a requirement"
-                className="bg-gray-800 border-gray-700"
+                className={detailSurfacePattern.input}
               />
-              <Button type="button" onClick={addRequirement} variant="outline" className="border-gray-700">
+              <Button type="button" onClick={addRequirement} variant="outline" className={detailSurfacePattern.btnOutline}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -283,7 +286,7 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
             {requirements.length > 0 && (
               <div className="mt-2 space-y-2">
                 {requirements.map((req, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-800 p-2 rounded-md">
+                  <div key={index} className={cn(detailSurfacePattern.listRow, "flex items-center justify-between p-2")}>
                     <span className="text-sm">{req}</span>
                     <Button
                       type="button"
@@ -301,7 +304,7 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactEmail">Contact Email*</Label>
+            <Label htmlFor="contactEmail" className={detailSurfacePattern.label}>Contact Email*</Label>
             <Input
               id="contactEmail"
               name="contactEmail"
@@ -309,13 +312,13 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
               value={formData.contactEmail}
               onChange={handleChange}
               placeholder="email@example.com"
-              className="bg-gray-800 border-gray-700"
+              className={detailSurfacePattern.input}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contactPhone">Contact Phone (Optional)</Label>
+            <Label htmlFor="contactPhone" className={detailSurfacePattern.label}>Contact Phone (Optional)</Label>
             <Input
               id="contactPhone"
               name="contactPhone"
@@ -323,15 +326,15 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
               value={formData.contactPhone || ""}
               onChange={handleChange}
               placeholder="+1 (555) 123-4567"
-              className="bg-gray-800 border-gray-700"
+              className={detailSurfacePattern.input}
             />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} className="border-gray-700">
+            <Button type="button" variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className={detailSurfacePattern.btnPrimary}>
               {isSubmitting ? "Posting..." : "Post Job"}
             </Button>
           </DialogFooter>

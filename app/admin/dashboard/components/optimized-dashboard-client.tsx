@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, Suspense } from "react"
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -62,11 +62,14 @@ import {
   Eye,
   MoreHorizontal,
   Truck,
+  UserCheck,
+  MessageSquare,
 } from "lucide-react"
 import Link from "next/link"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useActingContext } from "@/hooks/use-acting-context"
 import { isOrganizationType } from "@/lib/accounts/account-types"
+import { hiringEntityFromAccount } from "@/lib/hiring/hiring-entity-from-account"
 import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { WidgetsRow } from "./apple-widgets"
 import { AdminStatCard } from "./admin-stat-card"
@@ -75,15 +78,25 @@ import type { AdminDashboardStats } from "@/types/admin"
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 import { trackDashboardUxEvent } from "@/lib/analytics/ux-event-client"
+import { AdminErrorCard } from "./admin-error-card"
+import {
+  failedAdminRequest,
+  loadingAdminRequest,
+  resolvedAdminRequest,
+  type AdminRequestState,
+} from "@/lib/admin/admin-request-state"
+import { AdminDomainHealthGrid } from "./admin-domain-health-grid"
 
 type DashboardStats = AdminDashboardStats
 
 export default function OptimizedDashboardClient() {
   const router = useRouter()
   const { currentAccount } = useMultiAccount()
-  const { actingHeaders } = useActingContext()
+  const { actingHeaders, actingContextKey, isActingReady } = useActingContext()
   const isOrgAccount = isOrganizationType(currentAccount?.account_type)
   const [organizerPublicPath, setOrganizerPublicPath] = useState<string | null>(null)
+  const hiringHubHref = useMemo(() => buildScopedHiringHref("/admin/dashboard/hiring", currentAccount), [currentAccount])
+  const staffHref = useMemo(() => buildScopedHiringHref("/admin/dashboard/staff", currentAccount), [currentAccount])
 
   // State for data
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -97,14 +110,24 @@ export default function OptimizedDashboardClient() {
   const [eventsLoading, setEventsLoading] = useState(true)
   const [notificationsLoading, setNotificationsLoading] = useState(true)
   
-  // Error state (kept for DataLoadingStatus component — always null since we handle errors gracefully)
-  const statsError: string | null = null
+  type DashboardDomain = 'stats' | 'tours' | 'events' | 'notifications'
+  const [requestStates, setRequestStates] = useState<Record<DashboardDomain, AdminRequestState<unknown>>>(() => ({
+    stats: loadingAdminRequest(),
+    tours: loadingAdminRequest(),
+    events: loadingAdminRequest(),
+    notifications: loadingAdminRequest(),
+  }))
+  const statsError = requestStates.stats.status === 'error'
+    || requestStates.stats.status === 'denied'
+    || requestStates.stats.status === 'unavailable'
+    ? requestStates.stats.message
+    : null
 
   // UI state
   const [activeTab, setActiveTab] = useState('overview')
   const [showDataStatus, setShowDataStatus] = useState(false)
 
-  function buildNoStoreInit(input?: RequestInit): RequestInit {
+  const buildNoStoreInit = useCallback((input?: RequestInit): RequestInit => {
     return {
       credentials: 'include',
       cache: 'no-store',
@@ -117,7 +140,7 @@ export default function OptimizedDashboardClient() {
       },
       ...input,
     }
-  }
+  }, [actingHeaders])
 
   function handleTabChange(nextTab: string) {
     setActiveTab(nextTab)
@@ -191,7 +214,11 @@ export default function OptimizedDashboardClient() {
 
   // Fetch data only when organization / legacy admin mode is active
   useEffect(() => {
-    if (!isOrgAccount) {
+    if (!isActingReady || !isOrgAccount) {
+      setStats(null)
+      setTours([])
+      setEvents([])
+      setNotifications([])
       setStatsLoading(false)
       setToursLoading(false)
       setEventsLoading(false)
@@ -199,44 +226,94 @@ export default function OptimizedDashboardClient() {
       return
     }
 
-    async function safeFetch<T>(url: string, extract: (json: any) => T, fallback: T): Promise<T> {
-      try {
-        const res = await fetch(url, buildNoStoreInit())
-        if (!res.ok) {
-          console.warn(`[Dashboard] ${url} returned ${res.status}`)
-          return fallback
-        }
-        const json = await res.json()
-        return extract(json)
-      } catch (err) {
-        console.warn(`[Dashboard] ${url} fetch failed:`, err)
-        return fallback
+    const controller = new AbortController()
+    setStats(null)
+    setTours([])
+    setEvents([])
+    setNotifications([])
+    setStatsLoading(true)
+    setToursLoading(true)
+    setEventsLoading(true)
+    setNotificationsLoading(true)
+    setRequestStates({
+      stats: loadingAdminRequest(),
+      tours: loadingAdminRequest(),
+      events: loadingAdminRequest(),
+      notifications: loadingAdminRequest(),
+    })
+
+    async function fetchDomain<T>(url: string, extract: (json: any) => T): Promise<T> {
+      const res = await fetch(url, buildNoStoreInit({ signal: controller.signal }))
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const error = new Error(json.error || `Request failed with ${res.status}`) as Error & { status?: number }
+        error.status = res.status
+        throw error
       }
+      return extract(json)
     }
 
     const fetchData = async () => {
       const [statsData, toursData, eventsData, notificationsData] = await Promise.allSettled([
-        safeFetch('/api/admin/dashboard/stats', (j) => j.stats ?? null, null),
-        safeFetch('/api/admin/tours', (j) => j.tours ?? [], []),
-        safeFetch('/api/admin/events', (j) => j.events ?? [], []),
-        safeFetch('/api/admin/notifications', (j) => j.notifications ?? [], []),
+        fetchDomain('/api/admin/dashboard/stats', (j) => j.stats ?? null),
+        fetchDomain('/api/admin/tours', (j) => j.tours ?? []),
+        fetchDomain('/api/admin/events', (j) => j.events ?? []),
+        fetchDomain('/api/admin/notifications', (j) => j.notifications ?? []),
       ])
 
-      if (statsData.status === 'fulfilled') setStats(statsData.value)
+      if (controller.signal.aborted) return
+
+      const nextStates: Record<DashboardDomain, AdminRequestState<unknown>> = {
+        stats: loadingAdminRequest(),
+        tours: loadingAdminRequest(),
+        events: loadingAdminRequest(),
+        notifications: loadingAdminRequest(),
+      }
+
+      if (statsData.status === 'fulfilled') {
+        setStats(statsData.value)
+        nextStates.stats = resolvedAdminRequest(statsData.value, { empty: !statsData.value })
+      } else {
+        const error = statsData.reason as Error & { status?: number }
+        nextStates.stats = failedAdminRequest(error.status || 500, error.message)
+      }
       setStatsLoading(false)
 
-      if (toursData.status === 'fulfilled') setTours(toursData.value ?? [])
+      if (toursData.status === 'fulfilled') {
+        const value = toursData.value ?? []
+        setTours(value)
+        nextStates.tours = resolvedAdminRequest(value, { empty: value.length === 0 })
+      } else {
+        const error = toursData.reason as Error & { status?: number }
+        nextStates.tours = failedAdminRequest(error.status || 500, error.message)
+      }
       setToursLoading(false)
 
-      if (eventsData.status === 'fulfilled') setEvents(eventsData.value ?? [])
+      if (eventsData.status === 'fulfilled') {
+        const value = eventsData.value ?? []
+        setEvents(value)
+        nextStates.events = resolvedAdminRequest(value, { empty: value.length === 0 })
+      } else {
+        const error = eventsData.reason as Error & { status?: number }
+        nextStates.events = failedAdminRequest(error.status || 500, error.message)
+      }
       setEventsLoading(false)
 
-      if (notificationsData.status === 'fulfilled') setNotifications(notificationsData.value ?? [])
+      if (notificationsData.status === 'fulfilled') {
+        const value = notificationsData.value ?? []
+        setNotifications(value)
+        nextStates.notifications = resolvedAdminRequest(value, { empty: value.length === 0 })
+      } else {
+        const error = notificationsData.reason as Error & { status?: number }
+        nextStates.notifications = failedAdminRequest(error.status || 500, error.message)
+      }
       setNotificationsLoading(false)
+      setRequestStates(nextStates)
     }
 
-    fetchData()
-  }, [isOrgAccount, currentAccount?.profile_id])
+    void fetchData()
+    return () => controller.abort()
+  }, [isActingReady, isOrgAccount, actingContextKey, buildNoStoreInit])
 
   // Real-time subscriptions for live updates (organization / legacy admin accounts)
   useEffect(() => {
@@ -306,7 +383,7 @@ export default function OptimizedDashboardClient() {
       cancelled = true
       subscriptions.forEach(sub => { try { sub.unsubscribe() } catch {} })
     }
-  }, [isOrgAccount, currentAccount?.profile_id])
+  }, [isOrgAccount, currentAccount?.profile_id, buildNoStoreInit])
 
   const recentTours = useMemo(() => {
     if (!tours || tours.length === 0) return []
@@ -423,7 +500,7 @@ export default function OptimizedDashboardClient() {
       }
     }
     fetchTasks()
-  }, [isOrgAccount, currentAccount?.profile_id])
+  }, [isOrgAccount, currentAccount?.profile_id, buildNoStoreInit])
 
   const allMappedTasks = useMemo(() => {
     return tasks
@@ -455,7 +532,10 @@ export default function OptimizedDashboardClient() {
   }, [allMappedTasks])
 
   const isFullyLoaded = !statsLoading && !toursLoading && !eventsLoading && !notificationsLoading
-  const hasNoData = isFullyLoaded && !stats && tours.length === 0 && events.length === 0
+  const hasRequestFailure = Object.values(requestStates).some((state) =>
+    state.status === 'error' || state.status === 'denied' || state.status === 'unavailable'
+  )
+  const hasNoData = isFullyLoaded && !hasRequestFailure && tours.length === 0 && events.length === 0
 
   return (
     <ErrorBoundary>
@@ -519,20 +599,43 @@ export default function OptimizedDashboardClient() {
           </div>
         </div>
 
+        {hasRequestFailure && (
+          <AdminErrorCard
+            title="Some dashboard data could not be loaded"
+            message="Unavailable domains are not included in totals. Retry after checking the active organization and your access."
+            onRetry={() => window.location.reload()}
+          />
+        )}
+
+        <AdminDomainHealthGrid />
+
         {/* Empty state notice */}
         {hasNoData && (
           <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-3">
-                <AlertCircle className="h-5 w-5 text-slate-400" />
+                <AlertCircle className="h-5 w-5 shrink-0 text-slate-400" />
                 <p className="text-sm text-slate-400">
-                  No data to display yet. Create tours, events, or tickets to see your dashboard come to life.
+                  No tours or events yet. Start with a tour or event, then hire crew and open communications from here.
                 </p>
               </div>
-              <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href="/admin/dashboard/tours/create">
+                  <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
+                    Create tour
+                  </Button>
+                </Link>
+                <Link href="/admin/dashboard/events/create">
+                  <Button size="sm" variant="outline" className="border-slate-600 text-slate-200">
+                    Create event
+                  </Button>
+                </Link>
+                <Link href={hiringHubHref}>
+                  <Button size="sm" variant="ghost" className="text-slate-300">
+                    Hiring hub
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -563,24 +666,24 @@ export default function OptimizedDashboardClient() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <AdminStatCard title="Total Tours" value={stats?.totalTours || 0} icon={Globe} color="purple" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Total Events" value={stats?.totalEvents || 0} icon={Calendar} color="blue" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Total Revenue" value={formatSafeCurrency(stats?.totalRevenue || 0)} icon={DollarSign} color="green" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Tickets Sold" value={stats?.ticketsSold || 0} icon={Users} color="cyan" size="lg" isLoading={statsLoading} />
+          <AdminStatCard title="Total Tours" value={statsError ? "Unavailable" : (stats?.totalTours ?? 0)} icon={Globe} color="purple" size="lg" isLoading={statsLoading} />
+          <AdminStatCard title="Total Events" value={statsError ? "Unavailable" : (stats?.totalEvents ?? 0)} icon={Calendar} color="blue" size="lg" isLoading={statsLoading} />
+          <AdminStatCard title="Total Revenue" value={statsError ? "Unavailable" : formatSafeCurrency(stats?.totalRevenue ?? 0)} icon={DollarSign} color="green" size="lg" isLoading={statsLoading} />
+          <AdminStatCard title="Tickets Sold" value={statsError ? "Unavailable" : (stats?.ticketsSold ?? 0)} icon={Users} color="cyan" size="lg" isLoading={statsLoading} />
         </div>
 
-        {/* Quick Integration Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Quick Integration Row — ops + workforce + messaging */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <Link href="/admin/dashboard/logistics" className="block">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 transition-colors cursor-pointer">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 transition-colors cursor-pointer h-full">
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-500/20 rounded-sm">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="p-2 bg-purple-500/20 rounded-sm shrink-0">
                     <Truck className="h-4 w-4 text-purple-400" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-white">Logistics</p>
-                    <p className="text-xs text-slate-400">{stats?.completedTasks || 0} completed / {(stats?.completedTasks || 0) + (stats?.pendingTasks || 0)} total tasks</p>
+                    <p className="text-xs text-slate-400 truncate">{stats?.completedTasks || 0} completed / {(stats?.completedTasks || 0) + (stats?.pendingTasks || 0)} tasks</p>
                   </div>
                 </div>
                 <Badge className={stats?.logisticsCompletionRate && stats.logisticsCompletionRate > 50 ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'}>
@@ -590,34 +693,66 @@ export default function OptimizedDashboardClient() {
             </Card>
           </Link>
           <Link href="/admin/dashboard/finances" className="block">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-green-500/30 transition-colors cursor-pointer">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-green-500/30 transition-colors cursor-pointer h-full">
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-500/20 rounded-sm">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="p-2 bg-green-500/20 rounded-sm shrink-0">
                     <DollarSign className="h-4 w-4 text-green-400" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-white">Finances</p>
-                    <p className="text-xs text-slate-400">Monthly: {formatSafeCurrency(stats?.monthlyRevenue || 0)}</p>
+                    <p className="text-xs text-slate-400 truncate">Monthly: {formatSafeCurrency(stats?.monthlyRevenue || 0)}</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-slate-400" />
+                <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
               </CardContent>
             </Card>
           </Link>
-          <Link href="/admin/dashboard/staff" className="block">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-colors cursor-pointer">
+          <Link href={staffHref} className="block">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-colors cursor-pointer h-full">
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-500/20 rounded-sm">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="p-2 bg-blue-500/20 rounded-sm shrink-0">
                     <Users className="h-4 w-4 text-blue-400" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-white">Staff & Crew</p>
-                    <p className="text-xs text-slate-400">{stats?.staffMembers || 0} team members</p>
+                    <p className="text-xs text-slate-400 truncate">{stats?.staffMembers || 0} team members</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-slate-400" />
+                <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href={hiringHubHref} className="block">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-cyan-500/30 transition-colors cursor-pointer h-full">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="p-2 bg-cyan-500/20 rounded-sm shrink-0">
+                    <UserCheck className="h-4 w-4 text-cyan-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white">Hiring Hub</p>
+                    <p className="text-xs text-slate-400 truncate">Jobs, applicants, onboarding</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/admin/dashboard/communications" className="block">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 transition-colors cursor-pointer h-full">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="p-2 bg-amber-500/20 rounded-sm shrink-0">
+                    <MessageSquare className="h-4 w-4 text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white">Communications</p>
+                    <p className="text-xs text-slate-400 truncate">Inbox and crew threads</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
               </CardContent>
             </Card>
           </Link>
@@ -1046,4 +1181,19 @@ export default function OptimizedDashboardClient() {
       </div>
     </ErrorBoundary>
   )
+}
+
+function buildScopedHiringHref(
+  path: string,
+  account: ReturnType<typeof useMultiAccount>["currentAccount"],
+) {
+  const entity = hiringEntityFromAccount(account)
+  if (!entity) return path
+
+  const params = new URLSearchParams()
+  params.set("entity_type", entity.entityType)
+  params.set("entity_id", entity.entityId)
+  if (entity.scope?.venueId) params.set("venue_id", entity.scope.venueId)
+  if (entity.displayName) params.set("display_name", entity.displayName)
+  return `${path}?${params.toString()}`
 }

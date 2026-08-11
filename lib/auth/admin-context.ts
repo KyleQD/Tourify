@@ -3,15 +3,14 @@ import { NextResponse } from 'next/server'
 import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
 import {
   hasAdminCapability,
-  resolveAdminCapabilities,
+  resolveEffectiveAdminCapabilities,
   type AdminCapability,
 } from '@/lib/auth/admin-capabilities'
 
 export interface AuthenticatedAdminRequest {
-  user: { id: string; email?: string | null }
+  user: { id: string; email?: string | null; phone?: string | null }
   // Supabase client authenticated as the requesting user. Authorization lookups
   // intentionally do not use service_role so RLS remains part of the boundary.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any
 }
 
@@ -22,7 +21,24 @@ export interface ActingAdminContext {
   orgId: string
   membershipRole: string
   capabilities: AdminCapability[]
-  source: 'header' | 'session' | 'single_membership'
+  source: 'header' | 'session'
+  /** Organization-wide authority or a project-only tour collaboration. */
+  scope?: 'organization' | 'tour_collaborator'
+  /** Populated for tour collaborators; empty for organization-wide admins. */
+  allowedTourIds?: string[]
+  /** Stable per-request id for logs, audit, and client correlation (SEC-101). */
+  correlationId: string
+}
+
+function resolveCorrelationId(headers: Pick<Headers, 'get'>): string {
+  const incoming = headers.get('x-correlation-id') || headers.get('x-request-id')
+  if (incoming && /^[A-Za-z0-9._-]{8,128}$/.test(incoming.trim())) return incoming.trim()
+  return crypto.randomUUID()
+}
+
+/** Org-scoped client cache key segment — include when invalidating after account switch. */
+export function actingAdminCacheKey(context: Pick<ActingAdminContext, 'orgId' | 'profileId'>): string {
+  return `admin-org:${context.orgId}:profile:${context.profileId}`
 }
 
 interface OrganizationProfileRow {
@@ -36,6 +52,31 @@ interface MembershipRow {
   org_id: string
   role: string
 }
+
+const TOUR_COLLABORATOR_CAPABILITIES: AdminCapability[] = [
+  'tour.view',
+  'tour.manage',
+  'tour.publish',
+  'event.view',
+  'event.manage',
+  'event.publish',
+  'event.live_ops',
+  'routing.manage',
+  'advance.manage',
+  'logistics.view',
+  'logistics.manage',
+  'workforce.view',
+  'workforce.manage',
+  'vendor.view',
+  'vendor.manage',
+  'ticketing.view',
+  'ticketing.manage',
+  'site_map.view',
+  'site_map.edit',
+  'site_map.share',
+  'communications.send',
+  'communications.broadcast',
+]
 
 interface ActingProfileCandidate {
   profileId: string
@@ -75,28 +116,6 @@ export function parseExplicitAdminActingHeaders(
   return { profileId, requestedOrgId, source: 'header' }
 }
 
-export function selectSingleMembershipFallback(
-  memberships: MembershipRow[],
-): MembershipRow | NextResponse {
-  if (memberships.length === 0) {
-    return errorResponse(
-      403,
-      'organization_access_required',
-      'No organization membership is available for this account.',
-    )
-  }
-
-  if (memberships.length > 1) {
-    return errorResponse(
-      409,
-      'acting_context_required',
-      'Select an organization account before continuing.',
-    )
-  }
-
-  return memberships[0]
-}
-
 async function loadOrganizationProfile(
   supabase: AuthenticatedAdminRequest['supabase'],
   profileId: string,
@@ -128,7 +147,7 @@ async function loadMembership(
   supabase: AuthenticatedAdminRequest['supabase'],
   userId: string,
   orgId: string,
-): Promise<MembershipRow | NextResponse> {
+): Promise<MembershipRow | NextResponse | null> {
   const { data, error } = await supabase
     .from('org_members')
     .select('org_id, role')
@@ -139,11 +158,47 @@ async function loadMembership(
   if (error) {
     return errorResponse(503, 'membership_unavailable', 'Unable to verify organization membership.')
   }
-  if (!data?.org_id || !data.role) {
-    return errorResponse(403, 'organization_access_denied', 'The acting organization is not available.')
-  }
+  if (!data?.org_id || !data.role) return null
 
   return data as MembershipRow
+}
+
+async function loadTourCollaboratorScope(
+  supabase: AuthenticatedAdminRequest['supabase'],
+  userId: string,
+  orgId: string,
+): Promise<{ role: string; tourIds: string[] } | NextResponse | null> {
+  const { data: memberships, error: membershipError } = await supabase
+    .from('tour_team_members')
+    .select('tour_id, role, status, is_active')
+    .eq('user_id', userId)
+    .eq('status', 'confirmed')
+    .eq('is_active', true)
+
+  if (membershipError) {
+    return errorResponse(503, 'collaboration_scope_unavailable', 'Unable to verify tour collaboration access.')
+  }
+
+  const candidateIds = Array.from(new Set(
+    (memberships || [])
+      .map((row: { tour_id?: string | null }) => row.tour_id)
+      .filter((id: unknown): id is string => typeof id === 'string' && Boolean(id)),
+  ))
+  if (candidateIds.length === 0) return null
+
+  const { data: tours, error: toursError } = await supabase
+    .from('tours')
+    .select('id, org_id')
+    .in('id', candidateIds)
+    .eq('org_id', orgId)
+  if (toursError) {
+    return errorResponse(503, 'collaboration_scope_unavailable', 'Unable to verify tour collaboration access.')
+  }
+
+  const tourIds = (tours || []).map((tour: { id: string }) => tour.id)
+  if (tourIds.length === 0) return null
+  const member = (memberships || []).find((row: { tour_id?: string }) => tourIds.includes(String(row.tour_id || '')))
+  return { role: String(member?.role || 'admin'), tourIds }
 }
 
 async function loadCapabilities(
@@ -160,12 +215,17 @@ async function loadCapabilities(
     return errorResponse(503, 'capabilities_unavailable', 'Unable to resolve organization capabilities.')
   }
 
-  return resolveAdminCapabilities(membershipRole, data?.perms)
+  return resolveEffectiveAdminCapabilities({
+    role: membershipRole,
+    configuredPermissions: data?.perms,
+    membershipStatus: 'active',
+  })
 }
 
 async function buildContextForProfile(
   auth: AuthenticatedAdminRequest,
   candidate: ActingProfileCandidate,
+  correlationId: string,
 ): Promise<ActingAdminContext | NextResponse> {
   const organization = await loadOrganizationProfile(auth.supabase, candidate.profileId)
   if (organization instanceof NextResponse) return organization
@@ -182,6 +242,26 @@ async function buildContextForProfile(
   const membership = await loadMembership(auth.supabase, auth.user.id, orgId)
   if (membership instanceof NextResponse) return membership
 
+  if (!membership) {
+    const collaborator = await loadTourCollaboratorScope(auth.supabase, auth.user.id, orgId)
+    if (collaborator instanceof NextResponse) return collaborator
+    if (!collaborator) {
+      return errorResponse(403, 'organization_access_denied', 'The acting organization is not available.')
+    }
+    return {
+      userId: auth.user.id,
+      profileId: organization.id,
+      accountType: 'organization',
+      orgId,
+      membershipRole: collaborator.role,
+      capabilities: [...TOUR_COLLABORATOR_CAPABILITIES],
+      source: candidate.source,
+      scope: 'tour_collaborator',
+      allowedTourIds: collaborator.tourIds,
+      correlationId,
+    }
+  }
+
   const capabilities = await loadCapabilities(auth.supabase, membership.role)
   if (capabilities instanceof NextResponse) return capabilities
 
@@ -193,6 +273,9 @@ async function buildContextForProfile(
     membershipRole: membership.role,
     capabilities,
     source: candidate.source,
+    scope: 'organization',
+    allowedTourIds: [],
+    correlationId,
   }
 }
 
@@ -200,16 +283,16 @@ async function buildContextForProfile(
  * Resolve a single, verified organization for an Admin request.
  *
  * Explicit acting headers win, followed by the persisted organization session.
- * A single membership may be used as a compatibility fallback. Multiple
- * memberships are never resolved by array order; the caller must select one.
+ * Membership rows authorize a selected organization but never select one.
  */
 export async function resolveActingAdminContext(
   request: NextRequest,
   auth: AuthenticatedAdminRequest,
 ): Promise<ActingAdminContext | NextResponse> {
+  const correlationId = resolveCorrelationId(request.headers)
   const explicit = parseExplicitAdminActingHeaders(request.headers)
   if (explicit instanceof NextResponse) return explicit
-  if (explicit) return buildContextForProfile(auth, explicit)
+  if (explicit) return buildContextForProfile(auth, explicit, correlationId)
 
   const { data: session, error: sessionError } = await auth.supabase
     .from('user_sessions')
@@ -229,52 +312,14 @@ export async function resolveActingAdminContext(
       profileId: session.active_profile_id,
       requestedOrgId: null,
       source: 'session',
-    })
+    }, correlationId)
   }
 
-  const { data: membershipRows, error: membershipError } = await auth.supabase
-    .from('org_members')
-    .select('org_id, role')
-    .eq('user_id', auth.user.id)
-
-  if (membershipError) {
-    return errorResponse(503, 'membership_unavailable', 'Unable to load organization memberships.')
-  }
-
-  const uniqueMemberships = Array.from(
-    new Map(
-      ((membershipRows || []) as MembershipRow[]).map(row => [row.org_id, row]),
-    ).values(),
+  return errorResponse(
+    409,
+    'acting_context_required',
+    'Select an organization account before continuing.',
   )
-  const membership = selectSingleMembershipFallback(uniqueMemberships)
-  if (membership instanceof NextResponse) return membership
-
-  const { data: organizations, error: organizationError } = await auth.supabase
-    .from('organizer_accounts')
-    .select('id, ops_org_id')
-    .eq('ops_org_id', membership.org_id)
-    .eq('is_active', true)
-    .limit(2)
-
-  if (organizationError) {
-    return errorResponse(503, 'acting_context_unavailable', 'Unable to load the organization account.')
-  }
-
-  const profileId = organizations?.length === 1
-    ? String(organizations[0].id)
-    : membership.org_id
-  const capabilities = await loadCapabilities(auth.supabase, membership.role)
-  if (capabilities instanceof NextResponse) return capabilities
-
-  return {
-    userId: auth.user.id,
-    profileId,
-    accountType: 'organization',
-    orgId: membership.org_id,
-    membershipRole: membership.role,
-    capabilities,
-    source: 'single_membership',
-  }
 }
 
 export function requireAdminCapability(

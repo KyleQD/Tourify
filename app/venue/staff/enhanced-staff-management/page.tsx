@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { useCurrentVenue } from "@/hooks/use-venue"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { StaffProfileCard } from "@/components/venue/staff/staff-profile-card"
 import { StaffProfileForm } from "@/components/venue/staff/staff-profile-form"
 import { VenueTeamAccessCard } from "@/components/venue/staff/venue-team-access-card"
@@ -60,7 +62,7 @@ import {
 
 export default function EnhancedStaffManagement() {
   const { toast } = useToast()
-  const { venue, loading: venueLoading } = useCurrentVenue()
+  const { venue, isLoading: venueLoading } = useCurrentVenue()
   const [staff, setStaff] = useState<StaffProfileData[]>([])
   const [filteredStaff, setFilteredStaff] = useState<StaffProfileData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -666,9 +668,10 @@ export default function EnhancedStaffManagement() {
 
       {/* Create Staff Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] bg-gray-900 border-gray-800">
+        <DialogContent className={cn("max-w-4xl max-h-[90vh]", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white text-xl font-bold">
+            <DialogTitle className={cn(detailSurfacePattern.title, "text-xl font-bold")}>
               Add New Staff Member
             </DialogTitle>
           </DialogHeader>
@@ -684,9 +687,10 @@ export default function EnhancedStaffManagement() {
       {/* Edit Staff Dialog */}
       {editingStaff && (
         <Dialog open={!!editingStaff} onOpenChange={() => setEditingStaff(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] bg-gray-900 border-gray-800">
+          <DialogContent className={cn("max-w-4xl max-h-[90vh]", detailSurfacePattern.dialogContent)}>
+            <div className={detailSurfacePattern.topAccent} />
             <DialogHeader>
-              <DialogTitle className="text-white text-xl font-bold">
+              <DialogTitle className={cn(detailSurfacePattern.title, "text-xl font-bold")}>
                 Edit Staff Profile: {editingStaff.first_name && editingStaff.last_name 
                   ? `${editingStaff.first_name} ${editingStaff.last_name}`
                   : editingStaff.name

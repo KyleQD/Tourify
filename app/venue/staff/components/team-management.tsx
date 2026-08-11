@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import {
   Users,
@@ -290,7 +292,7 @@ export default function TeamManagement() {
           <Button 
             variant="outline" 
             onClick={() => setShowAddMembers(true)}
-            className="bg-slate-800/50 border-slate-600"
+            className={detailSurfacePattern.input}
           >
             <UserPlus className="h-4 w-4 mr-2" />
             Manage Members
@@ -330,7 +332,7 @@ export default function TeamManagement() {
             color: "from-orange-500 to-red-500" 
           }
         ].map((stat, i) => (
-          <Card key={i} className="bg-slate-800/30 border-slate-700/50">
+          <Card key={i} className={detailSurfacePattern.panel}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -353,7 +355,7 @@ export default function TeamManagement() {
           const members = getTeamMembersByIds(team.members)
           
           return (
-            <Card key={team.id} className="bg-slate-800/30 border-slate-700/50 hover:bg-slate-800/50 transition-all">
+            <Card key={team.id} className={cn(detailSurfacePattern.panel, "transition-all hover:bg-white/[0.06]")}>
               <CardContent className="p-6">
                 {/* Team Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -365,7 +367,7 @@ export default function TeamManagement() {
                       <h3 className="text-white font-semibold">{team.name}</h3>
                       <p className="text-slate-400 text-sm">{team.department}</p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline" className="text-xs bg-slate-700/50 border-slate-600 capitalize">
+                        <Badge variant="outline" className={cn("text-xs capitalize", detailSurfacePattern.badgeOutline)}>
                           {team.type}
                         </Badge>
                         <div className={`w-2 h-2 rounded-full ${getStatusColor(team.status)}`}></div>
@@ -396,7 +398,7 @@ export default function TeamManagement() {
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-white text-sm font-medium">{leader.name}</span>
-                      <Badge variant="outline" className="text-xs bg-slate-700/50 border-slate-600">
+                      <Badge variant="outline" className={cn("text-xs", detailSurfacePattern.badgeOutline)}>
                         {leader.role}
                       </Badge>
                     </div>
@@ -486,28 +488,29 @@ export default function TeamManagement() {
 
       {/* Create Team Dialog */}
       <Dialog open={showCreateTeam} onOpenChange={setShowCreateTeam}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700 max-h-[90vh] overflow-y-auto">
+        <DialogContent className={cn("max-w-2xl max-h-[90vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-blue-400">Create New Team</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Create New Team</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="team-name">Team Name</Label>
+                <Label htmlFor="team-name" className={detailSurfacePattern.label}>Team Name</Label>
                 <Input
                   id="team-name"
                   value={newTeam.name}
                   onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department" className={detailSurfacePattern.label}>Department</Label>
                 <Select value={newTeam.department} onValueChange={(value) => setNewTeam({ ...newTeam, department: value })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="Technical">Technical</SelectItem>
                     <SelectItem value="Security">Security</SelectItem>
                     <SelectItem value="Service">Service</SelectItem>
@@ -519,24 +522,24 @@ export default function TeamManagement() {
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
               <Textarea
                 id="description"
                 value={newTeam.description}
                 onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
-                className="bg-slate-800 border-slate-600"
+                className={detailSurfacePattern.textarea}
                 rows={3}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="type">Team Type</Label>
+                <Label htmlFor="type" className={detailSurfacePattern.label}>Team Type</Label>
                 <Select value={newTeam.type} onValueChange={(value) => setNewTeam({ ...newTeam, type: value as any })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="permanent">Permanent Team</SelectItem>
                     <SelectItem value="project">Project Team</SelectItem>
                     <SelectItem value="event">Event Team</SelectItem>
@@ -544,12 +547,12 @@ export default function TeamManagement() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="leader">Team Leader</Label>
+                <Label htmlFor="leader" className={detailSurfacePattern.label}>Team Leader</Label>
                 <Select>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Select team leader" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     {teamMembers.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.name} - {member.role}
@@ -563,13 +566,13 @@ export default function TeamManagement() {
             {/* Team Objectives */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <Label>Team Objectives</Label>
+                <Label className={detailSurfacePattern.label}>Team Objectives</Label>
                 <Button 
                   type="button" 
                   variant="outline" 
                   size="sm"
                   onClick={handleAddObjective}
-                  className="border-slate-600"
+                  className={detailSurfacePattern.btnOutline}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Objective
@@ -582,7 +585,7 @@ export default function TeamManagement() {
                       value={objective}
                       onChange={(e) => handleUpdateObjective(index, e.target.value)}
                       placeholder={`Objective ${index + 1}`}
-                      className="bg-slate-800 border-slate-600"
+                      className={detailSurfacePattern.input}
                     />
                     {newTeam.objectives!.length > 1 && (
                       <Button
@@ -590,7 +593,7 @@ export default function TeamManagement() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveObjective(index)}
-                        className="text-red-400 hover:text-red-300"
+                        className={detailSurfacePattern.btnDestructive}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -601,10 +604,10 @@ export default function TeamManagement() {
             </div>
 
             <div className="flex justify-end space-x-3">
-              <Button variant="outline" onClick={() => setShowCreateTeam(false)}>
+              <Button variant="outline" onClick={() => setShowCreateTeam(false)} className={detailSurfacePattern.btnOutline}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateTeam} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleCreateTeam} className={detailSurfacePattern.btnPrimary}>
                 Create Team
               </Button>
             </div>
@@ -614,36 +617,37 @@ export default function TeamManagement() {
 
       {/* Add Members Dialog */}
       <Dialog open={showAddMembers} onOpenChange={setShowAddMembers}>
-        <DialogContent className="max-w-4xl bg-slate-900 border-slate-700">
+        <DialogContent className={cn("max-w-4xl", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-green-400">Manage Team Members</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Manage Team Members</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Available Members */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Available Staff</h3>
+                <h3 className={cn("mb-4 text-lg font-semibold", detailSurfacePattern.title)}>Available Staff</h3>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {teamMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div key={member.id} className={cn("flex items-center justify-between", detailSurfacePattern.listRow)}>
                       <div className="flex items-center space-x-3">
-                        <Avatar className="h-8 w-8">
+                        <Avatar className={cn("h-8 w-8", detailSurfacePattern.avatarRing)}>
                           <AvatarImage src={member.avatar} />
-                          <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
+                          <AvatarFallback className={cn(detailSurfacePattern.avatarFallback, "text-xs")}>
                             {member.name.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="text-white font-medium text-sm">{member.name}</div>
-                          <div className="text-slate-400 text-xs">{member.role}</div>
+                          <div className={cn("text-sm font-medium", detailSurfacePattern.title)}>{member.name}</div>
+                          <div className={cn("text-xs", detailSurfacePattern.subtleText)}>{member.role}</div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${getAvailabilityColor(member.availability)}`}></div>
-                        <Badge variant="outline" className="text-xs bg-slate-700/50 border-slate-600">
+                        <Badge variant="outline" className={cn("text-xs", detailSurfacePattern.badgeOutline)}>
                           {member.teamIds.length} teams
                         </Badge>
-                        <Button size="sm" variant="outline" className="border-slate-600 text-xs">
+                        <Button size="sm" variant="outline" className={cn("text-xs", detailSurfacePattern.btnOutline)}>
                           <UserPlus className="h-3 w-3 mr-1" />
                           Add
                         </Button>
@@ -655,16 +659,16 @@ export default function TeamManagement() {
 
               {/* Team Assignments */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Team Assignments</h3>
+                <h3 className={cn("mb-4 text-lg font-semibold", detailSurfacePattern.title)}>Team Assignments</h3>
                 <div className="space-y-4">
                   {teams.slice(0, 3).map((team) => (
-                    <div key={team.id} className="p-4 bg-slate-800/30 rounded-lg border border-slate-700">
+                    <div key={team.id} className={cn("p-4", detailSurfacePattern.panel)}>
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h4 className="text-white font-medium">{team.name}</h4>
-                          <p className="text-slate-400 text-sm">{team.members.length} members</p>
+                          <h4 className={cn("font-medium", detailSurfacePattern.title)}>{team.name}</h4>
+                          <p className={detailSurfacePattern.subtleText}>{team.members.length} members</p>
                         </div>
-                        <Button size="sm" variant="outline" className="border-slate-600 text-xs">
+                        <Button size="sm" variant="outline" className={cn("text-xs", detailSurfacePattern.btnOutline)}>
                           Manage
                         </Button>
                       </div>
@@ -672,13 +676,13 @@ export default function TeamManagement() {
                         {getTeamMembersByIds(team.members).slice(0, 4).map((member) => (
                           <Avatar key={member.id} className="h-6 w-6">
                             <AvatarImage src={member.avatar} />
-                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
+                            <AvatarFallback className={cn(detailSurfacePattern.avatarFallback, "text-xs")}>
                               {member.name.split(' ').map(n => n[0]).join('')}
                             </AvatarFallback>
                           </Avatar>
                         ))}
                         {team.members.length > 4 && (
-                          <div className="h-6 w-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-300">
+                          <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-xs", detailSurfacePattern.badgeSoft)}>
                             +{team.members.length - 4}
                           </div>
                         )}
@@ -690,7 +694,7 @@ export default function TeamManagement() {
             </div>
 
             <div className="flex justify-end">
-              <Button onClick={() => setShowAddMembers(false)} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={() => setShowAddMembers(false)} className={detailSurfacePattern.btnPrimary}>
                 Done
               </Button>
             </div>

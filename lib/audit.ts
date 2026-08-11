@@ -1,10 +1,11 @@
 import { createClient } from "@supabase/supabase-js"
+import { writeSecurityAuditEvent } from "@/lib/security/write-security-audit-event"
 
 function createServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    { auth: { autoRefreshToken: false, persistSession: false } },
   )
 }
 
@@ -17,8 +18,13 @@ export interface AuditPayload {
   oldValues?: Record<string, unknown>
   newValues?: Record<string, unknown>
   request?: { ip?: string; userAgent?: string }
+  correlationId?: string
 }
 
+/**
+ * Legacy admin_audit_log writer + SEC-111 dual-write to security_audit_events.
+ * Dual-write uses fail_open so existing callers are not blocked before full cutover.
+ */
 export async function logAuditEvent(payload: AuditPayload): Promise<void> {
   try {
     const supabase = createServiceClient()
@@ -34,7 +40,27 @@ export async function logAuditEvent(payload: AuditPayload): Promise<void> {
       user_agent: payload.request?.userAgent ?? null,
     })
   } catch {
-    // Audit failures are non-fatal — log and continue
-    console.error("[audit] Failed to write audit event", payload.action, payload.entityType)
+    console.error("[audit] Failed to write admin_audit_log", payload.action, payload.entityType)
+  }
+
+  try {
+    await writeSecurityAuditEvent({
+      actorUserId: payload.actorId,
+      actingOrgId: payload.orgId,
+      action: payload.action,
+      actionClass: "mutation",
+      targetType: payload.entityType,
+      targetId: payload.entityId ?? null,
+      correlationId: payload.correlationId ?? null,
+      result: "success",
+      ipFingerprint: payload.request?.ip,
+      userAgentFingerprint: payload.request?.userAgent,
+      beforeDiff: payload.oldValues ?? null,
+      afterDiff: payload.newValues ?? null,
+      moduleId: "legacy.logAuditEvent",
+      forceFailOpen: true,
+    })
+  } catch {
+    // forceFailOpen should not throw; keep belt-and-suspenders
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth, withAdminCapability } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 const sendMessageSchema = z.object({
@@ -17,7 +17,7 @@ const sendMessageSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
 })
 
-export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
+export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { user, admin }) => {
   try {
     const { resolveAuthorizedOrgLogisticsScope, applyOrgLogisticsTaskFilter } = await import(
       '@/lib/admin/resolve-authorized-org'
@@ -33,6 +33,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
 
     const scope = await resolveAuthorizedOrgLogisticsScope({
       userId: user.id,
+      requestedOrgId: admin.orgId,
       eventId,
       tourId,
     })

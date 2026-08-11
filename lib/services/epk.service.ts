@@ -120,6 +120,7 @@ interface EPKData {
   }
   epkFont: import('@/lib/epk/epk-preview-utils').EpkFontId
   epkAppearance: EpkAppearance
+  useEpkStyleOnProfile: boolean
 }
 
 interface EPKSettings {
@@ -746,7 +747,8 @@ class EPKService {
       },
       quality,
       epkFont: normalizeEpkFontId(settings.epkFont),
-      epkAppearance: normalizeEpkAppearance(settings.epkAppearance, epkSettings?.template)
+      epkAppearance: normalizeEpkAppearance(settings.epkAppearance, epkSettings?.template),
+      useEpkStyleOnProfile: Boolean(settings.useEpkStyleOnProfile),
     }
   }
 
@@ -898,6 +900,7 @@ class EPKService {
       epkData.seoDescription ||
       epkData.layout ||
       epkData.bookingAssets ||
+      epkData.useEpkStyleOnProfile !== undefined ||
       epkData.epkFont ||
       epkData.epkAppearance ||
       epkData.epkSlug ||
@@ -1077,7 +1080,11 @@ class EPKService {
       epkAppearance:
         epkData.epkAppearance !== undefined
           ? normalizeEpkAppearance(epkData.epkAppearance, template)
-          : normalizeEpkAppearance(prev.epkAppearance, template)
+          : normalizeEpkAppearance(prev.epkAppearance, template),
+      useEpkStyleOnProfile:
+        epkData.useEpkStyleOnProfile !== undefined
+          ? epkData.useEpkStyleOnProfile
+          : Boolean(prev.useEpkStyleOnProfile),
     }
 
     const epkSettings: Partial<EPKSettings> = {

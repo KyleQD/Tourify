@@ -18,6 +18,7 @@ import {
 export function TemplatesView() {
   const { data, openCreateTemplate, goToCreate } = useScheduling()
   const [query, setQuery] = useState("")
+  const isDemo = data.mode === "demo"
 
   const templates = data.templates.filter((t) =>
     query.trim() ? `${t.name} ${t.department} ${t.role}`.toLowerCase().includes(query.toLowerCase()) : true,
@@ -30,11 +31,14 @@ export function TemplatesView() {
           <div>
             <h2 className="text-sm font-semibold text-foreground">Shift templates</h2>
             <p className="text-xs text-muted-foreground">
-              Reusable presets for recurring roles. Apply one to prefill a new shift.
+              {isDemo
+                ? "Sample templates for demo preview only — not used for live organizations."
+                : "Organization-owned templates will appear here. Live mode does not use demo presets."}
             </p>
           </div>
           <Button
             onClick={() => openCreateTemplate()}
+            disabled={!isDemo}
             className="bg-neon-purple text-primary-foreground hover:bg-neon-purple/85"
           >
             <Plus data-icon="inline-start" />
@@ -43,26 +47,37 @@ export function TemplatesView() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {templates.map((tpl) => (
-          <TemplateCard
-            key={tpl.id}
-            template={tpl}
-            onUse={() => goToCreate({ template: tpl })}
-            onEdit={() => openCreateTemplate(tpl)}
-          />
-        ))}
-      </div>
+      {templates.length === 0 ? (
+        <Card className="border-border/60 bg-card/70 py-0">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            No live templates yet. Demo presets stay isolated in Demo preview.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {templates.map((tpl) => (
+            <TemplateCard
+              key={tpl.id}
+              template={tpl}
+              isDemoFixture={Boolean(tpl.isDemoFixture) || isDemo}
+              onUse={() => goToCreate({ template: tpl })}
+              onEdit={() => openCreateTemplate(tpl)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function TemplateCard({
   template,
+  isDemoFixture,
   onUse,
   onEdit,
 }: {
   template: ShiftTemplate
+  isDemoFixture: boolean
   onUse: () => void
   onEdit: () => void
 }) {
@@ -82,9 +97,16 @@ function TemplateCard({
             </p>
           </div>
         </div>
-        <Badge variant="outline" className={cn("shrink-0 text-[10px]", accent.border, accent.text)}>
-          {template.department}
-        </Badge>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {isDemoFixture ? (
+            <Badge variant="outline" className="border-neon-amber/40 bg-neon-amber/10 text-[10px] text-neon-amber">
+              Demo sample
+            </Badge>
+          ) : null}
+          <Badge variant="outline" className={cn("text-[10px]", accent.border, accent.text)}>
+            {template.department}
+          </Badge>
+        </div>
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-0">

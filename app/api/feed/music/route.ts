@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const genre = searchParams.get('genre')
     const sortBy = searchParams.get('sortBy') || 'recent'
     const userId = searchParams.get('userId')
+    const q = (searchParams.get('q') || '').trim().slice(0, 120)
 
     let query = supabase
       .from('music_tracks')
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
       .eq('rights_confirmed', true)
     if (userId) query = query.eq('user_id', userId)
     if (genre && genre !== 'all') query = query.eq('genre', genre)
+    if (q) query = query.ilike('title', `%${q}%`)
 
     switch (sortBy) {
       case 'popular':
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       if (isSchemaCacheMissingError(error)) {
-        return await fallbackFromArtistMusic(supabase, { limit, genre, sortBy, userId })
+        return await fallbackFromArtistMusic(supabase, { limit, genre, sortBy, userId, q })
       }
 
       console.error('Error fetching music tracks:', error)
@@ -157,7 +159,7 @@ export async function GET(request: NextRequest) {
 
 async function fallbackFromArtistMusic(
   supabase: any,
-  opts: { limit: number; genre: string | null; sortBy: string; userId: string | null }
+  opts: { limit: number; genre: string | null; sortBy: string; userId: string | null; q?: string }
 ) {
   let query = supabase
     .from('artist_music')
@@ -169,6 +171,7 @@ async function fallbackFromArtistMusic(
 
   if (opts.userId) query = query.eq('user_id', opts.userId)
   if (opts.genre && opts.genre !== 'all') query = query.eq('genre', opts.genre)
+  if (opts.q) query = query.ilike('title', `%${opts.q}%`)
 
   query = query.order('created_at', { ascending: false }).limit(Math.min(opts.limit * 2, 100))
 

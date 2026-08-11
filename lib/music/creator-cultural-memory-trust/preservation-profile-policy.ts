@@ -1,0 +1,2 @@
+export interface PackageProfileInput { sourceManifest:boolean; payloadManifest:boolean; provenance:boolean; representationInformation:boolean; restrictions:boolean; fixityVerified:boolean; independentValidation:boolean; }
+export function validatePreservationProfile(i:PackageProfileInput):string[]{ const errors:string[]=[]; for(const [k,v] of Object.entries(i)) if(!v) errors.push(`missing_or_failed:${k}`); return errors; }

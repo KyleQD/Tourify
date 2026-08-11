@@ -81,6 +81,15 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
     })
   }, [showCreateDialog, eventLabel])
 
+  // Dismiss the "Opening builder…" overlay once the newly created/selected map
+  // has actually resolved into state — avoids the race where an arbitrary timeout
+  // fires before React has committed the upsertSiteMap state update.
+  useEffect(() => {
+    if (openingBuilder && selectedSiteMap) {
+      setOpeningBuilder(false)
+    }
+  }, [openingBuilder, selectedSiteMap])
+
   function syncSiteMapQuery(siteMapId: string | null) {
     const next = new URLSearchParams(searchParams.toString())
     next.set('tab', 'site-maps')
@@ -95,7 +104,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
     setOpeningBuilder(true)
     setSelectedMapId(siteMapId)
     syncSiteMapQuery(siteMapId)
-    window.setTimeout(() => setOpeningBuilder(false), 400)
+    // Overlay is dismissed reactively by the useEffect below once selectedSiteMap resolves
   }
 
   function closeSiteMap() {
@@ -112,27 +121,53 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
     setIsCreating(true)
     try {
       const world = resolveCreateWorldSize(createForm)
-      const formData = new FormData()
-      formData.append('name', createForm.name.trim())
-      formData.append('description', createForm.description.trim())
-      formData.append('width', String(world.width))
-      formData.append('height', String(world.height))
-      formData.append('scale', String(world.scale))
-      formData.append('scaleUnit', world.scaleUnit)
-      formData.append('templateId', createForm.templateId)
-      formData.append('backgroundColor', '#0f172a')
-      formData.append('gridEnabled', 'true')
-      formData.append('gridSize', '20')
-      formData.append('isPublic', 'false')
-      if (eventId) formData.append('eventId', eventId)
-      if (tourId) formData.append('tourId', tourId)
-      if (createForm.backgroundImage) formData.append('backgroundImage', createForm.backgroundImage)
 
-      const response = await fetch('/api/admin/logistics/site-maps', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      })
+      let response: Response
+      if (createForm.backgroundImage) {
+        // Only use multipart when there's an actual file to upload
+        const formData = new FormData()
+        formData.append('name', createForm.name.trim())
+        formData.append('description', createForm.description.trim())
+        formData.append('width', String(world.width))
+        formData.append('height', String(world.height))
+        formData.append('scale', String(world.scale))
+        formData.append('scaleUnit', world.scaleUnit)
+        formData.append('templateId', createForm.templateId)
+        formData.append('backgroundColor', '#0f172a')
+        formData.append('gridEnabled', 'true')
+        formData.append('gridSize', '20')
+        formData.append('isPublic', 'false')
+        if (eventId) formData.append('eventId', eventId)
+        if (tourId) formData.append('tourId', tourId)
+        formData.append('backgroundImage', createForm.backgroundImage)
+        response = await fetch('/api/admin/logistics/site-maps', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        })
+      } else {
+        // JSON path — no multipart overhead for the common case
+        response = await fetch('/api/admin/logistics/site-maps', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: createForm.name.trim(),
+            description: createForm.description.trim(),
+            width: world.width,
+            height: world.height,
+            scale: world.scale,
+            scaleUnit: world.scaleUnit,
+            templateId: createForm.templateId,
+            backgroundColor: '#0f172a',
+            gridEnabled: true,
+            gridSize: 20,
+            isPublic: false,
+            eventId: eventId || undefined,
+            tourId: tourId || undefined,
+          }),
+        })
+      }
       const data = await response.json().catch(() => ({}))
       if (!response.ok || !data.success || !data.data?.id) {
         toast({

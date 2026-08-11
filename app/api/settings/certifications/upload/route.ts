@@ -34,14 +34,6 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_FILE_SIZE)
       return NextResponse.json({ success: false, error: 'File must be under 8MB' }, { status: 400 })
 
-    const { data: buckets } = await supabase.storage.listBuckets()
-    const profileImagesBucket = buckets?.find((bucket: any) => bucket.name === 'profile-images')
-    if (!profileImagesBucket)
-      return NextResponse.json(
-        { success: false, error: 'Storage is not configured. Contact support.' },
-        { status: 503 }
-      )
-
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'pdf'
     const safeCertKey = certificationName
       .toLowerCase()

@@ -1,0 +1,11 @@
+{
+  "participantId": "uuid",
+  "sourceType": "artist_music",
+  "sourceId": "uuid",
+  "purposes": [
+    "preservation"
+  ],
+  "accessClass": "community_controlled",
+  "aiReuse": false,
+  "idempotencyKey": "uuid"
+}

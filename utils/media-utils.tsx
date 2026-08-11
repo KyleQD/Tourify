@@ -23,6 +23,7 @@ interface FeedMediaGridProps {
   postId?: string
   className?: string
   frameClassName?: string
+  onMediaClick?: (index: number, items: MediaItem[]) => void
 }
 
 function inferMediaType(item: MediaItem): FeedMediaType {
@@ -94,9 +95,11 @@ function BrokenMediaTile({ type }: { type: FeedMediaType }) {
 function FeedMediaTile({
   item,
   className,
+  onClick,
 }: {
   item: MediaItem
   className?: string
+  onClick?: () => void
 }) {
   const [failed, setFailed] = useState(false)
   const type = inferMediaType(item)
@@ -113,14 +116,18 @@ function FeedMediaTile({
           className="h-full w-full object-cover"
           onError={() => setFailed(true)}
         />
+      ) : onClick ? (
+        <button type="button" className="h-full w-full cursor-zoom-in" onClick={onClick} aria-label="Open image viewer">
+          <img
+            src={item.url}
+            alt={item.alt_text || item.altText || item.alt || "Post media"}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
+        </button>
       ) : (
-        <img
-          src={item.url}
-          alt={item.alt_text || item.altText || item.alt || "Post media"}
-          className="h-full w-full object-cover"
-          loading="lazy"
-          onError={() => setFailed(true)}
-        />
+        <img src={item.url} alt={item.alt_text || item.altText || item.alt || "Post media"} className="h-full w-full object-cover" loading="lazy" onError={() => setFailed(true)} />
       )}
     </div>
   )
@@ -131,6 +138,7 @@ export function FeedMediaGrid({
   postId,
   className,
   frameClassName,
+  onMediaClick,
 }: FeedMediaGridProps) {
   const normalized = (mediaItems || [])
     .map((item, index) => normalizeMediaEntry(item, index, postId))
@@ -143,6 +151,7 @@ export function FeedMediaGrid({
       <div className={cn("mt-4", className)}>
         <FeedMediaTile
           item={normalized[0]}
+          onClick={() => onMediaClick?.(0, normalized)}
           className={cn("aspect-[4/3] max-h-[28rem] w-full", frameClassName)}
         />
       </div>
@@ -156,6 +165,7 @@ export function FeedMediaGrid({
           <FeedMediaTile
             key={item.id || index}
             item={item}
+            onClick={() => onMediaClick?.(index, normalized)}
             className={cn("aspect-square w-full", frameClassName)}
           />
         ))}
@@ -168,12 +178,14 @@ export function FeedMediaGrid({
       <div className={cn("mt-4 grid grid-cols-2 gap-2", className)}>
         <FeedMediaTile
           item={normalized[0]}
+          onClick={() => onMediaClick?.(0, normalized)}
           className={cn("row-span-2 aspect-square h-full w-full", frameClassName)}
         />
         {normalized.slice(1, 3).map((item, index) => (
           <FeedMediaTile
             key={item.id || index}
             item={item}
+            onClick={() => onMediaClick?.(index + 1, normalized)}
             className={cn("aspect-[2/1] w-full", frameClassName)}
           />
         ))}
@@ -187,6 +199,7 @@ export function FeedMediaGrid({
         <div key={item.id || index} className="relative">
           <FeedMediaTile
             item={item}
+            onClick={() => onMediaClick?.(index, normalized)}
             className={cn("aspect-square w-full", frameClassName)}
           />
           {index === 3 && normalized.length > 4 && (

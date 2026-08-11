@@ -147,6 +147,7 @@ class VenueService {
     // Also store in sessionStorage for persistence
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('active_venue_id', venueId)
+      window.dispatchEvent(new CustomEvent('tourify:active-venue-changed', { detail: { venueId } }))
     }
   }
 
@@ -190,8 +191,6 @@ class VenueService {
       
       // Add updated timestamp
       cleanUpdates.updated_at = new Date().toISOString()
-      
-      console.log('Sending to database:', cleanUpdates)
 
       const { data, error } = await this.supabase
         .from('venue_profiles')
@@ -846,6 +845,38 @@ class VenueService {
       console.error('Error in getVenueEquipment:', error)
       return []
     }
+  }
+
+  async addVenueEquipment(venueId: string, data: Omit<import('@/types/database.types').VenueEquipmentCreateData, 'venue_id'>): Promise<import('@/types/database.types').VenueEquipment> {
+    const { data: created, error } = await this.supabase
+      .from('venue_equipment')
+      .insert({ ...data, venue_id: venueId })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    this.cache.delete(this.getCacheKey(`equipment_${venueId}`))
+    return created
+  }
+
+  async updateVenueEquipment(id: string, venueId: string, data: Partial<Omit<import('@/types/database.types').VenueEquipment, 'id' | 'venue_id' | 'created_at' | 'updated_at'>>): Promise<import('@/types/database.types').VenueEquipment> {
+    const { data: updated, error } = await this.supabase
+      .from('venue_equipment')
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    this.cache.delete(this.getCacheKey(`equipment_${venueId}`))
+    return updated
+  }
+
+  async deleteVenueEquipment(id: string, venueId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('venue_equipment')
+      .delete()
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+    this.cache.delete(this.getCacheKey(`equipment_${venueId}`))
   }
 
   // =============================================================================

@@ -101,7 +101,7 @@ export function HiringOnboardingPanel({ employer }: HiringOnboardingPanelProps) 
               {candidates.map((candidate) => {
                 const progress = getProgressPercent(candidate.onboardingProgress)
                 return (
-                  <div key={candidate.id} className="rounded-[1.15rem] border border-slate-700/60 bg-slate-900/40 p-4">
+                  <div key={candidate.id} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">

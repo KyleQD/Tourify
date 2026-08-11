@@ -69,6 +69,11 @@ import type {
   GroundTransportationCoordination,
   TravelCoordinationAnalytics
 } from "@/hooks/use-travel-coordination"
+import {
+  coordinationLifecycleLabel,
+  segmentPresenceLabel,
+  toCoordinationLifecycle,
+} from "@/lib/admin/travel-coordination-lifecycle"
 
 interface TravelCoordinationHubProps {
   eventId?: string
@@ -215,16 +220,12 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
     }
   }
 
-  const handleAutoCoordinate = async (groupId: string) => {
+  const handleOpenCoordinationReview = async (groupId: string) => {
     try {
+      // Hook toasts a truthful summary of drafts actually created.
       await autoCoordinateGroup(groupId)
-      toast({
-        title: "Success",
-        description: "Group auto-coordinated successfully! Flights, hotels, and transportation have been arranged.",
-        variant: "default"
-      })
     } catch (error) {
-      console.error("Error auto-coordinating group:", error)
+      console.error("Error opening coordination review:", error)
     }
   }
 
@@ -360,16 +361,20 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
   }
 
   const getCoordinationStatusBadge = (status: string) => {
+    const lifecycle = toCoordinationLifecycle(status)
     const statusConfig = {
-      pending: { color: "bg-yellow-500/20 text-yellow-500 border-yellow-500/20", label: "Pending" },
-      flights_booked: { color: "bg-blue-500/20 text-blue-500 border-blue-500/20", label: "Flights Booked" },
-      hotels_booked: { color: "bg-green-500/20 text-green-500 border-green-500/20", label: "Hotels Booked" },
-      transport_arranged: { color: "bg-purple-500/20 text-purple-500 border-purple-500/20", label: "Transport Arranged" },
-      complete: { color: "bg-emerald-500/20 text-emerald-500 border-emerald-500/20", label: "Complete" }
+      suggestion: { color: "bg-slate-500/20 text-slate-300 border-slate-500/20", label: "Suggestion" },
+      review: { color: "bg-yellow-500/20 text-yellow-500 border-yellow-500/20", label: "In review" },
+      request: { color: "bg-blue-500/20 text-blue-400 border-blue-500/20", label: "Request" },
+      hold: { color: "bg-orange-500/20 text-orange-400 border-orange-500/20", label: "On hold" },
+      confirmed: { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/20", label: "Confirmed" },
     }
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
-    return <Badge className={`${config.color} border`}>{config.label}</Badge>
+    const config = statusConfig[lifecycle]
+    return (
+      <Badge className={`${config.color} border`} title={`coordination: ${status}`}>
+        {config.label}
+      </Badge>
+    )
   }
 
   const getGroupTypeIcon = (type: string) => {
@@ -422,8 +427,11 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
     totalGroups: groups?.length || 0,
     totalTravelers: groups?.reduce((sum, group) => sum + group.total_members, 0) || 0,
     confirmedTravelers: groups?.reduce((sum, group) => sum + group.confirmed_members, 0) || 0,
-    fullyCoordinated: groups?.filter(g => g.coordination_status === 'complete').length || 0,
-    pendingCoordination: groups?.filter(g => g.coordination_status === 'pending').length || 0,
+    fullyCoordinated: groups?.filter(g => toCoordinationLifecycle(g.coordination_status) === 'confirmed').length || 0,
+    pendingCoordination: groups?.filter(g => {
+      const life = toCoordinationLifecycle(g.coordination_status)
+      return life === 'suggestion' || life === 'review' || life === 'request' || life === 'hold'
+    }).length || 0,
     totalFlights: flights?.length || 0,
     totalTransport: transportation?.length || 0,
     totalHotelBookings: lodgingBookings?.length || 0
@@ -820,26 +828,44 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
                               </div>
                             </div>
 
-                            {/* Coordination Progress */}
+                            {/* Coordination Progress — counts are presence, not confirmation */}
                             <div>
                               <h4 className="font-medium text-slate-100 mb-2">Coordination Progress</h4>
+                              <p className="text-xs text-slate-500 mb-2">
+                                Lifecycle: {coordinationLifecycleLabel(group.coordination_status)}. Counts are on-file records, not automatic bookings.
+                              </p>
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-slate-400">Flights</span>
                                   <Badge variant="outline" className="text-xs">
-                                    {flights?.filter(f => f.group_id === group.id).length || 0} booked
+                                    {segmentPresenceLabel({
+                                      count: flights?.filter(f => f.group_id === group.id).length || 0,
+                                      confirmedCount: flights?.filter(f => f.group_id === group.id && f.status === 'confirmed').length || 0,
+                                      noun: 'flights',
+                                    })}
                                   </Badge>
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-slate-400">Transportation</span>
                                   <Badge variant="outline" className="text-xs">
-                                    {transportation?.filter(t => t.group_id === group.id).length || 0} arranged
+                                    {segmentPresenceLabel({
+                                      count: transportation?.filter(t => t.group_id === group.id).length || 0,
+                                      confirmedCount: transportation?.filter(t => t.group_id === group.id && t.status === 'completed').length || 0,
+                                      noun: 'trips',
+                                    })}
                                   </Badge>
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-slate-400">Hotel Rooms</span>
                                   <Badge variant="outline" className="text-xs">
-                                    {lodgingBookings?.filter(b => b.event_id === group.event_id || b.tour_id === group.tour_id).length || 0} booked
+                                    {segmentPresenceLabel({
+                                      count: lodgingBookings?.filter(b => b.event_id === group.event_id || b.tour_id === group.tour_id).length || 0,
+                                      confirmedCount: lodgingBookings?.filter(b =>
+                                        (b.event_id === group.event_id || b.tour_id === group.tour_id)
+                                        && (b.status === 'confirmed' || b.status === 'checked_in')
+                                      ).length || 0,
+                                      noun: 'bookings',
+                                    })}
                                   </Badge>
                                 </div>
                               </div>
@@ -849,14 +875,15 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        {group.coordination_status !== 'complete' && (
+                        {toCoordinationLifecycle(group.coordination_status) !== 'confirmed' && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleAutoCoordinate(group.id)}
+                            onClick={() => handleOpenCoordinationReview(group.id)}
+                            title="Opens a planning review and optional transport draft — does not book flights or hotels"
                           >
                             <Zap className="h-4 w-4 mr-2" />
-                            Auto-Coordinate
+                            Open review
                           </Button>
                         )}
                         <Button

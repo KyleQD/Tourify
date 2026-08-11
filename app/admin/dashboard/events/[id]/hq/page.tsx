@@ -154,6 +154,13 @@ export default function EventHQPage() {
       setActiveTab(tab)
   }, [searchParams])
 
+  function handleTabChange(tab: string) {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", tab)
+    router.replace(`/admin/dashboard/events/${eventId}/hq?${params.toString()}`, { scroll: false })
+  }
+
   async function handlePostBulletin() {
     if (!bulletinTitle.trim() || !bulletinContent.trim()) return
     setIsSubmitting(true)
@@ -385,7 +392,7 @@ export default function EventHQPage() {
       )}
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="bg-slate-800 border-slate-700 flex flex-wrap gap-0.5 h-auto p-1">
           <TabsTrigger value="bulletin" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><Megaphone className="h-4 w-4 mr-1" />Bulletin</TabsTrigger>
           <TabsTrigger value="resources" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><FileText className="h-4 w-4 mr-1" />Resources</TabsTrigger>

@@ -221,7 +221,7 @@ export function SiteMapShareDialog({
 
           {/* Search to add */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Public read-only link</Label>
+            <Label className="text-slate-300">Public read-only link (scoped token — not an Admin URL)</Label>
             <div className="flex gap-2">
               <Button
                 onClick={generatePublicLink}

@@ -1,143 +1,109 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/admin-tour-event-access"
+import { withAdminCapability } from "@/lib/auth/api-auth"
+
+/**
+ * VEND-101 — Legacy tour vendors surface → canonical tour access + vendor capability.
+ * Prefer /api/admin/tours/vendors for new clients.
+ */
 
 const createVendorSchema = z.object({
-  name: z.string().min(1, 'Vendor name is required'),
-  type: z.string().min(1, 'Vendor type is required'),
-  contact_name: z.string().min(1, 'Contact name is required'),
-  contact_email: z.string().email('Invalid email address'),
+  name: z.string().min(1, "Vendor name is required"),
+  type: z.string().min(1, "Vendor type is required"),
+  contact_name: z.string().min(1, "Contact name is required"),
+  contact_email: z.string().email("Invalid email address"),
   contact_phone: z.string().optional(),
-  status: z.enum(['confirmed', 'pending', 'declined']).default('pending'),
+  status: z.enum(["confirmed", "pending", "declined"]).default("pending"),
   services: z.array(z.string()).default([]),
   contract_amount: z.number().min(0).optional(),
-  payment_status: z.enum(['paid', 'partial', 'pending']).default('pending'),
-  notes: z.string().optional()
+  payment_status: z.enum(["paid", "partial", "pending"]).default("pending"),
+  notes: z.string().optional(),
 })
+
+function routeError(error: unknown, fallback: string) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: "Validation error", details: error.errors },
+      { status: 400 },
+    )
+  }
+  const resolved = adminAccessErrorResponse(error, fallback, 500)
+  return NextResponse.json({ error: resolved.message }, { status: resolved.status })
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability("vendor.view", async (_request, { user, supabase, admin }) => {
     try {
-
-    // Verify the user owns this tour
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      console.error('[Tour Vendors API] Error fetching tour for ownership check:', tourError)
-      if (tourError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-      }
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
-
-    if (tour.user_id !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Fetch vendors for this tour
-    const { data: vendors, error: vendorsError } = await supabase
-      .from('tour_vendors')
-      .select('*')
-      .eq('tour_id', id)
-      .order('name', { ascending: true })
-
-    if (vendorsError) {
-      console.error('[Tour Vendors API] Error fetching vendors:', vendorsError)
-      return NextResponse.json({ error: 'Failed to fetch vendors' }, { status: 500 })
-    }
-
-
-      return NextResponse.json({ 
-        success: true, 
-        vendors: vendors || [],
-        message: 'Tour vendors fetched successfully' 
+      await assertAdminTourAccess({
+        supabase,
+        userId: user.id,
+        tourId: id,
+        orgId: admin.orgId,
       })
 
+      const { data: vendors, error: vendorsError } = await supabase
+        .from("tour_vendors")
+        .select("*")
+        .eq("tour_id", id)
+        .order("name", { ascending: true })
+
+      if (vendorsError) throw new Error(vendorsError.message)
+
+      return NextResponse.json({
+        success: true,
+        vendors: vendors || [],
+        message: "Tour vendors fetched successfully",
+      })
     } catch (error) {
-      console.error('[Tour Vendors API] Error:', error)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      return routeError(error, "Failed to fetch vendors")
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability("vendor.manage", async (_request, { user, supabase, admin }) => {
     try {
-
-    const body = await request.json()
-    const validatedData = createVendorSchema.parse(body)
-
-    // Verify the user owns this tour
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id, name as tour_name')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      console.error('[Tour Vendors API] Error fetching tour for ownership check:', tourError)
-      if (tourError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-      }
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
-
-    if (tour.user_id !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Create the vendor
-    const vendorData = {
-      ...validatedData,
-      tour_id: id,
-      user_id: user.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-
-    const { data: vendor, error: vendorError } = await supabase
-      .from('tour_vendors')
-      .insert(vendorData)
-      .select()
-      .single()
-
-    if (vendorError) {
-      console.error('[Tour Vendors API] Error creating vendor:', vendorError)
-      return NextResponse.json({ error: 'Failed to create vendor' }, { status: 500 })
-    }
-
-
-      return NextResponse.json({ 
-        success: true, 
-        vendor,
-        message: 'Vendor added successfully to tour' 
+      await assertAdminTourAccess({
+        supabase,
+        userId: user.id,
+        tourId: id,
+        orgId: admin.orgId,
       })
 
+      const validatedData = createVendorSchema.parse(await request.json())
+      const now = new Date().toISOString()
+      const { data: vendor, error: vendorError } = await supabase
+        .from("tour_vendors")
+        .insert({
+          ...validatedData,
+          tour_id: id,
+          user_id: user.id,
+          created_by: user.id,
+          created_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single()
+
+      if (vendorError) throw new Error(vendorError.message)
+
+      return NextResponse.json({
+        success: true,
+        vendor,
+        message: "Vendor added successfully to tour",
+      }, { status: 201 })
     } catch (error) {
-      console.error('[Tour Vendors API] Error:', error)
-      if (error instanceof z.ZodError) {
-        return NextResponse.json({ 
-          error: 'Validation error', 
-          details: error.errors 
-        }, { status: 400 })
-      }
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      return routeError(error, "Failed to create vendor")
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
-} 
+}

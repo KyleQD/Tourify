@@ -110,7 +110,7 @@ export default function AdminMarketplaceModerationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <ShoppingBag className="h-6 w-6 text-purple-400" />
           <div>
@@ -118,6 +118,9 @@ export default function AdminMarketplaceModerationPage() {
             <p className="text-sm text-slate-300">Orders, moderation, and payouts.</p>
           </div>
         </div>
+        <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-200">
+          <Link href="/admin/dashboard/marketplace/orders">All orders</Link>
+        </Button>
       </div>
 
       <Tabs defaultValue="orders">

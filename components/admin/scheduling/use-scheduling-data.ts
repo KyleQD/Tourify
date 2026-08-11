@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { useActingContext } from "@/hooks/use-acting-context"
 import {
   getEmployerQueryString,
   getLiveSchedulingScopeFlags,
@@ -15,7 +16,7 @@ import {
   OPEN_SHIFTS as FALLBACK_OPEN_SHIFTS,
   SHIFTS as FALLBACK_SHIFTS,
   STAFF as FALLBACK_STAFF,
-  TEMPLATES,
+  DEMO_SHIFT_TEMPLATES,
   VENUES as FALLBACK_VENUES,
   type AvailabilityStatus,
   type ConfirmationStatus,
@@ -56,7 +57,7 @@ export interface SchedulingDataState {
   mode: SchedulingMode
   /** True when mode === "demo" (populated sample data). */
   usingFallback: boolean
-  /** True in live mode when employer is set but no venue can be resolved. */
+  /** Deprecated: venue is optional for live scheduling. Always false. */
   needsVenue: boolean
   /** True in live mode when no hiring employer is available. */
   needsEmployer: boolean
@@ -88,16 +89,97 @@ export interface SchedulingDataState {
   deleteShift: (shiftId: string) => Promise<SchedulingMutationResult>
   assignStaff: (shiftId: string, staffIds: string[]) => Promise<SchedulingMutationResult>
   publishShifts: (shiftIds: string[], options?: { notify?: boolean }) => Promise<SchedulingMutationResult>
+  duplicateShift: (shiftId: string, options?: { date?: string }) => Promise<SchedulingMutationResult>
 }
 
 export const DEMO_MUTATION_ERROR = "Switch to Live to edit real shifts."
 
+/** WORK-104 — templates exposed in live mode (empty until org-owned templates exist). */
+export const LIVE_SHIFT_TEMPLATES: ShiftTemplate[] = []
+
 export function shouldLoadLiveSchedulingDetails(args: {
   mode: SchedulingMode
   employer: HiringEntity | null
-  venueId: string | null
+  venueId?: string | null
 }): boolean {
-  return args.mode === "live" && Boolean(args.employer && args.venueId)
+  return args.mode === "live" && Boolean(args.employer)
+}
+
+/**
+ * WORK-104 — Live availability from persisted shift assignments only.
+ * Does not invent available/pending patterns from demo cycles.
+ */
+export function deriveLiveAvailability(
+  staff: StaffMember[],
+  weekDays: WeekDay[],
+  shifts: Shift[],
+): StaffAvailability[] {
+  return staff.map((member) => ({
+    staffId: member.id,
+    preferredHours: "No persisted availability intervals",
+    unavailableWindows: [],
+    slots: weekDays.map((day) => {
+      const hasShift = shifts.some(
+        (shift) =>
+          shift.date === day.date
+          && (shift.assignedStaff?.id === member.id
+            || (Array.isArray((shift as { assignedStaffIds?: string[] }).assignedStaffIds)
+              && (shift as { assignedStaffIds?: string[] }).assignedStaffIds?.includes(member.id))),
+      )
+      return {
+        day: day.key,
+        status: hasShift ? "scheduled" : "unavailable",
+      }
+    }),
+  }))
+}
+
+export function selectSchedulingTemplates(mode: SchedulingMode): ShiftTemplate[] {
+  return mode === "demo" ? DEMO_SHIFT_TEMPLATES : LIVE_SHIFT_TEMPLATES
+}
+
+const ACTING_CONTEXT_ERROR_CODES = new Set([
+  "organization_access_required",
+  "organization_access_denied",
+  "acting_context_required",
+  "acting_context_unavailable",
+  "acting_context_mismatch",
+  "organization_scope_required",
+  "membership_unavailable",
+])
+
+export function parseSchedulingApiError(raw: string): { message: string; code?: string; isActingContextError: boolean } {
+  const trimmed = raw.trim()
+  if (!trimmed) return { message: "Request failed", isActingContextError: false }
+
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      error?: string | { message?: string; code?: string }
+      message?: string
+      code?: string
+    }
+    const code =
+      typeof parsed.code === "string"
+        ? parsed.code
+        : typeof parsed.error === "object" && parsed.error && typeof parsed.error.code === "string"
+          ? parsed.error.code
+          : undefined
+    const message =
+      typeof parsed.error === "string"
+        ? parsed.error
+        : typeof parsed.error === "object" && parsed.error && typeof parsed.error.message === "string"
+          ? parsed.error.message
+          : typeof parsed.message === "string"
+            ? parsed.message
+            : trimmed
+    return {
+      message,
+      code,
+      isActingContextError: Boolean(code && ACTING_CONTEXT_ERROR_CODES.has(code)),
+    }
+  } catch {
+    return { message: trimmed, isActingContextError: false }
+  }
 }
 
 /** Extract venue id from admin event rows (column or settings.venue_account_id). */
@@ -155,6 +237,7 @@ export interface SchedulingMutationResult {
 interface RawShift {
   id: string
   venue_id?: string | null
+  org_id?: string | null
   adhoc_venue_id?: string | null
   event_id?: string | null
   staff_member_id?: string | null
@@ -299,6 +382,7 @@ function normalizeDepartment(value?: string | null): Department {
 function normalizeShiftStatus(value?: string | null, assignedStaff?: StaffMember): ShiftStatus {
   if (value === "confirmed" || value === "completed") return "confirmed"
   if (value === "cancelled") return "cancelled"
+  if (value === "declined") return "declined"
   if (!assignedStaff) return "open"
   if (value === "scheduled") return "pending"
   return "published"
@@ -306,6 +390,7 @@ function normalizeShiftStatus(value?: string | null, assignedStaff?: StaffMember
 
 function confirmationFor(value?: string | null): ConfirmationStatus {
   if (value === "confirmed" || value === "completed") return "confirmed"
+  if (value === "declined") return "declined"
   if (value === "cancelled") return "declined"
   if (value === "scheduled") return "pending"
   return "none"
@@ -372,7 +457,7 @@ function mapEvents(rows: RawEvent[]): SchedulingEventOption[] {
 }
 
 function deriveStaff(rows: RawRosterMember[], shifts: RawShift[], conflicts: SchedulingConflict[]): StaffMember[] {
-  return rows.map((row, index) => {
+  return rows.map((row) => {
     const memberShifts = shifts.filter((shift) => shift.staff_member_id === row.id)
     const confirmed = memberShifts.some((shift) => shift.status === "confirmed" || shift.status === "completed")
     const pending = memberShifts.some((shift) => shift.status === "scheduled")
@@ -389,19 +474,20 @@ function deriveStaff(rows: RawRosterMember[], shifts: RawShift[], conflicts: Sch
       name,
       role,
       department,
-      availabilityStatus: scheduled ? "scheduled" : "available",
+      // WORK-104 — without persisted intervals, unscheduled ≠ available.
+      availabilityStatus: scheduled ? "scheduled" : "pending",
       confirmationStatus: confirmed ? "confirmed" : pending ? "pending" : "none",
       skills: [role, department].filter(Boolean),
       email: row.email ?? "No email on file",
       phone: row.phone ?? "No phone on file",
       credentials: compliance && compliance !== "not_started" ? [compliance.replace(/_/g, " ")] : [],
-      confirmationRate: confirmed ? 96 : pending ? 70 : 85,
+      confirmationRate: confirmed ? 100 : pending ? 0 : 0,
       upcomingShifts: memberShifts.length,
       weeklyHours: Math.round(weeklyMinutes / 60),
       conflictCount,
       notes: row.status && row.status !== "active" ? `Roster status: ${row.status}` : undefined,
       workedEvents: [],
-      lastAssignedDaysAgo: memberShifts.length > 0 ? 0 : (index * 3) % 21,
+      lastAssignedDaysAgo: memberShifts.length > 0 ? 0 : 0,
     }
   })
 }
@@ -503,7 +589,7 @@ function deriveShifts(rawShifts: RawShift[], staff: StaffMember[], events: Sched
 
 function deriveOpenShifts(shifts: Shift[], zones: RawZone[], events: SchedulingEventOption[], staff: StaffMember[]): OpenShift[] {
   const fromUnassigned = shifts
-    .filter((shift) => !shift.assignedStaff || shift.status === "open")
+    .filter((shift) => !shift.assignedStaff || shift.status === `open` || shift.status === `declined`)
     .map<OpenShift>((shift) => ({
       id: shift.id,
       role: shift.role,
@@ -515,7 +601,12 @@ function deriveOpenShifts(shifts: Shift[], zones: RawZone[], events: SchedulingE
       endTime: shift.endTime,
       priority: shift.priority === "critical" ? "high" : shift.priority,
       suggestedStaff: staff
-        .filter((member) => member.department === shift.department || member.availabilityStatus === "available")
+        .filter(
+          (member) =>
+            member.department === shift.department
+            || member.availabilityStatus === "pending"
+            || member.availabilityStatus === "scheduled",
+        )
         .slice(0, 3)
         .map((member) => member.name),
     }))
@@ -543,22 +634,43 @@ function deriveOpenShifts(shifts: Shift[], zones: RawZone[], events: SchedulingE
   return [...fromUnassigned, ...byZone]
 }
 
-function deriveAvailability(staff: StaffMember[], weekDays: WeekDay[]): StaffAvailability[] {
-  return staff.map((member, index) => ({
-    staffId: member.id,
-    preferredHours: "Availability not connected",
-    unavailableWindows: [],
-    slots: weekDays.map((day) => ({
-      day: day.key,
-      status: member.availabilityStatus === "scheduled" ? "scheduled" : index % 5 === 0 ? "pending" : "available",
-    })),
-  }))
+/** @deprecated Demo-only invent path removed from live; use deriveLiveAvailability. */
+function deriveAvailability(staff: StaffMember[], weekDays: WeekDay[], shifts: Shift[] = []): StaffAvailability[] {
+  return deriveLiveAvailability(staff, weekDays, shifts)
 }
 
-async function getJson(url: string) {
-  const res = await fetch(url, { credentials: "include", cache: "no-store" })
-  if (!res.ok) throw new Error(await res.text())
+async function getJson(url: string, extraHeaders?: Record<string, string>) {
+  const res = await fetch(url, {
+    credentials: "include",
+    cache: "no-store",
+    headers: extraHeaders,
+  })
+  if (!res.ok) {
+    const raw = await res.text()
+    const parsed = parseSchedulingApiError(raw)
+    const error = new Error(parsed.message) as Error & { code?: string; isActingContextError?: boolean }
+    error.code = parsed.code
+    error.isActingContextError = parsed.isActingContextError
+    throw error
+  }
   return res.json()
+}
+
+function buildShiftsQuery(args: {
+  employer: HiringEntity
+  venueId: string | null
+  eventId: string
+  dateFrom: string
+  dateTo: string
+}): string {
+  const params = new URLSearchParams()
+  params.set("entity_type", args.employer.entityType)
+  params.set("entity_id", args.employer.entityId)
+  params.set("date_from", args.dateFrom)
+  params.set("date_to", args.dateTo)
+  if (args.venueId) params.set("venueId", args.venueId)
+  if (args.eventId !== "all") params.set("eventId", args.eventId)
+  return params.toString()
 }
 
 export function useSchedulingData(
@@ -567,6 +679,7 @@ export function useSchedulingData(
   initialVenueId?: string | null,
   initialMode?: SchedulingMode | null,
 ): SchedulingDataState {
+  const { actingHeaders } = useActingContext()
   const employer = isHiringEntity(employerInput) ? employerInput : null
   const defaultMode: SchedulingMode = initialMode ?? (employer ? "live" : "demo")
   const [mode, setModeState] = useState<SchedulingMode>(defaultMode)
@@ -617,17 +730,36 @@ export function useSchedulingData(
     setLoading(true)
     setError(null)
     try {
+      if (!shouldLoadLiveSchedulingDetails({ mode, employer })) {
+        setRawEvents([])
+        setRawRoster([])
+        setRawShifts([])
+        setRawZones([])
+        return
+      }
+
       const employerQuery = getEmployerQueryString(employer)
       const [eventsResult, rosterResult] = await Promise.allSettled([
-        getJson("/api/admin/events"),
-        getJson(`/api/hiring/roster?${employerQuery}&status=active&limit=200`),
+        getJson("/api/admin/events", actingHeaders),
+        getJson(`/api/hiring/roster?${employerQuery}&status=active&limit=200`, actingHeaders),
       ])
 
+      let softNotice: string | null = null
+
       if (eventsResult.status === "rejected") {
-        setError(eventsResult.reason instanceof Error ? eventsResult.reason.message : "Failed to load events")
+        const reason = eventsResult.reason
+        const isActingContext =
+          reason instanceof Error && Boolean((reason as Error & { isActingContextError?: boolean }).isActingContextError)
+        if (isActingContext) {
+          softNotice = "Events unavailable for this account — you can still schedule org-wide shifts."
+        } else {
+          softNotice = reason instanceof Error ? reason.message : "Failed to load events"
+        }
       }
       if (rosterResult.status === "rejected") {
         setError(rosterResult.reason instanceof Error ? rosterResult.reason.message : "Failed to load roster")
+      } else if (softNotice) {
+        setError(softNotice)
       }
 
       const eventRows = eventsResult.status === "fulfilled" ? (eventsResult.value.events ?? []) : []
@@ -642,18 +774,29 @@ export function useSchedulingData(
       const selected = nextEvents.find((event) => event.id === resolvedEventId)
       const resolvedVenueId =
         selected?.venueId ?? selectedVenueId ?? initialVenueId ?? resolveSchedulingVenueId(employer)
-      if (!resolvedVenueId || !shouldLoadLiveSchedulingDetails({ mode, employer, venueId: resolvedVenueId })) {
-        setRawShifts([])
-        setRawZones([])
-        return
-      }
 
       const from = isoDate(weekStart)
       const to = isoDate(addDays(weekStart, 6))
-      const eventQs = resolvedEventId !== "all" ? `&eventId=${encodeURIComponent(resolvedEventId)}` : ""
+      const shiftsQs = buildShiftsQuery({
+        employer,
+        venueId: resolvedVenueId,
+        eventId: resolvedEventId,
+        dateFrom: from,
+        dateTo: to,
+      })
+
+      const zonesPromise = resolvedVenueId
+        ? getJson(
+            `/api/admin/staffing/zones?venue_id=${encodeURIComponent(resolvedVenueId)}${
+              resolvedEventId !== "all" ? `&eventId=${encodeURIComponent(resolvedEventId)}` : ""
+            }`,
+            actingHeaders,
+          )
+        : Promise.resolve({ data: [] as RawZone[] })
+
       const [shiftsResult, zonesResult] = await Promise.allSettled([
-        getJson(`/api/admin/staffing/shifts?venueId=${encodeURIComponent(resolvedVenueId)}&date_from=${from}&date_to=${to}${eventQs}`),
-        getJson(`/api/admin/staffing/zones?venue_id=${encodeURIComponent(resolvedVenueId)}${eventQs}`),
+        getJson(`/api/admin/staffing/shifts?${shiftsQs}`, actingHeaders),
+        zonesPromise,
       ])
 
       if (shiftsResult.status === "rejected") {
@@ -661,6 +804,10 @@ export function useSchedulingData(
         setRawShifts([])
       } else {
         setRawShifts(shiftsResult.value.data ?? [])
+        if (softNotice && rosterResult.status === "fulfilled") {
+          // Keep soft events notice only when shifts loaded successfully.
+          setError(softNotice)
+        }
       }
 
       if (zonesResult.status === "rejected") {
@@ -675,7 +822,7 @@ export function useSchedulingData(
     } finally {
       setLoading(false)
     }
-  }, [employer, eventId, initialVenueId, mode, selectedVenueId, weekStart])
+  }, [actingHeaders, employer, eventId, initialVenueId, mode, selectedVenueId, weekStart])
 
   useEffect(() => {
     void reload()
@@ -688,7 +835,10 @@ export function useSchedulingData(
   const liveStaff = useMemo(() => deriveStaff(rawRoster, rawShifts, conflictsFromRows), [conflictsFromRows, rawRoster, rawShifts])
   const liveShifts = useMemo(() => deriveShifts(rawShifts, liveStaff, rawEvents, conflictsFromRows), [conflictsFromRows, liveStaff, rawEvents, rawShifts])
   const liveOpenShifts = useMemo(() => deriveOpenShifts(liveShifts, rawZones, rawEvents, liveStaff), [liveShifts, liveStaff, rawEvents, rawZones])
-  const liveAvailability = useMemo(() => deriveAvailability(liveStaff, weekDays), [liveStaff, weekDays])
+  const liveAvailability = useMemo(
+    () => deriveLiveAvailability(liveStaff, weekDays, liveShifts),
+    [liveStaff, liveShifts, weekDays],
+  )
 
   const fallbackEvents = useMemo(() => FALLBACK_EVENTS.map((name, index) => ({ id: `fallback-event-${index}`, name })), [])
   const fallbackVenues = useMemo(() => FALLBACK_VENUES.map((name, index) => ({ id: `fallback-venue-${index}`, name })), [])
@@ -711,7 +861,7 @@ export function useSchedulingData(
   const persist = useCallback(
     async (action: () => Promise<void>): Promise<SchedulingMutationResult> => {
       if (mode === "demo") return { ok: false, error: DEMO_MUTATION_ERROR }
-      if (!employer || !venueId) return { ok: false, error: "A venue context is required before saving shifts." }
+      if (!employer) return { ok: false, error: "A hiring account is required before saving shifts." }
       setSaving(true)
       try {
         await action()
@@ -723,7 +873,7 @@ export function useSchedulingData(
         setSaving(false)
       }
     },
-    [employer, mode, reload, venueId],
+    [employer, mode, reload],
   )
 
   const resolveEventIdForInput = useCallback(
@@ -737,15 +887,17 @@ export function useSchedulingData(
   const createShift = useCallback(
     async (input: PersistShiftInput) =>
       persist(async () => {
+        if (!employer) throw new Error("A hiring account is required before saving this shift.")
         const staffIds = input.assignedStaffIds?.filter(Boolean) ?? []
         if (staffIds.length === 0) throw new Error("Select at least one staff member before saving this shift.")
         const resolvedEventId = resolveEventIdForInput(input)
         const resolvedVenueId = rawEvents.find((event) => event.id === resolvedEventId)?.venueId ?? venueId
-        if (!resolvedVenueId) throw new Error("A venue is required before saving this shift.")
 
         const payloadBase = {
-          venue_id: resolvedVenueId,
+          venue_id: resolvedVenueId ?? undefined,
           event_id: resolvedEventId,
+          entity_type: employer.entityType,
+          entity_id: employer.entityId,
           shift_date: input.date,
           start_time: input.startTime,
           end_time: input.endTime,
@@ -761,15 +913,24 @@ export function useSchedulingData(
             fetch("/api/admin/staffing/shifts", {
               method: "POST",
               credentials: "include",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...actingHeaders },
               body: JSON.stringify({ ...payloadBase, staff_member_id }),
             }),
           ),
         )
         const failed = responses.find((response) => !response.ok)
-        if (failed) throw new Error((await failed.json().catch(() => null))?.error || "Failed to create shift")
+        if (failed) {
+          const body = await failed.json().catch(() => null)
+          const message =
+            typeof body?.error === "string"
+              ? body.error
+              : typeof body?.error?.message === "string"
+                ? body.error.message
+                : "Failed to create shift"
+          throw new Error(message)
+        }
       }),
-    [persist, rawEvents, resolveEventIdForInput, venueId],
+    [employer, persist, rawEvents, resolveEventIdForInput, venueId],
   )
 
   const updateShift = useCallback(
@@ -779,7 +940,7 @@ export function useSchedulingData(
         const response = await fetch(`/api/admin/staffing/shifts/${shiftId}`, {
           method: "PATCH",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...actingHeaders },
           body: JSON.stringify({
             event_id: resolvedEventId ?? null,
             shift_date: input.date,
@@ -807,7 +968,7 @@ export function useSchedulingData(
         const response = await fetch(`/api/admin/staffing/shifts/${shiftId}`, {
           method: "PATCH",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...actingHeaders },
           body: JSON.stringify({ status, notify: options?.notify !== false }),
         })
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || "Failed to update shift status")
@@ -821,10 +982,47 @@ export function useSchedulingData(
         const response = await fetch(`/api/admin/staffing/shifts/${shiftId}`, {
           method: "DELETE",
           credentials: "include",
+          headers: actingHeaders,
         })
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || "Failed to delete shift")
       }),
     [persist],
+  )
+
+  const duplicateShift = useCallback(
+    async (shiftId: string, options?: { date?: string }) =>
+      persist(async () => {
+        const existing = rawShifts.find((row) => row.id === shiftId)
+        if (!existing) throw new Error("Shift not found")
+        if (!employer) throw new Error("A hiring account is required before duplicating this shift.")
+
+        const newDate = options?.date ?? addDays(new Date(existing.shift_date ?? isoDate(new Date())), 7)
+        const resolvedVenueId = existing.venue_id ?? venueId
+
+        const response = await fetch("/api/admin/staffing/shifts", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", ...actingHeaders },
+          body: JSON.stringify({
+            venue_id: resolvedVenueId ?? undefined,
+            org_id: existing.org_id ?? undefined,
+            entity_type: employer.entityType,
+            entity_id: employer.entityId,
+            event_id: existing.event_id ?? undefined,
+            staff_member_id: existing.staff_member_id ?? undefined,
+            shift_date: isoDate(newDate),
+            start_time: existing.start_time,
+            end_time: existing.end_time,
+            break_duration: existing.break_duration ?? 0,
+            zone_assignment: existing.zone_assignment ?? undefined,
+            role_assignment: existing.role_assignment ?? undefined,
+            notes: existing.notes ?? undefined,
+            notify: false,
+          }),
+        })
+        if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || "Failed to duplicate shift")
+      }),
+    [employer, persist, rawShifts, venueId, actingHeaders],
   )
 
   const assignStaff = useCallback(
@@ -844,24 +1042,27 @@ export function useSchedulingData(
         const patchResponse = await fetch(`/api/admin/staffing/shifts/${shiftId}`, {
           method: "PATCH",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...actingHeaders },
           body: JSON.stringify({ staff_member_id: primaryId, notify: true }),
         })
         if (!patchResponse.ok)
           throw new Error((await patchResponse.json().catch(() => null))?.error || "Failed to assign staff")
 
         if (extraIds.length > 0) {
+          if (!employer) throw new Error("A hiring account is required before assigning additional staff.")
           const venueForCreate = existing.venue_id ?? venueId
-          if (!venueForCreate) throw new Error("A venue is required before assigning additional staff.")
 
           const createResponses = await Promise.all(
             extraIds.map((staff_member_id) =>
               fetch("/api/admin/staffing/shifts", {
                 method: "POST",
                 credentials: "include",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...actingHeaders },
                 body: JSON.stringify({
-                  venue_id: venueForCreate,
+                  venue_id: venueForCreate ?? undefined,
+                  org_id: existing.org_id ?? undefined,
+                  entity_type: employer.entityType,
+                  entity_id: employer.entityId,
                   event_id: existing.event_id ?? undefined,
                   staff_member_id,
                   shift_date: existing.shift_date,
@@ -880,7 +1081,7 @@ export function useSchedulingData(
           if (failed) throw new Error((await failed.json().catch(() => null))?.error || "Failed to assign additional staff")
         }
       }),
-    [persist, rawShifts, venueId],
+    [employer, persist, rawShifts, venueId],
   )
 
   const publishShifts = useCallback(
@@ -890,7 +1091,7 @@ export function useSchedulingData(
         const response = await fetch("/api/admin/staffing/shifts/publish", {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...actingHeaders },
           body: JSON.stringify({
             shift_ids: shiftIds,
             notify: options?.notify !== false,
@@ -926,7 +1127,7 @@ export function useSchedulingData(
     shifts: usingFallback ? FALLBACK_SHIFTS : liveShifts,
     openShifts: usingFallback ? FALLBACK_OPEN_SHIFTS : liveOpenShifts,
     conflicts: usingFallback ? FALLBACK_CONFLICTS : conflictsFromRows,
-    templates: TEMPLATES,
+    templates: selectSchedulingTemplates(mode),
     availability: usingFallback ? FALLBACK_AVAILABILITY : liveAvailability,
     reload,
     setWeekStart,
@@ -937,6 +1138,7 @@ export function useSchedulingData(
     updateShift,
     updateShiftStatus,
     deleteShift,
+    duplicateShift,
     assignStaff,
     publishShifts,
   }

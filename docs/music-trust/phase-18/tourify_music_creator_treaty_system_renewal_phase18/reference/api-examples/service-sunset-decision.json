@@ -1,0 +1,7 @@
+{
+  "serviceId": "uuid",
+  "sunsetAt": "2028-01-01T00:00:00Z",
+  "essentialContinuityUntil": "2028-07-01T00:00:00Z",
+  "archivePlanId": "uuid",
+  "appealDeadline": "2027-12-01T00:00:00Z"
+}

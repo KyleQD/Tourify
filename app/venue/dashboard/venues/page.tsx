@@ -14,76 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { motion } from "framer-motion"
 import { Search, MapPin, Users, Star, Plus, Filter, Calendar } from "lucide-react"
 import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
-
-// Mock venues data - in a real app, this would come from an API
-const mockVenues = [
-  {
-    id: "venue-1",
-    name: "The Echo Lounge",
-    location: "Los Angeles, CA",
-    type: "Music Venue",
-    capacity: 850,
-    rating: 4.8,
-    image: "/placeholder.svg?height=200&width=300&text=Echo+Lounge",
-    amenities: ["Wi-Fi", "Parking", "ADA Access", "Green Room", "Sound System"],
-    upcoming: 3,
-  },
-  {
-    id: "venue-2",
-    name: "Skyline Theater",
-    location: "New York, NY",
-    type: "Performance Hall",
-    capacity: 1200,
-    rating: 4.6,
-    image: "/placeholder.svg?height=200&width=300&text=Skyline+Theater",
-    amenities: ["Wi-Fi", "Parking", "ADA Access", "Green Room", "Sound System", "Lighting Rig"],
-    upcoming: 5,
-  },
-  {
-    id: "venue-3",
-    name: "The Basement",
-    location: "Nashville, TN",
-    type: "Club Venue",
-    capacity: 350,
-    rating: 4.5,
-    image: "/placeholder.svg?height=200&width=300&text=The+Basement",
-    amenities: ["Wi-Fi", "Sound System", "Bar Service"],
-    upcoming: 2,
-  },
-  {
-    id: "venue-4",
-    name: "Harmony Hall",
-    location: "Austin, TX",
-    type: "Concert Hall",
-    capacity: 750,
-    rating: 4.7,
-    image: "/placeholder.svg?height=200&width=300&text=Harmony+Hall",
-    amenities: ["Wi-Fi", "Parking", "ADA Access", "Green Room", "Sound System", "Catering"],
-    upcoming: 4,
-  },
-  {
-    id: "venue-5",
-    name: "The Sound Garden",
-    location: "Seattle, WA",
-    type: "Outdoor Venue",
-    capacity: 2000,
-    rating: 4.9,
-    image: "/placeholder.svg?height=200&width=300&text=Sound+Garden",
-    amenities: ["Parking", "ADA Access", "Sound System", "Food Vendors"],
-    upcoming: 1,
-  },
-  {
-    id: "venue-6",
-    name: "Jazz Corner",
-    location: "Chicago, IL",
-    type: "Jazz Club",
-    capacity: 200,
-    rating: 4.4,
-    image: "/placeholder.svg?height=200&width=300&text=Jazz+Corner",
-    amenities: ["Wi-Fi", "Sound System", "Bar Service", "Food Service"],
-    upcoming: 6,
-  },
-]
+import { venueService } from "@/lib/services/venue.service"
 
 export default function VenuesPage() {
   const router = useRouter()
@@ -100,15 +31,30 @@ export default function VenuesPage() {
   })
 
   useEffect(() => {
-    // In a real app, fetch venues from API
     const loadVenues = async () => {
       setLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800))
-        setVenues(mockVenues)
+        const rows = await venueService.getAllUserVenues()
+        setVenues(
+          (rows || []).map((row) => ({
+            id: row.id,
+            name: row.venue_name,
+            location:
+              `${row.city || ""}${row.city && row.state ? ", " : ""}${row.state || ""}` ||
+              row.address ||
+              "Location not set",
+            type: row.venue_types?.[0] || "Venue",
+            capacity: Number(row.capacity || 0),
+            rating: Number((row as { stats?: { average_rating?: number } }).stats?.average_rating || 0),
+            image: row.avatar_url || row.cover_image_url || "",
+            amenities: [] as string[],
+            upcoming: Number((row as { stats?: { upcoming_events?: number } }).stats?.upcoming_events || 0),
+            url_slug: (row as { url_slug?: string | null }).url_slug || null,
+          })),
+        )
       } catch (error) {
         console.error("Error loading venues:", error)
+        setVenues([])
         toast({
           title: "Error",
           description: "Failed to load venues",
@@ -119,11 +65,11 @@ export default function VenuesPage() {
       }
     }
 
-    loadVenues()
+    void loadVenues()
   }, [toast])
 
   const handleViewVenue = (id: string) => {
-    router.push(`/venues/${id}`)
+    router.push(`/venue/dashboard/venues/${id}`)
   }
 
   const handleCreateVenue = () => {

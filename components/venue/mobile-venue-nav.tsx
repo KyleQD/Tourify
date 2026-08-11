@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { CalendarDays, ClipboardList, Home, ScanLine } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -14,6 +14,11 @@ const items = [
 
 export function MobileVenueNav() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isCheckInView =
+    pathname.startsWith("/venue/events/") && pathname.endsWith("/check-in")
+  const isTicketsCheckIn =
+    pathname === "/venue/dashboard/tickets" && searchParams.get("view") === "check-in"
 
   return (
     <nav
@@ -24,8 +29,10 @@ export function MobileVenueNav() {
         {items.map((item) => {
           const Icon = item.icon
           const [path] = item.href.split("?")
-          const active =
-            path === "/venue/dashboard"
+          const isDoor = item.label === "Door"
+          const active = isDoor
+            ? isCheckInView || isTicketsCheckIn
+            : path === "/venue/dashboard"
               ? pathname === path || pathname === "/venue"
               : pathname === path || pathname.startsWith(`${path}/`)
 

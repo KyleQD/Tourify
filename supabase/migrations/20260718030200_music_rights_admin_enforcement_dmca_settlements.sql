@@ -79,6 +79,9 @@ create table if not exists public.music_rights_reversions (
   created_at timestamptz not null default now()
 );
 
+alter table public.music_rights_disputes
+  add column if not exists owner_user_id uuid references auth.users(id) on delete cascade;
+
 alter table public.music_enforcement_observations enable row level security;
 alter table public.music_dmca_cases enable row level security;
 alter table public.music_rights_disputes enable row level security;

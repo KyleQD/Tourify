@@ -1,6 +1,64 @@
 -- Organization personas integration: accounts backfill, invitee invite RLS, org_members posting RLS.
 set client_min_messages = warning;
 
+create table if not exists public.accounts (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  account_type text not null,
+  profile_table text not null,
+  profile_id uuid not null,
+  display_name text not null,
+  username text,
+  avatar_url text,
+  is_verified boolean default false,
+  is_active boolean default true,
+  follower_count integer default 0,
+  following_count integer default 0,
+  post_count integer default 0,
+  engagement_score numeric default 0,
+  metadata jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(profile_table, profile_id)
+);
+
+create index if not exists idx_accounts_owner on public.accounts(owner_user_id);
+create index if not exists idx_accounts_type on public.accounts(account_type);
+create index if not exists idx_accounts_profile_lookup on public.accounts(profile_table, profile_id);
+create index if not exists idx_accounts_active on public.accounts(is_active) where is_active = true;
+
+alter table public.accounts enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'accounts'
+      and policyname = 'accounts_public_active_read'
+  ) then
+    create policy accounts_public_active_read
+      on public.accounts
+      for select
+      to anon, authenticated
+      using (is_active = true);
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'accounts'
+      and policyname = 'accounts_owner_manage'
+  ) then
+    create policy accounts_owner_manage
+      on public.accounts
+      for all
+      to authenticated
+      using (owner_user_id = (select auth.uid()))
+      with check (owner_user_id = (select auth.uid()));
+  end if;
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- Backfill accounts rows for public organizer brands
 -- ---------------------------------------------------------------------------
@@ -78,6 +136,9 @@ create policy org_invites_select_members_or_invitee on public.org_invites
 -- ---------------------------------------------------------------------------
 -- Posts RLS: allow org_members delegates to attribute posts to the org brand
 -- ---------------------------------------------------------------------------
+alter table if exists public.organizer_accounts
+  add column if not exists ops_org_id uuid;
+
 drop policy if exists "Users can create posts attributed to owned entities" on public.posts;
 
 create policy "Users can create posts attributed to owned entities"

@@ -584,6 +584,15 @@ export default function VenuesPage() {
                             Edit
                           </Button>
                         </Link>
+                        <Link href={`/venue/overview`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-emerald-400 hover:text-emerald-200"
+                          >
+                            Venue ops
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>

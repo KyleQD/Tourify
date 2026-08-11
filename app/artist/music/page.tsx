@@ -35,6 +35,7 @@ import {
   Wallet,
 } from "lucide-react"
 import { EnhancedMusicUploader } from "@/components/music/enhanced-music-uploader"
+import { AudiusImportModal } from "@/components/music/audius-import-modal"
 import { MusicTrustStatus } from "@/components/music/music-trust-status"
 import type { MusicAiUseCategory, MusicCertificationStatus, MusicOriginStatus, MusicTrainingUsePolicy } from "@/lib/music/music-trust"
 import Image from "next/image"
@@ -158,6 +159,7 @@ export default function MusicPage() {
   
   const [tracks, setTracks] = useState<MusicTrack[]>([])
   const [showUploader, setShowUploader] = useState(false)
+  const [showAudiusImport, setShowAudiusImport] = useState(false)
   const [editingTrack, setEditingTrack] = useState<MusicTrack | null>(null)
   const [deletingTrack, setDeletingTrack] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -944,7 +946,17 @@ export default function MusicPage() {
                 Music marketplace
               </Button>
             ) : null}
-            <Button 
+            {process.env.NEXT_PUBLIC_AUDIUS_IMPORT_ENABLED === "true" && (
+              <Button
+                onClick={() => setShowAudiusImport(true)}
+                variant="outline"
+                className="flex items-center gap-2 border-purple-500/50 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 hover:text-purple-200 px-4 py-3 rounded-xl"
+              >
+                <Plus className="h-4 w-4" />
+                Add from Audius
+              </Button>
+            )}
+            <Button
               onClick={() => setShowUploader(true)}
               className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl flex items-center gap-2"
             >
@@ -1503,6 +1515,20 @@ export default function MusicPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Audius Import Modal */}
+        {process.env.NEXT_PUBLIC_AUDIUS_IMPORT_ENABLED === "true" && (
+          <AudiusImportModal
+            open={showAudiusImport}
+            onClose={() => setShowAudiusImport(false)}
+            onImportComplete={(imported) => {
+              // Refresh track list to show the newly imported track
+              fetchTracks()
+              setShowAudiusImport(false)
+              toast.success(`"${imported.title}" added to your profile`)
+            }}
+          />
+        )}
       </div>
     </div>
   )

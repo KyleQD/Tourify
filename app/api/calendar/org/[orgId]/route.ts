@@ -6,6 +6,8 @@ import {
   buildIcsCalendar,
   icsFeedResponse,
 } from '@/lib/admin/calendar/ics'
+import { projectCalendarItems } from '@/lib/admin/calendar/field-projection'
+import { isValidCalendarFeedToken } from '@/lib/calendar/feed-token'
 
 export async function GET(
   request: NextRequest,
@@ -31,13 +33,20 @@ export async function GET(
   if (org.calendar_feed_enabled === false)
     return new Response('Calendar feed disabled', { status: 403 })
 
-  if (!org.calendar_token || !token || token !== String(org.calendar_token))
+  // CAL-102 — reject guessed orgId + wrong/missing token (timing-safe when possible)
+  if (!isValidCalendarFeedToken({
+    resourceType: 'organization',
+    resourceId: org.id,
+    token,
+    storedToken: org.calendar_token,
+  })) {
     return new Response('Unauthorized', { status: 401 })
+  }
 
   const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-  // Public feed uses service role; scope strictly to this org
+  // Public feed uses service role; scope strictly to this org + feed projection
   const { items } = await aggregateAdminCalendarItems({
     supabase,
     userId: 'calendar-feed',
@@ -45,10 +54,12 @@ export async function GET(
     filters: { startDate, endDate },
   })
 
+  const projected = projectCalendarItems({ items, mode: 'feed' })
+
   const body = buildIcsCalendar({
     prodId: '-//Tourify//Organization Calendar//EN',
     name: `${org.name || 'Tourify'} Operations`,
-    events: adminItemsToIcsEvents(items),
+    events: adminItemsToIcsEvents(projected),
   })
 
   return icsFeedResponse(body)

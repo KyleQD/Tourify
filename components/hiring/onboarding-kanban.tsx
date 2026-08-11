@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { AlertCircle, Loader2, RefreshCcw, UserCheck } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -206,6 +207,13 @@ export function OnboardingKanban({ employer, initialCandidates = [], initialCand
           icon={UserCheck}
           title="No onboarding candidates yet"
           description="Candidates appear here after an application is approved or a direct invite is created."
+          action={
+            <Button asChild size="sm" className="rounded-xl">
+              <Link href={`/admin/dashboard/hiring?tab=applications&${buildCandidateQuery(employer)}`}>
+                Review applications
+              </Link>
+            </Button>
+          }
         />
       ) : (
         <div className="grid gap-4 overflow-x-auto pb-2 lg:grid-cols-7">

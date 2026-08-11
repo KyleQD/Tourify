@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
-import { resolveCalendarOrgId } from '@/lib/admin/calendar/aggregate'
+import { withAuth } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { resolveActingAdminContext } from '@/lib/auth/admin-context'
+import { requireAdminCapability } from '@/lib/auth/admin-context'
 
-export const GET = withAdminAuth(async (_request: NextRequest, { supabase, user }) => {
-  const orgId = await resolveCalendarOrgId(supabase, user.id)
-  if (!orgId)
-    return NextResponse.json({ error: 'No organization found for this admin' }, { status: 404 })
+export const GET = withAuth(async (request: NextRequest, { supabase, user }) => {
+  const admin = await resolveActingAdminContext(request, { supabase, user })
+  if (admin instanceof NextResponse) return admin
+
+  const denied = requireAdminCapability(admin, 'org.settings.manage')
+  if (denied) return denied
 
   const service = createServiceRoleClient()
   const { data: org, error } = await service
     .from('organizations')
     .select('id, name, calendar_token, calendar_feed_enabled')
-    .eq('id', orgId)
+    .eq('id', admin.orgId)
     .maybeSingle()
 
   if (error || !org)
@@ -24,7 +27,7 @@ export const GET = withAdminAuth(async (_request: NextRequest, { supabase, user 
     const { data: updated } = await service
       .from('organizations')
       .update({ calendar_token: token })
-      .eq('id', orgId)
+      .eq('id', admin.orgId)
       .select('id, name, calendar_token, calendar_feed_enabled')
       .maybeSingle()
 
@@ -48,10 +51,12 @@ export const GET = withAdminAuth(async (_request: NextRequest, { supabase, user 
   })
 })
 
-export const POST = withAdminAuth(async (_request: NextRequest, { supabase, user }) => {
-  const orgId = await resolveCalendarOrgId(supabase, user.id)
-  if (!orgId)
-    return NextResponse.json({ error: 'No organization found for this admin' }, { status: 404 })
+export const POST = withAuth(async (request: NextRequest, { supabase, user }) => {
+  const admin = await resolveActingAdminContext(request, { supabase, user })
+  if (admin instanceof NextResponse) return admin
+
+  const denied = requireAdminCapability(admin, 'org.settings.manage')
+  if (denied) return denied
 
   const service = createServiceRoleClient()
   const newToken = crypto.randomUUID()
@@ -59,7 +64,7 @@ export const POST = withAdminAuth(async (_request: NextRequest, { supabase, user
   const { data: org, error } = await service
     .from('organizations')
     .update({ calendar_token: newToken })
-    .eq('id', orgId)
+    .eq('id', admin.orgId)
     .select('id, name, calendar_token, calendar_feed_enabled')
     .maybeSingle()
 

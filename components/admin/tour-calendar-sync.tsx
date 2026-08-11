@@ -12,16 +12,20 @@ import { useActingContext } from "@/hooks/use-acting-context"
 interface Props {
   tourId: string
   tourName?: string
+  /** TOUR-204 — seed from summary tour row; avoid full tour GET on tab open. */
+  initialCalendarToken?: string | null
 }
 
-export function TourCalendarSync({ tourId, tourName }: Props) {
+export function TourCalendarSync({ tourId, tourName, initialCalendarToken }: Props) {
   const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
     ...input,
     headers: { ...actingHeaders, ...(input?.headers || {}) },
   }), [actingHeaders])
-  const [calendarToken, setCalendarToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [calendarToken, setCalendarToken] = useState<string | null>(
+    initialCalendarToken ?? null,
+  )
+  const [loading, setLoading] = useState(!initialCalendarToken)
 
   // Base URL for the iCal feed — dynamic [id] route, no .ics suffix needed
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
@@ -52,8 +56,14 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
       setCalendarToken(null)
       return
     }
+    // TOUR-204 — summary already hydrated token; do not duplicate tour GET.
+    if (initialCalendarToken !== undefined && initialCalendarToken !== null) {
+      setCalendarToken(initialCalendarToken || null)
+      setLoading(false)
+      return
+    }
     void fetchToken()
-  }, [actingContextKey, fetchToken, isActingReady])
+  }, [actingContextKey, fetchToken, initialCalendarToken, isActingReady])
 
   function copyLink() {
     if (!calendarToken) return

@@ -15,6 +15,9 @@ create table if not exists notifications (
   created_at timestamptz not null default now()
 );
 
+alter table notifications
+  add column if not exists metadata jsonb not null default '{}'::jsonb;
+
 alter table notifications enable row level security;
 drop policy if exists notif_read_own on notifications;
 create policy notif_read_own on notifications for select using (user_id = auth.uid());
@@ -39,5 +42,4 @@ create table if not exists staff_messages (
 alter table staff_messages enable row level security;
 drop policy if exists staff_messages_all on staff_messages;
 create policy staff_messages_all on staff_messages for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-
 

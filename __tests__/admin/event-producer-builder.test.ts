@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildEventProducerPayload,
+  hydrateEventProducerForm,
   initialEventProducerForm,
 } from "@/lib/admin/event-producer-builder"
+import {
+  buildEventProducerWorkspaceHref,
+  EVENT_PRODUCER_READINESS_SECTIONS,
+  EVENT_PRODUCER_SECTION_IDS,
+  EVENT_PRODUCER_WORKSPACE_DESTINATIONS,
+  isEventProducerWorkspaceDisabled,
+  shouldSaveBeforeWorkspaceNavigation,
+} from "@/lib/admin/event-producer-navigation"
 import { getEventReadiness } from "@/lib/admin/operations-readiness"
 
 describe("event producer builder payload", () => {
@@ -58,13 +67,41 @@ describe("event producer builder payload", () => {
       advance_status: "ready",
     })
   })
+
+  it("hydrates and preserves tour assignment editing fields", () => {
+    const form = hydrateEventProducerForm({
+      id: "event-1",
+      title: "Tour Stop",
+      start_at: "2026-09-05T19:30:00.000Z",
+      tours: [
+        { id: "tour-1", ordinal: 2, is_primary: false },
+        { id: "tour-2", ordinal: 4, is_primary: true, leg_name: "Midwest", market: "Chicago" },
+      ],
+    })
+
+    expect(form.selectedTourIds).toEqual(["tour-1", "tour-2"])
+    expect(form.primaryTourId).toBe("tour-2")
+    expect(form.ordinal).toBe("4")
+    expect(form.legName).toBe("Midwest")
+    expect(form.market).toBe("Chicago")
+
+    const payload = buildEventProducerPayload(form)
+    expect(payload.primary_tour_id).toBe("tour-2")
+    expect(payload.tour_assignments.find((assignment) => assignment.tour_id === "tour-2")).toMatchObject({
+      ordinal: 4,
+      is_primary: true,
+      leg_name: "Midwest",
+      market: "Chicago",
+    })
+  })
 })
 
 describe("event producer readiness", () => {
   it("blocks publish when core event details are missing", () => {
     const readiness = getEventReadiness({})
 
-    expect(readiness.blockers.map((item) => item.id)).toEqual(["basics", "schedule", "venue", "team"])
+    expect(readiness.blockers.map((item) => item.id)).toEqual(["basics", "schedule", "venue"])
+    expect(readiness.conflicts.some((item) => item.id === "team")).toBe(true)
   })
 
   it("scores optional producer modules without adding publish blockers", () => {
@@ -87,5 +124,41 @@ describe("event producer readiness", () => {
     expect(readiness.items.find((item) => item.id === "logistics")?.state).toBe("ready")
     expect(readiness.items.find((item) => item.id === "communications")?.state).toBe("in_progress")
     expect(readiness.items.find((item) => item.id === "day_sheet")?.state).toBe("ready")
+  })
+})
+
+describe("event producer navigation", () => {
+  it("maps every readiness topic to an always-visible editor section", () => {
+    const readinessIds = getEventReadiness({}).items.map((item) => item.id)
+
+    expect(Object.keys(EVENT_PRODUCER_READINESS_SECTIONS)).toEqual(readinessIds)
+    expect(Object.values(EVENT_PRODUCER_READINESS_SECTIONS).every((section) =>
+      EVENT_PRODUCER_SECTION_IDS.includes(section)
+    )).toBe(true)
+  })
+
+  it("builds the canonical event workspace links", () => {
+    expect(EVENT_PRODUCER_WORKSPACE_DESTINATIONS.map((item) => item.id)).toEqual([
+      "overview",
+      "logistics",
+      "site-map",
+      "staff",
+      "vendors",
+      "tickets",
+      "communications",
+      "day-sheet",
+    ])
+    expect(buildEventProducerWorkspaceHref("event 1", "site-map")).toBe(
+      "/admin/dashboard/events/event%201?tab=site-map",
+    )
+  })
+
+  it("keeps workspace destinations disabled until save and saves dirty drafts before navigation", () => {
+    expect(isEventProducerWorkspaceDisabled(null, false)).toBe(true)
+    expect(isEventProducerWorkspaceDisabled("event-1", true)).toBe(true)
+    expect(isEventProducerWorkspaceDisabled("event-1", false)).toBe(false)
+    expect(shouldSaveBeforeWorkspaceNavigation("saved")).toBe(false)
+    expect(shouldSaveBeforeWorkspaceNavigation("unsaved")).toBe(true)
+    expect(shouldSaveBeforeWorkspaceNavigation("error")).toBe(true)
   })
 })

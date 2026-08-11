@@ -63,7 +63,30 @@ export function useAppearanceSettings() {
   }, [user])
 
   useEffect(() => {
-    function handleImagesUpdated() {
+    function handleImagesUpdated(event: Event) {
+      const detail = (event as CustomEvent<{
+        avatarUrl?: string | null
+        coverUrl?: string | null
+      }>).detail
+
+      // Merge event payload first so a just-uploaded URL is never wiped by a
+      // slow/empty reload before the DB read catches up.
+      if (detail) {
+        setSettings((prev) => ({
+          ...prev,
+          profileImages: {
+            avatarUrl:
+              detail.avatarUrl !== undefined
+                ? detail.avatarUrl || ''
+                : prev.profileImages.avatarUrl,
+            headerUrl:
+              detail.coverUrl !== undefined
+                ? detail.coverUrl || ''
+                : prev.profileImages.headerUrl,
+          },
+        }))
+      }
+
       if (user) void loadSettings()
     }
 
@@ -91,8 +114,8 @@ export function useAppearanceSettings() {
         const dashboardTheme = isDashboardThemeId(storedDashboardTheme)
           ? storedDashboardTheme
           : DEFAULT_DASHBOARD_THEME_ID
-        
-        setSettings({
+
+        setSettings((prev) => ({
           theme: 'system',
           darkMode: profileColors?.use_dark_mode ?? true,
           animations: profileColors?.enable_animations ?? true,
@@ -100,15 +123,17 @@ export function useAppearanceSettings() {
           profileColors: {
             primary: profileColors?.primary_color || '#10b981',
             secondary: profileColors?.secondary_color || '#059669',
-            accent: profileColors?.accent_color || '#34d399'
+            accent: profileColors?.accent_color || '#34d399',
           },
           selectedTheme: profileColors?.background_gradient || 'emerald',
           dashboardTheme,
           profileImages: {
-            avatarUrl: profile.avatar_url || '',
-            headerUrl
-          }
-        })
+            // Prefer freshly loaded DB values; fall back to in-memory upload URLs
+            // so a stale empty read cannot blank a just-uploaded header.
+            avatarUrl: profile.avatar_url || prev.profileImages.avatarUrl || '',
+            headerUrl: headerUrl || prev.profileImages.headerUrl || '',
+          },
+        }))
       }
     } catch (error) {
       console.error('Error loading appearance settings:', error)

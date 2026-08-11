@@ -72,6 +72,7 @@ export async function PATCH(
         .update(patch)
         .eq('id', shiftId)
         .eq('event_id', reference.id)
+        .is('deleted_at', null)
         .select('*')
         .single()
 
@@ -132,7 +133,7 @@ export async function DELETE(
 
       const { error } = await supabase
         .from('staff_shifts')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', shiftId)
         .eq('event_id', reference.id)
 

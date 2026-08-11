@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, type ComponentType, type ReactNode } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useActingContext } from "@/hooks/use-acting-context"
 import { 
   Calendar, 
   Clock, 
@@ -56,6 +57,7 @@ import {
   Clipboard,
   CalendarDays,
   Command,
+  Route,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -73,7 +75,9 @@ import { EventTaskManager } from "@/components/admin/event-task-manager"
 import { EventLocationsTab } from "@/components/admin/event-locations-tab"
 import { EventParticipantsTab } from "@/components/admin/event-participants-tab"
 import { EntityAccessAudit } from "@/components/admin/entity-access-audit"
+import { PublicationShareLinkDialog } from "@/components/admin/publication/publication-share-link-dialog"
 import { EventVendorRequests } from "@/components/admin/event-vendor-requests"
+import { EventSetupCompletenessPanel } from "@/components/admin/event-setup-completeness-panel"
 import { EventSiteMapTab } from "./components/event-site-map-tab"
 import { EventCommunicationHub } from "@/components/admin/event-communication-hub"
 import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
@@ -176,6 +180,7 @@ interface Event {
   load_in_time?: string
   sound_check_time?: string
   settings?: Record<string, unknown> | null
+  event_version?: number
   tour?: {
     id: string
     name: string
@@ -243,6 +248,7 @@ function normalizeEventDetails(input: any, eventId: string): Event {
     expected_revenue: Number(normalized.expected_revenue || input?.expected_revenue || 0),
     actual_revenue: Number(normalized.actual_revenue || input?.actual_revenue || 0),
     expenses: Number(normalized.expenses || input?.expenses || 0),
+    event_version: Number(input?.event_version || 1),
     venue_contact_name: input?.venue_contact_name || "",
     venue_contact_email: input?.venue_contact_email || "",
     venue_contact_phone: input?.venue_contact_phone || "",
@@ -257,6 +263,8 @@ function normalizeEventDetails(input: any, eventId: string): Event {
   }
 }
 
+// Module-level helper — used only by sub-components (EventIncidentsTab) that don't
+// need admin-capability headers. EventManagementPage uses its own adminRequest callback.
 function buildNoStoreInit(input?: RequestInit): RequestInit {
   return {
     credentials: 'include',
@@ -490,6 +498,21 @@ export default function EventManagementPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const eventId = params.id as string
+  const { actingHeaders, isActingReady } = useActingContext()
+
+  // adminRequest wraps every fetch with the acting-org headers so withAdminCapability
+  // can resolve the org without relying on the server-side session alone.
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...actingHeaders,
+      ...(input?.headers || {}),
+    },
+  }), [actingHeaders])
   
   // State management
   const [event, setEvent] = useState<Event | null>(null)
@@ -506,6 +529,12 @@ export default function EventManagementPage() {
   
   // Edit event state
   const [editForm, setEditForm] = useState<Partial<Event>>({})
+  const [versionConflict, setVersionConflict] = useState<{
+    message: string
+    currentVersion: number | null
+    event: Record<string, unknown> | null
+    changedFields: string[]
+  } | null>(null)
   
   // Event data state
   const [tasks, setTasks] = useState<Task[]>([])
@@ -535,16 +564,18 @@ export default function EventManagementPage() {
     router.replace(`/admin/dashboard/events/${eventId}?${params.toString()}`, { scroll: false })
   }, [eventId, router, searchParams])
 
-  // Fetch event data
+  // Fetch event data — gated on isActingReady so headers are populated before the first call
   useEffect(() => {
+    if (!isActingReady) return
     const fetchEventData = async () => {
       try {
         setIsLoading(true)
         
         // Fetch event details
-        const response = await fetch(`/api/admin/events/${eventId}`, buildNoStoreInit())
+        const response = await fetch(`/api/admin/events/${eventId}`, adminRequest())
         if (!response.ok) {
-          throw new Error('Failed to fetch event data')
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData?.error || `Failed to fetch event data (${response.status})`)
         }
         
         const data = await response.json()
@@ -553,12 +584,12 @@ export default function EventManagementPage() {
         setEditForm(normalizedEvent)
 
         const [tasksRes, staffRes, vendorsRes, financesRes, advancingRes, daySheetRes] = await Promise.allSettled([
-          fetch(`/api/events/${eventId}/tasks`, buildNoStoreInit()).then(r => r.json()),
-          fetch(`/api/events/${eventId}/staff`, buildNoStoreInit()).then(r => r.json()),
-          fetch(`/api/events/${eventId}/vendors`, buildNoStoreInit()).then(r => r.json()),
-          fetch(`/api/events/${eventId}/finances`, buildNoStoreInit()).then(r => r.json()),
-          fetch(`/api/admin/events/${eventId}/advancing`, buildNoStoreInit()).then(r => r.json()),
-          fetch(`/api/admin/events/${eventId}/day-sheet`, buildNoStoreInit()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/tasks`, adminRequest()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/staff`, adminRequest()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/vendors`, adminRequest()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/finances`, adminRequest()).then(r => r.json()),
+          fetch(`/api/admin/events/${eventId}/advancing`, adminRequest()).then(r => r.json()),
+          fetch(`/api/admin/events/${eventId}/day-sheet`, adminRequest()).then(r => r.json()),
         ])
 
         if (advancingRes.status === 'fulfilled' && advancingRes.value?.advancing) {
@@ -614,10 +645,7 @@ export default function EventManagementPage() {
         }
 
         // Fetch event-scoped notifications
-        fetch(`/api/admin/notifications?event_id=${eventId}&limit=10`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
+        fetch(`/api/admin/notifications?event_id=${eventId}&limit=10`, adminRequest())
           .then(async (res) => {
             if (res.ok) {
               const d = await res.json()
@@ -637,22 +665,19 @@ export default function EventManagementPage() {
     if (eventId) {
       fetchEventData()
     }
-  }, [eventId])
+  }, [eventId, isActingReady, adminRequest])
 
   // Fetch analytics when tab becomes active or range changes
   useEffect(() => {
-    if (activeTab !== 'analytics' || !eventId) return
+    if (activeTab !== 'analytics' || !eventId || !isActingReady) return
     setAnalyticsLoading(true)
-    fetch(`/api/admin/events/${eventId}/analytics?range=${analyticsRange}`, {
-      credentials: 'include',
-      cache: 'no-store',
-    })
+    fetch(`/api/admin/events/${eventId}/analytics?range=${analyticsRange}`, adminRequest())
       .then(async (res) => {
         if (res.ok) setAnalyticsData(await res.json())
       })
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false))
-  }, [activeTab, analyticsRange, eventId])
+  }, [activeTab, analyticsRange, eventId, isActingReady, adminRequest])
 
   // Quick action handlers — navigate to the relevant tab where the full UI lives
   const handleAddTask = () => {
@@ -693,7 +718,7 @@ export default function EventManagementPage() {
 
       const response = await fetch(
         '/api/admin/events',
-        buildNoStoreInit({
+        adminRequest({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -710,7 +735,10 @@ export default function EventManagementPage() {
         })
       )
       
-      if (!response.ok) throw new Error('Failed to duplicate event')
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData?.error || `Failed to duplicate event (${response.status})`)
+      }
       
       const newEvent = await response.json()
       const duplicatedId = newEvent.event?.id || newEvent.id
@@ -721,23 +749,40 @@ export default function EventManagementPage() {
     }
   }
 
+  const captureVersionConflict = (body: any, fallback: string) => {
+    setVersionConflict({
+      message: body?.error || fallback,
+      currentVersion: typeof body?.currentVersion === "number" ? body.currentVersion : null,
+      event: body?.event && typeof body.event === "object" ? body.event : null,
+      changedFields: Array.isArray(body?.diff?.changedFields)
+        ? body.diff.changedFields.map((field: { field?: string } | string) =>
+            typeof field === "string" ? field : field.field || "field",
+          )
+        : [],
+    })
+  }
+
   const handleSaveEvent = async () => {
     if (!event) return
     
     try {
       const response = await fetch(
         `/api/admin/events/${eventId}`,
-        buildNoStoreInit({
+        adminRequest({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(editForm),
+          body: JSON.stringify({ ...editForm, event_version: event.event_version }),
         })
       )
-      
-      if (!response.ok) throw new Error('Failed to update event')
-      
-      const updatedEvent = await response.json()
-      setEvent(normalizeEventDetails(updatedEvent.event, eventId))
+      const updatedEvent = await response.json().catch(() => ({}))
+      if (response.status === 409 && updatedEvent.code === "version_conflict") {
+        captureVersionConflict(updatedEvent, "This event changed while you were editing.")
+        return
+      }
+      if (!response.ok) throw new Error(updatedEvent.error || 'Failed to update event')
+      const normalized = normalizeEventDetails(updatedEvent.event, eventId)
+      setEvent(normalized)
+      setEditForm(normalized)
       toast.success("Event updated successfully")
     } catch (error) {
       toast.error("Failed to update event")
@@ -750,16 +795,21 @@ export default function EventManagementPage() {
     try {
       const response = await fetch(
         `/api/admin/events/${eventId}`,
-        buildNoStoreInit({
+        adminRequest({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify({ status: newStatus, event_version: event.event_version }),
         })
       )
-      
-      if (!response.ok) throw new Error('Failed to update status')
-      
-      setEvent({ ...event, status: newStatus })
+      const updatedEvent = await response.json().catch(() => ({}))
+      if (response.status === 409 && updatedEvent.code === "version_conflict") {
+        captureVersionConflict(updatedEvent, "This event changed before the status update completed.")
+        return
+      }
+      if (!response.ok) throw new Error(updatedEvent.error || 'Failed to update status')
+      const normalized = normalizeEventDetails(updatedEvent.event, eventId)
+      setEvent(normalized)
+      setEditForm(normalized)
       toast.success(`Event status changed to ${newStatus}`)
     } catch (error) {
       toast.error("Failed to update event status")
@@ -768,9 +818,12 @@ export default function EventManagementPage() {
 
   const handleDeleteEvent = async () => {
     try {
-      const response = await fetch(`/api/admin/events/${eventId}`, buildNoStoreInit({ method: 'DELETE' }))
+      const response = await fetch(`/api/admin/events/${eventId}`, adminRequest({ method: 'DELETE' }))
       
-      if (!response.ok) throw new Error('Failed to delete event')
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData?.error || `Failed to delete event (${response.status})`)
+      }
       
       toast.success("Event deleted successfully")
       router.push('/admin/dashboard/events')
@@ -932,10 +985,17 @@ export default function EventManagementPage() {
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Check-In
               </Button>
-              <Button variant="outline" className="border-cyan-700/50 text-cyan-300 hover:bg-cyan-950/30" onClick={() => router.push(`/admin/dashboard/tours?event_id=${eventId}`)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add to tour
-              </Button>
+              {event.tour_id ? (
+                <Button variant="outline" className="border-cyan-700/50 text-cyan-300 hover:bg-cyan-950/30" onClick={() => router.push(`/admin/dashboard/tours/${event.tour_id}`)}>
+                  <Route className="mr-2 h-4 w-4" />
+                  Open tour
+                </Button>
+              ) : (
+                <Button variant="outline" className="border-cyan-700/50 text-cyan-300 hover:bg-cyan-950/30" onClick={() => router.push(`/admin/dashboard/tours?event_id=${eventId}`)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add to tour
+                </Button>
+              )}
               <Button variant="outline" className="border-purple-700/50 text-purple-300 hover:bg-purple-950/30" onClick={() => router.push(`/admin/dashboard/tours/builder?event_id=${eventId}`)}>
                 <CalendarDays className="mr-2 h-4 w-4" />
                 Start tour
@@ -960,10 +1020,17 @@ export default function EventManagementPage() {
                     <Edit className="mr-2 h-4 w-4" />
                     Edit in Producer Console
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/tours?event_id=${eventId}`)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add to tour
-                  </DropdownMenuItem>
+                  {event.tour_id ? (
+                    <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/tours/${event.tour_id}`)}>
+                      <Route className="mr-2 h-4 w-4" />
+                      Open tour
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/tours?event_id=${eventId}`)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add to tour
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/tours/builder?event_id=${eventId}`)}>
                     <CalendarDays className="mr-2 h-4 w-4" />
                     Start tour from event
@@ -1030,7 +1097,7 @@ export default function EventManagementPage() {
                   artistAccountIds={artistAccountIds}
                   employerParams={employerParams}
                   onPartiesChanged={() => {
-                    void fetch(`/api/admin/events/${eventId}`, buildNoStoreInit())
+                    void fetch(`/api/admin/events/${eventId}`, adminRequest())
                       .then((res) => res.json())
                       .then((data) => {
                         if (data?.event) setEvent(normalizeEventDetails(data.event, eventId))
@@ -1038,6 +1105,8 @@ export default function EventManagementPage() {
                       .catch(() => undefined)
                   }}
                 />
+
+                <EventSetupCompletenessPanel eventId={eventId} />
 
                 {/* Progress Tracking */}
                 <OpsPanel title="Progress Tracking" icon={Target}>
@@ -1141,7 +1210,7 @@ export default function EventManagementPage() {
                         <button
                           className="text-xs text-slate-400 hover:text-white transition-colors"
                           onClick={async () => {
-                            await fetch(`/api/admin/notifications?markAllRead=true&event_id=${eventId}`, { method: 'PATCH', credentials: 'include' })
+                            await fetch(`/api/admin/notifications?markAllRead=true&event_id=${eventId}`, adminRequest({ method: 'PATCH' }))
                             setNotifications(prev => prev.map((n: any) => ({ ...n, is_read: true })))
                           }}
                         >
@@ -1363,15 +1432,14 @@ export default function EventManagementPage() {
                     className="mt-4 border-slate-600 text-slate-300"
                     onClick={async () => {
                       try {
-                        const res = await fetch(`/api/admin/events/${eventId}/advancing`, {
+                        const res = await fetch(`/api/admin/events/${eventId}/advancing`, adminRequest({
                           method: "POST",
-                          credentials: "include",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             status: "sent",
                             venue_contact_email: event.venue_contact_email,
                           }),
-                        })
+                        }))
                         const data = await res.json().catch(() => ({}))
                         if (!res.ok) throw new Error(data?.error || "Notify failed")
                         toast.success("Venue account notified")
@@ -1539,64 +1607,53 @@ export default function EventManagementPage() {
         </OperationsCommandShell>
       </div>
 
-      {/* Share Dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="bg-slate-800 border-slate-700">
+      <PublicationShareLinkDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        eventId={eventId}
+        title="Share event publication"
+      />
+
+      <Dialog open={Boolean(versionConflict)} onOpenChange={(open) => { if (!open) setVersionConflict(null) }}>
+        <DialogContent className="border-slate-700 bg-slate-900 text-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-white">Share Event</DialogTitle>
+            <DialogTitle>Event changed in another session</DialogTitle>
             <DialogDescription className="text-slate-400">
-              Share this event with your team or external stakeholders.
+              Your update was not applied. Review the newer server version before making the change again.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-slate-300">Event Link</Label>
-              <div className="flex space-x-2">
-                <Input
-                  value={`${window.location.origin}/admin/dashboard/events/${eventId}`}
-                  readOnly
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/admin/dashboard/events/${eventId}`)
-                    toast.success("Link copied to clipboard")
-                  }}
-                  className="border-slate-600 text-slate-300"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
+          <div className="space-y-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
+            <p className="text-sm text-amber-100">{versionConflict?.message}</p>
+            {versionConflict?.currentVersion ? (
+              <p className="text-xs text-amber-200/70">Current version: {versionConflict.currentVersion}</p>
+            ) : null}
+            {versionConflict?.changedFields.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {versionConflict.changedFields.map((field) => (
+                  <Badge key={field} className="border border-amber-500/30 bg-amber-500/10 text-amber-100">
+                    {field.replaceAll("_", " ")}
+                  </Badge>
+                ))}
               </div>
-            </div>
-            <div>
-              <Label className="text-slate-300">Share via Email</Label>
-              <Input
-                id="share-email"
-                placeholder="Enter email addresses"
-                className="bg-slate-700 border-slate-600 text-white"
-              />
-            </div>
+            ) : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowShareDialog(false)} className="border-slate-600 text-slate-300">
-              Close
+            <Button variant="outline" className="border-slate-700" onClick={() => setVersionConflict(null)}>
+              Keep this page open
             </Button>
-            <Button onClick={() => {
-              const input = document.getElementById("share-email") as HTMLInputElement | null
-              const emails = (input?.value || "").trim()
-              const link = `${window.location.origin}/admin/dashboard/events/${eventId}`
-              if (emails) {
-                const subject = encodeURIComponent(`Event: ${event?.name || "Tourify event"}`)
-                const body = encodeURIComponent(`Sharing this event with you:\n\n${link}`)
-                window.location.href = `mailto:${emails}?subject=${subject}&body=${body}`
-              } else {
-                navigator.clipboard.writeText(link)
-                toast.success("Event link copied to clipboard")
-              }
-              setShowShareDialog(false)
-            }} className="bg-purple-600 hover:bg-purple-700">
-              Share Event
+            <Button
+              className="bg-purple-600 hover:bg-purple-500"
+              onClick={() => {
+                if (versionConflict?.event) {
+                  const latest = normalizeEventDetails(versionConflict.event, eventId)
+                  setEvent(latest)
+                  setEditForm(latest)
+                }
+                setVersionConflict(null)
+                toast.success("Loaded the current event version")
+              }}
+            >
+              Load current version
             </Button>
           </DialogFooter>
         </DialogContent>

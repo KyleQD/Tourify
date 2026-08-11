@@ -1,48 +1,89 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  Bell, Check, X, Settings, Filter, Search, MoreHorizontal, Heart, MessageSquare,
-  User, AlertCircle, Calendar, Star, CheckCircle, Sparkles, TrendingUp, Zap,
-  Briefcase, ClipboardCheck, UserPlus, Users, Clock, Trophy, Award, ThumbsUp,
+  AlertCircle,
+  ArrowUpRight,
+  Award,
+  Bell,
+  Briefcase,
+  Calendar,
+  Check,
+  CheckCircle,
+  ChevronDown,
+  ClipboardCheck,
+  Clock,
+  Heart,
+  Layers3,
+  MessageSquare,
+  MoreHorizontal,
+  Settings,
+  Sparkles,
+  Star,
+  ThumbsUp,
+  TrendingUp,
+  Trophy,
+  User,
+  UserPlus,
+  Users,
+  X,
+  Zap,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { supabase } from "@/lib/supabase"
+import { AnimatePresence, motion } from "framer-motion"
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns"
 import { toast } from "sonner"
+
+import { FollowRequestsModal } from "@/components/profile/follow-requests-modal"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import {
+  ALL_NOTIFICATION_ACCOUNTS,
+  filterNotificationsByAccount,
+  findNotificationAccountOption,
+  getOwnedNotificationAccountOptions,
+  toNotificationAccountScopes,
+  type NotificationAccountOption,
+} from "@/lib/notifications/account-options"
 import {
   fetchUnreadNotificationCount,
   fetchUserNotifications,
   markAccountNotificationsAsRead,
 } from "@/lib/notifications/fetch-user-notifications"
-import { normalizeAccountType } from "@/lib/accounts/account-types"
-import { FollowRequestsModal } from "@/components/profile/follow-requests-modal"
-import { motion, AnimatePresence } from "framer-motion"
-import { formatDistanceToNow } from "date-fns"
+import { supabase } from "@/lib/supabase"
 
 interface Notification {
   id: string
   type: string
   title: string
   content: string
-  summary?: string
-  metadata?: Record<string, any>
+  summary?: string | null
+  metadata?: Record<string, unknown> | null
   related_user?: {
     id: string
     full_name: string | null
-    username: string
+    username: string | null
     avatar_url: string | null
   } | null
   is_read: boolean
   priority: "low" | "normal" | "high" | "urgent"
   created_at: string
+  target_profile_id?: string | null
+  target_account_type?: string | null
 }
 
 interface NotificationCenterProps {
@@ -50,37 +91,65 @@ interface NotificationCenterProps {
 }
 
 const notificationIcons: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
-  like: { icon: <Heart className="h-4 w-4" />, color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)" },
-  comment: { icon: <MessageSquare className="h-4 w-4" />, color: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)" },
-  follow: { icon: <User className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
-  follow_request: { icon: <UserPlus className="h-4 w-4" />, color: "#a855f7", bgColor: "rgba(168, 85, 247, 0.15)" },
-  follow_accepted: { icon: <CheckCircle className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
-  mention: { icon: <span className="text-sm font-bold">@</span>, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.1)" },
-  message: { icon: <MessageSquare className="h-4 w-4" />, color: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.1)" },
-  message_request: { icon: <AlertCircle className="h-4 w-4" />, color: "#f97316", bgColor: "rgba(249, 115, 22, 0.1)" },
-  event_invite: { icon: <Calendar className="h-4 w-4" />, color: "#06b6d4", bgColor: "rgba(6, 182, 212, 0.1)" },
-  booking_request: { icon: <Star className="h-4 w-4" />, color: "#84cc16", bgColor: "rgba(132, 204, 22, 0.1)" },
-  booking_accepted: { icon: <CheckCircle className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
-  booking_declined: { icon: <X className="h-4 w-4" />, color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)" },
-  system_alert: { icon: <AlertCircle className="h-4 w-4" />, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.1)" },
-  feature_update: { icon: <Sparkles className="h-4 w-4" />, color: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.1)" },
-  job_application: { icon: <TrendingUp className="h-4 w-4" />, color: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)" },
-  collaboration_request: { icon: <Zap className="h-4 w-4" />, color: "#06b6d4", bgColor: "rgba(6, 182, 212, 0.1)" },
-  hiring_application_approved: { icon: <Briefcase className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
-  hiring_onboarding_invite: { icon: <ClipboardCheck className="h-4 w-4" />, color: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.1)" },
-  hiring_onboarding_changes_requested: { icon: <AlertCircle className="h-4 w-4" />, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.1)" },
-  hiring_roster_added: { icon: <Users className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
-  shift_assignment_invite: { icon: <Clock className="h-4 w-4" />, color: "#06b6d4", bgColor: "rgba(6, 182, 212, 0.1)" },
-  shift_assignment_updated: { icon: <Clock className="h-4 w-4" />, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.1)" },
-  shift_assignment_cancelled: { icon: <X className="h-4 w-4" />, color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)" },
-  shift_assignment_response: { icon: <CheckCircle className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
-  achievement_unlocked: { icon: <Trophy className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.12)" },
-  badge_granted: { icon: <Award className="h-4 w-4" />, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.12)" },
+  like: { icon: <Heart className="h-4 w-4" />, color: "#fb7185", bgColor: "rgba(244, 63, 94, 0.12)" },
+  comment: { icon: <MessageSquare className="h-4 w-4" />, color: "#60a5fa", bgColor: "rgba(59, 130, 246, 0.12)" },
+  follow: { icon: <User className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  follow_request: { icon: <UserPlus className="h-4 w-4" />, color: "#c084fc", bgColor: "rgba(168, 85, 247, 0.14)" },
+  follow_accepted: { icon: <CheckCircle className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  mention: { icon: <span className="text-sm font-bold">@</span>, color: "#fbbf24", bgColor: "rgba(245, 158, 11, 0.12)" },
+  message: { icon: <MessageSquare className="h-4 w-4" />, color: "#a78bfa", bgColor: "rgba(139, 92, 246, 0.12)" },
+  group_message: { icon: <Users className="h-4 w-4" />, color: "#a78bfa", bgColor: "rgba(139, 92, 246, 0.12)" },
+  message_request: { icon: <AlertCircle className="h-4 w-4" />, color: "#fb923c", bgColor: "rgba(249, 115, 22, 0.12)" },
+  event_invite: { icon: <Calendar className="h-4 w-4" />, color: "#22d3ee", bgColor: "rgba(6, 182, 212, 0.12)" },
+  booking_request: { icon: <Star className="h-4 w-4" />, color: "#a3e635", bgColor: "rgba(132, 204, 22, 0.12)" },
+  booking_accepted: { icon: <CheckCircle className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  booking_declined: { icon: <X className="h-4 w-4" />, color: "#fb7185", bgColor: "rgba(239, 68, 68, 0.12)" },
+  system_alert: { icon: <AlertCircle className="h-4 w-4" />, color: "#fbbf24", bgColor: "rgba(245, 158, 11, 0.12)" },
+  feature_update: { icon: <Sparkles className="h-4 w-4" />, color: "#c084fc", bgColor: "rgba(139, 92, 246, 0.12)" },
+  job_application: { icon: <TrendingUp className="h-4 w-4" />, color: "#60a5fa", bgColor: "rgba(59, 130, 246, 0.12)" },
+  collaboration_request: { icon: <Zap className="h-4 w-4" />, color: "#22d3ee", bgColor: "rgba(6, 182, 212, 0.12)" },
+  collaboration_invite: { icon: <Users className="h-4 w-4" />, color: "#c084fc", bgColor: "rgba(168, 85, 247, 0.14)" },
+  hiring_application_approved: { icon: <Briefcase className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  hiring_onboarding_invite: { icon: <ClipboardCheck className="h-4 w-4" />, color: "#a78bfa", bgColor: "rgba(139, 92, 246, 0.12)" },
+  hiring_onboarding_changes_requested: { icon: <AlertCircle className="h-4 w-4" />, color: "#fbbf24", bgColor: "rgba(245, 158, 11, 0.12)" },
+  hiring_roster_added: { icon: <Users className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  shift_assignment_invite: { icon: <Clock className="h-4 w-4" />, color: "#22d3ee", bgColor: "rgba(6, 182, 212, 0.12)" },
+  shift_assignment_updated: { icon: <Clock className="h-4 w-4" />, color: "#fbbf24", bgColor: "rgba(245, 158, 11, 0.12)" },
+  shift_assignment_cancelled: { icon: <X className="h-4 w-4" />, color: "#fb7185", bgColor: "rgba(239, 68, 68, 0.12)" },
+  shift_assignment_response: { icon: <CheckCircle className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  achievement_unlocked: { icon: <Trophy className="h-4 w-4" />, color: "#34d399", bgColor: "rgba(16, 185, 129, 0.12)" },
+  badge_granted: { icon: <Award className="h-4 w-4" />, color: "#fbbf24", bgColor: "rgba(245, 158, 11, 0.12)" },
   endorsement_received: { icon: <ThumbsUp className="h-4 w-4" />, color: "#38bdf8", bgColor: "rgba(56, 189, 248, 0.12)" },
+}
+
+function getDateHeading(date: Date): string {
+  if (isToday(date)) return "Today"
+  if (isYesterday(date)) return "Yesterday"
+  return format(date, "MMMM d")
+}
+
+function getMetadataString(notification: Notification, key: string): string | null {
+  const value = notification.metadata?.[key]
+  return typeof value === "string" && value.length > 0 ? value : null
+}
+
+function AccountAvatar({ option, className = "h-6 w-6" }: {
+  option: NotificationAccountOption
+  className?: string
+}) {
+  return (
+    <Avatar className={`${className} border border-white/10`}>
+      <AvatarImage src={option.avatarUrl || undefined} alt="" />
+      <AvatarFallback className="bg-white/10 text-[10px] text-slate-200">
+        {option.initials}
+      </AvatarFallback>
+    </Avatar>
+  )
 }
 
 export function EnhancedNotificationCenter({ className = "" }: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [viewerId, setViewerId] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [pendingRequestCount, setPendingRequestCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
@@ -89,24 +158,49 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
   const [hasError, setHasError] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [inAppDisabled, setInAppDisabled] = useState(false)
-  const [activeTab, setActiveTab] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filterType, setFilterType] = useState<string>("all")
-  const { currentAccount } = useMultiAccount()
+  const [selectedAccountKey, setSelectedAccountKey] = useState(ALL_NOTIFICATION_ACCOUNTS)
+  const [newlyViewedIds, setNewlyViewedIds] = useState<Set<string>>(new Set())
+  const { userAccounts, isAccountsReady } = useMultiAccount()
+  const notificationCenterRef = useRef<HTMLDivElement>(null)
   const isOpenRef = useRef(false)
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const ownedAccountOptions = useMemo(
+    () => getOwnedNotificationAccountOptions(userAccounts),
+    [userAccounts],
+  )
+  const hasPersonalAccount = ownedAccountOptions.some((option) => option.accountType === "general")
+  const selectedAccount = ownedAccountOptions.find((option) => option.key === selectedAccountKey) ?? null
+
+  const getAccountScopes = useCallback(
+    (userId: string) => toNotificationAccountScopes(userId, ownedAccountOptions),
+    [ownedAccountOptions],
+  )
+
+  const closePanel = useCallback(() => {
+    setIsOpen(false)
+    setNewlyViewedIds(new Set())
+  }, [])
 
   useEffect(() => {
     isOpenRef.current = isOpen
   }, [isOpen])
 
-  const isPersonalAccount =
-    normalizeAccountType(currentAccount?.account_type || "general") === "general"
+  useEffect(() => {
+    if (
+      selectedAccountKey !== ALL_NOTIFICATION_ACCOUNTS
+      && !ownedAccountOptions.some((option) => option.key === selectedAccountKey)
+    ) {
+      setSelectedAccountKey(ALL_NOTIFICATION_ACCOUNTS)
+    }
+  }, [ownedAccountOptions, selectedAccountKey])
 
   const fetchPendingRequestCount = useCallback(async () => {
-    if (!isPersonalAccount) {
+    if (!hasPersonalAccount) {
       setPendingRequestCount(0)
       return
     }
+
     try {
       const response = await fetch("/api/social/follow-request?action=pending", {
         credentials: "include",
@@ -120,77 +214,123 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
     } catch {
       setPendingRequestCount(0)
     }
-  }, [isPersonalAccount])
+  }, [hasPersonalAccount])
 
   const refreshUnreadBadge = useCallback(async () => {
+    if (!isAccountsReady) return
+
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
+        setViewerId(null)
         setUnreadCount(0)
         return
       }
+
+      setViewerId(session.user.id)
       const count = await fetchUnreadNotificationCount({
         supabase,
         userId: session.user.id,
-        targetProfileId: currentAccount?.profile_id,
-        accountType: currentAccount?.account_type,
+        accountScopes: getAccountScopes(session.user.id),
       })
       setUnreadCount(count)
     } catch {
-      // keep prior badge
+      // Preserve the last known count when the lightweight refresh fails.
     }
-  }, [currentAccount?.account_type, currentAccount?.profile_id])
+  }, [getAccountScopes, isAccountsReady])
 
-  const fetchNotifications = useCallback(async () => {
+  const acknowledgeUnread = useCallback(async (
+    userId: string,
+    visibleNotifications: Notification[],
+  ) => {
+    const unreadIds = visibleNotifications
+      .filter((notification) => !notification.is_read)
+      .map((notification) => notification.id)
+
+    if (unreadIds.length > 0) {
+      setNewlyViewedIds((current) => new Set([...current, ...unreadIds]))
+    }
+    setUnreadCount(0)
+
+    const { error } = await markAccountNotificationsAsRead({
+      supabase,
+      userId,
+      accountScopes: getAccountScopes(userId),
+    })
+
+    if (!error) return
+
+    const count = await fetchUnreadNotificationCount({
+      supabase,
+      userId,
+      accountScopes: getAccountScopes(userId),
+    })
+    setUnreadCount(count)
+    toast.error("Couldn’t reset the notification count")
+  }, [getAccountScopes])
+
+  const fetchNotifications = useCallback(async (options?: {
+    acknowledge?: boolean
+    quiet?: boolean
+  }) => {
+    if (!isAccountsReady) return
+
     try {
-      setIsLoading(true)
+      if (!options?.quiet) setIsLoading(true)
       setHasError(false)
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
+        setViewerId(null)
         setNotifications([])
         setUnreadCount(0)
         setHasLoaded(true)
         return
       }
 
+      const userId = session.user.id
+      setViewerId(userId)
       const result = await fetchUserNotifications({
         supabase,
-        userId: session.user.id,
+        userId,
         limit: 100,
-        targetProfileId: currentAccount?.profile_id,
-        accountType: currentAccount?.account_type,
+        accountScopes: getAccountScopes(userId),
       })
 
       if (result.error) {
         setHasError(true)
-        toast.error("Failed to fetch notifications")
+        if (!options?.quiet) toast.error("Failed to fetch notifications")
         return
       }
 
+      const nextNotifications = result.notifications as Notification[]
       setInAppDisabled(result.inAppDisabled)
-      setNotifications(result.notifications as Notification[])
+      setNotifications(nextNotifications)
       setUnreadCount(result.unreadCount)
       setHasLoaded(true)
+
+      if (options?.acknowledge && result.unreadCount > 0 && !result.inAppDisabled) {
+        await acknowledgeUnread(userId, nextNotifications)
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error)
       setHasError(true)
-      toast.error("Failed to fetch notifications")
+      if (!options?.quiet) toast.error("Failed to fetch notifications")
     } finally {
       setIsLoading(false)
     }
-  }, [currentAccount?.account_type, currentAccount?.profile_id])
+  }, [acknowledgeUnread, getAccountScopes, isAccountsReady])
 
-  // Mount: badge + follow requests only (defer full list until panel opens).
   useEffect(() => {
+    if (!isAccountsReady) return
+
     void refreshUnreadBadge()
     void fetchPendingRequestCount()
-    setIsLoading(false)
-
     let channel: ReturnType<typeof supabase.channel> | null = null
+    let disposed = false
 
     async function setupSubscription() {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user?.id) return
+      if (!session?.user?.id || disposed) return
 
       channel = supabase
         .channel(`notifications-${session.user.id}`)
@@ -199,9 +339,17 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
           schema: "public",
           table: "notifications",
           filter: `user_id=eq.${session.user.id}`,
-        }, () => {
-          void refreshUnreadBadge()
-          if (isOpenRef.current) void fetchNotifications()
+        }, (payload) => {
+          const updatedRow = payload.new as { is_read?: boolean }
+          if (payload.eventType === "UPDATE" && updatedRow?.is_read === true) return
+
+          if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current)
+          realtimeTimerRef.current = setTimeout(() => {
+            if (isOpenRef.current)
+              void fetchNotifications({ acknowledge: true, quiet: true })
+            else
+              void refreshUnreadBadge()
+          }, 120)
         })
         .subscribe()
     }
@@ -209,98 +357,96 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
     void setupSubscription()
 
     return () => {
-      if (channel)
-        supabase.removeChannel(channel)
+      disposed = true
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current)
+      if (channel) void supabase.removeChannel(channel)
     }
-  }, [fetchPendingRequestCount, refreshUnreadBadge, fetchNotifications])
+  }, [fetchNotifications, fetchPendingRequestCount, isAccountsReady, refreshUnreadBadge])
 
   useEffect(() => {
     if (!isOpen) return
-    void fetchNotifications()
+    void fetchNotifications({ acknowledge: true })
     void fetchPendingRequestCount()
-  }, [isOpen, fetchNotifications, fetchPendingRequestCount])
+  }, [fetchNotifications, fetchPendingRequestCount, isOpen])
 
-  // Re-scope badge + list when the active account changes.
   useEffect(() => {
-    void refreshUnreadBadge()
-    void fetchPendingRequestCount()
-    if (isOpenRef.current) void fetchNotifications()
-  }, [
-    currentAccount?.account_type,
-    currentAccount?.profile_id,
-    refreshUnreadBadge,
-    fetchPendingRequestCount,
-    fetchNotifications,
-  ])
+    if (!isOpen) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (notificationCenterRef.current?.contains(target)) return
+      if (target instanceof Element && target.closest("[data-notification-center-portal]")) return
+
+      closePanel()
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closePanel()
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true)
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true)
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [closePanel, isOpen])
 
   const markAsRead = async (id: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
       const { error } = await supabase
         .from("notifications")
-        .update({
-          is_read: true,
-          read_at: new Date().toISOString(),
-        })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq("id", id)
+        .eq("user_id", session.user.id)
 
       if (error) {
         toast.error("Failed to mark notification as read")
         return
       }
 
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-      )
-      setUnreadCount((prev) => Math.max(0, prev - 1))
+      setNotifications((current) => current.map((notification) => (
+        notification.id === id ? { ...notification, is_read: true } : notification
+      )))
+      setUnreadCount((current) => Math.max(0, current - 1))
     } catch (error) {
       console.error("Error marking notification as read:", error)
       toast.error("Failed to mark notification as read")
     }
   }
 
-  const markAllAsRead = async () => {
+  const deleteNotification = async (id: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const { error } = await markAccountNotificationsAsRead({
-        supabase,
-        userId: session.user.id,
-        targetProfileId: currentAccount?.profile_id,
-        accountType: currentAccount?.account_type,
-      })
-
-      if (error) {
-        toast.error("Failed to mark notifications as read")
-        return
-      }
-
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
-      setUnreadCount(0)
-      toast.success("All notifications marked as read")
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error)
-      toast.error("Failed to mark notifications as read")
-    }
-  }
-
-  const deleteNotification = async (id: string) => {
-    try {
       const { error } = await supabase
         .from("notifications")
         .delete()
         .eq("id", id)
+        .eq("user_id", session.user.id)
 
       if (error) {
         toast.error("Failed to delete notification")
         return
       }
 
-      setNotifications((prev) => {
-        const deleted = prev.find((n) => n.id === id)
-        if (deleted && !deleted.is_read)
+      setNotifications((current) => {
+        const deleted = current.find((notification) => notification.id === id)
+        if (deleted && !deleted.is_read && !newlyViewedIds.has(id))
           setUnreadCount((count) => Math.max(0, count - 1))
-        return prev.filter((n) => n.id !== id)
+        return current.filter((notification) => notification.id !== id)
+      })
+      setNewlyViewedIds((current) => {
+        const next = new Set(current)
+        next.delete(id)
+        return next
       })
       toast.success("Notification deleted")
     } catch (error) {
@@ -310,65 +456,24 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
   }
 
   function openFriendRequests() {
-    setIsOpen(false)
+    closePanel()
     setIsRequestsOpen(true)
   }
 
-  async function handleNotificationClick(notification: Notification) {
-    if (!notification.is_read)
-      await markAsRead(notification.id)
-
-    if (notification.type === "follow_request") {
-      openFriendRequests()
-      return
-    }
-
-    const link = getNotificationLink(notification)
-    if (link)
-      window.location.href = link
-  }
-
-  const filteredNotifications = notifications.filter((notification) => {
-    const matchesSearch =
-      notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      notification.content.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = filterType === "all" || notification.type === filterType
-    const matchesTab =
-      activeTab === "all" ||
-      (activeTab === "unread" && !notification.is_read) ||
-      (activeTab === "read" && notification.is_read)
-
-    return matchesSearch && matchesType && matchesTab
-  })
-
-  const totalUnreadCount = notifications.filter((n) => !n.is_read).length
-  const totalReadCount = notifications.length - totalUnreadCount
-
-  const groupedNotifications = filteredNotifications.reduce((groups, notification) => {
-    const date = new Date(notification.created_at).toDateString()
-    if (!groups[date])
-      groups[date] = []
-    groups[date].push(notification)
-    return groups
-  }, {} as Record<string, Notification[]>)
-
-  function getNotificationIcon(type: string) {
-    return notificationIcons[type] || { icon: "🔔", color: "#6b7280", bgColor: "#f9fafb" }
-  }
-
-  function getNotificationLink(notification: Notification) {
-    if (notification.metadata?.link) return notification.metadata.link as string
-    const conversationId = notification.metadata?.conversation_id
+  function getNotificationLink(notification: Notification): string | null {
+    const directLink = getMetadataString(notification, "link")
+    if (directLink) return directLink
+    const conversationId = getMetadataString(notification, "conversation_id")
 
     switch (notification.type) {
       case "message":
       case "message_request":
-        if (conversationId) return `/messages?conversation=${conversationId}`
-        return "/messages"
+      case "group_message":
+        return conversationId ? `/messages?conversation=${conversationId}` : "/messages"
       case "hiring_onboarding_invite":
       case "hiring_onboarding_changes_requested":
-        return (notification.metadata?.onboarding_url as string) ||
-          (conversationId ? `/messages?tab=work&conversation=${conversationId}` : "/messages?tab=work")
+        return getMetadataString(notification, "onboarding_url")
+          || (conversationId ? `/messages?tab=work&conversation=${conversationId}` : "/messages?tab=work")
       case "hiring_application_approved":
       case "hiring_roster_added":
         return conversationId ? `/messages?tab=work&conversation=${conversationId}` : "/messages?tab=work"
@@ -380,49 +485,94 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
         return "/admin/dashboard/staff?tab=scheduling"
       case "booking_request":
         return "/bookings/requests"
-      case "event_invite":
-        return `/events/${notification.metadata?.eventId}`
+      case "event_invite": {
+        const eventId = getMetadataString(notification, "eventId")
+        return eventId ? `/events/${eventId}` : "/events"
+      }
       case "follow":
       case "follow_accepted":
         return notification.related_user?.username
           ? `/profile/${notification.related_user.username}`
           : null
-      case "achievement_unlocked":
-        return (notification.metadata?.link as string) ||
-          (notification.metadata?.achievement_id
-            ? `/achievements?tab=achievements&highlight=${notification.metadata.achievement_id}`
-            : "/achievements?tab=achievements")
-      case "badge_granted":
-        return (notification.metadata?.link as string) ||
-          (notification.metadata?.badge_id
-            ? `/achievements?tab=badges&highlight=${notification.metadata.badge_id}`
-            : "/achievements?tab=badges")
+      case "achievement_unlocked": {
+        const achievementId = getMetadataString(notification, "achievement_id")
+        return achievementId
+          ? `/achievements?tab=achievements&highlight=${achievementId}`
+          : "/achievements?tab=achievements"
+      }
+      case "badge_granted": {
+        const badgeId = getMetadataString(notification, "badge_id")
+        return badgeId
+          ? `/achievements?tab=badges&highlight=${badgeId}`
+          : "/achievements?tab=badges"
+      }
       case "endorsement_received":
-        return (notification.metadata?.link as string) || "/achievements?tab=endorsements"
+        return "/achievements?tab=endorsements"
       default:
         return null
     }
   }
 
-  function renderListBody() {
-    if (isLoading && !hasLoaded) {
-      return (
-        <div className="flex items-center justify-center py-10">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
-        </div>
-      )
+  async function handleNotificationClick(notification: Notification) {
+    if (!notification.is_read && !newlyViewedIds.has(notification.id))
+      await markAsRead(notification.id)
+
+    if (notification.type === "follow_request") {
+      openFriendRequests()
+      return
     }
+
+    const link = getNotificationLink(notification)
+    if (link) window.location.href = link
+  }
+
+  const filteredNotifications = useMemo(() => filterNotificationsByAccount(
+    notifications,
+    selectedAccountKey,
+    viewerId || ownedAccountOptions.find((option) => option.accountType === "general")?.profileId || "",
+    ownedAccountOptions,
+  ), [notifications, ownedAccountOptions, selectedAccountKey, viewerId])
+
+  const groupedNotifications = useMemo(() => filteredNotifications.reduce((groups, notification) => {
+    const key = format(new Date(notification.created_at), "yyyy-MM-dd")
+    if (!groups[key]) groups[key] = []
+    groups[key].push(notification)
+    return groups
+  }, {} as Record<string, Notification[]>), [filteredNotifications])
+
+  function renderLoadingState() {
+    return (
+      <div className="space-y-1 p-2" aria-label="Loading notifications">
+        {[0, 1, 2, 3].map((row) => (
+          <div key={row} className="flex gap-3 rounded-xl px-3 py-3">
+            <Skeleton className="h-10 w-10 shrink-0 rounded-full bg-white/10" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-3.5 w-2/3 bg-white/10" />
+              <Skeleton className="h-3 w-full bg-white/[0.07]" />
+              <Skeleton className="h-3 w-1/3 bg-white/[0.07]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  function renderListBody() {
+    if (isLoading && !hasLoaded) return renderLoadingState()
 
     if (hasError) {
       return (
-        <div className="px-4 py-10 text-center text-slate-400">
-          <AlertCircle className="mx-auto mb-2 h-10 w-10 text-red-400/70" />
-          <p className="text-sm text-red-300">Couldn&apos;t load notifications</p>
+        <div className="flex min-h-60 flex-col items-center justify-center px-6 py-10 text-center">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10 text-red-300">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <p className="text-sm font-medium text-slate-100">Couldn’t load notifications</p>
+          <p className="mt-1 text-xs text-slate-500">Check your connection and try again.</p>
           <Button
             variant="ghost"
             size="sm"
-            onClick={fetchNotifications}
-            className="mt-3 text-purple-300 hover:bg-purple-500/10"
+            onClick={() => void fetchNotifications({ acknowledge: true })}
+            className="mt-3 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
           >
             Try again
           </Button>
@@ -432,14 +582,17 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
 
     if (inAppDisabled) {
       return (
-        <div className="px-4 py-10 text-center text-slate-400">
-          <Bell className="mx-auto mb-2 h-10 w-10 opacity-50" />
-          <p className="text-sm">In-app notifications are turned off</p>
+        <div className="flex min-h-60 flex-col items-center justify-center px-6 py-10 text-center">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.06] text-slate-400">
+            <Bell className="h-5 w-5" />
+          </div>
+          <p className="text-sm font-medium text-slate-100">In-app notifications are off</p>
+          <p className="mt-1 text-xs text-slate-500">Turn them back on from notification settings.</p>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => { window.location.href = "/settings/notifications" }}
-            className="mt-3 text-purple-300 hover:bg-purple-500/10"
+            className="mt-3 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
           >
             Open settings
           </Button>
@@ -449,146 +602,190 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
 
     if (filteredNotifications.length === 0) {
       return (
-        <div className="px-4 py-10 text-center text-slate-400">
-          <Bell className="mx-auto mb-2 h-10 w-10 opacity-50" />
-          <p className="text-sm">No notifications</p>
+        <div className="flex min-h-60 flex-col items-center justify-center px-6 py-10 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-400">
+            <Bell className="h-5 w-5" />
+          </div>
+          <p className="text-sm font-medium text-slate-100">
+            {selectedAccount ? `No notifications for ${selectedAccount.displayName}` : "You’re all caught up"}
+          </p>
+          <p className="mt-1 max-w-64 text-xs leading-5 text-slate-500">
+            {selectedAccount
+              ? "New activity for this account will appear here."
+              : "Recent activity across your accounts will appear here."}
+          </p>
         </div>
       )
     }
 
     return (
-      <div className="space-y-1">
-        {Object.entries(groupedNotifications).map(([date, dayNotifications]) => (
-          <div key={date}>
-            <div className="border-b border-slate-700/30 bg-slate-800/30 px-4 py-2 text-xs font-medium text-slate-400">
-              {formatDistanceToNow(new Date(date), { addSuffix: true })}
+      <div className="pb-2">
+        {Object.entries(groupedNotifications).map(([dateKey, dayNotifications]) => (
+          <section key={dateKey} aria-labelledby={`notification-day-${dateKey}`}>
+            <div
+              id={`notification-day-${dateKey}`}
+              className="sticky top-0 z-10 border-y border-white/[0.06] bg-[#0d1424]/95 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 backdrop-blur-xl"
+            >
+              {getDateHeading(new Date(dayNotifications[0].created_at))}
             </div>
+
             {dayNotifications.map((notification) => {
-              const icon = getNotificationIcon(notification.type)
+              const icon = notificationIcons[notification.type]
+                || { icon: <Bell className="h-4 w-4" />, color: "#94a3b8", bgColor: "rgba(148, 163, 184, 0.1)" }
+              const account = viewerId
+                ? findNotificationAccountOption(notification, viewerId, ownedAccountOptions)
+                : null
+              const newlyViewed = newlyViewedIds.has(notification.id)
+              const unread = !notification.is_read && !newlyViewed
+              const emphasized = unread || newlyViewed
+              const link = getNotificationLink(notification)
 
               return (
-                <motion.div
+                <div
                   key={notification.id}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={`group cursor-pointer border-l-2 p-4 transition-all duration-200 hover:bg-slate-700/30 ${
-                    !notification.is_read
-                      ? "border-l-purple-500 bg-purple-500/5"
-                      : "border-l-transparent"
+                  role={link || notification.type === "follow_request" ? "link" : "group"}
+                  tabIndex={link || notification.type === "follow_request" ? 0 : undefined}
+                  aria-label={`${notification.title}. ${notification.content}`}
+                  onClick={() => void handleNotificationClick(notification)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      void handleNotificationClick(notification)
+                    }
+                  }}
+                  className={`group relative flex cursor-pointer gap-3 border-b border-white/[0.055] px-4 py-3.5 outline-none transition-colors last:border-b-0 hover:bg-white/[0.045] focus-visible:bg-white/[0.06] ${
+                    emphasized ? "bg-purple-500/[0.055]" : "bg-transparent"
                   }`}
-                  onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-600/30 text-lg backdrop-blur-sm"
-                      style={{ backgroundColor: icon.bgColor, color: icon.color }}
-                    >
-                      {icon.icon}
+                  {emphasized && <span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-purple-400" />}
+
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10"
+                    style={{ backgroundColor: icon.bgColor, color: icon.color }}
+                  >
+                    {icon.icon}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate text-sm font-semibold ${emphasized ? "text-white" : "text-slate-200"}`}>
+                          {notification.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">
+                          {notification.content}
+                        </p>
+                      </div>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Actions for ${notification.title}`}
+                            className="h-7 w-7 shrink-0 text-slate-500 opacity-100 hover:bg-white/[0.06] hover:text-white sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent data-notification-center-portal align="end" className="border-white/10 bg-[#111827]/95 text-slate-200 shadow-2xl backdrop-blur-xl">
+                          {unread && (
+                            <DropdownMenuItem
+                              onSelect={() => void markAsRead(notification.id)}
+                              className="focus:bg-white/10 focus:text-white"
+                            >
+                              <Check className="h-4 w-4" />
+                              Mark as read
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onSelect={() => void deleteNotification(notification.id)}
+                            className="text-red-300 focus:bg-red-500/10 focus:text-red-200"
+                          >
+                            <X className="h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${!notification.is_read ? "text-white" : "text-slate-300"}`}>
-                            {notification.title}
-                          </p>
-                          <p className="mt-1 line-clamp-2 text-sm text-slate-400">
-                            {notification.content}
-                          </p>
-
-                          {notification.related_user && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <Avatar className="h-5 w-5 ring-1 ring-slate-600/30">
-                                <AvatarImage src={notification.related_user.avatar_url || undefined} />
-                                <AvatarFallback className="bg-slate-700 text-xs text-slate-300">
-                                  {(notification.related_user.full_name || notification.related_user.username || "?").charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs text-slate-400">
-                                {notification.related_user.full_name || notification.related_user.username}
-                              </span>
-                            </div>
-                          )}
-
-                          {notification.type === "follow_request" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="mt-2 h-7 px-2 text-xs text-purple-300 hover:bg-purple-500/10 hover:text-purple-100"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                void handleNotificationClick(notification)
-                              }}
-                            >
-                              <Users className="mr-1.5 h-3.5 w-3.5" />
-                              Review request
-                            </Button>
-                          )}
-
-                          <p className="mt-2 text-xs text-slate-500">
-                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                          </p>
-                        </div>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-slate-400 opacity-0 transition-opacity hover:bg-slate-700/50 hover:text-white group-hover:opacity-100"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="border-slate-700/50 bg-slate-800/95 backdrop-blur-xl">
-                            {!notification.is_read && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  markAsRead(notification.id)
-                                }}
-                                className="text-slate-200 hover:bg-slate-700/50"
-                              >
-                                <Check className="mr-2 h-4 w-4" />
-                                Mark as read
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteNotification(notification.id)
-                              }}
-                              className="text-red-400 hover:bg-red-500/10"
-                            >
-                              <X className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                    {notification.related_user && (
+                      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                        <Avatar className="h-4 w-4 border border-white/10">
+                          <AvatarImage src={notification.related_user.avatar_url || undefined} alt="" />
+                          <AvatarFallback className="bg-white/10 text-[8px]">
+                            {(notification.related_user.full_name || notification.related_user.username || "?").charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">
+                          {notification.related_user.full_name || notification.related_user.username}
+                        </span>
                       </div>
+                    )}
+
+                    {notification.type === "follow_request" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-2 h-7 px-2 text-xs text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void handleNotificationClick(notification)
+                        }}
+                      >
+                        <Users className="mr-1.5 h-3.5 w-3.5" />
+                        Review request
+                      </Button>
+                    )}
+
+                    <div className="mt-2.5 flex min-w-0 items-center gap-2">
+                      <span className="shrink-0 text-[10px] text-slate-600">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                      </span>
+                      {account && (
+                        <>
+                          <span className="text-slate-700">•</span>
+                          <span className="flex min-w-0 items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.035] px-1.5 py-1 text-[10px] text-slate-400">
+                            <AccountAvatar option={account} className="h-4 w-4" />
+                            <span className="max-w-28 truncate">{account.displayName}</span>
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )
             })}
-          </div>
+          </section>
         ))}
+
+        <div className="px-4 py-4 text-center text-[10px] uppercase tracking-[0.16em] text-slate-600">
+          You’re up to date
+        </div>
       </div>
     )
   }
 
   return (
-    <div className={`relative ${className}`}>
+    <div ref={notificationCenterRef} className={`relative ${className}`}>
       <Button
         variant="ghost"
         size="icon"
-        className="relative rounded-full text-slate-300 transition-all duration-300 hover:bg-slate-700/50 hover:text-white"
-        onClick={() => setIsOpen(!isOpen)}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-controls="notification-center-panel"
+        className="relative rounded-full text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+        onClick={() => {
+          if (isOpen) closePanel()
+          else setIsOpen(true)
+        }}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <Badge className="absolute -right-1 -top-1 flex h-5 w-5 animate-pulse items-center justify-center border-0 bg-gradient-to-r from-red-500 to-pink-500 p-0 text-xs">
+          <Badge className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center border-2 border-[#0b1020] bg-gradient-to-r from-rose-500 to-pink-500 px-1 text-[10px] font-bold text-white shadow-lg shadow-rose-500/20">
             {unreadCount > 99 ? "99+" : unreadCount}
           </Badge>
         )}
@@ -597,139 +794,155 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            id="notification-center-panel"
+            role="dialog"
+            aria-label="Notifications"
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 top-12 z-50 w-[22rem] max-w-[calc(100vw-1.5rem)] max-h-[600px] sm:w-96"
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="fixed inset-x-3 top-16 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[26rem]"
           >
-            <Card className="border border-slate-700/50 bg-gradient-to-b from-slate-900/95 to-slate-800/95 shadow-2xl backdrop-blur-xl">
-              <CardHeader className="border-b border-slate-700/50 pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-                    <Sparkles className="h-4 w-4 text-purple-400" />
-                    Notifications
-                  </CardTitle>
-                  <div className="flex items-center gap-1">
-                    {unreadCount > 0 && (
+            <Card className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#111a2e]/[0.98] to-[#0a101d]/[0.98] text-white shadow-2xl shadow-black/50 backdrop-blur-2xl">
+              <div className="border-b border-white/[0.07] px-4 pb-3 pt-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-300 ring-1 ring-purple-400/15">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-semibold tracking-tight text-white">Notifications</h2>
+                        <p className="text-[11px] text-slate-500">Latest activity across your accounts</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        onClick={markAllAsRead}
-                        className="text-xs text-purple-300 hover:bg-purple-500/10 hover:text-purple-100"
+                        size="icon"
+                        aria-label="Notification settings"
+                        className="h-8 w-8 text-slate-400 hover:bg-white/[0.06] hover:text-white"
                       >
-                        Mark all read
+                        <Settings className="h-4 w-4" />
                       </Button>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:bg-slate-700/50 hover:text-white">
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="border-slate-700/50 bg-slate-800/95 backdrop-blur-xl">
-                        <DropdownMenuItem
-                          onClick={() => { window.location.href = "/settings/notifications" }}
-                          className="text-slate-200 hover:bg-slate-700/50"
-                        >
-                          Notification Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => { window.location.href = "/notifications" }}
-                          className="text-slate-200 hover:bg-slate-700/50"
-                        >
-                          View All Notifications
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent data-notification-center-portal align="end" className="border-white/10 bg-[#111827]/95 text-slate-200 shadow-2xl backdrop-blur-xl">
+                      <DropdownMenuItem
+                        onSelect={() => { window.location.href = "/settings/notifications" }}
+                        className="focus:bg-white/10 focus:text-white"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Notification settings
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
-                {isPersonalAccount && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="mt-3 h-11 w-full justify-between rounded-xl border-white/[0.09] bg-white/[0.035] px-3 text-left text-slate-200 hover:border-purple-400/20 hover:bg-white/[0.055] hover:text-white"
+                    >
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        {selectedAccount ? (
+                          <AccountAvatar option={selectedAccount} className="h-7 w-7" />
+                        ) : (
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-500/10 text-purple-300 ring-1 ring-purple-400/15">
+                            <Layers3 className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-semibold">
+                            {selectedAccount?.displayName || "All accounts"}
+                          </span>
+                          <span className="block truncate text-[10px] text-slate-500">
+                            {selectedAccount?.typeLabel || `${ownedAccountOptions.length} owned account${ownedAccountOptions.length === 1 ? "" : "s"}`}
+                          </span>
+                        </span>
+                      </span>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    data-notification-center-portal
+                    align="start"
+                    className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-64 border-white/10 bg-[#111827]/[0.98] p-1.5 text-slate-200 shadow-2xl backdrop-blur-xl"
+                  >
+                    <DropdownMenuLabel className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      View notifications for
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup value={selectedAccountKey} onValueChange={setSelectedAccountKey}>
+                      <DropdownMenuRadioItem
+                        value={ALL_NOTIFICATION_ACCOUNTS}
+                        className="gap-2.5 rounded-lg py-2 pl-8 focus:bg-white/[0.07] focus:text-white"
+                      >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-500/10 text-purple-300">
+                          <Layers3 className="h-3.5 w-3.5" />
+                        </span>
+                        <span>
+                          <span className="block text-xs font-medium">All accounts</span>
+                          <span className="block text-[10px] text-slate-500">Combined activity feed</span>
+                        </span>
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuSeparator className="my-1.5 bg-white/[0.07]" />
+                      {ownedAccountOptions.map((option) => (
+                        <DropdownMenuRadioItem
+                          key={option.key}
+                          value={option.key}
+                          className="gap-2.5 rounded-lg py-2 pl-8 focus:bg-white/[0.07] focus:text-white"
+                        >
+                          <AccountAvatar option={option} className="h-7 w-7" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-medium">{option.displayName}</span>
+                            <span className="block text-[10px] text-slate-500">{option.typeLabel}</span>
+                          </span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {pendingRequestCount > 0 && (
                   <Button
                     variant="ghost"
                     onClick={openFriendRequests}
-                    className="mt-3 h-9 w-full justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 px-3 text-sm text-purple-200 hover:bg-purple-500/20 hover:text-purple-100"
+                    className="mt-2 h-8 w-full justify-between rounded-lg px-2.5 text-xs text-purple-200 hover:bg-purple-500/10 hover:text-purple-100"
                   >
                     <span className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
+                      <Users className="h-3.5 w-3.5" />
                       Friend requests
                     </span>
-                    {pendingRequestCount > 0 && (
-                      <Badge className="border-0 bg-purple-500/30 text-purple-100">
-                        {pendingRequestCount}
-                      </Badge>
-                    )}
+                    <Badge className="h-5 border-0 bg-purple-500/20 px-1.5 text-[10px] text-purple-100">
+                      {pendingRequestCount}
+                    </Badge>
                   </Button>
                 )}
-
-                <div className="mt-3 space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      placeholder="Search notifications..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-9 border-slate-700/50 bg-slate-800/50 pl-10 text-white placeholder:text-slate-400 focus:border-purple-500/50 focus:ring-purple-500/20"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-slate-400" />
-                    <select
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      className="border-0 bg-transparent text-sm text-slate-300 focus:outline-none"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="follow_request">Follow requests</option>
-                      <option value="follow_accepted">Follow accepted</option>
-                      <option value="like">Likes</option>
-                      <option value="comment">Comments</option>
-                      <option value="follow">Follows</option>
-                      <option value="message">Messages</option>
-                      <option value="message_request">Message requests</option>
-                      <option value="group_message">Group messages</option>
-                      <option value="mention">Mentions</option>
-                      <option value="job_application">Applications</option>
-                      <option value="booking_request">Bookings</option>
-                      <option value="system_alert">System</option>
-                    </select>
-                  </div>
-                </div>
-              </CardHeader>
+              </div>
 
               <CardContent className="p-0">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 border border-slate-700/50 bg-slate-800/50">
-                    <TabsTrigger value="all" className="text-xs text-slate-300 data-[state=active]:border-purple-500/30 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-                      All ({notifications.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="unread" className="text-xs text-slate-300 data-[state=active]:border-purple-500/30 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-                      Unread ({totalUnreadCount})
-                    </TabsTrigger>
-                    <TabsTrigger value="read" className="text-xs text-slate-300 data-[state=active]:border-purple-500/30 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-                      Read ({totalReadCount})
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value={activeTab} className="mt-0">
-                    <ScrollArea className="h-[400px]">
-                      {renderListBody()}
-                    </ScrollArea>
-                  </TabsContent>
-                </Tabs>
+                <ScrollArea className="h-[min(60vh,30rem)]">
+                  {renderListBody()}
+                </ScrollArea>
+                <div className="border-t border-white/[0.07] bg-black/10 p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { window.location.href = "/notifications" }}
+                    className="h-8 w-full justify-center gap-1.5 text-xs text-slate-400 hover:bg-white/[0.05] hover:text-white"
+                  >
+                    View all notifications
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
 
       <FollowRequestsModal
         isOpen={isRequestsOpen}

@@ -64,9 +64,9 @@ export function HiringJobsPanel({ employer }: HiringJobsPanelProps) {
           />
         ) : null}
         {jobs.length > 0 ? (
-          <div className="overflow-hidden rounded-[1.15rem] border border-slate-700/60">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
             {jobs.map((job) => (
-              <div key={job.id} className="flex flex-col gap-3 border-b border-slate-800/80 bg-slate-900/35 p-4 last:border-0 md:flex-row md:items-center md:justify-between">
+              <div key={job.id} className="flex flex-col gap-3 border-b border-white/10 bg-transparent p-4 last:border-0 transition hover:bg-white/[0.04] md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-medium text-white">{job.title}</h3>

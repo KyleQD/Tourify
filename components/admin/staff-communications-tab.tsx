@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { toast } from "sonner"
 
@@ -146,23 +148,24 @@ export function StaffCommunicationsTab({ venueId }: Props) {
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className={cn(detailSurfacePattern.title, "flex items-center gap-2")}>
               <MessageSquare className="h-4 w-4 text-purple-400" />
               Send Team Message
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Subject</Label>
-              <Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} placeholder="Message subject..." className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+              <Label className={detailSurfacePattern.label}>Subject</Label>
+              <Input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} placeholder="Message subject..." className={cn(detailSurfacePattern.input, "text-sm")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-300">Type</Label>
+                <Label className={detailSurfacePattern.label}>Type</Label>
                 <Select value={form.message_type} onValueChange={v => setForm(p => ({ ...p, message_type: v }))}>
-                  <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={cn(detailSurfacePattern.selectTrigger, "text-sm")}><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     {['general','announcement','schedule','training','emergency','performance','compliance'].map(t => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -171,9 +174,9 @@ export function StaffCommunicationsTab({ venueId }: Props) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-300">Priority</Label>
+                <Label className={detailSurfacePattern.label}>Priority</Label>
                 <Select value={form.priority} onValueChange={v => setForm(p => ({ ...p, priority: v }))}>
-                  <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={cn(detailSurfacePattern.selectTrigger, "text-sm")}><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     {['low','normal','high','urgent'].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                   </SelectContent>
@@ -181,17 +184,17 @@ export function StaffCommunicationsTab({ venueId }: Props) {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Message *</Label>
-              <Textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Your message to the team..." className="bg-slate-800/50 border-slate-700/50 text-white min-h-[80px] text-sm" />
+              <Label className={detailSurfacePattern.label}>Message *</Label>
+              <Textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Your message to the team..." className={cn(detailSurfacePattern.textarea, "min-h-[80px] text-sm")} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Recipients (emails, optional)</Label>
-              <Input value={form.recipients} onChange={e => setForm(p => ({ ...p, recipients: e.target.value }))} placeholder="Leave blank for all staff, or enter emails..." className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+              <Label className={detailSurfacePattern.label}>Recipients (emails, optional)</Label>
+              <Input value={form.recipients} onChange={e => setForm(p => ({ ...p, recipients: e.target.value }))} placeholder="Leave blank for all staff, or enter emails..." className={cn(detailSurfacePattern.input, "text-sm")} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
-            <Button onClick={sendMessage} disabled={sending} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
+            <Button variant="outline" onClick={() => setShowDialog(false)} className={detailSurfacePattern.btnOutline}>Cancel</Button>
+            <Button onClick={sendMessage} disabled={sending} className={detailSurfacePattern.btnPrimary}>
               <Send className="h-4 w-4 mr-2" />
               {sending ? 'Sending...' : 'Send Message'}
             </Button>

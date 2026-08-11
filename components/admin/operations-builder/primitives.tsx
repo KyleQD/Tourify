@@ -22,7 +22,9 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { PlanningVenueAutocomplete } from "@/components/planning/planning-venue-autocomplete"
 import type { BuilderConflict, BuilderReadinessSummary, ReadinessItem, ReadinessState } from "@/lib/admin/operations-readiness"
+import { cn } from "@/lib/utils"
 
 export interface BuilderSection {
   id: string
@@ -88,6 +90,10 @@ export function BuilderShell({
   asideAfterSummary,
   badge,
   headerActions,
+  navigationMode = "modes",
+  showAside = true,
+  navAfterSections,
+  sectionNavLabel = "Sections",
 }: {
   title: string
   subtitle: string
@@ -104,8 +110,14 @@ export function BuilderShell({
   asideAfterSummary?: React.ReactNode
   badge?: string
   headerActions?: React.ReactNode
+  navigationMode?: "modes" | "all"
+  showAside?: boolean
+  navAfterSections?: React.ReactNode
+  sectionNavLabel?: string
 }) {
-  const visibleSections = sections.filter((section) => section.mode === activeMode)
+  const visibleSections = navigationMode === "all"
+    ? sections
+    : sections.filter((section) => section.mode === activeMode)
 
   return (
     <div className="relative min-h-[calc(100vh-96px)] pb-28 text-slate-100">
@@ -128,46 +140,61 @@ export function BuilderShell({
             <p className="text-sm leading-6 text-slate-300">{subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {(Object.keys(modeLabels) as Array<BuilderSection["mode"]>).map((mode) => (
-              <Button
-                key={mode}
-                type="button"
-                size="sm"
-                variant={activeMode === mode ? "default" : "outline"}
-                className={
-                  activeMode === mode
-                    ? "h-9 border border-cyan-400/30 bg-cyan-400/15 text-white hover:bg-cyan-400/20"
-                    : "h-9 border-slate-700 text-slate-300 hover:bg-slate-800"
-                }
-                onClick={() => onModeChange(mode)}
-              >
-                {modeLabels[mode]}
-              </Button>
-            ))}
+            {navigationMode === "modes"
+              ? (Object.keys(modeLabels) as Array<BuilderSection["mode"]>).map((mode) => (
+                  <Button
+                    key={mode}
+                    type="button"
+                    size="sm"
+                    variant={activeMode === mode ? "default" : "outline"}
+                    className={
+                      activeMode === mode
+                        ? "h-9 border border-cyan-400/30 bg-cyan-400/15 text-white hover:bg-cyan-400/20"
+                        : "h-9 border-slate-700 text-slate-300 hover:bg-slate-800"
+                    }
+                    onClick={() => onModeChange(mode)}
+                  >
+                    {modeLabels[mode]}
+                  </Button>
+                ))
+              : null}
             {headerActions}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[236px_minmax(0,1fr)_320px]">
-        <BuilderSectionNav
-          sections={visibleSections.length ? visibleSections : sections}
-          activeSection={activeSection}
-          onSectionChange={onSectionChange}
-        />
+      <div
+        className={cn(
+          "grid gap-4",
+          showAside
+            ? "xl:grid-cols-[236px_minmax(0,1fr)_320px]"
+            : "xl:grid-cols-[260px_minmax(0,1fr)]",
+        )}
+      >
+        <div className="self-start xl:sticky xl:top-4">
+          <BuilderSectionNav
+            sections={visibleSections.length ? visibleSections : sections}
+            activeSection={activeSection}
+            onSectionChange={onSectionChange}
+            label={sectionNavLabel}
+            footer={navAfterSections}
+          />
+        </div>
         <main className="min-w-0 space-y-4">
           <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-4 shadow-xl shadow-slate-950/30 backdrop-blur-xl sm:p-5">
             {children}
           </div>
         </main>
-        <aside className="space-y-4">
-          <ReadinessPanel readiness={readiness} actions={readinessActions} />
-          <ConflictPanel conflicts={readiness.conflicts} />
-          <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-4 shadow-xl shadow-slate-950/30 backdrop-blur-xl">
-            {summary}
-          </div>
-          {asideAfterSummary}
-        </aside>
+        {showAside ? (
+          <aside className="space-y-4">
+            <ReadinessPanel readiness={readiness} actions={readinessActions} />
+            <ConflictPanel conflicts={readiness.conflicts} />
+            <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-4 shadow-xl shadow-slate-950/30 backdrop-blur-xl">
+              {summary}
+            </div>
+            {asideAfterSummary}
+          </aside>
+        ) : null}
       </div>
 
       {bottomBar}
@@ -179,15 +206,19 @@ export function BuilderSectionNav({
   sections,
   activeSection,
   onSectionChange,
+  label = "Sections",
+  footer,
 }: {
   sections: BuilderSection[]
   activeSection: string
   onSectionChange: (section: string) => void
+  label?: string
+  footer?: React.ReactNode
 }) {
   return (
-    <nav className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-2 shadow-xl shadow-slate-950/30 backdrop-blur-xl">
-      <div className="mb-2 px-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Sections</div>
-      <div className="space-y-1">
+    <nav aria-label={label} className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-2 shadow-xl shadow-slate-950/30 backdrop-blur-xl">
+      <div className="mb-2 px-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{label}</div>
+      <div className="grid gap-1 sm:grid-cols-2 xl:block xl:space-y-1">
         {sections.map((section) => {
           const Icon = section.icon
           const active = activeSection === section.id
@@ -196,17 +227,23 @@ export function BuilderSectionNav({
               key={section.id}
               type="button"
               onClick={() => onSectionChange(section.id)}
-              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                active ? "border border-cyan-400/30 bg-cyan-500/12 text-white" : "border border-transparent text-slate-400 hover:bg-slate-900 hover:text-white"
-              }`}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60",
+                active
+                  ? "border border-cyan-400/30 bg-cyan-400/10 text-white"
+                  : "border border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-white",
+              )}
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{section.label}</span>
               <SectionStatusIcon state={section.status} />
+              {section.status ? <span className="sr-only">{stateLabels[section.status]}</span> : null}
             </button>
           )
         })}
       </div>
+      {footer ? <div className="mt-3 border-t border-slate-800/80 pt-3">{footer}</div> : null}
     </nav>
   )
 }
@@ -241,7 +278,7 @@ export function ReadinessPanel({
 
 function ReadinessRow({ item, onAction }: { item: ReadinessItem; onAction?: () => void }) {
   return (
-    <div className="rounded-md border border-slate-800 bg-slate-900/50 p-3">
+    <div className="rounded-xl border border-slate-800/80 bg-slate-950/55 p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-slate-100">{item.label}</span>
         <ReadinessBadge state={item.state} />
@@ -307,27 +344,25 @@ export function AutosaveBar({
   }[status]
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 backdrop-blur-xl">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-cyan-400/15 bg-slate-950/95 px-4 py-3 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm text-slate-300">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              status === "error"
-                ? "bg-red-400"
-                : status === "saving"
-                  ? "animate-pulse bg-amber-400"
-                  : status === "unsaved"
-                    ? "bg-blue-400"
-                    : "bg-emerald-400"
-            }`}
+            className={cn(
+              "h-2.5 w-2.5 rounded-full",
+              status === "error" ? "bg-red-400"
+                : status === "saving" ? "animate-pulse bg-amber-400"
+                : status === "unsaved" ? "bg-blue-400"
+                : "bg-emerald-400",
+            )}
           />
           {statusText}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
             variant="outline"
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            className="h-11 justify-center rounded-xl border-slate-700 bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900 hover:text-white"
             onClick={onSecondary}
             disabled={disabled}
           >
@@ -335,7 +370,7 @@ export function AutosaveBar({
           </Button>
           <Button
             type="button"
-            className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500"
+            className="h-11 justify-center rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-950/25 hover:from-cyan-400 hover:to-blue-500"
             onClick={onPrimary}
             disabled={disabled}
           >
@@ -361,9 +396,14 @@ export function EntitySearchDrawer({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-md border border-slate-800 bg-slate-950/70 p-4">
-      <Label className="text-slate-300">{title}</Label>
-      <Input className="mt-2 border-slate-700 bg-slate-900 text-white" placeholder={placeholder} value={query} onChange={(event) => onQueryChange(event.target.value)} />
+    <div className="rounded-[1.2rem] border border-slate-700/60 bg-slate-950/65 p-4 backdrop-blur-sm">
+      <Label className="text-xs font-medium uppercase tracking-[0.13em] text-slate-400">{title}</Label>
+      <Input
+        className="mt-2 rounded-xl border-slate-700/70 bg-slate-900/80 text-white placeholder:text-slate-500 focus-visible:border-cyan-400/50 focus-visible:ring-cyan-500/25"
+        placeholder={placeholder}
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+      />
       <div className="mt-3 max-h-72 overflow-y-auto">{children}</div>
     </div>
   )
@@ -434,42 +474,228 @@ export interface RouteStopDraft {
   leg_name?: string
   capacity?: number | string
   advance_status?: string
+  /** PLAN-202 */
+  stop_type?: string
+  timezone?: string
+  window_start?: string
+  window_end?: string
+  venue_id?: string | null
+  venue_address?: string
+  venue_city?: string
+  venue_state?: string
+  venue_postal_code?: string
+  venue_country?: string
+  venue_website?: string
+  technical_specs?: string
+  notes?: string
+  contact_name?: string
+  contact_email?: string
+  contact_phone?: string
+  planning_status?: string
+  event_id?: string | null
+  ordinal?: number
 }
+
+const STOP_TYPE_OPTIONS = [
+  "show",
+  "rehearsal",
+  "promo",
+  "festival",
+  "travel",
+  "rest",
+  "load",
+  "other",
+] as const
 
 export function RouteStopTable({
   stops,
   onChange,
   onRemove,
+  onReorder,
+  onMove,
 }: {
   stops: RouteStopDraft[]
   onChange: (id: string, patch: Partial<RouteStopDraft>) => void
   onRemove: (id: string) => void
+  /** PLAN-203 — pointer drop reorder by index. */
+  onReorder?: (fromIndex: number, toIndex: number) => void
+  /** PLAN-203 — keyboard move. */
+  onMove?: (id: string, delta: -1 | 1) => void
 }) {
   return (
     <div className="overflow-hidden rounded-md border border-slate-800">
-      <div className="grid grid-cols-[36px_1.2fr_1fr_140px_110px_120px_44px] gap-2 border-b border-slate-800 bg-slate-950 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+      <div className="grid grid-cols-[36px_100px_1fr_1fr_120px_90px_100px_44px] gap-2 border-b border-slate-800 bg-slate-950 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
         <span />
+        <span>Type</span>
         <span>Stop</span>
         <span>Venue</span>
         <span>Date</span>
         <span>Time</span>
-        <span>Market</span>
+        <span>TZ</span>
         <span />
       </div>
       {stops.map((stop, index) => (
-        <div key={stop.id} className="grid grid-cols-[36px_1.2fr_1fr_140px_110px_120px_44px] gap-2 border-b border-slate-900 bg-slate-950/50 px-3 py-2 last:border-b-0">
-          <div className="flex items-center gap-1 text-slate-500">
-            <GripVertical className="h-4 w-4" />
-            <span className="text-xs">{index + 1}</span>
+        <div
+          key={stop.id}
+          className="space-y-2 border-b border-slate-900 bg-slate-950/50 px-3 py-2 last:border-b-0"
+          draggable={Boolean(onReorder)}
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", String(index))
+            event.dataTransfer.effectAllowed = "move"
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault()
+            if (!onReorder) return
+            const fromIndex = Number(event.dataTransfer.getData("text/plain"))
+            if (Number.isFinite(fromIndex)) onReorder(fromIndex, index)
+          }}
+        >
+          <div className="grid grid-cols-[36px_100px_1fr_1fr_120px_90px_100px_44px] gap-2">
+            <div className="flex flex-col items-center gap-1 text-slate-500">
+              <button
+                type="button"
+                className="cursor-grab text-slate-500"
+                aria-label={`Drag to reorder stop ${index + 1}`}
+                title="Drag to reorder"
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+              <span className="text-xs">{index + 1}</span>
+              {onMove ? (
+                <div className="flex flex-col gap-0.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 px-1 text-[10px] text-slate-400"
+                    aria-label="Move stop up"
+                    onClick={() => onMove(stop.id, -1)}
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 px-1 text-[10px] text-slate-400"
+                    aria-label="Move stop down"
+                    onClick={() => onMove(stop.id, 1)}
+                  >
+                    ↓
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+            <Select
+              value={stop.stop_type || "show"}
+              onValueChange={(value) => onChange(stop.id, { stop_type: value })}
+            >
+              <SelectTrigger className="h-9 border-slate-700 bg-slate-900 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STOP_TYPE_OPTIONS.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input value={stop.name} onChange={(event) => onChange(stop.id, { name: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="Stop name" />
+            <PlanningVenueAutocomplete
+              value={stop.venue}
+              onValueChange={(venue) => onChange(stop.id, { venue })}
+              onSelect={(venue) => onChange(stop.id, {
+                venue: venue.name,
+                venue_id: null,
+                venue_address: venue.address,
+                venue_city: venue.city,
+                venue_state: venue.state,
+                venue_postal_code: venue.postalCode,
+                venue_country: venue.country,
+                venue_website: venue.website,
+                capacity: venue.capacity ?? stop.capacity,
+                contact_name: venue.contactName || stop.contact_name,
+                contact_email: venue.contactEmail || stop.contact_email,
+                contact_phone: venue.contactPhone || stop.contact_phone,
+                technical_specs: Object.keys(venue.technicalSpecs).length
+                  ? JSON.stringify(venue.technicalSpecs, null, 2)
+                  : stop.technical_specs,
+              })}
+              inputClassName="border-slate-700 bg-slate-900 text-white"
+              placeholder="Venue name"
+            />
+            <Input type="date" value={stop.date} onChange={(event) => onChange(stop.id, { date: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
+            <Input type="time" value={stop.time || ""} onChange={(event) => onChange(stop.id, { time: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
+            <Input value={stop.timezone || ""} onChange={(event) => onChange(stop.id, { timezone: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="America/Los_Angeles" />
+            <Button type="button" variant="ghost" size="sm" className="text-red-300 hover:text-red-200" onClick={() => onRemove(stop.id)}>
+              Remove
+            </Button>
           </div>
-          <Input value={stop.name} onChange={(event) => onChange(stop.id, { name: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
-          <Input value={stop.venue} onChange={(event) => onChange(stop.id, { venue: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
-          <Input type="date" value={stop.date} onChange={(event) => onChange(stop.id, { date: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
-          <Input type="time" value={stop.time || ""} onChange={(event) => onChange(stop.id, { time: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
-          <Input value={stop.market || ""} onChange={(event) => onChange(stop.id, { market: event.target.value })} className="border-slate-700 bg-slate-900 text-white" />
-          <Button type="button" variant="ghost" size="sm" className="text-red-300 hover:text-red-200" onClick={() => onRemove(stop.id)}>
-            Remove
-          </Button>
+          <div className="grid gap-2 md:grid-cols-4">
+            <Input
+              value={stop.window_start || ""}
+              onChange={(event) => onChange(stop.id, { window_start: event.target.value })}
+              className="border-slate-700 bg-slate-900 text-white"
+              placeholder="Window start"
+            />
+            <Input
+              value={stop.window_end || ""}
+              onChange={(event) => onChange(stop.id, { window_end: event.target.value })}
+              className="border-slate-700 bg-slate-900 text-white"
+              placeholder="Window end"
+            />
+            <Input
+              value={stop.contact_name || ""}
+              onChange={(event) => onChange(stop.id, { contact_name: event.target.value })}
+              className="border-slate-700 bg-slate-900 text-white"
+              placeholder="Contact name"
+            />
+            <Select
+              value={stop.planning_status || "draft"}
+              onValueChange={(value) => onChange(stop.id, { planning_status: value })}
+            >
+              <SelectTrigger className="h-9 border-slate-700 bg-slate-900 text-white">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="tentative">Tentative</SelectItem>
+                <SelectItem value="held">Held</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2 md:grid-cols-3">
+            <Input
+              value={stop.contact_email || ""}
+              onChange={(event) => onChange(stop.id, { contact_email: event.target.value })}
+              className="border-slate-700 bg-slate-900 text-white"
+              placeholder="Contact email"
+            />
+            <Input
+              value={stop.contact_phone || ""}
+              onChange={(event) => onChange(stop.id, { contact_phone: event.target.value })}
+              className="border-slate-700 bg-slate-900 text-white"
+              placeholder="Contact phone"
+            />
+            <Input
+              value={stop.notes || ""}
+              onChange={(event) => onChange(stop.id, { notes: event.target.value })}
+              className="border-slate-700 bg-slate-900 text-white"
+              placeholder="Notes"
+            />
+          </div>
+          <div className="grid gap-2 md:grid-cols-4">
+            <Input value={stop.venue_address || ""} onChange={(event) => onChange(stop.id, { venue_address: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="Venue address" />
+            <Input value={stop.venue_city || ""} onChange={(event) => onChange(stop.id, { venue_city: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="City" />
+            <Input value={stop.venue_state || ""} onChange={(event) => onChange(stop.id, { venue_state: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="State" />
+            <Input value={stop.venue_postal_code || ""} onChange={(event) => onChange(stop.id, { venue_postal_code: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="Postal code" />
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <Input value={stop.venue_website || ""} onChange={(event) => onChange(stop.id, { venue_website: event.target.value })} className="border-slate-700 bg-slate-900 text-white" placeholder="Venue website" />
+            <Textarea value={stop.technical_specs || ""} onChange={(event) => onChange(stop.id, { technical_specs: event.target.value })} className="min-h-9 border-slate-700 bg-slate-900 text-white" placeholder="Technical / stage specifications" />
+          </div>
         </div>
       ))}
     </div>

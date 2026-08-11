@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -50,6 +51,16 @@ import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useActingContext } from "@/hooks/use-acting-context"
 import { mapAdminScopeError, readAdminErrorMessage } from "@/lib/admin/admin-request"
+import {
+  FinanceParentScopePicker,
+  FinanceScopePicker,
+  type FinanceScopeSelection,
+} from "@/components/admin/finance-scope-picker"
+import { BudgetRollupCard } from "@/components/admin/finance/budget-rollup-card"
+import { FinanceReconciliationTable } from "@/components/admin/finance/finance-reconciliation-table"
+import { BudgetWorkspacePanel } from "@/components/admin/finance/budget-workspace-panel"
+import { CommitmentsProcurementPanel } from "@/components/admin/finance/commitments-procurement-panel"
+import { ExpenseOperationsPanel } from "@/components/admin/finance/expense-operations-panel"
 
 interface FinancialOverview {
   totalIncome: number
@@ -138,8 +149,14 @@ export default function FinancesPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showSettlementDialog, setShowSettlementDialog] = useState(false)
   const [settlementForm, setSettlementForm] = useState({
-    event_id: '', total_gross_revenue: '', total_expenses: '',
-    artist_payout: '', venue_payout: '', deal_type: 'guarantee', notes: '',
+    event_id: '',
+    tour_id: '',
+    total_gross_revenue: '',
+    total_expenses: '',
+    artist_payout: '',
+    venue_payout: '',
+    deal_type: 'guarantee',
+    notes: '',
   })
   const [addingSettlement, setAddingSettlement] = useState(false)
 
@@ -148,6 +165,7 @@ export default function FinancesPage() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ type: 'expense' as 'income'|'expense', category: '', amount: '', description: '', vendor_name: '', payment_status: 'pending' })
+  const [editVendorSelection, setEditVendorSelection] = useState<FinanceScopeSelection | null>(null)
 
   const [newTx, setNewTx] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -156,7 +174,10 @@ export default function FinancesPage() {
     description: '',
     vendor_name: '',
     payment_status: 'pending',
+    event_id: '',
+    tour_id: '',
   })
+  const [newTxVendorSelection, setNewTxVendorSelection] = useState<FinanceScopeSelection | null>(null)
 
   const fetchData = useCallback(async () => {
     if (!isActingReady) return
@@ -211,13 +232,16 @@ export default function FinancesPage() {
           description: newTx.description || undefined,
           vendor_name: newTx.vendor_name || undefined,
           payment_status: newTx.payment_status,
+          event_id: newTx.event_id || undefined,
+          tour_id: newTx.tour_id || undefined,
         }),
       }))
 
       if (!res.ok) throw new Error('Failed to create')
       toast.success('Transaction created')
       setShowAddDialog(false)
-      setNewTx({ type: 'expense', category: 'other_expense', amount: '', description: '', vendor_name: '', payment_status: 'pending' })
+      setNewTx({ type: 'expense', category: 'other_expense', amount: '', description: '', vendor_name: '', payment_status: 'pending', event_id: '', tour_id: '' })
+      setNewTxVendorSelection(null)
       fetchData()
     } catch {
       toast.error('Failed to create transaction')
@@ -267,6 +291,11 @@ export default function FinancesPage() {
   function openEditTx(tx: Transaction) {
     setEditingTx(tx)
     setEditForm({ type: tx.type as 'income' | 'expense', category: tx.category, amount: String(tx.amount), description: tx.description || '', vendor_name: tx.vendor_name || '', payment_status: tx.payment_status })
+    setEditVendorSelection(
+      tx.vendor_name
+        ? { kind: 'vendor', id: tx.vendor_name, label: tx.vendor_name, value: tx.vendor_name }
+        : null,
+    )
     setShowEditDialog(true)
   }
 
@@ -385,15 +414,23 @@ export default function FinancesPage() {
                       className="border-slate-700 bg-slate-800"
                     />
                   </div>
-                  <div>
-                    <Label className="text-slate-300">Vendor</Label>
-                    <Input
-                      placeholder="Vendor name (optional)"
-                      value={newTx.vendor_name}
-                      onChange={(e) => setNewTx(p => ({ ...p, vendor_name: e.target.value }))}
-                      className="border-slate-700 bg-slate-800"
-                    />
-                  </div>
+                  <FinanceParentScopePicker
+                    eventId={newTx.event_id}
+                    tourId={newTx.tour_id}
+                    requestHeaders={actingHeaders}
+                    onChange={({ event_id, tour_id }) => setNewTx((p) => ({ ...p, event_id, tour_id }))}
+                  />
+                  <FinanceScopePicker
+                    label="Vendor"
+                    kinds={["vendor"]}
+                    selected={newTxVendorSelection}
+                    requestHeaders={actingHeaders}
+                    placeholder="Search vendors used in this organization"
+                    onSelect={(next) => {
+                      setNewTxVendorSelection(next)
+                      setNewTx((p) => ({ ...p, vendor_name: next?.value || "" }))
+                    }}
+                  />
                   <div>
                     <Label className="text-slate-300">Payment Status</Label>
                     <Select value={newTx.payment_status} onValueChange={(v) => setNewTx(p => ({ ...p, payment_status: v }))}>
@@ -420,6 +457,9 @@ export default function FinancesPage() {
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
+            <Button asChild variant="outline" className="border-slate-700 text-slate-300">
+              <Link href="/admin/dashboard/marketplace/orders">Marketplace orders</Link>
+            </Button>
           </>
         }
       />
@@ -431,6 +471,12 @@ export default function FinancesPage() {
         <AdminStatCard title="Net Profit" value={formatCurrency(overview?.netProfit ?? 0)} icon={DollarSign} color={(overview?.netProfit ?? 0) >= 0 ? 'green' : 'red'} size="lg" />
         <AdminStatCard title="Pending Payments" value={String(overview?.pendingPayments ?? 0)} icon={Clock} color={overview?.overduePayments ? 'red' : 'blue'} subtitle={overview?.overduePayments ? `${overview.overduePayments} overdue` : undefined} size="lg" />
       </div>
+
+      {/* FIN-504 — Budget rollup card */}
+      <BudgetRollupCard />
+
+      {/* FIN-601 — Finance reconciliation mismatch table */}
+      <FinanceReconciliationTable />
 
       <Tabs defaultValue="transactions" className="w-full">
         <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
@@ -482,6 +528,12 @@ export default function FinancesPage() {
         </TabsContent>
 
         <TabsContent value="budgets" className="space-y-4 pt-4">
+          {/* FIN-501 / FIN-504 — Versioned budget workspace */}
+          <BudgetWorkspacePanel />
+          {/* FIN-505 / FIN-506 — Commitments and POs */}
+          <CommitmentsProcurementPanel />
+          {/* FIN-508 / FIN-509 / FIN-510 — Expense reports */}
+          <ExpenseOperationsPanel />
           <div className="flex justify-end">
             <Dialog open={showBudgetDialog} onOpenChange={setShowBudgetDialog}>
               <DialogTrigger asChild>
@@ -507,16 +559,13 @@ export default function FinancesPage() {
                     <Label className="text-slate-300">Allocated Amount</Label>
                     <Input type="number" step="0.01" placeholder="0.00" value={newBudget.allocated_amount} onChange={(e) => setNewBudget(p => ({ ...p, allocated_amount: e.target.value }))} className="border-slate-700 bg-slate-800" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-slate-300">Event ID <span className="text-red-400">*</span></Label>
-                      <Input placeholder="Event UUID" value={newBudget.event_id} onChange={(e) => setNewBudget(p => ({ ...p, event_id: e.target.value, tour_id: '' }))} className="border-slate-700 bg-slate-800 text-white text-xs" />
-                    </div>
-                    <div>
-                      <Label className="text-slate-300">Tour ID <span className="text-slate-500">(or)</span></Label>
-                      <Input placeholder="Tour UUID" value={newBudget.tour_id} onChange={(e) => setNewBudget(p => ({ ...p, tour_id: e.target.value, event_id: '' }))} className="border-slate-700 bg-slate-800 text-white text-xs" />
-                    </div>
-                  </div>
+                  <FinanceParentScopePicker
+                    eventId={newBudget.event_id}
+                    tourId={newBudget.tour_id}
+                    required
+                    requestHeaders={actingHeaders}
+                    onChange={({ event_id, tour_id }) => setNewBudget((p) => ({ ...p, event_id, tour_id }))}
+                  />
                   <div>
                     <Label className="text-slate-300">Notes</Label>
                     <Input placeholder="Optional notes" value={newBudget.notes} onChange={(e) => setNewBudget(p => ({ ...p, notes: e.target.value }))} className="border-slate-700 bg-slate-800" />
@@ -654,10 +703,13 @@ export default function FinancesPage() {
                   <DialogTitle className="text-white">Create Settlement</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-300">Event ID</Label>
-                    <Input value={settlementForm.event_id} onChange={e => setSettlementForm(p => ({ ...p, event_id: e.target.value }))} placeholder="Event UUID (optional)" className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
-                  </div>
+                  <FinanceParentScopePicker
+                    eventId={settlementForm.event_id}
+                    tourId={settlementForm.tour_id}
+                    required
+                    requestHeaders={actingHeaders}
+                    onChange={({ event_id, tour_id }) => setSettlementForm((p) => ({ ...p, event_id, tour_id }))}
+                  />
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-slate-300">Gross Revenue ($)</Label>
@@ -695,10 +747,15 @@ export default function FinancesPage() {
                       onClick={async () => {
                         setAddingSettlement(true)
                         try {
+                          if (!settlementForm.event_id && !settlementForm.tour_id) {
+                            toast.error('Select an authorized event or tour')
+                            return
+                          }
                           const res = await fetch('/api/admin/finances/settlements', adminRequest({
                             method: 'POST',
                             body: JSON.stringify({
                               event_id: settlementForm.event_id || null,
+                              tour_id: settlementForm.tour_id || null,
                               total_gross_revenue: Number(settlementForm.total_gross_revenue) || 0,
                               total_expenses: Number(settlementForm.total_expenses) || 0,
                               artist_payout: Number(settlementForm.artist_payout) || 0,
@@ -710,6 +767,16 @@ export default function FinancesPage() {
                           if (!res.ok) throw new Error(await res.text())
                           toast.success('Settlement created')
                           setShowSettlementDialog(false)
+                          setSettlementForm({
+                            event_id: '',
+                            tour_id: '',
+                            total_gross_revenue: '',
+                            total_expenses: '',
+                            artist_payout: '',
+                            venue_payout: '',
+                            deal_type: 'guarantee',
+                            notes: '',
+                          })
                           fetchData()
                         } catch (err: any) {
                           toast.error(err.message || 'Failed to create settlement')
@@ -801,10 +868,17 @@ export default function FinancesPage() {
               <Label className="text-slate-300">Description</Label>
               <Input value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className="border-slate-700 bg-slate-800 text-white" />
             </div>
-            <div>
-              <Label className="text-slate-300">Vendor</Label>
-              <Input value={editForm.vendor_name} onChange={e => setEditForm(p => ({ ...p, vendor_name: e.target.value }))} className="border-slate-700 bg-slate-800 text-white" />
-            </div>
+            <FinanceScopePicker
+              label="Vendor"
+              kinds={["vendor"]}
+              selected={editVendorSelection}
+              requestHeaders={actingHeaders}
+              placeholder="Search vendors used in this organization"
+              onSelect={(next) => {
+                setEditVendorSelection(next)
+                setEditForm((p) => ({ ...p, vendor_name: next?.value || "" }))
+              }}
+            />
             <div>
               <Label className="text-slate-300">Status</Label>
               <Select value={editForm.payment_status} onValueChange={(v) => setEditForm(p => ({ ...p, payment_status: v }))}>

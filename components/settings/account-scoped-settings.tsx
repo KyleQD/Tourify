@@ -125,9 +125,18 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
       description: 'Manage your accounts and delete unwanted ones'
     }
 
-    // Artist settings: Profile + Account Management only
+    // Artist settings: Profile + Appearance (public page only) + Account Management
     if (accountType === 'artist') {
-      return [profileTab, accountsTab]
+      return [
+        profileTab,
+        {
+          value: 'appearance',
+          label: 'Appearance',
+          icon: Palette,
+          description: 'Public profile template styles'
+        },
+        accountsTab,
+      ]
     }
 
     const baseTabs = [

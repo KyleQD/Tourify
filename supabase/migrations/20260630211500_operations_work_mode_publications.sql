@@ -12,6 +12,9 @@ alter table if exists public.event_bulletins
   add column if not exists moderation_status text not null default 'approved'
   check (moderation_status in ('pending', 'approved', 'rejected'));
 
+alter table if exists public.tours
+  add column if not exists org_id uuid references public.organizations(id) on delete cascade;
+
 create table if not exists public.work_mode_publications (
   id uuid primary key default gen_random_uuid(),
   event_id uuid references public.events_v2(id) on delete cascade,

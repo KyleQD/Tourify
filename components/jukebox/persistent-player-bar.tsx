@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -15,12 +16,14 @@ import {
   Repeat1,
   Shuffle,
   X,
+  Music,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useJukeboxOptional } from "@/contexts/jukebox-context"
 import { getTheme } from "@/lib/jukebox/visual-themes"
 import { PlayerSocialActions } from "@/components/jukebox/player-actions"
 import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
+import artistThemeStyles from "@/components/public-artist/artist-profile-theme.module.css"
 
 export function PersistentPlayerBar() {
   const ctx = useJukeboxOptional()
@@ -123,10 +126,15 @@ export function PersistentPlayerBar() {
 
       <div
         className={cn(
-          "flex items-center gap-2 backdrop-blur-xl border-t px-3 py-2 sm:px-4 sm:py-2.5 safe-area-pb",
+          artistThemeStyles.themedPlayer,
+          "flex items-center gap-2 border-t px-3 py-2 text-[var(--profile-player-text,#fff)] backdrop-blur-xl sm:px-4 sm:py-2.5 safe-area-pb [&_button:focus-visible]:outline [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-[var(--profile-player-accent,#a855f7)]",
           theme.barBgClass,
           theme.barBorderClass
         )}
+        style={{
+          backgroundColor: "var(--profile-player-surface)",
+          borderColor: "var(--profile-player-accent)",
+        }}
       >
         <button
           className="flex items-center gap-3 flex-1 min-w-0 text-left sm:flex-none sm:w-56 lg:w-64"
@@ -139,10 +147,10 @@ export function PersistentPlayerBar() {
             iconClassName="h-5 w-5"
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">
+            <p className="truncate text-sm font-medium text-[var(--profile-player-text,#fff)]">
               {currentTrack.title}
             </p>
-            <p className="truncate text-xs text-slate-400">
+            <p className="truncate text-xs text-[var(--profile-player-muted,#94a3b8)]">
               {currentTrack.artist_name}
             </p>
           </div>
@@ -184,7 +192,7 @@ export function PersistentPlayerBar() {
 
           <Button
             onClick={togglePlayPause}
-            className="h-10 w-10 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform"
+            className="h-10 w-10 rounded-full bg-[var(--profile-player-accent,#fff)] text-[var(--profile-player-background,#000)] transition-transform hover:scale-105 hover:opacity-90"
             aria-label={state.isPlaying ? "Pause" : "Play"}
           >
             {state.isPlaying ? (
@@ -263,6 +271,18 @@ export function PersistentPlayerBar() {
             variant="ghost"
             size="sm"
             className="h-9 w-9"
+            asChild
+            aria-label="Go to music page"
+          >
+            <Link href="/music">
+              <Music className="h-4 w-4 text-slate-400" />
+            </Link>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9"
             onClick={() => setExpanded(true)}
             aria-label="Expand player"
           >
@@ -279,6 +299,18 @@ export function PersistentPlayerBar() {
             <X className="h-4 w-4 text-slate-400" />
           </Button>
         </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 flex-shrink-0 sm:hidden"
+          asChild
+          aria-label="Go to music page"
+        >
+          <Link href="/music">
+            <Music className="h-4 w-4 text-slate-400" />
+          </Link>
+        </Button>
 
         <Button
           variant="ghost"

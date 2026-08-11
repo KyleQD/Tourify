@@ -1,0 +1,15 @@
+{
+  "schemaValid": true,
+  "uniqueTaskIds": true,
+  "dependencyIdsValid": true,
+  "stageCount": 24,
+  "taskCount": 408,
+  "featureFlagCount": 42,
+  "validationErrors": [],
+  "packageFileCount": 102,
+  "zipIntegrityValid": true,
+  "zipEntryCount": 102,
+  "specialDocumentsReviewed": true,
+  "referenceTypeScriptSyntaxValid": true,
+  "referenceTypeScriptFileCount": 16
+}

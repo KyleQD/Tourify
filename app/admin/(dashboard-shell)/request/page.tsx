@@ -83,8 +83,8 @@ export default function AdminRequestPage() {
                 Your admin access request has been submitted successfully. Our team will review your application and get back to you within 3-5 business days.
               </p>
               <div className="flex space-x-3 justify-center">
-                <Button variant="outline" onClick={() => router.push('/dashboard')}>
-                  Back to Dashboard
+                <Button variant="outline" onClick={() => router.push('/admin/dashboard')}>
+                  Back to Admin Dashboard
                 </Button>
                 <Button onClick={() => router.push('/help/admin-process')}>
                   Learn About Admin Process

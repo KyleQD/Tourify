@@ -1,49 +1,61 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
-import { z } from 'zod'
-import { logAuditEvent } from '@/lib/audit'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 
-function serviceClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-}
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
-const createFlagSchema = z.object({
-  key: z.string().min(1).regex(/^[a-z0-9_-]+$/, 'Key must be lowercase alphanumeric with underscores/dashes'),
-  name: z.string().min(1),
-  description: z.string().optional(),
-  enabled: z.boolean().optional().default(false),
-  rollout_percentage: z.number().min(0).max(100).optional().default(0),
-  target_org_ids: z.array(z.string().uuid()).optional(),
+const assignmentSchema = z.object({
+  flag_key: z.string().regex(/^admin_[a-z0-9]+(?:_[a-z0-9]+)*_v[1-9][0-9]*$/),
+  environment: z.enum(["local", "staging", "pilot", "production"]),
+  enabled: z.boolean().default(false),
+  rollout_percentage: z.number().int().min(0).max(100).default(0),
+  reason: z.string().trim().min(3).max(2000),
+  idempotency_key: z.string().trim().min(8).max(200),
 })
 
-export const GET = withAdminAuth(async (_request: NextRequest, { supabase }) => {
-  const { data: flags, error } = await supabase
-    .from('feature_flags')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ flags: flags || [] })
-})
-
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
-  const body = await request.json()
-  const parsed = createFlagSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-
-  const { data, error } = await supabase
-    .from('feature_flags')
-    .insert(parsed.data)
-    .select('*')
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const { data: profile } = await serviceClient().from('profiles').select('org_id').eq('id', user.id).maybeSingle()
-  if (profile?.org_id) {
-    await logAuditEvent({ actorId: user.id, orgId: profile.org_id, action: 'create', entityType: 'feature_flag', entityId: data.id, newValues: { key: data.key, enabled: data.enabled } })
+export const GET = withAdminCapability("org.settings.manage", async (_request: NextRequest, { supabase, admin }) => {
+  const [definitionsResult, assignmentsResult] = await Promise.all([
+    supabase.from("admin_feature_flag_definitions").select("*").order("key"),
+    supabase
+      .from("admin_org_feature_flag_assignments")
+      .select("*")
+      .eq("org_id", admin.orgId)
+      .order("flag_key"),
+  ])
+  if (definitionsResult.error || assignmentsResult.error) {
+    return NextResponse.json({
+      error: definitionsResult.error?.message || assignmentsResult.error?.message,
+      code: "feature_flag_store_unavailable",
+    }, { status: 503 })
   }
+  return NextResponse.json({
+    definitions: definitionsResult.data || [],
+    assignments: assignmentsResult.data || [],
+    orgId: admin.orgId,
+  })
+})
 
-  return NextResponse.json({ flag: data }, { status: 201 })
+export const POST = withAdminCapability("org.settings.manage", async (request: NextRequest, { supabase, user, admin }) => {
+  const parsed = assignmentSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten(), code: "validation_failed" }, { status: 422 })
+  }
+  const { reason, ...input } = parsed.data
+  const { data, error } = await supabase
+    .from("admin_org_feature_flag_assignments")
+    .insert({
+      ...input,
+      org_id: admin.orgId,
+      change_reason: reason,
+      updated_by: user.id,
+    })
+    .select("*")
+    .single()
+  if (error) {
+    const conflict = error.code === "23505"
+    return NextResponse.json({
+      error: conflict ? "Assignment or idempotency key already exists." : error.message,
+      code: conflict ? "feature_flag_conflict" : "feature_flag_store_unavailable",
+    }, { status: conflict ? 409 : 503 })
+  }
+  return NextResponse.json({ assignment: data }, { status: 201 })
 })

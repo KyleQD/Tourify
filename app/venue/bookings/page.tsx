@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -14,15 +14,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
-import { venueService } from "@/lib/services/venue.service"
 import { useVenueCalendarData } from "../hooks/use-venue-calendar-data"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 import { format } from "date-fns"
 import { approveBookingAndMaybeCreateEvent, respondToVenueBookingRequest } from "../actions/event-actions"
 import RecurringTemplateForm from "../components/recurring-template-form"
 import { useRouter } from "next/navigation"
 import { getEventTypeBadgeColor, isSameCalendarDay } from "../lib/event-presentation"
+import {
+  getVenueBookingLifecycleTransitions,
+  resolveVenueBookingLifecycleStatus,
+  type VenueBookingLifecycleStatus,
+} from "@/lib/venue/booking-lifecycle"
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -62,6 +67,9 @@ interface BookingRequest {
   contact_email: string
   contact_phone: string
   status: "pending" | "approved" | "rejected" | "cancelled"
+  lifecycle_status?: VenueBookingLifecycleStatus | null
+  resolved_lifecycle_status?: VenueBookingLifecycleStatus
+  lifecycle_revision?: number
   response_message: string
   requested_at: string
   responded_at: string
@@ -73,6 +81,11 @@ const statusIcons = {
   approved: CheckCircle,
   rejected: XCircle,
   cancelled: AlertCircle,
+  inquiry: Clock3,
+  hold: Clock,
+  offer: Send,
+  contract: FileText,
+  confirmed: CheckCircle,
 }
 
 const statusColors = {
@@ -80,6 +93,11 @@ const statusColors = {
   approved: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
   rejected: "bg-red-500/15 text-red-200 border-red-500/30",
   cancelled: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
+  inquiry: "bg-sky-500/15 text-sky-200 border-sky-500/30",
+  hold: "bg-amber-500/15 text-amber-200 border-amber-500/30",
+  offer: "bg-violet-500/15 text-violet-200 border-violet-500/30",
+  contract: "bg-indigo-500/15 text-indigo-200 border-indigo-500/30",
+  confirmed: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
 }
 
 export default function BookingsPage() {
@@ -90,6 +108,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<BookingRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isLifecycleAvailable, setIsLifecycleAvailable] = useState(false)
   const [isActionInProgress, setIsActionInProgress] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
@@ -131,25 +150,6 @@ export default function BookingsPage() {
   const [responseAction, setResponseAction] = useState<"approve" | "reject" | null>(null)
   const [responseMessage, setResponseMessage] = useState("")
 
-  useEffect(() => {
-    if (venue?.id) {
-      void fetchBookings({ showLoading: true })
-    }
-  }, [venue?.id])
-
-  useEffect(() => {
-    if (!venue) return
-    const policies = (venue.settings as any)?.booking_policies || {}
-    if (policies.lead_time) setLeadTime(String(policies.lead_time))
-    if (policies.max_advance) setMaxAdvance(String(policies.max_advance))
-    if (policies.auto_approve) setAutoApprove(String(policies.auto_approve))
-    if (policies.response_template) setResponseTemplate(String(policies.response_template))
-    if (policies.rejection_template) setRejectionTemplate(String(policies.rejection_template))
-    setNotificationEmail(
-      String(policies.notification_email || venue.contact_info?.booking_email || venue.contact_info?.email || ""),
-    )
-  }, [venue?.id, venue?.settings, venue?.contact_info])
-
   async function saveBookingSettings() {
     if (!venue?.id) return
     setIsSavingSettings(true)
@@ -179,14 +179,22 @@ export default function BookingsPage() {
     }
   }
 
-  const fetchBookings = async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+  const fetchBookings = useCallback(async (
+    { showLoading = false }: { showLoading?: boolean } = {},
+  ) => {
     if (!venue?.id) return
     
     try {
       if (showLoading) setIsLoading(true)
       else setIsRefreshing(true)
-      const bookingData = await venueService.getVenueBookingRequests(venue.id)
-      const normalized = (bookingData || []).map((b: any) => ({
+      const response = await fetch(`/api/venue/booking-requests?venue_id=${venue.id}`, {
+        credentials: "include",
+        cache: "no-store",
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload?.error || "Failed to load booking requests")
+      setIsLifecycleAvailable(Boolean(payload?.lifecycle?.available))
+      const normalized = (payload?.data || []).map((b: any) => ({
         ...b,
         expected_attendance: b.expected_attendance ?? 0,
         response_message: b.response_message || "",
@@ -202,6 +210,92 @@ export default function BookingsPage() {
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
+    }
+  }, [toast, venue?.id])
+
+  useEffect(() => {
+    if (venue?.id) {
+      void fetchBookings({ showLoading: true })
+    }
+  }, [fetchBookings, venue?.id])
+
+  useEffect(() => {
+    if (!venue) return
+    const policies = (venue.settings as any)?.booking_policies || {}
+    if (policies.lead_time) setLeadTime(String(policies.lead_time))
+    if (policies.max_advance) setMaxAdvance(String(policies.max_advance))
+    if (policies.auto_approve) setAutoApprove(String(policies.auto_approve))
+    if (policies.response_template) setResponseTemplate(String(policies.response_template))
+    if (policies.rejection_template) setRejectionTemplate(String(policies.rejection_template))
+    setNotificationEmail(
+      String(policies.notification_email || venue.contact_info?.booking_email || venue.contact_info?.email || ""),
+    )
+  }, [venue])
+
+  const handleLifecycleAction = async (
+    booking: BookingRequest,
+    nextStatus: VenueBookingLifecycleStatus,
+  ) => {
+    const currentStatus = resolveVenueBookingLifecycleStatus(booking)
+    const expectedRevision = booking.lifecycle_revision || 1
+    const clientRequestId = crypto.randomUUID()
+
+    try {
+      setIsActionInProgress(booking.id)
+      if (nextStatus === "confirmed") {
+        const result = await approveBookingAndMaybeCreateEvent({
+          requestId: booking.id,
+          createEvent: true,
+          expectedRevision,
+          clientRequestId,
+        })
+        if (!result.success) throw new Error(result.error || "Could not confirm booking")
+        toast({
+          title: "Booking confirmed",
+          description: "The booking is confirmed and its event workspace is ready.",
+          action: result.eventV2Id ? (
+            <ToastAction
+              altText="Open event"
+              onClick={() => router.push(`/venue/events/${result.eventV2Id}`)}
+            >
+              Open event
+            </ToastAction>
+          ) : undefined,
+        })
+      } else {
+        const response = await fetch("/api/venue/booking-requests", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            requestId: booking.id,
+            lifecycleStatus: nextStatus,
+            expectedRevision,
+            clientRequestId,
+          }),
+        })
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(
+            payload?.code === "CONFLICT"
+              ? "This booking changed elsewhere. The latest version has been loaded."
+              : payload?.error || "Could not update booking",
+          )
+        }
+        toast({
+          title: "Booking updated",
+          description: `${currentStatus} → ${nextStatus}`,
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Booking not updated",
+        description: error instanceof Error ? error.message : "Please refresh and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      await fetchBookings()
+      setIsActionInProgress(null)
     }
   }
 
@@ -233,6 +327,7 @@ export default function BookingsPage() {
           : booking
       ))
 
+      let createdEventId: string | null = null
       if (action === "approved") {
         const result = await approveBookingAndMaybeCreateEvent({
           requestId: bookingId,
@@ -240,6 +335,7 @@ export default function BookingsPage() {
           responseMessage: message,
         })
         if (!result.success) throw new Error(result.error || "Failed to approve booking request")
+        createdEventId = result.eventV2Id || result.eventId || null
       } else {
         const result = await respondToVenueBookingRequest({
           requestId: bookingId,
@@ -251,7 +347,19 @@ export default function BookingsPage() {
 
       toast({
         title: action === "approved" ? "Booking Approved" : "Booking Rejected",
-        description: `Successfully ${action} the booking request.`,
+        description:
+          action === "approved" && createdEventId
+            ? "Booking approved and event created. Open the event ops hub to advance the show."
+            : `Successfully ${action} the booking request.`,
+        action:
+          action === "approved" && createdEventId ? (
+            <ToastAction
+              altText="Open event"
+              onClick={() => router.push(`/venue/events/${createdEventId}`)}
+            >
+              Open event
+            </ToastAction>
+          ) : undefined,
       })
       
       setIsResponseModalOpen(false)
@@ -275,7 +383,10 @@ export default function BookingsPage() {
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
-      if (statusFilter !== "all" && booking.status !== statusFilter) return false
+      const resolvedStatus = isLifecycleAvailable
+        ? resolveVenueBookingLifecycleStatus(booking)
+        : booking.status
+      if (statusFilter !== "all" && resolvedStatus !== statusFilter) return false
 
       if (
         deferredSearchTerm &&
@@ -290,7 +401,7 @@ export default function BookingsPage() {
 
       return true
     })
-  }, [bookings, statusFilter, deferredSearchTerm, dateFilter, eventTypeFilter, genreFilter])
+  }, [bookings, statusFilter, deferredSearchTerm, dateFilter, eventTypeFilter, genreFilter, isLifecycleAvailable])
 
   const stats = useMemo(() => ({
     total: bookings.length,
@@ -302,7 +413,11 @@ export default function BookingsPage() {
   const upcomingEvents = useMemo(() => {
     const now = Date.now()
     return bookings
-      .filter((booking) => booking.status === "approved" && new Date(booking.event_date).getTime() > now)
+      .filter(
+        (booking) =>
+          resolveVenueBookingLifecycleStatus(booking) === "confirmed" &&
+          new Date(booking.event_date).getTime() > now,
+      )
       .sort((first, second) => new Date(first.event_date).getTime() - new Date(second.event_date).getTime())
       .slice(0, 5)
   }, [bookings])
@@ -377,6 +492,22 @@ export default function BookingsPage() {
           </Button>
         </div>
       </div>
+
+      {!isLifecycleAvailable && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100"
+          role="status"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Advanced booking stages are not enabled yet.</p>
+            <p className="mt-1 text-amber-100/80">
+              The existing approve and decline flow remains available until the reviewed database
+              package and postflight checks are confirmed.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -463,9 +594,21 @@ export default function BookingsPage() {
               </SelectTrigger>
               <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      {isLifecycleAvailable ? (
+                        <>
+                          <SelectItem value="inquiry">Inquiry</SelectItem>
+                          <SelectItem value="hold">Hold</SelectItem>
+                          <SelectItem value="offer">Offer</SelectItem>
+                          <SelectItem value="contract">Contract</SelectItem>
+                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                        </>
+                      )}
                       <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
@@ -591,7 +734,15 @@ export default function BookingsPage() {
             </Card>
           ) : (
               filteredBookings.map((booking) => {
-                const StatusIcon = statusIcons[booking.status]
+                const displayStatus = isLifecycleAvailable
+                  ? resolveVenueBookingLifecycleStatus(booking)
+                  : booking.status
+                const StatusIcon = statusIcons[displayStatus]
+                const lifecycleTransitions = isLifecycleAvailable
+                  ? getVenueBookingLifecycleTransitions(
+                      resolveVenueBookingLifecycleStatus(booking),
+                    )
+                  : []
                 return (
               <Card key={booking.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-6">
@@ -599,9 +750,9 @@ export default function BookingsPage() {
                     <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold">{booking.event_name}</h3>
-                            <Badge variant="outline" className={statusColors[booking.status]}>
+                            <Badge variant="outline" className={statusColors[displayStatus]}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                              {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
                             </Badge>
                             <Badge variant="secondary">{booking.event_type}</Badge>
                             {(booking as any).genre && (
@@ -668,7 +819,7 @@ export default function BookingsPage() {
                             View
                           </Button>
 
-                      {booking.status === "pending" && (
+                      {!isLifecycleAvailable && booking.status === "pending" && (
                             <div className="flex gap-1">
                           <Button
                              size="sm"
@@ -694,6 +845,29 @@ export default function BookingsPage() {
                           </Button>
                             </div>
                       )}
+
+                          {isLifecycleAvailable && lifecycleTransitions.length > 0 && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  disabled={isActionInProgress === booking.id}
+                                >
+                                  {isActionInProgress === booking.id ? "Updating..." : "Change stage"}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {lifecycleTransitions.map((nextStatus) => (
+                                  <DropdownMenuItem
+                                    key={nextStatus}
+                                    onClick={() => void handleLifecycleAction(booking, nextStatus)}
+                                  >
+                                    Move to {nextStatus}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -870,7 +1044,7 @@ export default function BookingsPage() {
               <Card>
                 <CardHeader>
               <CardTitle>Booking Settings</CardTitle>
-              <CardDescription>Configure your venue's booking preferences</CardDescription>
+              <CardDescription>Configure your venue&apos;s booking preferences</CardDescription>
                 </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
@@ -1067,7 +1241,7 @@ export default function BookingsPage() {
                       </div>
                     </div>
                 
-                {selectedBooking.status === "pending" && (
+                {!isLifecycleAvailable && selectedBooking.status === "pending" && (
                 <DialogFooter>
                     <Button 
                     variant="outline"

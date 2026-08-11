@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   applyOrgLogisticsTaskFilter,
   resolveAuthorizedOrgLogisticsScope,
@@ -26,13 +26,14 @@ const reservationSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  return withAdminAuth(async (_req, { user }) => {
+  return withAdminCapability('logistics.view', async (_req, { user, admin }) => {
     try {
       const { searchParams } = new URL(request.url)
       const eventId = searchParams.get('eventId') || searchParams.get('event_id')
       const tourId = searchParams.get('tourId') || searchParams.get('tour_id')
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId,
         tourId,
       })
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAdminAuth(async (req, { user }) => {
+  return withAdminCapability('logistics.manage', async (req, { user, admin }) => {
     try {
       const body = await req.json()
       const parsed = reservationSchema.safeParse(body)
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
 
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId: input.event_id,
         tourId: input.tour_id,
       })

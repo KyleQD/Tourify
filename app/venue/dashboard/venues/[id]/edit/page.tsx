@@ -32,64 +32,6 @@ import {
 } from "lucide-react"
 import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
-// Mock venue data - in a real app, this would come from an API
-const mockVenue = {
-  id: "venue-1",
-  name: "The Echo Lounge",
-  username: "echolounge",
-  description:
-    "A premier music venue with state-of-the-art sound and lighting systems, hosting both local and touring artists.",
-  location: "Los Angeles, CA",
-  address: "1234 Sunset Blvd, Los Angeles, CA 90026",
-  avatar: "/placeholder.svg?height=200&width=200&text=Echo+Lounge",
-  coverImage: "/placeholder.svg?height=400&width=1200&text=Echo+Lounge+Stage",
-  capacity: 850,
-  type: "Music Venue",
-  amenities: [
-    { id: "wifi", name: "Wi-Fi", icon: "Wifi", enabled: true },
-    { id: "parking", name: "Parking", icon: "ParkingMeter", enabled: true },
-    { id: "ada", name: "ADA Access", icon: "Accessibility", enabled: true },
-    { id: "greenroom", name: "Green Room", icon: "Coffee", enabled: true },
-    { id: "sound", name: "Sound System", icon: "Music", enabled: true },
-  ],
-  specs: {
-    soundSystem: "Meyer Sound with 32-channel Midas console",
-    lighting: "Full DMX system with moving heads and LED pars",
-    stage: "24' x 16' with 3' height",
-    greenRoom: true,
-    parking: "25 spots on-site, street parking available",
-    accessibility: "ADA compliant with wheelchair ramp and accessible restrooms",
-    bar: "Full-service bar with craft cocktails and local beers",
-    foodService: "Small plates menu available until 10pm",
-  },
-  bookingContact: {
-    name: "Alex Johnson",
-    email: "booking@echolounge.com",
-    phone: "(323) 555-1234",
-  },
-  bookingSettings: {
-    allowDirectBooking: false,
-    requireDeposit: true,
-    depositAmount: 500,
-    cancellationPolicy: "48 hours notice required for full refund",
-    autoAcceptBookings: false,
-  },
-  gallery: [
-    { id: "img-1", url: "/placeholder.svg?height=300&width=400&text=Stage", alt: "Main stage" },
-    { id: "img-2", url: "/placeholder.svg?height=300&width=400&text=Bar", alt: "Bar area" },
-    { id: "img-3", url: "/placeholder.svg?height=300&width=400&text=Entrance", alt: "Venue entrance" },
-    { id: "img-4", url: "/placeholder.svg?height=300&width=400&text=Green+Room", alt: "Green room" },
-    { id: "img-5", url: "/placeholder.svg?height=300&width=400&text=Sound+Booth", alt: "Sound booth" },
-    { id: "img-6", url: "/placeholder.svg?height=300&width=400&text=Crowd", alt: "Crowd view" },
-  ],
-  documents: [
-    { id: "doc-1", name: "Stage Plot & Technical Rider", type: "pdf", url: "#" },
-    { id: "doc-2", name: "Floor Plan", type: "pdf", url: "#" },
-    { id: "doc-3", name: "Booking Policy", type: "pdf", url: "#" },
-    { id: "doc-4", name: "Hospitality Information", type: "pdf", url: "#" },
-  ],
-}
-
 export default function EditVenuePage() {
   const params = useParams()
   const router = useRouter()
@@ -100,15 +42,61 @@ export default function EditVenuePage() {
   const [activeTab, setActiveTab] = useState("basic")
 
   useEffect(() => {
-    // In a real app, fetch venue data from API
     const loadVenue = async () => {
       setLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800))
-        setVenue(mockVenue)
+        const venueId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : ""
+        if (!venueId) {
+          setVenue(null)
+          return
+        }
+
+        const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}`, {
+          credentials: "include",
+          cache: "no-store",
+        })
+        if (!response.ok) throw new Error("Failed to load venue")
+        const payload = await response.json()
+        const fetched = payload?.venue
+        if (!fetched) {
+          setVenue(null)
+          return
+        }
+
+        setVenue({
+          id: fetched.id,
+          name: fetched.venue_name || "",
+          username: fetched.url_slug || "",
+          description: fetched.description || "",
+          location: `${fetched.city || ""}${fetched.city && fetched.state ? ", " : ""}${fetched.state || ""}`,
+          address: fetched.address || "",
+          website: fetched.social_links?.website || "",
+          avatar: fetched.avatar_url || "",
+          coverImage: fetched.cover_image_url || "",
+          capacity: String(fetched.capacity || ""),
+          type: fetched.venue_types?.[0] || "",
+          bookingContact: {
+            name: fetched.contact_info?.manager_name || "",
+            email: fetched.contact_info?.booking_email || fetched.contact_info?.email || "",
+            phone: fetched.contact_info?.phone || "",
+          },
+          specs: fetched.settings?.technical_specs || {},
+          bookingSettings: fetched.settings?.booking_settings || {
+            allowDirectBooking: false,
+            requireDeposit: false,
+            depositAmount: "",
+            cancellationPolicy: "",
+            autoAcceptBookings: false,
+          },
+          amenities: (fetched.amenities || []).map((name: string) => ({
+            id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            name,
+            enabled: true,
+          })),
+        })
       } catch (error) {
         console.error("Error loading venue:", error)
+        setVenue(null)
         toast({
           title: "Error",
           description: "Failed to load venue information",
@@ -119,7 +107,7 @@ export default function EditVenuePage() {
       }
     }
 
-    loadVenue()
+    void loadVenue()
   }, [params.id, toast])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -184,15 +172,48 @@ export default function EditVenuePage() {
     setSaving(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const [city = "", state = ""] = String(venue.location || "")
+        .split(",")
+        .map((value: string) => value.trim())
+      const response = await fetch(`/api/venues/${encodeURIComponent(String(params.id))}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venue_name: venue.name,
+          url_slug: venue.username,
+          description: venue.description || null,
+          address: venue.address || null,
+          city: city || null,
+          state: state || null,
+          capacity: venue.capacity ? Number(venue.capacity) : null,
+          venue_types: venue.type ? [venue.type] : [],
+          amenities: venue.amenities
+            .filter((amenity: any) => amenity.enabled)
+            .map((amenity: any) => amenity.name),
+          contact_info: {
+            manager_name: venue.bookingContact?.name || "",
+            booking_email: venue.bookingContact?.email || "",
+            phone: venue.bookingContact?.phone || "",
+          },
+          social_links: { website: venue.website || "" },
+          settings: {
+            technical_specs: venue.specs || {},
+            booking_settings: venue.bookingSettings || {},
+          },
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to save venue")
+      }
 
       toast({
         title: "Changes Saved",
         description: "Your venue profile has been updated successfully.",
       })
 
-      router.push(`/venues/${params.id}`)
+      router.push(`/venue/dashboard/venues/${params.id}`)
     } catch (error) {
       console.error("Error saving venue:", error)
       toast({
@@ -206,7 +227,7 @@ export default function EditVenuePage() {
   }
 
   const handleCancel = () => {
-    router.push(`/venues/${params.id}`)
+    router.push(`/venue/dashboard/venues/${params.id}`)
   }
 
   if (loading) {
