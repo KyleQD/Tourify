@@ -243,6 +243,24 @@ async function buildContextForProfile(
   if (membership instanceof NextResponse) return membership
 
   if (!membership) {
+    if (organization.user_id === auth.user.id) {
+      return {
+        userId: auth.user.id,
+        profileId: organization.id,
+        accountType: 'organization',
+        orgId,
+        membershipRole: 'owner',
+        capabilities: resolveEffectiveAdminCapabilities({
+          role: 'owner',
+          membershipStatus: 'active',
+        }),
+        source: candidate.source,
+        scope: 'organization',
+        allowedTourIds: [],
+        correlationId,
+      }
+    }
+
     const collaborator = await loadTourCollaboratorScope(auth.supabase, auth.user.id, orgId)
     if (collaborator instanceof NextResponse) return collaborator
     if (!collaborator) {

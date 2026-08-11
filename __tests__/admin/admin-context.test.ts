@@ -14,6 +14,22 @@ function headers(values: Record<string, string>): Pick<Headers, 'get'> {
   return { get: key => normalized.get(key.toLowerCase()) ?? null }
 }
 
+function mockSupabase(tableResults: Record<string, { data: any; error: any }>) {
+  return {
+    from: (table: string) => {
+      const query: Record<string, any> = {
+        select: () => query,
+        eq: () => query,
+        in: () => query,
+        maybeSingle: async () => tableResults[table] ?? { data: null, error: null },
+        then: (resolve: (value: any) => unknown, reject?: (reason: unknown) => unknown) =>
+          Promise.resolve(tableResults[table] ?? { data: null, error: null }).then(resolve, reject),
+      }
+      return query
+    },
+  }
+}
+
 describe('Admin acting context selection', () => {
   it('accepts an explicit organization profile and org assertion', () => {
     const result = parseExplicitAdminActingHeaders(headers({
@@ -78,6 +94,68 @@ describe('Admin acting context selection', () => {
       code: 'acting_context_required',
     })
     expect(tables).toEqual(['user_sessions'])
+  })
+
+  it('treats the selected organization owner as owner when membership is missing', async () => {
+    const result = await resolveActingAdminContext(
+      new NextRequest('http://localhost/api/admin/tours', {
+        headers: {
+          'x-acting-profile-id': 'profile-a',
+          'x-acting-account-type': 'organization',
+          'x-acting-org-id': 'org-a',
+        },
+      }),
+      {
+        user: { id: 'user-a' },
+        supabase: mockSupabase({
+          organizer_accounts: {
+            data: { id: 'profile-a', user_id: 'user-a', ops_org_id: 'org-a', is_active: true },
+            error: null,
+          },
+          org_members: { data: null, error: null },
+        }),
+      },
+    )
+
+    expect(result).not.toBeInstanceOf(NextResponse)
+    expect(result).toMatchObject({
+      userId: 'user-a',
+      profileId: 'profile-a',
+      orgId: 'org-a',
+      membershipRole: 'owner',
+      scope: 'organization',
+      allowedTourIds: [],
+    })
+    expect((result as any).capabilities).toContain('org.settings.manage')
+  })
+
+  it('rejects a selected organization when the user is neither owner nor member', async () => {
+    const result = await resolveActingAdminContext(
+      new NextRequest('http://localhost/api/admin/tours', {
+        headers: {
+          'x-acting-profile-id': 'profile-a',
+          'x-acting-account-type': 'organization',
+          'x-acting-org-id': 'org-a',
+        },
+      }),
+      {
+        user: { id: 'user-b' },
+        supabase: mockSupabase({
+          organizer_accounts: {
+            data: { id: 'profile-a', user_id: 'user-a', ops_org_id: 'org-a', is_active: true },
+            error: null,
+          },
+          org_members: { data: null, error: null },
+          tour_team_members: { data: [], error: null },
+        }),
+      },
+    )
+
+    expect(result).toBeInstanceOf(NextResponse)
+    expect((result as NextResponse).status).toBe(403)
+    await expect((result as NextResponse).json()).resolves.toMatchObject({
+      code: 'organization_access_denied',
+    })
   })
 
   it('builds org-scoped cache keys for switch invalidation (SEC-101)', () => {

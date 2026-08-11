@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260811182035_admin_owner_org_scope_repair.sql",
+  "taskId": "SEC-OWNER-ORG-SCOPE",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["admin", "tenancy", "rbac"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch with legacy organizer accounts",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "active organizer_accounts grouped by missing ops_org_id",
+      "active organizer_accounts with ops_org_id but no matching owner org_members row"
+    ],
+    "expectedAffectedRows": "Only active organizer_accounts owned by a user and missing ops_org_id, plus missing owner org_members rows",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Idempotent migration; rerun safely because only rows with null ops_org_id are linked and org_members uses on conflict do nothing",
+    "resumeCursor": "supabase migration version 20260811182035",
+    "idempotency": "Existing ops_org_id values and existing org_members roles are not overwritten"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Rows without user_id are intentionally skipped; never guess an owner or org_id"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "No new constraints or indexes; validate row counts for repaired organizer_accounts and missing owner memberships"
+  },
+  "recovery": {
+    "rollback": "Do not delete organizations or memberships automatically; forward-fix any incorrect legacy mapping with targeted reviewed SQL",
+    "forwardFix": "Ship a scoped follow-up migration for any quarantined or skipped legacy organizer account rows"
+  },
+  "postflight": {
+    "queries": [
+      "count active owned organizer_accounts where ops_org_id is null",
+      "count active owned organizer_accounts with ops_org_id and no owner org_members row",
+      "sample repaired organizer_accounts joined to organizations and org_members"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

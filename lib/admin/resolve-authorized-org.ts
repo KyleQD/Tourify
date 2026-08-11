@@ -45,12 +45,19 @@ export class AdminOrganizationAccessDeniedError extends Error {
 
 export function resolveExplicitAuthorizedOrgId(
   requestedOrgId: string | null | undefined,
-  memberOrgIds: readonly string[],
+  authorizedOrgIds: readonly string[],
 ): string {
   const orgId = requestedOrgId?.trim()
   if (!orgId) throw new AdminActingContextRequiredError()
-  if (!memberOrgIds.includes(orgId)) throw new AdminOrganizationAccessDeniedError()
+  if (!authorizedOrgIds.includes(orgId)) throw new AdminOrganizationAccessDeniedError()
   return orgId
+}
+
+export function mergeAuthorizedOrgIds(
+  memberOrgIds: readonly string[],
+  ownerOrgIds: readonly string[],
+): string[] {
+  return Array.from(new Set([...memberOrgIds, ...ownerOrgIds].filter(Boolean)))
 }
 
 export function authorizedOrgScopeErrorResponse(error: unknown): NextResponse | null {
@@ -77,18 +84,35 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
   const service = createServiceClient()
   const { userId, requestedOrgId, eventId, tourId } = args
 
-  const { data: memberships, error: memberErr } = await service
-    .from('org_members')
-    .select('org_id')
-    .eq('user_id', userId)
+  const [
+    { data: memberships, error: memberErr },
+    { data: ownedOrganizations, error: ownedErr },
+  ] = await Promise.all([
+    service
+      .from('org_members')
+      .select('org_id')
+      .eq('user_id', userId),
+    service
+      .from('organizer_accounts')
+      .select('ops_org_id')
+      .eq('user_id', userId)
+      .eq('is_active', true),
+  ])
 
   if (memberErr) throw new Error(memberErr.message)
+  if (ownedErr) throw new Error(ownedErr.message)
 
   const memberOrgIds = (memberships ?? [])
     .map((row: { org_id?: string | null }) => row.org_id)
     .filter((id: string | null | undefined): id is string => Boolean(id))
+  const ownerOrgIds = (ownedOrganizations ?? [])
+    .map((row: { ops_org_id?: string | null }) => row.ops_org_id)
+    .filter((id: string | null | undefined): id is string => Boolean(id))
 
-  const orgId = resolveExplicitAuthorizedOrgId(requestedOrgId, memberOrgIds)
+  const orgId = resolveExplicitAuthorizedOrgId(
+    requestedOrgId,
+    mergeAuthorizedOrgIds(memberOrgIds, ownerOrgIds),
+  )
 
   const [{ data: events, error: eventsErr }, { data: tours, error: toursErr }] = await Promise.all([
     service.from('events_v2').select('id').eq('org_id', orgId),

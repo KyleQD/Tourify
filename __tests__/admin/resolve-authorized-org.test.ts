@@ -4,6 +4,7 @@ import {
   AdminOrganizationAccessDeniedError,
   applyOrgLogisticsTaskFilter,
   authorizedOrgScopeErrorResponse,
+  mergeAuthorizedOrgIds,
   resolveExplicitAuthorizedOrgId,
 } from '@/lib/admin/resolve-authorized-org'
 
@@ -15,6 +16,20 @@ describe('explicit admin organization scope', () => {
 
   it('accepts the explicitly selected organization', () => {
     expect(resolveExplicitAuthorizedOrgId('org-b', ['org-a', 'org-b'])).toBe('org-b')
+  })
+
+  it('accepts an explicitly selected owner-owned organization without a membership row', () => {
+    const authorized = mergeAuthorizedOrgIds(['org-member'], ['org-owned'])
+
+    expect(resolveExplicitAuthorizedOrgId('org-owned', authorized)).toBe('org-owned')
+  })
+
+  it('deduplicates membership and ownership scopes', () => {
+    expect(mergeAuthorizedOrgIds(['org-a', 'org-b'], ['org-b', 'org-c'])).toEqual([
+      'org-a',
+      'org-b',
+      'org-c',
+    ])
   })
 
   it('rejects an organization outside the user memberships', () => {
