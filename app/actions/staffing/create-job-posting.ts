@@ -144,15 +144,22 @@ export async function createJobPosting(input: CreateJobPostingInput) {
     console.warn('[createJobPosting] Board publish failed:', e)
   }
 
-  // Optional: create vendor request for event staffing
+  // Optional: create vendor request for event staffing. Non-fatal: the
+  // posting itself is already persisted above.
   if (data.event_id) {
-    await supabase.from('event_vendor_requests').insert({
-      event_id: data.event_id,
-      job_posting_template_id: posting.id,
-      created_by: userId,
-      status: 'pending',
-      message: `Request to staff: ${data.title}`,
-    })
+    try {
+      await supabase.from('event_vendor_requests').insert({
+        event_id: data.event_id,
+        org_id: data.venueId,
+        created_by: userId,
+        service_type: 'staffing',
+        vendor_name: data.title,
+        status: 'pending',
+        notes: `Request to staff: ${data.title} (job posting ${posting.id})`,
+      })
+    } catch (e) {
+      console.warn('[createJobPosting] Vendor request creation failed:', e)
+    }
   }
 
   return { ok: true, data: posting }

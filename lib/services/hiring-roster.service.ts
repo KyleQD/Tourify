@@ -23,6 +23,7 @@ import type { HiringEntity } from "@/types/hiring-entity"
 import { mapRosterStatusToAssignment } from "@/lib/admin/workforce-assignment-status"
 import { canAssignWorkMode, canManageHiring } from "@/lib/auth/hiring-permissions"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
+import { resolveSchedulingOrgId } from "@/lib/hiring/resolve-scheduling-org-id"
 import { syncEmploymentAssignmentForShift } from "@/lib/services/staff-shift-assignment-sync"
 
 interface HiringRosterServiceArgs {
@@ -1014,16 +1015,25 @@ export class HiringRosterService {
 
     if (existingError) throw new Error(existingError.message)
 
+    // Resolve the real organizations.id - employer.entityId may be an
+    // organizer_accounts.id or owner user_id, not the org id itself. Stamping
+    // the raw entityId here is what left roster rows "outside the acting
+    // organization" during shift assignment.
+    const resolvedOrgId =
+      args.employer.entityType === "organization"
+        ? await resolveSchedulingOrgId({ supabase: this.supabase, employer: args.employer })
+        : null
+
     const basePayload: Record<string, unknown> = {
       user_id: args.userId,
       employer_entity_type: args.employer.entityType,
       employer_entity_id: args.employer.entityId,
       venue_id: venueId,
-      // WORK-103 — stamp org scope when employer is an organization (never invent).
+      // WORK-103 - stamp org scope when employer is an organization (never invent).
       org_id:
-        args.employer.entityType === "organization"
-          ? args.employer.entityId
-          : (existing as { org_id?: string | null } | null)?.org_id ?? null,
+        resolvedOrgId ??
+        (existing as { org_id?: string | null } | null)?.org_id ??
+        null,
       name: args.name?.trim() || existing?.name || args.email?.trim() || "Staff member",
       email: args.email?.trim() || existing?.email || null,
       phone: args.phone?.trim() || existing?.phone || null,
