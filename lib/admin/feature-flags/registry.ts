@@ -23,6 +23,18 @@ export const ADMIN_FEATURE_FLAG_REGISTRY = [
     expiresAt: "2027-12-31T23:59:59.000Z",
     removalIssue: "PUB-601",
   },
+  {
+    key: "admin_logistics_plan_workspace_v1",
+    displayName: "Logistics plan workspace",
+    purpose: "Enable the tour-backed logistics plan workspace for a selected organization.",
+    owner: "Operations Platform",
+    environments: ["staging", "pilot", "production"],
+    safeDefault: false,
+    metrics: ["workspace_request_rate", "workspace_error_rate", "readiness_blocker_count"],
+    rollback: "Disable the organization assignment and keep tour and logistics records unchanged.",
+    expiresAt: "2027-12-31T23:59:59.000Z",
+    removalIssue: "LOG-PLAN-001",
+  },
 ] as const
 
 export type AdminFeatureFlagKey = (typeof ADMIN_FEATURE_FLAG_REGISTRY)[number]["key"]
