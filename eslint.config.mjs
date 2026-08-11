@@ -10,6 +10,19 @@ const compat = new FlatCompat({
 })
 
 const config = [
+  {
+    ignores: [
+      ".next/**",
+      "coverage/**",
+      "dist/**",
+      "build/**",
+      "docs/**",
+      "lib/generated/**",
+      "apps/mobile/**",
+      "apps/mobile/dist/**",
+      "apps/mobile/node_modules/**",
+    ],
+  },
   ...compat.config({
     extends: ["next/core-web-vitals"],
     plugins: ["@typescript-eslint"],
