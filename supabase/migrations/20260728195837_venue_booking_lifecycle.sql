@@ -197,6 +197,9 @@ create unique index if not exists venue_booking_request_timeline_idempotency_idx
   on public.venue_booking_request_timeline (booking_request_id, client_request_id)
   where client_request_id is not null;
 
+alter table if exists public.venue_profiles
+  add column if not exists main_profile_id uuid references public.profiles(id) on delete set null;
+
 alter table public.venue_booking_request_timeline enable row level security;
 alter table public.venue_booking_request_timeline force row level security;
 

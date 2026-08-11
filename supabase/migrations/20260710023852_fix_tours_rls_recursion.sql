@@ -30,6 +30,7 @@ $$;
 
 alter table if exists public.tours
   add column if not exists org_id uuid references public.organizations(id) on delete set null,
+  add column if not exists user_id uuid references auth.users(id) on delete set null,
   add column if not exists slug text,
   add column if not exists settings jsonb not null default '{}'::jsonb,
   add column if not exists created_by uuid references auth.users(id) on delete set null,
@@ -77,7 +78,8 @@ create index if not exists idx_tours_created_by on public.tours(created_by);
 create index if not exists idx_tours_user_id on public.tours(user_id);
 
 alter table if exists public.tour_team_members
-  add column if not exists is_active boolean default true;
+  add column if not exists is_active boolean default true,
+  add column if not exists status text default 'confirmed';
 
 -- ---------------------------------------------------------------------------
 -- 2. SECURITY DEFINER helpers (break recursive policy evaluation)

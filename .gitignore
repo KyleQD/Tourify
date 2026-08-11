@@ -12,6 +12,7 @@ apps/mobile/node_modules/
 /build
 
 # debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -37,6 +38,7 @@ logs/
 .demo.pid
 
 # local test and audit artifacts
+screenshot-*.png
 test-results/
 playwright-report/
 artifacts/

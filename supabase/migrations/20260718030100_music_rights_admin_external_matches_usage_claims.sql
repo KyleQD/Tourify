@@ -65,6 +65,9 @@ create table if not exists public.music_rights_claims (
   updated_at timestamptz not null default now()
 );
 
+alter table public.music_rights_claims
+  add column if not exists case_id uuid references public.music_rights_admin_cases(id) on delete cascade;
+
 create table if not exists public.music_rights_platform_policies (
   id uuid primary key default gen_random_uuid(),
   artist_music_id uuid not null references public.artist_music(id) on delete cascade,

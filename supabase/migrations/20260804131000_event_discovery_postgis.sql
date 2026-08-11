@@ -6,7 +6,7 @@ set client_min_messages = warning;
 -- Additive only. Coordinate rule: POINT(longitude latitude) — never reversed.
 -- ============================================================================
 
-create extension if not exists postgis;
+create extension if not exists postgis with schema extensions;
 
 create table if not exists public.event_discovery_index (
   event_id uuid primary key references public.events(id) on delete cascade,
@@ -21,7 +21,7 @@ create table if not exists public.event_discovery_index (
   timezone text,
   status text not null default 'published',
   visibility text not null default 'public',
-  location geography(Point, 4326),
+  location extensions.geography(Point, 4326),
   venue_id uuid,
   venue_name text,
   city text,
@@ -119,10 +119,10 @@ returns table (
 language sql
 security invoker
 stable
-set search_path = public
+set search_path = public, extensions
 as $$
   with params as (
-    select st_setsrid(st_makepoint(p_longitude, p_latitude), 4326)::geography as q
+    select extensions.st_setsrid(extensions.st_makepoint(p_longitude, p_latitude), 4326)::extensions.geography as q
     -- st_makepoint(x, y) = (longitude, latitude). Do not reorder.
   )
   select
@@ -136,7 +136,7 @@ as $$
     d.city,
     d.state_code,
     d.country_code,
-    st_distance(d.location, params.q) as distance_meters,
+    extensions.st_distance(d.location, params.q) as distance_meters,
     d.is_free,
     d.price_min,
     d.price_max,
@@ -149,7 +149,7 @@ as $$
   where d.visibility = 'public'
     and d.status = 'published'
     and d.location is not null
-    and st_dwithin(d.location, params.q, greatest(p_radius_meters, 0))
+    and extensions.st_dwithin(d.location, params.q, greatest(p_radius_meters, 0))
     and (p_start_after is null or d.start_at >= p_start_after)
     and (p_start_before is null or d.start_at < p_start_before)
     and (p_category_keys is null or d.category_keys && p_category_keys)
@@ -162,7 +162,7 @@ as $$
     )
     and (
       p_cursor_distance is null
-      or (st_distance(d.location, params.q), d.start_at, d.event_id)
+      or (extensions.st_distance(d.location, params.q), d.start_at, d.event_id)
          > (p_cursor_distance, coalesce(p_cursor_start_at, '-infinity'::timestamptz), coalesce(p_cursor_event_id, '00000000-0000-0000-0000-000000000000'::uuid))
     )
   order by
@@ -208,7 +208,7 @@ returns table (
 language sql
 security invoker
 stable
-set search_path = public
+set search_path = public, extensions
 as $$
   select
     d.event_id,
@@ -259,7 +259,7 @@ $$;
 create table if not exists public.user_event_discovery_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   saved_location_label text,
-  saved_location geography(Point, 4326),
+  saved_location extensions.geography(Point, 4326),
   location_precision text not null default 'city'
     check (location_precision in ('exact', 'city', 'region')),
   default_radius_miles integer not null default 25,
@@ -294,7 +294,7 @@ grant execute on function public.event_discovery_upcoming to anon, authenticated
 -- Maintain the full-text search document on write.
 create or replace function public.event_discovery_index_tsv() returns trigger
 language plpgsql
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   new.search_document :=

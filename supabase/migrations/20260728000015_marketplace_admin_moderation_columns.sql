@@ -72,6 +72,9 @@ end $$;
 
 -- ─── marketplace_storefronts: add suspended to status CHECK if missing ────────
 
+alter table public.marketplace_storefronts
+  add column if not exists status text not null default 'active';
+
 do $$
 begin
   if not exists (

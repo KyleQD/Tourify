@@ -25,7 +25,7 @@ begin
     update public.lodging_providers p
     set org_id = s.org_id
     from (
-      select provider_id, min(org_id) as org_id
+      select provider_id, min(org_id::text)::uuid as org_id
       from public.lodging_bookings
       where org_id is not null
       group by provider_id
@@ -60,7 +60,7 @@ begin
     update public.rental_clients c
     set org_id = s.org_id
     from (
-      select client_id, min(org_id) as org_id
+      select client_id, min(org_id::text)::uuid as org_id
       from public.rental_agreements
       where org_id is not null
       group by client_id

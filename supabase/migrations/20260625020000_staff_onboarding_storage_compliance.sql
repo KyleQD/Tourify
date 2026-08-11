@@ -90,6 +90,7 @@ create table if not exists public.staff_documents (
 
 alter table public.staff_documents
   add column if not exists user_id uuid references auth.users(id) on delete cascade,
+  add column if not exists venue_id uuid,
   add column if not exists employer_entity_type text check (employer_entity_type in ('venue', 'organization', 'artist')),
   add column if not exists employer_entity_id uuid,
   add column if not exists candidate_id uuid,

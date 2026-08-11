@@ -105,7 +105,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_user_id uuid := auth.uid();
@@ -278,7 +278,7 @@ returns table (
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
   select
     session.profile_id,
@@ -329,7 +329,7 @@ create or replace function public.admin_revoke_acting_context(
 returns boolean
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_user_id uuid := auth.uid();

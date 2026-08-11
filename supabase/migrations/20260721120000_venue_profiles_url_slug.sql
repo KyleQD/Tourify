@@ -138,7 +138,7 @@ $function$;
 -- Step 3: Backfill url_slug on existing rows.
 --         Temporarily disable the trigger so the UPDATE doesn't re-fire the
 --         (now-fixed) function unnecessarily during the bulk backfill.
-ALTER TABLE public.venue_profiles DISABLE TRIGGER ALL;
+ALTER TABLE public.venue_profiles DISABLE TRIGGER USER;
 
 DO $$
 DECLARE
@@ -176,7 +176,7 @@ BEGIN
   END LOOP;
 END $$;
 
-ALTER TABLE public.venue_profiles ENABLE TRIGGER ALL;
+ALTER TABLE public.venue_profiles ENABLE TRIGGER USER;
 
 -- Step 4: Unique partial index (same pattern as idx_artist_profiles_url_slug).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_venue_profiles_url_slug

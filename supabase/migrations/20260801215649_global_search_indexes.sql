@@ -14,6 +14,9 @@ create index if not exists profiles_public_global_search_gin
   where public_profile is distinct from false;
 
 alter table if exists public.artist_profiles
+  add column if not exists settings jsonb not null default '{}'::jsonb;
+
+alter table if exists public.artist_profiles
   add column if not exists global_search_vector tsvector generated always as (
     setweight(to_tsvector('simple', coalesce(artist_name, '')), 'A') ||
     setweight(to_tsvector('simple', coalesce(url_slug, '')), 'A') ||
