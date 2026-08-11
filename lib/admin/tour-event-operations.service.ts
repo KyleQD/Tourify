@@ -39,6 +39,19 @@ import {
   TourPortfolioQueryError,
 } from "@/lib/admin/tour-portfolio-query"
 import {
+  applyEventPortfolioQuery,
+  parseEventPortfolioQuery,
+  type EventPortfolioPage,
+  type EventPortfolioQueryInput,
+  type EventPortfolioRow,
+} from "@/lib/admin/event-portfolio-query"
+import {
+  buildAttentionIssues,
+  defaultPublicationSummary,
+  summarizeReadiness,
+  type AttentionIssueDTO,
+} from "@/lib/admin/admin-operations-contracts"
+import {
   actorCanViewAllOrgTours,
   buildAccessibleTourIdSet,
   filterTourPortfolioByAccess,
@@ -907,11 +920,13 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     title: row.title,
     description: typeof settings.description === "string" ? settings.description : "",
     status: mapV2StatusToUi(String(row.status ?? "inquiry")),
+    start_at: row.start_at,
     event_date: row.start_at,
     event_time:
       typeof row.start_at === "string" && row.start_at.includes("T")
         ? row.start_at.slice(11, 16)
         : null,
+    end_at: row.end_at,
     end_date: row.end_at,
     duration_minutes:
       typeof row.start_at === "string" && typeof row.end_at === "string"
@@ -961,6 +976,7 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     tour: primaryTour,
     tours,
     created_at: row.created_at,
+    updated_at: row.updated_at ?? row.created_at,
     settings,
     schedule_details: settings.schedule_details ?? null,
     readiness: getEventReadiness({
@@ -1023,8 +1039,35 @@ export class AdminTourEventOperationsService {
     userId: string
     orgId?: string | null
     status?: string | null
+    query?: EventPortfolioQueryInput | URLSearchParams
     allowedTourIds?: readonly string[]
   }) {
+    const { events } = await this.listEventPortfolio(args)
+    return events
+  }
+
+  static async listEventPortfolio(args: {
+    supabase: SupabaseLike
+    userId: string
+    orgId?: string | null
+    status?: string | null
+    query?: EventPortfolioQueryInput | URLSearchParams
+    allowedTourIds?: readonly string[]
+  }): Promise<{
+    orgId: string
+    page: EventPortfolioPage
+    events: ReturnType<typeof presentEvent>[]
+    summary: {
+      totalCount: number
+      thisWeekCount: number
+      needsAttentionCount: number
+      missingVenueCount: number
+      staffingGapCount: number
+      capacity: number
+      ticketsSold: number
+    }
+    attention: AttentionIssueDTO[]
+  }> {
     const scopedTourIds = Array.from(new Set(args.allowedTourIds || []))
     const orgId = scopedTourIds.length > 0
       ? args.orgId || null
@@ -1033,7 +1076,18 @@ export class AdminTourEventOperationsService {
           userId: args.userId,
           requestedOrgId: args.orgId,
         })
-    if (!orgId) return []
+    if (!orgId) {
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.", 403)
+    }
+
+    const queryInput =
+      args.query instanceof URLSearchParams
+        ? args.query
+        : {
+            ...(args.query || {}),
+            status: (args.query && "status" in args.query ? args.query.status : undefined) ?? args.status,
+          }
+    const parsedQuery = parseEventPortfolioQuery(queryInput)
 
     let scopedEventIds: string[] | null = null
     if (scopedTourIds.length > 0) {
@@ -1045,21 +1099,36 @@ export class AdminTourEventOperationsService {
       scopedEventIds = Array.from(new Set(
         (links || []).map((link: { event_id: string }) => link.event_id).filter(Boolean),
       ))
-      if (scopedEventIds.length === 0) return []
+      if (scopedEventIds.length === 0) {
+        const emptyPage = applyEventPortfolioQuery({ rows: [], query: parsedQuery, orgId })
+        return {
+          orgId,
+          page: emptyPage,
+          events: [],
+          summary: {
+            totalCount: 0,
+            thisWeekCount: 0,
+            needsAttentionCount: 0,
+            missingVenueCount: 0,
+            staffingGapCount: 0,
+            capacity: 0,
+            ticketsSold: 0,
+          },
+          attention: [],
+        }
+      }
     }
 
-    let query = args.supabase
+    let eventQuery = args.supabase
       .from("events_v2")
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, updated_at, org_id")
       .eq("org_id", orgId)
       .order("start_at", { ascending: false })
-      .limit(200)
+      .limit(1000)
 
-    if (scopedEventIds) query = query.in("id", scopedEventIds)
+    if (scopedEventIds) eventQuery = eventQuery.in("id", scopedEventIds)
 
-    if (args.status && args.status !== "all") query = query.eq("status", mapIncomingStatusToV2(args.status))
-
-    const { data, error } = await query
+    const { data, error } = await eventQuery
     if (error) throw new Error(error.message)
 
     const rows = data ?? []
@@ -1107,7 +1176,53 @@ export class AdminTourEventOperationsService {
       metrics.set(finance.event_id, next)
     }
 
-  return rows.map((row: Record<string, unknown>) => presentEvent(row, toursByEvent.get(String(row.id)) ?? [], metrics.get(String(row.id))))
+    const presented = rows.map((row: Record<string, unknown>) =>
+      presentEvent(row, toursByEvent.get(String(row.id)) ?? [], metrics.get(String(row.id))),
+    )
+    const portfolioRows = presented.map((event) => ({
+      ...(event as Record<string, unknown>),
+      readiness: summarizeReadiness((event as { readiness?: unknown }).readiness),
+    })) as EventPortfolioRow[]
+    const page = applyEventPortfolioQuery({ rows: portfolioRows, query: parsedQuery, orgId })
+    const pageIds = new Set(page.items.map((event) => String(event.id)))
+    const events = presented.filter((event) => pageIds.has(String(event.id)))
+    const eventById = new Map(presented.map((event) => [String(event.id), event]))
+    const orderedEvents = page.items.map((event) => eventById.get(String(event.id))).filter(Boolean) as ReturnType<typeof presentEvent>[]
+    const attention = orderedEvents.flatMap((event) =>
+      buildAttentionIssues({
+        entityType: "event",
+        entityId: String(event.id),
+        readiness: (event as { readiness?: unknown }).readiness,
+        sourceBasePath: "/admin/dashboard/events",
+        limit: 2,
+      }),
+    )
+    const now = new Date()
+    const weekEnd = new Date(now)
+    weekEnd.setDate(now.getDate() + 7)
+    const summarySource = page.items
+    const summary = {
+      totalCount: page.totalCount,
+      thisWeekCount: summarySource.filter((event) => {
+        const value = event.start_at ? new Date(String(event.start_at)) : null
+        return value && !Number.isNaN(value.getTime()) && value >= now && value <= weekEnd
+      }).length,
+      needsAttentionCount: summarySource.filter((event) => {
+        const status = event.readiness && typeof event.readiness === "object"
+          ? String((event.readiness as { status?: unknown }).status || "")
+          : ""
+        return status === "needs_attention" || status === "at_risk" || status === "blocked"
+      }).length,
+      missingVenueCount: summarySource.filter((event) => !event.venue_id && !event.venue_name).length,
+      staffingGapCount: summarySource.filter((event) => {
+        const settings = event.settings && typeof event.settings === "object" ? event.settings as Record<string, unknown> : {}
+        return !Array.isArray(settings.staff_ids) || settings.staff_ids.length === 0
+      }).length,
+      capacity: summarySource.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
+      ticketsSold: summarySource.reduce((sum, event) => sum + (Number(event.tickets_sold) || 0), 0),
+    }
+
+    return { orgId, page, events: orderedEvents.length ? orderedEvents : events, summary, attention }
   }
 
   static async getEvent(args: {

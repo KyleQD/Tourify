@@ -683,6 +683,15 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     owner: "ops-events",
   },
   {
+    route: "/api/admin/events/export",
+    methods: ["GET"],
+    authClass: "capability_gated",
+    capability: "event.view",
+    idempotency: false,
+    audit: true,
+    owner: "ops-events",
+  },
+  {
     route: "/api/admin/events",
     methods: ["GET", "POST"],
     authClass: "capability_gated",
