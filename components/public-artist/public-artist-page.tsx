@@ -677,7 +677,6 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
                       className="aspect-square cursor-zoom-in overflow-hidden rounded-2xl border border-white/10 bg-black/30 ring-1 ring-white/5 focus-visible:outline-none"
                       aria-label={`Open ${item.caption || `media item ${index + 1}`}`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.thumbnailUrl || item.url} alt={item.caption || 'Media item'} className="h-full w-full object-cover" loading="lazy" />
                     </button>
                   ))}

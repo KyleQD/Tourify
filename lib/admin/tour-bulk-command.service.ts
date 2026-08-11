@@ -28,7 +28,7 @@ import {
 import { TourAccessDeniedError, requireTourAccess } from "@/lib/admin/tour-access.service"
 import type { AdminCapability } from "@/lib/auth/admin-capabilities"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 function uniqueIds(ids: string[]): string[] {

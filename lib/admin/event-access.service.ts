@@ -10,7 +10,7 @@ import type { AdminCapability } from "@/lib/auth/admin-capabilities"
 import { hasAdminCapability } from "@/lib/auth/admin-capabilities"
 import { assertChildParentOrgChain } from "@/lib/admin/org-scoped-mutation"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any; rpc?: (...args: any[]) => any }
 
 export type EventAccessRelation =

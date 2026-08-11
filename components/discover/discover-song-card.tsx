@@ -33,7 +33,7 @@ export function DiscoverSongCard({
       <SurfaceCard className="overflow-hidden border-white/10 bg-slate-900/50">
         <div className="relative aspect-square overflow-hidden bg-slate-800">
           {track.cover_art_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img
               src={track.cover_art_url}
               alt={track.title}

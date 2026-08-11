@@ -30,7 +30,7 @@ export interface FinanceScopeSearchResult {
   unavailable: Partial<Record<FinanceScopeKind, string>>
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 const BUDGET_CATEGORIES = [

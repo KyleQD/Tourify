@@ -101,7 +101,7 @@ export function OnboardingKanban({ employer, initialCandidates = [], initialCand
 
   useEffect(() => {
     void fetchCandidates()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [employer.entityType, employer.entityId, employer.scope?.eventId, employer.scope?.tourId, employer.scope?.venueId])
 
   // Refresh when the admin returns to this tab so newly submitted onboarding appears without a full reload.
@@ -112,7 +112,7 @@ export function OnboardingKanban({ employer, initialCandidates = [], initialCand
 
     document.addEventListener("visibilitychange", handleVisibilityChange)
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [employer.entityType, employer.entityId])
 
   const filteredCandidates = useMemo(() => filterCandidates({ candidates, filters }), [candidates, filters])

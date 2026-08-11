@@ -111,7 +111,6 @@ export function ListingQuickView({
         {/* Image */}
         {listing.cover_image_url && (
           <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-black/30 sm:rounded-t-2xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
           </div>
         )}

@@ -92,7 +92,7 @@ export function PublicArtistHero({
               data-artist-hero-canvas
             >
               {hero.banner?.url && profileAppearance?.showCoverImage !== false ? (
-                // eslint-disable-next-line @next/next/no-img-element
+
                 <img
                   src={hero.banner.url}
                   alt={`${hero.artistName} banner`}

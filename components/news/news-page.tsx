@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { ArrowRight, ExternalLink, Loader2, Radio, RefreshCw, Search, Send, Share2, Sparkles } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -322,7 +323,7 @@ function EmptyState({ category }: { category?: NewsCategory } = {}) {
       </p>
       {isArticles ? (
         <Button asChild className="mt-5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500">
-          <a href="/artist/press?new=1&type=article">Write an article</a>
+          <Link href="/artist/press?new=1&type=article">Write an article</Link>
         </Button>
       ) : null}
     </div>

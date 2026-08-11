@@ -32,7 +32,7 @@ import {
   type PublicationOutboxRow,
 } from "@/lib/admin/publication-outbox"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any; rpc?: (...args: any[]) => any }
 
 export interface ProjectionApplyResult {

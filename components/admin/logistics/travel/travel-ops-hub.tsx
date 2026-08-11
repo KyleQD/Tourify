@@ -85,7 +85,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
     travel.fetchTransportation?.({ event_id: eventId, tour_id: tourId })
     travel.fetchGroupMembers?.()
     loadTimeline()
-  }, [eventId, tourId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [eventId, tourId])
 
   useEffect(() => {
     let cancelled = false

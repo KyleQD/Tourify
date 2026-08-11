@@ -104,7 +104,7 @@ export function TourBulkCommandDialog({
 
   useEffect(() => {
     void loadPreview()
-  }, [action, actingHeaders, isActingReady, open, tourIds]) // eslint-disable-line react-hooks/exhaustive-deps -- reason refreshed via Update preview / confirm
+  }, [action, actingHeaders, isActingReady, open, tourIds])
 
   async function confirmExecute() {
     setIsSubmitting(true)

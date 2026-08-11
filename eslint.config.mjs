@@ -9,7 +9,7 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 })
 
-export default [
+const config = [
   ...compat.config({
     extends: ["next/core-web-vitals"],
     plugins: ["@typescript-eslint"],
@@ -33,11 +33,22 @@ export default [
       },
     ],
     rules: {
-      "react/no-unescaped-entities": "warn",
+      // Intentionally disabled: high-volume stylistic rules. The codebase
+      // deliberately uses raw <img> for dynamic/external URLs and relies on
+      // mount-effect patterns that predate exhaustive-deps; these rules add
+      // noise (~600 warnings) without catching real defects here.
+      "react-hooks/exhaustive-deps": "off",
+      "@next/next/no-img-element": "off",
+      "react/no-unescaped-entities": "off",
+      "react/display-name": "off",
+      // alt-text flags lucide-react `Image` icons and @react-pdf/renderer
+      // `Image` (12+ files, 17 warnings) - none are real <img> elements.
+      "jsx-a11y/alt-text": "off",
       "@next/next/no-html-link-for-pages": "warn",
       "react/jsx-no-comment-textnodes": "warn",
-      "react/display-name": "warn",
       "react-hooks/rules-of-hooks": "warn",
     },
   }),
 ]
+
+export default config

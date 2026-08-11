@@ -198,7 +198,7 @@ function PostDetailCard({
           {mediaUrls.length > 0 ? (
             <div className="grid gap-3">
               {mediaUrls.map((url: string) => (
-                // eslint-disable-next-line @next/next/no-img-element
+
                 <img
                   key={url}
                   src={url}

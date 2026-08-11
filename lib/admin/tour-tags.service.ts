@@ -12,7 +12,7 @@ function slugifyTagLabel(label: string): string {
     .slice(0, 64)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export interface OrgTourTag {

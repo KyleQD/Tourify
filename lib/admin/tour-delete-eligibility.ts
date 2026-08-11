@@ -210,7 +210,7 @@ export function buildTourDeletePreview(args: {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 async function safeCount(

@@ -42,7 +42,7 @@ export function PublicOrganizationPage({ dto }: { dto: PublicOrganizationPageDTO
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100">
       <div className="relative h-48 md:h-64 w-full overflow-hidden border-b border-white/10">
         {dto.bannerUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+
           <img src={dto.bannerUrl} alt="" className="h-full w-full object-cover opacity-70" />
         ) : (
           <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.25),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(251,146,60,0.2),transparent_40%),linear-gradient(180deg,#0f172a,#020617)]" />

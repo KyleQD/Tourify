@@ -11,7 +11,7 @@ import {
 } from "@/lib/admin/tour-readiness-engine"
 import { requireTourAccess } from "@/lib/admin/tour-access.service"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export async function evaluateTourReadinessFromPersistedPlan(args: {

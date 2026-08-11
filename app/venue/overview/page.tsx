@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -380,7 +381,7 @@ export default function VenueOverviewPage() {
             Refresh
           </Button>
           <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-500">
-            <a href="/venue/edit">Edit profile</a>
+            <Link href="/venue/edit">Edit profile</Link>
           </Button>
           {(venue.url_slug || venue.username) ? (
             <Button asChild variant="outline" size="sm">
@@ -390,13 +391,13 @@ export default function VenueOverviewPage() {
             </Button>
           ) : null}
           <Button asChild variant="outline" size="sm">
-            <a href="/venue/documents">Documents</a>
+            <Link href="/venue/documents">Documents</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <a href="/venue/equipment">Equipment</a>
+            <Link href="/venue/equipment">Equipment</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <a href="/venue/dashboard/site-maps">Site maps</a>
+            <Link href="/venue/dashboard/site-maps">Site maps</Link>
           </Button>
         </div>
       </div>

@@ -961,7 +961,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                       <button
                         key={conversation.id}
                         type="button"
-                        aria-selected={isSelected}
+                        aria-pressed={isSelected}
                         onClick={() => handleSelectConversation(conversation.id)}
                         className={cn(
                           'w-full text-left p-3 rounded-xl transition-all duration-200 mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500/50',

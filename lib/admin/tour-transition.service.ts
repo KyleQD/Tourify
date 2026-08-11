@@ -32,7 +32,7 @@ import {
 import type { AdminCapability } from "@/lib/auth/admin-capabilities"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = SupabaseClient | { from: (table: string) => any; rpc?: (...args: any[]) => any }
 
 export class TourTransitionError extends Error {

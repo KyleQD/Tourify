@@ -151,7 +151,7 @@ export function compareTicketingTotals(args: {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export async function loadTicketingReadModel(args: {

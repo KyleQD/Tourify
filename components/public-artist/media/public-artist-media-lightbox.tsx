@@ -55,7 +55,7 @@ export function PublicArtistMediaLightbox({
           {isVideo ? (
             <video src={item.url} poster={item.thumbnailUrl || undefined} controls autoPlay className="max-h-full max-w-full object-contain" />
           ) : item.url ? (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img src={item.url} alt={item.caption || `${artistName} media ${index + 1}`} className="max-h-full max-w-full object-contain" />
           ) : (
             <div className="flex flex-col items-center gap-2 text-neutral-400"><ImageOff className="h-10 w-10" />Media unavailable</div>

@@ -242,7 +242,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
         {seller && (
           <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-900 border border-slate-800">
             {seller.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
+
               <img
                 src={seller.avatar_url}
                 alt={seller.full_name ?? seller.username ?? "Seller"}

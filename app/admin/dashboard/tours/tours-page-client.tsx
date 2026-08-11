@@ -163,7 +163,7 @@ export default function ToursPage() {
     } catch {
       // Meta is additive — portfolio still loads without tags/views.
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- applySavedView defined below; intentional once on ready
+
   }, [actingContextKey, actingHeaders, isActingReady])
 
   function applySavedView(view: TourSavedViewRecord) {

@@ -65,7 +65,6 @@ export function FeedListingCard({ attachment, isCheckoutLoading, onCheckout }: F
       {listing.coverImageUrl && (
         <Link href={listingHref} className="block">
           <div className="aspect-video overflow-hidden bg-black/30">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={listing.coverImageUrl}
               alt={listing.title}

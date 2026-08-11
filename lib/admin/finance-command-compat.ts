@@ -11,7 +11,7 @@ import {
 } from "@/lib/admin/finance-command-schemas"
 import { FinanceCommandError } from "@/lib/admin/finance-command.service"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 const DEFAULT_DELETE_REASON = "admin delete transaction"

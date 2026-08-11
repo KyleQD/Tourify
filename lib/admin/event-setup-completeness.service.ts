@@ -13,7 +13,7 @@ import {
 } from "@/lib/admin/event-setup-checklist"
 import { requireEventAccess } from "@/lib/admin/event-access.service"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 async function countRows(args: {

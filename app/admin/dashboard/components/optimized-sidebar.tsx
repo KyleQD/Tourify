@@ -511,7 +511,7 @@ export function OptimizedSidebar() {
         ),
     )
     if (active) setExpandedItems([active.href])
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   // ─── Persist expanded state ───────────────────────────────────────────────
   useEffect(() => {
@@ -534,7 +534,7 @@ export function OptimizedSidebar() {
         break
       }
     }
-  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   // ─── Mobile detection ─────────────────────────────────────────────────────
   useEffect(() => {

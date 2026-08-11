@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -82,7 +83,7 @@ export default function VenueSiteMapsPage() {
           </div>
         </div>
         <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
-          <a href="/venue/edit">Update venue profile</a>
+          <Link href="/venue/edit">Update venue profile</Link>
         </Button>
       </div>
 
@@ -104,10 +105,10 @@ export default function VenueSiteMapsPage() {
             </p>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
-                <a href="/venue/documents">Upload floor plan</a>
+                <Link href="/venue/documents">Upload floor plan</Link>
               </Button>
               <Button asChild variant="outline" className="border-slate-600">
-                <a href="/venue/overview">Venue profile</a>
+                <Link href="/venue/overview">Venue profile</Link>
               </Button>
             </div>
           </CardContent>

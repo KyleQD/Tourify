@@ -28,7 +28,7 @@ export function filterAuthorizedRecipients(
 }
 
 export async function sendLogisticsNotifications(args: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   notify: (input: any) => Promise<unknown>
   actorUserId: string
   recipients: LogisticsNotificationRecipient[]

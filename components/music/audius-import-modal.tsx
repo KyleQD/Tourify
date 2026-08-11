@@ -320,7 +320,7 @@ export function AudiusImportModal({
                       {/* Artwork */}
                       <div className="h-10 w-10 shrink-0 rounded-md bg-slate-700 overflow-hidden">
                         {track.artworkUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
+
                           <img
                             src={track.artworkUrl}
                             alt={`${track.title} artwork`}

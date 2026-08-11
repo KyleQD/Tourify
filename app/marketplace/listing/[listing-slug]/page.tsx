@@ -109,7 +109,7 @@ export default async function PublicListingPage({ params }: PageProps) {
           <div className="space-y-3">
             <div className="aspect-square overflow-hidden rounded-2xl bg-slate-800">
               {listing.cover_image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
+
                 <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>
@@ -179,7 +179,7 @@ export default async function PublicListingPage({ params }: PageProps) {
             {seller && (
               <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
                 {seller.avatar_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
+
                   <img src={seller.avatar_url} alt={seller.full_name ?? ""} className="h-9 w-9 rounded-full object-cover" />
                 )}
                 <div className="flex-1 min-w-0">

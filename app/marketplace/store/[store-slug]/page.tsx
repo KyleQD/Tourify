@@ -92,7 +92,7 @@ export default async function PublicStorefrontPage({ params, searchParams }: Pag
       <header className="border-b border-slate-800 bg-slate-950/80 px-4 py-8">
         <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {sellerProfile?.avatar_url && (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img
               src={sellerProfile.avatar_url}
               alt={sf.display_name}

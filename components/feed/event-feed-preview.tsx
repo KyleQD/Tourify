@@ -29,7 +29,7 @@ export function EventFeedPreview({ event, compact = false }: EventFeedPreviewPro
       <div className={compact ? "flex gap-3 p-3" : "grid gap-0 sm:grid-cols-[160px_1fr]"}>
         <div className={compact ? "h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-black/40" : "aspect-square bg-black/40"}>
           {event.posterUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img src={event.posterUrl} alt={event.title} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-white/40">

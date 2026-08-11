@@ -1301,7 +1301,7 @@ export function SellerStoreDashboard({
                           <div className="flex items-start gap-4">
                             <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800">
                               {listing.cover_image_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
+
                                 <img src={listing.cover_image_url} alt="" className="h-full w-full object-cover" />
                               ) : (
                                 <div className="flex h-full items-center justify-center">
@@ -1918,7 +1918,7 @@ export function SellerStoreDashboard({
                         <div key={product.id} className="flex items-center gap-4 rounded-lg border border-slate-800 bg-slate-950/40 p-3">
                           <div className="h-14 w-14 overflow-hidden rounded-md bg-slate-800">
                             {product.image_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
+
                               <img src={product.image_url} alt="" className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full items-center justify-center">

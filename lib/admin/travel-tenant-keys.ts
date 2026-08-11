@@ -116,7 +116,7 @@ export function assertTravelOrgKeyVerification(rows: TravelOrgKeyVerificationRow
   return { ok: failures.length === 0, failures }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 /** Resolve org_id from a parent row; returns null when unresolved (never invent). */

@@ -24,7 +24,7 @@ import {
   resolveServiceRoleJobOrgId,
 } from "@/lib/supabase/service-role-job"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 function mapTokenRow(raw: Record<string, unknown>): PublicationShareTokenRecord {

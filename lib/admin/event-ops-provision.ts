@@ -8,7 +8,7 @@ import { z } from "zod"
 import { AdminTourEventOperationsService } from "@/lib/admin/tour-event-operations.service"
 import { buildEventSetupChecklist } from "@/lib/admin/event-setup-checklist"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export const provisionStaffShiftSchema = z.object({

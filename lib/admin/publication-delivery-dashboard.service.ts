@@ -19,7 +19,7 @@ import {
 import type { PublicationDeliveryChannel, PublicationDeliveryStatus } from "@/lib/admin/publication-schema"
 import { replayPublicationOutboxDeadLetter } from "@/lib/admin/publication-outbox.service"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 function mapDeliveryRow(raw: Record<string, unknown>): PublicationDeliveryRowView {

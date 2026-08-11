@@ -564,7 +564,7 @@ export function decodeTourDuplicatePlanToken(token: string): TourDuplicatePlanTo
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 async function countRows(

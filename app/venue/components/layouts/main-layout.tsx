@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Bell, Grid3X3, MessageSquare, Moon, Music, Search, Sun, User, Users, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -391,10 +392,10 @@ export function MainLayout({ children }: MainLayoutProps) {
             className={`flex-1 flex flex-col items-center py-2 ${pathname === "/venue/staff" ? "text-purple-400" : ""}`}
             asChild
           >
-            <a href="/venue/staff">
+            <Link href="/venue/staff">
               <Users className="h-5 w-5" />
               <span className="text-xs mt-1">Team</span>
-            </a>
+            </Link>
           </Button>
           <Button
             variant="ghost"
@@ -419,10 +420,10 @@ export function MainLayout({ children }: MainLayoutProps) {
             className={`flex-1 flex flex-col items-center py-2 ${pathname === "/profile" ? "text-purple-400" : ""}`}
             asChild
           >
-            <a href="/profile">
+            <Link href="/profile">
               <User className="h-5 w-5" />
               <span className="text-xs mt-1">Profile</span>
-            </a>
+            </Link>
           </Button>
         </div>
       </div>

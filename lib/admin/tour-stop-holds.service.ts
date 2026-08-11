@@ -6,7 +6,7 @@ import "server-only"
 
 import { z } from "zod"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export const TOUR_HOLD_STATUSES = [

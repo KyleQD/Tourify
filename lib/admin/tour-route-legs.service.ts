@@ -18,7 +18,7 @@ import {
   type TourRouteLegStop,
 } from "@/lib/admin/tour-route-legs"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 function asClient(s: SupabaseLike): SupabaseClient {

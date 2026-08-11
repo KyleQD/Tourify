@@ -62,7 +62,7 @@ export interface TourDuplicateJobRow {
   completed_at?: string | null
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 function asSelection(value: unknown): TourDuplicateDomainSelection {

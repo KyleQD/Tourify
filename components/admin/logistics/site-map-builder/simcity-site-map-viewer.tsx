@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { 
+import {
   ZoomIn, ZoomOut, Save, Trash2, Eye, EyeOff,
   Layers, Grid, Square, MapPin, Zap,
   Building, Download, Share, Plus, Minus,
@@ -395,7 +395,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       if (tar.status === 'fulfilled') setTasks((tar.value as any).data || (tar.value as any).tasks || [])
       if (nr.status === 'fulfilled') setNotes((nr.value as any).data || (nr.value as any).notes || [])
     })
-  }, [siteMap.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [siteMap.id])
 
   async function addZone() {
     if (!zoneForm.name.trim()) return
@@ -1496,32 +1496,32 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const drawPlacementPreview = (ctx: CanvasRenderingContext2D, element: CannedElement, position: { x: number; y: number }) => {
     ctx.save()
-    
+
     // Snap position to grid and align dimensions
     const snappedPosition = snapToGridPosition(position.x, position.y)
     const alignedDimensions = getGridAlignedDimensions(element.width, element.height)
-    
+
     // Center the element on the snapped position
     const centeredX = snappedPosition.x - alignedDimensions.width / 2
     const centeredY = snappedPosition.y - alignedDimensions.height / 2
     const finalPosition = snapToGridPosition(centeredX, centeredY)
-    
+
     // Check placement validity
     const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-    
+
     // Draw semi-transparent preview with validity color
-    const previewColor = isValid 
-      ? element.color.replace('0.3', '0.6') 
+    const previewColor = isValid
+      ? element.color.replace('0.3', '0.6')
       : 'rgba(239, 68, 68, 0.6)' // Red for invalid
-    
+
     ctx.fillStyle = previewColor
     ctx.strokeStyle = isValid ? element.strokeColor : '#ef4444'
     ctx.lineWidth = 2
     ctx.setLineDash([5, 5])
-    
+
     ctx.fillRect(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
     ctx.strokeRect(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-    
+
     // Draw enhanced grid alignment indicator
     if (snapToGrid) {
       ctx.strokeStyle = isValid ? '#22c55e' : '#ef4444' // Green for valid, red for invalid
@@ -1529,21 +1529,21 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       ctx.setLineDash([])
       ctx.strokeRect(finalPosition.x - 2, finalPosition.y - 2, alignedDimensions.width + 4, alignedDimensions.height + 4)
     }
-    
+
     // Draw label with validity indicator
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
     ctx.fillRect(finalPosition.x, finalPosition.y + alignedDimensions.height - 30, alignedDimensions.width, 30)
-    
+
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 12px Inter, sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(element.name, finalPosition.x + alignedDimensions.width / 2, finalPosition.y + alignedDimensions.height - 15)
-    
+
     // Draw validity status
     ctx.font = '10px Inter, sans-serif'
     ctx.fillStyle = isValid ? '#22c55e' : '#ef4444'
     ctx.fillText(isValid ? 'VALID' : 'INVALID', finalPosition.x + alignedDimensions.width / 2, finalPosition.y + alignedDimensions.height - 5)
-    
+
     ctx.restore()
   }
 
@@ -2199,13 +2199,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
         {/* Compact Header */}
         <div className="relative border-b border-teal-900/40 bg-[#0a1017] px-4 py-2.5">
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
-          
+
           <div className="relative flex items-center justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <div className="rounded-lg border border-teal-500/30 bg-teal-500/15 p-2">
                 <MapPin className="h-4 w-4 text-teal-300" />
               </div>
-              
+
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
                   <h1 className="truncate text-lg font-semibold tracking-tight text-white">{siteMap.name}</h1>

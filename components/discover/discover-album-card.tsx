@@ -38,7 +38,7 @@ export function DiscoverAlbumCard({
       >
         <div className="relative aspect-square overflow-hidden bg-slate-800">
           {album.cover_art_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img
               src={album.cover_art_url}
               alt={album.title}

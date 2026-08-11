@@ -201,7 +201,7 @@ export function FinanceParentScopePicker({
     if (display && ((eventId && display.id === eventId) || (tourId && display.id === tourId)))
       return
     setDisplay(selected)
-  }, [eventId, tourId]) // eslint-disable-line react-hooks/exhaustive-deps -- intentional sync on id change
+  }, [eventId, tourId])
 
   return (
     <FinanceScopePicker

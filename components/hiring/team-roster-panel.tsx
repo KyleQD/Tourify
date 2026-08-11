@@ -94,7 +94,7 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
 
   useEffect(() => {
     void loadRoster()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [employer.entityType, employer.entityId, queryParams.toString()])
 
   async function handleStatusChange(member: RosterMember, nextStatus: RosterMemberStatus) {

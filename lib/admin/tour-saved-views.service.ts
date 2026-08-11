@@ -9,7 +9,7 @@ import {
   type TourSavedViewRecord,
 } from "@/lib/admin/tour-saved-view"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export async function listTourSavedViews(args: {

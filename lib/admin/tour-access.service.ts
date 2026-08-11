@@ -8,7 +8,7 @@
 import type { AdminCapability } from "@/lib/auth/admin-capabilities"
 import { hasAdminCapability } from "@/lib/auth/admin-capabilities"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export type TourAccessRelation =

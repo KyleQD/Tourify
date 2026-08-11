@@ -13,7 +13,7 @@ import {
 } from "@/lib/admin/tour-plan-backfill"
 import { requireTourAccess, TourAccessDeniedError } from "@/lib/admin/tour-access.service"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export interface TourPlanNormalizeResult {

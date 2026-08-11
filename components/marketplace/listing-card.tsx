@@ -75,7 +75,7 @@ export function ListingCard({
     return (
       <article className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
         {listing.cover_image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
+
           <img src={listing.cover_image_url} alt={listing.title} className="h-12 w-12 rounded-md object-cover flex-shrink-0" loading="lazy" />
         ) : (
           <div className="h-12 w-12 flex-shrink-0 rounded-md bg-slate-800 flex items-center justify-center text-xs text-slate-500">—</div>
@@ -96,7 +96,6 @@ export function ListingCard({
       <article className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 max-w-sm">
         {listing.cover_image_url && (
           <div className="aspect-video overflow-hidden bg-black/30">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
           </div>
         )}
@@ -122,7 +121,7 @@ export function ListingCard({
       {/* Image */}
       <div className="relative aspect-square overflow-hidden bg-black/30">
         {listing.cover_image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
+
           <img
             src={listing.cover_image_url}
             alt={listing.title}

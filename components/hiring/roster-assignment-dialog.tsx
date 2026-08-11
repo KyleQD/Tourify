@@ -167,7 +167,7 @@ export function RosterAssignmentDialog({
   useEffect(() => {
     if (!contextEventId) setEventId("")
     setShiftId("")
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [tourId])
 
   // Events visible in the dropdown — filtered by selected tour when one is chosen

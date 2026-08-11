@@ -157,7 +157,7 @@ export function assertLogisticsOrgKeyVerification(rows: LogisticsOrgKeyVerificat
   return { ok: failures.length === 0, failures }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 export async function resolveOrgIdFromLogisticsParent(args: {

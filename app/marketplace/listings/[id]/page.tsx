@@ -109,7 +109,7 @@ export default function MarketplaceListingDetailPage() {
           <article className="grid gap-6 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 md:grid-cols-[1.1fr_0.9fr]">
             <div className="aspect-square bg-black/30">
               {listing.cover_image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
+
                 <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>

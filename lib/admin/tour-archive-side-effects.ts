@@ -36,7 +36,7 @@ export function resolveRestoreTargetState(
   return fallback
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseLike = { from: (table: string) => any }
 
 async function countPreserved(
