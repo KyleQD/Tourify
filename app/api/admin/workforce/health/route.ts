@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { detectDoubleBookings } from "@/lib/admin/staff-scheduling-conflicts"
 import { withAdminCapability } from "@/lib/auth/api-auth"
 import { OrgEntityAccessError } from "@/lib/admin/org-entity-access"
 
@@ -13,6 +14,16 @@ export const GET = withAdminCapability(
     try {
       const orgId = admin.orgId
       const now = new Date().toISOString()
+      const today = now.slice(0, 10)
+
+      // Org staff ids — shared scope for shift-derived metrics.
+      const membersResult = await supabase
+        .from("staff_members")
+        .select("id")
+        .eq("employer_entity_type", "organization")
+        .eq("employer_entity_id", admin.profileId)
+        .limit(500)
+      const staffIds = ((membersResult.data ?? []) as Array<{ id: string }>).map((row) => String(row.id)).filter(Boolean)
 
       // --- Uncovered critical roles ---
       const uncoveredQ = await supabase
@@ -21,17 +32,28 @@ export const GET = withAdminCapability(
         .eq("org_id", orgId)
         .eq("is_critical", true)
         .eq("status", "open")
-      const uncoveredCriticalRoleCount = uncoveredQ.count ?? 0
+      const uncoveredCriticalRoleCount = uncoveredQ.error ? 0 : (uncoveredQ.count ?? 0)
 
-      // --- Expiring credentials (within 30 days) ---
-      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      const expiringQ = await supabase
-        .from("worker_credentials")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .eq("status", "active")
-        .lte("expires_at", thirtyDaysFromNow)
-      const expiringCredentialCount = expiringQ.count ?? 0
+      // --- Expiring credentials (within 30 days) — real staff_documents data ---
+      const INACTIVE_DOC_STATUSES = new Set(["expired", "rejected", "revoked", "archived", "deleted"])
+      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      const documentsQ = await supabase
+        .from("staff_documents")
+        .select("id, expires_at, expiration_date, status")
+        .eq("employer_entity_type", "organization")
+        .eq("employer_entity_id", admin.profileId)
+        .limit(500)
+      const expiringCredentialCount = documentsQ.error
+        ? 0
+        : ((documentsQ.data ?? []) as Array<Record<string, unknown>>).filter((row) => {
+            const status = typeof row.status === "string" ? row.status.toLowerCase() : ""
+            if (INACTIVE_DOC_STATUSES.has(status)) return false
+            const expiry = typeof row.expires_at === "string" ? row.expires_at
+              : typeof row.expiration_date === "string" ? row.expiration_date : null
+            if (!expiry) return false
+            const timestamp = new Date(expiry).getTime()
+            return Number.isFinite(timestamp) && timestamp <= thirtyDaysFromNow.getTime()
+          }).length
 
       // --- Overdue onboarding ---
       const onboardingQ = await supabase
@@ -41,25 +63,36 @@ export const GET = withAdminCapability(
         .in("status", ["pending", "blocked"])
         .not("due_date", "is", null)
         .lt("due_date", now)
-      const overdueOnboardingCount = onboardingQ.count ?? 0
+      const overdueOnboardingCount = onboardingQ.error ? 0 : (onboardingQ.count ?? 0)
 
-      // --- Overdue assignment responses ---
-      const assignmentsQ = await supabase
-        .from("work_assignments")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .eq("status", "offered")
-        .not("response_deadline", "is", null)
-        .lt("response_deadline", now)
-      const overdueResponseCount = assignmentsQ.count ?? 0
+      // --- Overdue assignment responses — scheduled (unconfirmed) shifts already past ---
+      const assignmentsQ = staffIds.length
+        ? await supabase
+            .from("staff_shifts")
+            .select("id", { count: "exact", head: true })
+            .in("staff_member_id", staffIds)
+            .eq("status", "scheduled")
+            .lt("shift_date", today)
+        : { count: 0, error: null }
+      const overdueResponseCount = assignmentsQ.error ? 0 : (assignmentsQ.count ?? 0)
 
-      // --- Conflict backlog ---
-      const conflictsQ = await supabase
-        .from("assignment_conflicts")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .eq("status", "open")
-      const conflictBacklogCount = conflictsQ.count ?? 0
+      // --- Conflict backlog — double-bookings derived from real staff_shifts ---
+      const conflictThrough = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
+      const conflictShiftsQ = staffIds.length
+        ? await supabase
+            .from("staff_shifts")
+            .select("id, staff_member_id, shift_date, start_time, end_time, role_assignment, status")
+            .in("staff_member_id", staffIds)
+            .gte("shift_date", today)
+            .lte("shift_date", conflictThrough)
+            .neq("status", "cancelled")
+            .limit(500)
+        : { data: [], error: null }
+      const conflictBacklogCount = conflictShiftsQ.error
+        ? 0
+        : detectDoubleBookings(
+            (conflictShiftsQ.data ?? []) as Parameters<typeof detectDoubleBookings>[0],
+          ).length
 
       const DEFAULT_THRESHOLDS = {
         maxUncoveredCriticalRoles: 0,
@@ -105,10 +138,10 @@ export const GET = withAdminCapability(
       }
 
       add("uncovered_critical_role", metrics.uncoveredCriticalRoleCount, DEFAULT_THRESHOLDS.maxUncoveredCriticalRoles, "critical", "/admin/dashboard/hiring?tab=jobs", `${metrics.uncoveredCriticalRoleCount} critical role(s) unfilled`)
-      add("expiring_credential", metrics.expiringCredentialCount, DEFAULT_THRESHOLDS.maxExpiringCredentials, "warning", "/admin/dashboard/staff?tab=roster", `${metrics.expiringCredentialCount} credential(s) expiring within 30 days`)
-      add("overdue_response", metrics.overdueResponseCount, DEFAULT_THRESHOLDS.maxOverdueResponses, "warning", "/admin/dashboard/staff?tab=roster", `${metrics.overdueResponseCount} assignment offer(s) past response deadline`)
+      add("expiring_credential", metrics.expiringCredentialCount, DEFAULT_THRESHOLDS.maxExpiringCredentials, "warning", "/admin/dashboard/staff?tab=team", `${metrics.expiringCredentialCount} credential(s) expiring within 30 days`)
+      add("overdue_response", metrics.overdueResponseCount, DEFAULT_THRESHOLDS.maxOverdueResponses, "warning", "/admin/dashboard/staff?tab=team", `${metrics.overdueResponseCount} assignment offer(s) past response deadline`)
       add("overdue_onboarding", metrics.overdueOnboardingCount, DEFAULT_THRESHOLDS.maxOverdueOnboarding, "warning", "/admin/dashboard/hiring?tab=onboarding", `${metrics.overdueOnboardingCount} onboarding item(s) overdue`)
-      add("conflict_backlog", metrics.conflictBacklogCount, DEFAULT_THRESHOLDS.maxConflictBacklog, "warning", "/admin/dashboard/scheduling", `${metrics.conflictBacklogCount} unresolved scheduling conflict(s)`)
+      add("conflict_backlog", metrics.conflictBacklogCount, DEFAULT_THRESHOLDS.maxConflictBacklog, "warning", "/admin/dashboard/staff?tab=scheduling", `${metrics.conflictBacklogCount} unresolved scheduling conflict(s)`)
 
       return NextResponse.json({
         success: true,

@@ -37,12 +37,9 @@ export async function GET(request: NextRequest) {
   const venue = await getCurrentVenueContext(auth.supabase, auth.user.id, venueId)
   if (!venue) return NextResponse.json({ success: false, error: "No manageable venue found" }, { status: 404 })
   const mappedVenue = await ensureVenueOperationalContext(service as any, venue, auth.user.id)
-  let query = service.from("staff_shifts").select("*").is("deleted_at", null)
-  if (mappedVenue.venuesV2Id) {
-    query = query.or(`venue_id.eq.${venueId},adhoc_venue_id.eq.${mappedVenue.venuesV2Id}`)
-  } else {
-    query = query.eq("venue_id", venueId)
-  }
+  // Live staff_shifts schema has no deleted_at / adhoc_venue_id columns.
+  void mappedVenue
+  let query = service.from("staff_shifts").select("*").eq("venue_id", venueId)
 
   const eventId = searchParams.get("eventId") || searchParams.get("event_id")
   const staffMemberId = searchParams.get("staff_member_id")

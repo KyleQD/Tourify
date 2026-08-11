@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { detectDoubleBookings } from "@/lib/admin/staff-scheduling-conflicts"
 import { withAdminCapability } from "@/lib/auth/api-auth"
 import { OrgEntityAccessError } from "@/lib/admin/org-entity-access"
 
 /**
  * WORK-408 / WORK-410 — Scheduling conflicts.
- * Lists open assignment conflicts for the acting org.
+ * Lists open conflicts for the acting org, derived live from real staff_shifts
+ * data (double-booking detection). The legacy `assignment_conflicts` table was
+ * never migrated, so conflicts are computed instead of stored.
  */
 export const GET = withAdminCapability(
   "workforce.view",
@@ -16,53 +19,69 @@ export const GET = withAdminCapability(
       const limit = Math.min(Number(searchParams.get("limit") ?? 50), 200)
       const statusFilter = searchParams.get("status") ?? "open"
 
-      const query = supabase
-        .from("assignment_conflicts")
-        .select(
-          "id, org_id, tour_id, shift_id, person_id, conflict_type, severity, source, description, override_reason, override_actor, overridden_at, status, created_at, updated_at",
-        )
-        .eq("org_id", orgId)
-        .order("created_at", { ascending: false })
-        .limit(limit)
-
-      if (statusFilter !== "all") {
-        void query.eq("status", statusFilter)
+      // Derived conflicts are always "open" — other statuses have no rows.
+      if (statusFilter !== "all" && statusFilter !== "open") {
+        return NextResponse.json({
+          success: true,
+          conflicts: [],
+          summary: { total: 0, open: 0, critical: 0, warning: 0 },
+          freshAt: new Date().toISOString(),
+        })
       }
 
-      const { data, error } = await query
+      const today = new Date().toISOString().slice(0, 10)
+      const through = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10)
 
-      if (error) {
-        if (error.code === "42P01") {
-          return NextResponse.json({
-            success: true,
-            conflicts: [],
-            summary: { total: 0, open: 0, critical: 0, warning: 0 },
-            unavailable: true,
-            unavailableReason: "Assignment conflicts table not yet migrated.",
-            freshAt: new Date().toISOString(),
-          })
-        }
-        throw new Error(error.message)
-      }
+      // Resolve the org's staff first so venue-less org shifts are included
+      // whether they are keyed by org_id or only by staff_member_id.
+      const membersResult = await supabase
+        .from("staff_members")
+        .select("id, name")
+        .eq("employer_entity_type", "organization")
+        .eq("employer_entity_id", admin.profileId)
+        .limit(500)
+      if (membersResult.error) throw new Error(membersResult.error.message)
+      const members = (membersResult.data ?? []) as Array<{ id: string; name: string }>
+      const staffIds = members.map((member) => String(member.id)).filter(Boolean)
+      const memberNames = new Map(members.map((member) => [String(member.id), member.name]))
 
-      const conflicts = ((data ?? []) as unknown[]).map((row) => {
-        const r = row as Record<string, unknown>
+      const shiftsResult = staffIds.length
+        ? await supabase
+            .from("staff_shifts")
+            .select("id, staff_member_id, shift_date, start_time, end_time, role_assignment, status, created_at, updated_at")
+            .in("staff_member_id", staffIds)
+            .gte("shift_date", today)
+            .lte("shift_date", through)
+            .neq("status", "cancelled")
+            .limit(500)
+        : { data: [], error: null }
+      if (shiftsResult.error) throw new Error(shiftsResult.error.message)
+
+      const shiftRows = (shiftsResult.data ?? []) as Array<Record<string, unknown>>
+      const shiftMeta = new Map(shiftRows.map((row) => [String(row.id), row]))
+      const derived = detectDoubleBookings(
+        shiftRows as unknown as Parameters<typeof detectDoubleBookings>[0],
+      ).slice(0, limit)
+
+      const conflicts = derived.map((conflict) => {
+        const shift = conflict.shiftId ? shiftMeta.get(conflict.shiftId) : undefined
+        const name = conflict.personId ? memberNames.get(conflict.personId) : undefined
         return {
-          id: String(r.id),
-          orgId: String(r.org_id),
-          tourId: r.tour_id ? String(r.tour_id) : null,
-          shiftId: r.shift_id ? String(r.shift_id) : null,
-          personId: r.person_id ? String(r.person_id) : null,
-          conflictType: String(r.conflict_type ?? "unknown"),
-          severity: String(r.severity ?? "warning") as "warning" | "critical",
-          source: String(r.source ?? "system"),
-          description: r.description ? String(r.description) : null,
-          overrideReason: r.override_reason ? String(r.override_reason) : null,
-          overrideActor: r.override_actor ? String(r.override_actor) : null,
-          overriddenAt: r.overridden_at ? String(r.overridden_at) : null,
-          status: String(r.status ?? "open"),
-          createdAt: String(r.created_at ?? ""),
-          updatedAt: String(r.updated_at ?? ""),
+          id: conflict.id,
+          orgId,
+          tourId: null,
+          shiftId: conflict.shiftId,
+          personId: conflict.personId,
+          conflictType: conflict.conflictType,
+          severity: conflict.severity,
+          source: "derived",
+          description: name ? `${name}: ${conflict.description}` : conflict.description,
+          overrideReason: null,
+          overrideActor: null,
+          overriddenAt: null,
+          status: conflict.status,
+          createdAt: String(shift?.created_at ?? new Date().toISOString()),
+          updatedAt: String(shift?.updated_at ?? shift?.created_at ?? new Date().toISOString()),
         }
       })
 
@@ -83,17 +102,6 @@ export const GET = withAdminCapability(
     } catch (error) {
       if (error instanceof OrgEntityAccessError) {
         return NextResponse.json({ error: error.message, code: error.code }, { status: error.status })
-      }
-      const msg = error instanceof Error ? error.message : String(error)
-      if (msg.includes("relation") && msg.includes("does not exist")) {
-        return NextResponse.json({
-          success: true,
-          conflicts: [],
-          summary: { total: 0, open: 0, critical: 0, warning: 0 },
-          unavailable: true,
-          unavailableReason: "Assignment conflicts table not yet migrated.",
-          freshAt: new Date().toISOString(),
-        })
       }
       console.error("[Admin Workforce Conflicts]", error)
       return NextResponse.json({ error: "Conflicts unavailable", code: "conflicts_failed" }, { status: 503 })

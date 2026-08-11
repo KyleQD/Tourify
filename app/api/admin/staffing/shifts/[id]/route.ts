@@ -50,7 +50,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       .from("staff_shifts")
       .select("*")
       .eq("id", id)
-      .is("deleted_at", null)
       .single()
 
     if (fetchErr || !row?.venue_id) {
@@ -125,7 +124,6 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
       .from("staff_shifts")
       .select("*")
       .eq("id", id)
-      .is("deleted_at", null)
       .single()
 
     if (fetchErr || !row?.venue_id) {
@@ -156,9 +154,10 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
       actorUserId: user.id,
     })
 
+    // staff_shifts has no soft-delete column in the live schema — remove the row.
     const { error } = await supabase
       .from("staff_shifts")
-      .update({ deleted_at: new Date().toISOString() })
+      .delete()
       .eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ success: true })

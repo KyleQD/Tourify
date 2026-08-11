@@ -114,13 +114,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const venueId =
+    let venueId =
       input.venue_id ??
       (employer?.entityType === "venue" ? employer.entityId : null)
 
-    if (!venueId && !resolvedOrgId) {
+    // Org-scoped creates often omit venue_id, but staff_shifts.venue_id is
+    // NOT NULL. Resolve it from real event data before failing.
+    if (!venueId && input.event_id) {
+      const { data: eventRow } = await supabase
+        .from("events")
+        .select("venue_id")
+        .eq("id", input.event_id)
+        .maybeSingle()
+      if (eventRow?.venue_id) venueId = String(eventRow.venue_id)
+    }
+    if (!venueId && resolvedOrgId) {
+      const { data: orgEventRow } = await supabase
+        .from("events")
+        .select("venue_id")
+        .eq("org_id", resolvedOrgId)
+        .not("venue_id", "is", null)
+        .order("start_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (orgEventRow?.venue_id) venueId = String(orgEventRow.venue_id)
+    }
+
+    if (!venueId) {
       return NextResponse.json(
-        { error: "Unable to resolve scheduling scope. Provide a venue or organization employer." },
+        { error: "Select a venue for this shift. No venue could be resolved from the event or organization." },
         { status: 400 },
       )
     }
@@ -261,7 +283,7 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
-        let query = supabase.from("staff_shifts").select("*").eq("venue_id", venueEmployerId).is("deleted_at", null)
+        let query = supabase.from("staff_shifts").select("*").eq("venue_id", venueEmployerId)
         if (eventId) query = query.eq("event_id", eventId)
         if (staffMemberId) query = query.eq("staff_member_id", staffMemberId)
         if (status) query = query.eq("status", status)
@@ -286,7 +308,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
 
-      let query = supabase.from("staff_shifts").select("*").eq("venue_id", venueId).is("deleted_at", null)
+      let query = supabase.from("staff_shifts").select("*").eq("venue_id", venueId)
       if (eventId) query = query.eq("event_id", eventId)
       if (staffMemberId) query = query.eq("staff_member_id", staffMemberId)
       if (status) query = query.eq("status", status)
@@ -313,7 +335,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: [] })
     }
 
-    let query = supabase.from("staff_shifts").select("*").eq("org_id", resolvedOrgId).is("deleted_at", null)
+    let query = supabase.from("staff_shifts").select("*").eq("org_id", resolvedOrgId)
     if (eventId) query = query.eq("event_id", eventId)
     if (staffMemberId) query = query.eq("staff_member_id", staffMemberId)
     if (status) query = query.eq("status", status)

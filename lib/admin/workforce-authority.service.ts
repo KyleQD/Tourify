@@ -11,7 +11,6 @@ import { hasAdminCapability } from "@/lib/auth/admin-capabilities"
 import { requireEventAccess } from "@/lib/admin/event-access.service"
 import { requireTourAccess } from "@/lib/admin/tour-access.service"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseLike = { from: (table: string) => any }
 
 export class WorkforceAccessDeniedError extends Error {
@@ -164,7 +163,7 @@ export async function validateStaffMemberParent(args: {
   // employer_entity_type / employer_entity_id columns and org_id.
   const { data, error } = await args.supabase
     .from("staff_members")
-    .select("id, org_id, employer_entity_type, employer_entity_id")
+    .select("id, org_id, employer_entity_type, employer_entity_id, user_id")
     .eq("id", args.staffMemberId)
     .maybeSingle()
   if (error) throw new Error(error.message)
@@ -176,8 +175,45 @@ export async function validateStaffMemberParent(args: {
       ? data.employer_entity_id
       : null)
 
-  if (!rowOrg || rowOrg !== args.orgId)
+  let inScope = rowOrg === args.orgId
+
+  // Fallback 1: employer_entity_id may be an organizer_accounts row (or its
+  // user_id) rather than the organizations.id itself. Resolve through
+  // organizer_accounts.ops_org_id, mirroring resolveSchedulingOrgId.
+  if (!inScope && data.employer_entity_type === "organization" && typeof data.employer_entity_id === "string") {
+    for (const column of ["id", "user_id"]) {
+      const { data: organizer, error: organizerError } = await args.supabase
+        .from("organizer_accounts")
+        .select("ops_org_id")
+        .eq(column, data.employer_entity_id)
+        .maybeSingle()
+      if (organizerError) throw new Error(organizerError.message)
+      if (organizer?.ops_org_id === args.orgId) {
+        inScope = true
+        break
+      }
+    }
+  }
+
+  // Fallback 2: the staff member's linked user is an active member of the
+  // acting org. Roster/onboarding can scope rows via user_id while org_id is
+  // stamped late or missing.
+  if (!inScope && typeof data.user_id === "string" && data.user_id) {
+    inScope = await isOrgMember(args.supabase, data.user_id, args.orgId)
+  }
+
+  if (!inScope)
     throw new WorkforceParentValidationError("Staff member is outside the acting organization.")
+
+  // Self-heal: stamp the resolved org scope when missing so future validations
+  // take the fast path. Best-effort — never block the assignment on this write.
+  if (!data.org_id) {
+    const { error: healError } = await args.supabase
+      .from("staff_members")
+      .update({ org_id: args.orgId })
+      .eq("id", data.id)
+    if (healError) console.warn("[workforce-authority] org_id heal failed:", healError.message)
+  }
 
   return { staffMemberId: data.id as string, orgId: args.orgId }
 }

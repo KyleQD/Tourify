@@ -11,11 +11,11 @@ function getShiftId(request: NextRequest) {
 }
 
 async function getShiftVenue(service: any, shiftId: string) {
+  // Live staff_shifts schema: no deleted_at / adhoc_venue_id columns.
   const { data } = await service
     .from("staff_shifts")
-    .select("id, venue_id, adhoc_venue_id")
+    .select("id, venue_id")
     .eq("id", shiftId)
-    .is("deleted_at", null)
     .maybeSingle()
   return data || null
 }

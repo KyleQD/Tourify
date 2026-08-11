@@ -421,7 +421,6 @@ export async function publishStaffShifts(args: {
     .from("staff_shifts")
     .select("*")
     .in("id", args.shiftIds)
-    .is("deleted_at", null)
 
   if (error) return { published: 0, notified: 0, errors: [error.message] }
 

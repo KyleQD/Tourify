@@ -31,6 +31,8 @@ function createClient(tables: Record<string, TableRow | TableRow[]>) {
 
       const query = {
         select: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        update: vi.fn().mockReturnThis(),
         eq: vi.fn((column: string, value: unknown) => {
           state.filters.push([column, value])
           return query
@@ -157,6 +159,44 @@ describe("WORK-102 workforce assignment authority", () => {
         staffMemberId: STAFF_ID,
       }),
     ).rejects.toBeInstanceOf(WorkforceParentValidationError)
+  })
+
+  it("accepts staff scoped via organizer_accounts ops_org_id", async () => {
+    await expect(
+      validateStaffMemberParent({
+        supabase: createClient({
+          staff_members: {
+            id: STAFF_ID,
+            org_id: null,
+            employer_entity_type: "organization",
+            employer_entity_id: OTHER_ORG, // organizer_accounts.id, not org id
+            user_id: null,
+          },
+          organizer_accounts: { id: OTHER_ORG, user_id: USER_ID, ops_org_id: ORG_ID },
+        }),
+        orgId: ORG_ID,
+        staffMemberId: STAFF_ID,
+      }),
+    ).resolves.toEqual({ staffMemberId: STAFF_ID, orgId: ORG_ID })
+  })
+
+  it("accepts active org members whose staff row lacks org scope", async () => {
+    await expect(
+      validateStaffMemberParent({
+        supabase: createClient({
+          staff_members: {
+            id: STAFF_ID,
+            org_id: null,
+            employer_entity_type: "venue",
+            employer_entity_id: null,
+            user_id: USER_ID,
+          },
+          org_members: { org_id: ORG_ID, user_id: USER_ID, role: "member" },
+        }),
+        orgId: ORG_ID,
+        staffMemberId: STAFF_ID,
+      }),
+    ).resolves.toEqual({ staffMemberId: STAFF_ID, orgId: ORG_ID })
   })
 
   it("validates tour parent via org membership", async () => {

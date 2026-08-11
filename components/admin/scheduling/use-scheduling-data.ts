@@ -891,7 +891,12 @@ export function useSchedulingData(
         const staffIds = input.assignedStaffIds?.filter(Boolean) ?? []
         if (staffIds.length === 0) throw new Error("Select at least one staff member before saving this shift.")
         const resolvedEventId = resolveEventIdForInput(input)
-        const resolvedVenueId = rawEvents.find((event) => event.id === resolvedEventId)?.venueId ?? venueId
+        // Venue resolution: event's venue → the venue picked in the form
+        // (matched by name against live venue options) → page-level venue context.
+        const resolvedVenueId =
+          rawEvents.find((event) => event.id === resolvedEventId)?.venueId
+          ?? liveVenues.find((venue) => venue.name === input.venueName)?.id
+          ?? venueId
 
         const payloadBase = {
           venue_id: resolvedVenueId ?? undefined,
@@ -930,7 +935,7 @@ export function useSchedulingData(
           throw new Error(message)
         }
       }),
-    [employer, persist, rawEvents, resolveEventIdForInput, venueId],
+    [employer, persist, rawEvents, resolveEventIdForInput, liveVenues, venueId],
   )
 
   const updateShift = useCallback(

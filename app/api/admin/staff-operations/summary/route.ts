@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server"
 
+import { detectDoubleBookings } from "@/lib/admin/staff-scheduling-conflicts"
 import { rankStaffOperationsTasks } from "@/lib/admin/staff-operations-ranking"
 import { withAdminCapability } from "@/lib/auth/api-auth"
 import type { StaffOperationsPriority, StaffOperationsSummary, StaffOperationsTask } from "@/types/staff-operations"
 
 const DAY_MS = 86_400_000
+
+/** staff_documents statuses that should not surface as expiring credentials. */
+const INACTIVE_DOCUMENT_STATUSES = new Set(["expired", "rejected", "revoked", "archived", "deleted"])
 
 function priority(value: unknown): StaffOperationsPriority {
   if (value === "urgent" || value === "critical") return "critical"
@@ -23,12 +27,21 @@ function unavailable(error: { code?: string; message?: string } | null) {
   return Boolean(error && (error.code === "42P01" || error.code === "42703" || error.message?.includes("does not exist")))
 }
 
+/** Earliest expiry across the two expiry columns staff_documents carries. */
+function documentExpiry(row: Record<string, unknown>): string | null {
+  const expiresAt = typeof row.expires_at === "string" ? row.expires_at : null
+  const expirationDate = typeof row.expiration_date === "string" ? row.expiration_date : null
+  if (expiresAt && expirationDate) return expiresAt < expirationDate ? expiresAt : expirationDate
+  return expiresAt ?? expirationDate
+}
+
 export const GET = withAdminCapability(
   "workforce.view",
   async (_request, { supabase, admin, user }) => {
     const now = new Date()
     const today = now.toISOString().slice(0, 10)
     const through = new Date(now.getTime() + 7 * DAY_MS).toISOString().slice(0, 10)
+    const conflictThrough = new Date(now.getTime() + 30 * DAY_MS).toISOString().slice(0, 10)
     const unavailableSources: string[] = []
 
     const membersResult = await supabase
@@ -45,19 +58,8 @@ export const GET = withAdminCapability(
     const members = (membersResult.data ?? []) as Array<Record<string, unknown>>
     const staffIds = members.map((row) => String(row.id)).filter(Boolean)
 
+    // --- Schedule: real staff_shifts rows for the org's staff (next 7 days) ---
     const shiftsResult = staffIds.length
-      ? await supabase
-          .from("staff_shifts")
-          .select("id, staff_member_id, shift_date, start_time, end_time, role_assignment, zone_assignment, status")
-          .in("staff_member_id", staffIds)
-          .is("deleted_at", null)
-          .gte("shift_date", today)
-          .lte("shift_date", through)
-          .neq("status", "cancelled")
-          .order("shift_date", { ascending: true })
-          .order("start_time", { ascending: true })
-          .limit(200)
-      : { data: [], error: null }
       ? await supabase
           .from("staff_shifts")
           .select("id, staff_member_id, shift_date, start_time, end_time, role_assignment, zone_assignment, status")
@@ -72,47 +74,64 @@ export const GET = withAdminCapability(
     if (shiftsResult.error) unavailableSources.push("schedule")
     const shifts = (shiftsResult.data ?? []) as Array<Record<string, unknown>>
 
-    const conflictsResult = await supabase
-      .from("assignment_conflicts")
-      .select("id, conflict_type, severity, description, status, created_at, shift_id")
-      .eq("org_id", admin.orgId)
-      .eq("status", "open")
-      .order("created_at", { ascending: false })
-      .limit(100)
-    if (conflictsResult.error) unavailableSources.push("conflicts")
-    const conflicts = (conflictsResult.data ?? []) as Array<Record<string, unknown>>
+    // --- Conflicts: double-bookings derived from real staff_shifts (next 30 days) ---
+    const conflictShiftsResult = staffIds.length
+      ? await supabase
+          .from("staff_shifts")
+          .select("id, staff_member_id, shift_date, start_time, end_time, role_assignment, status")
+          .in("staff_member_id", staffIds)
+          .gte("shift_date", today)
+          .lte("shift_date", conflictThrough)
+          .neq("status", "cancelled")
+          .limit(500)
+      : { data: [], error: null }
+    if (conflictShiftsResult.error) unavailableSources.push("conflicts")
+    const conflicts = detectDoubleBookings(
+      (conflictShiftsResult.data ?? []) as Array<{
+        id: string
+        staff_member_id: string | null
+        shift_date: string | null
+        start_time: string | null
+        end_time: string | null
+        role_assignment: string | null
+        status: string | null
+      }>,
+    )
 
-    const assignmentsResult = await supabase
-      .from("work_assignments")
-      .select("*")
-      .eq("org_id", admin.orgId)
-      .in("status", ["offered", "open", "pending"])
-      .limit(100)
-    if (assignmentsResult.error) unavailableSources.push("assignment responses")
-    const assignments = (assignmentsResult.data ?? []) as Array<Record<string, unknown>>
+    // --- Assignment responses: shifts still waiting on a crew response ---
+    // "scheduled" = offered, awaiting confirmation. "open"/"offered" = coverage gap.
+    const assignments = shifts.filter((row) => {
+      const status = typeof row.status === "string" ? row.status.toLowerCase() : "scheduled"
+      return status === "scheduled" || status === "open" || status === "offered" || status === "pending"
+    })
 
-    const credentialsResult = await supabase
-      .from("worker_credentials")
-      .select("id, credential_type, expires_at, status, person_id")
-      .eq("org_id", admin.orgId)
-      .eq("status", "active")
-      .lte("expires_at", new Date(now.getTime() + 30 * DAY_MS).toISOString())
-      .order("expires_at", { ascending: true })
-      .limit(50)
-    if (credentialsResult.error) unavailableSources.push("credentials")
-    const credentials = (credentialsResult.data ?? []) as Array<Record<string, unknown>>
+    // --- Credentials: staff documents expiring within 30 days ---
+    const credentialCutoff = new Date(now.getTime() + 30 * DAY_MS)
+    const documentsResult = await supabase
+      .from("staff_documents")
+      .select("id, document_name, document_type, credential_type, expires_at, expiration_date, status, staff_member_id")
+      .eq("employer_entity_type", "organization")
+      .eq("employer_entity_id", admin.profileId)
+      .limit(200)
+    if (documentsResult.error) unavailableSources.push("credentials")
+    const credentials = ((documentsResult.data ?? []) as Array<Record<string, unknown>>)
+      .filter((row) => {
+        const status = typeof row.status === "string" ? row.status.toLowerCase() : ""
+        if (INACTIVE_DOCUMENT_STATUSES.has(status)) return false
+        const expiry = documentExpiry(row)
+        if (!expiry) return false
+        const timestamp = new Date(expiry).getTime()
+        return Number.isFinite(timestamp) && timestamp <= credentialCutoff.getTime()
+      })
+      .sort((a, b) => String(documentExpiry(a)).localeCompare(String(documentExpiry(b))))
+      .slice(0, 50)
 
-    const accountResult = await supabase
-      .from("organizer_accounts")
-      .select("user_id")
-      .eq("id", admin.profileId)
-      .maybeSingle()
-    const ownerUserId = accountResult.data?.user_id as string | undefined
+    // --- Event tasks: logistics + workflow tasks on the org's real events ---
     let logistics: Array<Record<string, unknown>> = []
     let eventTasks: Array<Record<string, unknown>> = []
     const canViewEventTasks = admin.capabilities.includes("event.view") || admin.capabilities.includes("logistics.view")
-    if (ownerUserId && canViewEventTasks) {
-      const eventsResult = await supabase.from("events").select("id").eq("user_id", ownerUserId).limit(500)
+    if (canViewEventTasks) {
+      const eventsResult = await supabase.from("events").select("id").eq("org_id", admin.orgId).limit(500)
       const eventIds = (eventsResult.data ?? []).map((row: { id: string }) => row.id)
       if (eventsResult.error) unavailableSources.push("event tasks")
       if (eventIds.length) {
@@ -128,9 +147,9 @@ export const GET = withAdminCapability(
         const threadsPromise = admin.capabilities.includes("event.view")
           ? supabase
               .from("workflow_threads")
-              .select("id, context_id")
-              .eq("context_type", "event")
-              .in("context_id", eventIds)
+              .select("id, scope_id")
+              .eq("scope_type", "event")
+              .in("scope_id", eventIds)
               .limit(500)
           : Promise.resolve({ data: [], error: null })
         const [logisticsResult, threadsResult] = await Promise.all([
@@ -140,7 +159,7 @@ export const GET = withAdminCapability(
         if (logisticsResult.error) unavailableSources.push("event tasks")
         logistics = (logisticsResult.data ?? []) as Array<Record<string, unknown>>
         if (threadsResult.error) unavailableSources.push("workflow tasks")
-        const threadEvent = new Map((threadsResult.data ?? []).map((row: { id: string; context_id: string }) => [row.id, row.context_id]))
+        const threadEvent = new Map((threadsResult.data ?? []).map((row: { id: string; scope_id: string }) => [row.id, row.scope_id]))
         const threadIds = Array.from(threadEvent.keys())
         if (threadIds.length) {
           const workflowResult = await supabase
@@ -175,28 +194,26 @@ export const GET = withAdminCapability(
     if (notificationsResult.error) unavailableSources.push("updates")
 
     const tasks: StaffOperationsTask[] = []
-    for (const row of conflicts) {
-      const severity = priority(row.severity)
+    for (const conflict of conflicts) {
       tasks.push({
-        id: `conflict:${String(row.id)}`,
+        id: conflict.id,
         source: "scheduling",
-        kind: String(row.conflict_type ?? "scheduling_conflict"),
-        title: severity === "critical" ? "Critical scheduling conflict" : "Scheduling conflict",
-        description: typeof row.description === "string" ? row.description : null,
-        priority: severity,
-        status: "open",
-        dueAt: typeof row.created_at === "string" ? row.created_at : null,
+        kind: conflict.conflictType,
+        title: conflict.severity === "critical" ? "Critical scheduling conflict" : "Scheduling conflict",
+        description: conflict.description,
+        priority: conflict.severity === "critical" ? "critical" : "high",
+        status: conflict.status,
+        dueAt: null,
         actorName: null,
         actionHref: "/admin/dashboard/staff?tab=scheduling",
-        isOverdue: severity === "critical",
+        isOverdue: conflict.severity === "critical",
       })
     }
     for (const row of assignments) {
-      const isCoverageGap = row.status === "open"
-      const dueAt = typeof row.response_deadline === "string"
-        ? row.response_deadline
-        : typeof row.starts_at === "string" ? row.starts_at : typeof row.shift_date === "string" ? row.shift_date : null
-      const role = String(row.role_name ?? row.role_title ?? "shift")
+      const status = typeof row.status === "string" ? row.status.toLowerCase() : "scheduled"
+      const isCoverageGap = status === "open" || status === "offered"
+      const dueAt = typeof row.shift_date === "string" ? row.shift_date : null
+      const role = String(row.role_assignment ?? "shift")
       tasks.push({
         id: `assignment:${String(row.id)}`,
         source: isCoverageGap ? "scheduling" : "request",
@@ -214,12 +231,13 @@ export const GET = withAdminCapability(
       })
     }
     for (const row of credentials) {
-      const dueAt = typeof row.expires_at === "string" ? row.expires_at : null
+      const dueAt = documentExpiry(row)
+      const label = String(row.document_name ?? row.credential_type ?? row.document_type ?? "Credential")
       tasks.push({
         id: `credential:${String(row.id)}`,
         source: "credential",
         kind: "credential_expiry",
-        title: `${String(row.credential_type ?? "Credential")} expires soon`,
+        title: `${label} expires soon`,
         description: "Review or renew this workforce credential before it expires.",
         priority: dueIsOverdue(dueAt, now) ? "critical" : "high",
         status: "active",
@@ -293,9 +311,12 @@ export const GET = withAdminCapability(
       role: typeof row.role_assignment === "string" ? row.role_assignment : null,
       zone: typeof row.zone_assignment === "string" ? row.zone_assignment : null,
       status: String(row.status ?? "scheduled"),
-      isOpen: !row.staff_member_id,
+      isOpen: !row.staff_member_id || row.status === "open",
     }))
-    const openAssignmentCount = assignments.filter((row) => row.status === "open").length
+    const openAssignmentCount = assignments.filter((row) => {
+      const status = typeof row.status === "string" ? row.status.toLowerCase() : ""
+      return status === "open" || status === "offered"
+    }).length
     const openShifts = upcomingShifts.filter((shift) => shift.isOpen).length + openAssignmentCount
     const active = members.filter((row) => row.status === "active").length
     const onLeave = members.filter((row) => row.status === "on_leave").length
@@ -306,7 +327,7 @@ export const GET = withAdminCapability(
         activeStaff: active,
         shiftsNextSevenDays: shifts.length,
         openShifts,
-        pendingRequests: assignments.filter((row) => row.status !== "open").length,
+        pendingRequests: assignments.length - openAssignmentCount,
         unreadUpdates: notificationsResult.count ?? 0,
         openConflicts: conflicts.length,
       },

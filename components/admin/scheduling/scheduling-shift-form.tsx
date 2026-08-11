@@ -89,6 +89,17 @@ export function ShiftFormFields({ state, setState, compact }: ShiftFormFieldsPro
     setState((prev) => ({ ...prev, [key]: value }))
   }
 
+  // Selecting an event that already has a venue auto-populates the venue
+  // field (still editable afterwards — manual entry is always allowed).
+  function handleEventChange(name: string) {
+    const event = data.events.find((candidate) => candidate.name === name)
+    setState((prev) => ({
+      ...prev,
+      event: name,
+      venue: event?.venueName ? event.venueName : prev.venue,
+    }))
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Shift basics */}
@@ -108,11 +119,23 @@ export function ShiftFormFields({ state, setState, compact }: ShiftFormFieldsPro
           <div className={compact ? "grid gap-4" : "grid gap-4 sm:grid-cols-2"}>
             <Field>
               <FieldLabel>Event</FieldLabel>
-              <FormSelect value={state.event} onChange={(v) => set("event", v)} placeholder="Select event" options={eventOptions} />
+              <FormSelect value={state.event} onChange={handleEventChange} placeholder="Select event" options={eventOptions} />
             </Field>
             <Field>
-              <FieldLabel>Venue / location</FieldLabel>
-              <FormSelect value={state.venue} onChange={(v) => set("venue", v)} placeholder="Select venue" options={venueOptions} />
+              <FieldLabel htmlFor="sf-venue">Venue / location</FieldLabel>
+              <Input
+                id="sf-venue"
+                list="sf-venue-options"
+                value={state.venue}
+                onChange={(e) => set("venue", e.target.value)}
+                placeholder="Type a venue or pick a suggestion"
+                autoComplete="off"
+              />
+              <datalist id="sf-venue-options">
+                {venueOptions.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
             </Field>
           </div>
 

@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -67,7 +68,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               Please select a venue to access the scheduling system.
             </p>
             <Button asChild>
-              <a href="/venue">Select Venue</a>
+              <Link href="/venue">Select Venue</Link>
             </Button>
           </CardContent>
         </Card>
@@ -87,7 +88,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               You do not have access to that venue scheduling workspace.
             </p>
             <Button asChild>
-              <a href="/venue">Select Venue</a>
+              <Link href="/venue">Select Venue</Link>
             </Button>
           </CardContent>
         </Card>
@@ -162,7 +163,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               : "Manage shifts, assignments, and scheduling for your venue"}
           </p>
           <Button asChild variant="link" className="mt-1 h-auto px-0 text-emerald-400">
-            <a href="/venue/staff">Back to staff hub</a>
+            <Link href="/venue/staff">Back to staff hub</Link>
           </Button>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
