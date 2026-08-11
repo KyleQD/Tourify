@@ -24,7 +24,6 @@ import { useRentalAgreements, useRentalAnalytics, useEquipmentUtilization } from
 import { useLodging } from "@/hooks/use-lodging"
 import { useTravelCoordination } from "@/hooks/use-travel-coordination"
 import dynamic from "next/dynamic"
-import { LogisticsCollaboration } from "@/components/admin/logistics-collaboration"
 import { OperationsCommandShell } from "@/components/admin/operations/operations-command-shell"
 import { TransportManager } from "@/components/admin/logistics/transport/transport-manager"
 import { TravelOpsHub } from "@/components/admin/logistics/travel/travel-ops-hub"
@@ -32,6 +31,8 @@ import { PartyTravelMatrixPanel } from "@/components/admin/logistics/travel/part
 import { TravelCommandsPanel } from "@/components/admin/logistics/travel/travel-commands-panel"
 import { TravelDocumentsPanel } from "@/components/admin/logistics/travel/travel-documents-panel"
 import { LogisticsAlertsPanel } from "@/components/admin/logistics/logistics-alerts-panel"
+import { LogisticsPlansLauncher } from "@/components/admin/logistics/workspace/logistics-plans-launcher"
+import { CommunicationsCommandCenter } from "@/components/admin/logistics/communications-command-center"
 import { LodgingManagement } from "@/components/admin/lodging-management"
 import { EquipmentOpsPanel } from "@/components/admin/logistics/equipment-ops-panel"
 import { BacklineOpsPanel } from "@/components/admin/logistics/backline/backline-ops-panel"
@@ -128,7 +129,7 @@ export default function LogisticsPageClient() {
   const { toast } = useToast()
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
-  const { isActingReady } = useActingContext()
+  const { actingHeaders, isActingReady } = useActingContext()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -167,6 +168,9 @@ export default function LogisticsPageClient() {
     tourId?: string | null
     legId?: string | null
     orgId?: string | null
+    stopId?: string | null
+    panel?: string | null
+    issueId?: string | null
   }) => {
     const params = buildLogisticsScopeSearchParams({
       current: searchParams,
@@ -176,6 +180,9 @@ export default function LogisticsPageClient() {
         tourId: updates.tourId,
         legId: updates.legId,
         orgId: updates.orgId,
+        stopId: updates.stopId,
+        panel: updates.panel,
+        issueId: updates.issueId,
       },
     })
     // Always stamp acting org when known — never invent a different org.
@@ -198,6 +205,9 @@ export default function LogisticsPageClient() {
           tourId: null,
           eventId: null,
           legId: null,
+          stopId: null,
+          panel: null,
+          issueId: null,
           tab: scope.tab,
         },
       })
@@ -269,8 +279,8 @@ export default function LogisticsPageClient() {
     async function fetchEventMeta() {
       try {
         const [eventRes, threadRes] = await Promise.all([
-          fetch(`/api/admin/events/${selectedEvent}`, { credentials: 'include' }),
-          fetch(`/api/admin/logistics/comms-thread?event_id=${selectedEvent}`, { credentials: 'include' }),
+          fetch(`/api/admin/events/${selectedEvent}`, { credentials: 'include', headers: { ...actingHeaders } }),
+          fetch(`/api/admin/logistics/comms-thread?event_id=${selectedEvent}`, { credentials: 'include', headers: { ...actingHeaders } }),
         ])
         if (eventRes.ok) {
           const eventData = await eventRes.json()
@@ -285,7 +295,7 @@ export default function LogisticsPageClient() {
       }
     }
     void fetchEventMeta()
-  }, [selectedEvent])
+  }, [selectedEvent, actingHeaders])
 
   // Fetch logistics data (combined — one hook, no transportation/equipment/analytics fan-out)
   const { data: logisticsData, loading: logisticsLoading, error: logisticsError, refetch: refetchLogistics } = useLogistics({
@@ -338,11 +348,11 @@ export default function LogisticsPageClient() {
     const params = new URLSearchParams()
     if (selectedEvent) params.set('eventId', selectedEvent)
     if (selectedTour) params.set('tourId', selectedTour)
-    fetch(`/api/admin/logistics/metrics?${params}`, { credentials: 'include' })
+    fetch(`/api/admin/logistics/metrics?${params}`, { credentials: 'include', headers: { ...actingHeaders } })
       .then(r => r.ok ? r.json() : null)
       .then(d => d && setApiMetrics(d.metrics || d))
       .catch(() => {})
-  }, [selectedEvent, selectedTour])
+  }, [selectedEvent, selectedTour, actingHeaders])
 
   // Calculate status metrics
   const calculateStatusMetrics = () => {
@@ -488,6 +498,8 @@ export default function LogisticsPageClient() {
           <LogisticsScopeBar
             orgLabel={orgLabel}
             actingOrgId={actingOrgId}
+            actingHeaders={actingHeaders}
+            isActingReady={isActingReady}
             tourId={selectedTour}
             eventId={selectedEvent}
             legId={selectedLegId}
@@ -512,6 +524,48 @@ export default function LogisticsPageClient() {
         }
       >
         <TabsContent value="overview" className="mt-0 space-y-6">
+          <LogisticsPlansLauncher
+            actingHeaders={actingHeaders}
+            isActingReady={isActingReady}
+            tourId={selectedTour}
+            eventId={selectedEvent}
+            onSelectTour={(plan) => {
+              setSelectedTour(plan.tourId)
+              setSelectedTourName(plan.name)
+              setSelectedEvent(null)
+              setSelectedEventName(null)
+              setSelectedLegId(null)
+              setActiveTab("overview")
+              updateLogisticsUrl({
+                orgId: actingOrgId,
+                tourId: plan.tourId,
+                eventId: null,
+                legId: null,
+                tab: "overview",
+                stopId: null,
+                panel: null,
+                issueId: null,
+              })
+            }}
+            onOpenStop={(tourId, stop, tab = "overview", issueId = null) => {
+              setSelectedTour(tourId)
+              setSelectedEvent(stop.eventId)
+              setSelectedEventName(stop.name)
+              setSelectedLegId(null)
+              setActiveTab(tab)
+              updateLogisticsUrl({
+                orgId: actingOrgId,
+                tourId,
+                eventId: stop.eventId,
+                legId: null,
+                tab,
+                stopId: stop.tourStopId,
+                panel: tab,
+                issueId,
+              })
+            }}
+          />
+
           {/* TRAVEL-601 — Travel SLO alert banner */}
           <TravelSLOBanner />
 
@@ -675,13 +729,14 @@ export default function LogisticsPageClient() {
 
         <TabsContent value="communication" className="mt-0">
           <div className="space-y-6">
-            <LogisticsCollaboration
+            <CommunicationsCommandCenter
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
               eventName={selectedEventName || undefined}
               isOwner={!!(selectedEvent && selectedEventOwnerId && user?.id && selectedEventOwnerId === user.id)}
               threadId={commsThreadId || undefined}
               onThreadProvisioned={(id) => setCommsThreadId(id)}
+              actingHeaders={actingHeaders}
             />
 
             <LogisticsDynamicManager

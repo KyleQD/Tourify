@@ -1,0 +1,251 @@
+{
+  "project": "Tourify Communications Command Center",
+  "status": "in_progress",
+  "repository": "KyleQD/Tourify",
+  "branch": null,
+  "started_at": "2026-08-11",
+  "last_updated": "2026-08-11",
+  "phases": {
+    "00_audit": {
+      "status": "complete",
+      "files_changed": [
+        "docs/communications-command-center/00-audit.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [
+        "Sequential-thinking MCP referenced by local skill was not exposed; audit reasoning is recorded directly in docs."
+      ],
+      "follow_up_work": [
+        "Verify live database policies with Supabase once connected credentials are available."
+      ]
+    },
+    "01_architecture": {
+      "status": "complete",
+      "files_changed": [
+        "docs/communications-command-center/01-architecture.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Promote first implementation slice into API/UI after docs are committed."
+      ]
+    },
+    "02_data_model_permissions": {
+      "status": "complete",
+      "files_changed": [
+        "docs/communications-command-center/02-data-model.md",
+        "docs/communications-command-center/03-permissions.md",
+        "supabase/migrations/20260811201816_communications_command_center_foundation.sql"
+      ],
+      "migrations_added": [
+        "supabase/migrations/20260811201816_communications_command_center_foundation.sql"
+      ],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [
+        "Existing broad RLS policies on logistics acknowledgement/comms-plan tables must be hardened before relying on them as security boundaries.",
+        "Local Supabase Postgres was not running, so supabase migration list --local could not connect."
+      ],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Run migration validation once local Supabase is started.",
+        "Add RLS contract tests."
+      ]
+    },
+    "03_api_contracts": {
+      "status": "complete",
+      "files_changed": [
+        "docs/communications-command-center/04-api-contracts.md",
+        "app/api/admin/logistics/communications-command-center/route.ts"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [
+        "npx eslint app/api/admin/logistics/communications-command-center/route.ts components/admin/logistics/communications-command-center.tsx app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Add route tests for org/tour/event scope and optional-table warning behavior."
+      ]
+    },
+    "04_ui_ux": {
+      "status": "complete",
+      "files_changed": [
+        "docs/communications-command-center/05-ui-ux.md",
+        "components/admin/logistics/communications-command-center.tsx",
+        "app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [
+        "npx eslint app/api/admin/logistics/communications-command-center/route.ts components/admin/logistics/communications-command-center.tsx app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Run browser verification against Logistics -> Comms once a dev server/session is available."
+      ]
+    },
+    "05_native_messaging": {
+      "status": "in_progress",
+      "files_changed": [
+        "docs/communications-command-center/06-native-messaging.md",
+        "app/api/admin/logistics/communications-command-center/route.ts",
+        "components/admin/logistics/communications-command-center.tsx"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [
+        "npx eslint app/api/admin/logistics/communications-command-center/route.ts components/admin/logistics/communications-command-center.tsx app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Complete native feed adapters for event channels and DMs.",
+        "Add realtime fan-in after read model behavior is stable."
+      ]
+    },
+    "06_relay": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/07-relay-system.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Implement relay schema/API after strict RLS migration."
+      ]
+    },
+    "07_email": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/08-email-integration.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [
+        "Provider credentials and webhook/OAuth design not configured."
+      ],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Add disabled email provider adapter after native command center is stable."
+      ]
+    },
+    "08_weather": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/09-weather-integration.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [
+        "Weather provider choice and credentials not configured."
+      ],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Add deterministic stop/event matching tests before broadcast."
+      ]
+    },
+    "09_whatsapp": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/10-whatsapp-integration.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [
+        "WhatsApp provider credentials, consent model, and signed webhook setup not configured."
+      ],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Implement only after relay privacy tests pass."
+      ]
+    },
+    "10_automation_rules": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/11-automation-rules.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Add deterministic rule engine and tests."
+      ]
+    },
+    "11_testing": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/12-testing.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Add focused route/RLS tests with first implementation slice."
+      ]
+    },
+    "12_rollout": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/13-rollout.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Wire feature controls for provider rollout."
+      ]
+    },
+    "13_definition_of_done": {
+      "status": "planned",
+      "files_changed": [
+        "docs/communications-command-center/14-definition-of-done.md"
+      ],
+      "migrations_added": [],
+      "tests_added": [],
+      "tests_passed": [],
+      "blockers": [],
+      "deviations_from_plan": [],
+      "follow_up_work": [
+        "Update when implementation and verification complete."
+      ]
+    }
+  },
+  "global_blockers": [
+    "The repository worktree contained many pre-existing unrelated modifications before this work began.",
+    "External provider credentials and product choices for Gmail/email, weather, and WhatsApp are not configured."
+  ],
+  "deviations": [
+    "Reference handoff table names were reconciled to existing repository table names instead of blindly introducing duplicate communication tables."
+  ],
+  "environment_variables": [],
+  "final_verification": {
+    "lint": "focused lint passed for command-center route, command-center component, and touched Logistics page",
+    "typecheck": "npm run typecheck was interrupted after several minutes with no diagnostics; not counted as passed",
+    "unit_tests": null,
+    "integration_tests": null,
+    "e2e": null,
+    "build": null,
+    "rls": null
+  }
+}
