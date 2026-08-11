@@ -12,6 +12,10 @@ export const SEC107_PARENT_TABLES = [
   "rental_agreements",
   "travel_coordination_timeline",
   "logistics_tasks",
+  "logistics_plan_state",
+  "logistics_hydration_runs",
+  "logistics_stop_overrides",
+  "logistics_issues",
 ] as const
 
 export const SEC107_CHILD_TABLES = [

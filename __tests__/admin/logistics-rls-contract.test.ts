@@ -13,6 +13,8 @@ describe("SEC-107 logistics RLS contract", () => {
     expect(SEC107_PARENT_TABLES).toContain("lodging_bookings")
     expect(SEC107_PARENT_TABLES).toContain("ground_transportation_coordination")
     expect(SEC107_PARENT_TABLES).toContain("rental_agreements")
+    expect(SEC107_PARENT_TABLES).toContain("logistics_plan_state")
+    expect(SEC107_PARENT_TABLES).toContain("logistics_issues")
   })
 
   it("covers passenger/guest/child tables", () => {

@@ -5,6 +5,7 @@ import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
+import { buildAttentionIssues } from "@/lib/admin/admin-operations-contracts"
 import { TourMetadataVersionConflictError } from "@/lib/admin/tour-metadata-version-diff"
 import { withTourListTelemetry } from "@/lib/admin/tour-observability"
 import { withAdminCapability, withOrgCommand } from "@/lib/auth/api-auth"
@@ -35,10 +36,29 @@ export const GET = withAdminCapability("tour.view", async (request: NextRequest,
           capabilities: admin.capabilities,
           allowedTourIds: admin.scope === "tour_collaborator" ? admin.allowedTourIds : undefined,
         })
+        const attention = tours.flatMap((tour: any) =>
+          buildAttentionIssues({
+            entityType: "tour",
+            entityId: String(tour.id),
+            readiness: tour.readiness,
+            sourceBasePath: "/admin/dashboard/tours",
+            limit: 2,
+          }),
+        )
+        const summary = {
+          totalCount: page.totalCount,
+          activeCount: tours.filter((tour: any) => String(tour.status || "").toLowerCase() === "active").length,
+          needsAttentionCount: attention.length,
+          upcomingShows: tours.reduce((sum: number, tour: any) => sum + (Number(tour.event_count ?? tour.total_shows) || 0), 0),
+          revenue: tours.reduce((sum: number, tour: any) => sum + (Number(tour.expected_revenue ?? tour.revenue) || 0), 0),
+        }
         return NextResponse.json({
           success: true,
           orgId,
           tours,
+          items: tours,
+          summary,
+          attention,
           page: {
             totalCount: page.totalCount,
             nextCursor: page.nextCursor,
@@ -54,6 +74,15 @@ export const GET = withAdminCapability("tour.view", async (request: NextRequest,
           return NextResponse.json({
             success: true,
             tours: [],
+            items: [],
+            summary: {
+              totalCount: 0,
+              activeCount: 0,
+              needsAttentionCount: 0,
+              upcomingShows: 0,
+              revenue: 0,
+            },
+            attention: [],
             page: {
               totalCount: 0,
               nextCursor: null,

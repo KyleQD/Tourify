@@ -11,8 +11,8 @@ const attachSchema = z.object({ tourId: z.string().uuid() })
  * Tourify tour. Caller must own the event (artist_id) or hold an approved
  * claim on it. "View Tour" links ride on the same tour_id.
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
-  const { eventId } = await params
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = await params
   const supabase = await createClient()
   const {
     data: { user },

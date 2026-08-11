@@ -3,7 +3,7 @@
  * Organization → tour → stop/event (/ optional leg). Never invent defaults.
  */
 
-export const LOGISTICS_SCOPE_PARAMS = ["orgId", "tourId", "eventId", "legId", "tab"] as const
+export const LOGISTICS_SCOPE_PARAMS = ["orgId", "tourId", "eventId", "legId", "tab", "stopId", "panel", "issueId"] as const
 
 export interface LogisticsScopeState {
   orgId: string | null
@@ -11,6 +11,9 @@ export interface LogisticsScopeState {
   eventId: string | null
   legId: string | null
   tab: string | null
+  stopId: string | null
+  panel: string | null
+  issueId: string | null
 }
 
 export function parseLogisticsScopeParams(
@@ -28,6 +31,9 @@ export function parseLogisticsScopeParams(
     eventId: get("eventId"),
     legId: get("legId"),
     tab: get("tab"),
+    stopId: get("stopId"),
+    panel: get("panel"),
+    issueId: get("issueId"),
   }
 }
 
@@ -37,7 +43,7 @@ export function buildLogisticsScopeSearchParams(args: {
 }): URLSearchParams {
   const params = new URLSearchParams(args.current.toString())
 
-  for (const key of ["orgId", "tourId", "eventId", "legId", "tab"] as const) {
+  for (const key of LOGISTICS_SCOPE_PARAMS) {
     if (!(key in args.updates)) continue
     const value = args.updates[key]
     if (value) params.set(key, value)
@@ -48,6 +54,9 @@ export function buildLogisticsScopeSearchParams(args: {
   if ("tourId" in args.updates && !args.updates.tourId) {
     if (!("eventId" in args.updates)) params.delete("eventId")
     if (!("legId" in args.updates)) params.delete("legId")
+    if (!("stopId" in args.updates)) params.delete("stopId")
+    if (!("panel" in args.updates)) params.delete("panel")
+    if (!("issueId" in args.updates)) params.delete("issueId")
   }
 
   return params

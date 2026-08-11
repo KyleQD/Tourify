@@ -18,6 +18,11 @@ interface StopOption {
 interface LogisticsScopeBarProps {
   orgLabel: string
   actingOrgId: string | null
+  /** Acting-context headers (x-acting-*) from useActingContext — required so the
+   *  server resolves the same organization the user is working in. */
+  actingHeaders?: Record<string, string>
+  /** When false, defer API calls until the acting account has resolved. */
+  isActingReady?: boolean
   tourId: string | null
   eventId: string | null
   legId: string | null
@@ -38,6 +43,8 @@ interface LogisticsScopeBarProps {
 export function LogisticsScopeBar({
   orgLabel,
   actingOrgId,
+  actingHeaders,
+  isActingReady = true,
   tourId,
   eventId,
   legId,
@@ -53,14 +60,20 @@ export function LogisticsScopeBar({
   useEffect(() => {
     let active = true
     async function loadTours() {
+      if (!isActingReady) return
       setIsLoadingTours(true)
       setScopeError(null)
       try {
         const res = await fetch("/api/admin/tours?limit=100", {
           credentials: "include",
           cache: "no-store",
+          headers: { ...(actingHeaders || {}) },
         })
-        if (!res.ok) throw new Error("Failed to load tours")
+        if (!res.ok) {
+          const body = await res.json().catch(() => null)
+          console.warn("[LogisticsScopeBar] tours load failed", res.status, body?.code || body?.error)
+          throw new Error("Failed to load tours")
+        }
         const data = await res.json()
         if (data.orgId && actingOrgId && data.orgId !== actingOrgId) {
           setScopeError("Acting organization changed — tour list not applied")
@@ -87,7 +100,7 @@ export function LogisticsScopeBar({
     return () => {
       active = false
     }
-  }, [actingOrgId])
+  }, [actingOrgId, actingHeaders, isActingReady])
 
   useEffect(() => {
     let active = true
@@ -101,6 +114,7 @@ export function LogisticsScopeBar({
         const res = await fetch(`/api/admin/tours/${tourId}/events`, {
           credentials: "include",
           cache: "no-store",
+          headers: { ...(actingHeaders || {}) },
         })
         if (!res.ok) throw new Error("Failed to load stops")
         const data = await res.json()
@@ -134,7 +148,7 @@ export function LogisticsScopeBar({
     return () => {
       active = false
     }
-  }, [tourId])
+  }, [tourId, actingHeaders])
 
   const handleTourChange = useCallback(
     (value: string) => {

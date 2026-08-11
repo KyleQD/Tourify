@@ -18,6 +18,9 @@ describe("LOG-104 logistics tour-first scope", () => {
       eventId: "e1",
       legId: "NYC",
       tab: "equipment",
+      stopId: null,
+      panel: null,
+      issueId: null,
     })
   })
 

@@ -25,7 +25,7 @@ const claimSchema = z.object({
  * queues for admin review. Claiming never grants the right to edit a
  * provider's source URL or external checkout data.
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isEventFeatureEnabled("EVENT_EXTERNAL_CLAIMS")) {
     return NextResponse.json(
       { error: { code: "FEATURE_UNAVAILABLE", message: "Event claims are not enabled" } },
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
   }
 
-  const { eventId } = await params
+  const { id: eventId } = await params
   const supabase = await createClient()
   const {
     data: { user },
