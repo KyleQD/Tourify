@@ -1,0 +1,360 @@
+{
+  "feature": "event-promoter-network",
+  "current_phase": "P10",
+  "updated_at": "2026-08-17T21:28:00-07:00",
+  "phases": [
+    {
+      "id": "P0",
+      "status": "complete",
+      "completed_tasks": ["P0-1", "P0-2", "P0-3", "P0-4", "P0-5", "P0-6", "P0-7", "P0-8", "P0-9"],
+      "remaining_tasks": [],
+      "changed_files": [
+        "docs/promoter-network/audit/EVENT_IDENTITY_AUDIT.md",
+        "docs/promoter-network/audit/TICKETING_FLOW_AUDIT.md",
+        "docs/promoter-network/audit/PROMOTER_REUSE_DECISIONS.md"
+      ],
+      "migrations": [],
+      "tests_run": ["read-only repository and migration contract audit", "Supabase CLI version/help inspection"],
+      "risks": [
+        "Generated database types still describe several active ticket tables as related to legacy events while current migrations and runtime target events_v2.",
+        "The checkout is not linked to the Supabase CLI, so the deployed catalog and policies cannot be proven from this workspace."
+      ],
+      "notes": [
+        "No product behavior, schema, or data was modified in P0.",
+        "Phase 1 is proceeding against the documented runtime/migration contract; remote catalog verification remains a deployment gate."
+      ]
+    },
+    {
+      "id": "P1",
+      "status": "in_progress",
+      "completed_tasks": ["P1-1", "P1-2", "P1-3", "P1-4", "P1-5", "P1-6", "P1-7"],
+      "remaining_tasks": ["P1-8", "P1-9"],
+      "changed_files": [
+        "supabase/migrations/20260818010233_event_promoter_network_foundation.sql",
+        "docs/engineering/migration-validation/20260818010233_event_promoter_network_foundation.json",
+        "lib/promoter-network/domain.ts",
+        "lib/promoter-network/tracking.ts",
+        "lib/admin/feature-flags/registry.ts",
+        "__tests__/promoter-network/domain.test.ts"
+      ],
+      "migrations": ["20260818010233_event_promoter_network_foundation.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818010233_event_promoter_network_foundation.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/admin-feature-flags.test.ts"
+      ],
+      "risks": [
+        "Generated Supabase types cannot be refreshed until the remote catalog/FK drift is verified.",
+        "The required live RLS persona matrix cannot run until the promoter migration is deployed to an isolated branch."
+      ],
+      "notes": [
+        "All promoter financial tables revoke client writes; the commission ledger additionally rejects UPDATE and DELETE at the database trigger layer.",
+        "Six organization-scoped rollout flags are seeded disabled by default.",
+        "The user confirmed the Phase 1 migration ran successfully in the remote project; generated types and the isolated RLS persona matrix remain deployment follow-ups."
+      ]
+    },
+    {
+      "id": "P2",
+      "status": "in_progress",
+      "completed_tasks": ["P2-1", "P2-2", "P2-3", "P2-4", "P2-5", "P2-6"],
+      "remaining_tasks": ["apply 20260818011952_event_promoter_program_audit_events.sql and validate an authorized and denied organizer persona"],
+      "changed_files": [
+        "supabase/migrations/20260818011952_event_promoter_program_audit_events.sql",
+        "docs/engineering/migration-validation/20260818011952_event_promoter_program_audit_events.json",
+        "lib/promoter-network/program-settings.ts",
+        "lib/promoter-network/feature-flags.ts",
+        "lib/promoter-network/organizer-program-route.ts",
+        "components/admin/event-promoter-program-panel.tsx",
+        "app/api/admin/events/[id]/promoter-program/route.ts",
+        "app/api/admin/events/[id]/promoter-program/publish/route.ts",
+        "app/api/admin/events/[id]/promoter-program/pause/route.ts"
+      ],
+      "migrations": ["20260818011952_event_promoter_program_audit_events.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818011952_event_promoter_program_audit_events.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint on touched Phase 2 TypeScript and TSX files",
+        "targeted TypeScript diagnostics for touched Phase 2 files"
+      ],
+      "risks": [
+        "The Phase 2 additive audit/function migration has not yet been applied remotely.",
+        "Program controls intentionally remain unavailable until event_promoter_program_enabled is enabled with a nonzero rollout percentage."
+      ],
+      "notes": [
+        "The organizer API verifies the existing ticketing management permission, validates the event against the explicit acting organization, then uses an allowlisted service-role job only for the server-only command.",
+        "Changing commission terms, attribution window, terms, or eligible ticket types creates a new immutable program-version snapshot and audit event; retired eligibility rows are preserved rather than deleted."
+      ]
+    },
+    {
+      "id": "P3",
+      "status": "in_progress",
+      "completed_tasks": ["P3-1", "P3-2", "P3-3", "P3-4", "P3-5", "P3-6", "P3-7"],
+      "remaining_tasks": ["apply 20260818013424_event_promoter_membership_lifecycle.sql and validate organizer/promoter personas"],
+      "changed_files": [
+        "supabase/migrations/20260818013424_event_promoter_membership_lifecycle.sql",
+        "docs/engineering/migration-validation/20260818013424_event_promoter_membership_lifecycle.json",
+        "lib/promoter-network/domain.ts",
+        "lib/promoter-network/membership-schemas.ts",
+        "lib/promoter-network/membership-command.ts",
+        "lib/promoter-network/notifications.ts",
+        "lib/promoter-network/organizer-membership-route.ts",
+        "components/admin/event-promoter-membership-panel.tsx",
+        "app/promoter/opportunities/page.tsx",
+        "app/api/promoter/opportunities/route.ts"
+      ],
+      "migrations": ["20260818013424_event_promoter_membership_lifecycle.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818013424_event_promoter_membership_lifecycle.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint on touched Phase 3 TypeScript and TSX files",
+        "targeted TypeScript diagnostics for touched Phase 3 files"
+      ],
+      "risks": [
+        "Phase 3 depends on the unapplied Phase 2 program audit/command migration as well as its own lifecycle migration.",
+        "The application surface remains safely disabled until event_promoter_applications_enabled is enabled with a nonzero rollout percentage."
+      ],
+      "notes": [
+        "Promoter routes derive their actor solely from the authenticated session; organizer routes additionally use the existing ticketing management permission and explicit acting-organization event scope.",
+        "The lifecycle command serializes transitions under row locks, preserves append-only audit evidence, and only service_role can execute it."
+      ]
+    },
+    {
+      "id": "P4",
+      "status": "in_progress",
+      "completed_tasks": ["P4-1", "P4-2", "P4-3", "P4-4", "P4-5", "P4-6", "P4-7", "P4-8"],
+      "remaining_tasks": ["apply 20260818015002_event_promoter_tracking_assets.sql and validate approved-promoter, non-promoter, revoked-link, and repeated-click personas"],
+      "changed_files": [
+        "supabase/migrations/20260818015002_event_promoter_tracking_assets.sql",
+        "docs/engineering/migration-validation/20260818015002_event_promoter_tracking_assets.json",
+        "lib/promoter-network/assets-command.ts",
+        "lib/promoter-network/tracking.ts",
+        "lib/supabase/service-role-allowlist.ts",
+        "app/api/promoter/memberships/[membershipId]/tracking-links/route.ts",
+        "app/api/promoter/memberships/[membershipId]/promo-code-bindings/route.ts",
+        "app/p/[token]/route.ts",
+        "app/api/posts/share/route.ts",
+        "app/api/posts/[id]/shares/route.ts",
+        "app/api/promotions/route.ts",
+        "__tests__/promoter-network/domain.test.ts"
+      ],
+      "migrations": ["20260818015002_event_promoter_tracking_assets.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818015002_event_promoter_tracking_assets.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint on touched Phase 4 TypeScript files",
+        "targeted TypeScript diagnostics for touched Phase 4 files",
+        "git diff --check"
+      ],
+      "risks": [
+        "Phase 4 requires the unapplied Phase 2 and Phase 3 migrations before it can be deployed.",
+        "The existing post and promo-code records are reused; live persona validation is required because generated Supabase types still have known ticketing catalog drift."
+      ],
+      "notes": [
+        "Opaque links store only SHA-256 token hashes and resolve through a server-only command. The public redirect writes a first-party HTTP-only attribution session and hashes the request IP before it reaches the touchpoint metadata.",
+        "Promo-code bindings target existing promo_codes records. Native post and post_shares integrations attach server-side promoter sources only for the approved promoter; resharers do not take the originating promoter's attribution."
+      ]
+    },
+    {
+      "id": "P5",
+      "status": "in_progress",
+      "completed_tasks": ["P5-1", "P5-2", "P5-3", "P5-4", "P5-5", "P5-6", "P5-7"],
+      "remaining_tasks": ["apply 20260818020124_event_promoter_checkout_shadow_attribution.sql and validate checkout attribution precedence with isolated ticketing personas"],
+      "changed_files": [
+        "supabase/migrations/20260818020124_event_promoter_checkout_shadow_attribution.sql",
+        "docs/engineering/migration-validation/20260818020124_event_promoter_checkout_shadow_attribution.json",
+        "lib/promoter-network/checkout-attribution.ts",
+        "app/api/ticketing/enhanced/route.ts",
+        "lib/supabase/service-role-allowlist.ts",
+        "__tests__/promoter-network/domain.test.ts",
+        "__tests__/admin/service-role-job.test.ts"
+      ],
+      "migrations": ["20260818020124_event_promoter_checkout_shadow_attribution.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818020124_event_promoter_checkout_shadow_attribution.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint on touched Phase 5 TypeScript files",
+        "targeted TypeScript diagnostics for touched Phase 5 files",
+        "git diff --check"
+      ],
+      "risks": [
+        "Phase 5 depends on Phase 1 through Phase 4 migrations being present in the deployed project.",
+        "Checkout remains available if shadow attribution fails; production rollout requires isolated persona tests to confirm the live ticketing catalog and feature-flag configuration."
+      ],
+      "notes": [
+        "Checkout reads only the HTTP-only first-party attribution session written by the Phase 4 redirect and the already server-validated promo-code ID on the ticket order. It never accepts a promoter identity from the browser.",
+        "The resolver chooses promoter promo code before latest valid link/native-post context, validates membership/program/time/ticket eligibility and self-referral, then creates no ticket_sale_attributions, ledger, or payable commission rows."
+      ]
+    },
+    {
+      "id": "P6",
+      "status": "in_progress",
+      "completed_tasks": ["P6-1", "P6-2", "P6-3", "P6-4", "P6-5", "P6-6", "P6-7"],
+      "remaining_tasks": ["apply 20260818021315_event_promoter_commission_finalization.sql and validate isolated paid/refund/chargeback Stripe webhook personas"],
+      "changed_files": [
+        "supabase/migrations/20260818021315_event_promoter_commission_finalization.sql",
+        "docs/engineering/migration-validation/20260818021315_event_promoter_commission_finalization.json",
+        "lib/promoter-network/commission-finalization.ts",
+        "lib/ticketing/finalize.ts",
+        "app/api/ticketing/webhook/route.ts",
+        "__tests__/promoter-network/domain.test.ts"
+      ],
+      "migrations": ["20260818021315_event_promoter_commission_finalization.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818021315_event_promoter_commission_finalization.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint lib/promoter-network/commission-finalization.ts lib/ticketing/finalize.ts app/api/ticketing/webhook/route.ts",
+        "npx tsc --noEmit --pretty false",
+        "git diff --check"
+      ],
+      "risks": [
+        "Phase 6 requires all Phase 1 through Phase 5 migrations. The user reported a Phase 5 SQL role error, so Phase 5 must be rerun from the corrected local migration before Phase 6 is applied.",
+        "Current native checkout is USD-only. Non-USD promoter terms deliberately produce no payable entry until an explicit FX policy and conversion evidence are implemented.",
+        "A local Supabase database is not running, so deployment SQL must be validated in the isolated remote project before enabling the payable flag."
+      ],
+      "notes": [
+        "Verified payment finalization locks the sale and snapshots the effective program version, ticket eligibility, terms, excluded fees/taxes, and floor rounding policy before appending an earned entry.",
+        "Refund and chargeback reversals use cumulative processor minor units and append only the remaining proportional negative amount. A won dispute appends a linked reinstatement entry.",
+        "Duplicate Stripe deliveries recover idempotent promoter finalization/reversal only; they do not replay ticket issuance or inventory changes."
+      ]
+    },
+    {
+      "id": "P7",
+      "status": "in_progress",
+      "completed_tasks": ["P7-1", "P7-2", "P7-3", "P7-4", "P7-5"],
+      "remaining_tasks": ["apply 20260818031616_event_promoter_earnings_dashboard.sql and validate promoter A, promoter B, anonymous, empty, mobile, and ledger reconciliation personas"],
+      "changed_files": [
+        "supabase/migrations/20260818031616_event_promoter_earnings_dashboard.sql",
+        "docs/engineering/migration-validation/20260818031616_event_promoter_earnings_dashboard.json",
+        "app/api/promoter/earnings/route.ts",
+        "app/promoter/earnings/page.tsx",
+        "app/promoter/opportunities/page.tsx",
+        "__tests__/promoter-network/domain.test.ts"
+      ],
+      "migrations": ["20260818031616_event_promoter_earnings_dashboard.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818031616_event_promoter_earnings_dashboard.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint app/promoter/earnings/page.tsx app/api/promoter/earnings/route.ts app/promoter/opportunities/page.tsx",
+        "NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit --pretty false",
+        "git diff --check"
+      ],
+      "risks": [
+        "Phase 7 depends on Phase 1 through Phase 6 migrations and is hidden until event_promoter_program_enabled is enabled with a nonzero rollout percentage.",
+        "The new read model must be persona-tested remotely because the workspace has no local Supabase database running."
+      ],
+      "notes": [
+        "The exposed dashboard RPC accepts no user or membership ID. A private, non-exposed security-definer helper derives the owner from auth.uid() and returns only aggregates, safe assets, and ledger display fields.",
+        "Existing tracking-link creation is reused; a newly created opaque URL is revealed once for copying and never reconstructed from a stored token.",
+        "All money totals are ledger-derived and grouped by currency; payout setup remains an explicit Phase 9 dependency."
+      ]
+    },
+    {
+      "id": "P8",
+      "status": "in_progress",
+      "completed_tasks": ["P8-1", "P8-2", "P8-3", "P8-4", "P8-5", "P8-6"],
+      "remaining_tasks": ["validate organizer A, organizer B, non-admin, multi-currency/reversal, ticket-type, tour-scope, and CSV personas against the applied remote migration"],
+      "changed_files": [
+        "supabase/migrations/20260818032821_event_promoter_organizer_analytics.sql",
+        "docs/engineering/migration-validation/20260818032821_event_promoter_organizer_analytics.json",
+        "app/api/admin/events/[id]/promoter-analytics/route.ts",
+        "components/admin/event-promoter-analytics-panel.tsx",
+        "app/admin/dashboard/events/[id]/page.tsx",
+        "__tests__/promoter-network/domain.test.ts"
+      ],
+      "migrations": ["20260818032821_event_promoter_organizer_analytics.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818032821_event_promoter_organizer_analytics.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint components/admin/event-promoter-analytics-panel.tsx app/api/admin/events/[id]/promoter-analytics/route.ts app/admin/dashboard/events/[id]/page.tsx",
+        "NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit --pretty false",
+        "git diff --check"
+      ],
+      "risks": [
+        "Phase 8 depends on Phase 1 through Phase 7 migrations and still needs live persona validation because no local Supabase database is running.",
+        "The current event page has broad unrelated in-progress changes; Phase 8 adds only the promoter analytics panel to the existing Promote tab."
+      ],
+      "notes": [
+        "The database read model receives an event ID but independently checks private.can_manage_event_promoter_program for the authenticated caller. The route also verifies admin capability, organization scope, and ticketing management permission.",
+        "Promoter rankings, source/ticket-type performance, reversals, and liability totals derive from attribution and immutable commission ledger rows. CSV reuses exactly this scoped response and excludes payment references, tracking tokens, and buyer data.",
+        "Tour aggregation is supported through tour_events and includes only stops passing the same event-management predicate."
+      ]
+    },
+    {
+      "id": "P9",
+      "status": "in_progress",
+      "completed_tasks": ["P9-1", "P9-2", "P9-3", "P9-4", "P9-5", "P9-6"],
+      "remaining_tasks": ["validate finance manager, finance pay, blocked-risk, held-entry, refund, retry, and cross-organization personas against the applied remote migration"],
+      "changed_files": [
+        "supabase/migrations/20260818040930_event_promoter_payout_adapter.sql",
+        "docs/engineering/migration-validation/20260818040930_event_promoter_payout_adapter.json",
+        "lib/promoter-network/payout-adapter.ts",
+        "app/api/admin/events/[id]/promoter-payouts/route.ts",
+        "app/api/promoter/payouts/route.ts",
+        "lib/promoter-network/notifications.ts",
+        "lib/supabase/service-role-allowlist.ts",
+        "__tests__/promoter-network/domain.test.ts",
+        "__tests__/admin/service-role-job.test.ts"
+      ],
+      "migrations": ["20260818040930_event_promoter_payout_adapter.sql"],
+      "tests_run": [
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818040930_event_promoter_payout_adapter.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint lib/promoter-network/payout-adapter.ts lib/promoter-network/notifications.ts app/api/admin/events/[id]/promoter-payouts/route.ts app/api/promoter/payouts/route.ts lib/supabase/service-role-allowlist.ts __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit --pretty false",
+        "git diff --check"
+      ],
+      "risks": [
+        "No promoter-specific KYC/readiness status exists in the currently audited Connect/profile contract; batches are intentionally manual-review only and never call Stripe Transfers.",
+        "The migration must be applied after the prior promoter migrations and validated in the remote project because the local Supabase database is not running.",
+        "A chargeback or refund after a paid settlement remains immutable negative ledger evidence and must be handled by finance policy as a recovery/offset rather than by rewriting the already-paid allocation."
+      ],
+      "notes": [
+        "The allocation RPC locks candidate earned entries with SKIP LOCKED, derives their net amount from linked reversal/reinstatement entries, excludes explicit holds and high/critical open risk flags, and relies on the existing unique commission_ledger_id allocation constraint to prevent double settlement.",
+        "Finance controls require finance.manage to allocate or hold/release and finance.pay to submit, confirm, fail, retry, or cancel. Each action writes both an append-only batch event and the platform audit log.",
+        "Confirmation requires a settlement reference. Promoters have a session-scoped payout read RPC that omits external settlement/provider references."
+      ]
+    },
+    {
+      "id": "P10",
+      "status": "in_progress",
+      "completed_tasks": ["P10-1", "P10-2", "P10-3", "P10-4", "P10-5", "P10-6", "P10-7", "P10-8", "P10-9"],
+      "remaining_tasks": ["apply 20260818042043_event_promoter_hardening_rollout.sql, run the remote RLS regression/advisor/persona matrix, and obtain release/security sign-off before enabling any rollout stage"],
+      "changed_files": [
+        "supabase/migrations/20260818042043_event_promoter_hardening_rollout.sql",
+        "supabase/migrations/20260818043734_event_promoter_fk_performance_indexes.sql",
+        "docs/engineering/migration-validation/20260818042043_event_promoter_hardening_rollout.json",
+        "docs/engineering/migration-validation/20260818043734_event_promoter_fk_performance_indexes.json",
+        "supabase/tests/promoter_network_rls_regression.sql",
+        "lib/promoter-network/observability.ts",
+        "lib/promoter-network/investigation.ts",
+        "app/api/admin/events/[id]/promoter-investigation/route.ts",
+        "app/api/admin/events/[id]/promoter-payouts/route.ts",
+        "docs/promoter-network/ROLLOUT_RUNBOOK.md",
+        "docs/promoter-network/PRIVACY_REVIEW.md",
+        "lib/supabase/service-role-allowlist.ts",
+        "__tests__/promoter-network/domain.test.ts",
+        "__tests__/admin/service-role-job.test.ts"
+      ],
+      "migrations": ["20260818042043_event_promoter_hardening_rollout.sql", "20260818043734_event_promoter_fk_performance_indexes.sql"],
+      "tests_run": [
+        "Supabase Security Advisor review after Phase 9 application",
+        "Supabase RLS documentation search",
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818042043_event_promoter_hardening_rollout.sql",
+        "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260818043734_event_promoter_fk_performance_indexes.sql",
+        "npx vitest run __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "npx eslint lib/promoter-network/observability.ts lib/promoter-network/investigation.ts app/api/admin/events/[id]/promoter-investigation/route.ts lib/supabase/service-role-allowlist.ts __tests__/promoter-network/domain.test.ts __tests__/admin/service-role-job.test.ts",
+        "NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit --pretty false",
+        "git diff --check"
+      ],
+      "risks": [
+        "The production security advisor reports broad legacy project warnings that are outside this promoter feature; Phase 10 explicitly addresses the promoter tables reported as RLS-enabled-without-policy through deny-by-default policies.",
+        "Local Supabase is unavailable, so the provided catalog-based RLS regression SQL and advisor checks must run in the remote isolated project before a flag is enabled.",
+        "Automatic payouts remain blocked pending a separately approved promoter KYC/Connect, tax, sanctions, and reserve/offset readiness contract."
+      ],
+      "notes": [
+        "Risk flags now have immutable event history; high/critical open or reviewing flags continue to exclude commission entries from payout allocation.",
+        "Finance investigation and CSV export are event/org-scoped server jobs and omit payment references, tracking tokens, buyer data, and raw telemetry identifiers.",
+        "The rollout runbook defines reversible flag stages, incident response, evidence requirements, privacy guardrails, and remote release gates."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,656 @@
+{
+  "suite": "Tourify Admin Staff Operations Development Plan",
+  "version": "1.0",
+  "source": "/Users/kyledaley/Downloads/tourify_admin_staff_operations_plan_suite/progress-checklist.json",
+  "repo_owned_at": "docs/staff-operations/progress-checklist.json",
+  "last_updated": "2026-08-12",
+  "current_phase": "P0",
+  "current_pointer": "STAFF-016",
+  "rules": [
+    "No completion without evidence.",
+    "No destructive database changes.",
+    "Add exact targets after current-state audit.",
+    "Record skipped tests and blockers."
+  ],
+  "summary": {
+    "total_tasks": 240,
+    "completed": 17,
+    "in_progress": 0,
+    "blocked": 1,
+    "not_started": 222,
+    "notes": "P0 audit and checklist enrichment created in repo. Existing authority/permission route tests pass. STAFF-017 baseline integrity counts were recorded from user-provided output on 2026-08-12. STAFF-016 remains blocked until the new WorkforceContext isolation harness is added."
+  },
+  "phase_index": [
+    { "phase": "P0", "name": "Discovery and Safety", "first": "STAFF-001", "last": "STAFF-018", "count": 18 },
+    { "phase": "P1", "name": "Context and Authorization", "first": "STAFF-019", "last": "STAFF-036", "count": 18 },
+    { "phase": "P2", "name": "Canonical Worker Lifecycle", "first": "STAFF-037", "last": "STAFF-054", "count": 18 },
+    { "phase": "P3", "name": "APIs and Read Models", "first": "STAFF-055", "last": "STAFF-072", "count": 18 },
+    { "phase": "P4", "name": "Command Center and Issues", "first": "STAFF-073", "last": "STAFF-092", "count": 20 },
+    { "phase": "P5", "name": "People", "first": "STAFF-093", "last": "STAFF-114", "count": 22 },
+    { "phase": "P6", "name": "Hiring and Onboarding", "first": "STAFF-115", "last": "STAFF-138", "count": 24 },
+    { "phase": "P7", "name": "Assignments and Coverage", "first": "STAFF-139", "last": "STAFF-158", "count": 20 },
+    { "phase": "P8", "name": "Scheduling and Publication", "first": "STAFF-159", "last": "STAFF-184", "count": 26 },
+    { "phase": "P9", "name": "Day-of and Work Mode", "first": "STAFF-185", "last": "STAFF-202", "count": 18 },
+    { "phase": "P10", "name": "Integrations and Optimization", "first": "STAFF-203", "last": "STAFF-222", "count": 20 },
+    { "phase": "P11", "name": "Rollout and Retirement", "first": "STAFF-223", "last": "STAFF-240", "count": 18 }
+  ],
+  "tasks": [
+    {
+      "id": "STAFF-001",
+      "phase": "P0",
+      "title": "Inventory Staff Operations routes and redirects",
+      "status": "completed",
+      "file_targets": [
+        "app/admin/dashboard/staff/page.tsx",
+        "app/admin/dashboard/hiring/page.tsx",
+        "app/admin/dashboard/applications/page.tsx",
+        "app/admin/dashboard/candidates/page.tsx",
+        "app/admin/dashboard/jobs/page.tsx",
+        "app/admin/dashboard/onboarding/page.tsx",
+        "app/admin/dashboard/roster/page.tsx"
+      ],
+      "database_targets": [],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Active staff and related workforce routes are listed.",
+        "Legacy or adjacent hiring routes are identified before replacement."
+      ],
+      "verification": {
+        "commands": [
+          "find app/admin/dashboard -maxdepth 3 -type f | rg '(staff|hiring|applications|candidates|jobs|onboarding|schedule|roster|workforce)' | sort"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-ui-surfaces"
+        ],
+        "notes": "Staff Operations currently mounts four tabs from /admin/dashboard/staff and relies on adjacent hiring/candidates/jobs/onboarding/roster routes."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-002",
+      "phase": "P0",
+      "title": "Classify components as active, legacy, prototype, or orphaned",
+      "status": "completed",
+      "file_targets": [
+        "components/hiring",
+        "components/admin/scheduling",
+        "components/admin/workforce"
+      ],
+      "database_targets": [],
+      "dependencies": ["STAFF-001"],
+      "acceptance_criteria": [
+        "Active component families are separated from legacy/prototype paths.",
+        "Scheduling demo/live bifurcation is called out as a rollout concern."
+      ],
+      "verification": {
+        "commands": [
+          "find app/admin/dashboard/staff app/api/hiring app/api/admin/workforce app/api/admin/staffing app/api/staff app/api/workforce components/hiring components/admin/scheduling components/admin/workforce -maxdepth 4 -type f 2>/dev/null | sort"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-ui-surfaces"
+        ],
+        "notes": "Active components are hiring panels, staff operations tabs, scheduling workspace, and small workforce status panels."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-003",
+      "phase": "P0",
+      "title": "Inventory workforce API routes and methods",
+      "status": "completed",
+      "file_targets": [
+        "app/api/hiring",
+        "app/api/admin/workforce",
+        "app/api/admin/staffing",
+        "app/api/admin/onboarding",
+        "app/api/admin/applications",
+        "app/api/work-mode"
+      ],
+      "database_targets": [],
+      "dependencies": ["STAFF-001"],
+      "acceptance_criteria": [
+        "Current route families are named.",
+        "Canonicalization target is identified."
+      ],
+      "verification": {
+        "commands": [
+          "find app/api -maxdepth 5 -type f | rg '(hiring|staff|staffing|workforce|onboarding|applications|job-postings|work-mode|attendance)' | sort"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-api-surfaces"
+        ],
+        "notes": "Future canonical APIs should live under /api/admin/workforce/* with compatibility adapters."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-004",
+      "phase": "P0",
+      "title": "Inventory tables, views, functions, triggers, buckets, and RLS policies",
+      "status": "completed",
+      "file_targets": [
+        "supabase/migrations",
+        "supabase/tests",
+        "supabase/sql"
+      ],
+      "database_targets": [
+        "job_applications",
+        "staff_onboarding_candidates",
+        "staff_members",
+        "employment_assignments",
+        "staff_shifts",
+        "staff_shift_assignments",
+        "work_mode_publications",
+        "attendance_entries",
+        "staff_documents",
+        "staff_invitations"
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Known workforce tables and migrations are recorded.",
+        "Supabase RLS and migration guidance is documented before DB work."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n 'create table|alter table|create policy|enable row level security|security_invoker|staff_members|employment_assignments|job_applications|staff_onboarding_candidates|staff_shifts|work_mode|attendance_entries|workforce_|schedule_public' supabase/migrations supabase/tests supabase/sql -g '*.sql'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#schema-rls-and-storage-evidence"
+        ],
+        "notes": "No live database query was run in this task."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-005",
+      "phase": "P0",
+      "title": "Trace staff-member creation paths",
+      "status": "completed",
+      "file_targets": [
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/admin-onboarding-staff.service.ts",
+        "app/api/admin/staff/route.ts",
+        "app/api/venue/team/route.ts",
+        "lib/admin/workforce-identity-merge.service.ts"
+      ],
+      "database_targets": ["staff_members"],
+      "dependencies": ["STAFF-003", "STAFF-004"],
+      "acceptance_criteria": [
+        "Known staff_members write paths are named."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n '.from\\(\"staff_members\"\\)|.from\\('staff_members'\\)' app lib components hooks services __tests__ -g '!node_modules'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-write-paths"
+        ],
+        "notes": "The canonical writer should become a workforce lifecycle/domain service, not route-local logic."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-006",
+      "phase": "P0",
+      "title": "Trace employment-assignment creation paths",
+      "status": "completed",
+      "file_targets": [
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/hiring-candidate-assignment.service.ts",
+        "lib/services/staff-shift-assignment-sync.ts",
+        "lib/admin/workforce-assignment.service.ts"
+      ],
+      "database_targets": ["employment_assignments"],
+      "dependencies": ["STAFF-005"],
+      "acceptance_criteria": [
+        "Known employment assignment writers are named."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n '.from\\(\"employment_assignments\"\\)|.from\\('employment_assignments'\\)' app lib components hooks services __tests__ -g '!node_modules'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-write-paths"
+        ],
+        "notes": "Shift assignment sync currently creates/updates employment assignments as a side effect."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-007",
+      "phase": "P0",
+      "title": "Trace onboarding-case creation paths",
+      "status": "completed",
+      "file_targets": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/hiring-onboarding-upload.service.ts",
+        "lib/services/enhanced-onboarding.service.ts",
+        "app/api/admin/onboarding/*"
+      ],
+      "database_targets": [
+        "staff_onboarding_candidates",
+        "staff_invitations",
+        "staff_documents"
+      ],
+      "dependencies": ["STAFF-003", "STAFF-004"],
+      "acceptance_criteria": [
+        "Known candidate/invitation/document write paths are named."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n '.from\\(\"staff_onboarding_candidates\"\\)|.from\\('staff_onboarding_candidates'\\)|.from\\(\"staff_invitations\"\\)|.from\\('staff_invitations'\\)|.from\\(\"staff_documents\"\\)|.from\\('staff_documents'\\)' app lib components hooks services __tests__ -g '!node_modules'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-write-paths"
+        ],
+        "notes": "Sensitive onboarding data requires field-level gating and reveal audit before list/read-model exposure."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-008",
+      "phase": "P0",
+      "title": "Trace shift creation and assignment paths",
+      "status": "completed",
+      "file_targets": [
+        "app/api/admin/staffing/shifts/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "components/admin/scheduling/use-scheduling-data.ts",
+        "lib/services/staff-shift-assignment-sync.ts"
+      ],
+      "database_targets": [
+        "staff_shifts",
+        "staff_shift_assignments",
+        "employment_assignments"
+      ],
+      "dependencies": ["STAFF-003", "STAFF-004"],
+      "acceptance_criteria": [
+        "Known shift writes and publish behavior are named."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n '.from\\(\"staff_shifts\"\\)|.from\\('staff_shifts'\\)|.from\\(\"staff_shift_assignments\"\\)|.from\\('staff_shift_assignments'\\)' app lib components hooks services __tests__ -g '!node_modules'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-write-paths"
+        ],
+        "notes": "Current publish helper syncs assignments directly; P8 needs versioned schedule publications."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-009",
+      "phase": "P0",
+      "title": "Document employer resolution",
+      "status": "completed",
+      "file_targets": [
+        "lib/hiring/resolve-admin-workforce-employer.ts",
+        "lib/api/hiring-route-helpers.ts",
+        "lib/auth/acting-context.ts",
+        "components/admin/staff-scheduling-tab.tsx"
+      ],
+      "database_targets": [],
+      "dependencies": ["STAFF-001", "STAFF-003"],
+      "acceptance_criteria": [
+        "Current server and client employer resolution paths are named.",
+        "Gaps against WorkforceContext are recorded."
+      ],
+      "verification": {
+        "commands": [
+          "sed -n '1,260p' lib/hiring/resolve-admin-workforce-employer.ts lib/api/hiring-route-helpers.ts lib/auth/acting-context.ts"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#employer-context-and-authorization"
+        ],
+        "notes": "Server-derived display data and child scope validation are required before P1 completion."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-010",
+      "phase": "P0",
+      "title": "Document child scope behavior",
+      "status": "completed",
+      "file_targets": [
+        "components/admin/staff-scheduling-tab.tsx",
+        "components/admin/scheduling/use-scheduling-data.ts",
+        "lib/admin/workforce-authority.service.ts",
+        "app/api/admin/staffing/shifts/route.ts"
+      ],
+      "database_targets": [
+        "events",
+        "tours",
+        "venue_profiles",
+        "staff_members",
+        "staff_shifts"
+      ],
+      "dependencies": ["STAFF-009"],
+      "acceptance_criteria": [
+        "Known Event/Tour/Venue child scope handling is recorded."
+      ],
+      "verification": {
+        "commands": [
+          "sed -n '1,280p' components/admin/staff-scheduling-tab.tsx",
+          "sed -n '1,260p' lib/admin/workforce-authority.service.ts"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#employer-context-and-authorization"
+        ],
+        "notes": "Scheduling persists event/venue/tour scope in URL and must clear incompatible child scope on employer switch."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-011",
+      "phase": "P0",
+      "title": "Document permissions",
+      "status": "completed",
+      "file_targets": [
+        "lib/auth/hiring-permissions.ts",
+        "lib/admin/workforce-authority.service.ts",
+        "lib/auth/admin-capabilities.ts",
+        "app/api/admin/workforce/*",
+        "app/api/hiring/*"
+      ],
+      "database_targets": [
+        "admin_org_feature_flags",
+        "account_relationships",
+        "org_members"
+      ],
+      "dependencies": ["STAFF-009"],
+      "acceptance_criteria": [
+        "Current capability and hiring permission helpers are named.",
+        "Need for WorkforcePermissionSet is recorded."
+      ],
+      "verification": {
+        "commands": [
+          "find lib -maxdepth 4 -type f | rg '(hiring-permissions|workforce-authority|admin-capabilities|feature-flags)' | sort"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#employer-context-and-authorization"
+        ],
+        "notes": "P1 must map RBAC/admin capabilities into stable workforce permission keys."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-012",
+      "phase": "P0",
+      "title": "Document status values and labels",
+      "status": "completed",
+      "file_targets": [
+        "lib/hiring/states.ts",
+        "lib/hiring/application-transitions.ts",
+        "lib/admin/workforce-assignment-status.ts",
+        "components/admin/scheduling/use-scheduling-data.ts"
+      ],
+      "database_targets": [
+        "job_applications",
+        "staff_onboarding_candidates",
+        "staff_members",
+        "employment_assignments",
+        "staff_shifts",
+        "attendance_entries"
+      ],
+      "dependencies": ["STAFF-004"],
+      "acceptance_criteria": [
+        "Overlapping status families are recorded.",
+        "Need for separate lifecycle dimensions is recorded."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n 'status|transition|scheduled|confirmed|suspended|offboarded|approved|waitlisted' lib/hiring lib/admin components/admin/scheduling components/hiring -g '!node_modules'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#status-and-lifecycle-evidence"
+        ],
+        "notes": "P2 must prevent raw DB enum values from being presented as canonical lifecycle labels."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-013",
+      "phase": "P0",
+      "title": "Trace application approval failure behavior",
+      "status": "completed",
+      "file_targets": [
+        "lib/services/hiring-application-approval.service.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/route.ts"
+      ],
+      "database_targets": [
+        "job_applications",
+        "staff_onboarding_candidates",
+        "staff_invitations",
+        "staff_members",
+        "employment_assignments",
+        "hiring_audit_events"
+      ],
+      "dependencies": ["STAFF-005", "STAFF-006", "STAFF-007"],
+      "acceptance_criteria": [
+        "Approval orchestration path and partial failure behavior are recorded."
+      ],
+      "verification": {
+        "commands": [
+          "sed -n '1120,1480p' lib/services/hiring-onboarding.service.ts",
+          "sed -n '1,420p' lib/services/hiring-application-approval.service.ts"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-services-and-domain-helpers",
+          "docs/staff-operations/current-state-audit.md#active-write-paths"
+        ],
+        "notes": "Current approval has compensating revert for candidate/invitation/workflow failures but still records warnings for roster/notification side effects."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-014",
+      "phase": "P0",
+      "title": "Trace onboarding activation",
+      "status": "completed",
+      "file_targets": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/hiring-compliance.service.ts",
+        "lib/services/hiring-onboarding-upload.service.ts",
+        "components/hiring/onboarding-kanban.tsx"
+      ],
+      "database_targets": [
+        "staff_onboarding_candidates",
+        "staff_documents",
+        "staff_members",
+        "employment_assignments"
+      ],
+      "dependencies": ["STAFF-007", "STAFF-012"],
+      "acceptance_criteria": [
+        "Onboarding completion and approval paths are named."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n 'approveOnboardingCandidate|submitTokenOnboarding|compliance|activation|complete' lib/services/hiring-onboarding.service.ts lib/services/hiring-compliance.service.ts lib/services/hiring-onboarding-upload.service.ts"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-services-and-domain-helpers",
+          "docs/staff-operations/current-state-audit.md#status-and-lifecycle-evidence"
+        ],
+        "notes": "P6 must separate onboarding completion from compliance and employment activation gates."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-015",
+      "phase": "P0",
+      "title": "Trace schedule publication",
+      "status": "completed",
+      "file_targets": [
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "lib/services/staff-shift-assignment-sync.ts",
+        "components/admin/scheduling/scheduling-publish-modal.tsx",
+        "components/admin/scheduling/views/publish-view.tsx",
+        "lib/admin/schedule-publication.ts"
+      ],
+      "database_targets": [
+        "staff_shifts",
+        "employment_assignments",
+        "work_mode_publications"
+      ],
+      "dependencies": ["STAFF-008"],
+      "acceptance_criteria": [
+        "Current publish behavior is recorded.",
+        "Gap to versioned publication model is documented."
+      ],
+      "verification": {
+        "commands": [
+          "sed -n '1,260p' app/api/admin/staffing/shifts/publish/route.ts",
+          "sed -n '407,520p' lib/services/staff-shift-assignment-sync.ts"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#active-write-paths"
+        ],
+        "notes": "P8 needs schedule_publications, items, recipients, change diff, acknowledgement versioning, and rollback semantics."
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-016",
+      "phase": "P0",
+      "title": "Create baseline cross-tenant tests",
+      "status": "blocked",
+      "file_targets": [
+        "__tests__/admin",
+        "__tests__/hiring",
+        "__tests__/work-mode"
+      ],
+      "database_targets": [
+        "RLS policies for workforce tables",
+        "WorkforceContext API resolution"
+      ],
+      "dependencies": ["STAFF-009", "STAFF-010", "STAFF-011"],
+      "acceptance_criteria": [
+        "Add or identify baseline tests that reject cross-employer reads/writes for new WorkforceContext entrypoints.",
+        "Cover invalid child Tour/Event/Venue/department scope.",
+        "Record command output."
+      ],
+      "verification": {
+        "commands": [
+          "find __tests__ lib tests supabase/tests -type f | rg '(hiring|work-mode|workforce|staff|schedule|attendance|rls|phase_13)' | sort"
+        ],
+        "tests": [
+          "npm run test:unit -- __tests__/admin/workforce-authority.test.ts __tests__/hiring/hiring-permissions.test.ts __tests__/hiring/staff-dashboard-route.test.ts"
+        ],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#existing-tests",
+          "2026-08-12 baseline slice: 3 test files passed, 11 tests passed"
+        ],
+        "notes": "Existing authority, permission, and staff dashboard tests pass. A new WorkforceContext-specific isolation test has not been added yet.",
+        "blocked_reason": "Needs implementation of baseline test harness before this can be completed."
+      },
+      "blocked_reason": "Needs implementation of baseline test harness before this can be completed."
+    },
+    {
+      "id": "STAFF-017",
+      "phase": "P0",
+      "title": "Create baseline integrity counts",
+      "status": "completed",
+      "file_targets": [
+        "docs/staff-operations/current-state-audit.md",
+        "docs/staff-operations/integrity-counts-2026-08-12.csv",
+        "docs/staff-operations/sql/baseline-integrity-counts.sql",
+        "supabase/tests/phase_13_hiring_real_data_checks.sql"
+      ],
+      "database_targets": [
+        "job_applications",
+        "staff_onboarding_candidates",
+        "staff_members",
+        "employment_assignments",
+        "staff_shifts",
+        "staff_shift_assignments",
+        "work_mode_publications",
+        "attendance_entries",
+        "staff_documents"
+      ],
+      "dependencies": ["STAFF-004"],
+      "acceptance_criteria": [
+        "Run non-destructive count/integrity queries against the configured Supabase target.",
+        "Record counts, target, command, and skipped checks."
+      ],
+      "verification": {
+        "commands": [
+          "supabase --version",
+          "supabase migration list --local",
+          "psql <target> -f docs/staff-operations/sql/baseline-integrity-counts.sql",
+          "non-destructive select count(*) checks for target workforce tables"
+        ],
+        "tests": [
+          "supabase/tests/phase_13_hiring_real_data_checks.sql"
+        ],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#baseline-integrity-counts",
+          "docs/staff-operations/integrity-counts-2026-08-12.csv",
+          "approved_applications_without_candidate=21",
+          "staff_members_without_employment_assignment=4",
+          "attendance_entries table missing",
+          "missing employer scope counts are 0 for job_applications, staff_onboarding_candidates, staff_members, and employment_assignments",
+          "cross-employer staff/employment links=0"
+        ],
+        "notes": "Counts were provided by the user on 2026-08-12 and stored as CSV evidence. Exact Supabase target name was not included in the provided output. Repair follow-ups: 21 approved applications without candidates, 4 staff members without employment assignments, and missing attendance_entries table.",
+        "blocked_reason": null
+      },
+      "blocked_reason": null
+    },
+    {
+      "id": "STAFF-018",
+      "phase": "P0",
+      "title": "Inventory feature flags",
+      "status": "completed",
+      "file_targets": [
+        "lib/admin/feature-flags",
+        "supabase/migrations/20260721235608_admin_feature_flag_governance_rel008.sql",
+        "app/api/admin/features/route.ts"
+      ],
+      "database_targets": [
+        "feature_flags",
+        "admin_org_feature_flags",
+        "admin_org_feature_flag_history"
+      ],
+      "dependencies": ["STAFF-004"],
+      "acceptance_criteria": [
+        "Existing flag infrastructure is recorded.",
+        "Requested new workforce flags are listed as missing/off-by-default targets."
+      ],
+      "verification": {
+        "commands": [
+          "rg -n 'feature flag|feature_flags|admin_feature_flags|workforce_context_v2|staff_command_center|staff_people_directory|staff_schedule_v2|staff_publications|staff_day_of|staff_attention_engine|flags' app lib components supabase/migrations -g '!node_modules'"
+        ],
+        "tests": [],
+        "evidence": [
+          "docs/staff-operations/current-state-audit.md#feature-flags"
+        ],
+        "notes": "Flag infrastructure exists; requested workforce flags still need migration/registration before behavior changes."
+      },
+      "blocked_reason": null
+    }
+  ],
+  "next_required_actions": [
+    "Add baseline WorkforceContext cross-tenant/child-scope tests for STAFF-016.",
+    "After P0 is closed, begin STAFF-019 by adding shared WorkforceContext types behind flags."
+  ]
+}

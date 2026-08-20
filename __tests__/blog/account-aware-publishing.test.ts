@@ -321,7 +321,7 @@ describe('artist blog management unification', () => {
     const composer = read('app/blog/new/page.tsx')
 
     expect(composer).toContain("searchParams.get('from') === 'artist'")
-    expect(composer).toContain('href="/artist/press"')
+    expect(composer).toContain('"/artist/press"')
     expect(composer).toContain('Manage posts')
     expect(composer).toContain("router.push('/artist/press')")
   })

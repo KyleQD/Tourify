@@ -1,8 +1,12 @@
 import type { ProfileType } from '@/lib/accounts/account-types'
 
-export type ArtistBookingStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled'
-export type ArtistBookingView = 'incoming' | 'sent' | 'active' | 'history'
+export type ArtistBookingStatus = 'pending' | 'needs_info' | 'accepted' | 'declined' | 'expired' | 'cancelled'
+export type ArtistBookingView = 'incoming' | 'needs_info' | 'sent' | 'active' | 'history'
+export type ArtistBookingAudience = 'artist' | 'requester'
 export type ArtistBookingParticipantRole = 'requester' | 'artist'
+export type ArtistBookingMessageType = 'message' | 'info_request' | 'info_response'
+
+export type ArtistBookingSummary = Record<ArtistBookingView, number>
 
 export interface ArtistBookingDetails {
   performanceType: string
@@ -48,9 +52,38 @@ export interface ArtistBookingRequest {
   event_id: string | null
   tour_id: string | null
   token?: string | null
+  linked_event?: ArtistBookingLinkedEvent | null
   participant_role: ArtistBookingParticipantRole
   requester: ArtistBookingParty
   artist: ArtistBookingParty
+}
+
+export interface ArtistBookingLinkedEvent {
+  id: string
+  title: string
+  slug: string | null
+  status: string | null
+  startAt: string | null
+  collaboratorStatus: 'not_linked' | 'linked' | 'failed'
+  permissions: ArtistBookingEventPermissions
+}
+
+export interface ArtistBookingEventPermissions {
+  promote: boolean
+  view_public_details: boolean
+  view_artist_activity: boolean
+  view_limited_insights: boolean
+  edit_event: boolean
+  assign_roles: boolean
+  manage_financials: boolean
+}
+
+export interface ArtistBookingAttachableEvent {
+  id: string
+  title: string
+  slug: string | null
+  status: string | null
+  startAt: string | null
 }
 
 export interface ArtistBookingMessage {
@@ -58,5 +91,6 @@ export interface ArtistBookingMessage {
   booking_request_id: string
   sender_id: string
   content: string
+  message_type: ArtistBookingMessageType
   created_at: string
 }

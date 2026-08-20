@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { authenticateApiRequest } from "@/lib/auth/api-auth"
-import { userHasAdminSurfaceAccess } from "@/lib/auth/admin"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { jsonError } from "@/lib/api/route-helpers"
+import { resolveCommerceContext } from "@/lib/admin/commerce/resolve-context"
+import { commerceJsonResponse } from "@/lib/admin/commerce/errors"
 
 export const dynamic = "force-dynamic"
-
-async function requireMarketplaceAdmin(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return { admin: null, error: jsonError({ status: 401, code: "unauthorized", message: "Authentication required.", retryable: false }) }
-  const isAdmin = await userHasAdminSurfaceAccess(auth.supabase, auth.user.id)
-  if (!isAdmin) return { admin: null, error: jsonError({ status: 403, code: "forbidden", message: "Admin access required.", retryable: false }) }
-  return { admin: auth.user, error: null }
-}
 
 /**
  * GET /api/marketplace/admin/overview
@@ -21,8 +12,10 @@ async function requireMarketplaceAdmin(request: NextRequest) {
  * stuck orders, fee rule count, active listings.
  */
 export async function GET(request: NextRequest) {
-  const { error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.view",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
   const svc = createServiceRoleClient()
 
@@ -61,7 +54,7 @@ export async function GET(request: NextRequest) {
       .eq("is_active", true),
   ])
 
-  return NextResponse.json({
+  return commerceJsonResponse({
     data: {
       openModerationReports: moderationResult.count ?? 0,
       failedWebhookEvents: webhookResult.count ?? 0,
@@ -69,5 +62,7 @@ export async function GET(request: NextRequest) {
       activeListings: activeListingsResult.count ?? 0,
       activeFeeRules: feeRulesResult.count ?? 0,
     },
+  }, {
+    correlationId: commerce.request.correlationId,
   })
 }

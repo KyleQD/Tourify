@@ -6,6 +6,7 @@ import {
   buildEventSharePreview,
   canShareArtistEvent,
 } from '@/lib/feed/event-share-preview'
+import { createPromoterNativePostContext, defaultPromoterDestinationPath } from '@/lib/promoter-network/assets-command'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -284,6 +285,15 @@ export async function POST(request: NextRequest) {
       await incrementArticleShareCount(supabase, contentRefId)
     }
 
+    const promoterAttribution = shared_content_type === 'event' && post?.id
+      ? await createPromoterNativePostContext({
+          actorUserId: userId,
+          eventId: shared_content_id,
+          sourceId: post.id,
+          destinationPath: defaultPromoterDestinationPath(shared_content_id),
+        })
+      : null
+
     await recordActingSnapshot(ctx, {
       action: 'post.share',
       resourceType: 'post',
@@ -294,6 +304,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       post,
+      promoter_attribution: promoterAttribution
+        ? {
+            active: true,
+            membership_id: promoterAttribution.membershipId,
+            public_url: `/r/${promoterAttribution.link.token}`,
+          }
+        : null,
       message: 'Shared successfully',
     })
   } catch (error) {

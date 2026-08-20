@@ -22,11 +22,6 @@ export type EmploymentAssignmentStatus =
   | "completed"
   | "cancelled"
   | "declined"
-  | "invited"
-  | "confirmed"
-  | "active"
-  | "completed"
-  | "cancelled"
 
 export type AccessStaffDocsScope = "own" | "team" | "none"
 export type RunSheetAccess = boolean | "limited"
@@ -71,15 +66,92 @@ export interface WorkModePublication {
   payload: Record<string, unknown>
   publishedAt: string | null
   href: string | null
+  version: number
+  requiresAcknowledgement: boolean
+  acknowledgedAt: string | null
+}
+
+export type WorkerAttendanceState =
+  | "unavailable"
+  | "not_checked_in"
+  | "checked_in"
+  | "checked_out"
+
+export interface WorkerAssignmentSchedule {
+  shiftId: string
+  eventId: string | null
+  date: string
+  startTime: string
+  endTime: string
+  breakDurationMinutes: number
+  zone: string | null
+  role: string | null
+  notes: string | null
+  status: string | null
+}
+
+export interface WorkerSharedShiftPlan {
+  id: string
+  title: string
+  role: string | null
+  department: string | null
+  shiftType: string
+  priority: "low" | "medium" | "high" | "critical"
+  requiredHeadcount: number
+  startsAt: string | null
+  endsAt: string | null
+  timezone: string
+  breakDurationMinutes: number
+  breakRequirements: string | null
+  locationType: "onsite" | "remote" | "travel"
+  reportingName: string | null
+  reportingAddress: string | null
+  directions: string | null
+  accessInstructions: string | null
+  workerInstructions: string | null
+  supervisorName: string | null
+  supervisorContact: string | null
+  attirePpeCredentials: string | null
+  hazards: string | null
+  emergencyProcedure: string | null
+  emergencyContact: string | null
+  attachments: Array<Record<string, unknown>>
+  version: number
+}
+
+export interface WorkerAssignmentAttendance {
+  state: WorkerAttendanceState
+  checkedInAt: string | null
+  checkedOutAt: string | null
 }
 
 export interface WorkModeAssignmentListItem {
   id: string
   roleTitle: string
   department: string | null
+  staffMemberId?: string | null
+  staffShiftId?: string | null
+  jobApplicationId?: string | null
+  jobPostingId?: string | null
+  tourId?: string | null
+  assignmentKind?: "event" | "shift" | "legacy_engagement"
+  employerEntityType?: "venue" | "organization" | "artist" | null
+  employerEntityId?: string | null
+  employerName?: string | null
+  coordinatorChannel?: {
+    threadId: string
+    href: string
+  } | null
   eventId: string | null
   venueId: string | null
   organizerId: string | null
+  eventTitle?: string | null
+  venueLabel?: string | null
+  timezone?: string | null
+  organizerLabel?: string | null
+  schedule: WorkerAssignmentSchedule | null
+  sharedShiftPlan?: WorkerSharedShiftPlan | null
+  attendance: WorkerAssignmentAttendance
   startsAt: string | null
   endsAt: string | null
   status: EmploymentAssignmentStatus
@@ -260,6 +332,9 @@ export interface UpsertRosterFromApprovalArgs {
   /** Optional event/tour context from the source job posting. */
   eventId?: string | null
   tourId?: string | null
+  /** Semantic hiring keys. These link operational work without employer-wide matching. */
+  jobApplicationId?: string | null
+  jobPostingId?: string | null
 }
 
 export interface RosterApiResponse<TData> {

@@ -51,6 +51,7 @@ export default function NewArticlePage() {
   const { user, loading } = useAuth()
   const { actingHeaders } = useActingContext()
   const isFromArtist = searchParams.get('from') === 'artist'
+  const isFromGeneral = searchParams.get('from') === 'general'
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -98,6 +99,18 @@ export default function NewArticlePage() {
     })
   }
 
+  function articleRequestHeaders() {
+    if (isFromGeneral && user?.id) {
+      return {
+        'Content-Type': 'application/json',
+        'x-acting-account-type': 'general',
+        'x-acting-profile-id': user.id,
+      }
+    }
+
+    return { 'Content-Type': 'application/json', ...actingHeaders }
+  }
+
   async function handlePublish() {
     if (!title.trim() || title.trim().length < 5) {
       toast.error('Title must be at least 5 characters')
@@ -113,7 +126,7 @@ export default function NewArticlePage() {
       const response = await fetch('/api/pulse/articles', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...actingHeaders },
+        headers: articleRequestHeaders(),
         body: JSON.stringify({
           title: title.trim(),
           content: content.trim(),
@@ -132,6 +145,8 @@ export default function NewArticlePage() {
       toast.success('Article published! It will appear in your followers\' feeds.')
       if (isFromArtist)
         router.push('/artist/press')
+      else if (isFromGeneral)
+        router.push('/blog/manage')
       else
         router.push(data.article?.url || `/blog/${data.article?.slug}`)
     } catch (error) {
@@ -152,7 +167,7 @@ export default function NewArticlePage() {
       const response = await fetch('/api/pulse/articles', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...actingHeaders },
+        headers: articleRequestHeaders(),
         body: JSON.stringify({
           title: title.trim(),
           content: content.trim() || 'Draft in progress...',
@@ -172,6 +187,8 @@ export default function NewArticlePage() {
       toast.success('Draft saved')
       if (isFromArtist)
         router.push('/artist/press?status=draft')
+      else if (isFromGeneral)
+        router.push('/blog/manage?status=draft')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save draft')
     } finally {
@@ -192,14 +209,20 @@ export default function NewArticlePage() {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => (isFromArtist ? router.push('/artist/press') : router.back())}
+              onClick={() =>
+                isFromArtist
+                  ? router.push('/artist/press')
+                  : isFromGeneral
+                    ? router.push('/blog/manage')
+                    : router.back()
+              }
               className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
             <Link
-              href="/artist/press"
+              href={isFromGeneral ? "/blog/manage" : "/artist/press"}
               className="text-sm text-slate-400 transition hover:text-white"
             >
               Manage posts
@@ -241,7 +264,7 @@ export default function NewArticlePage() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Main editor — left 2/3 */}
           <div className="space-y-6 lg:col-span-2">
-            <PostingAccountSelector />
+            {isFromGeneral ? null : <PostingAccountSelector />}
             {isPreview ? (
               <PreviewPane
                 title={title}

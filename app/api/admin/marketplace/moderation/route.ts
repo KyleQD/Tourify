@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { resolveCommerceContext } from "@/lib/admin/commerce/resolve-context"
+import { commerceErrorResponse, commerceJsonResponse } from "@/lib/admin/commerce/errors"
 
 const updateQueueSchema = z.object({
   id: z.string().uuid(),
@@ -21,15 +23,12 @@ export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const commerce = await resolveCommerceContext(request, {
+      requiredPermission: "commerce.manage_cases",
+    })
+    if (commerce instanceof NextResponse) return commerce
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const supabase = await createClient()
 
     const parsedQuery = moderationQuerySchema.safeParse({
       status: request.nextUrl.searchParams.get("status") || undefined,
@@ -40,13 +39,13 @@ export async function GET(request: NextRequest) {
       sortDirection: request.nextUrl.searchParams.get("sortDirection") || undefined,
     })
     if (!parsedQuery.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid moderation query params",
-          issues: parsedQuery.error.issues,
-        },
-        { status: 400 }
-      )
+      return commerceErrorResponse({
+        status: 400,
+        code: "invalid_request",
+        message: "Invalid moderation query params.",
+        issues: parsedQuery.error.issues,
+        correlationId: commerce.request.correlationId,
+      })
     }
 
     const { status, q, page, pageSize, sortBy, sortDirection } = parsedQuery.data
@@ -66,9 +65,17 @@ export async function GET(request: NextRequest) {
     if (query) moderationQuery = moderationQuery.or(`reason.ilike.%${query}%,details.ilike.%${query}%,resolution.ilike.%${query}%`)
 
     const { data, error, count } = await moderationQuery
-    if (error) return NextResponse.json({ error: "Failed to load moderation queue" }, { status: 500 })
+    if (error) {
+      return commerceErrorResponse({
+        status: 500,
+        code: "moderation_queue_unavailable",
+        message: "Failed to load moderation queue.",
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+      })
+    }
 
-    return NextResponse.json({
+    return commerceJsonResponse({
       data: data || [],
       pagination: {
         page,
@@ -78,24 +85,28 @@ export async function GET(request: NextRequest) {
         sortBy,
         sortDirection: sortAscending ? "asc" : "desc",
       },
+    }, {
+      correlationId: commerce.request.correlationId,
     })
   } catch (error) {
     console.error("Unexpected moderation GET error", error)
-    return NextResponse.json({ error: "Unexpected moderation error" }, { status: 500 })
+    return commerceErrorResponse({
+      status: 500,
+      code: "unexpected_moderation_error",
+      message: "Unexpected moderation error.",
+      retryable: true,
+    })
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const commerce = await resolveCommerceContext(request, {
+      requiredPermission: "commerce.manage_cases",
+    })
+    if (commerce instanceof NextResponse) return commerce
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const supabase = await createClient()
 
     const payload = updateQueueSchema.parse(await request.json())
     const { data, error } = await supabase
@@ -103,19 +114,39 @@ export async function PATCH(request: NextRequest) {
       .update({
         status: payload.status,
         resolution: payload.resolution || null,
-        assigned_admin_id: user.id,
+        assigned_admin_id: commerce.actor.userId,
       })
       .eq("id", payload.id)
       .select("*")
       .single()
 
-    if (error) return NextResponse.json({ error: "Failed to update moderation item" }, { status: 500 })
-    return NextResponse.json({ data })
+    if (error) {
+      return commerceErrorResponse({
+        status: 500,
+        code: "moderation_update_failed",
+        message: "Failed to update moderation item.",
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+      })
+    }
+    return commerceJsonResponse({ data }, {
+      correlationId: commerce.request.correlationId,
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid moderation payload", issues: error.issues }, { status: 400 })
+      return commerceErrorResponse({
+        status: 400,
+        code: "invalid_request",
+        message: "Invalid moderation payload.",
+        issues: error.issues,
+      })
     }
     console.error("Unexpected moderation PATCH error", error)
-    return NextResponse.json({ error: "Unexpected moderation error" }, { status: 500 })
+    return commerceErrorResponse({
+      status: 500,
+      code: "unexpected_moderation_error",
+      message: "Unexpected moderation error.",
+      retryable: true,
+    })
   }
 }

@@ -13,6 +13,7 @@ import {
   ensureArtistEventOrgId,
 } from "@/lib/artist/artist-event-org"
 import { normalizeArtistEventDate } from "@/lib/artist/normalize-artist-event-date"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 type SupabaseLike = SupabaseClient | any
 
@@ -74,7 +75,60 @@ function rowToApiEvent(row: any) {
     description: row.description ?? settings.description ?? "",
     event_date: eventDate || row.event_date || null,
     producer_settings: settings,
+    access_role: row.access_role || "owner",
+    collaborator_permissions: row.collaborator_permissions || null,
   }
+}
+
+async function listAcceptedBookingCollaboratorEvents(userId: string, status?: string | null) {
+  const service = createServiceRoleClient()
+  const { data: bookingRows } = await service
+    .from("booking_requests")
+    .select("id, event_id, event_collaboration_status")
+    .eq("artist_id", userId)
+    .eq("status", "accepted")
+    .not("event_id", "is", null)
+
+  const eventIds = Array.from(new Set((bookingRows || []).map((row: any) => row.event_id).filter(Boolean)))
+  if (eventIds.length === 0) return []
+
+  let query = service
+    .from("events_v2")
+    .select("id, title, slug, status, start_at, end_at, timezone, capacity, settings, created_by, org_id")
+    .in("id", eventIds)
+    .order("start_at", { ascending: true })
+
+  if (status) query = query.eq("status", status)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  return (data || []).map((row: any) => {
+    const settings = row.settings && typeof row.settings === "object" ? row.settings : {}
+    return rowToApiEvent({
+      ...row,
+      name: row.title,
+      event_type: settings.event_type || settings.type || "other",
+      event_date: row.start_at ? String(row.start_at).slice(0, 10) : null,
+      start_time: row.start_at ? String(row.start_at).slice(11, 16) : null,
+      venue_name: settings.venue_name || null,
+      city: settings.city || null,
+      state: settings.state || null,
+      country: settings.country || null,
+      ticket_url: settings.ticket_url || null,
+      description: settings.description || "",
+      access_role: "collaborator",
+      collaborator_permissions: {
+        promote: true,
+        view_public_details: true,
+        view_artist_activity: true,
+        view_limited_insights: true,
+        edit_event: false,
+        assign_roles: false,
+        manage_financials: false,
+      },
+    })
+  })
 }
 
 function extractMissingColumn(message?: string | null): string | null {
@@ -199,7 +253,13 @@ export class ArtistEventOperationsService {
 
     const { data, error } = await query
     if (error) throw error
-    return (data || []).map(rowToApiEvent)
+    const ownedEvents = (data || []).map(rowToApiEvent)
+    const collaboratorEvents = await listAcceptedBookingCollaboratorEvents(userId, status)
+    const byId = new Map<string, any>()
+    for (const event of [...ownedEvents, ...collaboratorEvents]) {
+      if (event?.id && !byId.has(String(event.id))) byId.set(String(event.id), event)
+    }
+    return Array.from(byId.values())
   }
 
   static async getEvent({

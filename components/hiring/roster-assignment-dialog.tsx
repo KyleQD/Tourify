@@ -74,6 +74,7 @@ export function RosterAssignmentDialog({
   const [zone, setZone] = useState(member?.position ?? "")
   const [assignedManagerId, setAssignedManagerId] = useState(member?.assignedManagerId ?? "")
   const [notes, setNotes] = useState("")
+  const [propagationMode, setPropagationMode] = useState<"current_events" | "current_and_future_events">("current_events")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,6 +86,7 @@ export function RosterAssignmentDialog({
       setZone(member?.position ?? "")
       setAssignedManagerId(member?.assignedManagerId ?? "")
       setNotes("")
+      setPropagationMode("current_events")
       setError(null)
     }
   }, [open, contextEventId, contextTourId, employer.scope?.tourId, member])
@@ -216,28 +218,6 @@ export function RosterAssignmentDialog({
     }
   }, [open, singleEventId])
 
-  async function ensureShiftStub(targetEventId: string): Promise<string | undefined> {
-    if (shiftId && eventId === targetEventId) return shiftId
-    if (!targetEventId || !member) return undefined
-
-    const response = await fetch(`/api/events/${targetEventId}/staff`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json", ...actingHeaders },
-      body: JSON.stringify({
-        staff_member_id: member.id,
-        shift_date: new Date().toISOString().slice(0, 10),
-        start_time: "09:00",
-        end_time: "17:00",
-        role_assignment: member.position || "crew",
-        notes: "Created from roster assignment",
-      }),
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(data?.error || "Failed to create shift stub")
-    return data?.shift?.id || data?.data?.id
-  }
-
   async function callAssignmentApi(targetEventId?: string, targetTourId?: string, resolvedShiftId?: string) {
     const response = await fetch(`/api/hiring/roster/${member!.id}/assignment`, {
       method: "POST",
@@ -266,40 +246,37 @@ export function RosterAssignmentDialog({
     setError(null)
 
     try {
-      if (eventId === "__all_tour_events__") {
-        // Fan-out: assign to every event in the selected tour individually,
-        // then record one tour-level assignment with no specific event.
-        const tourEvents = visibleEvents // already filtered to this tour
-        let failed = 0
-        let lastMember = null
+      if (tourId) {
+        const response = await fetch("/api/admin/workforce/tour-memberships", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", ...actingHeaders },
+          body: JSON.stringify({
+            staffMemberId: member.id,
+            tourId,
+            role: member.position,
+            zone: zone || null,
+            managerUserId: assignedManagerId || null,
+            notes: notes || null,
+            propagationMode,
+            selectedEventIds: singleEventId ? [singleEventId] : [],
+          }),
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(payload.error ?? "Failed to assign tour access")
 
-        for (const ev of tourEvents) {
-          try {
-            const resolvedShiftId = await ensureShiftStub(ev.id)
-            lastMember = await callAssignmentApi(ev.id, tourId || undefined, resolvedShiftId)
-          } catch {
-            failed++
-          }
-        }
-
-        // Tour-level record (no event_id)
-        try {
-          lastMember = await callAssignmentApi(undefined, tourId || undefined, undefined)
-        } catch {
-          failed++
-        }
-
-        if (failed > 0 && failed >= tourEvents.length + 1) {
-          throw new Error(`All assignments failed (${failed})`)
-        }
-
-        if (lastMember) onAssigned(lastMember)
-        if (failed > 0) setError(`${failed} of ${tourEvents.length + 1} assignments failed — the rest succeeded.`)
-        else onOpenChange(false)
+        // A shift is only created by the shared shift workflow. Selecting an
+        // existing shift here links the worker; tour membership alone does not.
+        if (shiftId) await callAssignmentApi(singleEventId || undefined, tourId, shiftId)
+        onAssigned({
+          ...member,
+          assignedZone: zone || member.assignedZone,
+          assignedManagerId: assignedManagerId || member.assignedManagerId,
+          notes: notes || member.notes,
+        })
+        onOpenChange(false)
       } else {
-        // Single event or tour-only assignment
-        const resolvedShiftId = singleEventId ? await ensureShiftStub(singleEventId) : undefined
-        const data = await callAssignmentApi(singleEventId || undefined, tourId || undefined, resolvedShiftId)
+        const data = await callAssignmentApi(singleEventId || undefined, undefined, shiftId || undefined)
         onAssigned(data)
         onOpenChange(false)
       }
@@ -355,7 +332,7 @@ export function RosterAssignmentDialog({
                   <SelectItem value="__none__">No event</SelectItem>
                   {tourId && visibleEvents.length > 0 && (
                     <SelectItem value="__all_tour_events__">
-                      All events in {tours.find((t) => t.id === tourId)?.label ?? "this tour"}
+                      All current events in {tours.find((t) => t.id === tourId)?.label ?? "this tour"}
                     </SelectItem>
                   )}
                   {visibleEvents.map((event) => (
@@ -367,32 +344,39 @@ export function RosterAssignmentDialog({
               </Select>
             )}
           </div>
+          {tourId ? <div className="grid gap-2">
+            <Label className={detailSurfacePattern.label}>Future events</Label>
+            <Select value={propagationMode} onValueChange={(value) => setPropagationMode(value as typeof propagationMode)}>
+              <SelectTrigger className={detailSurfacePattern.selectTrigger}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current_events">Current events only</SelectItem>
+                <SelectItem value="current_and_future_events">Current and future events</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-slate-400">This grants event information and task access. It does not confirm a shift.</p>
+          </div> : null}
           <div className="grid gap-2">
             <Label className={detailSurfacePattern.label}>Shift</Label>
             <Select
-              value={shiftId || "__create__"}
-              onValueChange={(value) => setShiftId(value === "__create__" ? "" : value)}
+              value={shiftId || "__none__"}
+              onValueChange={(value) => setShiftId(value === "__none__" ? "" : value)}
               disabled={!singleEventId || isLoadingShifts || eventId === "__all_tour_events__"}
             >
               <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                 <SelectValue
                   placeholder={
                     eventId === "__all_tour_events__"
-                      ? "Shift stubs created per event"
+                      ? "Create shifts separately"
                       : !singleEventId
                         ? "Select an event first"
                         : isLoadingShifts
                           ? "Loading shifts…"
-                          : shifts.length
-                            ? "Select a shift"
-                            : "Create shift stub on assign"
+                          : shifts.length ? "Select an existing shift" : "No published shifts yet"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__create__">
-                  {shifts.length ? "Create new shift stub" : "Create shift stub on assign"}
-                </SelectItem>
+                <SelectItem value="__none__">No shift — tour access only</SelectItem>
                 {shifts.map((shift) => (
                   <SelectItem key={shift.id} value={shift.id}>
                     {shift.label}

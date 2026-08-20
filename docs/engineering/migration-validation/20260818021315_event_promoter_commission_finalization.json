@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818021315_event_promoter_commission_finalization.sql",
+  "taskId": "EVENT-PROMOTER-P6",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "ticketing", "promoter-network", "payments", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with promoter Phases 1-5 and native ticketing v2 applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "ticket_sales by completed/paid/refunded state and USD payment total",
+      "promoter_checkout_shadow_attributions attributed rows without sale attribution",
+      "duplicate ticket_sale_attributions(order_id) rows (must be zero before the unique index)",
+      "service-role-only function grants for promoter financial commands"
+    ],
+    "expectedAffectedRows": "Adds server-only commission finalization, reversal, recovery, and reconciliation functions. No historical sales are backfilled and no existing financial records are updated or deleted.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All financial writes use immutable idempotency keys. Re-running the migration or a webhook returns the existing attribution/ledger row rather than updating money.",
+    "resumeCursor": "supabase migration version 20260818021315",
+    "idempotency": "ticket_sale_attributions(order_id) permits one attribution per ticket sale; earned and reversal ledger keys are deterministic; reversals calculate only the delta to the cumulative processor refund amount."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No automatic historical backfill. Enable payable commissions only after preflight, then process newly verified Stripe events behind the existing feature flag."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Only paid orders with an attributed Phase 5 shadow record can create an attribution",
+      "The effective program-version and ticket eligibility snapshot are stored on the immutable attribution",
+      "Earned, refund, chargeback, and dispute-reinstatement rows are append-only and service-role-only",
+      "No implicit FX conversion is performed; the current USD checkout requires USD promoter terms"
+    ],
+    "indexes": [
+      "ticket_sale_attributions(order_id) unique",
+      "promoter_commission_ledger(originating_entry_id, entry_type, created_at desc) where originating_entry_id is not null"
+    ],
+    "validationPlan": "Verify duplicate paid webhooks, concurrent finalization, percentage and fixed terms, partial then full refund, chargeback then dispute won, term change before/after sale, self-referral, revocation, and a service-role reconciliation query."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_payable_commissions_enabled. Preserve all append-only entries for finance review; do not delete or update them.",
+    "forwardFix": "Use a new additive migration and compensating ledger entries for any proven financial correction. Never mutate earned or reversal rows."
+  },
+  "postflight": {
+    "queries": [
+      "all four Phase 6 financial functions have service_role execute and no public/anon/authenticated execute",
+      "a repeated paid webhook produces one ticket_sale_attributions row and one earned ledger row",
+      "a partial refund followed by full refund produces reversals summing to the original earned amount",
+      "a chargeback and won dispute produce one linked negative and one reinstatement entry",
+      "get_event_promoter_commission_reconciliation totals reconcile with raw ledger rows"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

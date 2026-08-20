@@ -5,6 +5,12 @@
 
 export const SERVICE_ROLE_MODULES = [
   "admin.ticketing.refund",
+  "admin.event-promoter.program",
+  "admin.event-promoter.payout",
+  "admin.event-promoter.investigation",
+  "promoter.membership",
+  "promoter.assets",
+  "promoter.observability",
   "admin.communications",
   "admin.calendar.token",
   "admin.messages",

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818043734_event_promoter_fk_performance_indexes.sql",
+  "taskId": "EVENT-PROMOTER-P10-PERF",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["promoter-network", "performance"],
+  "riskLevel": "medium",
+  "representativeSnapshot": { "kind": "Supabase project with promoter Phases 1-10 applied", "evidenceArtifact": null },
+  "preflight": {
+    "rowCountQueries": ["Promoter table row counts and index inventory", "Supabase Performance Advisor foreign-key findings for promoter tables"],
+    "expectedAffectedRows": "No rows are changed. Adds covering indexes for foreign keys reported by the Performance Advisor.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Each index is CREATE INDEX IF NOT EXISTS; replay is safe.",
+    "resumeCursor": "supabase migration version 20260818043734",
+    "idempotency": "No data mutation occurs. Existing pilot indexes are intentionally retained pending traffic evidence."
+  },
+  "quarantine": { "required": false, "table": null, "strategy": "Disable promoter feature flags if a deployment issue occurs; index changes do not alter financial or attribution records." },
+  "constraintsAndIndexes": {
+    "constraints": ["No grants, RLS policies, functions, or data values change."],
+    "indexes": ["Covers the promoter foreign keys listed by the post-Phase-10 Performance Advisor."],
+    "validationPlan": "Rerun the Performance Advisor and confirm promoter unindexed_foreign_keys notices are absent; retain unused-index notices until pilot traffic permits a meaningful usage decision."
+  },
+  "recovery": { "rollback": "Retain indexes through pilot; any removal is a separately reviewed, non-emergency migration.", "forwardFix": "Add a specifically justified covering index if a new advisor finding appears." },
+  "postflight": {
+    "queries": ["review pg_indexes for every new promoter index", "rerun Supabase Performance Advisor", "confirm promoter query latency and lock behavior during pilot"],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

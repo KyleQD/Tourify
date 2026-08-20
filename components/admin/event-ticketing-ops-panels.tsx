@@ -48,6 +48,7 @@ export function EventTicketingOpsPanels({ eventId, ticketTypes, initialTab = "gr
   const [sellMethod, setSellMethod] = useState<"cash" | "card" | "comp">("cash")
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([])
   const [refundOrderId, setRefundOrderId] = useState("")
+  const [refundReason, setRefundReason] = useState("")
 
   const load = useCallback(async () => {
     const [configRes, allocRes, settleRes] = await Promise.allSettled([
@@ -200,14 +201,17 @@ export function EventTicketingOpsPanels({ eventId, ticketTypes, initialTab = "gr
       toast.error("Select an order to refund")
       return
     }
-    const res = await fetch("/api/ticketing/box-office", {
+    if (!refundReason.trim()) {
+      toast.error("Refund reason required")
+      return
+    }
+    const res = await fetch("/api/admin/ticketing/refund", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "refund",
-        event_id: eventId,
-        order_id: refundOrderId,
+        sale_id: refundOrderId,
+        reason: refundReason.trim(),
         ticket_ids: selectedTicketIds.length ? selectedTicketIds : undefined,
       }),
     })
@@ -223,6 +227,7 @@ export function EventTicketingOpsPanels({ eventId, ticketTypes, initialTab = "gr
     )
     setSelectedTicketIds([])
     setRefundOrderId("")
+    setRefundReason("")
     void searchBoxOffice()
   }
 
@@ -397,9 +402,15 @@ export function EventTicketingOpsPanels({ eventId, ticketTypes, initialTab = "gr
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Input
+                className="max-w-sm"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Refund reason"
+              />
               <Button
                 variant="outline"
-                disabled={!refundOrderId}
+                disabled={!refundOrderId || !refundReason.trim()}
                 onClick={() => void refundBoxOffice()}
               >
                 {selectedTicketIds.length ? `Refund ${selectedTicketIds.length} ticket(s)` : "Refund full order"}

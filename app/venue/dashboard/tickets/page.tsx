@@ -315,10 +315,11 @@ function TicketsPageInner() {
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="pt-6 text-center">
               <QrCode className="mx-auto mb-3 h-10 w-10 text-gray-500" />
-              <p className="text-gray-300 font-medium">No purchased tickets found</p>
+              <p className="text-gray-300 font-medium">Your attendee tickets live in your wallet</p>
               <p className="mt-1 text-sm text-gray-500">
-                Venue ticket purchases will appear here when this account buys tickets as an attendee.
+                Personal ticket purchases use the same secure wallet as every Tourify attendee account.
               </p>
+              <Button asChild variant="outline" className="mt-4 border-gray-700"><Link href="/tickets/my-tickets">Open ticket wallet</Link></Button>
             </CardContent>
           </Card>
         </TabsContent>

@@ -5,6 +5,16 @@
 
 import type { User } from '@/lib/types'
 
+export type TicketOrderStatus = 'pending' | 'completed' | 'paid' | 'refunded' | 'failed' | 'canceled'
+export type TicketStatus = 'valid' | 'assigned' | 'transferred' | 'checked_in' | 'refunded' | 'canceled' | 'void'
+export type TicketCredentialStatus = 'active' | 'revoked' | 'expired' | 'superseded'
+export type TicketTransferStatus = 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired'
+export type TicketDeliveryStatus = 'queued' | 'sent' | 'failed' | 'resent' | 'opened' | 'claimed' | 'expired'
+export type TicketScanOutcome = 'admit' | 'deny' | 'duplicate' | 'offline_queued' | 'revoked' | 'wrong_event' | 'expired' | 'conflict' | 'invalid' | 'refunded' | 'canceled'
+export type TicketCompRequestStatus = 'requested' | 'approved' | 'denied' | 'issued' | 'canceled'
+export type TicketProviderEventStatus = 'pending' | 'processed' | 'quarantined' | 'failed' | 'ignored'
+export type TicketSettlementStatus = 'draft' | 'review' | 'approved' | 'exported' | 'paid' | 'reopened'
+
 // =============================================================================
 // CORE TICKETING TYPES
 // =============================================================================
@@ -495,4 +505,4 @@ export const CAMPAIGN_TYPES: Record<CampaignType, { label: string; description: 
   social_media: { label: 'Social Media', description: 'Promotion through social platforms', icon: '📱' },
   email: { label: 'Email', description: 'Email marketing campaign', icon: '📧' },
   influencer: { label: 'Influencer', description: 'Influencer marketing campaign', icon: '🌟' }
-} 
+}

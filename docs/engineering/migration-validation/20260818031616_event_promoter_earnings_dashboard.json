@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818031616_event_promoter_earnings_dashboard.sql",
+  "taskId": "EVENT-PROMOTER-P7",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "ticketing", "promoter-network", "analytics", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with promoter Phases 1-6 applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "promoter memberships by user and program status",
+      "attribution, ledger, payout allocation, touchpoint, link, and promo-code counts by membership",
+      "verify no client role has raw ticket_sale_attributions read access"
+    ],
+    "expectedAffectedRows": "Creates read-only dashboard functions only. It does not create, update, or delete financial, attribution, payment, or payout rows.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Functions are replaceable and idempotent. No historical rows are backfilled or changed.",
+    "resumeCursor": "supabase migration version 20260818031616",
+    "idempotency": "The dashboard has no write path. Every result derives its membership scope from auth.uid() inside the private definer function."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "If read-model output is unexpected, disable the promoter program flag and forward-fix the function. Do not alter ledger history."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "The exposed RPC has no user or membership parameter and cannot select another promoter's data",
+      "The private security-definer helper is outside the exposed schema and derives the owner from auth.uid()",
+      "Raw payment references are represented only as a boolean in the ledger result",
+      "Financial totals are grouped by currency and are computed directly from append-only ledger rows"
+    ],
+    "indexes": [
+      "Uses existing membership, ledger, attribution, touchpoint, link, promo-code-binding, and payout-allocation indexes"
+    ],
+    "validationPlan": "Call the RPC as promoter A, promoter B, and an unauthenticated role. Confirm only the calling promoter's memberships/assets/ledger are returned; compare every currency total to raw promoter_commission_ledger aggregation; confirm no values contain a payment reference or tracking token hash."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_program_enabled to hide the workspace. The migration has no mutable data to roll back.",
+    "forwardFix": "Replace the private/public read functions in an additive migration after preserving the membership-scoped and server-derived contract."
+  },
+  "postflight": {
+    "queries": [
+      "public.get_my_event_promoter_earnings_dashboard has authenticated execute only",
+      "private.get_my_event_promoter_earnings_dashboard is not exposed through the Data API",
+      "promoter A cannot obtain promoter B's ledger or assets",
+      "dashboard earned/reversed/pending/available/paid totals reconcile to promoter_commission_ledger by currency"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

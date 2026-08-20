@@ -137,6 +137,7 @@ export async function syncEmploymentAssignmentForShift(
     ends_at: endsAt,
     status,
     source: "staff_shift",
+    assignment_kind: "shift",
     updated_at: now,
   }
 
@@ -161,6 +162,7 @@ export async function syncEmploymentAssignmentForShift(
     starts_at: startsAt,
     ends_at: endsAt,
     status,
+    assignment_kind: "shift",
     updated_at: now,
     employer_entity_type: staffMember.employer_entity_type ?? null,
     employer_entity_id: staffMember.employer_entity_id ?? null,
@@ -340,13 +342,25 @@ export async function respondToShiftAssignment(
   }
 
   const now = new Date().toISOString()
-  const { error: updateError } = await db
-    .from("employment_assignments")
-    .update({ status: nextAssignmentStatus, updated_at: now })
-    .eq("id", assignment.id)
-    .eq("user_id", args.userId)
+  const atomicResponse = typeof (db as any).rpc === "function"
+    ? await (db as any).rpc("respond_to_work_assignment", {
+        p_assignment_id: assignment.id,
+        p_action: args.action,
+      })
+    : { data: null, error: { code: "PGRST202", message: "RPC unavailable" } }
+  const atomicUnavailable = atomicResponse.error?.code === "PGRST202" || atomicResponse.error?.code === "42883"
+  if (atomicResponse.error && !atomicUnavailable) return { ok: false, error: atomicResponse.error.message }
+  const atomicApplied = !atomicResponse.error
 
-  if (updateError) return { ok: false, error: updateError.message }
+  if (!atomicApplied) {
+    const { error: updateError } = await db
+      .from("employment_assignments")
+      .update({ status: nextAssignmentStatus, updated_at: now })
+      .eq("id", assignment.id)
+      .eq("user_id", args.userId)
+
+    if (updateError) return { ok: false, error: updateError.message }
+  }
 
   let shiftId = (assignment.staff_shift_id as string | null) ?? null
   let shiftCreatedBy: string | null = null
@@ -362,10 +376,20 @@ export async function respondToShiftAssignment(
     if (shift) {
       shiftCreatedBy = shift.created_by ?? null
       shiftDate = shift.shift_date ?? null
-      await db
-        .from("staff_shifts")
-        .update({ status: mapAssignmentStatusToShift(nextAssignmentStatus), updated_at: now })
-        .eq("id", shiftId)
+      if (!atomicApplied) {
+        const { error: shiftUpdateError } = await db
+          .from("staff_shifts")
+          .update({ status: mapAssignmentStatusToShift(nextAssignmentStatus), updated_at: now })
+          .eq("id", shiftId)
+        if (shiftUpdateError) {
+          await db
+            .from("employment_assignments")
+            .update({ status: fromStatus, updated_at: now })
+            .eq("id", assignment.id)
+            .eq("user_id", args.userId)
+          return { ok: false, error: shiftUpdateError.message }
+        }
+      }
     }
   }
 

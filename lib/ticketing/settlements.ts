@@ -2,8 +2,15 @@
  * Settlement / revenue allocation math helpers for Phase 7.
  */
 
+import {
+  calculateCommerceSettlementShares,
+  legacySettlementAmount,
+} from '@/lib/admin/commerce/settlement-calculations'
+import { createMoneyFromMajorUnits } from '@/lib/admin/commerce/money-adapters'
+
 export interface RevenueShareInput {
   netRevenue: number
+  currency?: string
   allocations: Array<{
     beneficiary_type: string
     beneficiary_id?: string | null
@@ -18,41 +25,28 @@ export interface RevenueShareResult {
   beneficiary_type: string
   beneficiary_id?: string | null
   amount: number
+  amount_minor?: number
+  currency?: string
 }
 
 export function calculateRevenueShares(input: RevenueShareInput): RevenueShareResult[] {
-  const active = [...input.allocations]
-    .filter((a) => a.is_active !== false)
-    .sort((a, b) => a.priority - b.priority)
-
-  let remaining = Math.max(0, input.netRevenue)
-  const results: RevenueShareResult[] = []
-
-  for (const alloc of active) {
-    if (alloc.share_type === 'remainder') continue
-    let amount = 0
-    if (alloc.share_type === 'flat')
-      amount = Math.min(remaining, alloc.share_value)
-    else
-      amount = Math.round(input.netRevenue * (alloc.share_value / 100) * 100) / 100
-
-    amount = Math.min(remaining, Math.max(0, amount))
-    remaining = Math.round((remaining - amount) * 100) / 100
-    results.push({
-      beneficiary_type: alloc.beneficiary_type,
-      beneficiary_id: alloc.beneficiary_id,
-      amount,
-    })
-  }
-
-  const remainderAlloc = active.find((a) => a.share_type === 'remainder')
-  if (remainderAlloc && remaining > 0) {
-    results.push({
-      beneficiary_type: remainderAlloc.beneficiary_type,
-      beneficiary_id: remainderAlloc.beneficiary_id,
-      amount: remaining,
-    })
-  }
-
-  return results
+  const currency = input.currency || 'USD'
+  const netRevenue = createMoneyFromMajorUnits(Math.max(0, input.netRevenue), currency)
+  return calculateCommerceSettlementShares({
+    netRevenue,
+    allocations: input.allocations.map((allocation) => ({
+      beneficiaryType: allocation.beneficiary_type,
+      beneficiaryId: allocation.beneficiary_id,
+      shareType: allocation.share_type,
+      shareValue: allocation.share_value,
+      priority: allocation.priority,
+      isActive: allocation.is_active,
+    })),
+  }).map((share) => ({
+    beneficiary_type: share.beneficiaryType,
+    beneficiary_id: share.beneficiaryId,
+    amount: legacySettlementAmount(share.amount),
+    amount_minor: share.amount.amountMinor,
+    currency: share.amount.currency,
+  }))
 }

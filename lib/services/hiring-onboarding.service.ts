@@ -1365,17 +1365,21 @@ export const HiringOnboardingService = {
           completed: false,
           eventId: jobContext.eventId,
           tourId: jobContext.tourId,
+          jobApplicationId: applicationId,
+          jobPostingId:
+            (typeof approvedApplication.job_posting_id === "string" && approvedApplication.job_posting_id) ||
+            null,
         })
 
         rosterMemberId = member?.id ?? null
 
-        const { data: assignmentRow } = await supabase
+        const assignmentQuery = supabase
           .from("employment_assignments")
           .select("*")
-          .eq("user_id", rosterUserId)
-          .eq("employer_entity_type", actor.employer.entityType)
-          .eq("employer_entity_id", actor.employer.entityId)
-          .maybeSingle()
+          .eq("job_application_id", applicationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+        const { data: assignmentRow } = await assignmentQuery.maybeSingle()
         employmentAssignment = (assignmentRow as Record<string, unknown> | null) ?? null
 
         if (jobContext.tourId) {

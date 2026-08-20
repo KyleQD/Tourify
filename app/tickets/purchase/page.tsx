@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { TicketPurchaseForm } from '@/components/ticketing/ticket-purchase-form'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { TicketingShell, TicketStateNotice } from '@/components/ticketing/ticketing-experience-ui'
 
 function PurchaseContent() {
   const params = useSearchParams()
@@ -15,23 +16,22 @@ function PurchaseContent() {
 
   if (!eventId) {
     return (
-      <Card>
+      <TicketingShell title="Choose tickets" description="Select an event before starting checkout." backHref="/discover/events" backLabel="Browse events"><Card>
         <CardContent className="py-10 text-center">
           <p className="mb-4">Missing event. Choose an event to purchase tickets.</p>
           <Button asChild>
             <Link href="/discover/events">Browse events</Link>
           </Button>
         </CardContent>
-      </Card>
+      </Card></TicketingShell>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <TicketingShell title={title} description="Choose a ticket tier, review the all-in price, and continue securely to payment." backHref="/discover/events" backLabel="Discover events">
+      <div className="space-y-4">
       {cancelled && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          Checkout was cancelled. Your reservation will expire shortly if not completed.
-        </div>
+        <TicketStateNotice tone="warning" title="Checkout was cancelled">Your held inventory will be released shortly. Select your tickets again whenever you are ready.</TicketStateNotice>
       )}
       <TicketPurchaseForm
         eventId={eventId}
@@ -42,17 +42,15 @@ function PurchaseContent() {
           location: '',
         }}
       />
-    </div>
+      </div>
+    </TicketingShell>
   )
 }
 
 export default function TicketPurchasePage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="mb-6 text-3xl font-semibold tracking-tight">Purchase tickets</h1>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+    <Suspense fallback={<TicketingShell title="Loading tickets"><p className="text-sm text-muted-foreground">Loading checkout…</p></TicketingShell>}>
         <PurchaseContent />
-      </Suspense>
-    </div>
+    </Suspense>
   )
 }

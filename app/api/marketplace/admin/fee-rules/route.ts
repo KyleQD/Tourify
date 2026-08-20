@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { authenticateApiRequest } from "@/lib/auth/api-auth"
-import { userHasAdminSurfaceAccess } from "@/lib/auth/admin"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { jsonError } from "@/lib/api/route-helpers"
+import { resolveCommerceContext } from "@/lib/admin/commerce/resolve-context"
+import {
+  normalizeCommerceFinancialActionReason,
+  requireCommerceHighRiskAction,
+} from "@/lib/admin/commerce/high-risk-actions"
+import { requireCommerceIdempotencyKey } from "@/lib/admin/commerce/idempotency"
+import {
+  assertCommerceUpdatedAtMatches,
+  commerceVersionConflictResponse,
+  requireCommerceExpectedUpdatedAt,
+} from "@/lib/admin/commerce/concurrency"
+import { commerceErrorResponse, commerceJsonResponse } from "@/lib/admin/commerce/errors"
 
 export const dynamic = "force-dynamic"
-
-async function requireMarketplaceAdmin(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return { admin: null, error: jsonError({ status: 401, code: "unauthorized", message: "Authentication required.", retryable: false }) }
-  const isAdmin = await userHasAdminSurfaceAccess(auth.supabase, auth.user.id)
-  if (!isAdmin) return { admin: null, error: jsonError({ status: 403, code: "forbidden", message: "Admin access required.", retryable: false }) }
-  return { admin: auth.user, error: null }
-}
 
 const createRuleSchema = z.object({
   description: z.string().min(3).max(500),
@@ -25,7 +26,20 @@ const createRuleSchema = z.object({
   listingKindScope: z.string().max(100).optional(),
   effectiveFrom: z.string().datetime(),
   effectiveUntil: z.string().datetime().optional(),
+  reason: z.string().trim().min(3).max(1_000),
+  idempotencyKey: z.string().trim().min(8).max(200).optional(),
+  idempotency_key: z.string().trim().min(8).max(200).optional(),
 })
+
+const updateRuleSchema = z.object({
+  id: z.string().min(1),
+  isActive: z.boolean(),
+  reason: z.string().trim().min(3).max(1_000),
+  idempotencyKey: z.string().trim().min(8).max(200).optional(),
+  idempotency_key: z.string().trim().min(8).max(200).optional(),
+  expectedUpdatedAt: z.string().datetime().optional(),
+  expected_updated_at: z.string().datetime().optional(),
+}).strict()
 
 /**
  * POST /api/marketplace/admin/fee-rules
@@ -35,21 +49,41 @@ const createRuleSchema = z.object({
  * Existing orders' applied_fee_snapshot is immutable.
  */
 export async function POST(request: NextRequest) {
-  const { admin, error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.manage_fees",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return jsonError({ status: 400, code: "invalid_json", message: "Could not parse request body", retryable: false })
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_json",
+      message: "Could not parse request body.",
+      correlationId: commerce.request.correlationId,
+    })
   }
 
   const parsed = createRuleSchema.safeParse(body)
   if (!parsed.success) {
-    return jsonError({ status: 400, code: "invalid_request", message: "Invalid fee rule payload", retryable: false, issues: parsed.error.issues })
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_request",
+      message: "Invalid fee rule payload.",
+      issues: parsed.error.issues,
+      correlationId: commerce.request.correlationId,
+    })
   }
+  const denied = requireCommerceHighRiskAction(commerce, "fee_rule.write", {
+    reason: parsed.success ? parsed.data.reason : undefined,
+  })
+  if (denied) return denied
+  const idempotency = requireCommerceIdempotencyKey(request, commerce, parsed.data)
+  if (idempotency instanceof NextResponse) return idempotency
   const d = parsed.data
+  normalizeCommerceFinancialActionReason(d.reason)
   const svc = createServiceRoleClient()
 
   // Get current max version for this scope
@@ -76,17 +110,26 @@ export async function POST(request: NextRequest) {
       effective_until: d.effectiveUntil ?? null,
       is_active: true,
       version: nextVersion,
-      created_by: admin!.id,
+      created_by: commerce.actor.userId,
     })
     .select("id, version, percentage_fee, description, effective_from, effective_until, is_active")
     .single()
 
   if (insertError || !rule) {
     console.error("Failed to create fee rule", insertError)
-    return jsonError({ status: 500, code: "create_failed", message: "Failed to create fee rule.", retryable: true })
+    return commerceErrorResponse({
+      status: 500,
+      code: "create_failed",
+      message: "Failed to create fee rule.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
-  return NextResponse.json({ data: rule }, { status: 201 })
+  return commerceJsonResponse({ data: rule, idempotencyKey: idempotency.idempotencyKey }, {
+    status: 201,
+    correlationId: commerce.request.correlationId,
+  })
 }
 
 /**
@@ -94,8 +137,10 @@ export async function POST(request: NextRequest) {
  * List all fee rules (admin view — includes inactive).
  */
 export async function GET(request: NextRequest) {
-  const { error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.manage_fees",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
   const svc = createServiceRoleClient()
   const { data: rules, error: fetchError } = await svc
@@ -104,10 +149,18 @@ export async function GET(request: NextRequest) {
     .order("version", { ascending: false })
 
   if (fetchError) {
-    return jsonError({ status: 500, code: "fetch_failed", message: "Failed to load fee rules.", retryable: true })
+    return commerceErrorResponse({
+      status: 500,
+      code: "fetch_failed",
+      message: "Failed to load fee rules.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
-  return NextResponse.json({ data: rules ?? [] })
+  return commerceJsonResponse({ data: rules ?? [] }, {
+    correlationId: commerce.request.correlationId,
+  })
 }
 
 /**
@@ -116,23 +169,107 @@ export async function GET(request: NextRequest) {
  * Never deletes; only toggles is_active.
  */
 export async function PATCH(request: NextRequest) {
-  const { admin, error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.manage_fees",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
-  const { id, isActive } = await request.json()
-  if (!id || typeof isActive !== "boolean") {
-    return jsonError({ status: 400, code: "invalid_request", message: "id and isActive are required.", retryable: false })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_json",
+      message: "Could not parse request body.",
+      correlationId: commerce.request.correlationId,
+    })
   }
 
+  const parsed = updateRuleSchema.safeParse(body)
+  const denied = requireCommerceHighRiskAction(commerce, "fee_rule.write", {
+    reason: parsed.success ? parsed.data.reason : undefined,
+  })
+  if (denied) return denied
+  if (!parsed.success) {
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_request",
+      message: "Invalid fee rule update payload.",
+      issues: parsed.error.issues,
+      correlationId: commerce.request.correlationId,
+    })
+  }
+  const { id, isActive, reason } = parsed.data
+  const idempotency = requireCommerceIdempotencyKey(request, commerce, parsed.data)
+  if (idempotency instanceof NextResponse) return idempotency
+  const precondition = requireCommerceExpectedUpdatedAt(commerce, parsed.data)
+  if (precondition instanceof NextResponse) return precondition
+  const actionReason = normalizeCommerceFinancialActionReason(reason).reason
+
   const svc = createServiceRoleClient()
-  const { error: updateError } = await svc
+  const { data: currentRule, error: currentRuleError } = await svc
+    .from("marketplace_fee_rules")
+    .select("id, updated_at")
+    .eq("id", id)
+    .maybeSingle()
+
+  if (currentRuleError) {
+    return commerceErrorResponse({
+      status: 503,
+      code: "fee_rule_unavailable",
+      message: "Unable to load fee rule.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
+  }
+  if (!currentRule) {
+    return commerceErrorResponse({
+      status: 404,
+      code: "fee_rule_not_found",
+      message: "Fee rule not found.",
+      correlationId: commerce.request.correlationId,
+    })
+  }
+  const stale = assertCommerceUpdatedAtMatches(
+    commerce,
+    currentRule.updated_at,
+    precondition,
+    {
+      entityType: "marketplace_fee_rules",
+      message: "Fee rule changed while update was being prepared.",
+    },
+  )
+  if (stale) return stale
+
+  const { data: updatedRule, error: updateError } = await svc
     .from("marketplace_fee_rules")
     .update({ is_active: isActive })
     .eq("id", id)
+    .eq("updated_at", precondition.expectedUpdatedAt)
+    .select("updated_at")
+    .maybeSingle()
 
-  if (updateError) {
-    return jsonError({ status: 500, code: "update_failed", message: "Failed to update fee rule.", retryable: true })
+  if (updateError || !updatedRule) {
+    if (!updateError) return commerceVersionConflictResponse(commerce, {
+      entityType: "marketplace_fee_rules",
+      message: "Fee rule changed while update was being saved.",
+      expectedUpdatedAt: precondition.expectedUpdatedAt,
+      currentUpdatedAt: currentRule.updated_at,
+    })
+    return commerceErrorResponse({
+      status: 500,
+      code: "update_failed",
+      message: "Failed to update fee rule.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
-  return NextResponse.json({ data: { id, isActive } })
+  return commerceJsonResponse({
+    data: { id, isActive, reason: actionReason, updatedAt: updatedRule.updated_at ?? null },
+    idempotencyKey: idempotency.idempotencyKey,
+  }, {
+    correlationId: commerce.request.correlationId,
+  })
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { checkAuth } from "@/lib/auth/api-auth"
 import { resolvePostCommentAccess } from "@/lib/feed/post-comment-access"
+import { recordPromoterNativeShare } from "@/lib/promoter-network/assets-command"
 
 const SHARE_DESTINATIONS = new Set(["clipboard", "native", "feed"])
 type RouteContext = { params: Promise<{ id: string }> }
@@ -65,6 +66,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       console.error("[Shares API] insert failed", { correlationId, code: error?.code })
       return errorResponse(500, "SHARE_CREATE_FAILED", "Failed to record share", correlationId)
     }
+
+    await recordPromoterNativeShare({
+      actorUserId: auth.user.id,
+      postId,
+      shareId: share.id,
+    })
 
     const { data: post, error: countError } = await auth.supabase
       .from("posts")

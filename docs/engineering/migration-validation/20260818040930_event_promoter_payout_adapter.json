@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818040930_event_promoter_payout_adapter.sql",
+  "taskId": "EVENT-PROMOTER-P9",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "finance", "ticketing", "promoter-network", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with promoter Phases 1-8 applied and a verified finance administrator",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Earned, reversal, and reinstatement ledger entries by event and currency",
+      "Existing payout allocation count and amount by commission ledger entry",
+      "Open/reviewing high and critical risk flags and latest commission hold action"
+    ],
+    "expectedAffectedRows": "Creates empty payout batch/audit/hold tables and nullable allocation columns. Runtime batch allocation only inserts allocations for eligible, unallocated earned entries.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Migration is expand-only. Runtime allocation locks earned entries with SKIP LOCKED and a unique commission_ledger_id allocation constraint, so an idempotent retry safely returns the original batch or selects remaining entries.",
+    "resumeCursor": "supabase migration version 20260818040930",
+    "idempotency": "Batches have an idempotency key and each payout allocation has one unique immutable earned ledger reference. Reversal and reinstatement entries are included in the derived net before allocation; no commission ledger row is updated."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Keep event_promoter_payouts_enabled disabled to halt new allocations. Existing financial evidence, allocation rows, batch events, and hold events remain intact for forward repair."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Payout batch events and commission hold events reject UPDATE and DELETE",
+      "Only service_role can execute allocation, transition, hold, and reconciliation functions",
+      "Batch allocation excludes existing allocations, explicit holds, and open/reviewing high or critical risk flags",
+      "Confirmation requires a non-empty external settlement reference"
+    ],
+    "indexes": [
+      "Batch event/status indexes support finance audit and reconciliation views",
+      "Hold event index supports latest-hold lookup per commission ledger entry",
+      "Allocation batch/status index supports exact settlement drill-down"
+    ],
+    "validationPlan": "Test concurrent allocation attempts, idempotent replay, partial refund before allocation, reversal after allocation, explicit hold/release, high-risk exclusion, failed batch retry, batch confirmation with and without a settlement reference, and cross-organization batch access denial."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_payouts_enabled. Do not delete any batch, allocation, hold, or audit history.",
+    "forwardFix": "Use additive function replacement or a new batch event. Preserve the immutable commission ledger and exact allocation source reference."
+  },
+  "postflight": {
+    "queries": [
+      "Verify grants: no anon/authenticated direct access to batch, batch-event, or hold-event tables",
+      "Verify only service_role executes finance payout mutation/reconciliation RPCs and authenticated users execute only their own payout read RPC",
+      "Reconcile earned plus reversals/reinstatements to allocations and confirmed paid totals by event, membership, and currency",
+      "Verify a held or high-risk commission cannot enter a new payout batch"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

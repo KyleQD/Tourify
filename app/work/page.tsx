@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { WorkHubDashboard } from "@/components/work-mode/work-hub-dashboard"
 
-export default function WorkModeEntryPage() {
-  redirect("/work/today")
+export default function WorkHubPage() {
+  return <WorkHubDashboard />
 }

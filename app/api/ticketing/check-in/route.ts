@@ -73,6 +73,38 @@ async function authorizeScanner(params: {
   return false
 }
 
+async function authorizeScannerDevice(params: {
+  supabase: ReturnType<typeof createServiceRoleClient>
+  userId: string
+  eventId: string
+  deviceId?: string | null
+  checkpoint: string
+}): Promise<{ ok: true; deviceId: string } | { ok: false; status: number; error: string; code: string }> {
+  if (!params.deviceId) {
+    return { ok: false, status: 400, error: 'Scanner device is required', code: 'DEVICE_REQUIRED' }
+  }
+
+  const { data: device } = await params.supabase
+    .from('scanner_devices')
+    .select('id,event_id,status,assigned_user_id,gate_assignment,gate_permissions')
+    .eq('id', params.deviceId)
+    .maybeSingle()
+
+  if (!device) return { ok: false, status: 404, error: 'Scanner device not found', code: 'DEVICE_NOT_FOUND' }
+  if (device.status !== 'active') return { ok: false, status: 403, error: 'Scanner device is not active', code: 'DEVICE_DISABLED' }
+  if (device.event_id && device.event_id !== params.eventId)
+    return { ok: false, status: 403, error: 'Scanner device is not assigned to this event', code: 'DEVICE_EVENT_MISMATCH' }
+  if (device.assigned_user_id && device.assigned_user_id !== params.userId)
+    return { ok: false, status: 403, error: 'Scanner device is assigned to another user', code: 'DEVICE_USER_MISMATCH' }
+
+  const permissions = Array.isArray(device.gate_permissions) ? device.gate_permissions : []
+  if (permissions.length > 0 && !permissions.includes(params.checkpoint)) {
+    return { ok: false, status: 403, error: 'Scanner device is not allowed at this checkpoint', code: 'DEVICE_GATE_MISMATCH' }
+  }
+
+  return { ok: true, deviceId: device.id }
+}
+
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   if (isRateLimited(ip))
@@ -91,6 +123,8 @@ export async function POST(request: NextRequest) {
       checkpoint = 'main',
       reverse = false,
       checkin_id,
+      device_id,
+      idempotency_key,
     } = body
 
     const supabase = createServiceRoleClient()
@@ -168,14 +202,14 @@ export async function POST(request: NextRequest) {
 
         const { data: t } = await supabase
           .from('tickets')
-          .select('*, ticket_types(name), events_v2(title, start_at)')
+          .select('*, ticket_types(name), events_v2(title, start_at, org_id)')
           .eq('id', cred.ticket_id)
           .maybeSingle()
         ticket = t
       } else if (ticket_id) {
         const { data: t } = await supabase
           .from('tickets')
-          .select('*, ticket_types(name), events_v2(title, start_at)')
+          .select('*, ticket_types(name), events_v2(title, start_at, org_id)')
           .eq('id', ticket_id)
           .maybeSingle()
         ticket = t
@@ -206,6 +240,20 @@ export async function POST(request: NextRequest) {
       const allowed = await authorizeScanner({ supabase, userId: auth.user.id, eventId })
       if (!allowed)
         return NextResponse.json({ success: false, error: 'Check-in permission required', code: 'FORBIDDEN' }, { status: 403 })
+
+      const device = await authorizeScannerDevice({
+        supabase,
+        userId: auth.user.id,
+        eventId,
+        deviceId: device_id,
+        checkpoint,
+      })
+      if (!device.ok) {
+        return NextResponse.json(
+          { success: false, error: device.error, code: device.code },
+          { status: device.status },
+        )
+      }
 
       if (ticket.status === 'refunded')
         return NextResponse.json({ success: false, error: 'Ticket refunded', code: 'REFUNDED', owner_name: ticket.owner_name }, { status: 400 })
@@ -248,9 +296,12 @@ export async function POST(request: NextRequest) {
           ticket_id: ticket.id,
           event_id: eventId,
           credential_id: credential?.id ?? null,
+          device_id: device.deviceId,
           scanned_by: auth.user.id,
           checkpoint,
           result: 'valid',
+          idempotency_key: idempotency_key ?? null,
+          metadata: { device_id: device.deviceId },
         })
         .select('id')
         .single()
@@ -271,6 +322,20 @@ export async function POST(request: NextRequest) {
         .from('tickets')
         .update({ status: 'checked_in', updated_at: new Date().toISOString() })
         .eq('id', ticket.id)
+
+      await supabase.from('admissions_scans').insert({
+        org_id: (ticket.events_v2 as any)?.org_id ?? ticket.org_id ?? null,
+        event_id: eventId,
+        ticket_id: ticket.id,
+        credential_id: credential?.id ?? null,
+        device_id: device.deviceId,
+        checkpoint,
+        outcome: 'admit',
+        source: 'online',
+        idempotency_key: idempotency_key ? `admissions:${idempotency_key}` : null,
+        scanned_by: auth.user.id,
+        raw_payload: { checkin_id: checkin.id },
+      })
 
       // Only mark the order checked-in when ALL admissions are checked in
       const { data: siblings } = await supabase
@@ -298,7 +363,7 @@ export async function POST(request: NextRequest) {
         ticketId: ticket.id,
         orderId: ticket.order_id,
         actorUserId: auth.user.id,
-        metadata: { checkpoint },
+        metadata: { checkpoint, device_id: device.deviceId },
       })
 
       const canViewContact = await hasTicketingPermission({

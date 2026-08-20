@@ -2,21 +2,25 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Loader2, Send } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Loader2, Send } from 'lucide-react'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { paBtnRound } from '@/components/public-artist/public-artist-ui'
 import { ThemedDialogContent } from '@/components/public-artist/themed-dialog-content'
 import { useActingContext } from '@/hooks/use-acting-context'
 import type { ArtistProfileAppearance } from '@/lib/public-artist/artist-profile-appearance'
+import type { ArtistBookingAttachableEvent } from '@/lib/bookings/artist-booking-types'
 import { bookingStepOneSchema, type PublicBookingDraft } from '@/lib/public-artist/booking-request-schema'
 
 const INITIAL_DRAFT: PublicBookingDraft = {
   requestType: 'performance',
   performanceType: 'project',
+  description: '',
   venue: '',
   location: '',
   performanceDate: '',
@@ -55,6 +59,8 @@ export function BookThisArtistModal({
   const [submissionError, setSubmissionError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null)
+  const [attachableEvents, setAttachableEvents] = useState<ArtistBookingAttachableEvent[]>([])
+  const [selectedEventId, setSelectedEventId] = useState('none')
 
   useEffect(() => {
     if (!isOpen || createdBookingId) return
@@ -67,6 +73,28 @@ export function BookThisArtistModal({
       // Invalid or unavailable local storage should not block a new request.
     }
   }, [createdBookingId, isOpen, storageKey])
+
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    async function loadAttachableEvents() {
+      try {
+        const response = await fetch('/api/booking-requests/attachable-events', {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: actingHeaders,
+        })
+        if (response.status === 401) return
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) return
+        if (!cancelled) setAttachableEvents(Array.isArray(payload.events) ? payload.events : [])
+      } catch {
+        if (!cancelled) setAttachableEvents([])
+      }
+    }
+    void loadAttachableEvents()
+    return () => { cancelled = true }
+  }, [actingHeaders, isOpen])
 
   const update = <K extends keyof PublicBookingDraft>(field: K, value: PublicBookingDraft[K]) => {
     setDraft((current) => ({ ...current, [field]: value }))
@@ -107,12 +135,14 @@ export function BookThisArtistModal({
         body: JSON.stringify({
           artistId: artistUserId,
           artistProfileId,
+          eventId: selectedEventId === 'none' ? undefined : selectedEventId,
           requestType: result.data.requestType,
           bookingDetails: {
             performanceType: result.data.performanceType,
             performanceDate: result.data.performanceDate,
             venue: result.data.venue,
             location: result.data.location,
+            description: result.data.description,
           },
         }),
       })
@@ -127,6 +157,7 @@ export function BookThisArtistModal({
         window.localStorage.removeItem(storageKey)
       } catch {}
       setCreatedBookingId(payload?.data?.id || null)
+      setSelectedEventId('none')
     } catch (error) {
       setSubmissionError(error instanceof Error ? error.message : 'Your request could not be sent.')
     } finally {
@@ -137,6 +168,7 @@ export function BookThisArtistModal({
   const handleOpenChange = (open: boolean) => {
     if (open && createdBookingId) {
       setDraft(INITIAL_DRAFT)
+      setSelectedEventId('none')
       setCreatedBookingId(null)
       setSubmissionError(null)
     }
@@ -184,7 +216,7 @@ export function BookThisArtistModal({
             <CheckCircle2 className="h-14 w-14 text-emerald-400" aria-hidden="true" />
             <h3 className="mt-5 text-xl font-semibold">Request pending</h3>
             <p className="mt-2 max-w-md text-sm text-[var(--artist-theme-muted,#94a3b8)]">
-              You can view the request now. Editing and booking chat unlock if it is accepted.
+              You can view the request now and reply in its booking thread if the artist needs more information.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Button variant="outline" className={paBtnRound} onClick={() => onOpenChange(false)}>Done</Button>
@@ -197,16 +229,7 @@ export function BookThisArtistModal({
           <>
             <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
               <div className="grid gap-5 sm:grid-cols-2">
-                {field('requestType', 'Request category', (
-                  <Select value={draft.requestType} onValueChange={(value: 'performance' | 'collaboration') => update('requestType', value)}>
-                    <SelectTrigger id="requestType" className={fieldClass}><SelectValue /></SelectTrigger>
-                    <SelectContent style={selectStyle}>
-                      <SelectItem value="performance">Paid booking / project</SelectItem>
-                      <SelectItem value="collaboration">Creative collaboration</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ))}
-                {field('performanceType', 'Service or project type', serviceOfferings?.length ? (
+                {field('performanceType', 'Booking type', serviceOfferings?.length ? (
                   <Select value={draft.performanceType} onValueChange={(value) => update('performanceType', value)}>
                     <SelectTrigger id="performanceType" className={fieldClass}><SelectValue /></SelectTrigger>
                     <SelectContent style={selectStyle}>
@@ -216,12 +239,59 @@ export function BookThisArtistModal({
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input id="performanceType" value={draft.performanceType} onChange={(event) => update('performanceType', event.target.value)} className={fieldClass} />
+                  <Input id="performanceType" value={draft.performanceType} onChange={(event) => update('performanceType', event.target.value)} className={fieldClass} placeholder="Performance, project, or service" />
                 ))}
-                {field('venue', 'Business or venue', <Input id="venue" value={draft.venue} onChange={(event) => update('venue', event.target.value)} className={fieldClass} placeholder="Company, brand, or venue" />)}
                 {field('location', 'Location', <Input id="location" value={draft.location} onChange={(event) => update('location', event.target.value)} className={fieldClass} placeholder="City, state, or remote" />)}
                 <div className="sm:col-span-2">
-                  {field('performanceDate', 'Target date', <Input id="performanceDate" type="date" value={draft.performanceDate} onChange={(event) => update('performanceDate', event.target.value)} className={fieldClass} />)}
+                  {field('description', 'Note for the artist', <Textarea id="description" value={draft.description} onChange={(event) => update('description', event.target.value)} className={`${fieldClass} min-h-28`} placeholder="Share what you have in mind, including any important context." />)}
+                </div>
+                {attachableEvents.length > 0 ? (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="linkedEvent" className={labelClass}>Add an event from one of your accounts <span className="text-[var(--artist-theme-muted,#94a3b8)]">(optional)</span></Label>
+                    <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                      <SelectTrigger id="linkedEvent" className={fieldClass}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent style={selectStyle}>
+                        <SelectItem value="none">No event attached</SelectItem>
+                        {attachableEvents.map((event) => (
+                          <SelectItem key={event.id} value={event.id}>
+                            {event.title}{event.startAt ? ` · ${event.startAt.slice(0, 10)}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 flex items-center gap-1 text-xs text-[var(--artist-theme-muted,#94a3b8)]">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Accepted artists get promotion access and limited artist activity insights.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="sm:col-span-2">
+                  <Accordion type="single" collapsible className="border-y border-white/10">
+                    <AccordionItem value="advanced" className="border-0">
+                      <AccordionTrigger className="py-3 text-sm font-medium text-[var(--artist-theme-text,#fff)] hover:no-underline">
+                        Advanced options <span className="ml-2 font-normal text-[var(--artist-theme-muted,#94a3b8)]">Optional</span>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-4 pt-1">
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          {field('requestType', 'Request category', (
+                            <Select value={draft.requestType} onValueChange={(value: 'performance' | 'collaboration') => update('requestType', value)}>
+                              <SelectTrigger id="requestType" className={fieldClass}><SelectValue /></SelectTrigger>
+                              <SelectContent style={selectStyle}>
+                                <SelectItem value="performance">Paid booking / project</SelectItem>
+                                <SelectItem value="collaboration">Creative collaboration</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ))}
+                          {field('venue', 'Business or venue', <Input id="venue" value={draft.venue} onChange={(event) => update('venue', event.target.value)} className={fieldClass} placeholder="Company, brand, or venue" />)}
+                          <div className="sm:col-span-2">
+                            {field('performanceDate', 'Target date', <Input id="performanceDate" type="date" value={draft.performanceDate} onChange={(event) => update('performanceDate', event.target.value)} className={fieldClass} />)}
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               </div>
               {submissionError ? <div role="alert" className="mt-5 rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-300">{submissionError}</div> : null}

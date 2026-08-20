@@ -70,6 +70,7 @@ describe("TIX-103 ticketing command schemas", () => {
     expect(TICKETING_COMMAND_CAPABILITIES.refund_sale).toBe("ticketing.refund")
     expect(TICKETING_COMMAND_CAPABILITIES.reserve_inventory).toBe("ticketing.manage")
     expect(TICKETING_COMMAND_CAPABILITIES.delete_ticket_type).toBe("ticketing.manage")
+    expect(TICKETING_COMMAND_CAPABILITIES.publish_ticket_sales).toBe("ticketing.manage")
   })
 
   it("accepts upsert config and delete with reason", () => {
@@ -88,5 +89,29 @@ describe("TIX-103 ticketing command schemas", () => {
       reason: "duplicate tier",
     })
     expect(del.ok).toBe(true)
+  })
+
+  it("accepts publish and unpublish commands with reasons", () => {
+    const publish = parseTicketingCommand({
+      action: "publish_ticket_sales",
+      event_id: EVENT_ID,
+      reason: "ready for public sale",
+      terms_waived: true,
+    })
+    expect(publish.ok).toBe(true)
+
+    const unpublish = parseTicketingCommand({
+      action: "unpublish_ticket_sales",
+      event_id: EVENT_ID,
+      reason: "pause sales for update",
+    })
+    expect(unpublish.ok).toBe(true)
+
+    expect(
+      parseTicketingCommand({
+        action: "publish_ticket_sales",
+        event_id: EVENT_ID,
+      }).ok,
+    ).toBe(false)
   })
 })

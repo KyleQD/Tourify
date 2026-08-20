@@ -3,13 +3,18 @@ import { z } from "zod"
 import { achievementEngine } from "@/lib/services/achievement-engine.service"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { createBookingRequestSchema } from "@/lib/public-artist/booking-request-schema"
+import {
+  createBookingRequestSchema,
+  createPublicArtistBookingRequestSchema,
+} from "@/lib/public-artist/booking-request-schema"
 import { resolveActingContext } from "@/lib/auth/acting-context"
 import {
+  canAttachArtistBookingToEvent,
   getInitialArtistBookingStatus,
   getArtistBookingParticipantRole,
   serializeArtistBooking,
   serializeArtistBookings,
+  summarizeArtistBookingViews,
   shouldIncludeArtistBookingForView,
 } from "@/lib/bookings/artist-booking-server"
 import type { ArtistBookingView } from "@/lib/bookings/artist-booking-types"
@@ -19,12 +24,13 @@ const updateBookingRequestSchema = z.object({
   token: z.string().optional(),
   requestId: z.string().uuid().optional(),
   venueRequestId: z.string().uuid().optional(),
-  status: z.enum(["pending", "accepted", "declined", "approved", "rejected"]),
+  status: z.enum(["pending", "needs_info", "accepted", "declined", "approved", "rejected"]),
   userId: z.string().uuid().optional(),
   responseMessage: z.string().optional()
 })
 
-function toUnifiedBookingStatus(status: string): "pending" | "accepted" | "declined" {
+function toUnifiedBookingStatus(status: string): "pending" | "needs_info" | "accepted" | "declined" {
+  if (status === "needs_info") return "needs_info"
   if (status === "approved" || status === "accepted") return "accepted"
   if (status === "rejected" || status === "declined") return "declined"
   return "pending"
@@ -123,7 +129,7 @@ export async function GET(req: NextRequest) {
     const artistId = searchParams.get("artistId")
     const venueId = searchParams.get("venueId")
     const requestedView = searchParams.get("view") as ArtistBookingView | null
-    const view: ArtistBookingView = requestedView && ["incoming", "sent", "active", "history"].includes(requestedView)
+    const view: ArtistBookingView = requestedView && ["incoming", "needs_info", "sent", "active", "history"].includes(requestedView)
       ? requestedView
       : ["artist", "service"].includes(context.accountType) ? "incoming" : "sent"
 
@@ -186,18 +192,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: serialized })
     }
 
+    const participantRows = isLegacyLookup
+      ? []
+      : (bookingRequests || []).flatMap((request: any) => {
+          const role = getArtistBookingParticipantRole(request, context)
+          return role ? [{ request, role }] : []
+        })
     const scopedRows = isLegacyLookup
       ? (bookingRequests || [])
-      : (bookingRequests || []).filter((request: any) => {
-          const role = getArtistBookingParticipantRole(request, context)
-          if (!role) return false
-          return shouldIncludeArtistBookingForView(role, request.status, view)
-        })
+      : participantRows
+          .filter(({ request, role }) => shouldIncludeArtistBookingForView(role, request.status, view))
+          .map(({ request }) => request)
 
     return NextResponse.json({
       success: true,
       data: await serializeArtistBookings(scopedRows, context),
       view,
+      summary: summarizeArtistBookingViews(participantRows.map(({ request, role }) => ({ role, status: request.status }))),
     })
   } catch (error) {
     console.error("Error fetching booking requests:", error)
@@ -211,7 +222,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const validatedData = createBookingRequestSchema.parse(body)
+    const validatedData = body?.artistId
+      ? createPublicArtistBookingRequestSchema.parse(body)
+      : createBookingRequestSchema.parse(body)
     const context = await resolveActingContext(req)
     if (context instanceof NextResponse) return context
 
@@ -221,7 +234,7 @@ export async function POST(req: NextRequest) {
     const service = createServiceRoleClient()
     const requesterId = context.userId
     const requesterEmail = validatedData.email || auth.user.email || null
-    const hasLegacyTarget = Boolean(validatedData.eventId || validatedData.tourId)
+    const hasLegacyTarget = Boolean(!validatedData.artistId && (validatedData.eventId || validatedData.tourId))
 
     if (!hasLegacyTarget && !validatedData.venueId && !validatedData.artistId) {
       return NextResponse.json(
@@ -262,13 +275,23 @@ export async function POST(req: NextRequest) {
         if (account?.account_type === "service") recipientAccountType = "service"
       }
 
-      const isPublicProfileRequest = Boolean(validatedData.artistId && !hasLegacyTarget)
+      const isPublicProfileRequest = Boolean(validatedData.artistId)
+      if (isPublicProfileRequest && validatedData.eventId) {
+        const canAttach = await canAttachArtistBookingToEvent(context, validatedData.eventId)
+        if (!canAttach) {
+          return NextResponse.json(
+            { error: "You do not have permission to attach this event to a booking request." },
+            { status: 403 },
+          )
+        }
+      }
+
       const bookingDetails = isPublicProfileRequest ? {
         performanceType: validatedData.bookingDetails.performanceType,
         performanceDate: validatedData.bookingDetails.performanceDate,
         venue: validatedData.bookingDetails.venue,
         location: validatedData.bookingDetails.location,
-        description: "",
+        description: validatedData.bookingDetails.description,
         compensation: "",
         additionalNotes: "",
       } : validatedData.bookingDetails
@@ -277,6 +300,8 @@ export async function POST(req: NextRequest) {
         .from("booking_requests")
         .insert({
           artist_id: validatedData.artistId,
+          // Older deployments enforce their recipient check against this legacy column.
+          artist_user_id: validatedData.artistId,
           artist_profile_id: artistProfile?.id || null,
           recipient_account_type: artistProfile ? recipientAccountType : null,
           requester_id: requesterId,

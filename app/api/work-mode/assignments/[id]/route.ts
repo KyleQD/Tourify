@@ -51,7 +51,9 @@ export async function GET(
         data: {
           assignment,
           publications: payload.publications.filter(
-            (publication) => publication.eventId === assignment.eventId,
+            (publication) =>
+              (assignment.eventId && publication.eventId === assignment.eventId) ||
+              (assignment.tourId && publication.tourId === assignment.tourId),
           ),
           generatedAt: payload.generatedAt,
           workerActionsAvailable: payload.workerActionsAvailable,

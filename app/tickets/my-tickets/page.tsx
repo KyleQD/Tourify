@@ -1,282 +1,107 @@
 "use client"
 
-import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Ticket, QrCode, Calendar, ArrowRight, Send } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { TicketQrCode } from '@/components/ticketing/ticket-qr-code'
-import { useToast } from '@/components/ui/use-toast'
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { CalendarDays, ExternalLink, Send, Ticket, UserRoundCheck } from "lucide-react"
 
-interface WalletTicket {
-  id: string
-  status: string
-  is_complimentary: boolean
-  qr_token: string | null
-  ticket_types?: { name?: string; category?: string } | null
-  events_v2?: { id?: string; title?: string; start_at?: string } | null
-}
-
-interface TransferRow {
-  id: string
-  status: string
-  from_user_id: string
-  to_user_id?: string | null
-  to_email?: string | null
-  ticket_id: string
-  tickets?: { ticket_types?: { name?: string }; events_v2?: { title?: string } }
-}
+import { TicketingShell, TicketEmptyState, TicketEventMeta, TicketStatusBadge, TicketStateNotice } from "@/components/ticketing/ticketing-experience-ui"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/components/ui/use-toast"
+import type { TicketExperienceTicket, TicketExperienceTransfer } from "@/types/ticketing-experience"
 
 export default function MyTicketsPage() {
   const { toast } = useToast()
-  const [tickets, setTickets] = useState<WalletTicket[]>([])
-  const [transfers, setTransfers] = useState<TransferRow[]>([])
+  const [tickets, setTickets] = useState<TicketExperienceTicket[]>([])
+  const [transfers, setTransfers] = useState<TicketExperienceTransfer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selected, setSelected] = useState<WalletTicket | null>(null)
-  const [transferTicketId, setTransferTicketId] = useState<string | null>(null)
-  const [transferEmail, setTransferEmail] = useState('')
-  const [transferUserId, setTransferUserId] = useState('')
+  const [selectedTicket, setSelectedTicket] = useState<TicketExperienceTicket | null>(null)
+  const [recipientEmail, setRecipientEmail] = useState("")
 
   const load = useCallback(async () => {
+    setLoading(true)
     try {
-      const [walletRes, transferRes] = await Promise.all([
-        fetch('/api/ticketing/wallet', { credentials: 'include' }),
-        fetch('/api/ticketing/transfers', { credentials: 'include' }),
-      ])
-      if (walletRes.status === 401) {
-        setError('Sign in to view your tickets')
-        return
-      }
-      const walletData = await walletRes.json()
-      if (!walletRes.ok) throw new Error(walletData.error || 'Failed to load tickets')
-      setTickets(walletData.tickets || [])
-
-      if (transferRes.ok) {
-        const transferData = await transferRes.json()
-        setTransfers(transferData.transfers || [])
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load tickets')
-    } finally {
-      setLoading(false)
-    }
+      const response = await fetch("/api/ticketing/experience", { credentials: "include", cache: "no-store" })
+      const data = await response.json()
+      if (response.status === 401) { setError("Sign in to access your wallet."); return }
+      if (!response.ok) throw new Error(data.error || "Unable to load your tickets")
+      setTickets(data.tickets || [])
+      setTransfers(data.transfers || [])
+      setError(null)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load your tickets")
+    } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { void load() }, [load])
 
+  const { upcoming, past } = useMemo(() => {
+    const now = Date.now()
+    return {
+      upcoming: tickets.filter((ticket) => !ticket.event.startsAt || new Date(ticket.event.startsAt).getTime() >= now),
+      past: tickets.filter((ticket) => ticket.event.startsAt && new Date(ticket.event.startsAt).getTime() < now),
+    }
+  }, [tickets])
+  const pendingTransfers = transfers.filter((transfer) => transfer.status === "pending")
+
   async function sendTransfer() {
-    if (!transferTicketId) return
-    if (!transferEmail && !transferUserId) {
-      toast({ title: 'Recipient required', description: 'Enter a user ID or email', variant: 'destructive' })
-      return
-    }
-    const res = await fetch('/api/ticketing/transfers', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'create',
-        ticket_id: transferTicketId,
-        to_email: transferEmail || undefined,
-        to_user_id: transferUserId || undefined,
-      }),
+    if (!selectedTicket || !recipientEmail.trim()) return
+    const response = await fetch("/api/ticketing/transfers", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create", ticket_id: selectedTicket.id, to_email: recipientEmail.trim() }),
     })
-    const data = await res.json()
-    if (!res.ok) {
-      toast({ title: 'Transfer failed', description: data.error || 'Unable to start transfer', variant: 'destructive' })
-      return
-    }
-    toast({ title: 'Transfer sent', description: 'Waiting for the recipient to accept.' })
-    setTransferTicketId(null)
-    setTransferEmail('')
-    setTransferUserId('')
-    void load()
+    const data = await response.json()
+    if (!response.ok) { toast({ title: "Transfer could not be sent", description: data.error || "Try again.", variant: "destructive" }); return }
+    toast({ title: "Transfer sent", description: `A secure claim link was sent to ${recipientEmail.trim()}.` })
+    setSelectedTicket(null); setRecipientEmail(""); void load()
   }
 
-  async function respondTransfer(transferId: string, action: 'accept' | 'decline' | 'cancel') {
-    const res = await fetch('/api/ticketing/transfers', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+  async function updateTransfer(transferId: string, action: "accept" | "decline" | "cancel") {
+    const response = await fetch("/api/ticketing/transfers", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, transfer_id: transferId }),
     })
-    const data = await res.json()
-    if (!res.ok) {
-      toast({ title: 'Action failed', description: data.error || 'Unable to update transfer', variant: 'destructive' })
-      return
-    }
-    toast({ title: action === 'accept' ? 'Ticket received' : 'Transfer updated' })
+    const data = await response.json()
+    if (!response.ok) { toast({ title: "Transfer could not be updated", description: data.error || "Try again.", variant: "destructive" }); return }
+    toast({ title: action === "accept" ? "Ticket added to your wallet" : "Transfer updated" })
     void load()
   }
 
-  const pendingInbound = transfers.filter((t) => t.status === 'pending')
-
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">My Tickets</h1>
-        <p className="mt-2 text-muted-foreground">
-          Your Tourify ticket wallet. Present the QR code at the door.
-        </p>
-      </div>
-
-      {loading && <p className="text-sm text-muted-foreground">Loading tickets…</p>}
-      {error && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="mb-4">{error}</p>
-            <Button asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {!loading && !error && pendingInbound.length > 0 && (
-        <Card className="mb-6 border-amber-500/40">
-          <CardHeader>
-            <CardTitle className="text-base">Pending transfers</CardTitle>
+  const renderTickets = (rows: TicketExperienceTicket[]) => rows.length ? (
+    <div className="grid gap-4 md:grid-cols-2">
+      {rows.map((ticket) => (
+        <Card key={ticket.id} className="overflow-hidden border-border bg-card transition-colors hover:border-primary/45">
+          <div className="h-1 bg-primary/70" />
+          <CardHeader className="space-y-3 pb-3">
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><CardTitle className="truncate text-lg">{ticket.event.title}</CardTitle><p className="mt-1 text-sm text-muted-foreground">{ticket.ticketType.name}</p></div><TicketStatusBadge status={ticket.status} /></div>
+            <TicketEventMeta startsAt={ticket.event.startsAt} />
           </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingInbound.map((t) => (
-              <div key={t.id} className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm">
-                  {t.tickets?.events_v2?.title || 'Event'} · {t.tickets?.ticket_types?.name || 'Ticket'}
-                  <div className="text-xs text-muted-foreground">{t.to_email || t.to_user_id || 'Pending recipient'}</div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => void respondTransfer(t.id, 'accept')}>Accept</Button>
-                  <Button size="sm" variant="outline" onClick={() => void respondTransfer(t.id, 'decline')}>Decline</Button>
-                  <Button size="sm" variant="ghost" onClick={() => void respondTransfer(t.id, 'cancel')}>Cancel</Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {!loading && !error && tickets.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            <Ticket className="mx-auto mb-3 h-10 w-10 opacity-50" />
-            No tickets yet. Discover events to get started.
-            <div className="mt-4">
-              <Button asChild variant="outline">
-                <Link href="/discover/events">Browse events</Link>
-              </Button>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">{ticket.isComplimentary ? <Badge variant="outline">Guest ticket</Badge> : null}{ticket.eligibility.canTransfer ? "Transfer available" : ticket.eligibility.transferReason}</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" asChild><Link href={`/tickets/${ticket.id}`}>View pass<ExternalLink className="ml-2 h-3.5 w-3.5" /></Link></Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8" disabled={!ticket.eligibility.canTransfer} aria-label="Transfer ticket" title={ticket.eligibility.canTransfer ? "Transfer ticket" : ticket.eligibility.transferReason || "Transfer unavailable"} onClick={() => setSelectedTicket(ticket)}><Send className="h-3.5 w-3.5" /></Button>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      <div className="space-y-4">
-        {tickets.map((ticket) => (
-          <Card key={ticket.id} className="overflow-hidden">
-            <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
-              <div>
-                <CardTitle className="text-lg">
-                  {ticket.events_v2?.title || 'Event'}
-                </CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {ticket.ticket_types?.name || 'Admission'}
-                </p>
-              </div>
-              <Badge variant={ticket.status === 'checked_in' ? 'secondary' : 'default'}>
-                {ticket.status}
-              </Badge>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                {ticket.events_v2?.start_at
-                  ? new Date(ticket.events_v2.start_at).toLocaleString()
-                  : 'Date TBA'}
-                {ticket.is_complimentary && (
-                  <Badge variant="outline" className="ml-2">Comp</Badge>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setTransferTicketId(ticket.id)}
-                  disabled={ticket.status === 'checked_in' || ticket.status === 'refunded'}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Transfer
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setSelected(ticket)}
-                  disabled={!ticket.qr_token || ticket.status === 'checked_in'}
-                >
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Show QR
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {transferTicketId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <Card className="w-full max-w-sm">
-            <CardHeader>
-              <CardTitle>Transfer ticket</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input
-                placeholder="Recipient Tourify user ID (preferred)"
-                value={transferUserId}
-                onChange={(e) => setTransferUserId(e.target.value)}
-              />
-              <Input
-                placeholder="Or recipient email"
-                type="email"
-                value={transferEmail}
-                onChange={(e) => setTransferEmail(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => void sendTransfer()}>Send</Button>
-                <Button variant="outline" className="flex-1" onClick={() => setTransferTicketId(null)}>Cancel</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {selected?.qr_token && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <Card className="w-full max-w-sm">
-            <CardHeader>
-              <CardTitle className="text-center">Entry QR</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-center">
-              <TicketQrCode
-                value={selected.qr_token}
-                className="mx-auto rounded bg-white p-3"
-              />
-              <p className="text-xs text-muted-foreground">
-                Credential is stored securely. Do not share screenshots publicly.
-              </p>
-              <Button variant="outline" className="w-full" onClick={() => setSelected(null)}>
-                Close
-              </Button>
-              {selected.events_v2?.id && (
-                <Button asChild variant="ghost" className="w-full">
-                  <Link href={`/events/${selected.events_v2.id}`}>
-                    Event details <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      ))}
     </div>
+  ) : <TicketEmptyState title="No tickets here" description="Tickets for events in this time period will appear here." />
+
+  return (
+    <TicketingShell title="Your ticket wallet" description="Keep your entry passes, orders, and transfers in one place." actions={<Button asChild variant="outline"><Link href="/discover/events">Discover events</Link></Button>}>
+      {error ? <TicketStateNotice tone="warning" title="Wallet unavailable">{error} <Link className="ml-1 underline" href="/login">Sign in</Link></TicketStateNotice> : null}
+      {loading ? <div className="grid gap-4 md:grid-cols-2"><Card className="h-52 animate-pulse" /><Card className="h-52 animate-pulse" /></div> : null}
+      {!loading && !error ? <>
+        {pendingTransfers.length ? <section className="mb-6 rounded-sm border border-amber-400/30 bg-amber-400/10 p-4"><div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 text-amber-200" /><div className="min-w-0 flex-1"><h2 className="font-medium text-amber-100">Transfers awaiting action</h2><div className="mt-3 space-y-3">{pendingTransfers.map((transfer) => <div key={transfer.id} className="flex flex-col gap-3 border-t border-amber-300/15 pt-3 first:border-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-amber-100/80">{transfer.eventTitle || "Event"} · {transfer.ticketTypeName || "Ticket"}{transfer.expiresAt ? ` · expires ${new Date(transfer.expiresAt).toLocaleDateString()}` : ""}</p><div className="flex gap-2">{transfer.direction === "incoming" ? <><Button size="sm" onClick={() => void updateTransfer(transfer.id, "accept")}>Accept</Button><Button size="sm" variant="outline" onClick={() => void updateTransfer(transfer.id, "decline")}>Decline</Button></> : <Button size="sm" variant="outline" onClick={() => void updateTransfer(transfer.id, "cancel")}>Cancel transfer</Button>}</div></div>)}</div></div></div></section> : null}
+        <Tabs defaultValue="upcoming" className="space-y-5"><TabsList className="w-full justify-start border border-border bg-muted/30 sm:w-auto"><TabsTrigger value="upcoming"><CalendarDays className="mr-2 h-4 w-4" />Upcoming ({upcoming.length})</TabsTrigger><TabsTrigger value="past">Past ({past.length})</TabsTrigger><TabsTrigger value="transfers">Transfers ({transfers.length})</TabsTrigger></TabsList><TabsContent value="upcoming">{renderTickets(upcoming)}</TabsContent><TabsContent value="past">{renderTickets(past)}</TabsContent><TabsContent value="transfers">{transfers.length ? <Card><CardContent className="divide-y divide-border p-0">{transfers.map((transfer) => <div key={transfer.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="font-medium">{transfer.eventTitle || "Event"}</p><p className="text-sm text-muted-foreground">{transfer.direction === "incoming" ? "Received" : `Sent to ${transfer.recipientEmail || "recipient"}`}</p></div><TicketStatusBadge status={transfer.status} /></div>)}</CardContent></Card> : <TicketEmptyState title="No transfers yet" description="Transfers you send and receive will appear here." />}</TabsContent></Tabs>
+      </> : null}
+      <Dialog open={Boolean(selectedTicket)} onOpenChange={(open) => { if (!open) { setSelectedTicket(null); setRecipientEmail("") } }}><DialogContent><DialogHeader><DialogTitle>Transfer ticket</DialogTitle><DialogDescription>Send a secure claim link to the recipient. Your current entry QR will stop working when they accept.</DialogDescription></DialogHeader><Input type="email" value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} placeholder="Recipient email" autoComplete="email" /><DialogFooter><Button variant="outline" onClick={() => setSelectedTicket(null)}>Cancel</Button><Button onClick={() => void sendTransfer()} disabled={!recipientEmail.trim()}>Send transfer</Button></DialogFooter></DialogContent></Dialog>
+    </TicketingShell>
   )
 }

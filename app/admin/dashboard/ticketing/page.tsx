@@ -290,8 +290,9 @@ export default function TicketingPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Ticketing"
-        subtitle="Manage ticket sales and analytics"
+        subtitle="Organization overview, with live event workspaces for sales and admissions."
         icon={Ticket}
+        actions={selectedEvent !== 'all' ? <Button asChild variant="outline" className="border-cyan-400/30 text-cyan-200 hover:bg-cyan-400/10"><Link href={`/admin/dashboard/events/${selectedEvent}?tab=tickets`}>Open event workspace</Link></Button> : undefined}
       />
 
       <div className="rounded-md border border-slate-700/50 bg-slate-900/40 px-4 py-3 text-sm text-slate-300">

@@ -5,7 +5,10 @@ import type { ActingContext } from '@/lib/auth/acting-context'
 import { normalizeAccountType, type ProfileType } from '@/lib/accounts/account-types'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type {
+  ArtistBookingAttachableEvent,
+  ArtistBookingSummary,
   ArtistBookingDetails,
+  ArtistBookingEventPermissions,
   ArtistBookingParticipantRole,
   ArtistBookingParty,
   ArtistBookingRequest,
@@ -15,6 +18,16 @@ import type {
 
 type BookingRow = Record<string, any>
 
+export const ARTIST_BOOKING_EVENT_PERMISSIONS: ArtistBookingEventPermissions = {
+  promote: true,
+  view_public_details: true,
+  view_artist_activity: true,
+  view_limited_insights: true,
+  edit_event: false,
+  assign_roles: false,
+  manage_financials: false,
+}
+
 export function getArtistBookingService(): SupabaseClient {
   return createServiceRoleClient()
 }
@@ -22,7 +35,7 @@ export function getArtistBookingService(): SupabaseClient {
 export function normalizeArtistBookingStatus(status: unknown): ArtistBookingStatus {
   if (status === 'approved') return 'accepted'
   if (status === 'rejected') return 'declined'
-  if (status === 'accepted' || status === 'declined' || status === 'expired' || status === 'cancelled')
+  if (status === 'needs_info' || status === 'accepted' || status === 'declined' || status === 'expired' || status === 'cancelled')
     return status
   return 'pending'
 }
@@ -41,16 +54,37 @@ export function shouldIncludeArtistBookingForView(
 ): boolean {
   const status = normalizeArtistBookingStatus(statusValue)
   if (view === 'incoming') return role === 'artist' && status === 'pending'
-  if (view === 'sent') return role === 'requester' && status !== 'accepted'
+  if (view === 'needs_info') return status === 'needs_info'
+  if (view === 'sent') return role === 'requester' && status === 'pending'
   if (view === 'active') return status === 'accepted'
   return status === 'declined' || status === 'expired' || status === 'cancelled'
+}
+
+export function summarizeArtistBookingViews(
+  rows: Array<{ role: ArtistBookingParticipantRole; status: unknown }>,
+): ArtistBookingSummary {
+  const summary: ArtistBookingSummary = {
+    incoming: 0,
+    needs_info: 0,
+    sent: 0,
+    active: 0,
+    history: 0,
+  }
+
+  for (const row of rows) {
+    for (const view of Object.keys(summary) as ArtistBookingView[]) {
+      if (shouldIncludeArtistBookingForView(row.role, row.status, view)) summary[view] += 1
+    }
+  }
+
+  return summary
 }
 
 export function canDecideArtistBooking(
   role: ArtistBookingParticipantRole,
   statusValue: unknown,
 ): boolean {
-  return role === 'artist' && statusValue === 'pending'
+  return role === 'artist' && (statusValue === 'pending' || statusValue === 'needs_info')
 }
 
 export function canEditArtistBookingDetails(
@@ -64,8 +98,16 @@ export function canUseArtistBookingChat(
   role: ArtistBookingParticipantRole,
   statusValue: unknown,
 ): boolean {
+  const status = normalizeArtistBookingStatus(statusValue)
   return (role === 'requester' || role === 'artist')
-    && statusValue === 'accepted'
+    && (status === 'pending' || status === 'needs_info' || status === 'accepted')
+}
+
+export function canRequesterAnswerInfoRequest(
+  role: ArtistBookingParticipantRole,
+  statusValue: unknown,
+): boolean {
+  return role === 'requester' && normalizeArtistBookingStatus(statusValue) === 'needs_info'
 }
 
 export function normalizeArtistBookingDetails(value: unknown): ArtistBookingDetails {
@@ -130,8 +172,9 @@ async function loadPartyMaps(rows: BookingRow[]) {
   const userIds = Array.from(new Set(rows.flatMap((row) => [row.requester_id, row.artist_id]).filter(Boolean)))
   const artistProfileIds = Array.from(new Set(rows.map((row) => row.artist_profile_id).filter(Boolean)))
   const scopedProfileIds = Array.from(new Set(rows.map((row) => row.requester_profile_id).filter(Boolean)))
+  const eventIds = Array.from(new Set(rows.map((row) => row.event_id).filter(Boolean)))
 
-  const [{ data: profiles }, { data: artists }, { data: accounts }] = await Promise.all([
+  const [{ data: profiles }, { data: artists }, { data: accounts }, { data: linkedEvents }] = await Promise.all([
     userIds.length
       ? service.from('profiles').select('id, full_name, username, avatar_url').in('id', userIds)
       : Promise.resolve({ data: [] }),
@@ -140,6 +183,9 @@ async function loadPartyMaps(rows: BookingRow[]) {
       : Promise.resolve({ data: [] }),
     scopedProfileIds.length
       ? service.from('accounts').select('profile_id, account_type, display_name, avatar_url, owner_user_id').in('profile_id', scopedProfileIds)
+      : Promise.resolve({ data: [] }),
+    eventIds.length
+      ? service.from('events_v2').select('id, title, slug, status, start_at').in('id', eventIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -150,6 +196,7 @@ async function loadPartyMaps(rows: BookingRow[]) {
       `${account.profile_id}:${normalizeAccountType(account.account_type)}`,
       account,
     ])),
+    linkedEvents: new Map((linkedEvents || []).map((event: any) => [event.id, event])),
   }
 }
 
@@ -197,10 +244,21 @@ export async function serializeArtistBookings(
       || artist.displayName
     artist.avatarUrl = artistUserProfile?.avatar_url || null
 
+    const linkedEvent = row.event_id ? maps.linkedEvents.get(row.event_id) : null
+
     return [{
       ...row,
       status: normalizeArtistBookingStatus(row.status),
       booking_details: normalizeArtistBookingDetails(row.booking_details),
+      linked_event: linkedEvent ? {
+        id: String(linkedEvent.id),
+        title: String(linkedEvent.title || 'Linked event'),
+        slug: linkedEvent.slug ? String(linkedEvent.slug) : null,
+        status: linkedEvent.status ? String(linkedEvent.status) : null,
+        startAt: linkedEvent.start_at ? String(linkedEvent.start_at) : null,
+        collaboratorStatus: row.event_collaboration_status || (row.status === 'accepted' ? 'linked' : 'not_linked'),
+        permissions: ARTIST_BOOKING_EVENT_PERMISSIONS,
+      } : null,
       participant_role: role,
       requester,
       artist,
@@ -213,4 +271,159 @@ export async function serializeArtistBooking(
   context: Pick<ActingContext, 'userId' | 'profileId' | 'accountType'>,
 ): Promise<ArtistBookingRequest | null> {
   return (await serializeArtistBookings([row], context))[0] || null
+}
+
+export async function listArtistBookingAttachableEvents(
+  context: Pick<ActingContext, 'userId' | 'supabase'>,
+): Promise<ArtistBookingAttachableEvent[]> {
+  const service = getArtistBookingService()
+  const { data: memberships } = await context.supabase
+    .from('org_members')
+    .select('org_id')
+    .eq('user_id', context.userId)
+
+  const orgIds = Array.from(new Set((memberships || []).map((row: any) => row.org_id).filter(Boolean)))
+  const [ownedResult, orgResult] = await Promise.all([
+    service
+      .from('events_v2')
+      .select('id, title, slug, status, start_at, created_by, org_id')
+      .eq('created_by', context.userId)
+      .order('start_at', { ascending: true })
+      .limit(50),
+    orgIds.length
+      ? service
+          .from('events_v2')
+          .select('id, title, slug, status, start_at, created_by, org_id')
+          .in('org_id', orgIds)
+          .order('start_at', { ascending: true })
+          .limit(50)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const byId = new Map<string, any>()
+  for (const row of [...(ownedResult.data || []), ...(orgResult.data || [])]) {
+    if (row?.id && !['cancelled', 'completed'].includes(String(row.status || '').toLowerCase())) {
+      byId.set(String(row.id), row)
+    }
+  }
+
+  return Array.from(byId.values()).map((event: any) => ({
+    id: String(event.id),
+    title: String(event.title || 'Untitled event'),
+    slug: event.slug ? String(event.slug) : null,
+    status: event.status ? String(event.status) : null,
+    startAt: event.start_at ? String(event.start_at) : null,
+  }))
+}
+
+export async function canAttachArtistBookingToEvent(
+  context: Pick<ActingContext, 'userId' | 'supabase'>,
+  eventId: string,
+): Promise<boolean> {
+  const service = getArtistBookingService()
+  const { data: event } = await service
+    .from('events_v2')
+    .select('id, created_by, org_id')
+    .eq('id', eventId)
+    .maybeSingle()
+
+  if (!event?.id) return false
+  if (event.created_by === context.userId) return true
+
+  if (event.org_id) {
+    const { data: membership } = await context.supabase
+      .from('org_members')
+      .select('org_id')
+      .eq('org_id', event.org_id)
+      .eq('user_id', context.userId)
+      .maybeSingle()
+    if (membership?.org_id) return true
+  }
+
+  const { data: hasPermission } = await context.supabase.rpc('has_entity_permission', {
+    p_user_id: context.userId,
+    p_entity_type: 'Event',
+    p_entity_id: eventId,
+    p_permission_name: 'ASSIGN_EVENT_ROLES',
+  })
+
+  return Boolean(hasPermission)
+}
+
+export async function linkAcceptedArtistBookingToEvent(
+  row: BookingRow,
+  acceptedByUserId: string,
+): Promise<'linked' | 'not_linked' | 'failed'> {
+  if (!row.event_id || !row.artist_id || normalizeArtistBookingStatus(row.status) !== 'accepted')
+    return 'not_linked'
+
+  const service = getArtistBookingService()
+  const { data: event } = await service
+    .from('events_v2')
+    .select('id')
+    .eq('id', row.event_id)
+    .maybeSingle()
+  if (!event?.id) {
+    await service
+      .from('booking_requests')
+      .update({ event_collaboration_status: 'failed', event_collaboration_updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+    return 'failed'
+  }
+
+  const now = new Date().toISOString()
+  const participantId = row.artist_profile_id || row.artist_id
+
+  const participant = await service
+    .from('event_participants')
+    .upsert({
+      event_id: row.event_id,
+      participant_type: 'Artist',
+      participant_id: participantId,
+      role: 'artist',
+      status: 'accepted',
+      metadata: {
+        booking_request_id: row.id,
+        artist_user_id: row.artist_id,
+        artist_profile_id: row.artist_profile_id || null,
+      },
+    }, { onConflict: 'event_id,participant_type,participant_id' })
+
+  if (participant.error) {
+    await service
+      .from('booking_requests')
+      .update({ event_collaboration_status: 'failed', event_collaboration_updated_at: now })
+      .eq('id', row.id)
+    return 'failed'
+  }
+
+  const collaboratorPayload = {
+    event_id: row.event_id,
+    event_table: 'events_v2',
+    user_id: row.artist_id,
+    invited_by: row.requester_id || acceptedByUserId,
+    role: 'artist',
+    permissions: ARTIST_BOOKING_EVENT_PERMISSIONS,
+    status: 'accepted',
+    updated_at: now,
+  }
+
+  const collaborator = await service
+    .from('event_collaborators')
+    .upsert(collaboratorPayload, { onConflict: 'event_id,user_id,event_table' })
+
+  if (collaborator.error) {
+    await service
+      .from('booking_requests')
+      .update({ event_collaboration_status: 'failed', event_collaboration_updated_at: now })
+      .eq('id', row.id)
+    return 'failed'
+  }
+
+  await service
+    .from('booking_requests')
+    .update({ event_collaboration_status: 'linked', event_collaboration_updated_at: now })
+    .eq('id', row.id)
+
+  return 'linked'
 }

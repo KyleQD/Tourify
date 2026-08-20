@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818042043_event_promoter_hardening_rollout.sql",
+  "taskId": "EVENT-PROMOTER-P10",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "finance", "promoter-network", "rls", "observability"],
+  "riskLevel": "high",
+  "representativeSnapshot": { "kind": "Supabase project with promoter Phases 1-9 applied", "evidenceArtifact": null },
+  "preflight": {
+    "rowCountQueries": ["risk flags by event/status/severity", "payout batch outcomes by event", "promoter table grants/policies and existing Security Advisor findings"],
+    "expectedAffectedRows": "Creates empty risk-event and privacy-minimized operational telemetry tables; adds deny policies and no backfill.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Expand-only, idempotent object creation and function replacement. No destructive backfill is performed.",
+    "resumeCursor": "supabase migration version 20260818042043",
+    "idempotency": "Risk transitions lock one flag and append an immutable event. Operational telemetry is best-effort and never blocks financial work."
+  },
+  "quarantine": { "required": false, "table": null, "strategy": "Disable the relevant feature flag; preserve all financial, risk, and telemetry history for forward repair." },
+  "constraintsAndIndexes": {
+    "constraints": ["direct authenticated access is explicitly denied on sensitive promoter tables", "risk and telemetry metadata reject sensitive identifiers", "privileged risk and readiness functions are service_role only"],
+    "indexes": ["risk history by flag/time", "operational events by event/time and organization/type/time"],
+    "validationPlan": "Run the RLS regression SQL, admin persona matrix, allocation concurrency test, refund/reversal reconciliation, risk hold exclusion, failed batch retry, CSV export, and advisor review."
+  },
+  "recovery": { "rollback": "Disable feature flags; retain history.", "forwardFix": "Use additive policy/function changes and document any advisor exception." },
+  "postflight": {
+    "queries": ["run supabase/tests/promoter_network_rls_regression.sql", "review RLS policy inventory and grants", "confirm readiness RPC reports manual-only payouts", "review security and performance advisors"],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

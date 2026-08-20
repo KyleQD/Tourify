@@ -20,7 +20,6 @@ import type {
   WorkModeAssignment,
 } from "@/types/hiring-roster-work-mode"
 import type { HiringEntity } from "@/types/hiring-entity"
-import { mapRosterStatusToAssignment } from "@/lib/admin/workforce-assignment-status"
 import { canAssignWorkMode, canManageHiring } from "@/lib/auth/hiring-permissions"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
 import { resolveSchedulingOrgId } from "@/lib/hiring/resolve-scheduling-org-id"
@@ -234,11 +233,6 @@ function collectIds(values: Array<string | null | undefined>): string[] {
 
 function generateInvitationToken(): string {
   return crypto.randomUUID().replaceAll("-", "")
-}
-
-function assignmentStatusForRosterStatus(status?: RosterMemberStatus): EmploymentAssignmentRow["status"] | undefined {
-  // WORK-103 — canonical map shared with workforce-assignment-status.
-  return mapRosterStatusToAssignment(status)
 }
 
 function mergeProfileIntoRow(row: StaffMemberRow, profile?: Record<string, unknown>): StaffMemberRow {
@@ -715,45 +709,8 @@ export class HiringRosterService {
       memberId = data.id
     }
 
-    if (args.userId) {
-      const assignmentPayload = {
-        user_id: args.userId,
-        staff_member_id: memberId,
-        employer_entity_type: args.employer.entityType,
-        employer_entity_id: args.employer.entityId,
-        venue_id: venueId,
-        role_title: position,
-        position,
-        department,
-        permissions,
-        status: args.source === "manual" ? "active" : "invited",
-        source: args.source === "manual" ? "manual" : "hiring_onboarding",
-        updated_at: now,
-      }
-
-      const { data: existingAssignment } = await this.supabase
-        .from("employment_assignments")
-        .select("id")
-        .eq("user_id", args.userId)
-        .eq("employer_entity_type", args.employer.entityType)
-        .eq("employer_entity_id", args.employer.entityId)
-        .maybeSingle()
-
-      if (existingAssignment?.id) {
-        const { error } = await this.supabase
-          .from("employment_assignments")
-          .update(assignmentPayload)
-          .eq("id", existingAssignment.id)
-        if (error) throw new Error(error.message)
-      } else {
-        const { error } = await this.supabase.from("employment_assignments").insert({
-          ...assignmentPayload,
-          starts_at: args.source === "manual" ? now : null,
-          created_at: now,
-        })
-        if (error) throw new Error(error.message)
-      }
-    }
+    // A roster relationship is complete on staff_members. Operational assignments
+    // are created only when an event, tour, or shift is actually assigned.
 
     await this.supabase.from("hiring_audit_events").insert({
       employer_entity_type: args.employer.entityType,
@@ -835,8 +792,9 @@ export class HiringRosterService {
       if (args.department !== undefined) assignmentPayload.department = args.department
       if (args.permissions !== undefined || args.position !== undefined || args.department !== undefined)
         assignmentPayload.permissions = nextPermissions
-      const assignmentStatus = assignmentStatusForRosterStatus(args.status)
-      if (assignmentStatus) assignmentPayload.status = assignmentStatus
+      if (args.status && ["inactive", "suspended", "offboarded"].includes(args.status)) {
+        assignmentPayload.status = "cancelled"
+      }
 
       if (Object.keys(assignmentPayload).length > 1) {
         await this.supabase
@@ -935,10 +893,11 @@ export class HiringRosterService {
       // Keep employment_assignments in step with the roster assignment so
       // event/tour-scoped roster listings (which read this table) can see the member.
       const now = new Date().toISOString()
-      const assignmentUpdate = await this.supabase
+      let assignmentUpdateQuery = this.supabase
         .from("employment_assignments")
         .update({
           staff_member_id: args.memberId,
+          assignment_kind: "event",
           ...(args.eventId ? { event_id: args.eventId } : {}),
           ...(args.tourId ? { tour_id: args.tourId } : {}),
           updated_at: now,
@@ -946,7 +905,9 @@ export class HiringRosterService {
         .eq("user_id", memberRow.user_id)
         .eq("employer_entity_type", args.employer.entityType)
         .eq("employer_entity_id", args.employer.entityId)
-        .select("id")
+      if (args.eventId) assignmentUpdateQuery = assignmentUpdateQuery.eq("event_id", args.eventId)
+      if (args.tourId) assignmentUpdateQuery = assignmentUpdateQuery.eq("tour_id", args.tourId)
+      const assignmentUpdate = await assignmentUpdateQuery.select("id")
 
       if (!assignmentUpdate.error && (assignmentUpdate.data ?? []).length === 0) {
         // No existing assignment row — create one so the member is visible when
@@ -964,7 +925,8 @@ export class HiringRosterService {
           permissions: memberRow.permissions ?? null,
           status: "invited",
           source: "roster_assignment",
-          starts_at: now,
+          assignment_kind: "event",
+          starts_at: null,
           created_at: now,
           updated_at: now,
           ...(args.eventId ? { event_id: args.eventId } : {}),
@@ -1085,49 +1047,60 @@ export class HiringRosterService {
       await this.supabase.from("staff_members").update(optionalPayload).eq("id", memberId)
     }
 
-    const { data: existingAssignment } = await this.supabase
-      .from("employment_assignments")
-      .select("id, event_id, tour_id")
-      .eq("user_id", args.userId)
-      .eq("employer_entity_type", args.employer.entityType)
-      .eq("employer_entity_id", args.employer.entityId)
-      .maybeSingle()
+    const eventId = args.eventId ?? null
+    const tourId = args.tourId ?? null
 
-    const eventId = args.eventId ?? existingAssignment?.event_id ?? null
-    const tourId = args.tourId ?? existingAssignment?.tour_id ?? null
-
-    const assignmentPayload: Record<string, unknown> = {
-      user_id: args.userId,
-      staff_member_id: memberId,
-      employer_entity_type: args.employer.entityType,
-      employer_entity_id: args.employer.entityId,
-      venue_id: venueId,
-      role_title: position,
-      position,
-      department,
-      permissions,
-      status: completed ? "active" : "invited",
-      source: "hiring_onboarding",
-      updated_at: now,
-      ...(eventId ? { event_id: eventId } : {}),
-      ...(tourId ? { tour_id: tourId } : {}),
-    }
-
-    if (existingAssignment?.id) {
-      const { error: assignmentUpdateError } = await this.supabase
+    if (eventId || tourId) {
+      let existingAssignmentQuery = this.supabase
         .from("employment_assignments")
-        .update(assignmentPayload)
-        .eq("id", existingAssignment.id)
+        .select("id")
+        .eq("user_id", args.userId)
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId)
 
-      if (assignmentUpdateError) throw new Error(assignmentUpdateError.message)
-    } else {
-      const { error: assignmentInsertError } = await this.supabase.from("employment_assignments").insert({
-        ...assignmentPayload,
-        starts_at: now,
-        created_at: now,
-      })
+      if (args.jobApplicationId) {
+        existingAssignmentQuery = existingAssignmentQuery.eq("job_application_id", args.jobApplicationId)
+      } else {
+        if (eventId) existingAssignmentQuery = existingAssignmentQuery.eq("event_id", eventId)
+        if (tourId) existingAssignmentQuery = existingAssignmentQuery.eq("tour_id", tourId)
+      }
 
-      if (assignmentInsertError) throw new Error(assignmentInsertError.message)
+      const { data: existingAssignment, error: lookupError } = await existingAssignmentQuery
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (lookupError) throw new Error(lookupError.message)
+
+      const assignmentPayload: Record<string, unknown> = {
+        user_id: args.userId,
+        staff_member_id: memberId,
+        employer_entity_type: args.employer.entityType,
+        employer_entity_id: args.employer.entityId,
+        venue_id: venueId,
+        role_title: position,
+        position,
+        department,
+        permissions,
+        status: completed ? "active" : "invited",
+        source: "hiring_onboarding",
+        assignment_kind: "event",
+        job_application_id: args.jobApplicationId ?? null,
+        job_posting_id: args.jobPostingId ?? null,
+        event_id: eventId,
+        tour_id: tourId,
+        updated_at: now,
+      }
+
+      const assignmentMutation = existingAssignment?.id
+        ? this.supabase.from("employment_assignments").update(assignmentPayload).eq("id", existingAssignment.id)
+        : this.supabase.from("employment_assignments").insert({
+            ...assignmentPayload,
+            starts_at: null,
+            created_at: now,
+          })
+
+      const { error: assignmentError } = await assignmentMutation
+      if (assignmentError) throw new Error(assignmentError.message)
     }
 
     await this.supabase.from("hiring_audit_events").insert({

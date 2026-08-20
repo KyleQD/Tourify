@@ -38,6 +38,12 @@ describe("SEC-109 service role job", () => {
 
   it("allowlists named modules", () => {
     expect(isAllowedServiceRoleModule("admin.ticketing.refund")).toBe(true)
+    expect(isAllowedServiceRoleModule("admin.event-promoter.program")).toBe(true)
+    expect(isAllowedServiceRoleModule("admin.event-promoter.payout")).toBe(true)
+    expect(isAllowedServiceRoleModule("admin.event-promoter.investigation")).toBe(true)
+    expect(isAllowedServiceRoleModule("promoter.membership")).toBe(true)
+    expect(isAllowedServiceRoleModule("promoter.assets")).toBe(true)
+    expect(isAllowedServiceRoleModule("promoter.observability")).toBe(true)
     expect(isAllowedServiceRoleModule("random.module")).toBe(false)
   })
 

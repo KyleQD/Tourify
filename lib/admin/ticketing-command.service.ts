@@ -148,6 +148,10 @@ export async function executeTicketingCommand(args: {
       return generateReferralCodes(a)
     case "upsert_ticketing_config":
       return upsertTicketingConfig(a)
+    case "publish_ticket_sales":
+      return publishTicketSales(a)
+    case "unpublish_ticket_sales":
+      return unpublishTicketSales(a)
     case "reserve_inventory":
       return reserveInventoryCommand(a)
     case "release_inventory":
@@ -515,6 +519,7 @@ async function upsertTicketingConfig(args: {
   const { action: _a, reason, event_id, ...fields } = command
   const payload = {
     event_id,
+    org_id: args.orgId,
     ...fields,
     updated_at: new Date().toISOString(),
     created_by: args.userId,
@@ -544,6 +549,184 @@ async function upsertTicketingConfig(args: {
   })
 
   return { data: { config: data }, message: "Ticketing config saved" }
+}
+
+async function loadPublishReadiness(args: {
+  supabase: SupabaseLike
+  orgId: string
+  eventId: string
+}) {
+  await assertEventParent({ supabase: args.supabase, orgId: args.orgId, eventId: args.eventId })
+
+  const [{ data: config, error: configError }, { data: ticketTypes, error: typesError }] =
+    await Promise.all([
+      args.supabase
+        .from("event_ticketing_config")
+        .select("id,event_id,ticketing_enabled,sale_start,sale_end,terms_text,metadata,capacity")
+        .eq("event_id", args.eventId)
+        .maybeSingle(),
+      args.supabase
+        .from("ticket_types")
+        .select("id,quantity_available,is_active")
+        .eq("event_id", args.eventId)
+        .eq("is_active", true),
+    ])
+
+  if (configError)
+    throw new TicketingCommandError("db_error", "Unable to load ticketing config.", 503)
+  if (typesError)
+    throw new TicketingCommandError("db_error", "Unable to load ticket types.", 503)
+
+  return {
+    config,
+    ticketTypes: ticketTypes || [],
+  }
+}
+
+async function publishTicketSales(args: {
+  supabase: SupabaseLike
+  userId: string
+  orgId: string
+  command: Extract<TicketingCommand, { action: "publish_ticket_sales" }>
+  idempotencyKey?: string | null
+}) {
+  const { command } = args
+  const { config, ticketTypes } = await loadPublishReadiness({
+    supabase: args.supabase,
+    orgId: args.orgId,
+    eventId: command.event_id,
+  })
+
+  if (!config) {
+    throw new TicketingCommandError(
+      "config_required",
+      "Create ticketing setup before publishing sales.",
+      422,
+    )
+  }
+
+  if (ticketTypes.length === 0) {
+    throw new TicketingCommandError(
+      "ticket_types_required",
+      "Add at least one active ticket type before publishing sales.",
+      422,
+    )
+  }
+
+  const activeCapacity = ticketTypes.reduce(
+    (sum: number, row: any) => sum + Number(row.quantity_available || 0),
+    0,
+  )
+  if (activeCapacity <= 0) {
+    throw new TicketingCommandError(
+      "inventory_required",
+      "Active ticket types must have available inventory before publishing.",
+      422,
+    )
+  }
+
+  assertDateOrder(config.sale_start, config.sale_end, "Sale")
+  const now = Date.now()
+  if (config.sale_end && now > new Date(config.sale_end).getTime()) {
+    throw new TicketingCommandError(
+      "sales_window_closed",
+      "Sales end date is already in the past.",
+      422,
+    )
+  }
+
+  const termsText = typeof config.terms_text === "string" ? config.terms_text.trim() : ""
+  if (!termsText && !command.terms_waived && !config.metadata?.terms_waived) {
+    throw new TicketingCommandError(
+      "terms_required",
+      "Publish organizer terms or explicitly waive them before publishing.",
+      422,
+    )
+  }
+
+  const metadata = {
+    ...(config.metadata || {}),
+    terms_waived: Boolean(command.terms_waived || config.metadata?.terms_waived),
+    published_by: args.userId,
+    published_at: new Date().toISOString(),
+  }
+
+  const { data, error } = await args.supabase
+    .from("event_ticketing_config")
+    .update({
+      ticketing_enabled: true,
+      org_id: args.orgId,
+      metadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("event_id", command.event_id)
+    .select("*")
+    .single()
+
+  if (error || !data)
+    throw new TicketingCommandError("db_error", "Failed to publish ticket sales.", 503)
+
+  await logAuditEvent({
+    actorId: args.userId,
+    orgId: args.orgId,
+    action: "publish",
+    entityType: "ticket",
+    entityId: data.id,
+    newValues: {
+      event_id: command.event_id,
+      kind: "ticket_sales_publish",
+      reason: command.reason,
+      terms_waived: command.terms_waived,
+      active_ticket_types: ticketTypes.length,
+      active_capacity: activeCapacity,
+      idempotency_key: args.idempotencyKey ?? null,
+    },
+  })
+
+  return { data: { config: data }, message: "Ticket sales published" }
+}
+
+async function unpublishTicketSales(args: {
+  supabase: SupabaseLike
+  userId: string
+  orgId: string
+  command: Extract<TicketingCommand, { action: "unpublish_ticket_sales" }>
+  idempotencyKey?: string | null
+}) {
+  const { command } = args
+  await assertEventParent({ supabase: args.supabase, orgId: args.orgId, eventId: command.event_id })
+
+  const { data, error } = await args.supabase
+    .from("event_ticketing_config")
+    .update({
+      ticketing_enabled: false,
+      org_id: args.orgId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("event_id", command.event_id)
+    .select("*")
+    .maybeSingle()
+
+  if (error)
+    throw new TicketingCommandError("db_error", "Failed to unpublish ticket sales.", 503)
+  if (!data)
+    throw new TicketingCommandError("config_required", "Ticketing setup not found.", 404)
+
+  await logAuditEvent({
+    actorId: args.userId,
+    orgId: args.orgId,
+    action: "unpublish",
+    entityType: "ticket",
+    entityId: data.id,
+    newValues: {
+      event_id: command.event_id,
+      kind: "ticket_sales_unpublish",
+      reason: command.reason,
+      idempotency_key: args.idempotencyKey ?? null,
+    },
+  })
+
+  return { data: { config: data }, message: "Ticket sales unpublished" }
 }
 
 async function loadTicketTypeEventId(supabase: SupabaseLike, ticketTypeId: string) {

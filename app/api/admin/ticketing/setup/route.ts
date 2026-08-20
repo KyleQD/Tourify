@@ -13,8 +13,8 @@ export const GET = withAdminCapability(
       const eventId = request.nextUrl.searchParams.get("event_id")
 
       let query = supabase
-        .from("event_ticketing_configs")
-        .select("id, event_id, org_id, capacity_source, total_capacity, currency, sales_open_at, sales_close_at, is_ticketed, ticket_types, tax_fee_policies, created_at, updated_at")
+        .from("event_ticketing_config")
+        .select("id, event_id, org_id, capacity, currency, sale_start, sale_end, ticketing_enabled, terms_text, refund_policy, transfer_policy, tax_enabled, tax_rate, created_at, updated_at")
         .eq("org_id", orgId)
         .order("created_at", { ascending: false })
         .limit(20)
@@ -39,14 +39,20 @@ export const GET = withAdminCapability(
         return {
           id: String(r.id), eventId: String(r.event_id ?? ""),
           orgId: String(r.org_id),
-          capacitySource: String(r.capacity_source ?? "manual"),
-          totalCapacity: Number(r.total_capacity ?? 0),
+          capacitySource: "event_ticketing_config",
+          totalCapacity: Number(r.capacity ?? 0),
           currency: String(r.currency ?? "USD"),
-          salesOpenAt: r.sales_open_at ? String(r.sales_open_at) : null,
-          salesCloseAt: r.sales_close_at ? String(r.sales_close_at) : null,
-          isTicketed: Boolean(r.is_ticketed),
-          ticketTypes: Array.isArray(r.ticket_types) ? r.ticket_types : [],
-          taxFeePolicies: Array.isArray(r.tax_fee_policies) ? r.tax_fee_policies : [],
+          salesOpenAt: r.sale_start ? String(r.sale_start) : null,
+          salesCloseAt: r.sale_end ? String(r.sale_end) : null,
+          isTicketed: Boolean(r.ticketing_enabled),
+          ticketTypes: [],
+          taxFeePolicies: [{
+            taxEnabled: Boolean(r.tax_enabled),
+            taxRate: Number(r.tax_rate ?? 0),
+          }],
+          termsPresent: typeof r.terms_text === "string" && r.terms_text.trim().length > 0,
+          refundPolicy: typeof r.refund_policy === "string" ? r.refund_policy : null,
+          transferPolicy: typeof r.transfer_policy === "string" ? r.transfer_policy : null,
         }
       })
 

@@ -138,6 +138,27 @@ export async function issueTicketsForOrder(params: IssueTicketsParams): Promise<
     }
   }
 
+  if (isComplimentary) {
+    const { data: eventRow } = await supabase
+      .from('events_v2')
+      .select('org_id')
+      .eq('id', eventId)
+      .maybeSingle()
+
+    await supabase.from('ticketing_inventory_ledger').insert({
+      org_id: eventRow?.org_id ?? null,
+      event_id: eventId,
+      ticket_type_id: ticketTypeId,
+      movement_type: 'comp',
+      quantity,
+      source_entity_type: allocationId ? 'allocation' : 'order',
+      source_entity_id: allocationId ?? orderId,
+      actor_user_id: actorUserId ?? ownerUserId ?? null,
+      reason: allocationId ? 'allocation_comp_issued' : 'complimentary_ticket_issued',
+      idempotency_key: `comp:${orderId}:${allocationId ?? 'order'}`,
+    })
+  }
+
   return issued
 }
 

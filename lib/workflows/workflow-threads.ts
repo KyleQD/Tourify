@@ -25,6 +25,13 @@ export async function ensureThreadForScope({
   userId,
   title,
 }: EnsureThreadForScopeInput): Promise<WorkflowThreadRecord> {
+  let resolvedOrgId = orgId ?? null
+  if (!resolvedOrgId) {
+    const { data: parent } = scopeType === 'tour'
+      ? await supabase.from('tours').select('org_id').eq('id', scopeId).maybeSingle()
+      : await supabase.from('events_v2').select('org_id').eq('id', scopeId).maybeSingle()
+    resolvedOrgId = parent?.org_id ?? null
+  }
   const { data: existing, error: existingError } = await supabase
     .from('workflow_threads')
     .select('id, scope_type, scope_id, org_id, status')
@@ -33,14 +40,26 @@ export async function ensureThreadForScope({
     .maybeSingle()
 
   if (existingError) throw existingError
-  if (existing) return existing as WorkflowThreadRecord
+  if (existing) {
+    if (!existing.org_id && resolvedOrgId) {
+      const { data: healed, error: healError } = await supabase
+        .from('workflow_threads')
+        .update({ org_id: resolvedOrgId, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select('id, scope_type, scope_id, org_id, status')
+        .single()
+      if (healError) throw healError
+      return healed as WorkflowThreadRecord
+    }
+    return existing as WorkflowThreadRecord
+  }
 
   const { data: created, error: createError } = await supabase
     .from('workflow_threads')
     .insert({
       scope_type: scopeType,
       scope_id: scopeId,
-      org_id: orgId ?? null,
+      org_id: resolvedOrgId,
       created_by: userId ?? null,
       title: title ?? `${scopeType} workflow`,
       status: 'active',

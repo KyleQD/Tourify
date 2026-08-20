@@ -126,7 +126,7 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
   if (args.tourId) {
     const { data: tourMembers } = await args.supabase
       .from("tour_team_members")
-      .select("id, user_id, name, email, contact_email, role, status")
+      .select("id, user_id, staff_member_id, name, email, contact_email, role, status")
       .eq("tour_id", args.tourId)
       .eq("is_active", true)
       .limit(limit)
@@ -140,7 +140,7 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
         email: row.email || row.contact_email || null,
         role: row.role ?? "Crew",
         status: row.status ?? null,
-        staffMemberId: null,
+        staffMemberId: row.staff_member_id ?? null,
         source: "tour_team_members",
       })
     }

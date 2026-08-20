@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   AlertCircle,
   ArrowRight,
@@ -10,36 +11,47 @@ import {
   Check,
   ExternalLink,
   Loader2,
+  Play,
   RefreshCw,
   ShieldCheck,
   X,
 } from "lucide-react"
 
 import { useWorkMode } from "@/hooks/use-work-mode"
-import { WORK_MODE_VIEWS, type WorkModeView } from "@/lib/work-mode/navigation"
+import {
+  WORK_MODE_PRIMARY_VIEWS,
+  WORK_MODE_SECONDARY_VIEWS,
+  type WorkModeView,
+} from "@/lib/work-mode/navigation"
 import { trackUxEvent } from "@/lib/ux/client-telemetry"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
   WorkModeAssignmentListItem,
   WorkModePublication,
 } from "@/types/hiring-roster-work-mode"
+import type { WorkerTask, WorkHubPayload } from "@/types/work-hub"
 
 interface WorkModeWorkspaceProps {
   view: WorkModeView
   initialAssignmentId: string | null
 }
 
-function formatDateTime(value: string | null): string {
-  if (!value) return "Time not published"
+function formatDateTime(value: string | null, timeZone?: string | null): string {
+  if (!value) return "Schedule pending"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "Time unavailable"
-  return new Intl.DateTimeFormat(undefined, {
+  const options: Intl.DateTimeFormatOptions = {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(date)
+  }
+  if (timeZone) {
+    options.timeZone = timeZone
+  }
+  return new Intl.DateTimeFormat(undefined, options).format(date)
 }
 
 function statusClass(status: WorkModeAssignmentListItem["status"]): string {
@@ -65,6 +77,15 @@ function UnavailablePanel({
         <CardDescription className="text-slate-400">{description}</CardDescription>
       </CardHeader>
     </Card>
+  )
+}
+
+function PlanField({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="rounded-lg bg-slate-800/70 p-3">
+      <dt className="text-slate-400">{label}</dt>
+      <dd className="mt-1 font-medium text-slate-100">{value || "Not shared yet"}</dd>
+    </div>
   )
 }
 
@@ -96,7 +117,7 @@ function PublicationList({
                 </Badge>
               </div>
               <p className="mt-1 text-sm text-slate-400">
-                Published {formatDateTime(publication.publishedAt)}
+                Published {formatDateTime(publication.publishedAt)} · Version {publication.version}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -108,7 +129,7 @@ function PublicationList({
                   </Link>
                 </Button>
               ) : null}
-              {onAcknowledge ? (
+              {onAcknowledge && publication.requiresAcknowledgement && !publication.acknowledgedAt ? (
                 <Button
                   type="button"
                   size="sm"
@@ -122,6 +143,10 @@ function PublicationList({
                   )}
                   Acknowledge
                 </Button>
+              ) : publication.requiresAcknowledgement ? (
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-200">
+                  Acknowledged
+                </Badge>
               ) : null}
             </div>
           </CardContent>
@@ -135,12 +160,16 @@ export function WorkModeWorkspace({
   view,
   initialAssignmentId,
 }: WorkModeWorkspaceProps) {
+  const router = useRouter()
   const {
     assignments,
     publications,
     activeAssignment,
     isLoading,
     error,
+    isUsingCachedSnapshot,
+    lastSyncedAt,
+    isOnline,
     activateWorkMode,
     confirmAssignment,
     declineAssignment,
@@ -151,6 +180,13 @@ export function WorkModeWorkspace({
   const [respondingId, setRespondingId] = useState<string | null>(null)
   const [workerActionId, setWorkerActionId] = useState<string | null>(null)
   const [responseMessage, setResponseMessage] = useState<string | null>(null)
+  const [workTasks, setWorkTasks] = useState<WorkerTask[]>([])
+  const [taskActionId, setTaskActionId] = useState<string | null>(null)
+  const [blockedReasons, setBlockedReasons] = useState<Record<string, string>>({})
+  const invalidAssignment =
+    Boolean(initialAssignmentId) &&
+    !isLoading &&
+    !assignments.some((assignment) => assignment.id === initialAssignmentId)
 
   useEffect(() => {
     if (
@@ -171,6 +207,24 @@ export function WorkModeWorkspace({
       context: { hasAssignment: Boolean(activeAssignment) },
     })
   }, [activeAssignment, initialAssignmentId, view])
+
+  useEffect(() => {
+    if (view !== "tasks") return
+    let cancelled = false
+    void fetch("/api/work-hub", { credentials: "include", cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { data?: WorkHubPayload }) => {
+        if (cancelled) return
+        const tasks = (payload.data?.engagements ?? []).flatMap((engagement) => engagement.tasks)
+        setWorkTasks(tasks.filter((task) =>
+          !activeAssignment ||
+          (task.tourId && task.tourId === activeAssignment.tourId) ||
+          (task.eventId && task.eventId === activeAssignment.eventId)
+        ))
+      })
+      .catch(() => { if (!cancelled) setWorkTasks([]) })
+    return () => { cancelled = true }
+  }, [activeAssignment, view])
 
   const scopedPublications = useMemo(
     () =>
@@ -262,10 +316,34 @@ export function WorkModeWorkspace({
     setWorkerActionId(null)
   }
 
+  async function runTaskAction(task: WorkerTask, action: "acknowledge" | "start" | "complete" | "block") {
+    const blockedReason = action === "block" ? blockedReasons[task.id]?.trim() : undefined
+    if (action === "block" && !blockedReason) return
+    setTaskActionId(task.id)
+    setResponseMessage(null)
+    try {
+      const response = await fetch(`/api/work/tasks/${encodeURIComponent(task.id)}/actions`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, blockedReason }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || "The task could not be updated.")
+      setWorkTasks((current) => current.map((item) => item.id === task.id ? { ...item, state: action === "acknowledge" ? "acknowledged" : action === "start" ? "doing" : action === "complete" ? "done" : "blocked", blockedReason: action === "block" ? blockedReason || null : null } : item))
+      if (action === "block") setBlockedReasons((current) => ({ ...current, [task.id]: "" }))
+      setResponseMessage(action === "complete" ? "Task completed." : action === "block" ? "Task marked blocked." : action === "start" ? "Task started." : "Task acknowledged.")
+    } catch (caught) { setResponseMessage(caught instanceof Error ? caught.message : "The task could not be updated.") }
+    finally { setTaskActionId(null) }
+  }
+
   function publicationsFor(...types: string[]) {
     return scopedPublications.filter((publication) =>
       types.includes(publication.publicationType),
     )
+  }
+
+  function openAssignment(assignmentId: string, targetView: WorkModeView = "today") {
+    activateWorkMode(assignmentId)
+    router.push(`/work/${targetView}?assignment=${encodeURIComponent(assignmentId)}`)
   }
 
   if (isLoading) {
@@ -283,7 +361,7 @@ export function WorkModeWorkspace({
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-slate-950 px-4 py-5 text-slate-100 sm:px-6">
       <div className="mx-auto max-w-7xl">
-        <header className="rounded-xl border border-cyan-400/20 bg-slate-900/80 p-5 shadow-sm">
+        <header className="border-b border-slate-800 pb-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-cyan-300">
@@ -295,17 +373,52 @@ export function WorkModeWorkspace({
               </h1>
               <p className="mt-1 text-sm text-slate-400">
                 {activeAssignment
-                  ? `${activeAssignment.department || "Crew"} · ${formatDateTime(activeAssignment.startsAt)}`
+                  ? [
+                      activeAssignment.eventTitle,
+                      activeAssignment.department || "Crew",
+                      formatDateTime(activeAssignment.startsAt, activeAssignment.timezone),
+                    ].filter(Boolean).join(" · ")
                   : "Your employer-published schedule and event information appears here."}
               </p>
+              {activeAssignment?.venueLabel ? (
+                <p className="mt-1 text-sm text-slate-500">{activeAssignment.venueLabel}</p>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {assignments.length > 1 ? (
+                <label className="sr-only" htmlFor="work-mode-assignment">
+                  Switch assignment
+                </label>
+              ) : null}
+              {assignments.length > 1 ? (
+                <select
+                  id="work-mode-assignment"
+                  className="h-9 max-w-56 rounded-md border border-slate-700 bg-slate-900 px-2 text-sm text-slate-100"
+                  value={activeAssignment?.id ?? ""}
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      openAssignment(event.target.value, view === "assignments" ? "today" : view)
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    Choose assignment
+                  </option>
+                  {assignments
+                    .filter((assignment) => assignment.status !== "completed" && assignment.status !== "cancelled")
+                    .map((assignment) => (
+                      <option key={assignment.id} value={assignment.id}>
+                        {assignment.roleTitle}{assignment.eventTitle ? ` — ${assignment.eventTitle}` : ""}
+                      </option>
+                    ))}
+                </select>
+              ) : null}
               {activeAssignment ? (
                 <Badge variant="outline" className={statusClass(activeAssignment.status)}>
                   {activeAssignment.status}
                 </Badge>
               ) : null}
-              <Button variant="outline" size="sm" onClick={refreshAssignments}>
+              <Button variant="outline" size="sm" className="min-h-11" onClick={refreshAssignments}>
                 <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
                 Refresh
               </Button>
@@ -326,6 +439,54 @@ export function WorkModeWorkspace({
           </div>
         ) : null}
 
+        {isUsingCachedSnapshot ? (
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4"
+            role="status"
+          >
+            <AlertCircle className="mt-0.5 h-5 w-5 text-amber-300" aria-hidden="true" />
+            <div>
+              <p className="font-medium text-amber-100">Showing your last saved event-day details</p>
+              <p className="text-sm text-amber-100/80">
+                {lastSyncedAt
+                  ? `Saved ${formatDateTime(lastSyncedAt)}. `
+                  : ""}
+                Refresh when you are back online for the latest schedule and packets. Check-in and check-out always require a live confirmation.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {!isOnline ? (
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4"
+            role="status"
+          >
+            <AlertCircle className="mt-0.5 h-5 w-5 text-amber-300" aria-hidden="true" />
+            <div>
+              <p className="font-medium text-amber-100">You’re offline</p>
+              <p className="text-sm text-amber-100/80">
+                Saved schedule and packet details remain available. Check-in and check-out will stay unavailable until you reconnect.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {invalidAssignment ? (
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4"
+            role="status"
+          >
+            <AlertCircle className="mt-0.5 h-5 w-5 text-amber-300" aria-hidden="true" />
+            <div>
+              <p className="font-medium text-amber-100">Assignment unavailable</p>
+              <p className="text-sm text-amber-100/80">
+                This assignment is expired, cancelled, or no longer available to your account.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {responseMessage ? (
           <div
             className="mt-4 flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4"
@@ -340,7 +501,7 @@ export function WorkModeWorkspace({
           className="mt-4 flex gap-2 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/70 p-2"
           aria-label="Work Mode sections"
         >
-          {WORK_MODE_VIEWS.map((item) => {
+          {WORK_MODE_PRIMARY_VIEWS.map((item) => {
             const Icon = item.icon
             const isActive = view === item.id
             const query = activeAssignment ? `?assignment=${activeAssignment.id}` : ""
@@ -350,7 +511,7 @@ export function WorkModeWorkspace({
                 asChild
                 size="sm"
                 variant={isActive ? "default" : "ghost"}
-                className={isActive ? "bg-cyan-600 text-white hover:bg-cyan-500" : "text-slate-300"}
+                className={isActive ? "min-h-11 bg-cyan-600 text-white hover:bg-cyan-500" : "min-h-11 text-slate-300"}
               >
                 <Link href={`/work/${item.id}${query}`} aria-current={isActive ? "page" : undefined}>
                   <Icon className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -380,8 +541,15 @@ export function WorkModeWorkspace({
                         <div>
                           <CardTitle className="text-slate-100">{assignment.roleTitle}</CardTitle>
                           <CardDescription className="text-slate-400">
-                            {assignment.department || "Crew"} · {formatDateTime(assignment.startsAt)}
+                            {[
+                              assignment.eventTitle,
+                              assignment.department || "Crew",
+                              formatDateTime(assignment.startsAt),
+                            ].filter(Boolean).join(" · ")}
                           </CardDescription>
+                          {assignment.venueLabel ? (
+                            <p className="mt-1 text-sm text-slate-500">{assignment.venueLabel}</p>
+                          ) : null}
                         </div>
                         <Badge variant="outline" className={statusClass(assignment.status)}>
                           {assignment.status}
@@ -412,7 +580,7 @@ export function WorkModeWorkspace({
                           </Button>
                         </>
                       ) : (
-                        <Button onClick={() => activateWorkMode(assignment.id)}>
+                        <Button onClick={() => openAssignment(assignment.id)}>
                           Open assignment
                           <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                         </Button>
@@ -438,13 +606,37 @@ export function WorkModeWorkspace({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-                    <div className="rounded-lg bg-slate-800/70 p-3">
-                      <p className="text-slate-400">Starts</p>
-                      <p className="mt-1 font-medium">{formatDateTime(activeAssignment.startsAt)}</p>
-                    </div>
-                    <div className="rounded-lg bg-slate-800/70 p-3">
-                      <p className="text-slate-400">Ends</p>
-                      <p className="mt-1 font-medium">{formatDateTime(activeAssignment.endsAt)}</p>
+                    {activeAssignment.startsAt || activeAssignment.endsAt ? (
+                      <>
+                        <div className="rounded-lg bg-slate-800/70 p-3">
+                          <p className="text-slate-400">Call time</p>
+                          <p className="mt-1 font-medium">
+                            {formatDateTime(activeAssignment.startsAt, activeAssignment.timezone)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-slate-800/70 p-3">
+                          <p className="text-slate-400">Shift end</p>
+                          <p className="mt-1 font-medium">
+                            {formatDateTime(activeAssignment.endsAt, activeAssignment.timezone)}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-slate-700 p-3 sm:col-span-2">
+                        <p className="font-medium text-slate-100">Schedule pending</p>
+                        <p className="mt-1 text-slate-400">
+                          Your assignment is confirmed, but your employer has not published a call time yet.
+                        </p>
+                      </div>
+                    )}
+                    <div className="rounded-lg bg-slate-800/70 p-3 sm:col-span-2">
+                      <p className="text-slate-400">Reporting location</p>
+                      <p className="mt-1 font-medium">
+                        {activeAssignment.venueLabel || "Location not published yet"}
+                      </p>
+                      {activeAssignment.timezone ? (
+                        <p className="mt-1 text-xs text-slate-400">Event timezone: {activeAssignment.timezone}</p>
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
@@ -471,6 +663,57 @@ export function WorkModeWorkspace({
                     ) : null}
                   </CardContent>
                 </Card>
+                {activeAssignment.sharedShiftPlan ? (
+                  <Card className="border-slate-800 bg-slate-900/70 lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="text-slate-100">Shift briefing</CardTitle>
+                      <CardDescription className="text-slate-400">
+                        Worker-visible instructions published with this shared shift.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                        <PlanField label="Reporting location" value={[activeAssignment.sharedShiftPlan.reportingName, activeAssignment.sharedShiftPlan.reportingAddress].filter(Boolean).join(" · ")} />
+                        <PlanField label="Directions" value={activeAssignment.sharedShiftPlan.directions} />
+                        <PlanField label="Access instructions" value={activeAssignment.sharedShiftPlan.accessInstructions} />
+                        <PlanField label="Supervisor" value={[activeAssignment.sharedShiftPlan.supervisorName, activeAssignment.sharedShiftPlan.supervisorContact].filter(Boolean).join(" · ")} />
+                        <PlanField label="Break requirements" value={activeAssignment.sharedShiftPlan.breakRequirements || `${activeAssignment.sharedShiftPlan.breakDurationMinutes} minutes`} />
+                        <PlanField label="Attire / PPE / credentials" value={activeAssignment.sharedShiftPlan.attirePpeCredentials} />
+                        <PlanField label="Worker instructions" value={activeAssignment.sharedShiftPlan.workerInstructions} />
+                        <PlanField label="Hazards" value={activeAssignment.sharedShiftPlan.hazards} />
+                        <PlanField label="Emergency procedure" value={activeAssignment.sharedShiftPlan.emergencyProcedure} />
+                        <PlanField label="Emergency contact" value={activeAssignment.sharedShiftPlan.emergencyContact} />
+                        <PlanField label="Attachments" value={activeAssignment.sharedShiftPlan.attachments.length ? `${activeAssignment.sharedShiftPlan.attachments.length} shared` : null} />
+                      </dl>
+                    </CardContent>
+                  </Card>
+                ) : null}
+                <Card className="border-slate-800 bg-slate-900/70 lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="text-slate-100">Right now</CardTitle>
+                    <CardDescription className="text-slate-400">
+                      {activeAssignment.attendance.state === "checked_in"
+                        ? "You are checked in. Check out when your supervisor releases you."
+                        : activeAssignment.attendance.state === "checked_out"
+                          ? "Your check-out has been recorded."
+                          : "Review updates and complete the next required action."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    {workerActionsAvailable && isOnline && activeAssignment.permissions.check_in_out && activeAssignment.attendance.state === "not_checked_in" ? (
+                      <Button className="min-h-11" type="button" onClick={() => void runWorkerAction({ action: "check_in" })} disabled={workerActionId !== null}>
+                        Check in
+                      </Button>
+                    ) : null}
+                    {workerActionsAvailable && isOnline && activeAssignment.permissions.check_in_out && activeAssignment.attendance.state === "checked_in" ? (
+                      <Button className="min-h-11" type="button" onClick={() => void runWorkerAction({ action: "check_out" })} disabled={workerActionId !== null}>
+                        Check out
+                      </Button>
+                    ) : null}
+                    <Button asChild variant="outline"><Link href={`/work/schedule?assignment=${activeAssignment.id}`}>View schedule</Link></Button>
+                    <Button asChild variant="outline"><Link href={`/work/maps?assignment=${activeAssignment.id}`}>View map</Link></Button>
+                  </CardContent>
+                </Card>
                 <div className="lg:col-span-2">
                   <h2 className="mb-3 text-lg font-semibold">Latest updates</h2>
                   <PublicationList
@@ -481,23 +724,151 @@ export function WorkModeWorkspace({
               </div>
             ) : null}
 
+            {view === "assignments" ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                {assignments.map((assignment) => (
+                  <Card key={assignment.id} className="border-slate-800 bg-slate-900/70">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-slate-100">{assignment.roleTitle}</CardTitle>
+                          <CardDescription className="text-slate-400">
+                            {[
+                              assignment.eventTitle,
+                              assignment.department || "Crew",
+                              formatDateTime(assignment.startsAt),
+                            ].filter(Boolean).join(" · ")}
+                          </CardDescription>
+                        </div>
+                        <Badge variant="outline" className={statusClass(assignment.status)}>
+                          {assignment.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      <Button onClick={() => openAssignment(assignment.id)}>
+                        Open
+                        <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      {assignment.status === "invited" ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => respond(assignment.id, "accept")}
+                            disabled={respondingId === assignment.id}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => respond(assignment.id, "decline")}
+                            disabled={respondingId === assignment.id}
+                          >
+                            Decline
+                          </Button>
+                        </>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ))}
+                {assignments.length === 0 ? (
+                  <UnavailablePanel
+                    title="No active assignments"
+                    description="Accepted jobs and published shifts will appear here."
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
+            {view === "packets" ? (
+              <PublicationList
+                publications={scopedPublications}
+                emptyMessage="Published advances, day sheets, maps, and broadcasts will appear here."
+                onAcknowledge={
+                  workerActionsAvailable
+                    ? (publicationId) =>
+                        void runWorkerAction({ action: "acknowledge", publicationId })
+                    : undefined
+                }
+                acknowledgingId={workerActionId}
+              />
+            ) : null}
+
+            {view === "more" ? (
+              <div className="grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
+                <Card className="border-slate-800 bg-slate-900/70">
+                  <CardHeader>
+                    <CardTitle className="text-slate-100">More packet views</CardTitle>
+                    <CardDescription className="text-slate-400">
+                      These views stay available for direct links while richer producers come online.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-2">
+                    {WORK_MODE_SECONDARY_VIEWS.map((item) => {
+                      const Icon = item.icon
+                      const query = activeAssignment ? `?assignment=${activeAssignment.id}` : ""
+                      return (
+                        <Button key={item.id} asChild variant="outline" className="justify-start">
+                          <Link href={`/work/${item.id}${query}`}>
+                            <Icon className="mr-2 h-4 w-4" aria-hidden="true" />
+                            {item.label}
+                          </Link>
+                        </Button>
+                      )
+                    })}
+                  </CardContent>
+                </Card>
+                <PublicationList
+                  publications={scopedPublications}
+                  emptyMessage="No additional work packets have been published for this assignment."
+                />
+              </div>
+            ) : null}
+
             {view === "schedule" ? (
               <Card className="border-slate-800 bg-slate-900/70">
                 <CardHeader>
                   <CardTitle className="text-slate-100">Published schedule</CardTitle>
                   <CardDescription className="text-slate-400">
-                    Times shown in your device timezone. Conflicts are not inferred.
+                    {activeAssignment.timezone
+                      ? `Times are shown in the event timezone: ${activeAssignment.timezone}.`
+                      : "Your employer has not published an event timezone."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border border-slate-800 p-4">
-                    <p className="text-sm text-slate-400">Start</p>
-                    <p className="mt-1 font-medium">{formatDateTime(activeAssignment.startsAt)}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-800 p-4">
-                    <p className="text-sm text-slate-400">End</p>
-                    <p className="mt-1 font-medium">{formatDateTime(activeAssignment.endsAt)}</p>
-                  </div>
+                  {activeAssignment.startsAt || activeAssignment.endsAt ? (
+                    <>
+                      <div className="rounded-lg border border-slate-800 p-4">
+                        <p className="text-sm text-slate-400">Start</p>
+                        <p className="mt-1 font-medium">
+                          {formatDateTime(activeAssignment.startsAt, activeAssignment.timezone)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-slate-800 p-4">
+                        <p className="text-sm text-slate-400">End</p>
+                        <p className="mt-1 font-medium">
+                          {formatDateTime(activeAssignment.endsAt, activeAssignment.timezone)}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-700 p-4 sm:col-span-2">
+                      <p className="font-medium text-slate-100">Schedule pending</p>
+                      <p className="mt-1 text-sm text-slate-400">No call or end time has been published for this assignment.</p>
+                    </div>
+                  )}
+                  {activeAssignment.schedule ? (
+                    <div className="rounded-lg border border-slate-800 p-4 sm:col-span-2">
+                      <p className="font-medium text-slate-100">Shift details</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {activeAssignment.schedule.date} · {activeAssignment.schedule.startTime}–{activeAssignment.schedule.endTime}
+                        {activeAssignment.schedule.zone ? ` · ${activeAssignment.schedule.zone}` : ""}
+                      </p>
+                      {activeAssignment.schedule.notes ? (
+                        <p className="mt-2 text-sm text-slate-300">{activeAssignment.schedule.notes}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             ) : null}
@@ -535,10 +906,7 @@ export function WorkModeWorkspace({
             ) : null}
 
             {view === "tasks" ? (
-              <PublicationList
-                publications={publicationsFor("task", "tasks", "task_list", "run_of_show")}
-                emptyMessage="No assignment-scoped task list has been published."
-              />
+              workTasks.length ? <div className="grid gap-3">{workTasks.map((task) => <Card key={task.id} className="border-slate-800 bg-slate-900/70"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-slate-100">{task.title}</CardTitle><CardDescription className="mt-1 text-slate-400">{[task.tourName, task.eventName, task.shiftTitle, task.dueAt ? `Due ${formatDateTime(task.dueAt)}` : null].filter(Boolean).join(" · ")}</CardDescription></div><Badge variant="outline" className="capitalize">{task.state.replaceAll("_", " ")}</Badge></div></CardHeader><CardContent><p className="text-sm text-slate-300">{task.description || "No additional instructions were shared."}</p>{task.blockedReason ? <p className="mt-2 text-sm text-rose-200">Blocked: {task.blockedReason}</p> : null}<div className="mt-4 flex flex-wrap gap-2">{task.state === "assigned" ? <Button className="min-h-11" disabled={taskActionId === task.id} onClick={() => void runTaskAction(task, "acknowledge")}><Check className="mr-2 h-4 w-4" />Acknowledge</Button> : null}{["acknowledged", "blocked"].includes(task.state) ? <Button className="min-h-11" disabled={taskActionId === task.id} onClick={() => void runTaskAction(task, "start")}><Play className="mr-2 h-4 w-4" />Start</Button> : null}{["acknowledged", "doing", "blocked"].includes(task.state) ? <Button className="min-h-11" variant="outline" disabled={taskActionId === task.id} onClick={() => void runTaskAction(task, "complete")}><Check className="mr-2 h-4 w-4" />Complete</Button> : null}{["acknowledged", "doing"].includes(task.state) ? <label className="min-w-60 flex-1 text-xs text-slate-400">Block reason<Input className="mt-1 min-h-11 border-slate-700 bg-slate-950" value={blockedReasons[task.id] ?? ""} onChange={(event) => setBlockedReasons((current) => ({ ...current, [task.id]: event.target.value }))} placeholder="What is preventing progress?" /></label> : null}{["acknowledged", "doing"].includes(task.state) ? <Button className="min-h-11 self-end" variant="outline" disabled={taskActionId === task.id || !(blockedReasons[task.id] ?? "").trim()} onClick={() => void runTaskAction(task, "block")}><AlertCircle className="mr-2 h-4 w-4" />Block</Button> : null}</div></CardContent></Card>)}</div> : <UnavailablePanel title="No tasks assigned" description="Tour, event, and shift tasks assigned to you will appear here." />
             ) : null}
             {view === "documents" ? (
               <PublicationList
@@ -565,7 +933,12 @@ export function WorkModeWorkspace({
               />
             ) : null}
             {view === "check-in" ? (
-              workerActionsAvailable && activeAssignment.permissions.check_in_out ? (
+              !isOnline ? (
+                <UnavailablePanel
+                  title="You’re offline"
+                  description="Check-in and check-out are not queued. Reconnect and use Refresh before recording attendance."
+                />
+              ) : workerActionsAvailable && activeAssignment.permissions.check_in_out ? (
                 <Card className="border-slate-800 bg-slate-900/70">
                   <CardHeader>
                     <CardTitle className="text-slate-100">Assignment attendance</CardTitle>
@@ -575,26 +948,36 @@ export function WorkModeWorkspace({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => void runWorkerAction({ action: "check_in" })}
-                      disabled={workerActionId !== null}
-                    >
-                      {workerActionId === "check_in" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Check className="mr-2 h-4 w-4" aria-hidden="true" />
-                      )}
-                      Check in
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => void runWorkerAction({ action: "check_out" })}
-                      disabled={workerActionId !== null}
-                    >
-                      Check out
-                    </Button>
+                    {activeAssignment.attendance.state === "not_checked_in" ? (
+                      <Button
+                        className="min-h-11"
+                        type="button"
+                        onClick={() => void runWorkerAction({ action: "check_in" })}
+                        disabled={workerActionId !== null}
+                      >
+                        {workerActionId === "check_in" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Check className="mr-2 h-4 w-4" aria-hidden="true" />
+                        )}
+                        Check in
+                      </Button>
+                    ) : null}
+                    {activeAssignment.attendance.state === "checked_in" ? (
+                      <Button
+                        className="min-h-11"
+                        type="button"
+                        variant="outline"
+                        onClick={() => void runWorkerAction({ action: "check_out" })}
+                        disabled={workerActionId !== null}
+                      >
+                        {workerActionId === "check_out" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                        Check out
+                      </Button>
+                    ) : null}
+                    {activeAssignment.attendance.state === "checked_out" ? (
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-200">Checked out</Badge>
+                    ) : null}
                   </CardContent>
                 </Card>
               ) : (

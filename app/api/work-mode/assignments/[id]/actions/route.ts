@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
-import type { Database } from "@/lib/database.types"
 import { createClient } from "@/lib/supabase/server"
 import {
   findWorkModeAssignment,
@@ -31,9 +29,7 @@ interface WorkerActionResult {
   idempotent: boolean
 }
 
-type WorkerActionsClient = SupabaseClient<Database> & {
-  from(table: "work_mode_check_in_events" | "work_mode_publication_acknowledgements"): any
-}
+type WorkerActionsClient = { from(table: string): any }
 
 function unavailable() {
   return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
@@ -88,7 +84,7 @@ export async function POST(
       )
     }
 
-    const db = supabase as WorkerActionsClient
+    const db = supabase as unknown as WorkerActionsClient
     const input = parsed.data
     if (input.action === "acknowledge") {
       const publication = payload.publications.find(
@@ -157,6 +153,61 @@ export async function POST(
       )
     }
 
+    if (input.action === "check_in" && assignment.attendance.state !== "not_checked_in") {
+      return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+        { error: "Check-in has already been recorded for this assignment.", code: "conflict" },
+        { status: 409 },
+      )
+    }
+    if (input.action === "check_out" && assignment.attendance.state !== "checked_in") {
+      return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+        { error: "Check in before recording check-out for this assignment.", code: "conflict" },
+        { status: 409 },
+      )
+    }
+
+    // Check-in policy belongs to the scheduled shift. Null policy timestamps deliberately
+    // mean no additional time restriction, preserving existing confirmed assignments.
+    const { data: assignmentRow, error: assignmentLookupError } = await db
+      .from("employment_assignments")
+      .select("staff_shift_id")
+      .eq("id", assignment.id)
+      .eq("user_id", user.id)
+      .maybeSingle()
+    if (assignmentLookupError || !assignmentRow) return unavailable()
+
+    if (assignmentRow.staff_shift_id) {
+      const { data: shift, error: shiftError } = await db
+        .from("staff_shifts")
+        .select("check_in_opens_at, check_in_closes_at, check_out_opens_at")
+        .eq("id", assignmentRow.staff_shift_id)
+        .maybeSingle()
+      if (shiftError || !shift) return unavailable()
+
+      const now = Date.now()
+      const opensAt = shift.check_in_opens_at ? Date.parse(shift.check_in_opens_at) : null
+      const closesAt = shift.check_in_closes_at ? Date.parse(shift.check_in_closes_at) : null
+      const checkOutOpensAt = shift.check_out_opens_at ? Date.parse(shift.check_out_opens_at) : null
+      if (input.action === "check_in" && opensAt !== null && now < opensAt) {
+        return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+          { error: "Check-in is not available yet for this shift.", code: "conflict" },
+          { status: 409 },
+        )
+      }
+      if (input.action === "check_in" && closesAt !== null && now > closesAt) {
+        return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+          { error: "The check-in window has closed. Contact your supervisor for help.", code: "conflict" },
+          { status: 409 },
+        )
+      }
+      if (input.action === "check_out" && checkOutOpensAt !== null && now < checkOutOpensAt) {
+        return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+          { error: "Check-out is not available yet for this shift.", code: "conflict" },
+          { status: 409 },
+        )
+      }
+    }
+
     const occurredAt = new Date().toISOString()
     const { data, error } = await db
       .from("work_mode_check_in_events")
@@ -190,6 +241,10 @@ export async function POST(
           },
         })
       }
+      return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+        { error: `${input.action === "check_in" ? "Check-in" : "Check-out"} has already been recorded for this assignment.`, code: "conflict" },
+        { status: 409 },
+      )
     }
     if (error || !data) return unavailable()
 

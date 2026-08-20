@@ -4,6 +4,7 @@ import { writeSaleLedger, writeRefundLedger } from '@/lib/ticketing/ledger'
 import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
 import { notifyOrderConfirmed, notifyTicketRefunded } from '@/lib/ticketing/notifications'
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
+import { finalizePromoterCommission } from '@/lib/promoter-network/commission-finalization'
 
 /**
  * Idempotent webhook finalization for paid ticket orders.
@@ -59,8 +60,16 @@ export async function finalizePaidOrder(params: {
   if (error || !order)
     throw new Error(error?.message || 'Order not found')
 
-  if (order.payment_status === 'completed' && order.issuance_status === 'issued')
+  if (order.payment_status === 'completed' && order.issuance_status === 'issued') {
+    // The Stripe receipt may already be claimed when a prior non-ticketing
+    // finalization attempt failed. Re-run the idempotent financial command so
+    // a duplicate provider delivery can heal that gap without reissuing tickets.
+    await finalizePromoterCommission({
+      orderId,
+      paymentReference: params.paymentIntentId || order.payment_reference,
+    })
     return { alreadyFinalized: true }
+  }
 
   const updatePayload: Record<string, unknown> = {
     payment_status: 'completed',
@@ -68,6 +77,7 @@ export async function finalizePaidOrder(params: {
     stripe_payment_intent_id: params.paymentIntentId || order.stripe_payment_intent_id,
     stripe_checkout_session_id: params.checkoutSessionId || order.stripe_checkout_session_id,
     webhook_event_id: params.stripeEventId,
+    finalized_at: order.finalized_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
@@ -215,6 +225,14 @@ export async function finalizePaidOrder(params: {
       })
     }
   }
+
+  // Financial finalization is after the authoritative ticket issuance path.
+  // A failure here intentionally causes the verified webhook to retry, while
+  // ticket issuance remains safely idempotent on the retry.
+  await finalizePromoterCommission({
+    orderId: order.id,
+    paymentReference: params.paymentIntentId || order.payment_reference,
+  })
 
   return { alreadyFinalized: false }
 }

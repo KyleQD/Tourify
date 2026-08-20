@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { resolveActingContext } from '@/lib/auth/acting-context'
 import {
+  canRequesterAnswerInfoRequest,
   canUseArtistBookingChat,
+  getArtistBookingService,
   loadAuthorizedArtistBooking,
 } from '@/lib/bookings/artist-booking-server'
 import { bookingMessageSchema } from '@/lib/public-artist/booking-request-schema'
 
-async function requireAcceptedParticipant(request: NextRequest, bookingId: string) {
+async function requireMessageParticipant(request: NextRequest, bookingId: string) {
   const context = await resolveActingContext(request)
   if (context instanceof NextResponse) return { response: context }
   const authorized = await loadAuthorizedArtistBooking(context, bookingId)
   if (!authorized) return { response: NextResponse.json({ error: 'Booking request not found.' }, { status: 404 }) }
   if (!canUseArtistBookingChat(authorized.role, authorized.row.status)) {
-    return { response: NextResponse.json({ error: 'Chat unlocks after acceptance.' }, { status: 409 }) }
+    return { response: NextResponse.json({ error: 'Booking messages are unavailable for this request.' }, { status: 409 }) }
   }
-  return { context }
+  return { context, authorized }
 }
 
 export async function GET(
@@ -23,12 +25,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const authorized = await requireAcceptedParticipant(request, id)
+  const authorized = await requireMessageParticipant(request, id)
   if ('response' in authorized) return authorized.response
 
   const { data, error } = await authorized.context.supabase
     .from('booking_request_messages')
-    .select('id, booking_request_id, sender_id, content, created_at')
+    .select('id, booking_request_id, sender_id, content, message_type, created_at')
     .eq('booking_request_id', id)
     .order('created_at', { ascending: true })
 
@@ -42,9 +44,14 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const authorized = await requireAcceptedParticipant(request, id)
+    const authorized = await requireMessageParticipant(request, id)
     if ('response' in authorized) return authorized.response
     const body = bookingMessageSchema.parse(await request.json())
+    const isInfoResponse = canRequesterAnswerInfoRequest(
+      authorized.authorized.role,
+      authorized.authorized.row.status,
+    )
+    const messageType = isInfoResponse ? 'info_response' : 'message'
 
     const { data, error } = await authorized.context.supabase
       .from('booking_request_messages')
@@ -52,11 +59,21 @@ export async function POST(
         booking_request_id: id,
         sender_id: authorized.context.userId,
         content: body.content,
+        message_type: messageType,
       })
-      .select('id, booking_request_id, sender_id, content, created_at')
+      .select('id, booking_request_id, sender_id, content, message_type, created_at')
       .single()
 
     if (error) throw error
+    if (isInfoResponse) {
+      const service = getArtistBookingService()
+      await service
+        .from('booking_requests')
+        .update({ status: 'pending', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('status', 'needs_info')
+        .eq('requester_id', authorized.context.userId)
+    }
     return NextResponse.json({ success: true, data }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

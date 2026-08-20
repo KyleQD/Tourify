@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { epkService } from '@/lib/services/epk.service'
 import type {
   PublicArtistBandMemberDTO,
@@ -180,6 +181,41 @@ async function loadBandMembers(
       }
     })
     .filter(Boolean) as PublicArtistBandMemberDTO[]
+}
+
+async function loadAcceptedBookingEvents(
+  _supabase: any,
+  artistUserId: string,
+  artistProfileId: string,
+  today: string
+): Promise<PublicArtistEventDTO[]> {
+  try {
+    const service = createServiceRoleClient()
+    const { data: bookingRows } = await service
+      .from('booking_requests')
+      .select('event_id')
+      .eq('artist_id', artistUserId)
+      .eq('artist_profile_id', artistProfileId)
+      .eq('status', 'accepted')
+      .not('event_id', 'is', null)
+
+    const eventIds = Array.from(new Set((bookingRows || []).map((row: any) => row.event_id).filter(Boolean)))
+    if (eventIds.length === 0) return []
+
+    const { data: eventRows } = await service
+      .from('events_v2')
+      .select('id, title, slug, start_at, status, settings')
+      .in('id', eventIds)
+      .gte('start_at', today)
+      .order('start_at', { ascending: true })
+      .limit(8)
+
+    return (eventRows || [])
+      .map(mapOrgEvent)
+      .filter((event: PublicArtistEventDTO) => event.eventDate)
+  } catch {
+    return []
+  }
 }
 
 async function getPublicBandProfileDTO(params: {
@@ -708,7 +744,7 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
   const featuredProducts: PublicArtistPageDTO['products']['featuredProducts'] = []
 
   const eventsRows = (eventsResult?.data || []).filter(isArtistEventDiscoverable)
-  const upcomingEvents = eventsRows.map((e: any) => ({
+  const ownedUpcomingEvents = eventsRows.map((e: any) => ({
     id: e.id,
     title: e.title || e.name || null,
     slug: e.slug || null,
@@ -718,6 +754,10 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     ticketUrl: e.ticket_url ?? null,
     status: e.status ?? 'upcoming'
   }))
+  const acceptedBookingEvents = await loadAcceptedBookingEvents(supabase, artistUserId, artistId, today)
+  const upcomingEvents = Array.from(
+    new Map([...ownedUpcomingEvents, ...acceptedBookingEvents].map((event) => [event.id, event])).values()
+  ).slice(0, 8)
 
   const postsRows = postsResult?.data || []
   const hydratedPosts = await hydratePostsWithPolls({

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/components/ui/use-toast'
-import { Loader2, Ticket, CreditCard, CheckCircle, AlertCircle, Tag, Share2, Gift } from 'lucide-react'
+import { Loader2, Ticket, CreditCard, CheckCircle, AlertCircle, Tag, Gift } from 'lucide-react'
 import { ticketingService } from '@/lib/services/ticketing.service'
 import { type TicketType, type PromoCode } from '@/types/ticketing'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
@@ -55,6 +55,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
   const [loading, setLoading] = useState(false)
   const [purchasing, setPurchasing] = useState(false)
   const [availability, setAvailability] = useState<{ available: number; can_purchase: boolean } | null>(null)
+  const [feeBreakdown, setFeeBreakdown] = useState<{ subtotal: number; discountAmount: number; platformFeeAmount: number; processingFeeAmount: number; taxAmount: number; buyerTotal: number } | null>(null)
 
   useEffect(() => {
     fetchTicketTypes()
@@ -116,6 +117,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
           available: data.available ?? 0,
           can_purchase: Boolean(data.can_purchase),
         })
+        setFeeBreakdown(data.fee_breakdown ?? null)
       } else {
         console.error('Availability check failed:', data.error)
         setAvailability(null)
@@ -276,10 +278,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
         : validatedPromoCode.discount_value) : 0
 
     const afterDiscount = Math.max(0, subtotal - discount)
-    // Default $1/ticket platform fee + ~3% processing (matches server when v2 on)
-    const platformFee = quantity * 1
-    const processingFee = Math.round((afterDiscount + platformFee) * 0.03 * 100) / 100
-    return Math.max(0, afterDiscount + platformFee + processingFee)
+    return feeBreakdown?.buyerTotal ?? Math.max(0, afterDiscount)
   }
 
   const getFeePreviewLines = () => {
@@ -287,9 +286,8 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
     const subtotal = selectedTicketType.price * quantity
     const discount = getDiscountAmount()
     const afterDiscount = Math.max(0, subtotal - discount)
-    const platformFee = quantity * 1
-    const processingFee = Math.round((afterDiscount + platformFee) * 0.03 * 100) / 100
-    return { subtotal, discount, platformFee, processingFee, total: afterDiscount + platformFee + processingFee }
+    if (feeBreakdown) return { subtotal: feeBreakdown.subtotal, discount: feeBreakdown.discountAmount, platformFee: feeBreakdown.platformFeeAmount, processingFee: feeBreakdown.processingFeeAmount, tax: feeBreakdown.taxAmount, total: feeBreakdown.buyerTotal }
+    return { subtotal, discount, platformFee: 0, processingFee: 0, tax: 0, total: afterDiscount }
   }
 
   const getDiscountAmount = () => {
@@ -310,7 +308,8 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
   }
 
   return (
-    <div className="space-y-6">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="space-y-6">
       {/* Ticket Types Selection */}
       <Card>
         <CardHeader>
@@ -360,7 +359,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
                         {formatPrice(ticketType.price)}
                       </span>
                       <span className="text-muted-foreground">
-                        {ticketType.quantity_available - ticketType.quantity_sold} available
+                        {Math.max(0, ticketType.quantity_available - ticketType.quantity_sold - Number((ticketType as any).quantity_reserved || 0))} available
                       </span>
                     </div>
 
@@ -392,8 +391,9 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
         </CardContent>
       </Card>
 
+      </div>
       {selectedTicketType && (
-        <form onSubmit={handlePurchase} className="space-y-6">
+        <form onSubmit={handlePurchase} className="space-y-6 lg:sticky lg:top-6">
           {/* Quantity Selection */}
           <Card>
             <CardHeader>
@@ -575,6 +575,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
                         <span>Processing fee</span>
                         <span>{formatPrice(fees.processingFee)}</span>
                       </div>
+                      {fees.tax > 0 ? <div className="flex justify-between text-sm text-muted-foreground"><span>Tax</span><span>{formatPrice(fees.tax)}</span></div> : null}
                     </>
                   )
                 })()}
@@ -665,13 +666,9 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
             )}
           </Button>
 
-          {/* Social Sharing Note */}
-          <div className="text-center text-sm text-muted-foreground">
-            <Share2 className="inline h-4 w-4 mr-1" />
-            Share your purchase on social media to earn rewards!
-          </div>
+          <p className="text-center text-xs text-muted-foreground">Your price is confirmed by Tourify before payment. Ticket passes appear in your wallet after checkout.</p>
         </form>
       )}
     </div>
   )
-} 
+}

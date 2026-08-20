@@ -1,10 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { CheckCircle2, Monitor, RefreshCw, Scan, Wifi, WifiOff } from "lucide-react"
+import { CheckCircle2, Monitor, Plus, RefreshCw, Scan, Wifi, WifiOff } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useActingContext } from "@/hooks/use-acting-context"
 
 function extractErrorMsg(json: unknown, fallback: string): string {
@@ -28,6 +31,10 @@ export function AdmissionsDevicesPanel({ eventId }: { eventId?: string | null })
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [freshAt, setFreshAt] = useState<string | null>(null)
+  const [registerOpen, setRegisterOpen] = useState(false)
+  const [deviceName, setDeviceName] = useState("")
+  const [gateAssignment, setGateAssignment] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setState("loading")
@@ -47,6 +54,16 @@ export function AdmissionsDevicesPanel({ eventId }: { eventId?: string | null })
 
   useEffect(() => { if (actingAccount !== undefined) void load() }, [actingAccount, load])
 
+  async function registerDevice() {
+    if (!deviceName.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch("/api/admin/ticketing/admissions", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "register_device", event_id: eventId ?? null, device_name: deviceName.trim(), gate_assignment: gateAssignment.trim() || null }) })
+      if (!res.ok) throw new Error()
+      setRegisterOpen(false); setDeviceName(""); setGateAssignment(""); void load()
+    } finally { setSaving(false) }
+  }
+
   if (state === "idle" || state === "loading") return <Card className="bg-slate-900/60 border border-slate-700/50 rounded-sm"><CardContent className="p-4"><div className="flex items-center gap-2 text-slate-400 text-sm"><RefreshCw className="h-3.5 w-3.5 animate-spin" />Loading admissions…</div></CardContent></Card>
   if (state === "unavailable") return <Card className="bg-slate-900/60 border border-dashed border-slate-700/50 rounded-sm"><CardContent className="p-4"><p className="text-sm text-slate-400">{unavailableReason ?? "Admissions not yet available."}</p></CardContent></Card>
   if (state === "error") return <Card className="bg-slate-900/60 border border-red-500/30 rounded-sm"><CardContent className="p-4"><p className="text-sm text-red-400">{errorMsg}</p><Button variant="ghost" size="sm" className="mt-2 text-slate-300" onClick={() => void load()}><RefreshCw className="h-3 w-3 mr-1" />Retry</Button></CardContent></Card>
@@ -59,7 +76,7 @@ export function AdmissionsDevicesPanel({ eventId }: { eventId?: string | null })
             <Scan className="h-4 w-4 text-cyan-400" />
             <CardTitle className="text-sm font-medium text-slate-100">Admissions &amp; Devices</CardTitle>
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400" onClick={() => void load()} title="Refresh"><RefreshCw className="h-3 w-3" /></Button>
+          <div className="flex gap-1"><Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400" onClick={() => setRegisterOpen(true)} title="Register scanner device"><Plus className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400" onClick={() => void load()} title="Refresh"><RefreshCw className="h-3 w-3" /></Button></div>
         </div>
         {freshAt && <p className="text-[10px] text-slate-500 mt-0.5">Fresh at {new Date(freshAt).toLocaleTimeString()}</p>}
       </CardHeader>
@@ -99,6 +116,7 @@ export function AdmissionsDevicesPanel({ eventId }: { eventId?: string | null })
           </div>
         )}
       </CardContent>
+      <Dialog open={registerOpen} onOpenChange={setRegisterOpen}><DialogContent><DialogHeader><DialogTitle>Register scanner device</DialogTitle></DialogHeader><div className="space-y-4"><div><Label htmlFor="device-name">Device name</Label><Input id="device-name" value={deviceName} onChange={(event) => setDeviceName(event.target.value)} placeholder="Front door iPhone" /></div><div><Label htmlFor="gate-assignment">Gate or checkpoint</Label><Input id="gate-assignment" value={gateAssignment} onChange={(event) => setGateAssignment(event.target.value)} placeholder="Main entrance" /></div></div><DialogFooter><Button variant="outline" onClick={() => setRegisterOpen(false)}>Cancel</Button><Button disabled={!deviceName.trim() || saving} onClick={() => void registerDevice()}>{saving ? "Registering…" : "Register device"}</Button></DialogFooter></DialogContent></Dialog>
     </Card>
   )
 }

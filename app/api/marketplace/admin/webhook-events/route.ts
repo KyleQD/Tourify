@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { authenticateApiRequest } from "@/lib/auth/api-auth"
-import { userHasAdminSurfaceAccess } from "@/lib/auth/admin"
+import { z } from "zod"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { jsonError } from "@/lib/api/route-helpers"
+import { resolveCommerceContext } from "@/lib/admin/commerce/resolve-context"
+import {
+  normalizeCommerceFinancialActionReason,
+  requireCommerceHighRiskAction,
+} from "@/lib/admin/commerce/high-risk-actions"
+import { requireCommerceIdempotencyKey } from "@/lib/admin/commerce/idempotency"
+import { commerceErrorResponse, commerceJsonResponse } from "@/lib/admin/commerce/errors"
 
 export const dynamic = "force-dynamic"
 
-async function requireMarketplaceAdmin(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return { admin: null, error: jsonError({ status: 401, code: "unauthorized", message: "Authentication required.", retryable: false }) }
-  const isAdmin = await userHasAdminSurfaceAccess(auth.supabase, auth.user.id)
-  if (!isAdmin) return { admin: null, error: jsonError({ status: 403, code: "forbidden", message: "Admin access required.", retryable: false }) }
-  return { admin: auth.user, error: null }
-}
+const webhookMutationSchema = z.object({
+  action: z.enum(["retry", "dismiss"]),
+  eventId: z.string().min(1),
+  reason: z.string().trim().min(3).max(1_000),
+  notes: z.string().max(1_000).optional(),
+  idempotencyKey: z.string().trim().min(8).max(200).optional(),
+  idempotency_key: z.string().trim().min(8).max(200).optional(),
+}).strict()
 
 /**
  * GET /api/marketplace/admin/webhook-events
@@ -20,8 +26,10 @@ async function requireMarketplaceAdmin(request: NextRequest) {
  * Admin views the webhook exception queue — failed or stuck events.
  */
 export async function GET(request: NextRequest) {
-  const { error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.view_audit",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status") ?? "failed"
@@ -38,10 +46,21 @@ export async function GET(request: NextRequest) {
     .range(offset, offset + limit - 1)
 
   if (fetchError) {
-    return jsonError({ status: 500, code: "fetch_failed", message: "Failed to load webhook events.", retryable: true })
+    return commerceErrorResponse({
+      status: 500,
+      code: "fetch_failed",
+      message: "Failed to load webhook events.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
-  return NextResponse.json({ data: events ?? [], pagination: { total: count ?? 0, page, limit } })
+  return commerceJsonResponse({
+    data: events ?? [],
+    pagination: { total: count ?? 0, page, limit },
+  }, {
+    correlationId: commerce.request.correlationId,
+  })
 }
 
 /**
@@ -53,17 +72,41 @@ export async function GET(request: NextRequest) {
  * Body: { action: "retry" | "dismiss", eventId: string, notes?: string }
  */
 export async function POST(request: NextRequest) {
-  const { admin, error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.view_audit",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
-  const { action, eventId, notes } = await request.json()
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_json",
+      message: "Could not parse request body.",
+      correlationId: commerce.request.correlationId,
+    })
+  }
 
-  if (!action || !eventId) {
-    return jsonError({ status: 400, code: "invalid_request", message: "action and eventId are required.", retryable: false })
+  const parsed = webhookMutationSchema.safeParse(body)
+  const denied = requireCommerceHighRiskAction(commerce, "provider.webhook_exception_mutate", {
+    reason: parsed.success ? parsed.data.reason : undefined,
+  })
+  if (denied) return denied
+  if (!parsed.success) {
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_request",
+      message: "Invalid webhook mutation payload.",
+      issues: parsed.error.issues,
+      correlationId: commerce.request.correlationId,
+    })
   }
-  if (!["retry", "dismiss"].includes(action)) {
-    return jsonError({ status: 400, code: "invalid_action", message: "action must be retry or dismiss.", retryable: false })
-  }
+  const idempotency = requireCommerceIdempotencyKey(request, commerce, parsed.data)
+  if (idempotency instanceof NextResponse) return idempotency
+  const { action, eventId, notes } = parsed.data
+  const actionReason = normalizeCommerceFinancialActionReason(parsed.data.reason).reason
 
   const svc = createServiceRoleClient()
 
@@ -73,14 +116,25 @@ export async function POST(request: NextRequest) {
     .from("marketplace_payment_events")
     .update({
       processing_status: newStatus,
-      last_error: action === "dismiss" ? (notes ?? "Dismissed by admin") : null,
+      last_error: action === "dismiss" ? (notes ?? actionReason) : null,
     })
     .eq("id", eventId)
     .eq("processing_status", "failed") // Only act on failed events
 
   if (updateError) {
-    return jsonError({ status: 500, code: "update_failed", message: "Failed to update webhook event.", retryable: true })
+    return commerceErrorResponse({
+      status: 500,
+      code: "update_failed",
+      message: "Failed to update webhook event.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
-  return NextResponse.json({ data: { eventId, action, newStatus } })
+  return commerceJsonResponse({
+    data: { eventId, action, newStatus, reason: actionReason },
+    idempotencyKey: idempotency.idempotencyKey,
+  }, {
+    correlationId: commerce.request.correlationId,
+  })
 }

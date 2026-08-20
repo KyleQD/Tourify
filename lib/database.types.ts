@@ -5266,6 +5266,7 @@ export type Database = {
       }
       employment_assignments: {
         Row: {
+          assignment_kind: string
           created_at: string
           department: string | null
           employer_entity_id: string | null
@@ -5273,19 +5274,24 @@ export type Database = {
           ends_at: string | null
           event_id: string | null
           id: string
+          job_application_id: string | null
+          job_posting_id: string | null
           organizer_id: string | null
           permissions: Json
+          position: string | null
           role_title: string
           source: string | null
           staff_member_id: string | null
           staff_shift_id: string | null
           starts_at: string | null
           status: string
+          tour_id: string | null
           updated_at: string
           user_id: string
           venue_id: string | null
         }
         Insert: {
+          assignment_kind?: string
           created_at?: string
           department?: string | null
           employer_entity_id?: string | null
@@ -5293,19 +5299,24 @@ export type Database = {
           ends_at?: string | null
           event_id?: string | null
           id?: string
+          job_application_id?: string | null
+          job_posting_id?: string | null
           organizer_id?: string | null
           permissions?: Json
+          position?: string | null
           role_title: string
           source?: string | null
           staff_member_id?: string | null
           staff_shift_id?: string | null
           starts_at?: string | null
           status?: string
+          tour_id?: string | null
           updated_at?: string
           user_id: string
           venue_id?: string | null
         }
         Update: {
+          assignment_kind?: string
           created_at?: string
           department?: string | null
           employer_entity_id?: string | null
@@ -5313,19 +5324,44 @@ export type Database = {
           ends_at?: string | null
           event_id?: string | null
           id?: string
+          job_application_id?: string | null
+          job_posting_id?: string | null
           organizer_id?: string | null
           permissions?: Json
+          position?: string | null
           role_title?: string
           source?: string | null
           staff_member_id?: string | null
           staff_shift_id?: string | null
           starts_at?: string | null
           status?: string
+          tour_id?: string | null
           updated_at?: string
           user_id?: string
           venue_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "employment_assignments_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_assignments_job_posting_id_fkey"
+            columns: ["job_posting_id"]
+            isOneToOne: false
+            referencedRelation: "job_posting_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_assignments_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employment_assignments_event_id_fkey"
             columns: ["event_id"]
@@ -31902,11 +31938,14 @@ export type Database = {
           publication_type: string
           published_at: string
           published_by: string | null
+          requires_acknowledgement: boolean
           site_map_id: string | null
           status: string
+          supersedes_publication_id: string | null
           title: string
           tour_id: string | null
           updated_at: string
+          version: number
           visible_to: string[]
         }
         Insert: {
@@ -31918,11 +31957,14 @@ export type Database = {
           publication_type: string
           published_at?: string
           published_by?: string | null
+          requires_acknowledgement?: boolean
           site_map_id?: string | null
           status?: string
+          supersedes_publication_id?: string | null
           title: string
           tour_id?: string | null
           updated_at?: string
+          version?: number
           visible_to?: string[]
         }
         Update: {
@@ -31934,14 +31976,24 @@ export type Database = {
           publication_type?: string
           published_at?: string
           published_by?: string | null
+          requires_acknowledgement?: boolean
           site_map_id?: string | null
           status?: string
+          supersedes_publication_id?: string | null
           title?: string
           tour_id?: string | null
           updated_at?: string
+          version?: number
           visible_to?: string[]
         }
         Relationships: [
+          {
+            foreignKeyName: "work_mode_publications_supersedes_publication_id_fkey"
+            columns: ["supersedes_publication_id"]
+            isOneToOne: false
+            referencedRelation: "work_mode_publications"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "work_mode_publications_event_id_fkey"
             columns: ["event_id"]

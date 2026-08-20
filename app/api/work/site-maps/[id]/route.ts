@@ -27,12 +27,13 @@ export async function GET(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!siteMap) return NextResponse.json({ error: 'Site map not found' }, { status: 404 })
 
-    const { data: assignment } = await supabase
+    let assignmentQuery = supabase
       .from('employment_assignments')
       .select('id, department, event_id, status')
       .eq('user_id', user.id)
-      .in('status', ['invited', 'confirmed', 'active'])
-      .maybeSingle()
+      .in('status', ['confirmed', 'active'])
+    if (siteMap.event_id) assignmentQuery = assignmentQuery.eq('event_id', siteMap.event_id)
+    const { data: assignment } = await assignmentQuery.limit(1).maybeSingle()
 
     const department = assignment?.department || null
 
@@ -50,6 +51,11 @@ export async function GET(
           department ? `assigned_role.ilike.%${department}%` : null,
         ].filter(Boolean).join(',')
       )
+
+    const hasAssignedTask = (tasks || []).some((task: any) => task.assigned_user_id === user.id)
+    if (!assignment && !hasAssignedTask) {
+      return NextResponse.json({ error: 'Map not available for this Work Mode assignment' }, { status: 403 })
+    }
 
     const leadZoneIds = new Set(
       (siteMap.zones || [])

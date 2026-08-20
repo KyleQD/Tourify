@@ -12,6 +12,11 @@ describe('isPublicShareRoute', () => {
     expect(isPublicShareRoute('/posts/some-post-slug')).toBe(true)
   })
 
+  it('allows only opaque promoter tracking routes', () => {
+    expect(isPublicShareRoute(`/r/${'a'.repeat(43)}`)).toBe(true)
+    expect(isPublicShareRoute('/r/not-an-opaque-promoter-token')).toBe(false)
+  })
+
   it('does not treat the music hub itself as a public share route', () => {
     expect(isPublicShareRoute('/music')).toBe(false)
     expect(isPublicShareRoute('/music/library')).toBe(false)

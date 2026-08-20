@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818000103_ticketing_production_v1_foundation.sql",
+  "taskId": "TIX-PRODUCTION-V1",
+  "status": "planned",
+  "owner": "ticketing-platform",
+  "reviewer": "security-data",
+  "domains": ["tickets", "payments", "admissions", "settlement", "tenancy"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch with ticket_sales, ticket_types, tickets, transfers, and checkins",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "ticket_sales, ticket_types, tickets, ticket_credentials, ticket_transfers, ticket_checkins grouped by event/org",
+      "event_ticketing_config rows missing org_id",
+      "ticket_types counters compared with ticket_inventory_reservations"
+    ],
+    "expectedAffectedRows": "Additive create-table/index/policy/function replacement; zero existing rows backfilled",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional additive DDL and CREATE OR REPLACE FUNCTION; rerun migration safely after interruption",
+    "resumeCursor": "supabase migration version 20260818000103",
+    "idempotency": "Tables use IF NOT EXISTS, indexes use IF NOT EXISTS, functions are CREATE OR REPLACE, and runtime ledger rows use idempotency keys"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant-key guessing or backfill is performed; rows missing org_id remain visible only through event-scoped policy checks"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "new table status/movement check constraints",
+      "ticket_checkins device_id FK",
+      "ticket_transfers one pending transfer per ticket partial unique index"
+    ],
+    "indexes": [
+      "ticketing_inventory_ledger event/type/idempotency indexes",
+      "ticket_delivery_attempts event/order/idempotency indexes",
+      "ticket_claim_links token/order/ticket/event indexes",
+      "scanner_devices org/event indexes",
+      "admissions_scans event/device/idempotency indexes",
+      "ticket_provider_events event/idempotency indexes",
+      "ticket_settlement_packages event index"
+    ],
+    "validationPlan": "Validate creation, grants, RLS policies, function signatures, and two-org isolation before staging promotion"
+  },
+  "recovery": {
+    "rollback": "Do not delete ticketing data automatically; disable new app reads/writes and ship a reviewed forward migration that removes or ignores new tables if needed",
+    "forwardFix": "Use additive follow-up migrations for policy, function, or index corrections while preserving ledger and provider inbox history"
+  },
+  "postflight": {
+    "queries": [
+      "RLS and policy inventory for all new ticketing tables",
+      "effective table grants for authenticated and service_role",
+      "function definition/grants for reserve, release, finalize, expire, and apply_ticket_refund",
+      "sample reserve-finalize-refund flow reconstructing ledger rows"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "TIXV1-001",
+      "type": "scoped-insert-select",
+      "owner": "ticketing-platform",
+      "rationale": "The INSERT SELECT is inside apply_ticket_refund and only emits ownership events for the already-validated target ticket ID array; it is not an unbounded backfill.",
+      "issue": "Scanner flags all INSERT SELECT statements without understanding function-local validated arrays.",
+      "expiresOn": "2026-11-30",
+      "evidence": "Postflight refund flow must show ownership event count equals refunded ticket count"
+    }
+  ]
+}

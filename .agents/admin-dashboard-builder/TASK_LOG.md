@@ -157,3 +157,11 @@ Append-only. Newest entries at the bottom.
 - **Integration:** Added reusable owned-account eligibility and presentation helpers plus combined multi-account notification scopes; successful opening now acknowledges unread rows across all eligible accounts, clears the bell immediately, preserves viewed accents until close, and coalesces realtime refreshes while ignoring self-generated read acknowledgements
 - **Verification:** Focused ESLint clean; notification Vitest 20/20; focused TypeScript graph reports only pre-existing account-management and venue-service schema mismatches; the protected route rendered its authentication boundary without a framework error overlay or browser console errors, while authenticated dropdown inspection remained unavailable in the browser session
 - **Constraints:** No database reset, no migration/RLS change, no mock live data, no commit, no unrelated cleanup
+
+### 2026-08-17 — `com-ticketing-experience-unification`
+
+- **Surface:** Organizer Ticketing overview, event-scoped ticket manager, admissions devices, and event door check-in
+- **Purpose:** Make ticketing a coherent operations workspace while preserving the secure buyer and admissions lifecycle
+- **Change:** Added a display-safe attendee ticket read model, event-workspace deep links, explicit scanner-device registration/selection, and consistent lifecycle-driven ticket UI primitives used by buyer routes
+- **Integration:** Buyer wallet, receipt, pass, transfer, artist, venue, event operations, and door check-in now use the same canonical ticketing routes and event context rather than parallel or placeholder ticketing views
+- **Files:** `app/api/ticketing/experience/route.ts`, `components/ticketing/ticketing-experience-ui.tsx`, `components/admin/ticketing/admissions-devices-panel.tsx`

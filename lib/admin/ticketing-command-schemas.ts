@@ -46,6 +46,23 @@ export const upsertTicketingConfigCommandSchema = z
   })
   .strict()
 
+export const publishTicketSalesCommandSchema = z
+  .object({
+    action: z.literal("publish_ticket_sales"),
+    event_id: uuid,
+    reason,
+    terms_waived: z.boolean().optional().default(false),
+  })
+  .strict()
+
+export const unpublishTicketSalesCommandSchema = z
+  .object({
+    action: z.literal("unpublish_ticket_sales"),
+    event_id: uuid,
+    reason,
+  })
+  .strict()
+
 export const reserveInventoryCommandSchema = z
   .object({
     action: z.literal("reserve_inventory"),
@@ -91,6 +108,8 @@ export const ticketingCommandSchema = z.union([
   createPromoCodeSchema,
   generateReferralCodesSchema,
   upsertTicketingConfigCommandSchema,
+  publishTicketSalesCommandSchema,
+  unpublishTicketSalesCommandSchema,
   reserveInventoryCommandSchema,
   releaseInventoryCommandSchema,
   finalizeInventoryCommandSchema,
@@ -111,6 +130,8 @@ export const TICKETING_COMMAND_CAPABILITIES: Record<
   create_promo_code: "ticketing.manage",
   generate_referral_codes: "ticketing.manage",
   upsert_ticketing_config: "ticketing.manage",
+  publish_ticket_sales: "ticketing.manage",
+  unpublish_ticket_sales: "ticketing.manage",
   reserve_inventory: "ticketing.manage",
   release_inventory: "ticketing.manage",
   finalize_inventory: "ticketing.manage",

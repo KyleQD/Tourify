@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818010233_event_promoter_network_foundation.sql",
+  "taskId": "EVENT-PROMOTER-P1",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "tickets", "promoter-network", "finance", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch with events_v2, ticket_types, ticket_sales, tickets, ticketing permissions, and auth users",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "remote foreign-key inventory for events_v2, ticket_types, ticket_sales, ticket_campaigns, ticket_referrals, and ticket_shares",
+      "ticketing permission helper and grants inventory by event/org",
+      "table, policy, and grant inventory for all promoter-domain tables"
+    ],
+    "expectedAffectedRows": "Additive create-table/index/policy/function/trigger DDL; zero existing rows are backfilled or changed.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional additive DDL; CREATE IF NOT EXISTS and CREATE OR REPLACE are safe to rerun after interruption.",
+    "resumeCursor": "supabase migration version 20260818010233",
+    "idempotency": "Program-version, application, membership, tracking-token, attribution, commission-ledger, and payout-allocation uniqueness constraints prevent duplicate financial truth."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No existing records are backfilled and no organization ID is inferred. The application resolves organizer scope from the event at trusted server write time."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "new-table state, amount, currency, date, and version checks",
+      "new-table FKs to current event, ticket, order, membership, and user evidence",
+      "unique idempotency keys for attribution and commission events",
+      "append-only promoter commission ledger trigger"
+    ],
+    "indexes": [
+      "program event/status", "program version effective time", "application lifecycle", "membership", "opaque tracking lookup", "touchpoint", "attribution", "commission ledger", "payout allocation", "risk flag"
+    ],
+    "validationPlan": "Before deployment, validate the live event-FK contract, RLS policies, grants, and two-promoter/two-organizer isolation in an isolated branch; then run security and performance advisors."
+  },
+  "recovery": {
+    "rollback": "Disable the promoter feature flags and stop new server writes. Preserve all existing promoter financial/audit records; use a reviewed forward migration only if a schema correction is needed.",
+    "forwardFix": "Use additive migrations to correct policies, constraints, or indexes without deleting or rewriting commission history."
+  },
+  "postflight": {
+    "queries": [
+      "RLS, policies, and effective grants for every new promoter-domain table",
+      "foreign-key constraints and index inventory for promoter tables",
+      "anonymous/authenticated/promoter/organizer persona matrix including denied ledger writes",
+      "attempted UPDATE/DELETE of promoter_commission_ledger must fail"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

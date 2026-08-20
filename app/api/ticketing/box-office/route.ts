@@ -6,7 +6,6 @@ import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { hasTicketingPermission } from '@/lib/ticketing/permissions'
 import { getStripeOrNull } from '@/lib/stripe'
 import { createPendingOrder } from '@/lib/ticketing/orders'
-import { refundOrderTickets } from '@/lib/ticketing/finalize'
 
 const sellSchema = z.object({
   event_id: z.string().uuid(),
@@ -216,49 +215,18 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'refund') {
-    const orderId = z.string().uuid().parse(body.order_id)
-    const eventId = z.string().uuid().parse(body.event_id)
-    const ticketIds = z.array(z.string().uuid()).optional().parse(body.ticket_ids)
-
-    const allowed = await hasTicketingPermission({
-      supabase,
-      userId: auth.user.id,
-      eventId,
-      permission: 'process_refunds',
+    return NextResponse.json({
+      error: 'Box-office refunds now run through the admin refund endpoint.',
+      code: 'USE_ADMIN_REFUND',
+      execute_via: '/api/admin/ticketing/refund',
+      expected_body: {
+        sale_id: 'uuid',
+        reason: 'required',
+        ticket_ids: 'optional uuid[]',
+      },
+    }, {
+      status: 409,
     })
-    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-    const { data: order } = await service
-      .from('ticket_sales')
-      .select('*')
-      .eq('id', orderId)
-      .maybeSingle()
-
-    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-
-    const stripe = getStripeOrNull()
-    let refundAmount = Number(order.total_amount || 0)
-    if (ticketIds?.length && order.quantity > 0)
-      refundAmount = Math.round((refundAmount / order.quantity) * ticketIds.length * 100) / 100
-
-    const paymentIntentId = order.stripe_payment_intent_id || order.payment_reference
-    if (stripe && paymentIntentId) {
-      await stripe.refunds.create({
-        payment_intent: paymentIntentId,
-        amount: Math.round(refundAmount * 100),
-        metadata: { order_id: orderId, partial: String(Boolean(ticketIds?.length)) },
-      })
-    }
-
-    await refundOrderTickets({
-      supabase: service as any,
-      orderId,
-      actorUserId: auth.user.id,
-      refundAmount,
-      ticketIds,
-    })
-
-    return NextResponse.json({ success: true, refund_amount: refundAmount })
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

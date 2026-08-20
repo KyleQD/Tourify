@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { createPromoterNativePostContext, defaultPromoterDestinationPath } from '@/lib/promoter-network/assets-command'
 
 const createPostSchema = z.object({
   authorType: z.enum(['organizer','artist','venue','individual']).default('organizer'),
@@ -65,11 +66,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, post })
+    const promoterAttribution = data.eventId
+      ? await createPromoterNativePostContext({
+          actorUserId: user.id,
+          eventId: data.eventId,
+          sourceId: post.id,
+          destinationPath: defaultPromoterDestinationPath(data.eventId),
+        })
+      : null
+
+    return NextResponse.json({
+      success: true,
+      post,
+      promoter_attribution: promoterAttribution
+        ? {
+            active: true,
+            membership_id: promoterAttribution.membershipId,
+            public_url: `/r/${promoterAttribution.link.token}`,
+          }
+        : null,
+    })
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
-

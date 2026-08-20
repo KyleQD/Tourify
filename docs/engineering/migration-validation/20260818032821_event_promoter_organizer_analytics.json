@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818032821_event_promoter_organizer_analytics.sql",
+  "taskId": "EVENT-PROMOTER-P8",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "ticketing", "promoter-network", "analytics", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with promoter Phases 1-7 applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "event promoter program, membership, application, attribution, and ledger counts by event",
+      "ticket-sale attribution counts by ticket type and source",
+      "tour-events associated with the target event and the organizer's manageable event subset"
+    ],
+    "expectedAffectedRows": "Creates read-only event analytics functions only. No applications, memberships, attribution records, ledger entries, or payout allocations are changed.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "The read-only functions are replaceable and idempotent. No data backfill or mutation occurs.",
+    "resumeCursor": "supabase migration version 20260818032821",
+    "idempotency": "The dashboard and CSV contain only derived values. The event parameter is checked against the authenticated organizer inside the private function before any financial row is read."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Disable event_promoter_program_enabled to hide the surface and forward-fix the read function; no financial history needs rollback."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Organizer access is enforced both by the admin route and private.can_manage_event_promoter_program in the database function",
+      "CSV uses the same event-scoped RPC result and excludes payment references, tracking tokens, and buyer data",
+      "Tour aggregation includes only stops for which the calling organizer passes the event-management predicate",
+      "Ticket-type eligible revenue is joined to pre-aggregated financial rows to prevent multiple ledger entries from inflating attribution totals"
+    ],
+    "indexes": [
+      "Uses existing event/program status, membership, attribution order, ledger membership/program/originating-entry, touchpoint, ticket-type, and tour-events indexes"
+    ],
+    "validationPlan": "Compare per-event and ticket-type figures against raw ticket_sale_attributions and promoter_commission_ledger. Test organizer A allowed, organizer B denied, a non-admin denied, a multi-currency ledger, a reversal, and a shared tour where only accessible stops contribute."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_program_enabled. No data rows are created or changed.",
+    "forwardFix": "Use an additive function replacement after retaining the organizer event-scope predicate and ledger-derived financial contract."
+  },
+  "postflight": {
+    "queries": [
+      "public.get_event_promoter_organizer_analytics has authenticated execute only and private helper is not exposed",
+      "unmanaged event and non-admin calls fail with 42501/403",
+      "promoter rankings, source performance, ticket-type performance, and CSV totals reconcile with immutable ledger and attribution rows",
+      "tour aggregate excludes stops without organizer event access"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

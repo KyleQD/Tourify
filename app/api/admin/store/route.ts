@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { resolveCommerceContext } from '@/lib/admin/commerce/resolve-context'
+import { createClient } from '@/lib/supabase/server'
+import { commerceErrorResponse, commerceJsonResponse } from '@/lib/admin/commerce/errors'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -34,7 +36,13 @@ function isRecoverableMarketplaceReadError(error: unknown) {
   )
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export async function GET(request: NextRequest) {
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: 'commerce.view',
+  })
+  if (commerce instanceof NextResponse) return commerce
+
+  const supabase = await createClient()
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200)
@@ -44,7 +52,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     let query = supabase
       .from('marketplace_listings')
       .select('id, title, description, base_price, category, product_type, status, created_at, inventory_count, cover_image_url, media_urls', { count: 'exact' })
-      .eq('seller_user_id', user.id)
+      .eq('seller_user_id', commerce.actor.userId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -55,25 +63,44 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     if (error) {
       if (isRecoverableMarketplaceReadError(error)) {
         console.warn('[Admin Store API] Marketplace read returned empty fallback:', error)
-        return NextResponse.json({
-          listings: [],
-          total: 0,
-          warning: {
-            code: error.code || 'marketplace_data_unavailable',
-            message: 'Marketplace listings are temporarily unavailable.',
-          },
+        return commerceErrorResponse({
+          status: 503,
+          code: error.code || 'marketplace_data_unavailable',
+          message: 'Marketplace listings are temporarily unavailable.',
+          retryable: true,
+          correlationId: commerce.request.correlationId,
         })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return commerceErrorResponse({
+        status: 500,
+        code: 'marketplace_store_unavailable',
+        message: 'Failed to load marketplace listings.',
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+      })
     }
 
-    return NextResponse.json({ listings: data || [], total: count || 0 })
+    return commerceJsonResponse({ listings: data || [], total: count || 0 }, {
+      correlationId: commerce.request.correlationId,
+    })
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return commerceErrorResponse({
+      status: 500,
+      code: 'unexpected_store_error',
+      message: 'Unexpected store error.',
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
-})
+}
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export async function POST(request: NextRequest) {
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: 'commerce.manage_listings',
+  })
+  if (commerce instanceof NextResponse) return commerce
+
+  const supabase = await createClient()
   try {
     const body = await request.json()
     const validated = createSchema.parse(body)
@@ -81,7 +108,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     const { data, error } = await supabase
       .from('marketplace_listings')
       .insert({
-        seller_user_id: user.id,
+        seller_user_id: commerce.actor.userId,
         title: validated.title,
         description: validated.description ?? null,
         base_price: validated.basePrice,
@@ -95,19 +122,57 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ listing: data }, { status: 201 })
+    if (error) {
+      return commerceErrorResponse({
+        status: 500,
+        code: 'marketplace_listing_create_failed',
+        message: 'Failed to create marketplace listing.',
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+      })
+    }
+    return commerceJsonResponse({ listing: data }, {
+      status: 201,
+      correlationId: commerce.request.correlationId,
+    })
   } catch (err: any) {
-    if (err instanceof z.ZodError) return NextResponse.json({ error: 'Validation error', details: err.errors }, { status: 400 })
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    if (err instanceof z.ZodError) {
+      return commerceErrorResponse({
+        status: 400,
+        code: 'invalid_request',
+        message: 'Validation error.',
+        issues: err.errors,
+        correlationId: commerce.request.correlationId,
+      })
+    }
+    return commerceErrorResponse({
+      status: 500,
+      code: 'unexpected_store_error',
+      message: 'Unexpected store error.',
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
-})
+}
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export async function PATCH(request: NextRequest) {
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: 'commerce.manage_listings',
+  })
+  if (commerce instanceof NextResponse) return commerce
+
+  const supabase = await createClient()
   try {
     const body = await request.json()
     const { id, ...updates } = body
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+    if (!id) {
+      return commerceErrorResponse({
+        status: 400,
+        code: 'missing_listing_id',
+        message: 'Missing listing id.',
+        correlationId: commerce.request.correlationId,
+      })
+    }
 
     if (updates.delete) {
       const { data: existing } = await supabase
@@ -121,11 +186,15 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
           .from('marketplace_listings')
           .update({ status: 'archived', updated_at: new Date().toISOString() })
           .eq('id', id)
-          .eq('seller_user_id', user.id)
-        return NextResponse.json({ success: true, soft_deleted: true })
+          .eq('seller_user_id', commerce.actor.userId)
+        return commerceJsonResponse({ success: true, soft_deleted: true }, {
+          correlationId: commerce.request.correlationId,
+        })
       }
-      await supabase.from('marketplace_listings').delete().eq('id', id).eq('seller_user_id', user.id)
-      return NextResponse.json({ success: true })
+      await supabase.from('marketplace_listings').delete().eq('id', id).eq('seller_user_id', commerce.actor.userId)
+      return commerceJsonResponse({ success: true }, {
+        correlationId: commerce.request.correlationId,
+      })
     }
 
     const mappedUpdates: Record<string, unknown> = {
@@ -152,13 +221,29 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
       .from('marketplace_listings')
       .update(mappedUpdates)
       .eq('id', id)
-      .eq('seller_user_id', user.id)
+      .eq('seller_user_id', commerce.actor.userId)
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ listing: data })
+    if (error) {
+      return commerceErrorResponse({
+        status: 500,
+        code: 'marketplace_listing_update_failed',
+        message: 'Failed to update marketplace listing.',
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+      })
+    }
+    return commerceJsonResponse({ listing: data }, {
+      correlationId: commerce.request.correlationId,
+    })
   } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return commerceErrorResponse({
+      status: 500,
+      code: 'unexpected_store_error',
+      message: 'Unexpected store error.',
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
-})
+}

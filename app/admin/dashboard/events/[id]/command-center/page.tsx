@@ -22,6 +22,7 @@ import {
 import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import { buildAdminHiringHref } from "@/lib/admin/admin-ops-context"
 import { EventSetupCompletenessPanel } from "@/components/admin/event-setup-completeness-panel"
+import { EventWorkerBriefPublisher } from "@/components/admin/workforce/event-worker-brief-publisher"
 
 function buildNoStoreInit(input?: RequestInit): RequestInit {
   return {
@@ -217,6 +218,7 @@ export default function EventCommandCenterPage() {
       }
     >
       <EventSetupCompletenessPanel eventId={eventId} className="mb-2" />
+      <EventWorkerBriefPublisher eventId={eventId} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border-slate-700 bg-slate-900/60">

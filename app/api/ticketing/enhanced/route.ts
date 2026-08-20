@@ -3,12 +3,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getStripeOrNull } from '@/lib/stripe'
-import { createPendingOrder } from '@/lib/ticketing/orders'
+import { createPendingOrder, feeConfigFromRow, getEventTicketingConfig } from '@/lib/ticketing/orders'
+import { calculateTicketFees } from '@/lib/ticketing/fees'
 import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
 import { finalizeInventory } from '@/lib/ticketing/inventory'
 import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import {
+  readPromoterAttributionSession,
+  resolvePromoterCheckoutShadowAttribution,
+} from '@/lib/promoter-network/checkout-attribution'
 
 const stripe = getStripeOrNull()
 
@@ -86,6 +91,15 @@ const validatePromoCodeSchema = z.object({
   purchase_amount: z.number().min(0, 'Purchase amount must be non-negative')
 })
 
+function ticketingUnavailableResponse(reason: string, code: string, status = 400) {
+  return NextResponse.json({ error: reason, code, ticket_types: [], can_purchase: false }, { status })
+}
+
+function termsAreReady(config: any): boolean {
+  const termsText = typeof config?.terms_text === 'string' ? config.terms_text.trim() : ''
+  return termsText.length > 0 || Boolean(config?.metadata?.terms_waived)
+}
+
 export async function GET(request: NextRequest) {
   try {
     
@@ -96,6 +110,7 @@ export async function GET(request: NextRequest) {
     const include_analytics = searchParams.get('include_analytics') === 'true'
 
     const supabase = await createClient()
+    const service = createServiceRoleClient()
 
     if (action === 'event_tickets') {
       // Get all ticket types for an event with enhanced data
@@ -103,7 +118,44 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Event ID is required' }, { status: 400 })
       }
 
-      let query = supabase
+      const { data: ticketingConfig } = await service
+        .from('event_ticketing_config')
+        .select('ticketing_enabled, refund_policy, terms_text, transfer_policy, resale_enabled, sale_start, sale_end, max_per_order, metadata')
+        .eq('event_id', event_id)
+        .maybeSingle()
+
+      if (!ticketingConfig) {
+        return NextResponse.json({
+          ticket_types: [],
+          ticketing_config: null,
+          campaigns: [],
+          promo_codes: [],
+          social_stats: null,
+          can_purchase: false,
+          unavailable_reason: 'Ticketing is not configured for this event',
+          unavailable_code: 'CONFIG_REQUIRED',
+        })
+      }
+
+      if (!ticketingConfig.ticketing_enabled) {
+        return NextResponse.json({
+          ticket_types: [],
+          ticketing_config: {
+            refund_policy: ticketingConfig.refund_policy ?? null,
+            terms_text: ticketingConfig.terms_text ?? null,
+            transfer_policy: ticketingConfig.transfer_policy ?? null,
+            resale_enabled: ticketingConfig.resale_enabled ?? false,
+          },
+          campaigns: [],
+          promo_codes: [],
+          social_stats: null,
+          can_purchase: false,
+          unavailable_reason: 'Ticket sales are not published for this event',
+          unavailable_code: 'NOT_PUBLISHED',
+        })
+      }
+
+      let query = service
         .from('ticket_types')
         .select(`
           *,
@@ -129,7 +181,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Get active campaigns for this event
-      const { data: campaigns } = await supabase
+      const { data: campaigns } = await service
         .from('ticket_campaigns')
         .select('*')
         .eq('event_id', event_id)
@@ -139,7 +191,7 @@ export async function GET(request: NextRequest) {
       // Get social sharing stats if requested
       let socialStats = null
       if (include_analytics) {
-        const { data: shares } = await supabase
+        const { data: shares } = await service
           .from('ticket_shares')
           .select('platform, click_count, conversion_count, revenue_generated')
           .eq('event_id', event_id)
@@ -159,16 +211,13 @@ export async function GET(request: NextRequest) {
         }, {}) || {}
       }
 
-      const { data: ticketingConfig } = await supabase
-        .from('event_ticketing_config')
-        .select('refund_policy, terms_text, transfer_policy, resale_enabled')
-        .eq('event_id', event_id)
-        .maybeSingle()
-
       const ticketTypesWithAvailability = ticketTypes?.map(ticket => ({
         ...ticket,
-        available: ticket.quantity_available - ticket.quantity_sold,
-        is_available: (ticket.quantity_available - ticket.quantity_sold) > 0,
+        available: Math.max(
+          0,
+          ticket.quantity_available - ticket.quantity_sold - (ticket.quantity_reserved || 0),
+        ),
+        is_available: (ticket.quantity_available - ticket.quantity_sold - (ticket.quantity_reserved || 0)) > 0,
         percentage_sold: ticket.quantity_available > 0 
           ? Math.round((ticket.quantity_sold / ticket.quantity_available) * 100)
           : 0
@@ -196,7 +245,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Ticket type ID is required' }, { status: 400 })
       }
 
-      const { data: ticketType, error } = await supabase
+      const { data: ticketType, error } = await service
         .from('ticket_types')
         .select(`
           *,
@@ -217,7 +266,25 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Ticket type not found or inactive' }, { status: 404 })
       }
 
-      const available = ticketType.quantity_available - ticketType.quantity_sold
+      const { data: ticketingConfig } = await service
+        .from('event_ticketing_config')
+        .select('ticketing_enabled, sale_start, sale_end')
+        .eq('event_id', ticketType.event_id)
+        .maybeSingle()
+
+      if (!ticketingConfig?.ticketing_enabled) {
+        return NextResponse.json({
+          available: 0,
+          is_available: false,
+          unavailable_reason: 'Ticket sales are not published for this event',
+          unavailable_code: ticketingConfig ? 'NOT_PUBLISHED' : 'CONFIG_REQUIRED',
+        })
+      }
+
+      const available = Math.max(
+        0,
+        ticketType.quantity_available - ticketType.quantity_sold - (ticketType.quantity_reserved || 0),
+      )
       const isAvailable = available > 0
 
       return NextResponse.json({
@@ -246,7 +313,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Event ID is required' }, { status: 400 })
       }
 
-      const { data: shares, error } = await supabase
+      const { data: shares, error } = await service
         .from('ticket_shares')
         .select('platform, click_count, conversion_count, revenue_generated')
         .eq('event_id', event_id)
@@ -292,65 +359,79 @@ export async function POST(request: NextRequest) {
 
     if (action === 'purchase') {
       const validatedData = purchaseTicketSchema.parse(data)
+      const promoterAttributionSession = readPromoterAttributionSession(
+        request.cookies.get('tourify_promoter_attribution_session')?.value,
+      )
 
       const {
         data: { user },
       } = await supabase.auth.getUser()
+      const service = createServiceRoleClient()
 
       const v2Enabled = isTicketingV2Enabled()
-      if (v2Enabled && !user) {
+      if (!user) {
         return NextResponse.json(
           { error: 'Sign in required to purchase tickets', code: 'AUTH_REQUIRED' },
           { status: 401 }
         )
       }
 
-      // Enforce ticketing config when present
-      const { data: ticketingConfig } = await supabase
+      const { data: ticketingConfig } = await service
         .from('event_ticketing_config')
         .select('*')
         .eq('event_id', validatedData.event_id)
         .maybeSingle()
 
-      if (ticketingConfig) {
-        if (!ticketingConfig.ticketing_enabled)
-          return NextResponse.json({ error: 'Ticketing is not enabled for this event' }, { status: 400 })
+      if (!ticketingConfig) {
+        return ticketingUnavailableResponse(
+          'Ticketing is not configured for this event',
+          'CONFIG_REQUIRED',
+        )
+      }
 
-        const now = Date.now()
-        if (ticketingConfig.sale_start && now < new Date(ticketingConfig.sale_start).getTime())
-          return NextResponse.json({ error: 'Ticket sales have not started yet' }, { status: 400 })
-        if (ticketingConfig.sale_end && now > new Date(ticketingConfig.sale_end).getTime())
-          return NextResponse.json({ error: 'Ticket sales have ended' }, { status: 400 })
-        if (ticketingConfig.max_per_order && validatedData.quantity > ticketingConfig.max_per_order)
-          return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_order} tickets per order` }, { status: 400 })
+      if (!ticketingConfig.ticketing_enabled) {
+        return ticketingUnavailableResponse(
+          'Ticketing is not enabled for this event',
+          'NOT_PUBLISHED',
+        )
+      }
 
-        if (ticketingConfig.max_per_user && user?.id) {
-          const { data: prior } = await supabase
-            .from('ticket_sales')
-            .select('quantity')
-            .eq('event_id', validatedData.event_id)
-            .eq('buyer_user_id', user.id)
-            .in('payment_status', ['completed', 'pending'])
-          const priorQty = (prior || []).reduce((sum: number, row: any) => sum + (row.quantity || 0), 0)
-          if (priorQty + validatedData.quantity > ticketingConfig.max_per_user)
-            return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_user} tickets per account` }, { status: 400 })
-        }
+      if (!termsAreReady(ticketingConfig)) {
+        return ticketingUnavailableResponse(
+          'Organizer terms must be published before checkout can open',
+          'TERMS_REQUIRED',
+        )
+      }
 
-        if (!validatedData.terms_accepted) {
-          return NextResponse.json(
-            { error: 'You must accept the Ticket Buyer Terms and organizer terms before purchasing' },
-            { status: 400 }
-          )
-        }
-      } else if (!validatedData.terms_accepted) {
+      const now = Date.now()
+      if (ticketingConfig.sale_start && now < new Date(ticketingConfig.sale_start).getTime())
+        return NextResponse.json({ error: 'Ticket sales have not started yet', code: 'SALES_NOT_STARTED' }, { status: 400 })
+      if (ticketingConfig.sale_end && now > new Date(ticketingConfig.sale_end).getTime())
+        return NextResponse.json({ error: 'Ticket sales have ended', code: 'SALES_ENDED' }, { status: 400 })
+      if (ticketingConfig.max_per_order && validatedData.quantity > ticketingConfig.max_per_order)
+        return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_order} tickets per order`, code: 'MAX_PER_ORDER' }, { status: 400 })
+
+      if (ticketingConfig.max_per_user && user?.id) {
+          const { data: prior } = await service
+          .from('ticket_sales')
+          .select('quantity')
+          .eq('event_id', validatedData.event_id)
+          .eq('buyer_user_id', user.id)
+          .in('payment_status', ['completed', 'pending'])
+        const priorQty = (prior || []).reduce((sum: number, row: any) => sum + (row.quantity || 0), 0)
+        if (priorQty + validatedData.quantity > ticketingConfig.max_per_user)
+          return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_user} tickets per account`, code: 'MAX_PER_USER' }, { status: 400 })
+      }
+
+      if (!validatedData.terms_accepted) {
         return NextResponse.json(
-          { error: 'You must accept the Ticket Buyer Terms before purchasing' },
+          { error: 'You must accept the Ticket Buyer Terms and organizer terms before purchasing', code: 'TERMS_NOT_ACCEPTED' },
           { status: 400 }
         )
       }
 
       // Check ticket availability
-      const { data: ticketType, error: ticketError } = await supabase
+      const { data: ticketType, error: ticketError } = await service
         .from('ticket_types')
         .select('*')
         .eq('id', validatedData.ticket_type_id)
@@ -426,7 +507,7 @@ export async function POST(request: NextRequest) {
 
       try {
         const pending = await createPendingOrder({
-          supabase: supabase as any,
+          supabase: service as any,
           ticketTypeId: validatedData.ticket_type_id,
           eventId: validatedData.event_id,
           quantity: validatedData.quantity,
@@ -450,6 +531,7 @@ export async function POST(request: NextRequest) {
             ticket_buyer_terms_version: '1.0',
             organizer_terms_text: ticketingConfig?.terms_text ?? null,
             organizer_refund_policy: ticketingConfig?.refund_policy ?? null,
+            promoter_attribution_session_present: promoterAttributionSession !== null,
           },
         })
         orderId = pending.orderId
@@ -463,7 +545,7 @@ export async function POST(request: NextRequest) {
       }
 
       await emitTicketAnalyticsEvent({
-        supabase: supabase as any,
+        supabase: service as any,
         eventName: 'checkout_started',
         eventId: validatedData.event_id,
         ticketTypeId: validatedData.ticket_type_id,
@@ -472,8 +554,18 @@ export async function POST(request: NextRequest) {
         amounts: { quantity: validatedData.quantity, total: fees.buyerTotal },
       })
 
+      try {
+        await resolvePromoterCheckoutShadowAttribution({
+          orderId,
+          anonymousSessionId: promoterAttributionSession,
+        })
+      } catch (error) {
+        // Shadow attribution must never prevent a native ticket checkout.
+        console.warn('[Enhanced Ticketing API] Shadow promoter attribution unavailable', error)
+      }
+
       if (validatedData.share_platform && validatedData.share_source) {
-        await supabase
+        await service
           .from('ticket_shares')
           .insert({
             event_id: validatedData.event_id,
@@ -486,7 +578,7 @@ export async function POST(request: NextRequest) {
           })
       }
 
-      const { data: sale } = await supabase
+      const { data: sale } = await service
         .from('ticket_sales')
         .select('*')
         .eq('id', orderId)
@@ -535,7 +627,7 @@ export async function POST(request: NextRequest) {
         })
 
         if (v2) {
-          await supabase
+          await service
             .from('ticket_sales')
             .update({
               stripe_checkout_session_id: session.id,
@@ -556,7 +648,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Free / complimentary path — issue immediately
-      await supabase
+      await service
         .from('ticket_sales')
         .update({
           payment_status: 'completed',
@@ -566,12 +658,12 @@ export async function POST(request: NextRequest) {
 
       if (v2 && reservationId) {
         try {
-          await finalizeInventory({ supabase: supabase as any, reservationId })
+          await finalizeInventory({ supabase: service as any, reservationId })
         } catch {
           // ignore if already finalized
         }
         await issueTicketsForOrder({
-          supabase: supabase as any,
+          supabase: service as any,
           orderId,
           eventId: validatedData.event_id,
           ticketTypeId: validatedData.ticket_type_id,
@@ -606,6 +698,17 @@ export async function POST(request: NextRequest) {
           .eq('event_id', validatedData.event_id)
           .eq('is_used', false)
       }
+
+      const ticketingConfig = await getEventTicketingConfig({
+        supabase: createServiceRoleClient() as any,
+        eventId: ticketType.event_id,
+      })
+      const quote = calculateTicketFees({
+        unitPrice: Number(ticketType.price),
+        quantity: validatedData.quantity,
+        discountAmount: promoCodeInfo?.discount_amount ?? 0,
+        config: feeConfigFromRow(ticketingConfig),
+      })
 
       return NextResponse.json({
         sale,
@@ -733,7 +836,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Ticket type not found' }, { status: 404 })
       }
 
-      const available = ticketType.quantity_available - ticketType.quantity_sold
+      const available = Math.max(
+        0,
+        ticketType.quantity_available - ticketType.quantity_sold - (ticketType.quantity_reserved || 0),
+      )
       const canPurchase = available >= validatedData.quantity
 
       // Check promo code if provided
@@ -775,7 +881,8 @@ export async function POST(request: NextRequest) {
           price: ticketType.price,
           category: ticketType.category
         },
-        promo_code: promoCodeInfo
+        promo_code: promoCodeInfo,
+        fee_breakdown: quote,
       })
 
     } else {

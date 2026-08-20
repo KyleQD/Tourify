@@ -41,6 +41,24 @@ export const ADMIN_CAPABILITIES = [
   'communications.broadcast',
   'content.view',
   'content.manage',
+  'commerce.view',
+  'commerce.view_customers',
+  'commerce.view_seller_pii',
+  'commerce.manage_orders',
+  'commerce.manage_fulfillment',
+  'commerce.manage_listings',
+  'commerce.manage_sellers',
+  'commerce.manage_cases',
+  'commerce.manage_disputes',
+  'commerce.issue_refunds',
+  'commerce.view_financials',
+  'commerce.retry_payouts',
+  'commerce.manage_payouts',
+  'commerce.manage_settlements',
+  'commerce.manage_fees',
+  'commerce.manage_subscriptions',
+  'commerce.export',
+  'commerce.view_audit',
 ] as const
 
 export type AdminCapability = (typeof ADMIN_CAPABILITIES)[number]
@@ -58,6 +76,7 @@ const OPERATIONS_VIEW: AdminCapability[] = [
   'ticketing.view',
   'site_map.view',
   'content.view',
+  'commerce.view',
 ]
 
 const TOUR_MANAGER_CAPABILITIES: AdminCapability[] = [
@@ -82,7 +101,11 @@ const TOUR_MANAGER_CAPABILITIES: AdminCapability[] = [
   'communications.broadcast',
   'content.view',
   'content.manage',
+  'commerce.manage_orders',
+  'commerce.manage_fulfillment',
+  'commerce.manage_cases',
   'audit.view',
+  'commerce.view_audit',
 ]
 
 const PRODUCTION_CAPABILITIES = TOUR_MANAGER_CAPABILITIES.filter(
@@ -97,7 +120,15 @@ const FINANCE_CAPABILITIES: AdminCapability[] = [
   'contract.view',
   'vendor.view',
   'vendor.sensitive',
+  'commerce.view_financials',
+  'commerce.issue_refunds',
+  'commerce.retry_payouts',
+  'commerce.manage_payouts',
+  'commerce.manage_settlements',
+  'commerce.manage_fees',
+  'commerce.export',
   'audit.view',
+  'commerce.view_audit',
 ]
 
 const TICKETING_CAPABILITIES: AdminCapability[] = [
@@ -107,6 +138,11 @@ const TICKETING_CAPABILITIES: AdminCapability[] = [
   'ticketing.manage',
   'ticketing.scan',
   'ticketing.refund',
+  'commerce.view',
+  'commerce.view_customers',
+  'commerce.manage_orders',
+  'commerce.manage_fulfillment',
+  'commerce.issue_refunds',
   'communications.send',
 ]
 
@@ -121,7 +157,12 @@ const DEPARTMENT_MANAGER_CAPABILITIES: AdminCapability[] = [
 export const ROLE_DEFAULT_CAPABILITIES: Readonly<Record<string, readonly AdminCapability[]>> = {
   owner: ALL_CAPABILITIES,
   admin: ALL_CAPABILITIES.filter(
-    capability => !['finance.pay', 'contract.sign'].includes(capability)
+    capability => ![
+      'finance.pay',
+      'contract.sign',
+      'commerce.retry_payouts',
+      'commerce.manage_payouts',
+    ].includes(capability)
   ),
   tour_manager: TOUR_MANAGER_CAPABILITIES,
   production: PRODUCTION_CAPABILITIES,

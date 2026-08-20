@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ARTIST_BOOKING_EVENT_PERMISSIONS,
   canDecideArtistBooking,
   canEditArtistBookingDetails,
+  canRequesterAnswerInfoRequest,
   canUseArtistBookingChat,
   getInitialArtistBookingStatus,
   getArtistBookingParticipantRole,
+  summarizeArtistBookingViews,
   shouldIncludeArtistBookingForView,
 } from '@/lib/bookings/artist-booking-server'
 import {
   bookingDeferredDetailsSchema,
   bookingStepOneSchema,
-  createBookingRequestSchema,
+  createPublicArtistBookingRequestSchema,
 } from '@/lib/public-artist/booking-request-schema'
 
 const requester = {
@@ -35,25 +38,23 @@ const row = {
 }
 
 describe('artist booking request validation', () => {
-  it('accepts only the five essential public request fields', () => {
+  it('accepts the public request essentials without advanced fields', () => {
     const draft = bookingStepOneSchema.parse({
       requestType: 'performance',
       performanceType: 'DJ set',
-      venue: 'Tourify Hall',
+      description: 'We are planning a sunset set and would love to discuss availability.',
       location: 'Los Angeles, CA',
-      performanceDate: '2026-09-10',
     })
 
     expect(draft.performanceType).toBe('DJ set')
-    expect(createBookingRequestSchema.safeParse({
+    expect(createPublicArtistBookingRequestSchema.safeParse({
       artistId: artist.userId,
       artistProfileId: artist.profileId,
       requestType: draft.requestType,
       bookingDetails: {
         performanceType: draft.performanceType,
-        venue: draft.venue,
+        description: draft.description,
         location: draft.location,
-        performanceDate: draft.performanceDate,
       },
     }).success).toBe(true)
   })
@@ -62,9 +63,8 @@ describe('artist booking request validation', () => {
     expect(bookingStepOneSchema.safeParse({
       requestType: 'performance',
       performanceType: '',
-      venue: '',
+      description: '',
       location: '',
-      performanceDate: '',
     }).success).toBe(false)
   })
 
@@ -108,8 +108,11 @@ describe('artist booking account scope', () => {
 
   it('partitions pending, accepted, and historical requests into manager views', () => {
     expect(shouldIncludeArtistBookingForView('artist', 'pending', 'incoming')).toBe(true)
+    expect(shouldIncludeArtistBookingForView('artist', 'needs_info', 'needs_info')).toBe(true)
+    expect(shouldIncludeArtistBookingForView('requester', 'needs_info', 'needs_info')).toBe(true)
     expect(shouldIncludeArtistBookingForView('requester', 'pending', 'sent')).toBe(true)
-    expect(shouldIncludeArtistBookingForView('requester', 'rejected', 'sent')).toBe(true)
+    expect(shouldIncludeArtistBookingForView('requester', 'needs_info', 'sent')).toBe(false)
+    expect(shouldIncludeArtistBookingForView('requester', 'rejected', 'sent')).toBe(false)
     expect(shouldIncludeArtistBookingForView('artist', 'accepted', 'active')).toBe(true)
     expect(shouldIncludeArtistBookingForView('requester', 'approved', 'active')).toBe(true)
     expect(shouldIncludeArtistBookingForView('requester', 'declined', 'history')).toBe(true)
@@ -117,8 +120,19 @@ describe('artist booking account scope', () => {
     expect(shouldIncludeArtistBookingForView('requester', 'pending', 'history')).toBe(false)
   })
 
+  it('summarizes role-scoped booking views without duplicating terminal sender requests', () => {
+    expect(summarizeArtistBookingViews([
+      { role: 'requester', status: 'pending' },
+      { role: 'requester', status: 'needs_info' },
+      { role: 'requester', status: 'accepted' },
+      { role: 'requester', status: 'declined' },
+      { role: 'artist', status: 'pending' },
+    ])).toEqual({ incoming: 1, needs_info: 1, sent: 1, active: 1, history: 1 })
+  })
+
   it('enforces lifecycle permissions for decisions, details, and chat', () => {
     expect(canDecideArtistBooking('artist', 'pending')).toBe(true)
+    expect(canDecideArtistBooking('artist', 'needs_info')).toBe(true)
     expect(canDecideArtistBooking('requester', 'pending')).toBe(false)
     expect(canDecideArtistBooking('artist', 'accepted')).toBe(false)
 
@@ -128,12 +142,29 @@ describe('artist booking account scope', () => {
 
     expect(canUseArtistBookingChat('requester', 'accepted')).toBe(true)
     expect(canUseArtistBookingChat('artist', 'accepted')).toBe(true)
+    expect(canUseArtistBookingChat('artist', 'pending')).toBe(true)
+    expect(canUseArtistBookingChat('requester', 'needs_info')).toBe(true)
     expect(canUseArtistBookingChat('artist', 'declined')).toBe(false)
+
+    expect(canRequesterAnswerInfoRequest('requester', 'needs_info')).toBe(true)
+    expect(canRequesterAnswerInfoRequest('requester', 'pending')).toBe(false)
   })
 
   it('always creates public-profile requests as pending', () => {
     expect(getInitialArtistBookingStatus('accepted', true)).toBe('pending')
     expect(getInitialArtistBookingStatus('declined', true)).toBe('pending')
     expect(getInitialArtistBookingStatus('accepted', false)).toBe('accepted')
+  })
+
+  it('uses limited event collaborator permissions for accepted linked bookings', () => {
+    expect(ARTIST_BOOKING_EVENT_PERMISSIONS).toEqual({
+      promote: true,
+      view_public_details: true,
+      view_artist_activity: true,
+      view_limited_insights: true,
+      edit_event: false,
+      assign_roles: false,
+      manage_financials: false,
+    })
   })
 })

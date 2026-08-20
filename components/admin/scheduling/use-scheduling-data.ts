@@ -236,6 +236,7 @@ export interface SchedulingMutationResult {
 
 interface RawShift {
   id: string
+  staff_shift_plan_id?: string | null
   venue_id?: string | null
   org_id?: string | null
   adhoc_venue_id?: string | null
@@ -587,7 +588,7 @@ function deriveShifts(rawShifts: RawShift[], staff: StaffMember[], events: Sched
   })
 }
 
-function deriveOpenShifts(shifts: Shift[], zones: RawZone[], events: SchedulingEventOption[], staff: StaffMember[]): OpenShift[] {
+function deriveOpenShifts(shifts: Shift[], _zones: RawZone[], _events: SchedulingEventOption[], staff: StaffMember[]): OpenShift[] {
   const fromUnassigned = shifts
     .filter((shift) => !shift.assignedStaff || shift.status === `open` || shift.status === `declined`)
     .map<OpenShift>((shift) => ({
@@ -611,27 +612,9 @@ function deriveOpenShifts(shifts: Shift[], zones: RawZone[], events: SchedulingE
         .map((member) => member.name),
     }))
 
-  const byZone = zones.flatMap((zone) => {
-    const required = Number(zone.required_staff_count ?? 0)
-    const assigned = Number(zone.assigned_staff_count ?? 0)
-    const missing = Math.max(required - assigned, 0)
-    if (missing === 0) return []
-    const event = events.find((candidate) => candidate.id === zone.event_id)
-    return Array.from({ length: missing }, (_, index) => ({
-      id: `zone-open-${zone.id}-${index}`,
-      role: zone.zone_name ?? zone.name ?? zone.zone_type ?? "Zone coverage",
-      department: normalizeDepartment(zone.zone_type ?? zone.zone_name),
-      eventName: event?.name ?? "General coverage",
-      venueName: event?.venueName ?? "Venue TBD",
-      date: event?.startsAt ? event.startsAt.slice(0, 10) : isoDate(new Date()),
-      startTime: "09:00",
-      endTime: "17:00",
-      priority: "medium" as const,
-      suggestedStaff: staff.slice(0, 3).map((member) => member.name),
-    }))
-  })
-
-  return [...fromUnassigned, ...byZone]
+  // Zone coverage is an event requirement, not a shift. It becomes an open shift only
+  // after a manager creates a real shared shift plan with explicit dates and times.
+  return fromUnassigned
 }
 
 /** @deprecated Demo-only invent path removed from live; use deriveLiveAvailability. */
@@ -889,7 +872,7 @@ export function useSchedulingData(
       persist(async () => {
         if (!employer) throw new Error("A hiring account is required before saving this shift.")
         const staffIds = input.assignedStaffIds?.filter(Boolean) ?? []
-        if (staffIds.length === 0) throw new Error("Select at least one staff member before saving this shift.")
+        if (input.notify && staffIds.length === 0) throw new Error("Select at least one staff member before publishing this shift.")
         const resolvedEventId = resolveEventIdForInput(input)
         // Venue resolution: event's venue → the venue picked in the form
         // (matched by name against live venue options) → page-level venue context.
@@ -898,44 +881,55 @@ export function useSchedulingData(
           ?? liveVenues.find((venue) => venue.name === input.venueName)?.id
           ?? venueId
 
-        const payloadBase = {
-          venue_id: resolvedVenueId ?? undefined,
-          event_id: resolvedEventId,
-          entity_type: employer.entityType,
-          entity_id: employer.entityId,
-          shift_date: input.date,
-          start_time: input.startTime,
-          end_time: input.endTime,
-          break_duration: input.breakMinutes ?? 0,
-          zone_assignment: input.venueName || undefined,
-          role_assignment: input.role || input.title || "Staff",
-          notes: input.notes || input.staffInstructions || undefined,
-          notify: Boolean(input.notify),
-        }
+        const start = new Date(`${input.date}T${input.startTime || "00:00"}:00`)
+        const end = new Date(`${input.date}T${input.endTime || "00:00"}:00`)
+        if (end <= start) end.setDate(end.getDate() + 1)
+        const event = rawEvents.find((candidate) => candidate.id === resolvedEventId)
+        const createResponse = await fetch("/api/admin/staffing/shift-plans", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json", ...actingHeaders },
+          body: JSON.stringify({
+            employerEntityType: employer.entityType,
+            employerEntityId: employer.entityId,
+            tourId: event?.tourId ?? null,
+            eventId: resolvedEventId ?? null,
+            title: input.title || input.role || "Shift",
+            role: input.role || null,
+            department: input.department || null,
+            shiftType: input.shiftType || "event",
+            priority: input.priority || "medium",
+            requiredHeadcount: input.neededStaffCount || 1,
+            requiredSkills: input.requiredSkills || [],
+            startsAt: start.toISOString(),
+            endsAt: end.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+            breakDurationMinutes: input.breakMinutes || 0,
+            location: {
+              type: "onsite",
+              venueId: resolvedVenueId ?? null,
+              name: input.venueName || event?.venueName || null,
+              address: null,
+            },
+            workerInstructions: input.staffInstructions || null,
+            managerNotes: input.notes || null,
+          }),
+        })
+        const createBody = await createResponse.json().catch(() => null)
+        if (!createResponse.ok) throw new Error(createBody?.error || "Failed to create shared shift")
 
-        const responses = await Promise.all(
-          staffIds.map((staff_member_id) =>
-            fetch("/api/admin/staffing/shifts", {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json", ...actingHeaders },
-              body: JSON.stringify({ ...payloadBase, staff_member_id }),
-            }),
-          ),
-        )
-        const failed = responses.find((response) => !response.ok)
-        if (failed) {
-          const body = await failed.json().catch(() => null)
-          const message =
-            typeof body?.error === "string"
-              ? body.error
-              : typeof body?.error?.message === "string"
-                ? body.error.message
-                : "Failed to create shift"
-          throw new Error(message)
+        if (input.notify) {
+          const publishResponse = await fetch(`/api/admin/staffing/shift-plans/${createBody.plan.id}/publish`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json", ...actingHeaders },
+            body: JSON.stringify({ staffMemberIds: staffIds }),
+          })
+          const publishBody = await publishResponse.json().catch(() => null)
+          if (!publishResponse.ok) throw new Error(publishBody?.error || "Failed to publish shared shift")
         }
       }),
-    [employer, persist, rawEvents, resolveEventIdForInput, liveVenues, venueId],
+    [actingHeaders, employer, persist, rawEvents, resolveEventIdForInput, liveVenues, venueId],
   )
 
   const updateShift = useCallback(
@@ -1041,52 +1035,18 @@ export function useSchedulingData(
 
         const existing = rawShifts.find((row) => row.id === shiftId)
         if (!existing) throw new Error("Shift not found")
-
-        const [primaryId, ...extraIds] = uniqueIds
-
-        const patchResponse = await fetch(`/api/admin/staffing/shifts/${shiftId}`, {
-          method: "PATCH",
+        if (!existing.staff_shift_plan_id) {
+          throw new Error("This historical shift must be converted to a shared shift before changing its crew. Create a shared shift from its details to continue.")
+        }
+        const publishResponse = await fetch(`/api/admin/staffing/shift-plans/${existing.staff_shift_plan_id}/publish`, {
+          method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json", ...actingHeaders },
-          body: JSON.stringify({ staff_member_id: primaryId, notify: true }),
+          body: JSON.stringify({ staffMemberIds: uniqueIds }),
         })
-        if (!patchResponse.ok)
-          throw new Error((await patchResponse.json().catch(() => null))?.error || "Failed to assign staff")
-
-        if (extraIds.length > 0) {
-          if (!employer) throw new Error("A hiring account is required before assigning additional staff.")
-          const venueForCreate = existing.venue_id ?? venueId
-
-          const createResponses = await Promise.all(
-            extraIds.map((staff_member_id) =>
-              fetch("/api/admin/staffing/shifts", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json", ...actingHeaders },
-                body: JSON.stringify({
-                  venue_id: venueForCreate ?? undefined,
-                  org_id: existing.org_id ?? undefined,
-                  entity_type: employer.entityType,
-                  entity_id: employer.entityId,
-                  event_id: existing.event_id ?? undefined,
-                  staff_member_id,
-                  shift_date: existing.shift_date,
-                  start_time: existing.start_time,
-                  end_time: existing.end_time,
-                  break_duration: existing.break_duration ?? 0,
-                  zone_assignment: existing.zone_assignment ?? undefined,
-                  role_assignment: existing.role_assignment ?? undefined,
-                  notes: existing.notes ?? undefined,
-                  notify: true,
-                }),
-              }),
-            ),
-          )
-          const failed = createResponses.find((response) => !response.ok)
-          if (failed) throw new Error((await failed.json().catch(() => null))?.error || "Failed to assign additional staff")
-        }
+        if (!publishResponse.ok) throw new Error((await publishResponse.json().catch(() => null))?.error || "Failed to assign staff")
       }),
-    [employer, persist, rawShifts, venueId],
+    [actingHeaders, persist, rawShifts],
   )
 
   const publishShifts = useCallback(

@@ -55,6 +55,7 @@ interface Event {
   tags?: string[]
   slug?: string
   artist_id?: string
+  access_role?: 'owner' | 'collaborator'
   created_at?: string
 }
 
@@ -302,6 +303,10 @@ export default function EventsPage() {
             <div className="space-y-4">
               {events.map((event) => (
                   <div key={event.id} className={cn(artistEventUI.panelPadded, artistEventUI.interactive, "flex flex-col gap-4 lg:flex-row lg:items-center")}>
+                    {(() => {
+                      const isCollaboratorEvent = event.access_role === 'collaborator'
+                      return (
+                        <>
                     <div className="flex-shrink-0">
                       <div className={cn(artistEventUI.iconWell, "h-20 w-20")}>
                         <Calendar className="h-8 w-8" />
@@ -317,6 +322,11 @@ export default function EventsPage() {
                         >
                           {event.status.replace('_', ' ')}
                         </Badge>
+                        {isCollaboratorEvent ? (
+                          <Badge variant="outline" className="border-cyan-500/40 text-cyan-200">
+                            Collaborator
+                          </Badge>
+                        ) : null}
                           </div>
                       <p className="text-slate-400 text-sm mb-2">{event.description || "No description"}</p>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
@@ -341,21 +351,23 @@ export default function EventsPage() {
                       
                       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                         <Button
-                          onClick={() => router.push(`/artist/events/${event.id}`)}
+                          onClick={() => router.push(isCollaboratorEvent ? `/events/${event.slug || event.id}` : `/artist/events/${event.id}`)}
                           className={artistEventUI.buttonPrimary}
                           size="sm"
                         >
-                          Manage Event
+                          {isCollaboratorEvent ? 'Open Event' : 'Manage Event'}
                         </Button>
-                        <Button
-                          onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
-                          variant="outline"
-                          className={artistEventUI.buttonOutline}
-                          size="sm"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
+                        {!isCollaboratorEvent ? (
+                          <Button
+                            onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                            variant="outline"
+                            className={artistEventUI.buttonOutline}
+                            size="sm"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        ) : null}
                         <Button
                           onClick={() => router.push(`/events/${event.slug || event.id}`)}
                           variant="outline"
@@ -364,7 +376,7 @@ export default function EventsPage() {
                         >
                           View Public Page
                         </Button>
-                        {event.status === "draft" && (
+                        {!isCollaboratorEvent && event.status === "draft" && (
                           <Button
                             onClick={() => event.id && handlePublishEvent(event.id)}
                             variant="outline"
@@ -382,13 +394,15 @@ export default function EventsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="border-slate-700 bg-slate-950 text-slate-100">
-                          <DropdownMenuItem 
-                            onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
-                            className="focus:bg-slate-800"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit in Producer
-                          </DropdownMenuItem>
+                          {!isCollaboratorEvent ? (
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                              className="focus:bg-slate-800"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit in Producer
+                            </DropdownMenuItem>
+                          ) : null}
                           <DropdownMenuItem 
                             onClick={() => router.push(`/events/${event.slug || event.id}`)}
                             className="focus:bg-slate-800"
@@ -407,16 +421,21 @@ export default function EventsPage() {
                             <Share2 className="h-4 w-4 mr-2" />
                             Copy Event Link
                           </DropdownMenuItem>
-                              <DropdownMenuItem 
-                            onClick={() => setDeleteEventId(event.id || '')}
-                            className="text-red-300 focus:bg-red-500/10 focus:text-red-200"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Event
-                          </DropdownMenuItem>
+                          {!isCollaboratorEvent ? (
+                            <DropdownMenuItem
+                              onClick={() => setDeleteEventId(event.id || '')}
+                              className="text-red-300 focus:bg-red-500/10 focus:text-red-200"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Event
+                            </DropdownMenuItem>
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                       </div>
+                      </>
+                      )
+                    })()}
                     </div>
               ))}
             </div>

@@ -20,6 +20,7 @@ import { useActingContext } from "@/hooks/use-acting-context"
 interface TourMember {
   id: string
   user_id?: string
+  staff_member_id?: string
   name: string
   role: string
   email: string
@@ -93,6 +94,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const [workflowTaskTitle, setWorkflowTaskTitle] = useState("")
   const [workflowTaskPriority, setWorkflowTaskPriority] = useState<WorkflowTask["priority"]>("medium")
   const [workflowTaskAssigneeId, setWorkflowTaskAssigneeId] = useState("")
+  const [eligibleAssignees, setEligibleAssignees] = useState<Array<{ staffMemberId: string; name: string; role: string | null }>>([])
   const [workflowMessageBody, setWorkflowMessageBody] = useState("")
   const [inviteLink, setInviteLink] = useState("")
   const [newTeam, setNewTeam] = useState({
@@ -159,10 +161,18 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     }
     void syncWorkflow()
     void (async () => {
-      const response = await fetch(`/api/admin/tours/teams?tour_id=${encodeURIComponent(tourId)}`, adminRequest())
-      if (!response.ok) return
-      const payload = await response.json()
-      setTeams(payload.data || [])
+      const [teamsResponse, assigneesResponse] = await Promise.all([
+        fetch(`/api/admin/tours/teams?tour_id=${encodeURIComponent(tourId)}`, adminRequest()),
+        fetch(`/api/admin/workforce/assignees?tour_id=${encodeURIComponent(tourId)}`, adminRequest({ cache: 'no-store' })),
+      ])
+      if (teamsResponse.ok) {
+        const payload = await teamsResponse.json()
+        setTeams(payload.data || [])
+      }
+      if (assigneesResponse.ok) {
+        const payload = await assigneesResponse.json()
+        setEligibleAssignees(payload.assignees || [])
+      }
     })()
   }, [actingContextKey, adminRequest, isActingReady, syncWorkflow, tourId])
 
@@ -205,9 +215,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   async function handleCreateWorkflowTask() {
     if (!workflowThreadId || !workflowTaskTitle.trim()) return
     try {
-      const assigneeId = workflowTaskAssigneeId && isUuid(workflowTaskAssigneeId)
-        ? workflowTaskAssigneeId
-        : undefined
+      if (!workflowTaskAssigneeId) throw new Error('Select an assignee')
 
       const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, adminRequest({
         method: 'POST',
@@ -215,7 +223,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
         body: JSON.stringify({
           title: workflowTaskTitle.trim(),
           priority: workflowTaskPriority,
-          assignee_id: assigneeId,
+          assignee_staff_member_ids: [workflowTaskAssigneeId],
         }),
       }))
 
@@ -641,12 +649,13 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                     <SelectItem value="critical">Critical</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input
-                  value={workflowTaskAssigneeId}
-                  onChange={(event) => setWorkflowTaskAssigneeId(event.target.value)}
-                  placeholder="Assignee user UUID"
-                  className="bg-slate-800 border-slate-700 text-white"
-                />
+                <Select value={workflowTaskAssigneeId || "__none__"} onValueChange={(value) => setWorkflowTaskAssigneeId(value === "__none__" ? "" : value)}>
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue placeholder="Select roster member" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Select roster member</SelectItem>
+                    {eligibleAssignees.map((assignee) => <SelectItem key={assignee.staffMemberId} value={assignee.staffMemberId}>{assignee.name}{assignee.role ? ` · ${assignee.role}` : ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 type="button"

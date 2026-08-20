@@ -1,0 +1,14 @@
+{
+  "project": "Tourify Work Hub + Work Mode",
+  "phase": "p2_reliability_implementation",
+  "lastUpdated": "2026-08-19",
+  "summary": { "total": 6, "complete": 3, "inProgress": 3, "blocked": 0 },
+  "tasks": [
+    { "id": "WORK-001", "category": "audit", "description": "Document system reuse and live schema findings", "priority": "P0", "status": "complete", "files": ["docs/work-system"], "dependencies": [], "tests": [], "notes": "Live Demo audit completed read-only." },
+    { "id": "WORK-002", "category": "security", "description": "Apply and verify worker publication/shift RLS remediation", "priority": "P0", "status": "complete", "files": ["supabase/migrations/20260819010000_work_system_p0_security_and_attendance.sql"], "dependencies": [], "tests": ["Hosted policy, index, column, and Realtime-publication verification"], "notes": "User manually applied SQL; hosted Demo verification completed on 2026-08-19. Migration history does not record manually executed SQL." },
+    { "id": "WORK-003", "category": "read_model", "description": "Unify assignment, shift, attendance, and publication state", "priority": "P0", "status": "in_progress", "files": ["lib/work-mode/read-model.ts"], "dependencies": ["WORK-002"], "tests": ["work-mode API tests"], "notes": "Compatibility bridge uses staff_shift_id." },
+    { "id": "WORK-004", "category": "work_hub", "description": "Prioritize worker obligations and valid job recommendations", "priority": "P1", "status": "in_progress", "files": ["components/work-mode/work-hub-dashboard.tsx"], "dependencies": ["WORK-003"], "tests": ["route contract"], "notes": "No duplicate jobs or application model." },
+    { "id": "WORK-005", "category": "work_mode", "description": "Deliver assignment-scoped Today, Schedule, Packets, Maps, and attendance", "priority": "P1", "status": "in_progress", "files": ["components/work-mode/work-mode-workspace.tsx"], "dependencies": ["WORK-003"], "tests": ["work-mode API tests"], "notes": "Worker actions remain feature-gated." },
+    { "id": "WORK-006", "category": "reliability", "description": "Add selective realtime and read-only offline cache", "priority": "P2", "status": "in_progress", "files": ["hooks/use-work-mode.ts", "supabase/migrations/20260819020000_work_system_realtime_publication.sql"], "dependencies": ["WORK-005"], "tests": ["weak-network browser verification", "realtime subscription contract"], "notes": "Read-only worker-scoped session cache, focus refresh, offline attendance guard, hosted Realtime publication verification, and 390px local browser smoke check are complete. Deployment flag rollout and authenticated persona checks remain." }
+  ]
+}

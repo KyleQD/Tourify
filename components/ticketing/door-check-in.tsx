@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { CheckCircle, XCircle, Users, RefreshCw, ArrowLeft } from "lucide-react"
+import { CheckCircle, XCircle, Users, RefreshCw, ArrowLeft, ScanLine, Smartphone } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
   const [processing, setProcessing] = useState(false)
   const [stats, setStats] = useState<Stats>({ total: 0, checked_in: 0, capacity: 0 })
   const [isOnline, setIsOnline] = useState(true)
+  const [deviceId, setDeviceId] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -68,14 +69,18 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
   }, [])
 
   useEffect(() => {
+    setDeviceId(window.localStorage.getItem(`ticketing-device:${eventId}`) || "")
+  }, [eventId])
+
+  useEffect(() => {
     inputRef.current?.focus()
   }, [result])
 
   async function submitCheckIn(codeOrId: string) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(codeOrId.trim())
     const body = isUuid
-      ? { sale_id: codeOrId.trim(), event_id: eventId }
-      : { qr_code: codeOrId.trim(), event_id: eventId }
+      ? { sale_id: codeOrId.trim(), event_id: eventId, device_id: deviceId, idempotency_key: crypto.randomUUID() }
+      : { qr_code: codeOrId.trim(), event_id: eventId, device_id: deviceId, idempotency_key: crypto.randomUUID() }
 
     const res = await fetch("/api/ticketing/check-in", {
       method: "POST",
@@ -88,6 +93,10 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
 
   async function checkIn(codeOrId: string) {
     if (!codeOrId.trim() || processing) return
+    if (!deviceId.trim()) {
+      setResult({ success: false, code: "DEVICE_REQUIRED", error: "Choose this scanner device before checking in guests." })
+      return
+    }
     setProcessing(true)
 
     try {
@@ -111,7 +120,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
   const pct = stats.total > 0 ? Math.round((stats.checked_in / stats.total) * 100) : 0
 
   return (
-    <div className="flex min-h-[70vh] flex-col rounded-md border border-zinc-800 bg-zinc-950">
+    <div className="flex min-h-[70vh] flex-col overflow-hidden rounded-sm border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/20">
       <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/70 px-4 py-3">
         <Button variant="ghost" size="sm" className="h-8 text-zinc-400" asChild>
           <Link href={backHref}>
@@ -120,6 +129,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
           </Link>
         </Button>
         <div className="flex items-center gap-2">
+          <ScanLine className="hidden h-4 w-4 text-cyan-300 sm:block" />
           <Users className="h-4 w-4 text-emerald-300" />
           <span className="text-sm font-medium text-white">
             {stats.checked_in} / {stats.total} checked in
@@ -147,6 +157,17 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
           </Button>
         </div>
       )}
+
+      <div className="flex flex-col gap-2 border-b border-zinc-800 bg-zinc-950 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-xs text-zinc-400"><Smartphone className="h-3.5 w-3.5 text-cyan-300" />This device is recorded with every admission.</div>
+        <Input
+          value={deviceId}
+          onChange={(event) => { const value = event.target.value; setDeviceId(value); window.localStorage.setItem(`ticketing-device:${eventId}`, value) }}
+          placeholder="Scanner device ID"
+          className="h-8 max-w-sm border-zinc-700 bg-zinc-900 text-xs text-zinc-100"
+          aria-label="Scanner device ID"
+        />
+      </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-8 p-6">
         {result ? (
@@ -186,6 +207,8 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
                     ? "Already Checked In"
                     : result.code === "OFFLINE"
                       ? "Connection Required"
+                      : result.code === "DEVICE_REQUIRED"
+                        ? "Scanner device required"
                       : "Invalid Ticket"}
                 </p>
                 {result.buyer_name ? <p className="text-sm text-zinc-300">{result.buyer_name}</p> : null}
@@ -200,7 +223,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
             )}
           </div>
         ) : (
-          <TicketQrScanner disabled={processing} onScan={(value) => void checkIn(value)} />
+          <TicketQrScanner disabled={processing || !deviceId.trim()} onScan={(value) => void checkIn(value)} />
         )}
 
         <div className="w-full max-w-md space-y-3">
@@ -222,7 +245,7 @@ export function DoorCheckIn({ eventId, backHref, backLabel = "Back" }: DoorCheck
             />
             <Button
               onClick={() => void checkIn(manualCode)}
-              disabled={!manualCode.trim() || processing}
+              disabled={!manualCode.trim() || processing || !deviceId.trim()}
               className="shrink-0 border-0 bg-emerald-600 text-white hover:bg-emerald-500"
             >
               {processing ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Check In"}

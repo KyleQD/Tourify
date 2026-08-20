@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818020124_event_promoter_checkout_shadow_attribution.sql",
+  "taskId": "EVENT-PROMOTER-P5",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "ticketing", "promoter-network", "checkout", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with Phase 1 through Phase 4 promoter migrations and native ticketing v2 applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "ticket_sales rows by event/payment state and matching ticket types",
+      "active promoter promo-code bindings and valid tracking touchpoints by event",
+      "service-role-only execute grants for checkout shadow resolver"
+    ],
+    "expectedAffectedRows": "Creates an additive, append-only shadow-decision table and one server-only resolver. Existing ticket sales, touchpoints, financial attributions, and commission ledger rows are not modified.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All DDL is additive/idempotent. The order unique key makes shadow attribution retries return the original decision rather than rewriting it.",
+    "resumeCursor": "supabase migration version 20260818020124",
+    "idempotency": "promoter_checkout_shadow_attributions(order_id) is unique; concurrent resolver calls compute only one preserved shadow decision for an order."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No historical ticket sales are backfilled. Resolution runs only for newly created native checkout orders behind capture and shadow feature flags."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "An attributed decision must reference a program, membership, and source; a none decision cannot carry those identities",
+      "Shadow decisions are append-only and cannot create payable commission records",
+      "Client roles have no table or resolver access"
+    ],
+    "indexes": [
+      "promoter_checkout_shadow_attributions(event_id, created_at desc)",
+      "promoter_checkout_shadow_attributions(membership_id, created_at desc) where membership_id is not null"
+    ],
+    "validationPlan": "Create orders under each precedence case: promoter promo code plus link, link only, native post CTA, expired/revoked touch, ineligible ticket, suspended membership, and self-purchase. Confirm source/reason and one non-payable row per order."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_shadow_commissions_enabled (and attribution capture if necessary). Existing shadow evidence remains immutable for review.",
+    "forwardFix": "Use an additive migration for resolver or policy corrections. Do not update historical shadow decisions or create payable entries from this phase."
+  },
+  "postflight": {
+    "queries": [
+      "shadow resolver execute grants include service_role and exclude anon/authenticated",
+      "no ticket_sale_attributions or promoter_commission_ledger rows are created by checkout shadow resolution",
+      "duplicate resolution for an order returns the original immutable row",
+      "promo code takes precedence over a valid first-party link touch and self-referral produces a none decision"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

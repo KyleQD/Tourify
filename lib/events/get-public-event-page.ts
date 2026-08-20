@@ -253,8 +253,6 @@ export async function enrichPublicEventPageData(params: {
         .eq("is_active", true),
     ])
     ticketingEnabled = Boolean(config?.ticketing_enabled) && (count ?? 0) > 0
-    // If config row missing but active types exist, still allow purchase CTA
-    if (!config && (count ?? 0) > 0) ticketingEnabled = true
   }
 
   return {

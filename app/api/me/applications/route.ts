@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { canApplicantWithdraw } from '@/lib/general/application-actions'
+import { getWorkerApplications } from '@/lib/work-hub/read-model'
 import { z } from 'zod'
 
 const applicantActionSchema = z.object({
@@ -23,43 +24,8 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
 
-    const [artistRes, venueRes] = await Promise.all([
-      supabase
-        .from('artist_job_applications')
-        .select(
-          `
-          id,
-          status,
-          applied_at,
-          job_id,
-          job:artist_jobs ( id, title, status, city, state, location )
-        `
-        )
-        .eq('applicant_id', user.id)
-        .order('applied_at', { ascending: false })
-        .limit(80),
-      supabase
-        .from('job_applications')
-        .select(
-          `
-          id,
-          status,
-          applied_at,
-          reviewed_at,
-          feedback,
-          job_posting_id,
-          venue_id,
-          job_posting:job_posting_templates(id, title, department, position, location, employment_type, status)
-        `
-        )
-        .eq('applicant_id', user.id)
-        .order('applied_at', { ascending: false })
-        .limit(80),
-    ])
-
-    if (artistRes.error) console.error('[me/applications] artist', artistRes.error)
-    if (venueRes.error) console.error('[me/applications] venue', venueRes.error)
-    if (artistRes.error && venueRes.error) {
+    const applications = await getWorkerApplications({ supabase, userId: user.id })
+    if (applications.sources.artist === 'unavailable' && applications.sources.staffing === 'unavailable') {
       return NextResponse.json(
         { success: false, error: 'Applications are temporarily unavailable' },
         { status: 503 },
@@ -68,16 +34,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: {
-        artist_applications: artistRes.error ? [] : artistRes.data ?? [],
-        venue_applications: venueRes.error ? [] : venueRes.data ?? [],
-        sources: {
-          artist: artistRes.error ? 'unavailable' : 'ready',
-          staffing: venueRes.error ? 'unavailable' : 'ready',
-        },
-        partial: Boolean(artistRes.error || venueRes.error),
-        generated_at: new Date().toISOString(),
-      },
+      data: applications,
     }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (e) {
     console.error('[me/applications]', e)

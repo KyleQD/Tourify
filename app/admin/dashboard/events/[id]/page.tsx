@@ -147,6 +147,9 @@ import {
 import { LifecycleStrip } from "@/components/admin/operations/lifecycle-strip"
 import { EventPartiesPanel } from "@/components/admin/event-parties-panel"
 import { StaffSchedulingTab } from "@/components/admin/staff-scheduling-tab"
+import { EventPromoterProgramPanel } from "@/components/admin/event-promoter-program-panel"
+import { EventPromoterMembershipPanel } from "@/components/admin/event-promoter-membership-panel"
+import { EventPromoterAnalyticsPanel } from "@/components/admin/event-promoter-analytics-panel"
 import type { HiringEntity } from "@/types/hiring-entity"
 
 interface Event {
@@ -1358,6 +1361,13 @@ export default function EventManagementPage() {
           {/* Tickets Tab */}
           <OperationsTabPanel value="tickets" className="space-y-6">
             <EventTicketPanel eventId={eventId} />
+          </OperationsTabPanel>
+
+          {/* Promote Tab */}
+          <OperationsTabPanel value="promote" className="space-y-6">
+            <EventPromoterProgramPanel eventId={eventId} />
+            <EventPromoterMembershipPanel eventId={eventId} />
+            <EventPromoterAnalyticsPanel eventId={eventId} />
           </OperationsTabPanel>
 
           {/* Finances Tab */}

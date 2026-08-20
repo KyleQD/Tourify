@@ -73,12 +73,21 @@ function isPublicationShareRoute(segments: string[]): boolean {
   return isSafeDynamicSegment(segments[1])
 }
 
+function isPromoterTrackingRoute(segments: string[]): boolean {
+  // Publication shares retain /p/[token]. Promoter redirects use a dedicated
+  // route namespace so the two public surfaces cannot conflict.
+  if (segments.length !== 2) return false
+  if (segments[0] !== 'r') return false
+  return /^[A-Za-z0-9_-]{43}$/.test(segments[1])
+}
+
 export function isPublicShareRoute(pathname: string): boolean {
   const segments = getPathSegments(pathname)
   if (
     isMusicVerifyRoute(segments) ||
     isPublicPostRoute(segments) ||
-    isPublicationShareRoute(segments)
+    isPublicationShareRoute(segments) ||
+    isPromoterTrackingRoute(segments)
   ) {
     return true
   }

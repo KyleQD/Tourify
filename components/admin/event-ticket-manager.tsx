@@ -264,7 +264,7 @@ export function EventTicketManager({ eventId }: Props) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...actingHeaders },
-        body: JSON.stringify({ sale_id: sale.id }),
+        body: JSON.stringify({ sale_id: sale.id, reason: 'Admin-issued refund' }),
       })
       if (!res.ok) throw new Error(await res.text())
       toast.success('Refund processed successfully')
@@ -303,14 +303,14 @@ export function EventTicketManager({ eventId }: Props) {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+      <Card className="border-slate-700/50 bg-slate-900/60 rounded-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-white">
-              Ticketing {ticketingEnabled ? 'enabled' : 'not configured'}
+              Ticketing workspace · {ticketingEnabled ? 'sales live' : 'setup required'}
             </p>
             <p className="text-xs text-slate-400">
-              Explicit ownership + $1/ticket platform fee by default. Connect payout fields are ready for later.
+              Configure inventory, resolve exceptions, and send door staff to the scanner from this event context.
             </p>
             {report && (
               <p className="mt-1 text-xs text-slate-500">
@@ -341,7 +341,7 @@ export function EventTicketManager({ eventId }: Props) {
       />
 
       {/* Summary row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <Ticket className="h-8 w-8 text-blue-400 shrink-0" />

@@ -9,6 +9,8 @@ const createTaskSchema = z.object({
   title: z.string().min(1).max(240),
   description: z.string().max(4000).optional(),
   assignee_id: z.string().uuid().optional(),
+  assignee_staff_member_ids: z.array(z.string().uuid()).min(1).max(500).optional(),
+  staff_shift_plan_id: z.string().uuid().optional(),
   status: z.enum(['todo', 'doing', 'done', 'blocked']).default('todo'),
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   due_at: z.string().datetime().optional(),
@@ -95,6 +97,30 @@ export async function POST(
     try {
       const body = await req.json()
       const validated = createTaskSchema.parse(body)
+
+      if (validated.assignee_staff_member_ids?.length) {
+        const { data: command, error: commandError } = await (supabase as any).rpc('create_workflow_task_assignments', {
+          p_thread_id: id,
+          p_title: validated.title,
+          p_description: validated.description ?? null,
+          p_priority: validated.priority,
+          p_due_at: validated.due_at ?? null,
+          p_dependency_task_ids: validated.dependency_task_ids,
+          p_labels: validated.labels,
+          p_metadata: validated.metadata ?? {},
+          p_staff_member_ids: validated.assignee_staff_member_ids,
+          p_staff_shift_plan_id: validated.staff_shift_plan_id ?? null,
+        })
+        if (commandError) {
+          console.error('[workflow tasks POST] connected command', commandError)
+          return NextResponse.json({ error: commandError.message }, { status: commandError.code === '42501' ? 403 : 422 })
+        }
+        const taskId = command?.taskId
+        const { data: connectedTask } = taskId
+          ? await supabase.from('workflow_tasks').select('*').eq('id', taskId).single()
+          : { data: null }
+        return NextResponse.json({ success: true, task: connectedTask, assignment_ids: command?.assignmentIds ?? [] }, { status: 201 })
+      }
 
       const { data, error } = await supabase
         .from('workflow_tasks')

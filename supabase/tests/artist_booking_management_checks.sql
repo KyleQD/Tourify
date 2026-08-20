@@ -76,20 +76,24 @@ begin
     and policyname = 'booking_request_messages_participants_insert';
 
   if message_read_policy.qual is null
+    or message_read_policy.qual not ilike '%status%pending%'
+    or message_read_policy.qual not ilike '%status%needs_info%'
     or message_read_policy.qual not ilike '%status%accepted%'
     or message_read_policy.qual not ilike '%artist_id%'
     or message_read_policy.qual not ilike '%requester_id%'
     or message_read_policy.qual not ilike '%auth.uid%' then
-    raise exception 'booking message reads must require accepted participants';
+    raise exception 'booking message reads must require active request participants';
   end if;
 
   if message_insert_policy.with_check is null
     or message_insert_policy.with_check not ilike '%sender_id%'
+    or message_insert_policy.with_check not ilike '%status%pending%'
+    or message_insert_policy.with_check not ilike '%status%needs_info%'
     or message_insert_policy.with_check not ilike '%status%accepted%'
     or message_insert_policy.with_check not ilike '%artist_id%'
     or message_insert_policy.with_check not ilike '%requester_id%'
     or message_insert_policy.with_check not ilike '%auth.uid%' then
-    raise exception 'booking message inserts must require an accepted participant sender';
+    raise exception 'booking message inserts must require an active request participant sender';
   end if;
 
   if not exists (

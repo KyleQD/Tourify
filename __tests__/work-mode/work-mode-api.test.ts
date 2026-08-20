@@ -13,6 +13,7 @@ vi.mock("@/lib/work-mode/read-model", () => ({
 import { GET as listAssignments } from "@/app/api/work-mode/assignments/route"
 import { GET as getAssignment } from "@/app/api/work-mode/assignments/[id]/route"
 import { POST as submitWorkerAction } from "@/app/api/work-mode/assignments/[id]/actions/route"
+import { GET as getPublication } from "@/app/api/work/publications/[id]/route"
 import { createClient } from "@/lib/supabase/server"
 import {
   findWorkModeAssignment,
@@ -53,6 +54,17 @@ const payload = {
       payload: {},
       publishedAt: "2026-07-28T16:00:00.000Z",
       href: "/work/site-maps/map-1",
+    },
+    {
+      id: "publication-2",
+      eventId: "event-1",
+      tourId: null,
+      siteMapId: null,
+      publicationType: "day_sheet",
+      title: "Day Sheet",
+      payload: { version: 1 },
+      publishedAt: "2026-07-28T17:00:00.000Z",
+      href: "/work/publications/publication-2",
     },
   ],
   generatedAt: "2026-07-28T16:30:00.000Z",
@@ -113,6 +125,37 @@ describe("Work Mode assignment API", () => {
     expect(await response.json()).toMatchObject({ code: "forbidden" })
   })
 
+  it("does not allow check-out before a server-confirmed check-in", async () => {
+    process.env.FEATURE_WORK_MODE_WORKER_ACTIONS = "1"
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }),
+      },
+    } as never)
+    mockedGetWorkModeAssignments.mockResolvedValue({
+      ...payload,
+      workerActionsAvailable: true,
+    })
+    mockedFindWorkModeAssignment.mockReturnValue({
+      ...assignment,
+      attendance: { state: "not_checked_in", checkedInAt: null, checkedOutAt: null },
+    } as never)
+
+    const response = await submitWorkerAction(
+      new Request("https://tourify.test/api/work-mode/assignments/assignment-1/actions", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "check_out",
+          clientRequestId: "984db49b-7286-4bf4-8e42-5be522a5ab38",
+        }),
+      }),
+      { params: Promise.resolve({ id: "assignment-1" }) },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: "conflict" })
+  })
+
   it("fails closed when there is no authenticated user", async () => {
     mockedCreateClient.mockResolvedValue({
       auth: {
@@ -154,6 +197,41 @@ describe("Work Mode assignment API", () => {
     const response = await getAssignment(new Request("https://tourify.test"), {
       params: Promise.resolve({ id: "assignment-other-user" }),
     })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toMatchObject({ code: "not_found" })
+  })
+
+  it("returns a worker-visible publication detail from the authenticated read model", async () => {
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }),
+      },
+    } as never)
+    mockedGetWorkModeAssignments.mockResolvedValue(payload)
+
+    const response = await getPublication(new Request("https://tourify.test"), {
+      params: Promise.resolve({ id: "publication-2" }),
+    })
+
+    expect(response.status).toBe(200)
+    expect((await response.json()).data.publication).toMatchObject({
+      id: "publication-2",
+      href: "/work/publications/publication-2",
+    })
+  })
+
+  it("does not expose publications outside the authenticated read model", async () => {
+    mockedCreateClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null }),
+      },
+    } as never)
+    mockedGetWorkModeAssignments.mockResolvedValue(payload)
+
+    const response = await getPublication(new Request("https://tourify.test"), {
+      params: Promise.resolve({ id: "publication-other-user" }),
+    })
+
     expect(response.status).toBe(404)
     expect(await response.json()).toMatchObject({ code: "not_found" })
   })

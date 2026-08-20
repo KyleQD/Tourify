@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818011952_event_promoter_program_audit_events.sql",
+  "taskId": "EVENT-PROMOTER-P2",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "tickets", "promoter-network", "rls", "audit"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project where Phase 1 promoter foundation has already been applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "event_promotion_programs and event_promotion_ticket_eligibility counts by event",
+      "ticket_types membership and active-state inventory by selected event",
+      "effective grants and policies for promoter program tables and audit events"
+    ],
+    "expectedAffectedRows": "Creates one additive audit table and one server-only SECURITY INVOKER command. Existing eligibility rows gain a nullable retirement marker without a backfill.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All DDL is additive/idempotent. The command function is replaced atomically; no existing financial snapshots or ledger rows are rewritten.",
+    "resumeCursor": "supabase migration version 20260818011952",
+    "idempotency": "The command locks the selected program, allocates the next version inside the same transaction, and uses the eligibility primary key for stable upserts. Client roles cannot execute the command."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant or organization backfill is performed. Event organization scope is resolved from events_v2 only during an already-authorized server command."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Audit events reference the existing promoter program and canonical events_v2 event",
+      "Client roles are denied all audit-event writes and command-function execution",
+      "Eligibility retirement preserves prior rows instead of deleting configuration evidence"
+    ],
+    "indexes": [
+      "event_promotion_program_audit_events(program_id, created_at desc)"
+    ],
+    "validationPlan": "Confirm an organizer can create, edit, open, and pause a program; confirm a non-organizer cannot read or write it; and confirm financial edits create exactly one newer version while the former snapshot remains unchanged."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_program_enabled. Preserve programs, versions, audit events, and retired eligibility rows.",
+    "forwardFix": "Use a reviewed additive migration for a policy, function, or index correction; do not delete audit history or historical program versions."
+  },
+  "postflight": {
+    "queries": [
+      "audit-event table RLS, grants, and organizer policy inventory",
+      "function execute grants must include service_role and exclude anon/authenticated",
+      "program version count before and after a commission or eligibility change",
+      "attempted direct authenticated writes to programs, versions, eligibility, and audit events must fail"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "promoter-program-eligibility-input",
+      "type": "scoped-insert-select",
+      "owner": "event-promoter-network",
+      "rationale": "The SELECT only expands the validated JSON array supplied to the locked, already-authorized program command. It is not a backfill and cannot scan or affect unrelated existing rows.",
+      "issue": "EVENT-PROMOTER-P2",
+      "evidence": "__tests__/promoter-network/domain.test.ts verifies the server-only audited command contract; postflight validates selected event ticket ownership.",
+      "expiresOn": "2026-09-17"
+    }
+  ]
+}

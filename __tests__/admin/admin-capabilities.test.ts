@@ -13,6 +13,7 @@ describe('admin capabilities', () => {
     expect(capabilities).toContain('tour.delete')
     expect(capabilities).toContain('finance.pay')
     expect(capabilities).toContain('contract.sign')
+    expect(capabilities).toContain('commerce.manage_payouts')
   })
 
   it('uses safe role defaults while a legacy permission row is present', () => {
@@ -35,6 +36,8 @@ describe('admin capabilities', () => {
     expect(hasAdminCapability(capabilities, 'finance.view')).toBe(true)
     expect(hasAdminCapability(capabilities, 'finance.manage')).toBe(true)
     expect(hasAdminCapability(capabilities, 'finance.pay')).toBe(false)
+    expect(hasAdminCapability(capabilities, 'commerce.manage_payouts')).toBe(false)
+    expect(hasAdminCapability(capabilities, 'commerce.retry_payouts')).toBe(false)
   })
 
   it('does not grant unknown roles implicit access', () => {
@@ -45,7 +48,11 @@ describe('admin capabilities', () => {
     expect(resolveAdminCapabilities('production_manager')).toContain('event.live_ops')
     expect(resolveAdminCapabilities('department_manager')).toContain('workforce.manage')
     expect(resolveAdminCapabilities('finance_manager')).toContain('finance.approve')
+    expect(resolveAdminCapabilities('finance_manager')).toContain('commerce.manage_payouts')
+    expect(resolveAdminCapabilities('finance_manager')).toContain('commerce.view_financials')
     expect(resolveAdminCapabilities('ticketing_manager')).toContain('ticketing.scan')
+    expect(resolveAdminCapabilities('ticketing_manager')).toContain('commerce.manage_orders')
+    expect(resolveAdminCapabilities('ticketing_manager')).toContain('commerce.view_customers')
     expect(resolveAdminCapabilities('worker')).toEqual([])
   })
 
@@ -56,11 +63,13 @@ describe('admin capabilities', () => {
     expect(capabilities).not.toContain('tour.manage')
     expect(capabilities).not.toContain('event.publish')
     expect(capabilities).not.toContain('finance.pay')
+    expect(capabilities).toContain('commerce.view')
+    expect(capabilities).not.toContain('commerce.manage_payouts')
   })
 
   it('allows catalog-scoped custom roles without implicit defaults', () => {
-    expect(resolveAdminCapabilities('custom-coordinator', ['tour.view', 'advance.manage', 'unknown']))
-      .toEqual(['tour.view', 'advance.manage'])
+    expect(resolveAdminCapabilities('custom-coordinator', ['tour.view', 'advance.manage', 'commerce.export', 'unknown']))
+      .toEqual(['tour.view', 'advance.manage', 'commerce.export'])
   })
 
   it('SEC-102: revoked membership yields no capabilities', () => {

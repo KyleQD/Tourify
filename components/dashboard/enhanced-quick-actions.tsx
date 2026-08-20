@@ -1,322 +1,96 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useMultiAccount } from "@/hooks/use-multi-account"
-import { isOrganizationType } from "@/lib/accounts/account-types"
-import { useAuth } from "@/contexts/auth-context"
 import { JukeboxPlayer } from "@/components/dashboard/jukebox-player"
-import { 
-  Music, 
-  Building, 
-  User, 
-  Settings, 
-  Calendar,
-  Users,
-  DollarSign,
-  MessageSquare,
-  Plus,
+import type { LucideIcon } from "lucide-react"
+import {
   ArrowRight,
-  Zap,
-  Star,
-  TrendingUp,
-  Bell,
-  FileText,
-  Globe,
-  Package,
-  Ticket,
   BarChart3,
-  Clock,
-  CheckCircle,
-  Upload,
-  PenTool,
-  Briefcase,
-  Headphones,
-  ImageIcon,
-  Video,
-  Mic,
-  MapPin,
-  CreditCard,
-  Wrench
+  BriefcaseBusiness,
+  Calendar,
+  FileText,
+  Music,
+  Settings,
+  Star,
+  Zap,
 } from "lucide-react"
 
 interface QuickAction {
   id: string
   title: string
   description: string
-  icon: any
+  icon: LucideIcon
   href: string
-  priority: 'high' | 'medium' | 'low'
-  accountType?: string
-  isRecent?: boolean
-  badge?: string
-  isExternal?: boolean
+  iconColor: string
 }
 
 interface EnhancedQuickActionsProps {
   hideJukebox?: boolean
 }
 
+const GENERAL_QUICK_ACTIONS: QuickAction[] = [
+  {
+    id: "work-hub",
+    title: "Work Hub",
+    description: "Search gigs, track applications, and manage upcoming work",
+    icon: BriefcaseBusiness,
+    href: "/work",
+    iconColor: "from-cyan-500 to-blue-500",
+  },
+  {
+    id: "events",
+    title: "Events",
+    description: "Find local events, track plans, and promote what matters",
+    icon: Calendar,
+    href: "/events",
+    iconColor: "from-emerald-500 to-teal-500",
+  },
+  {
+    id: "blogs-articles",
+    title: "Blogs/Articles",
+    description: "Manage drafts, publish articles, and review your writing",
+    icon: FileText,
+    href: "/blog/manage",
+    iconColor: "from-amber-500 to-orange-500",
+  },
+  {
+    id: "analytics-dashboard",
+    title: "Analytics Dashboard",
+    description: "Review dashboard-level performance and activity signals",
+    icon: BarChart3,
+    href: "/analytics?scope=dashboard",
+    iconColor: "from-violet-500 to-fuchsia-500",
+  },
+  {
+    id: "music",
+    title: "Music",
+    description: "Listen, save tracks, and build playlists",
+    icon: Music,
+    href: "/music",
+    iconColor: "from-pink-500 to-rose-500",
+  },
+  {
+    id: "manage-profile",
+    title: "Manage Profile",
+    description: "Update your general profile and visibility settings",
+    icon: Settings,
+    href: "/settings/profile",
+    iconColor: "from-slate-500 to-gray-500",
+  },
+]
+
 export function EnhancedQuickActions({ hideJukebox = false }: EnhancedQuickActionsProps) {
-  const { user } = useAuth()
-  const { accounts, currentAccount } = useMultiAccount()
   const router = useRouter()
-  const [quickActions, setQuickActions] = useState<QuickAction[]>([])
-  const [showMore, setShowMore] = useState(false)
-  const [recentActions, setRecentActions] = useState<QuickAction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const loadQuickActions = () => {
-      const analyticsAccountId =
-        currentAccount?.profile_id ||
-        accounts[0]?.profile_id ||
-        user?.id ||
-        ''
-
-      const baseActions: QuickAction[] = [
-        {
-          id: 'view-analytics',
-          title: 'Dashboard Analytics',
-          description: analyticsAccountId
-            ? 'Check your dashboard performance metrics'
-            : 'Open analytics after your account finishes loading',
-          icon: BarChart3,
-          href: analyticsAccountId
-            ? `/analytics?scope=dashboard&accountId=${encodeURIComponent(analyticsAccountId)}`
-            : '/analytics?scope=dashboard',
-          priority: 'medium'
-        },
-        {
-          id: 'manage-events',
-          title: 'Manage Events',
-          description: 'Create and organize events',
-          icon: Calendar,
-          href: '/events',
-          priority: 'medium'
-        },
-        {
-          id: 'messages',
-          title: 'Messages',
-          description: 'Check your inbox',
-          icon: MessageSquare,
-          href: '/messages',
-          priority: 'low',
-          badge: '3 new'
-        }
-      ]
-
-      // Account-specific actions
-      const accountSpecificActions: QuickAction[] = []
-      
-      accounts.forEach((account, accountIndex) => {
-        if (account.account_type === 'artist') {
-          accountSpecificActions.push(
-            {
-              id: `upload-music-${account.profile_id}`,
-              title: 'Upload Music',
-              description: 'Add new tracks to your library',
-              icon: Upload,
-              href: '/artist/content',
-              priority: 'high',
-              accountType: 'artist'
-            },
-            {
-              id: `manage-bookings-${account.profile_id}`,
-              title: 'Manage Bookings',
-              description: 'View and respond to booking requests',
-              icon: Calendar,
-              href: '/bookings',
-              priority: 'high',
-              accountType: 'artist',
-              badge: '2 pending'
-            },
-            {
-              id: `artist-analytics-${account.profile_id}`,
-              title: 'Artist Analytics',
-              description: 'Track your performance metrics',
-              icon: BarChart3,
-              href: '/artist/business',
-              priority: 'medium',
-              accountType: 'artist'
-            }
-          )
-        }
-        
-        if (account.account_type === 'venue') {
-          accountSpecificActions.push(
-            {
-              id: `create-event-${account.profile_id}`,
-              title: 'Create Event',
-              description: 'Set up a new event at your venue',
-              icon: Plus,
-              href: '/events/create',
-              priority: 'high',
-              accountType: 'venue'
-            },
-            {
-              id: `venue-analytics-${account.profile_id}`,
-              title: 'Venue Analytics',
-              description: 'Track venue performance and revenue',
-              icon: DollarSign,
-              href: '/venue/analytics',
-              priority: 'medium',
-              accountType: 'venue'
-            },
-            {
-              id: `venue-bookings-${account.profile_id}`,
-              title: 'Manage Bookings',
-              description: 'Handle booking requests and schedules',
-              icon: Calendar,
-              href: '/venue/bookings',
-              priority: 'high',
-              accountType: 'venue'
-            },
-            {
-              id: `venue-equipment-${account.profile_id}`,
-              title: 'Equipment',
-              description: 'Manage venue equipment and setup',
-              icon: Mic,
-              href: '/venue/equipment',
-              priority: 'medium',
-              accountType: 'venue'
-            }
-          )
-        }
-        
-        if (isOrganizationType(account.account_type)) {
-          accountSpecificActions.push(
-            {
-              id: `admin-dashboard-${account.profile_id}`,
-              title: 'Admin Dashboard',
-              description: 'Manage organization operations',
-              icon: Settings,
-              href: '/admin/dashboard',
-              priority: 'high',
-              accountType: 'organization'
-            },
-            {
-              id: 'user-management',
-              title: 'User Management',
-              description: 'Manage user accounts and permissions',
-              icon: Users,
-              href: '/admin/dashboard/users',
-              priority: 'medium',
-              accountType: 'organization'
-            },
-            {
-              id: 'admin-analytics',
-              title: 'Platform Analytics',
-              description: 'View platform-wide metrics',
-              icon: BarChart3,
-              href: '/admin/dashboard/analytics',
-              priority: 'medium',
-              accountType: 'organization'
-            }
-          )
-        }
-      })
-
-      // Recent actions (mock data)
-      const recent: QuickAction[] = [
-        {
-          id: 'recent-post',
-          title: 'Continue Draft',
-          description: 'Finish your post about the new album',
-          icon: FileText,
-          href: '/community',
-          priority: 'medium',
-          isRecent: true
-        },
-        {
-          id: 'recent-booking',
-          title: 'Respond to Booking',
-          description: 'The Blue Note wants to confirm details',
-          icon: Calendar,
-          href: '/bookings',
-          priority: 'high',
-          isRecent: true,
-          badge: 'Urgent'
-        }
-      ]
-
-      // Merge and sort by priority; keep deterministic order
-      const merged = [...baseActions, ...accountSpecificActions]
-      const priorityRank = { high: 3, medium: 2, low: 1 } as const
-      merged.sort((a, b) => (priorityRank[b.priority] - priorityRank[a.priority]))
-      setQuickActions(merged)
-      setRecentActions(recent)
-      setIsLoading(false)
-    }
-
-    loadQuickActions()
-  }, [accounts, currentAccount, user?.id])
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'from-red-500 to-pink-500'
-      case 'medium':
-        return 'from-yellow-500 to-orange-500'
-      case 'low':
-        return 'from-green-500 to-emerald-500'
-      default:
-        return 'from-gray-500 to-slate-500'
-    }
-  }
-
-  const getAccountColor = (accountType?: string) => {
-    switch (accountType) {
-      case 'artist':
-        return 'from-purple-500 to-pink-500'
-      case 'venue':
-        return 'from-blue-500 to-cyan-500'
-      case 'admin':
-        return 'from-orange-500 to-red-500'
-      default:
-        return 'from-gray-500 to-slate-500'
-    }
-  }
 
   const handleActionClick = (action: QuickAction) => {
     try {
-      if (action.isExternal) {
-        window.open(action.href, '_blank')
-      } else {
-        router.push(action.href)
-      }
+      router.push(action.href)
     } catch (error) {
       console.error('Navigation error:', error)
-      // Fallback to window.location for critical navigation
-      if (!action.isExternal) {
-        window.location.href = action.href
-      }
+      window.location.href = action.href
     }
-  }
-
-  if (isLoading) {
-    return (
-      <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center space-x-3 animate-pulse">
-                <div className="w-10 h-10 bg-white/10 rounded-xl"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-white/10 rounded w-1/2"></div>
-                  <div className="h-3 bg-white/10 rounded w-3/4"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (
@@ -333,11 +107,7 @@ export function EnhancedQuickActions({ hideJukebox = false }: EnhancedQuickActio
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-4 pb-4">
-          {(showMore ? quickActions : quickActions.slice(0, 6)).map((action) => {
-            const priorityColor = getPriorityColor(action.priority)
-            const accountColor = getAccountColor(action.accountType)
-            const iconColor = action.accountType ? accountColor : priorityColor
-            
+          {GENERAL_QUICK_ACTIONS.map((action) => {
             return (
               <Button
                 key={action.id}
@@ -345,23 +115,13 @@ export function EnhancedQuickActions({ hideJukebox = false }: EnhancedQuickActio
                 className="w-full justify-start p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 group h-auto"
                 onClick={() => handleActionClick(action)}
               >
-                <div className={`w-8 h-8 bg-gradient-to-br ${iconColor} rounded-lg flex items-center justify-center mr-3 flex-shrink-0`}>
+                <div className={`w-8 h-8 bg-gradient-to-br ${action.iconColor} rounded-lg flex items-center justify-center mr-3 flex-shrink-0`}>
                   <action.icon className="h-4 w-4 text-white" />
                 </div>
                 
-                                  <div className="flex-1 text-left min-w-0">
+                <div className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-white truncate text-sm sm:text-base">{action.title}</span>
-                      {action.badge && (
-                        <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs flex-shrink-0">
-                          {action.badge}
-                        </Badge>
-                      )}
-                      {action.accountType && (
-                        <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs capitalize flex-shrink-0">
-                          {action.accountType}
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-xs text-gray-400 truncate">{action.description}</p>
                   </div>
@@ -370,19 +130,6 @@ export function EnhancedQuickActions({ hideJukebox = false }: EnhancedQuickActio
               </Button>
             )
           })}
-          {quickActions.length > 6 && (
-            <div className="pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full border-purple-500/50 text-purple-300 hover:bg-purple-500/20 rounded-xl"
-                onClick={() => setShowMore(!showMore)}
-              >
-                {showMore ? 'Show Less' : 'More Actions'}
-                <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 

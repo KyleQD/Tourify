@@ -14,6 +14,20 @@ export const bookingDetailsSchema = z.object({
   additionalNotes: z.string().optional(),
 })
 
+export const publicArtistBookingDetailsSchema = z.object({
+  performanceType: z.string().trim().min(1, 'Choose a booking type.'),
+  description: z.string().trim().min(1, 'Add a note for the artist.').max(5000),
+  location: z.string().trim().min(1, 'Enter the project location.'),
+  performanceDate: z.string().trim().optional().default(''),
+  venue: z.string().trim().optional().default(''),
+  soundcheckTime: z.string().optional(),
+  performanceTime: z.string().optional(),
+  duration: z.string().optional(),
+  compensation: z.string().trim().optional().default(''),
+  requirements: z.string().optional(),
+  additionalNotes: z.string().optional(),
+})
+
 export const createBookingRequestSchema = z.object({
   artistId: z.string().uuid().optional(),
   artistProfileId: z.string().uuid().optional(),
@@ -31,16 +45,22 @@ export const createBookingRequestSchema = z.object({
   budgetRange: z.string().optional(),
   bookingDetails: bookingDetailsSchema,
   token: z.string().optional(),
-  status: z.enum(['pending', 'accepted', 'declined', 'approved', 'rejected']).default('pending'),
+  status: z.enum(['pending', 'needs_info', 'accepted', 'declined', 'approved', 'rejected']).default('pending'),
   requestType: z.enum(['performance', 'collaboration']).default('performance'),
+})
+
+export const createPublicArtistBookingRequestSchema = createBookingRequestSchema.extend({
+  artistId: z.string().uuid(),
+  bookingDetails: publicArtistBookingDetailsSchema,
 })
 
 export const bookingStepOneSchema = z.object({
   requestType: z.enum(['performance', 'collaboration']),
-  performanceType: bookingDetailsSchema.shape.performanceType,
-  venue: bookingDetailsSchema.shape.venue,
-  location: bookingDetailsSchema.shape.location,
-  performanceDate: bookingDetailsSchema.shape.performanceDate,
+  performanceType: publicArtistBookingDetailsSchema.shape.performanceType,
+  description: publicArtistBookingDetailsSchema.shape.description,
+  venue: publicArtistBookingDetailsSchema.shape.venue,
+  location: publicArtistBookingDetailsSchema.shape.location,
+  performanceDate: publicArtistBookingDetailsSchema.shape.performanceDate,
 })
 
 export const bookingDeferredDetailsSchema = z.object({
@@ -52,12 +72,13 @@ export const bookingDeferredDetailsSchema = z.object({
 })
 
 export const bookingDecisionSchema = z.object({
-  decision: z.enum(['accepted', 'declined']),
+  decision: z.enum(['accepted', 'declined', 'needs_info']),
   note: z.string().trim().max(2000).optional(),
 })
 
 export const bookingMessageSchema = z.object({
   content: z.string().trim().min(1, 'Write a message.').max(2000),
+  messageType: z.enum(['message', 'info_request', 'info_response']).optional().default('message'),
 })
 
 export type PublicBookingDraft = z.infer<typeof bookingStepOneSchema>

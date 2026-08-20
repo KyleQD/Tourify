@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { resolveCommerceContext } from '@/lib/admin/commerce/resolve-context'
+import {
+  buildCommercePiiAwareSelect,
+  projectCommercePiiValue,
+} from '@/lib/admin/commerce/pii'
+import { commerceErrorResponse, commerceJsonResponse } from '@/lib/admin/commerce/errors'
+import { createClient } from '@/lib/supabase/server'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export async function GET(request: NextRequest) {
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: 'commerce.view',
+  })
+  if (commerce instanceof NextResponse) return commerce
+
+  const supabase = await createClient()
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200)
@@ -19,8 +31,16 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     const { data, error, count } = await query
 
     if (error) {
-      if (error.code === '42P01') return NextResponse.json({ orders: [], total: 0 })
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return commerceErrorResponse({
+        status: 500,
+        code: "orders_unavailable",
+        message: error.code === '42P01'
+          ? "Marketplace orders are unavailable."
+          : "Failed to load marketplace orders.",
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+        details: { providerCode: error.code ?? null },
+      })
     }
 
     // Resolve buyer profiles
@@ -29,7 +49,9 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     if (buyerIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, username, email')
+        .select(buildCommercePiiAwareSelect(commerce, ['id', 'full_name', 'username'], {
+          'customer.email': 'email',
+        }))
         .in('id', buyerIds)
       for (const p of profiles || []) profileMap[p.id] = p
     }
@@ -37,12 +59,20 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     const orders = (data || []).map((o: any) => ({
       ...o,
       buyer_name: profileMap[o.buyer_user_id]?.full_name || profileMap[o.buyer_user_id]?.username || null,
-      buyer_email: profileMap[o.buyer_user_id]?.email || null,
+      buyer_email: projectCommercePiiValue(commerce, 'customer.email', profileMap[o.buyer_user_id]?.email),
       item_count: o.marketplace_order_items?.length || 0,
     }))
 
-    return NextResponse.json({ orders, total: count || 0 })
-  } catch (err: any) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return commerceJsonResponse({ orders, total: count || 0 }, {
+      correlationId: commerce.request.correlationId,
+    })
+  } catch {
+    return commerceErrorResponse({
+      status: 500,
+      code: "unexpected_orders_error",
+      message: "Unexpected marketplace orders error.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
-})
+}

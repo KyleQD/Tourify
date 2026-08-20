@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818013424_event_promoter_membership_lifecycle.sql",
+  "taskId": "EVENT-PROMOTER-P3",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "promoter-network", "auth", "rls", "notifications"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with Phase 1 promoter foundation and Phase 2 promoter program migrations applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "event promoter program, application, and membership lifecycle counts by event",
+      "RLS policies and effective grants for promoter application, membership, and audit tables",
+      "organization ownership and ticketing-management permission inventory for a representative event"
+    ],
+    "expectedAffectedRows": "Creates an additive membership audit table and one server-only lifecycle command. No existing applications, memberships, financial snapshots, or ledger rows are backfilled or rewritten.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All DDL is additive/idempotent. The lifecycle command locks its program/application/membership rows and performs each state transition plus audit evidence in one transaction.",
+    "resumeCursor": "supabase migration version 20260818013424",
+    "idempotency": "The existing partial active-application unique index and program/user membership unique constraint prevent duplicate pending applications and duplicate active memberships; row locks serialize approve/accept/suspend/revoke transitions."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No existing records are backfilled and no organization scope is inferred. Server routes authenticate the actor and revalidate the program's event organization before a privileged lifecycle command."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Audit events reference a real promoter program, event, application, membership, actor, and target when those identities exist",
+      "Audit table has RLS with separate promoter-owner and organizer read policies",
+      "Client roles cannot execute the lifecycle command or write lifecycle evidence"
+    ],
+    "indexes": [
+      "event_promoter_membership_audit_events(program_id, created_at desc)",
+      "event_promoter_membership_audit_events(target_user_id, created_at desc)"
+    ],
+    "validationPlan": "Exercise self-application, invitation acceptance, organizer approve/reject, suspend, and revoke using separate organizer/promoter identities; verify invalid transitions and cross-event records are rejected and each successful mutation emits exactly one audit row."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_applications_enabled. Preserve applications, memberships, and lifecycle audit evidence.",
+    "forwardFix": "Use a reviewed additive migration for a policy or lifecycle-function correction. Do not delete audit history or rewrite membership state evidence."
+  },
+  "postflight": {
+    "queries": [
+      "function execute grants must include service_role and exclude anon/authenticated",
+      "membership audit RLS, grants, and owner/organizer access checks",
+      "approved membership count cannot exceed a configured promoter cap",
+      "duplicate active application and membership attempts are rejected"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

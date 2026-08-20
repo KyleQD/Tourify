@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getStripeOrNull } from '@/lib/stripe'
+import { buildAppUrl, createTicketClaimLink } from '@/lib/ticketing/claim-links'
 
 const stripe = getStripeOrNull()
 
@@ -19,7 +20,7 @@ async function loadPurchase(sessionId: string) {
     .select(`
       *,
       ticket_types:ticket_type_id (name, price),
-      events_v2:event_id (title, start_at)
+      events_v2:event_id (title, start_at, org_id)
     `)
     .eq('id', saleId)
     .single()
@@ -35,7 +36,50 @@ async function loadPurchase(sessionId: string) {
   return { sale, session, tickets: tickets || [] }
 }
 
-function buildTicketText(sale: Record<string, any>, tickets: any[]) {
+async function createManageUrl(sale: Record<string, any>) {
+  if (sale.buyer_user_id) return buildAppUrl(`/tickets/orders/${sale.id}`)
+
+  const event = sale.events_v2 || sale.events || {}
+  const claim = await createTicketClaimLink({
+    supabase: createServiceRoleClient() as any,
+    orgId: event.org_id ?? sale.org_id ?? null,
+    eventId: sale.event_id,
+    orderId: sale.id,
+    recipientEmail: sale.buyer_email || sale.customer_email || null,
+    purpose: 'claim',
+    ttlHours: 168,
+    metadata: { source: 'delivery' },
+  })
+  return claim.url
+}
+
+async function recordDeliveryAttempt(params: {
+  sale: Record<string, any>
+  channel: 'email' | 'download' | 'claim_link'
+  status: 'sent' | 'failed' | 'resent' | 'queued'
+  manageUrl?: string | null
+  provider?: string | null
+  providerMessageId?: string | null
+  error?: string | null
+  idempotencyKey?: string | null
+}) {
+  const event = params.sale.events_v2 || {}
+  await createServiceRoleClient().from('ticket_delivery_attempts').insert({
+    org_id: event.org_id ?? params.sale.org_id ?? null,
+    event_id: params.sale.event_id,
+    order_id: params.sale.id,
+    recipient_email: params.sale.buyer_email || params.sale.customer_email || null,
+    delivery_channel: params.channel,
+    status: params.status,
+    provider: params.provider ?? null,
+    provider_message_id: params.providerMessageId ?? null,
+    error: params.error ?? null,
+    manage_url: params.manageUrl ?? null,
+    idempotency_key: params.idempotencyKey ?? null,
+  })
+}
+
+function buildTicketText(sale: Record<string, any>, manageUrl: string) {
   const event = sale.events_v2 || sale.events || {}
   const lines = [
     'TOURIFY TICKET CONFIRMATION',
@@ -49,14 +93,9 @@ function buildTicketText(sale: Record<string, any>, tickets: any[]) {
     `Quantity: ${sale.quantity}`,
     `Total: $${Number(sale.total_amount || 0).toFixed(2)}`,
     '',
-    'View QR codes in your Tourify wallet:',
-    `${process.env.NEXT_PUBLIC_APP_URL || 'https://tourify.live'}/tickets/my-tickets`,
+    'Manage tickets and view QR codes:',
+    manageUrl,
   ]
-
-  for (const ticket of tickets) {
-    const token = (ticket.ticket_credentials || []).find((c: any) => c.status === 'active')?.token
-    if (token) lines.push(`Credential: ${token}`)
-  }
 
   return lines.join('\n')
 }
@@ -70,7 +109,15 @@ export async function GET(request: NextRequest) {
     if ('error' in result && result.error)
       return NextResponse.json({ error: result.error }, { status: result.status })
 
-    const ticketText = buildTicketText(result.sale, result.tickets || [])
+    const manageUrl = await createManageUrl(result.sale)
+    const ticketText = buildTicketText(result.sale, manageUrl)
+    await recordDeliveryAttempt({
+      sale: result.sale,
+      channel: result.sale.buyer_user_id ? 'download' : 'claim_link',
+      status: 'sent',
+      manageUrl,
+      idempotencyKey: `delivery:${result.sale.id}:download`,
+    })
     return new NextResponse(ticketText, {
       status: 200,
       headers: {
@@ -98,19 +145,14 @@ export async function POST(request: NextRequest) {
     if (!recipient) return NextResponse.json({ error: 'No customer email on file' }, { status: 400 })
 
     const event = result.sale.events_v2 || {}
+    const manageUrl = await createManageUrl(result.sale)
     const resendKey = process.env.RESEND_API_KEY
     if (resendKey) {
-      const ticketText = buildTicketText(result.sale, result.tickets || [])
-      const firstToken = (result.tickets || [])
-        .flatMap((t: any) => t.ticket_credentials || [])
-        .find((c: any) => c.status === 'active')?.token
+      const ticketText = buildTicketText(result.sale, manageUrl)
+      let deliveryStatus: 'sent' | 'failed' = 'sent'
+      let deliveryError: string | null = null
 
-      const qrHtml = firstToken
-        ? `<p><img alt="Ticket QR" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(firstToken)}" /></p>
-           <p>Open all tickets in your <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://tourify.live'}/tickets/my-tickets">Tourify wallet</a>.</p>`
-        : `<p>Open your tickets in your <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://tourify.live'}/tickets/my-tickets">Tourify wallet</a>.</p>`
-
-      await fetch('https://api.resend.com/emails', {
+      const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${resendKey}`,
@@ -121,8 +163,31 @@ export async function POST(request: NextRequest) {
           to: recipient,
           subject: `Your tickets for ${event.title || 'your event'}`,
           text: ticketText,
-          html: `<pre>${ticketText}</pre>${qrHtml}`,
+          html: `<p>Your tickets are ready.</p><p><a href="${manageUrl}">Manage tickets and view QR codes</a></p><pre>${ticketText}</pre>`,
         }),
+      })
+      if (!emailResponse.ok) {
+        deliveryStatus = 'failed'
+        deliveryError = await emailResponse.text()
+      }
+
+      await recordDeliveryAttempt({
+        sale: result.sale,
+        channel: 'email',
+        status: deliveryStatus,
+        provider: 'resend',
+        error: deliveryError,
+        manageUrl,
+        idempotencyKey: `delivery:${result.sale.id}:email:${deliveryStatus}`,
+      })
+    } else {
+      await recordDeliveryAttempt({
+        sale: result.sale,
+        channel: 'email',
+        status: 'queued',
+        provider: null,
+        manageUrl,
+        idempotencyKey: `delivery:${result.sale.id}:email:queued`,
       })
     }
 
@@ -132,6 +197,7 @@ export async function POST(request: NextRequest) {
         ? `Tickets sent to ${recipient}`
         : `Ticket delivery queued for ${recipient}`,
       wallet_url: '/tickets/my-tickets',
+      manage_url: manageUrl,
     })
   } catch (error) {
     console.error('[Ticket Delivery API] POST error:', error)

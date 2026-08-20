@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260818015002_event_promoter_tracking_assets.sql",
+  "taskId": "EVENT-PROMOTER-P4",
+  "status": "planned",
+  "owner": "event-promoter-network",
+  "reviewer": "security-data",
+  "domains": ["events", "ticketing", "promoter-network", "posts", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase project with Phase 1 through Phase 3 promoter migrations applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "approved promoter memberships and open promotion programs by event",
+      "active native promo codes by event",
+      "effective RLS grants for the new binding tables and all four asset functions"
+    ],
+    "expectedAffectedRows": "Creates two additive binding tables and four service-role-only commands. No existing ticketing, post, share, attribution, or financial rows are rewritten.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All DDL is additive/idempotent. Asset commands lock only the referenced membership row; the tracking resolver deduplicates same-session repeat touches for 30 seconds.",
+    "resumeCursor": "supabase migration version 20260818015002",
+    "idempotency": "Promo-code and social-source unique constraints prevent a code or native source from being claimed by multiple promoters; opaque tracking tokens use a unique SHA-256 hash."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No historical rows are backfilled. New bindings are created only after server-side membership, program, event, and native source checks."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "A promo code can be actively bound to only one membership and must belong to the promoter program event",
+      "Social source ownership is immutable at the source-type/source-id boundary",
+      "Client roles have read-only access to their own bindings and cannot execute asset commands"
+    ],
+    "indexes": [
+      "promoter_promo_code_bindings(membership_id, status, created_at desc)",
+      "promoter_promo_code_bindings(event_id, promo_code_id) where status = active",
+      "promoter_social_sources(membership_id, source_type, created_at desc)",
+      "promoter_social_sources(event_id, source_type, source_id)"
+    ],
+    "validationPlan": "Create a link as an approved promoter, resolve it twice with the same attribution session, bind one existing event promo code, create an event post and a share, then verify another user cannot claim the same code or source."
+  },
+  "recovery": {
+    "rollback": "Disable event_promoter_attribution_capture_enabled. Existing tracking links and attribution evidence remain preserved for audit and later forward repair.",
+    "forwardFix": "Use an additive migration for any function, RLS, or binding correction; do not delete captured attribution evidence."
+  },
+  "postflight": {
+    "queries": [
+      "function execute grants include service_role and exclude anon/authenticated",
+      "new table RLS policies and grants expose only membership-owner reads",
+      "the resolver returns no row for revoked, expired, suspended, or closed-program links",
+      "same promo code and social source cannot be assigned to two memberships"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

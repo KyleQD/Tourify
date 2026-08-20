@@ -1,12 +1,22 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { AlertTriangle, CheckCircle2, ChevronUp, Loader2, MapPin } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  ChevronUp,
+  Loader2,
+  MapPin,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react'
 
 interface WorkerSiteMapViewerProps {
   siteMapId: string
@@ -21,6 +31,8 @@ export function WorkerSiteMapViewer({ siteMapId }: WorkerSiteMapViewerProps) {
   const [blockerText, setBlockerText] = useState('')
   const [sheetOpen, setSheetOpen] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(100)
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -99,21 +111,47 @@ export function WorkerSiteMapViewer({ siteMapId }: WorkerSiteMapViewerProps) {
       const h = Number(el.height) || 40
       ctx.fillStyle = el.fill || el.fill_color || '#334155'
       ctx.fillRect(x, y, w, h)
+      if (selectedTask?.element_id === el.id) {
+        ctx.strokeStyle = '#10b981'
+        ctx.lineWidth = 4
+        ctx.strokeRect(x - 3, y - 3, w + 6, h + 6)
+        ctx.lineWidth = 1
+      }
     }
-  }, [data])
+
+    const coordinate = selectedTask?.coordinate
+    if (coordinate && typeof coordinate === 'object') {
+      const x = Number((coordinate as any).x)
+      const y = Number((coordinate as any).y)
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        ctx.fillStyle = '#10b981'
+        ctx.beginPath()
+        ctx.arc(x, y, 12, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.strokeStyle = '#ecfdf5'
+        ctx.lineWidth = 3
+        ctx.stroke()
+        ctx.lineWidth = 1
+      }
+    }
+  }, [data, selectedTask])
 
   async function updateTask(action: string, extra: Record<string, unknown> = {}) {
     if (!selectedTask) return
     setIsSaving(true)
+    setSaveError(null)
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
+      const resp = await fetch(`/api/work/site-maps/${siteMapId}/tasks`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, taskId: selectedTask.id, ...extra }),
       })
-      if (!resp.ok) throw new Error('Update failed')
+      const payload = await resp.json().catch(() => null)
+      if (!resp.ok || !payload?.success) throw new Error(payload?.error || 'Update failed')
       await load()
+    } catch (error: any) {
+      setSaveError(error?.message || 'Update failed')
     } finally {
       setIsSaving(false)
     }
@@ -151,16 +189,53 @@ export function WorkerSiteMapViewer({ siteMapId }: WorkerSiteMapViewerProps) {
     <div className="relative min-h-screen bg-slate-950 text-white">
       <div className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button asChild size="sm" variant="ghost" className="h-8 w-8 shrink-0 p-0" aria-label="Back to Work Hub">
+              <Link href="/work">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <div className="min-w-0">
             <h1 className="truncate text-base font-semibold">{data.name}</h1>
             <p className="text-xs text-slate-400">{openTasks.length} open task{openTasks.length === 1 ? '' : 's'}</p>
+            </div>
           </div>
-          <Badge variant="outline" className="border-emerald-500/40 text-emerald-300">Work Mode</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 border-slate-700 p-0"
+              onClick={() => setZoom((value) => Math.max(60, value - 20))}
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-slate-700 px-2 text-xs"
+              onClick={() => setZoom(100)}
+            >
+              Fit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 border-slate-700 p-0"
+              onClick={() => setZoom((value) => Math.min(180, value + 20))}
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Badge variant="outline" className="hidden border-emerald-500/40 text-emerald-300 sm:inline-flex">Work Mode</Badge>
+          </div>
         </div>
       </div>
 
-      <div className="p-2 pb-48">
-        <canvas ref={canvasRef} className="w-full rounded-lg border border-slate-800" />
+      <div className="overflow-auto p-2 pb-48">
+        <div style={{ width: `${zoom}%`, minWidth: zoom > 100 ? `${zoom}%` : '100%' }}>
+          <canvas ref={canvasRef} className="w-full rounded-lg border border-slate-800" />
+        </div>
       </div>
 
       <div
@@ -229,6 +304,11 @@ export function WorkerSiteMapViewer({ siteMapId }: WorkerSiteMapViewerProps) {
               )}
 
               <div className="space-y-2">
+                {saveError && (
+                  <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-200" role="alert">
+                    {saveError}
+                  </p>
+                )}
                 <Textarea
                   value={blockerText}
                   onChange={(e) => setBlockerText(e.target.value)}

@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { authenticateApiRequest } from "@/lib/auth/api-auth"
-import { userHasAdminSurfaceAccess } from "@/lib/auth/admin"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { jsonError } from "@/lib/api/route-helpers"
+import { resolveCommerceContext } from "@/lib/admin/commerce/resolve-context"
+import { commerceErrorResponse, commerceJsonResponse } from "@/lib/admin/commerce/errors"
 
 export const dynamic = "force-dynamic"
-
-/** Shared admin auth guard for marketplace admin routes */
-async function requireMarketplaceAdmin(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return { admin: null, error: jsonError({ status: 401, code: "unauthorized", message: "Authentication required.", retryable: false }) }
-
-  const isAdmin = await userHasAdminSurfaceAccess(auth.supabase, auth.user.id)
-  if (!isAdmin) return { admin: null, error: jsonError({ status: 403, code: "forbidden", message: "Admin access required.", retryable: false }) }
-
-  return { admin: auth.user, error: null }
-}
 
 const suspendSchema = z.object({
   action: z.enum(["suspend", "restore"]),
@@ -32,19 +20,32 @@ const suspendSchema = z.object({
  * All actions are audited and non-destructive.
  */
 export async function POST(request: NextRequest) {
-  const { admin, error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.manage_listings",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
   let body: unknown
   try {
     body = await request.json()
   } catch {
-    return jsonError({ status: 400, code: "invalid_json", message: "Could not parse request body", retryable: false })
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_json",
+      message: "Could not parse request body.",
+      correlationId: commerce.request.correlationId,
+    })
   }
 
   const parsed = suspendSchema.safeParse(body)
   if (!parsed.success) {
-    return jsonError({ status: 400, code: "invalid_request", message: "Invalid moderation payload", retryable: false, issues: parsed.error.issues })
+    return commerceErrorResponse({
+      status: 400,
+      code: "invalid_request",
+      message: "Invalid moderation payload.",
+      issues: parsed.error.issues,
+      correlationId: commerce.request.correlationId,
+    })
   }
   const { action, reason, targetType, targetId } = parsed.data
   const svc = createServiceRoleClient()
@@ -53,53 +54,122 @@ export async function POST(request: NextRequest) {
     // Listings use a text `status` column
     const newStatus = action === "suspend" ? "suspended" : "published"
     const { data: listing } = await svc.from("marketplace_listings").select("id, status").eq("id", targetId).maybeSingle()
-    if (!listing) return jsonError({ status: 404, code: "target_not_found", message: "Listing not found.", retryable: false })
-    if (action === "suspend" && listing.status === "suspended") return jsonError({ status: 409, code: "already_suspended", message: "Listing is already suspended.", retryable: false })
-    if (action === "restore" && listing.status !== "suspended") return jsonError({ status: 409, code: "not_suspended", message: "Listing is not currently suspended.", retryable: false })
+    if (!listing) {
+      return commerceErrorResponse({
+        status: 404,
+        code: "target_not_found",
+        message: "Listing not found.",
+        correlationId: commerce.request.correlationId,
+      })
+    }
+    if (action === "suspend" && listing.status === "suspended") {
+      return commerceErrorResponse({
+        status: 409,
+        code: "already_suspended",
+        message: "Listing is already suspended.",
+        correlationId: commerce.request.correlationId,
+      })
+    }
+    if (action === "restore" && listing.status !== "suspended") {
+      return commerceErrorResponse({
+        status: 409,
+        code: "not_suspended",
+        message: "Listing is not currently suspended.",
+        correlationId: commerce.request.correlationId,
+      })
+    }
 
     const { error: updateError } = await svc.from("marketplace_listings").update({ status: newStatus }).eq("id", targetId)
     if (updateError) {
       console.error("Marketplace admin listing moderation failed", updateError)
-      return jsonError({ status: 500, code: "update_failed", message: `Failed to ${action} listing.`, retryable: true })
+      return commerceErrorResponse({
+        status: 500,
+        code: "update_failed",
+        message: `Failed to ${action} listing.`,
+        retryable: true,
+        correlationId: commerce.request.correlationId,
+      })
     }
 
     await svc.from("marketplace_moderation_queue").insert({
       listing_id: targetId,
       reason,
       action,
-      actor_user_id: admin!.id,
+      actor_user_id: commerce.actor.userId,
       previous_status: listing.status,
       new_status: newStatus,
       resolved_at: new Date().toISOString(),
     })
 
-    return NextResponse.json({ data: { targetId, targetType, action, previousStatus: listing.status, newStatus, reason } })
+    return commerceJsonResponse({
+      data: { targetId, targetType, action, previousStatus: listing.status, newStatus, reason },
+    }, {
+      correlationId: commerce.request.correlationId,
+    })
   }
 
   // Storefronts use `is_active` boolean
   const newIsActive = action === "restore"
   const { data: storefront } = await svc.from("marketplace_storefronts").select("id, is_active").eq("id", targetId).maybeSingle()
-  if (!storefront) return jsonError({ status: 404, code: "target_not_found", message: "Storefront not found.", retryable: false })
-  if (action === "suspend" && storefront.is_active === false) return jsonError({ status: 409, code: "already_suspended", message: "Storefront is already suspended.", retryable: false })
-  if (action === "restore" && storefront.is_active === true) return jsonError({ status: 409, code: "not_suspended", message: "Storefront is not currently suspended.", retryable: false })
+  if (!storefront) {
+    return commerceErrorResponse({
+      status: 404,
+      code: "target_not_found",
+      message: "Storefront not found.",
+      correlationId: commerce.request.correlationId,
+    })
+  }
+  if (action === "suspend" && storefront.is_active === false) {
+    return commerceErrorResponse({
+      status: 409,
+      code: "already_suspended",
+      message: "Storefront is already suspended.",
+      correlationId: commerce.request.correlationId,
+    })
+  }
+  if (action === "restore" && storefront.is_active === true) {
+    return commerceErrorResponse({
+      status: 409,
+      code: "not_suspended",
+      message: "Storefront is not currently suspended.",
+      correlationId: commerce.request.correlationId,
+    })
+  }
 
   const { error: sfUpdateError } = await svc.from("marketplace_storefronts").update({ is_active: newIsActive }).eq("id", targetId)
   if (sfUpdateError) {
     console.error("Marketplace admin storefront moderation failed", sfUpdateError)
-    return jsonError({ status: 500, code: "update_failed", message: `Failed to ${action} storefront.`, retryable: true })
+    return commerceErrorResponse({
+      status: 500,
+      code: "update_failed",
+      message: `Failed to ${action} storefront.`,
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
   await svc.from("marketplace_moderation_queue").insert({
     storefront_id: targetId,
     reason,
     action,
-    actor_user_id: admin!.id,
+    actor_user_id: commerce.actor.userId,
     previous_status: storefront.is_active ? "active" : "suspended",
     new_status: newIsActive ? "active" : "suspended",
     resolved_at: new Date().toISOString(),
   })
 
-  return NextResponse.json({ data: { targetId, targetType, action, previousStatus: storefront.is_active ? "active" : "suspended", newStatus: newIsActive ? "active" : "suspended", reason } })
+  return commerceJsonResponse({
+    data: {
+      targetId,
+      targetType,
+      action,
+      previousStatus: storefront.is_active ? "active" : "suspended",
+      newStatus: newIsActive ? "active" : "suspended",
+      reason,
+    },
+  }, {
+    correlationId: commerce.request.correlationId,
+  })
 }
 
 /**
@@ -108,8 +178,10 @@ export async function POST(request: NextRequest) {
  * Admin lists moderation records with optional filters.
  */
 export async function GET(request: NextRequest) {
-  const { error } = await requireMarketplaceAdmin(request)
-  if (error) return error
+  const commerce = await resolveCommerceContext(request, {
+    requiredPermission: "commerce.manage_cases",
+  })
+  if (commerce instanceof NextResponse) return commerce
 
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
@@ -128,8 +200,19 @@ export async function GET(request: NextRequest) {
 
   const { data, count, error: fetchError } = await query
   if (fetchError) {
-    return jsonError({ status: 500, code: "fetch_failed", message: "Failed to load moderation queue.", retryable: true })
+    return commerceErrorResponse({
+      status: 500,
+      code: "fetch_failed",
+      message: "Failed to load moderation queue.",
+      retryable: true,
+      correlationId: commerce.request.correlationId,
+    })
   }
 
-  return NextResponse.json({ data: data ?? [], pagination: { total: count ?? 0, page, limit } })
+  return commerceJsonResponse({
+    data: data ?? [],
+    pagination: { total: count ?? 0, page, limit },
+  }, {
+    correlationId: commerce.request.correlationId,
+  })
 }
