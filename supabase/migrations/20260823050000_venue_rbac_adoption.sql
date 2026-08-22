@@ -39,6 +39,13 @@ INSERT INTO public.rbac_permissions (name, display_name, category, description) 
   ('manage_finances',   'Manage finances',        'finance',    'Record transactions, settlements, payouts')
 ON CONFLICT (name) DO NOTHING;
 
+-- VEN-169: finance authority splits into distinct approval / payout / export powers.
+INSERT INTO public.rbac_permissions (name, display_name, category, description) VALUES
+  ('approve_finances',  'Approve finances',       'finance',    'Approve pending financial entries and transitions'),
+  ('pay_finances',      'Execute payouts',        'finance',    'Authorize settlement disbursements and payouts'),
+  ('export_finances',   'Export finances',        'finance',    'Produce CSV/PDF exports of financial data')
+ON CONFLICT (name) DO NOTHING;
+
 -- ── 3. Default venue role set + wiring (idempotent) ──────────────────────────
 INSERT INTO public.rbac_roles (name, display_name, scope_type, is_system, description)
 VALUES
@@ -57,13 +64,13 @@ INSERT INTO public.rbac_role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM (
   VALUES
-    ('Venue Owner',              ARRAY['manage_bookings','manage_events','manage_ticketing','door_check_in','manage_team','manage_documents','view_analytics','view_finances','manage_finances']::text[]),
-    ('Venue Manager',            ARRAY['manage_bookings','manage_events','manage_ticketing','manage_team','manage_documents','view_analytics','view_finances']::text[]),
+    ('Venue Owner',              ARRAY['manage_bookings','manage_events','manage_ticketing','door_check_in','manage_team','manage_documents','view_analytics','view_finances','manage_finances','approve_finances','pay_finances','export_finances']::text[]),
+    ('Venue Manager',            ARRAY['manage_bookings','manage_events','manage_ticketing','manage_team','manage_documents','view_analytics','view_finances','approve_finances']::text[]),
     ('Venue Booking Manager',    ARRAY['manage_bookings','manage_events','view_analytics']::text[]),
     ('Venue Scheduler',          ARRAY['manage_team']::text[]),
     ('Venue Ticketing Manager',  ARRAY['manage_ticketing','door_check_in','view_analytics']::text[]),
     ('Venue Door Staff',         ARRAY['door_check_in']::text[]),
-    ('Venue Finance Manager',    ARRAY['view_finances','manage_finances','view_analytics']::text[]),
+    ('Venue Finance Manager',    ARRAY['view_finances','manage_finances','approve_finances','export_finances','view_analytics']::text[]),
     ('Venue ReadOnly',           ARRAY['view_analytics']::text[])
 ) AS desired(role_name, perms)
 JOIN public.rbac_roles r

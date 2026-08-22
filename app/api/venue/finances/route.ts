@@ -104,10 +104,11 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { id, ...updates } = parsed.data
+
   const supabase = createServiceRoleClient()
   const { data: existing, error: existingError } = await supabase
     .from("venue_manual_transactions")
-    .select("id, venue_id")
+    .select("id, venue_id, status")
     .eq("id", id)
     .maybeSingle()
   if (existingError) {
@@ -116,11 +117,19 @@ export async function PATCH(request: NextRequest) {
   if (!existing) {
     return NextResponse.json({ success: false, error: "Transaction not found" }, { status: 404 })
   }
+
+  // VEN-169: approval authority is distinct from general management. Moving a
+  // pending entry to completed requires approve_finances; other edits require
+  // manage_finances.
+  const isApprovalTransition =
+    updates.status === "completed" && existing.status === "pending"
+  const requiredPermission = isApprovalTransition ? "approve_finances" : "manage_finances"
+
   const access = await canManageVenue(
     auth.supabase,
     auth.user.id,
     existing.venue_id,
-    "manage_finances",
+    requiredPermission,
   )
   if (!access.allowed) {
     return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })

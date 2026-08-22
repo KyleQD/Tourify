@@ -20,6 +20,9 @@ export type VenuePermission =
   | "view_analytics"
   | "view_finances"
   | "manage_finances"
+  | "approve_finances"
+  | "pay_finances"
+  | "export_finances"
   | "door_check_in"
 
 export interface VenueAccessResult {
@@ -61,8 +64,24 @@ const DEFAULT_OWNER_PERMISSIONS: Record<string, boolean> = {
   view_analytics: true,
   view_finances: true,
   manage_finances: true,
+  approve_finances: true,
+  pay_finances: true,
+  export_finances: true,
   door_check_in: true,
 }
+
+/**
+ * VEN-169 finance permission contract:
+ *   view_finances    — read authorized summaries/ledger
+ *   manage_finances  — create/edit manual transactions, categories, notes
+ *   approve_finances — transition pending → completed (approval authority)
+ *   pay_finances     — execute payouts/settlement disbursements
+ *   export_finances  — produce CSV/PDF exports of financial data
+ *
+ * Enforcement points: GET (view) and POST/PATCH/DELETE (manage) are wired in
+ * /api/venue/finances; approve/pay/export gates activate with the settlement
+ * service and export endpoints (VEN-163/VEN-170).
+ */
 
 function normalizeSettings(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {}
