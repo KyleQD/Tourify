@@ -1,7 +1,8 @@
 import { isAudiusEnabled } from "@/lib/music/providers/audius/audius-config"
 import { audiusAdapter } from "@/lib/music/providers/audius/audius-adapter"
 import { TourifyMusicError } from "@/lib/music/providers/contracts"
-import type { MediaResolution, MediaResolver, MediaResolverContext, TrackResolveRequest } from "../types"
+import type { MediaResolution, MediaResolverContext, TrackResolveRequest } from "../types"
+import type { MediaResolver } from "../registry"
 import { capabilitiesFor } from "../capabilities"
 
 /**

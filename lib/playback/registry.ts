@@ -25,7 +25,8 @@ export async function dispatchMediaResolve(
   request: MediaResolveRequest,
   ctx: MediaResolverContext
 ): Promise<MediaResolution> {
-  const resolver = getMediaResolver(request.kind)
+  const kind: PlayableMediaKind = request.kind ?? "track"
+  const resolver: MediaResolver | null = getMediaResolver(kind)
   if (!resolver) {
     throw new TourifyMusicError(
       "PLAYBACK_RESOLUTION_FAILED",

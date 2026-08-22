@@ -1,10 +1,10 @@
 import type {
   MediaResolution,
-  MediaResolver,
   MediaResolverContext,
   WorldMediaKind,
   WorldMediaResolveRequest,
 } from "../types"
+import type { MediaResolver } from "../registry"
 import { capabilitiesFor } from "../capabilities"
 import { TourifyMusicError } from "@/lib/music/providers/contracts"
 

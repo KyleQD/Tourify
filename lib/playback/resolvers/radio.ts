@@ -1,9 +1,9 @@
 import type {
   MediaResolution,
-  MediaResolver,
   MediaResolverContext,
   RadioResolveRequest,
 } from "../types"
+import type { MediaResolver } from "../registry"
 import { capabilitiesFor } from "../capabilities"
 import { TourifyMusicError } from "@/lib/music/providers/contracts"
 

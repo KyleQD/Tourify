@@ -185,11 +185,11 @@ export async function resolvePlace(
   // repository cannot rank distance yet, so coordinate-only inputs fall
   // through to conservative unresolved diagnostics.
   if (coordinates && !hierarchy && !freeText) {
-    const nearby = publishedOnly(
+    const nearby = (
       await repository
         .findNearbyCandidates(coordinates, { includeDraft: input.includeDraft === true })
         .catch(() => [])
-    ).map((hit) => ({ place: hit.place, distanceMeters: hit.distanceMeters }))
+    ).filter((hit) => input.includeDraft === true || hit.place.publication_status === "published")
     const candidates = nearby.map((hit) =>
       candidateFrom(
         hit.place,

@@ -58,22 +58,23 @@ export function parseResolveRequest(body: unknown): ParsedResolveRequest | Rejec
     typeof (body as Record<string, unknown>).trackId === "string"
   ) {
     // Legacy shape — validate with the track branch.
-    const parsed = MediaResolveRequestSchema.safeParse({ kind: "track", ...(body as object) })
+    const candidate = { kind: "track", ...(body as Record<string, unknown>) }
+    const parsed = MediaResolveRequestSchema.safeParse(candidate)
     if (!parsed.success) return { ok: false, reason: parsed.error.issues[0]?.message ?? "invalid request" }
-    return { ok: true, request: parsed.data }
+    // Schema validated the discriminated branch; satisfy the union type.
+    return { ok: true, request: parsed.data as MediaResolveRequest }
   }
 
   const parsed = MediaResolveRequestSchema.safeParse(body)
   if (!parsed.success) {
     return { ok: false, reason: parsed.error.issues[0]?.message ?? "invalid request" }
   }
+  const request = parsed.data as MediaResolveRequest
 
-  const request = parsed.data
-  if ("kind" in request && request.kind !== "track") {
+  if (request.kind !== "track") {
     const forbidden =
       ("stationId" in request && request.kind !== "radio_stream") ||
-      ("mediaAssetId" in request && !(request.kind === "sound_guide" || request.kind === "archive_audio" || request.kind === "narration")) ||
-      ("trackId" in request && request.kind !== "track")
+      ("trackId" in request)
     if (forbidden) return { ok: false, reason: "identifier does not match requested media kind" }
   }
   return { ok: true, request }
