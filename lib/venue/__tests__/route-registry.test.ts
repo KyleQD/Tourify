@@ -13,6 +13,8 @@ import {
 import {
   getLegacyVenueProfileRedirect,
   isVenueAccountSegment,
+  isValidVenueSlug,
+  normalizeVenueSlug,
 } from "@/lib/venue/routing"
 
 const APP_VENUE_DIR = path.join(__dirname, "..", "..", "..", "app", "venue")
@@ -189,5 +191,36 @@ describe("legacy public-profile redirect guard (VEN-006 / VEN-007)", () => {
   it("isVenueAccountSegment is case-insensitive", () => {
     expect(isVenueAccountSegment("MESSAGES")).toBe(true)
     expect(isVenueAccountSegment("unknown-slug")).toBe(false)
+  })
+})
+
+describe("VEN-014 — canonical slug validation", () => {
+  it.each([
+    "the-fillmore",
+    "venue-2",
+    "a",
+    "abc-123-def",
+  ])("accepts canonical slug %s", (slug) => {
+    expect(isValidVenueSlug(slug)).toBe(true)
+  })
+
+  it.each([
+    "",
+    "The-Fillmore",
+    "double--dash",
+    "-leading",
+    "trailing-",
+    "has space",
+    "sym!bol",
+    null,
+    undefined,
+  ])("rejects malformed slug %s", (slug) => {
+    expect(isValidVenueSlug(slug as string | null | undefined)).toBe(false)
+  })
+
+  it("normalizeVenueSlug maps malformed inputs onto the canonical pattern", () => {
+    for (const raw of ["The Fillmore!", "--Double Dash--", "SYM/bol"]) {
+      expect(isValidVenueSlug(normalizeVenueSlug(raw))).toBe(true)
+    }
   })
 })

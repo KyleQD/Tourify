@@ -4,6 +4,13 @@ export function normalizeVenueSlug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
 }
 
+/** Canonical slug shape enforced on venue_profiles.url_slug (VEN-014). */
+export const VENUE_SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+export function isValidVenueSlug(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.length > 0 && VENUE_SLUG_PATTERN.test(value)
+}
+
 /**
  * Authenticated venue-account app routes under `/venue/*` — not public profile slugs.
  *
