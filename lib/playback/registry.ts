@@ -4,7 +4,6 @@ import type {
   MediaResolverContext,
   PlayableMediaKind,
 } from "./types"
-import type { PlayableMediaKind } from "./types"
 import { TourifyMusicError } from "@/lib/music/providers/contracts"
 
 export interface MediaResolver<K extends PlayableMediaKind = PlayableMediaKind> {
