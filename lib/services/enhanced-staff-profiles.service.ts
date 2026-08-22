@@ -138,21 +138,38 @@ export class EnhancedStaffProfilesService {
 
   static async createStaffProfile(profileData: CreateStaffProfileData): Promise<VenueTeamMember> {
     try {
-      const { data, error } = await supabase
-        .from('venue_team_members')
+      // VEN-103: canonical Venue roster writes go to staff_members scoped by
+      // employer entity — never to the legacy venue_team_members table.
+      // (Untyped client cast: generated DB types predate employer_entity_* columns.)
+      const db = supabase as unknown as {
+        from: (table: string) => {
+          insert: (values: Record<string, unknown>) => {
+            select: () => { single: () => Promise<{ data: any; error: any }> }
+          }
+        }
+      }
+      const { data, error } = await db
+        .from('staff_members')
         .insert({
-          ...profileData,
+          employer_entity_type: 'venue',
+          employer_entity_id: profileData.venue_id,
+          venue_id: null,
+          user_id: profileData.user_id ?? null,
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
           name: `${profileData.first_name} ${profileData.last_name}`,
+          email: profileData.email,
+          role: profileData.role ?? 'member',
+          department: profileData.department ?? null,
+          employment_type: profileData.employment_type ?? 'part_time',
           permissions: {
             manage_bookings: false,
             manage_events: false,
             view_analytics: false,
             manage_team: false,
-            manage_documents: false
+            manage_documents: false,
           },
           status: 'active',
-          is_available: true,
-          onboarding_completed: false
         })
         .select()
         .single()
