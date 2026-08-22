@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822021740_world_music_knowledge_media_foundation.sql",
   "taskId": "WOM-G1-B",
-  "status": "planned",
+  "status": "isolated_validated",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [
@@ -77,7 +77,7 @@
   },
   "verificationOwner": "release-engineering",
   "evidence": {
-    "isolated": null,
+    "isolated": "/Users/kyledaley/Downloads/Tourify_World_of_Music_Working_Folder 2/implementation/phase1/G1_EVIDENCE_20260822_LOCAL_RUN1.md",
     "staging": null,
     "production": null
   },
