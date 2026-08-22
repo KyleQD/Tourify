@@ -11,9 +11,14 @@ export interface MediaResolver<K extends PlayableMediaKind = PlayableMediaKind> 
   resolve(request: Extract<MediaResolveRequest, { kind: K }>, ctx: MediaResolverContext): Promise<MediaResolution>
 }
 
-const registry = new Map<PlayableMediaKind, MediaResolver>()
+/**
+ * Heterogeneous resolver storage. `MediaResolver<any>` widens the
+ * contravariant request parameter; dispatch re-narrows per registered kind.
+ */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const registry = new Map<PlayableMediaKind, MediaResolver<any>>()
 
-export function registerMediaResolver(resolver: MediaResolver): void {
+export function registerMediaResolver(resolver: MediaResolver<any>): void {
   registry.set(resolver.kind, resolver)
 }
 

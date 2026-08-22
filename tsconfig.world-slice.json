@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "lib/world/**/*.ts",
+    "lib/geo/**/*.ts",
+    "lib/playback/**/*.ts",
+    "app/api/world/**/*.ts",
+    "app/api/music/playback/resolve/route.ts",
+    "app/internal/world/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "apps/mobile/**", ".next"]
+}
