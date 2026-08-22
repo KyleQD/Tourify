@@ -94,16 +94,21 @@ export class SupabaseGeoRepository implements GeoRepository {
     ref: GeoExternalReferenceInput,
     opts?: { includeDraft?: boolean }
   ): Promise<GeoPlaceRow | null> {
-    const builder = this.client
+    // geo_external_references has no publication_status column; visibility is
+    // enforced against the EMBEDDED place row instead (PostgREST cannot
+    // filter an embed by the referencing table).
+    const { data, error } = await this.client
       .from("geo_external_references")
       .select("place:geo_places(*)")
       .eq("provider", ref.provider)
       .eq("external_id", ref.externalId)
       .eq("external_type", ref.externalType ?? "place")
-      .limit(2)
-    const { data, error } = await this.visibilityFilter(builder, opts)
-    if (error || !data || data.length !== 1) return null
-    return asPlace({}, data[0]?.place)
+      .limit(5)
+    if (error || !data) return null
+    const places = (data as RawRow[])
+      .map((row) => asPlace({}, (row as RawRow).place))
+      .filter((place) => (opts?.includeDraft ? true : place.publication_status === "published"))
+    return places.length === 1 ? places[0] : null
   }
 
   async findHierarchyCandidates(
@@ -126,17 +131,18 @@ export class SupabaseGeoRepository implements GeoRepository {
   async findExactAlias(alias: string, opts?: ResolveQueryOptions): Promise<GeoPlaceRow[]> {
     const normalized = alias.trim().toLowerCase()
     if (!normalized) return []
-    // normalized_alias is a generated lower(btrim(alias)) column.
-    const { data, error } = await this.visibilityFilter(
-      this.client
-        .from("geo_place_aliases")
-        .select("place:geo_places(*)")
-        .eq("normalized_alias", normalized)
-        .limit(10),
-      opts
-    )
+    // normalized_alias is a generated lower(btrim(alias)) column. Visibility
+    // filters the embedded place (join table carries no status column).
+    const { data, error } = await this.client
+      .from("geo_place_aliases")
+      .select("place:geo_places(*)")
+      .eq("normalized_alias", normalized)
+      .limit(10)
     if (error || !Array.isArray(data)) return []
-    return data.map((row: RawRow) => asPlace({}, (row as RawRow).place))
+    const places = (data as RawRow[]).map((row) => asPlace({}, (row as RawRow).place))
+    return opts?.includeDraft
+      ? places
+      : places.filter((place) => place.publication_status === "published")
   }
 
   /**
