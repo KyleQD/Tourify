@@ -22,6 +22,7 @@ export default async function WorldPilotIndexPage({ searchParams }: { searchPara
       <header>
         <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">World of Music · internal</div>
         <h1 className="mt-2 text-3xl font-semibold">Pilot World Explorer</h1>
+        <Link href="/internal/world/console" className="mr-4 inline-block rounded-full border border-violet-400/30 px-3 py-1 text-xs text-violet-200 hover:border-cyan-300/40 hover:text-white">Open review console →</Link>
         <p className="mt-3 max-w-3xl text-muted-foreground">Draft research profiles only. Quality scores prioritize review; they never publish cultural claims or authorize playback.</p>
       </header>
 
