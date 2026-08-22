@@ -1,5 +1,11 @@
+import { WorldEntryLink } from "@/components/world/globe/WorldEntryLink"
 import { DiscoverPageClient } from "@/components/discover/discover-page-client"
 
 export default function DiscoverPage() {
-  return <DiscoverPageClient />
+  return (
+    <>
+      <WorldEntryLink />
+      <DiscoverPageClient />
+    </>
+  )
 }
