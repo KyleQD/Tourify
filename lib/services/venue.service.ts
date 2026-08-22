@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
-import type { 
+import { fetchVenueIdentityBridge } from '@/lib/venue/identity-bridge'
+import type {
   VenueProfile, 
   VenueBookingRequest, 
   VenueDocument, 
@@ -19,6 +20,36 @@ class VenueService {
   constructor(client: typeof supabase = supabase) {
     this.supabase = client
   }
+
+  /**
+   * VEN-002 / ADR-0001: events_v2 (and calendars) live in the venues_v2 ID domain,
+   * while callers pass the canonical venue_profiles.id. Resolve across domains via
+   * the relational identity bridge, falling back to the settings-JSON cache during
+   * the migration window. Returns null when no operational mirror is provisioned.
+   */
+  private async resolveVenuesV2Id(venueProfileId: string): Promise<string | null> {
+    if (!venueProfileId) return null
+
+    try {
+      const bridge = await fetchVenueIdentityBridge(this.supabase, venueProfileId)
+      if (bridge?.venuesV2Id) return bridge.venuesV2Id
+    } catch {
+      // Non-fatal: fall through to settings-JSON cache.
+    }
+
+    try {
+      const { data } = await this.supabase
+        .from('venue_profiles')
+        .select('settings')
+        .eq('id', venueProfileId)
+        .maybeSingle()
+      const v2Id = (data?.settings as Record<string, unknown> | null)?.venues_v2_id
+      return typeof v2Id === 'string' && v2Id ? v2Id : null
+    } catch {
+      return null
+    }
+  }
+
   private cache = new Map<string, { data: any; timestamp: number }>()
   private readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
@@ -544,13 +575,21 @@ class VenueService {
       if (cached) return cached
 
       const nowIso = new Date().toISOString()
-      const { data: v2Data, error: v2Error } = await this.supabase
-        .from('events_v2')
-        .select('id, title, start_at, end_at, status, venue_id, settings')
-        .eq('venue_id', venueId)
-        .gte('start_at', nowIso)
-        .order('start_at', { ascending: true })
-        .limit(10)
+      const venuesV2Id = await this.resolveVenuesV2Id(venueId)
+      let v2Data: any[] | null = null
+      let v2Error: any = null
+
+      if (venuesV2Id) {
+        const result = await this.supabase
+          .from('events_v2')
+          .select('id, title, start_at, end_at, status, venue_id, settings')
+          .eq('venue_id', venuesV2Id)
+          .gte('start_at', nowIso)
+          .order('start_at', { ascending: true })
+          .limit(10)
+        v2Data = result.data
+        v2Error = result.error
+      }
 
       if (!v2Error && v2Data) {
         const normalizedV2Events = v2Data.map((event: any) => ({
@@ -644,13 +683,21 @@ class VenueService {
       const cached = this.getFromCache<any[]>(cacheKey)
       if (cached) return cached
 
-      const { data: v2Data, error: v2Error } = await this.supabase
-        .from('events_v2')
-        .select('id, title, start_at, end_at, status, venue_id, settings')
-        .eq('venue_id', venueId)
-        .gte('start_at', rangeStartIso)
-        .lte('start_at', rangeEndIso)
-        .order('start_at', { ascending: true })
+      const venuesV2Id = await this.resolveVenuesV2Id(venueId)
+      let v2Data: any[] | null = null
+      let v2Error: any = null
+
+      if (venuesV2Id) {
+        const v2Result = await this.supabase
+          .from('events_v2')
+          .select('id, title, start_at, end_at, status, venue_id, settings')
+          .eq('venue_id', venuesV2Id)
+          .gte('start_at', rangeStartIso)
+          .lte('start_at', rangeEndIso)
+          .order('start_at', { ascending: true })
+        v2Data = v2Result.data
+        v2Error = v2Result.error
+      }
 
       let legacyData: any[] = []
       let legacyError: any = null
@@ -710,12 +757,18 @@ class VenueService {
 
   async getVenueEventById(venueId: string, eventId: string): Promise<any | null> {
     try {
-      const { data: v2Event } = await this.supabase
-        .from('events_v2')
-        .select('id, title, status, start_at, end_at, venue_id, capacity, settings')
-        .eq('id', eventId)
-        .eq('venue_id', venueId)
-        .maybeSingle()
+      const venuesV2Id = await this.resolveVenuesV2Id(venueId)
+      let v2Event: any = null
+
+      if (venuesV2Id) {
+        const result = await this.supabase
+          .from('events_v2')
+          .select('id, title, status, start_at, end_at, venue_id, capacity, settings')
+          .eq('id', eventId)
+          .eq('venue_id', venuesV2Id)
+          .maybeSingle()
+        v2Event = result.data
+      }
 
       if (v2Event) {
         const settings = v2Event.settings && typeof v2Event.settings === 'object'
