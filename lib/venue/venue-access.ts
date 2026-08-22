@@ -6,6 +6,10 @@ import {
   fetchVenueIdentityBridge,
   upsertVenueIdentityBridge,
 } from "@/lib/venue/identity-bridge"
+import {
+  listVenueRbacVenueIds,
+  venueHasRbacAccess,
+} from "@/lib/venue/rbac-access"
 
 export type VenuePermission =
   | "manage_bookings"
@@ -153,7 +157,22 @@ export async function getManageableVenueIds(
     .map((row: any) => row.venue_id)
     .filter(Boolean)
 
-  return Array.from(new Set([...ownerIds, ...staffIds, ...assignmentIds, ...teamIds]))
+  // Canonical entity RBAC (VEN-122): assignments are authoritative during the
+  // adoption window and merge with legacy sources.
+  let rbacIds: string[] = []
+  try {
+    rbacIds = await listVenueRbacVenueIds(supabase, userId)
+    if (permission && rbacIds.length) {
+      const checks = await Promise.all(
+        rbacIds.map(async (id) => ((await venueHasRbacAccess(supabase, userId, id, permission)) ? id : null)),
+      )
+      rbacIds = checks.filter((id): id is string => id !== null)
+    }
+  } catch {
+    // Non-fatal: legacy sources remain authoritative fallback.
+  }
+
+  return Array.from(new Set([...ownerIds, ...rbacIds, ...staffIds, ...assignmentIds, ...teamIds]))
 }
 
 export async function canManageVenue(
@@ -172,6 +191,18 @@ export async function canManageVenue(
     .maybeSingle()
 
   if (ownerRow?.id) return { allowed: true }
+
+  // Canonical entity RBAC (VEN-122): authoritative check against seeded
+  // permission catalog. Runs before legacy JSON fallbacks; a concrete
+  // permission is enforced via has_entity_permission, absence of one requires
+  // at least an active role assignment.
+  try {
+    if (await venueHasRbacAccess(supabase, userId, venueId, permission)) {
+      return { allowed: true }
+    }
+  } catch {
+    // Non-fatal: legacy checks below still apply during migration window.
+  }
 
   const [{ data: staffRows }, { data: assignmentRows }] = await Promise.all([
     supabase
