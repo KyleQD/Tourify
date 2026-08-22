@@ -24,13 +24,28 @@ import {
   Search,
   Filter
 } from 'lucide-react'
-import { 
-  VenueRole, 
-  VenueUserRole, 
-  UserWithRoles,
-  VenuePermission,
-  PermissionName
-} from '@/types/database.types'
+import { VenuePermission } from '@/types/database.types'
+
+// VEN-126 contract shapes returned by /api/venue/user-roles (canonical RBAC).
+interface AssignmentDto {
+  id: string
+  role_id: string
+  role_name: string
+  start_at: string | null
+  end_at: string | null
+}
+interface UserWithRolesDto {
+  user_id: string
+  name?: string | null
+  email?: string | null
+  avatar_url?: string | null
+  roles: AssignmentDto[]
+}
+interface RoleOptionDto {
+  id: string
+  label: string
+  is_system_role: boolean
+}
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface UserRoleAssignmentProps {
@@ -45,8 +60,8 @@ interface AssignRoleFormData {
 }
 
 export function UserRoleAssignment({ venueId }: UserRoleAssignmentProps) {
-  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRoles[]>([])
-  const [roles, setRoles] = useState<VenueRole[]>([])
+  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRolesDto[]>([])
+  const [roles, setRoles] = useState<RoleOptionDto[]>([])
   const [permissions, setPermissions] = useState<VenuePermission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAssigning, setIsAssigning] = useState(false)
@@ -187,7 +202,7 @@ export function UserRoleAssignment({ venueId }: UserRoleAssignmentProps) {
 
   const filteredUsers = usersWithRoles.filter(user => 
     user.user_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.roles.some(role => role.venue_roles?.role_name?.toLowerCase().includes(searchTerm.toLowerCase()))
+    user.roles.some(role => role.role_name?.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   const getPermissionLabel = (permissionName: string) => {
@@ -284,7 +299,7 @@ export function UserRoleAssignment({ venueId }: UserRoleAssignmentProps) {
                   <SelectContent>
                     {roles.map(role => (
                       <SelectItem key={role.id} value={role.id}>
-                        {role.role_name} (Level {role.role_level})
+                        {role.label}{role.is_system_role ? ' · system' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -393,19 +408,14 @@ export function UserRoleAssignment({ venueId }: UserRoleAssignmentProps) {
                       <div key={role.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <Badge className={getRoleLevelColor(role.venue_roles?.role_level || 1)}>
-                              {role.venue_roles?.role_name}
-                            </Badge>
-                            {role.expires_at && (
+                            <Badge>{role.role_name}</Badge>
+                            {role.end_at && (
                               <Badge variant="outline" className="text-xs">
                                 <Clock className="mr-1 h-3 w-3" />
-                                Expires {formatSafeDate(role.expires_at)}
+                                Expires {formatSafeDate(role.end_at)}
                               </Badge>
                             )}
                           </div>
-                          {role.notes && (
-                            <p className="text-sm text-muted-foreground">{role.notes}</p>
-                          )}
                         </div>
                         <Button
                           variant="ghost"
