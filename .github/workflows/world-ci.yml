@@ -64,8 +64,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Pin Supabase CLI to the audited version
-        run: npm install -g supabase@2.22.6
+      - name: Pin Supabase CLI to the audited version (standalone binary)
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.22.6
       - name: Replay full lineage (World A/B/C + activation + five promotions)
         run: |
           set -o pipefail
