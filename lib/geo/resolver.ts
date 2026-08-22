@@ -5,6 +5,7 @@ import {
 import { normalizeHierarchy, normalizeSearchKey, validateCoordinates } from "./normalize"
 import type { GeoRepository } from "./repository"
 import type {
+  GeoNearbyCandidate,
   GeoPlaceRow,
   ResolvePlaceInput,
   ResolvePlaceResult,
@@ -188,7 +189,7 @@ export async function resolvePlace(
     const nearby = (
       await repository
         .findNearbyCandidates(coordinates, { includeDraft: input.includeDraft === true })
-        .catch(() => [])
+        .catch(() => [] as { place: GeoPlaceRow; distanceMeters: number | null }[])
     ).filter((hit) => input.includeDraft === true || hit.place.publication_status === "published")
     const candidates = nearby.map((hit) =>
       candidateFrom(
