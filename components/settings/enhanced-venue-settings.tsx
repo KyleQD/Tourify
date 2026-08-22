@@ -226,7 +226,7 @@ export function EnhancedVenueSettings() {
           accepting_bookings: profile.settings?.allow_bookings ?? true,
           min_booking_notice: profile.settings?.min_booking_notice || '2_weeks',
           base_rate: profile.settings?.base_rate || '',
-          public_profile: profile.settings?.public_profile ?? true,
+          public_profile: profile.is_public ?? profile.settings?.public_profile ?? true,
           show_contact_info: profile.settings?.show_contact_info || false,
           allow_bookings: profile.settings?.allow_bookings ?? true,
           require_approval: profile.settings?.require_approval || false,
@@ -295,6 +295,9 @@ export function EnhancedVenueSettings() {
           min_booking_notice: data.min_booking_notice,
           base_rate: data.base_rate,
         },
+        // VEN-008: is_public is the canonical publish control; settings cache
+        // mirrors it (DB trigger enforces alignment too).
+        is_public: data.public_profile,
         updated_at: new Date().toISOString()
       }
 
