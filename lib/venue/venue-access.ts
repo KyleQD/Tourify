@@ -313,11 +313,16 @@ export async function ensureVenueOperationalContext(
     operationalOrgId = org?.id || null
 
     if (operationalOrgId) {
+      // VEN-087: org membership must derive from verified Venue authority.
+      // Provisioning must never escalate the first caller to org owner — only
+      // a verified Venue account owner may hold the mirrored owner role;
+      // delegated members enter as plain members pending canonical entity RBAC.
+      const mirroredRole: "owner" | "member" = venue.role === "owner" ? "owner" : "member"
       await service.from("org_members").upsert(
         {
           org_id: operationalOrgId,
           user_id: userId,
-          role: "owner",
+          role: mirroredRole,
           invited_by: userId,
         },
         { onConflict: "org_id,user_id" },
