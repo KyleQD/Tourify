@@ -68,6 +68,8 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: 2.22.6
+      - name: Start local Supabase stack (DB only)
+        run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,storage-api,pooler
       - name: Replay full lineage (World A/B/C + activation + five promotions)
         run: |
           set -o pipefail
@@ -105,4 +107,4 @@ jobs:
         with:
           name: world-migration-replay
           path: /tmp/world-replay.log
-          if-no-files-found: always
+          if-no-files-found: ignore
