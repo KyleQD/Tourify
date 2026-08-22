@@ -1,5 +1,11 @@
 set client_min_messages = warning;
 
+-- Align legacy tours schema with admin tour builder + break tours <-> tour_team_members RLS recursion.
+
+-- ---------------------------------------------------------------------------
+-- 1. Schema alignment for admin tour builder
+-- ---------------------------------------------------------------------------
+
 alter table if exists public.organizations
   add column if not exists slug text;
 
@@ -24,17 +30,20 @@ $$;
 
 alter table if exists public.tours
   add column if not exists org_id uuid references public.organizations(id) on delete set null,
+  add column if not exists user_id uuid references auth.users(id) on delete set null,
   add column if not exists slug text,
   add column if not exists settings jsonb not null default '{}'::jsonb,
   add column if not exists created_by uuid references auth.users(id) on delete set null,
   add column if not exists revenue numeric,
   add column if not exists expenses numeric;
 
+-- Backfill ownership from legacy user_id
 update public.tours
 set created_by = user_id
 where created_by is null
   and user_id is not null;
 
+-- Ensure every tour has a unique slug
 update public.tours
 set slug = concat(
   lower(regexp_replace(coalesce(nullif(name, ''), 'tour'), '[^a-zA-Z0-9]+', '-', 'g')),
@@ -69,7 +78,12 @@ create index if not exists idx_tours_created_by on public.tours(created_by);
 create index if not exists idx_tours_user_id on public.tours(user_id);
 
 alter table if exists public.tour_team_members
-  add column if not exists is_active boolean default true;
+  add column if not exists is_active boolean default true,
+  add column if not exists status text default 'confirmed';
+
+-- ---------------------------------------------------------------------------
+-- 2. SECURITY DEFINER helpers (break recursive policy evaluation)
+-- ---------------------------------------------------------------------------
 
 create or replace function public.is_tour_owner(p_tour_id uuid)
 returns boolean
@@ -125,6 +139,10 @@ revoke all on function public.can_access_tour(uuid) from public;
 grant execute on function public.is_tour_owner(uuid) to authenticated;
 grant execute on function public.is_confirmed_tour_team_member(uuid) to authenticated;
 grant execute on function public.can_access_tour(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3. Replace recursive tours / tour_team_members policies
+-- ---------------------------------------------------------------------------
 
 drop policy if exists "Users can view tours they created" on public.tours;
 drop policy if exists "Users can create tours" on public.tours;
@@ -206,4 +224,4 @@ create policy tour_team_members_delete
 on public.tour_team_members
 for delete
 to authenticated
-using (public.is_tour_owner(tour_id));;
+using (public.is_tour_owner(tour_id));
