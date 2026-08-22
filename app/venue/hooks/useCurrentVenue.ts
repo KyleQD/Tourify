@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { venueService } from '@/lib/services/venue.service'
+import { useMultiAccount } from '@/hooks/use-multi-account'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
 import type { VenueProfile, VenueDashboardStats } from '@/types/database.types'
 
 // Adapter to convert database venue to component-expected format
@@ -158,29 +160,51 @@ export function useCurrentVenue(): UseCurrentVenueReturn {
   const [stats, setStats] = useState<VenueDashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // VEN-004: the client hint (sessionStorage) is never authoritative. It is only
+  // honored when it matches an active Venue account in the server-seeded list.
+  const { accounts, isAccountsReady } = useMultiAccount()
+  const accountsKey = accounts.map((a) => `${a.profile_id}:${a.is_active}`).join('|')
+  const lastAccountsKeyRef = useRef<string | null>(null)
 
   const fetchVenueData = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      // Check if we have a specific venue ID from account switching
-      const activeVenueId = venueService.getActiveVenueId()
+      // Validate the active-venue hint against the server-seeded account list.
+      let activeVenueId: string | null = null
+      if (isAccountsReady) {
+        const hint = venueService.getActiveVenueId()
+        if (hint) {
+          const belongsToUser = accounts.some(
+            (account) =>
+              account.profile_id === hint &&
+              normalizeAccountType(account.account_type) === 'venue' &&
+              account.is_active,
+          )
+          if (belongsToUser) {
+            activeVenueId = hint
+          } else {
+            venueService.clearActiveVenueId()
+          }
+        }
+      }
+
       let venueData: any = null
 
       if (activeVenueId) {
-        // Fetch specific venue by ID
+        // Fetch specific venue by validated ID
         venueData = await venueService.getVenueProfile(activeVenueId)
       } else {
-        // Fetch current user's venue (first one if multiple)
+        // Fetch current user's venue (server-validated via RLS; first if multiple)
         venueData = await venueService.getCurrentUserVenue()
       }
-      
+
       if (venueData) {
         // Adapt the venue data to expected format
         const adaptedVenue = adaptVenueProfile(venueData)
         setVenue(adaptedVenue)
-        
+
         // Fetch dashboard stats
         const statsData = await venueService.getVenueDashboardStats(venueData.id)
         setStats(statsData)
@@ -206,12 +230,12 @@ export function useCurrentVenue(): UseCurrentVenueReturn {
 
     try {
       setError(null)
-      
+
       // Convert component fields to database fields
       const dbUpdates = adaptVenueForUpdate(updates)
-      
+
       const updatedVenue = await venueService.updateVenueProfile(venue.id, dbUpdates)
-      
+
       if (updatedVenue) {
         const adaptedVenue = adaptVenueProfile(updatedVenue)
         setVenue(adaptedVenue)
@@ -228,7 +252,17 @@ export function useCurrentVenue(): UseCurrentVenueReturn {
 
   useEffect(() => {
     void fetchVenueData()
+  }, [])
 
+  // Re-fetch once the server-seeded account list arrives or changes composition
+  // (covers stale pre-hydration loads and account switches).
+  useEffect(() => {
+    if (!isAccountsReady || lastAccountsKeyRef.current === accountsKey) return
+    lastAccountsKeyRef.current = accountsKey
+    void fetchVenueData()
+  }, [isAccountsReady, accountsKey])
+
+  useEffect(() => {
     function handleActiveVenueChanged() {
       void fetchVenueData()
     }
