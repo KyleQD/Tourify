@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260822021738_world_shared_geography_foundation.sql",
+  "taskId": "WOM-G1-A",
+  "status": "planned",
+  "owner": "world-of-music",
+  "reviewer": "security-data",
+  "domains": [
+    "discover",
+    "geography",
+    "shared-infrastructure"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "reconciled Tourify schema replayed into disposable/local Supabase database",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm geo_places, geo_external_references, and geo_place_aliases do not already exist",
+      "Confirm pg_trgm is installed in extensions and PostGIS state is recorded",
+      "Confirm public.update_updated_at_column() exists and is not SECURITY DEFINER"
+    ],
+    "expectedAffectedRows": "No existing application rows are updated; PostGIS is installed if absent and three empty shared geography tables are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Additive migration; rerun only in disposable validation after reset/replay if partially interrupted",
+    "resumeCursor": "not applicable; no backfill",
+    "idempotency": "CREATE EXTENSION/TABLE/INDEX IF NOT EXISTS plus replace-in-place trigger/policy definitions converge the intended empty-schema state"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No legacy locations are migrated or guessed in this migration; canonical matching is a later resolver/import step"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "place type and publication status allowlists",
+      "parent cannot self-reference",
+      "country code format",
+      "non-empty slug/path/name",
+      "unique sibling slug with NULLS NOT DISTINCT"
+    ],
+    "indexes": [
+      "geo_places_parent_idx",
+      "geo_places_type_country_idx",
+      "geo_places_public_type_idx",
+      "geo_places_center_gist",
+      "geo_places_search_gin",
+      "geo_external_references_place_idx",
+      "geo_external_references_place_provider_idx",
+      "geo_place_aliases_unique_idx",
+      "geo_place_aliases_normalized_idx",
+      "geo_place_aliases_trgm_idx"
+    ],
+    "validationPlan": "Verify PG15/PostGIS install, spatial/search indexes, RLS on all three tables, public SELECT only for published places and no client writes"
+  },
+  "recovery": {
+    "rollback": "In isolated validation, reset/replay the disposable database. In any later shared environment, keep World flags off and remove new objects only through a separately reviewed reverse-dependency migration if still unused.",
+    "forwardFix": "Prefer additive correction migration for constraints, grants, indexes, or policies; do not rewrite deployed migration history"
+  },
+  "postflight": {
+    "queries": [
+      "Confirm PostGIS is installed in extensions",
+      "Confirm all three geo tables exist with RLS enabled",
+      "Confirm anon/authenticated have SELECT only and service_role has intended CRUD",
+      "Insert draft/published fixture places and verify RLS visibility",
+      "Verify protected event/venue tables have no schema changes from this migration"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260822021740_world_music_knowledge_media_foundation.sql",
+  "taskId": "WOM-G1-B",
+  "status": "planned",
+  "owner": "world-of-music",
+  "reviewer": "security-data",
+  "domains": [
+    "music",
+    "discover",
+    "provenance",
+    "radio",
+    "education"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "reconciled Tourify schema plus Migration A in disposable/local Supabase database",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm all world_* knowledge/media tables in this migration are absent",
+      "Confirm artist_profiles.id and artist_music.id are UUID",
+      "Confirm feature_flags.key is uniquely constrained",
+      "Confirm public.update_updated_at_column() exists and is not SECURITY DEFINER"
+    ],
+    "expectedAffectedRows": "No existing domain rows are updated; fifteen empty World knowledge/media tables are added, controlled relation rows are seeded, and five disabled feature flags are inserted only if missing",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Additive migration; rerun only in disposable validation after reset/replay if partially interrupted",
+    "resumeCursor": "not applicable; no backfill",
+    "idempotency": "Tables/indexes are guarded, relation seeds use ON CONFLICT DO NOTHING, and feature flags never overwrite an operator decision"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No external source data is published here; ingestion candidates remain deferred to Migration C and human/server review"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "controlled source rights/review values",
+      "controlled cultural entity types and publication states",
+      "claim subject/object shape and confidence",
+      "relation-domain composite FKs",
+      "published graph edges require claim IDs",
+      "radio/media locator shape checks",
+      "aggregate user signal privacy floor >= 10"
+    ],
+    "indexes": [
+      "full-text GIN indexes for cultural entities/radio",
+      "GIN array indexes for radio tags/genres",
+      "bridge place/relation indexes",
+      "private stream/media health indexes",
+      "time-windowed geographic signal indexes"
+    ],
+    "validationPlan": "Verify all fifteen tables have RLS, only approved public metadata tables have client SELECT, private evidence/stream/source tables have zero client grants, relation domains cannot cross, and privacy/locator checks reject malformed rows"
+  },
+  "recovery": {
+    "rollback": "Keep all World feature flags disabled. In isolated validation reset/replay. In shared environments prefer a forward-fix; object removal requires a separately reviewed reverse-dependency migration.",
+    "forwardFix": "Apply additive policy/constraint/index/seed corrections. Never overwrite deployed migration files or force-enable flags."
+  },
+  "postflight": {
+    "queries": [
+      "Verify fifteen expected tables and all RLS states",
+      "Verify private tables world_claim_evidence/world_radio_streams/world_media_sources have no anon/authenticated grants",
+      "Verify five World feature flags exist disabled without modifying pre-existing values",
+      "Run tiny provenance graph fixture and relation-domain negative tests",
+      "Run public visibility and aggregate privacy tests"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

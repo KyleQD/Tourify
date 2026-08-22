@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260822021741_world_music_ingestion_staging.sql",
+  "taskId": "WOM-G1-C",
+  "status": "planned",
+  "owner": "world-of-music",
+  "reviewer": "security-data",
+  "domains": [
+    "music",
+    "ingestion",
+    "editorial-review"
+  ],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "reconciled Tourify schema plus Migrations A and B in disposable/local Supabase database",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm world_ingestion_runs and world_ingestion_candidates are absent",
+      "Confirm world_sources exists from Migration B",
+      "Record anon/authenticated default grants before migration"
+    ],
+    "expectedAffectedRows": "No existing rows are updated; two empty private staging tables and supporting indexes/trigger are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Additive schema only; rerun in disposable validation after reset/replay if interrupted",
+    "resumeCursor": "not applicable; no data import is performed by the migration",
+    "idempotency": "Tables/indexes are guarded and the updated_at trigger is replaced deterministically"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "public.world_ingestion_candidates",
+    "strategy": "External records remain staged as candidates with explicit match/review status; ambiguous identities are never auto-published"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "ingestion run status allowlist and non-negative counters",
+      "candidate kind/match/review allowlists",
+      "confidence range",
+      "unique source + kind + external record identity"
+    ],
+    "indexes": [
+      "world_ingestion_runs_source_time_idx",
+      "world_ingestion_runs_status_idx",
+      "world_ingestion_candidates_review_idx",
+      "world_ingestion_candidates_run_idx"
+    ],
+    "validationPlan": "Verify both tables have RLS, service_role CRUD, zero anon/authenticated grants/policies, candidate identity idempotency, and updated_at trigger behavior"
+  },
+  "recovery": {
+    "rollback": "In isolated validation reset/replay. In later environments disable ingestion flag and preserve staged evidence; remove objects only through reviewed migration if empty/unreferenced.",
+    "forwardFix": "Apply additive changes to adapter fields, indexes, review states, or RBAC when the internal editorial model is implemented."
+  },
+  "postflight": {
+    "queries": [
+      "Verify two staging tables exist with RLS",
+      "Verify anon/authenticated have no table privileges or policies",
+      "Insert/reinsert the same candidate identity and verify uniqueness behavior",
+      "Verify updated_at changes on candidate update",
+      "Confirm world_music_ingestion_enabled remains disabled"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}
