@@ -68,15 +68,22 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: 2.22.6
-      - name: Exclude REGISTERED inherited failing migration (VEN workstream)
+      - name: Apply registered migration exclusions (registry-owned)
         run: |
-          # 20260823010000_venue_identity_bridge.sql is owned by the parallel
-          # venue workstream and currently fails fresh replay (missing
-          # venue_profiles.main_profile_id). Excluding it here keeps the WORLD
-          # slice authoritative in CI while the VEN owner repairs it. This is
-          # the ONLY sanctioned exclusion.
-          EXCLUDED=supabase/migrations/20260823010000_venue_identity_bridge.sql
-          if [ -f "$EXCLUDED" ]; then rm "$EXCLUDED"; else echo "expected registered exclusion missing"; exit 1; fi
+          REG=scripts/world/ci/migration-exclusions.txt
+          while IFS= read -r line; do
+            case "$line" in ""|\#*) continue ;; esac
+            f="supabase/migrations/$line"
+            if [ ! -f "$f" ]; then echo "registered exclusion missing: $line"; exit 1; fi
+            mv "$f" "$f.excluded"
+            echo "excluded: $line"
+          done < "$REG"
+      - name: Restore excluded migrations after verification
+        if: always()
+        run: |
+          find supabase/migrations -name "*.excluded" | while read -r f; do
+            mv "$f" "${f%.excluded}"
+          done
       - name: Start local Supabase stack (DB only)
         run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,storage-api,pooler
       - name: Replay full lineage (World A/B/C + activation + five promotions)

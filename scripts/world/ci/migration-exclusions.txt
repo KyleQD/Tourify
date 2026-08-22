@@ -1,0 +1,7 @@
+# World CI migration-exclusion registry (known-broken migrations owned by
+# OTHER workstreams). One filename per line. Each entry MUST name its owner.
+# The World slice itself never appears here. CI fails if a listed file is
+# missing (so exclusions can't silently widen) and replays everything else.
+#
+# owner: venue-program (VEN) — fresh-replay failures, repair tracked by VEN
+20260823010000_venue_identity_bridge.sql
