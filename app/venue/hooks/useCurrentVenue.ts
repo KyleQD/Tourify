@@ -153,6 +153,10 @@ interface UseCurrentVenueReturn {
   error: string | null
   refreshVenue: () => Promise<void>
   updateVenue: (updates: any) => Promise<boolean>
+  /** Server-seeded account list (VEN-004/VEN-137 validation source). */
+  accounts: ReturnType<typeof useMultiAccount>['accounts']
+  /** True once the server-seeded account list has hydrated. */
+  isAccountsReady: boolean
 }
 
 export function useCurrentVenue(): UseCurrentVenueReturn {
@@ -279,6 +283,8 @@ export function useCurrentVenue(): UseCurrentVenueReturn {
     isLoading,
     error,
     refreshVenue,
-    updateVenue
+    updateVenue,
+    accounts,
+    isAccountsReady
   }
 } 
