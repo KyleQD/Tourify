@@ -156,5 +156,43 @@ export default async function VenueProfilePage({ params }: VenueProfilePageProps
 
   if (!venue) notFound()
 
-  return <VenueProfileClient slug={slug} initialVenue={venue as never} />
+  // VEN-020: structured data built strictly from public-contract fields.
+  const v = venue as unknown as Record<string, unknown>
+  const addressParts = [v.city, v.state, v.country].filter(
+    (x): x is string => typeof x === "string" && Boolean(x),
+  )
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "MusicVenue",
+    name: v.venue_name,
+    ...(v.description ? { description: v.description } : {}),
+    url: `/venues/${String(v.url_slug ?? slug)}`,
+    ...(addressParts.length > 0
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: v.city ?? undefined,
+            addressRegion: v.state ?? undefined,
+            addressCountry: v.country ?? undefined,
+          },
+        }
+      : {}),
+    ...(Array.isArray(v.venue_types) && v.venue_types.length > 0
+      ? { additionalType: (v.venue_types as string[]).map((t) => `https://tourify.live/venue-types/${encodeURIComponent(t.toLowerCase().replace(/\s+/g, "-"))}`) }
+      : {}),
+    ...((v.capacity_total ?? v.capacity)
+      ? { maximumAttendeeCapacity: Number(v.capacity_total ?? v.capacity) }
+      : {}),
+    ...(typeof v.avatar_url === "string" && v.avatar_url ? { image: [v.avatar_url] } : {}),
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <VenueProfileClient slug={slug} initialVenue={venue as never} />
+    </>
+  )
 }
