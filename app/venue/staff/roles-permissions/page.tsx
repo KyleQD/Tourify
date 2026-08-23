@@ -6,7 +6,7 @@ import { Shield, Users, Settings, Activity } from 'lucide-react'
 import { RoleManagement } from '@/components/venue/staff/role-management'
 import { UserRoleAssignment } from '@/components/venue/staff/user-role-assignment'
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentVenueContext } from '@/lib/venue/venue-access'
+import { canManageVenue, getCurrentVenueContext } from '@/lib/venue/venue-access'
 import { redirect } from 'next/navigation'
 
 interface RolesPermissionsPageProps {
@@ -22,7 +22,14 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
 
   if (!user) redirect('/login?redirectTo=%2Fvenue%2Fstaff%2Froles-permissions')
 
+  // VEN-128: an explicit ?venueId= is honored only when the acting account
+  // actually holds authority over that venue; otherwise fall back to the
+  // server-resolved context (never render another venue by query param).
   let venueId = venueIdParam
+  if (venueId) {
+    const access = await canManageVenue(supabase, user.id, venueId)
+    if (!access.allowed) venueId = undefined
+  }
   if (!venueId) {
     const context = await getCurrentVenueContext(supabase, user.id)
     venueId = context?.id
