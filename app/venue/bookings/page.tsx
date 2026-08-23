@@ -28,6 +28,7 @@ import {
   resolveVenueBookingLifecycleStatus,
   type VenueBookingLifecycleStatus,
 } from "@/lib/venue/booking-lifecycle"
+import { formatDurationMinutes } from "@/lib/venue/duration"
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -767,7 +768,7 @@ export default function BookingsPage() {
                             </div>
                             <div className="flex items-center">
                               <Clock className="h-4 w-4 mr-2" />
-                              {booking.event_duration} hours
+                              {formatDurationMinutes(booking.event_duration)}
                             </div>
                             <div className="flex items-center">
                               <Users className="h-4 w-4 mr-2" />
@@ -1024,7 +1025,7 @@ export default function BookingsPage() {
                           </span>
                           <span className="flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
-                            {event.event_duration} hours
+                            {formatDurationMinutes(event.event_duration)}
                           </span>
                         </div>
                     </div>
@@ -1176,7 +1177,7 @@ export default function BookingsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Duration:</span>
-                        <span>{selectedBooking.event_duration} hours</span>
+                        <span>{formatDurationMinutes(selectedBooking.event_duration)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Expected Attendance:</span>
