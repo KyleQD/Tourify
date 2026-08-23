@@ -53,6 +53,17 @@ import { toast } from "@/components/ui/use-toast"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { ProfilePosts } from "@/components/profile/profile-posts"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+
+/** VEN-023: social links navigate only when they are absolute http(s) URLs. */
+function safeExternalHref(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  try {
+    const url = new URL(raw)
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null
+  } catch {
+    return null
+  }
+}
 import Link from "next/link"
 import { Settings as SettingsIcon } from "lucide-react"
 import { MessageModal } from "@/components/messaging/message-modal"
@@ -106,11 +117,6 @@ interface VenueProfile {
   }
   recent_events?: any[]
   reviews?: any[]
-  user_profile?: {
-    username: string
-    full_name: string
-    avatar_url?: string
-  }
   url_slug?: string
   capacity?: number
 }
@@ -949,7 +955,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                       <div className="flex items-center gap-3">
                         <Globe className="h-4 w-4 text-green-400" />
                         <a 
-                          href={venue.social_links.website} 
+                          href={safeExternalHref(venue.social_links?.website) ?? undefined} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-400 hover:text-blue-300"
@@ -960,23 +966,35 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     )}
 
                     <div className="flex gap-3 pt-4">
-                      {venue.social_links?.instagram && (
-                        <Button variant="outline" size="sm" className="border-gray-600">
+                      {safeExternalHref(venue.social_links?.instagram) && (
+                        <a
+                          href={safeExternalHref(venue.social_links?.instagram)!}
+                          target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center rounded-md border border-gray-600 bg-transparent px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
+                          >
                           <Instagram className="h-4 w-4 mr-2" />
                           Instagram
-                        </Button>
+                        </a>
                       )}
-                      {venue.social_links?.facebook && (
-                        <Button variant="outline" size="sm" className="border-gray-600">
+                      {safeExternalHref(venue.social_links?.facebook) && (
+                        <a
+                          href={safeExternalHref(venue.social_links?.facebook)!}
+                          target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center rounded-md border border-gray-600 bg-transparent px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
+                          >
                           <Facebook className="h-4 w-4 mr-2" />
                           Facebook
-                        </Button>
+                        </a>
                       )}
-                      {venue.social_links?.twitter && (
-                        <Button variant="outline" size="sm" className="border-gray-600">
+                      {safeExternalHref(venue.social_links?.twitter) && (
+                        <a
+                          href={safeExternalHref(venue.social_links?.twitter)!}
+                          target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center rounded-md border border-gray-600 bg-transparent px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
+                          >
                           <Twitter className="h-4 w-4 mr-2" />
                           Twitter
-                        </Button>
+                        </a>
                       )}
                     </div>
                   </CardContent>
@@ -1031,38 +1049,10 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     Message Venue
                   </Button>
                 }
-                <Button variant="outline" className="w-full border-gray-600">
-                  <Heart className="h-4 w-4 mr-2" />
-                  Save to Favorites
-                </Button>
               </CardContent>
             </Card>
 
             {/* Venue Owner Info */}
-            {venue.user_profile && (
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Venue Owner
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={venue.user_profile.avatar_url} />
-                      <AvatarFallback className="bg-green-600">
-                        {venue.user_profile.full_name?.charAt(0) || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-white">{venue.user_profile.full_name}</p>
-                      <p className="text-sm text-gray-400">@{venue.user_profile.username}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>
