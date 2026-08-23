@@ -1,15 +1,17 @@
 /**
- * Radio review — draft station directory (spec §9, read-only v1).
+ * Radio review — draft station directory with rights/health controls (P14-T06).
  * Streams are intentionally NOT listed: world_radio_streams stays empty until
  * ingestion-policy review approves operational records separately.
  */
-import { createClient } from "@/lib/supabase/server"
-import { getConsoleContext, stableKey, type ConsoleStationRow } from "@/lib/world/console/db"
+import { getConsoleContext, hasWorldPermission, stableKey, type ConsoleStationRow } from "@/lib/world/console/db"
+
+import { RadioRightsControls } from "./radio-actions"
 
 export const dynamic = "force-dynamic"
 
 export default async function RadioReview() {
   const { trusted } = await getConsoleContext()
+  const canReview = await hasWorldPermission("world.radio.review")
 
   const [stations, edges] = await Promise.all([
     trusted
@@ -36,8 +38,7 @@ export default async function RadioReview() {
               <th className="px-4 py-2">Directory</th>
               <th className="px-4 py-2">Languages</th>
               <th className="px-4 py-2">Tags</th>
-              <th className="px-4 py-2">Rights</th>
-              <th className="px-4 py-2">States</th>
+              <th className="px-4 py-2">Rights / review</th>
             </tr>
           </thead>
           <tbody>
@@ -53,22 +54,24 @@ export default async function RadioReview() {
                   </td>
                   <td className="px-4 py-2 text-xs text-slate-400">{(station.languages ?? []).join(", ") || "—"}</td>
                   <td className="max-w-[200px] truncate px-4 py-2 text-xs text-slate-400">{(station.tags ?? []).slice(0, 6).join(", ")}</td>
-                  <td className="px-4 py-2">{station.rights_status}</td>
-                  <td className="px-4 py-2 text-xs text-slate-400">
-                    {station.review_status}/{station.publication_status}/{station.playback_status}
+                  <td className="px-4 py-2">
+                    <div className="text-xs text-slate-300">
+                      {station.rights_status} · {station.review_status}/{station.publication_status}/{station.playback_status}
+                    </div>
+                    <RadioRightsControls stationId={station.id} version={null} canReview={canReview} />
                   </td>
                 </tr>
               )
             })}
             {(stations.data ?? []).length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500">No stations staged yet.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-500">No stations staged yet.</td></tr>
             )}
           </tbody>
         </table>
       </div>
       <p className="text-xs text-slate-500">
-        Candidate place edges: {edges.count ?? 0} · health checks and stream storage arrive with the
-        ingestion-policy slice.
+        Candidate place edges: {edges.count ?? 0} · rights changes are audited and version-guarded; retiring forces
+        playback ineligibility (rights ceiling).
       </p>
     </div>
   )

@@ -16,8 +16,15 @@ export const dynamic = "force-dynamic"
 
 const NAV = [
   { href: "/internal/world/console", label: "Dashboard" },
-  { href: "/internal/world/console/ingestion", label: "Ingestion inbox" },
-  { href: "/internal/world/console/radio", label: "Radio review" },
+  { href: "/internal/world/console/inbox", label: "Inbox" },
+  { href: "/internal/world/console/places", label: "Places" },
+  { href: "/internal/world/console/culture", label: "Culture" },
+  { href: "/internal/world/console/claims", label: "Claims" },
+  { href: "/internal/world/console/radio", label: "Radio" },
+  { href: "/internal/world/console/media", label: "Media" },
+  { href: "/internal/world/console/sources", label: "Sources" },
+  { href: "/internal/world/console/ingestion", label: "Ingestion" },
+  { href: "/internal/world/console/quality", label: "Quality" },
 ]
 
 function Card({ children }: { children: React.ReactNode }) {
