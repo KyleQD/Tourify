@@ -590,6 +590,127 @@
       "media_reuse_permission": "restricted",
       "commercial_use_permission": "unknown",
       "authority": "music_history_editorial"
+    },
+    {
+      "source_key": "nola_jazz_museum",
+      "name": "New Orleans Jazz Museum",
+      "url": "https://jazzmuseum.org/",
+      "source_type": "museum",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "local_history_institution"
+    },
+    {
+      "source_key": "nola_historical_collection",
+      "name": "The Historic New Orleans Collection",
+      "url": "https://www.hnoc.org/",
+      "source_type": "museum",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "local_history_institution"
+    },
+    {
+      "source_key": "smithsonian_jazz_oral_history",
+      "name": "Smithsonian Jazz Oral History Program",
+      "url": "https://americanhistory.si.edu/smithsonian-jazz/oral-histories",
+      "source_type": "archive",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "national_institution"
+    },
+    {
+      "source_key": "bronx_council_arts_hip_hop",
+      "name": "Bronx Council on the Arts — Hip-Hop Heritage",
+      "url": "https://www.bronxarts.org/",
+      "source_type": "cultural_organization",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "local_cultural_body"
+    },
+    {
+      "source_key": "smithsonian_hip_hop_block_party",
+      "name": "Smithsonian — Hip-Hop Won't Stop",
+      "url": "https://www.si.edu/",
+      "source_type": "exhibit",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "national_institution"
+    },
+    {
+      "source_key": "chicago_history_museum_blues",
+      "name": "Chicago History Museum — Blues Archives",
+      "url": "https://www.chicagohistory.org/",
+      "source_type": "museum",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "local_history_institution"
+    },
+    {
+      "source_key": "chicago_house_detroit_link",
+      "name": "Chicago History Museum — House Music",
+      "url": "https://www.chicagohistory.org/",
+      "source_type": "museum",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "local_history_institution"
+    },
+    {
+      "source_key": "museo_nacional_musica_cuba",
+      "name": "Museo Nacional de la Música (Cuba)",
+      "url": "http://www.museonacionaldemusicacuba.cult.cu/",
+      "source_type": "museum",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "national_institution"
+    },
+    {
+      "source_key": "granma_son_cubano",
+      "name": "Granma — Son Cubano heritage",
+      "url": "https://www.granma.cu/",
+      "source_type": "press_archive",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "state_press"
+    },
+    {
+      "source_key": "biblioteca_nacional_brasil_bossa",
+      "name": "Biblioteca Nacional do Brasil — Bossa Nova",
+      "url": "https://bndigital.bn.gov.br/",
+      "source_type": "national_library",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "national_institution"
+    },
+    {
+      "source_key": "rio_music_reference_bossa",
+      "name": "Rio de Janeiro State Cultural Archive — Bossa Nova & Samba",
+      "url": "https://www.culturario.rj.gov.br/",
+      "source_type": "archive",
+      "license_class": "unknown",
+      "ingestion_permission": "manual_reference",
+      "media_reuse_permission": "restricted",
+      "commercial_use_permission": "unknown",
+      "authority": "local_history_institution"
     }
   ]
 }

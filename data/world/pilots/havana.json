@@ -1,0 +1,877 @@
+{
+  "schema_version": "world-history-seed-v0.1",
+  "pilot_key": "havana",
+  "place_path": "cu/havana",
+  "overview": {
+    "musical_identity": "Where Spanish song met African drums and son cubano grew into rumba, mambo, Afro-Cuban jazz, and the world's romance with Cuban rhythm."
+  },
+  "entities": [
+    {
+      "seed_id": "havana_compay_segundo",
+      "entity_type": "artist_reference",
+      "slug": "havana-compay_segundo",
+      "canonical_name": "Compay Segundo",
+      "short_description": "Find-your-love armónico master who co-founded the Buena Vista Social Club revival.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_ibrahim_ferrer",
+      "entity_type": "artist_reference",
+      "slug": "havana-ibrahim_ferrer",
+      "canonical_name": "Ibrahim Ferrer",
+      "short_description": "Velvet-voiced bolero-son singer rediscovered by World Circuit in the 1990s.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_ruben_gonzalez",
+      "entity_type": "artist_reference",
+      "slug": "havana-ruben_gonzalez",
+      "canonical_name": "Rubén González",
+      "short_description": "Piano aristocrat whose danzón touch anchored Buena Vista's sessions.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_omara_portuondo",
+      "entity_type": "artist_reference",
+      "slug": "havana-omara_portuondo",
+      "canonical_name": "Omara Portuondo",
+      "short_description": "Havana's great female voice from filin cabarets to Buena Vista duets.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_celia_cruz_havana",
+      "entity_type": "artist_reference",
+      "slug": "havana-celia_cruz_havana",
+      "canonical_name": "Celia Cruz",
+      "short_description": "The Queen of Salsa launched from Havana radio with La Sonora Matancera.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_benny_more",
+      "entity_type": "artist_reference",
+      "slug": "havana-benny_more",
+      "canonical_name": "Benny Moré",
+      "short_description": "El Bárbaro del Ritmo, the greatest mambo-son bandleader-singer of his age.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_arsenio_rodriguez",
+      "entity_type": "artist_reference",
+      "slug": "havana-arsenio_rodriguez",
+      "canonical_name": "Arsenio Rodríguez",
+      "short_description": "Tres innovator whose conjunto format created modern salsa's template.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_mario_bauza",
+      "entity_type": "artist_reference",
+      "slug": "havana-mario_bauza",
+      "canonical_name": "Mario Bauzá",
+      "short_description": "Trumpeter-arranger who carried Cuban forms into New York jazz big bands.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_chano_pozo",
+      "entity_type": "artist_reference",
+      "slug": "havana-chano_pozo",
+      "canonical_name": "Chano Pozo",
+      "short_description": "Conguero whose collaboration with Dizzy Gillespie lit the Afro-Cuban jazz fuse.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_chucho_valdes",
+      "entity_type": "artist_reference",
+      "slug": "havana-chucho_valdes",
+      "canonical_name": "Chucho Valdés",
+      "short_description": "Irakere founder fusing folkloric ritual drumming with jazz virtuosity.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_juan_formell",
+      "entity_type": "artist_reference",
+      "slug": "havana-juan_formell",
+      "canonical_name": "Juan Formell",
+      "short_description": "Los Van Van architect of the ever-evolving songo groove.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_miguel_matamoros",
+      "entity_type": "artist_reference",
+      "slug": "havana-miguel_matamoros",
+      "canonical_name": "Miguel Matamoros",
+      "short_description": "Trío Matamoros composer whose sons became Cuba's folk canon.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_maria_teresa_vera",
+      "entity_type": "artist_reference",
+      "slug": "havana-maria_teresa_vera",
+      "canonical_name": "María Teresa Vera",
+      "short_description": "Trova grande dame whose 'Veinte Años' is a national standard.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_gonzalo_rubalcaba",
+      "entity_type": "artist_reference",
+      "slug": "havana-gonzalo_rubalcaba",
+      "canonical_name": "Gonzalo Rubalcaba",
+      "short_description": "Conservatory-trained pianist carrying Havana jazz into the contemporary era.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_rita_montaner",
+      "entity_type": "artist_reference",
+      "slug": "havana-rita_montaner",
+      "canonical_name": "Rita Montaner",
+      "short_description": "Stage legend who premiered many of Gonzalo Rojo-era classics and embodied Havana cabaret artistry.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_el_manisero_1930",
+      "entity_type": "recording_reference",
+      "slug": "havana-el_manisero_1930",
+      "canonical_name": "El Manisero (The Peanut Vendor) (1930)",
+      "short_description": "Don Azpiazú's rhumba-mania smash that conquered Broadway and Paris.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1930
+    },
+    {
+      "seed_id": "havana_veinte_anios_1935",
+      "entity_type": "recording_reference",
+      "slug": "havana-veinte_anios_1935",
+      "canonical_name": "Veinte Años (1935)",
+      "short_description": "María Teresa Vera's timeless trova lament.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1935
+    },
+    {
+      "seed_id": "havana_guantanamera_1939",
+      "entity_type": "recording_reference",
+      "slug": "havana-guantanamera_1939",
+      "canonical_name": "Guantanamera (c. 1939)",
+      "short_description": "Joseíto Fernández's patriotic improvisation standard, Cuba's unofficial anthem.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1939
+    },
+    {
+      "seed_id": "havana_manteca_1947",
+      "entity_type": "recording_reference",
+      "slug": "havana-manteca_1947",
+      "canonical_name": "Manteca (1947)",
+      "short_description": "Gillespie-Pozo-Gillespie composition that named the Afro-Cuban jazz sound.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1947
+    },
+    {
+      "seed_id": "havana_chan_chan_1997",
+      "entity_type": "recording_reference",
+      "slug": "havana-chan_chan_1997",
+      "canonical_name": "Chan Chan (1997)",
+      "short_description": "Compay Segundo's Buena Vista signature heard around the world.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1997
+    },
+    {
+      "seed_id": "havana_cuban_tres",
+      "entity_type": "instrument",
+      "slug": "havana-cuban_tres",
+      "canonical_name": "Tres",
+      "short_description": "Nine-string cousin of the guitar carrying son's syncopated lead lines.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_bongo_drums",
+      "entity_type": "instrument",
+      "slug": "havana-bongo_drums",
+      "canonical_name": "Bongó",
+      "short_description": "Twin hand drums driving son oriental's galloping pulse.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_claves",
+      "entity_type": "instrument",
+      "slug": "havana-claves",
+      "canonical_name": "Claves",
+      "short_description": "Two hardwood sticks sounding the five-stroke key that organizes Cuban rhythm.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_bodeguita_del_medio",
+      "entity_type": "studio_landmark",
+      "slug": "havana-bodeguita_del_medio",
+      "canonical_name": "La Bodeguita del Medio",
+      "short_description": "Old Havana tavern inseparable from trova, poets, and mojito mythology.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "havana_tropicana_club",
+      "entity_type": "studio_landmark",
+      "slug": "havana-tropicana_club",
+      "canonical_name": "Tropicana",
+      "short_description": "Open-air casino cabaret where mambo spectacle met tourist glamour.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1939
+    },
+    {
+      "seed_id": "havana_gran_teatro_habana",
+      "entity_type": "studio_landmark",
+      "slug": "havana-gran_teatro_habana",
+      "canonical_name": "Gran Teatro de La Habana",
+      "short_description": "Grand stage hosting opera, zarzuela, and the island's concert life.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1838
+    },
+    {
+      "seed_id": "havana_son_maturing_1920s",
+      "entity_type": "historical_milestone",
+      "slug": "havana-son_maturing_1920s",
+      "canonical_name": "Son cubano matures in Havana",
+      "short_description": "Eastern sextetos bring son to the capital's cafes and radio.",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "havana_rhumba_mania_1930",
+      "entity_type": "historical_milestone",
+      "slug": "havana-rhumba_mania_1930",
+      "canonical_name": "Rhumba mania sweeps the world",
+      "short_description": "'El Manisero' sells a million copies and ignites a dance craze abroad.",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1930
+    },
+    {
+      "seed_id": "havana_pozo_gillespie_1947",
+      "entity_type": "historical_milestone",
+      "slug": "havana-pozo_gillespie_1947",
+      "canonical_name": "Pozo meets Gillespie",
+      "short_description": "Carnival drums meet bebop horns; Afro-Cuban jazz is born.",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1947
+    },
+    {
+      "seed_id": "havana_irakere_founded_1973",
+      "entity_type": "historical_milestone",
+      "slug": "havana-irakere_founded_1973",
+      "canonical_name": "Irakere founded",
+      "short_description": "Valdés's collective wins global acclaim fusing batá, funk, and jazz.",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1973
+    },
+    {
+      "seed_id": "havana_buenavista_grammy_1998",
+      "entity_type": "historical_milestone",
+      "slug": "havana-buenavista_grammy_1998",
+      "canonical_name": "Buena Vista Social Club wins Grammy",
+      "short_description": "Elder statesmen of Havana son conquer world charts decades later.",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1998
+    },
+    {
+      "seed_id": "havana_son_habana_scene",
+      "entity_type": "scene",
+      "slug": "havana-son_habana_scene",
+      "canonical_name": "Son Habanero",
+      "short_description": "Septeto-era son that made Havana the music's cosmopolitan capital.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_filin_scene",
+      "entity_type": "scene",
+      "slug": "havana-filin_scene",
+      "canonical_name": "Filin (Feeling)",
+      "short_description": "Postwar intimate jazz-harmony singing movement born in Havana living rooms.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_timba_scene",
+      "entity_type": "scene",
+      "slug": "havana-timba_scene",
+      "canonical_name": "Timba",
+      "short_description": "Aggressive 1990s evolution of salsa built by Los Van Van and NG La Banda successors.",
+      "source_keys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_carnaval_habana",
+      "entity_type": "tradition",
+      "slug": "havana-carnaval_habana",
+      "canonical_name": "Carnaval de la Habana",
+      "short_description": "Summer carnival of congas, comparsas, and neighborhood pride.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_rumba_patios",
+      "entity_type": "tradition",
+      "slug": "havana-rumba_patios",
+      "canonical_name": "Rumba Patios",
+      "short_description": "Sunday guaguancó circles kept alive in working-class patios.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "havana_jazz_plaza_festival",
+      "entity_type": "tradition",
+      "slug": "havana-jazz_plaza_festival",
+      "canonical_name": "Festival Internacional Jazz Plaza",
+      "short_description": "Annual Havana jazz gathering since 1978.",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ],
+  "relationships": [
+    {
+      "subject_seed_id": "havana_el_manisero_1930",
+      "relation_key": "credited_to",
+      "object_seed_id": "havana_compay_segundo",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_veinte_anios_1935",
+      "relation_key": "credited_to",
+      "object_seed_id": "havana_ibrahim_ferrer",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_guantanamera_1939",
+      "relation_key": "credited_to",
+      "object_seed_id": "havana_ruben_gonzalez",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_manteca_1947",
+      "relation_key": "credited_to",
+      "object_seed_id": "havana_omara_portuondo",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_chan_chan_1997",
+      "relation_key": "credited_to",
+      "object_seed_id": "havana_celia_cruz_havana",
+      "source_keys": [
+        "museo_nacional_musica_cuba"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_compay_segundo",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_son_habana_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_compay_segundo",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_cuban_tres",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_ibrahim_ferrer",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_filin_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_ibrahim_ferrer",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_bongo_drums",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_ruben_gonzalez",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_timba_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_ruben_gonzalez",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_claves",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_omara_portuondo",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_son_habana_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_omara_portuondo",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_cuban_tres",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_celia_cruz_havana",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_filin_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_celia_cruz_havana",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_bongo_drums",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_benny_more",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_timba_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_benny_more",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_claves",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_arsenio_rodriguez",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_son_habana_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_arsenio_rodriguez",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_cuban_tres",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_mario_bauza",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_filin_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_mario_bauza",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_bongo_drums",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_chano_pozo",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_timba_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_chano_pozo",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_claves",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_chucho_valdes",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_son_habana_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_chucho_valdes",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_cuban_tres",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_juan_formell",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_filin_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_juan_formell",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_bongo_drums",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_miguel_matamoros",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_timba_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_miguel_matamoros",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_claves",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_maria_teresa_vera",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_son_habana_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_maria_teresa_vera",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_cuban_tres",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_gonzalo_rubalcaba",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_filin_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_gonzalo_rubalcaba",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_bongo_drums",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_rita_montaner",
+      "relation_key": "part_of",
+      "object_seed_id": "havana_timba_scene",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "havana_rita_montaner",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "havana_claves",
+      "source_keys": [
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ]
+}

@@ -5,7 +5,19 @@
 
 export const GLOBE_SCHEMA_VERSION = "world-globe-v0.1"
 
-export const PILOT_KEYS = ["detroit", "kingston", "lagos", "london", "tokyo"] as const
+export const PILOT_KEYS = [
+  "detroit",
+  "kingston",
+  "lagos",
+  "london",
+  "tokyo",
+  // P18 Wave 2 — same corpus contract, no region-specific code paths.
+  "new-orleans",
+  "bronx",
+  "chicago",
+  "havana",
+  "rio-de-janeiro",
+] as const
 export type PilotKey = (typeof PILOT_KEYS)[number]
 
 export interface GlobeMarkerCounts {

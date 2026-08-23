@@ -9,15 +9,22 @@ describe("world globe index", () => {
     expect(index.schemaVersion).toBe(GLOBE_SCHEMA_VERSION)
   })
 
-  it("includes exactly the five promoted pilots with coordinates", () => {
-    // Contract order: sorted by canonical path.
-    expect(index.places.map((place) => place.key)).toEqual([
-      "london",   // gb/eng/london
-      "kingston", // jm/kingston
-      "tokyo",    // jp/tokyo
-      "lagos",    // ng/lagos
-      "detroit",  // us/mi/detroit
-    ])
+  it("includes all ten pilots with coordinates — original five in stable relative order (P18-T08)", () => {
+    const keys = index.places.map((place) => place.key)
+    expect(keys).toHaveLength(10)
+    // Contract order: sorted by canonical path. The original five keep their
+    // relative order regardless of Wave-2 expansion (regression fixture).
+    const originalFiveRelativeOrder = ["london", "kingston", "tokyo", "lagos", "detroit"]
+    let last = -1
+    for (const key of originalFiveRelativeOrder) {
+      const at = keys.indexOf(key)
+      expect(at).toBeGreaterThan(last)
+      last = at
+    }
+    // Wave-2 regions are present.
+    for (const key of ["new-orleans", "bronx", "chicago", "havana", "rio-de-janeiro"]) {
+      expect(keys).toContain(key)
+    }
     for (const place of index.places) {
       expect(Number.isFinite(place.center.lat)).toBe(true)
       expect(Number.isFinite(place.center.lng)).toBe(true)

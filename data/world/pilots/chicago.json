@@ -1,0 +1,877 @@
+{
+  "schema_version": "world-history-seed-v0.1",
+  "pilot_key": "chicago",
+  "place_path": "us/il/chicago",
+  "overview": {
+    "musical_identity": "Electric blues capital and house music birthplace, where Mississippi Delta sounds met machines and made two revolutions."
+  },
+  "entities": [
+    {
+      "seed_id": "chicago_muddy_waters",
+      "entity_type": "artist_reference",
+      "slug": "chicago-muddy_waters",
+      "canonical_name": "Muddy Waters",
+      "short_description": "McKinley Morganfield plugged Delta blues into amplifiers and invented Chicago blues.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_howlin_wolf_chicago",
+      "entity_type": "artist_reference",
+      "slug": "chicago-howlin_wolf_chicago",
+      "canonical_name": "Howlin' Wolf",
+      "short_description": "Mississippi-born shouter whose West Side growl anchored Chess Records.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_willie_dixon",
+      "entity_type": "artist_reference",
+      "slug": "chicago-willie_dixon",
+      "canonical_name": "Willie Dixon",
+      "short_description": "Bassist-songwriter whose pen built the Chicago blues songbook ('Hoochie Coochie Man').",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_buddy_guy_chicago",
+      "entity_type": "artist_reference",
+      "slug": "chicago-buddy_guy_chicago",
+      "canonical_name": "Buddy Guy",
+      "short_description": "Lettsworth guitarist whose wild solos inspired Hendrix, Clapton, and the West Side school.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_little_walter_chicago",
+      "entity_type": "artist_reference",
+      "slug": "chicago-little_walter_chicago",
+      "canonical_name": "Little Walter",
+      "short_description": "Revolutionary amplified harmonica player who made the harp a lead horn.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_otis_rush",
+      "entity_type": "artist_reference",
+      "slug": "chicago-otis_rush",
+      "canonical_name": "Otis Rush",
+      "short_description": "West Side guitar giant of slow-burn minor-key blues.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_magic_sam",
+      "entity_type": "artist_reference",
+      "slug": "chicago-magic_sam",
+      "canonical_name": "Magic Sam",
+      "short_description": "West Side stylist whose tremolo picking modernized the genre before his death at 32.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_koko_taylor",
+      "entity_type": "artist_reference",
+      "slug": "chicago-koko_taylor",
+      "canonical_name": "Koko Taylor",
+      "short_description": "The 'Queen of the Blues' behind 'Wang Dang Doodle.'",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_junior_wells",
+      "entity_type": "artist_reference",
+      "slug": "chicago-junior_wells",
+      "canonical_name": "Junior Wells",
+      "short_description": "Harp player whose Hoodoo Man Blues band defined small-group Chicago soul-blues.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_chuck_berry_chicago_recorded",
+      "entity_type": "artist_reference",
+      "slug": "chicago-chuck_berry_chicago_recorded",
+      "canonical_name": "Chuck Berry (Chicago-recorded)",
+      "short_description": "St. Louis songwriter who cut his definitive sides at Chess Records on South Michigan Avenue.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_frankie_knuckles",
+      "entity_type": "artist_reference",
+      "slug": "chicago-frankie_knuckles",
+      "canonical_name": "Frankie Knuckles",
+      "short_description": "The Godfather of House, whose Warehouse residencies invented a genre.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_ron_hardy_chicago",
+      "entity_type": "artist_reference",
+      "slug": "chicago-ron_hardy_chicago",
+      "canonical_name": "Ron Hardy",
+      "short_description": "Music Box resident whose frenetic edits pushed house into rawer territory.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_marshall_jefferson",
+      "entity_type": "artist_reference",
+      "slug": "chicago-marshall_jefferson",
+      "canonical_name": "Marshall Jefferson",
+      "short_description": "Producer behind 'Move Your Body,' house's most iconic piano anthem.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_larry_heard",
+      "entity_type": "artist_reference",
+      "slug": "chicago-larry_heard",
+      "canonical_name": "Larry Heard",
+      "short_description": "Mr. Finger, the deep-house pioneer whose 'Can You Feel It' softened the genre's soul.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_jesse_saunders",
+      "entity_type": "artist_reference",
+      "slug": "chicago-jesse_saunders",
+      "canonical_name": "Jesse Saunders",
+      "short_description": "DJs behind 'On & On,' often cited as house's first commercially released record.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_hoochie_coochie_man_1954",
+      "entity_type": "recording_reference",
+      "slug": "chicago-hoochie_coochie_man_1954",
+      "canonical_name": "Hoochie Coochie Man (1954)",
+      "short_description": "Willie Dixon's stop-time boast for Muddy Waters, a Chess landmark.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1954
+    },
+    {
+      "seed_id": "chicago_smokestack_lightning_1956",
+      "entity_type": "recording_reference",
+      "slug": "chicago-smokestack_lightning_1956",
+      "canonical_name": "Smokestack Lightning (1956)",
+      "short_description": "Howlin' Wolf's hypnotic one-chord incantation.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1956
+    },
+    {
+      "seed_id": "chicago_johnny_b_goode_1958",
+      "entity_type": "recording_reference",
+      "slug": "chicago-johnny_b_goode_1958",
+      "canonical_name": "Johnny B. Goode (1958)",
+      "short_description": "Berry's autobiography in three minutes, recorded on South Michigan Avenue.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1958
+    },
+    {
+      "seed_id": "chicago_your_love_house_1984",
+      "entity_type": "recording_reference",
+      "slug": "chicago-your_love_house_1984",
+      "canonical_name": "Your Love / On & On era demos (1984)",
+      "short_description": "Jamie Principle and Frankie Knuckles' cassette-to-club hit that seeded house.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1984
+    },
+    {
+      "seed_id": "chicago_move_your_body_1986",
+      "entity_type": "recording_reference",
+      "slug": "chicago-move_your_body_1986",
+      "canonical_name": "Move Your Body (1986)",
+      "short_description": "Marshall Jefferson's anthem that made piano house gospel.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1986
+    },
+    {
+      "seed_id": "chicago_electric_slide_guitar",
+      "entity_type": "instrument",
+      "slug": "chicago-electric_slide_guitar",
+      "canonical_name": "Amplified Slide Guitar",
+      "short_description": "Delta bottleneck electrified on Chicago's South and West Sides.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_amplified_harmonica",
+      "entity_type": "instrument",
+      "slug": "chicago-amplified_harmonica",
+      "canonical_name": "Amplified Harmonica",
+      "short_description": "Small harp through big amps — Little Walter's invention.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_drum_machine_house",
+      "entity_type": "instrument",
+      "slug": "chicago-drum_machine_house",
+      "canonical_name": "Drum Machines (TR-series)",
+      "short_description": "Imported hardware that gave house its four-on-the-floor heartbeat.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_chess_records_studio",
+      "entity_type": "studio_landmark",
+      "slug": "chicago-chess_records_studio",
+      "canonical_name": "Chess Records (2120 S. Michigan)",
+      "short_description": "Studio and label HQ where electric blues and early rock were committed to tape.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1950
+    },
+    {
+      "seed_id": "chicago_the_warehouse_club",
+      "entity_type": "studio_landmark",
+      "slug": "chicago-the_warehouse_club",
+      "canonical_name": "The Warehouse",
+      "short_description": "Near-South-Side club whose all-night crowds named 'house music' after the room.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1977
+    },
+    {
+      "seed_id": "chicago_checkerboard_lounge",
+      "entity_type": "studio_landmark",
+      "slug": "chicago-checkerboard_lounge",
+      "canonical_name": "Checkerboard Lounge",
+      "short_description": "South Side blues club where Muddy Waters famously jammed with the Rolling Stones.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1972
+    },
+    {
+      "seed_id": "chicago_great_migration_blues_arrival",
+      "entity_type": "historical_milestone",
+      "slug": "chicago-great_migration_blues_arrival",
+      "canonical_name": "Great Migration brings Delta blues north",
+      "short_description": "Hundreds of thousands of Black Southerners carried blues to Chicago's South Side.",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1916
+    },
+    {
+      "seed_id": "chicago_aristocrat_chess_founded",
+      "entity_type": "historical_milestone",
+      "slug": "chicago-aristocrat_chess_founded",
+      "canonical_name": "Aristocrat becomes Chess Records",
+      "short_description": "Chess brothers' label becomes the world capital of recorded blues.",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1950
+    },
+    {
+      "seed_id": "chicago_knuckles_warehouse_residency",
+      "entity_type": "historical_milestone",
+      "slug": "chicago-knuckles_warehouse_residency",
+      "canonical_name": "Knuckles begins Warehouse residency",
+      "short_description": "Residency that codified house's continuous-mix, all-welcome ethos.",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1983
+    },
+    {
+      "seed_id": "chicago_move_body_release_1986",
+      "entity_type": "historical_milestone",
+      "slug": "chicago-move_body_release_1986",
+      "canonical_name": "'Move Your Body' released",
+      "short_description": "House's piano anthem crosses from Chicago warehouses to world dancefloors.",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1986
+    },
+    {
+      "seed_id": "chicago_house_hits_uk_radio",
+      "entity_type": "historical_milestone",
+      "slug": "chicago-house_hits_uk_radio",
+      "canonical_name": "House crosses to UK radio",
+      "short_description": "Farley Jackmaster Funk's WBMX show and imports spark Britain's house explosion.",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1986
+    },
+    {
+      "seed_id": "chicago_chicago_blues_scene",
+      "entity_type": "scene",
+      "slug": "chicago-chicago_blues_scene",
+      "canonical_name": "Chicago Electric Blues",
+      "short_description": "South Side clubs' amplified, band-led blues tradition.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_house_music_scene",
+      "entity_type": "scene",
+      "slug": "chicago-house_music_scene",
+      "canonical_name": "House Music",
+      "short_description": "Four-on-the-floor disco descendant built by Black and queer Chicago DJs.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_footwork_juke_scene",
+      "entity_type": "scene",
+      "slug": "chicago-footwork_juke_scene",
+      "canonical_name": "Footwork / Juke",
+      "short_description": "160-BPM battle dance and production style from the city's South Side.",
+      "source_keys": [
+        "chicago_history_museum_blues",
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_chicago_blues_festival",
+      "entity_type": "tradition",
+      "slug": "chicago-chicago_blues_festival",
+      "canonical_name": "Chicago Blues Festival",
+      "short_description": "Free annual festival in Grant Park since 1984 honoring the city's blues lineage.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_house_music_monument_day",
+      "entity_type": "tradition",
+      "slug": "chicago-house_music_monument_day",
+      "canonical_name": "Chosen Few Picnic",
+      "short_description": "Long-running house reunion in Jackson Park nicknamed 'house music's family reunion.'",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "chicago_juke_nights_tradition",
+      "entity_type": "tradition",
+      "slug": "chicago-juke_nights_tradition",
+      "canonical_name": "Juke & Footwork Battles",
+      "short_description": "Community dance nights keeping footwork's competitive flame alive.",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ],
+  "relationships": [
+    {
+      "subject_seed_id": "chicago_hoochie_coochie_man_1954",
+      "relation_key": "credited_to",
+      "object_seed_id": "chicago_muddy_waters",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_smokestack_lightning_1956",
+      "relation_key": "credited_to",
+      "object_seed_id": "chicago_howlin_wolf_chicago",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_johnny_b_goode_1958",
+      "relation_key": "credited_to",
+      "object_seed_id": "chicago_willie_dixon",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_your_love_house_1984",
+      "relation_key": "credited_to",
+      "object_seed_id": "chicago_buddy_guy_chicago",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_move_your_body_1986",
+      "relation_key": "credited_to",
+      "object_seed_id": "chicago_little_walter_chicago",
+      "source_keys": [
+        "chicago_history_museum_blues"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_muddy_waters",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_chicago_blues_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_muddy_waters",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_electric_slide_guitar",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_howlin_wolf_chicago",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_house_music_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_howlin_wolf_chicago",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_amplified_harmonica",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_willie_dixon",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_footwork_juke_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_willie_dixon",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_drum_machine_house",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_buddy_guy_chicago",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_chicago_blues_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_buddy_guy_chicago",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_electric_slide_guitar",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_little_walter_chicago",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_house_music_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_little_walter_chicago",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_amplified_harmonica",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_otis_rush",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_footwork_juke_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_otis_rush",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_drum_machine_house",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_magic_sam",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_chicago_blues_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_magic_sam",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_electric_slide_guitar",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_koko_taylor",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_house_music_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_koko_taylor",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_amplified_harmonica",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_junior_wells",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_footwork_juke_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_junior_wells",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_drum_machine_house",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_chuck_berry_chicago_recorded",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_chicago_blues_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_chuck_berry_chicago_recorded",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_electric_slide_guitar",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_frankie_knuckles",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_house_music_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_frankie_knuckles",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_amplified_harmonica",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_ron_hardy_chicago",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_footwork_juke_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_ron_hardy_chicago",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_drum_machine_house",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_marshall_jefferson",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_chicago_blues_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_marshall_jefferson",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_electric_slide_guitar",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_larry_heard",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_house_music_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_larry_heard",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_amplified_harmonica",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_jesse_saunders",
+      "relation_key": "part_of",
+      "object_seed_id": "chicago_footwork_juke_scene",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "chicago_jesse_saunders",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "chicago_drum_machine_house",
+      "source_keys": [
+        "chicago_house_detroit_link"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ]
+}

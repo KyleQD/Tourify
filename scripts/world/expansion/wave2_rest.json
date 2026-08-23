@@ -1,0 +1,922 @@
+{
+  "bronx": {
+    "place_path": "us/ny/bronx",
+    "identity": "The birthplace of hip-hop, where two turntables, a park sound system, and Bronx creativity turned block parties into a global culture.",
+    "sources": [
+      [
+        "bronx_council_arts_hip_hop",
+        "Bronx Council on the Arts — Hip-Hop Heritage",
+        "https://www.bronxarts.org/",
+        "cultural_organization"
+      ],
+      [
+        "smithsonian_hip_hop_block_party",
+        "Smithsonian — Hip-Hop Won't Stop",
+        "https://www.si.edu/",
+        "exhibit"
+      ]
+    ],
+    "artists": [
+      [
+        "dj_kool_herc",
+        "DJ Kool Herc",
+        "Jamaican-born deejay whose 'merry-go-round' technique isolated breakbeats at 1520 Sedgwick Avenue."
+      ],
+      [
+        "afrika_bambaataa",
+        "Afrika Bambaataa",
+        "Former gang leader who founded the Universal Zulu Nation and fused electro-funk with community organizing."
+      ],
+      [
+        "grandmaster_flash",
+        "Grandmaster Flash",
+        "Barbados-born turntablist who perfected backspinning, punch-phrasing, and the quick-mix theory in the Bronx."
+      ],
+      [
+        "grand_wizzard_theodore",
+        "Grand Wizzard Theodore",
+        "Teenager credited with inventing scratching while practicing at home in the Bronx."
+      ],
+      [
+        "krs_one",
+        "KRS-One",
+        "The 'teacha' from the South Bronx whose Boogie Down Productions made hip-hop's first great manifesto records."
+      ],
+      [
+        "melle_mel",
+        "Melle Mel",
+        "Furious Five MC who wrote 'The Message,' turning rap into social commentary."
+      ],
+      [
+        "kurtis_blow",
+        "Kurtis Blow",
+        "Harlem-raised MC with Bronx roots behind 'The Breaks' — rap's first gold single."
+      ],
+      [
+        "cold_crush_brothers",
+        "Cold Crush Brothers",
+        "Legendary four-MC crew whose harmonic routines defined live battle culture at Harlem World and the Fever."
+      ],
+      [
+        "rock_steady_crew_founders",
+        "Rock Steady Crew (founders)",
+        "B-boying collective whose Bronx-founded crew took breaking to film and world stages."
+      ],
+      [
+        "fat_joe",
+        "Fat Joe",
+        "South Bronx terror squad general who carried boom-bap into Latin trap crossover."
+      ],
+      [
+        "big_pun",
+        "Big Pun",
+        "Bronx lyricist and the first Latino rapper to go platinum."
+      ],
+      [
+        "cardi_b",
+        "Cardi B",
+        "Highbridge-born star who turned Bronx hustle into chart-topping rap."
+      ],
+      [
+        "a_afrika_bambaataa_soulsonic_force",
+        "Soulsonic Force",
+        "Bambaataa's crew behind 'Planet Rock' and electro's birth."
+      ],
+      [
+        "furious_five",
+        "Grandmaster Flash and the Furious Five",
+        "The first hip-hop group inducted into the Rock and Roll Hall of Fame."
+      ],
+      [
+        "doug_e_fresh",
+        "Doug E. Fresh",
+        "Barbados-born beatbox pioneer raised in the Bronx whose human percussion redefined the art."
+      ]
+    ],
+    "recordings": [
+      [
+        "rappers_delight_1979",
+        "Rapper's Delight",
+        "1979",
+        "Sugarhill Gang single that put recorded rap on national radio."
+      ],
+      [
+        "planet_rocks_1982",
+        "Planet Rock",
+        "1982",
+        "Soulsonic Force's electro blueprint built on Kraftwerk-style 808s."
+      ],
+      [
+        "the_message_1982",
+        "The Message",
+        "1982",
+        "Melle Mel's social-realist anthem that proved rap could be reportage."
+      ],
+      [
+        "south_bronx_1986",
+        "South Bronx",
+        "1986",
+        "KRS-One's bridge-warrior answer that claimed the culture for the borough."
+      ],
+      [
+        "la_di_da_di_1985",
+        "La Di Da Di",
+        "1985",
+        "Doug E. Fresh and Slick Rick's human-beatbox showcase covered by generations since."
+      ]
+    ],
+    "instruments": [
+      [
+        "turntable_mixer_setup",
+        "Two Turntables & a Mixer",
+        "The instrument of hip-hop: looping breaks, cutting, and scratching."
+      ],
+      [
+        "roland_tr_808",
+        "Roland TR-808",
+        "Drum machine whose booming kick became electro and rap's signature pulse."
+      ],
+      [
+        "beatbox_voice",
+        "Beatbox (Voice)",
+        "Human mouth-as-drum-machine tradition popularized by Bronx performers."
+      ]
+    ],
+    "landmarks": [
+      [
+        "sedgwick_ave_rec_room_1973",
+        "1520 Sedgwick Avenue Rec Room",
+        "High-rise community room where DJ Kool Herc's August 1973 party ignited the culture.",
+        1973
+      ],
+      [
+        "cedar_park_parties",
+        "Cedar Park (Hip-Hop Boulevard)",
+        "Public park where Herc's massive sound-system jams drew thousands each summer.",
+        "early-1970s"
+      ],
+      [
+        "disco_fever_club",
+        "Disco Fever",
+        "Grand Concourse club where Bronx crews taped legendary battles for video broadcast.",
+        "late-1970s"
+      ]
+    ],
+    "milestones": [
+      [
+        "herc_back_to_school_1973",
+        "Kool Herc's back-to-school jam",
+        "Aug 1973",
+        "Widely cited birth date of hip-hop as a distinct performance culture."
+      ],
+      [
+        "zulu_nation_founded_1973",
+        "Universal Zulu Nation founded",
+        "Nov 1973",
+        "Bambaataa organized crews around peace, love, unity, and having fun."
+      ],
+      [
+        "first_rap_gold_1980",
+        "Rap earns its first gold record",
+        "1980",
+        "'Rapper's Delight' and Kurtis Blow's 'The Breaks' prove commercial viability."
+      ],
+      [
+        "wild_style_1983",
+        "'Wild Style' premieres",
+        "1983",
+        "Bronx-filmed movie that exported the four elements worldwide."
+      ],
+      [
+        "hip_hop_boulevard_designated",
+        "Hip-Hop Boulevard designated",
+        "2016",
+        "Sedgwick & Cedar honored as the culture's birthplace street."
+      ]
+    ],
+    "scenes": [
+      [
+        "bronx_boom_bap_scene",
+        "Bronx Boom-Bap",
+        "Sample-heavy, drum-driven rap rooted in park jams and battle culture."
+      ],
+      [
+        "electro_scene",
+        "Electro-Funk",
+        "808-and-synth style bridging breakdancing floors and early rap records."
+      ],
+      [
+        "latin_rap_scene",
+        "Latin Rap",
+        "Puerto Rican and Dominican Bronx contributions from Pun to today's wave."
+      ]
+    ],
+    "celebrations": [
+      [
+        "block_party_tradition",
+        "Block Parties",
+        "Summer streets closed for sound systems, dancing, and community."
+      ],
+      [
+        "bboy_cyphers",
+        "Breaking Cyphers",
+        "Circle-based b-boy/b-girl battles central to the culture's body language."
+      ],
+      [
+        "bronx_week_hip_hop",
+        "Bronx Week Hip-Hop Tribute",
+        "Annual borough celebration honoring hip-hop's founding generation."
+      ]
+    ]
+  },
+  "chicago": {
+    "place_path": "us/il/chicago",
+    "identity": "Electric blues capital and house music birthplace, where Mississippi Delta sounds met machines and made two revolutions.",
+    "sources": [
+      [
+        "chicago_history_museum_blues",
+        "Chicago History Museum — Blues Archives",
+        "https://www.chicagohistory.org/",
+        "museum"
+      ],
+      [
+        "chicago_house_detroit_link",
+        "Chicago History Museum — House Music",
+        "https://www.chicagohistory.org/",
+        "museum"
+      ]
+    ],
+    "artists": [
+      [
+        "muddy_waters",
+        "Muddy Waters",
+        "McKinley Morganfield plugged Delta blues into amplifiers and invented Chicago blues."
+      ],
+      [
+        "howlin_wolf_chicago",
+        "Howlin' Wolf",
+        "Mississippi-born shouter whose West Side growl anchored Chess Records."
+      ],
+      [
+        "willie_dixon",
+        "Willie Dixon",
+        "Bassist-songwriter whose pen built the Chicago blues songbook ('Hoochie Coochie Man')."
+      ],
+      [
+        "buddy_guy_chicago",
+        "Buddy Guy",
+        "Lettsworth guitarist whose wild solos inspired Hendrix, Clapton, and the West Side school."
+      ],
+      [
+        "little_walter_chicago",
+        "Little Walter",
+        "Revolutionary amplified harmonica player who made the harp a lead horn."
+      ],
+      [
+        "otis_rush",
+        "Otis Rush",
+        "West Side guitar giant of slow-burn minor-key blues."
+      ],
+      [
+        "magic_sam",
+        "Magic Sam",
+        "West Side stylist whose tremolo picking modernized the genre before his death at 32."
+      ],
+      [
+        "koko_taylor",
+        "Koko Taylor",
+        "The 'Queen of the Blues' behind 'Wang Dang Doodle.'"
+      ],
+      [
+        "junior_wells",
+        "Junior Wells",
+        "Harp player whose Hoodoo Man Blues band defined small-group Chicago soul-blues."
+      ],
+      [
+        "chuck_berry_chicago_recorded",
+        "Chuck Berry (Chicago-recorded)",
+        "St. Louis songwriter who cut his definitive sides at Chess Records on South Michigan Avenue."
+      ],
+      [
+        "frankie_knuckles",
+        "Frankie Knuckles",
+        "The Godfather of House, whose Warehouse residencies invented a genre."
+      ],
+      [
+        "ron_hardy_chicago",
+        "Ron Hardy",
+        "Music Box resident whose frenetic edits pushed house into rawer territory."
+      ],
+      [
+        "marshall_jefferson",
+        "Marshall Jefferson",
+        "Producer behind 'Move Your Body,' house's most iconic piano anthem."
+      ],
+      [
+        "larry_heard",
+        "Larry Heard",
+        "Mr. Finger, the deep-house pioneer whose 'Can You Feel It' softened the genre's soul."
+      ],
+      [
+        "jesse_saunders",
+        "Jesse Saunders",
+        "DJs behind 'On & On,' often cited as house's first commercially released record."
+      ]
+    ],
+    "recordings": [
+      [
+        "hoochie_coochie_man_1954",
+        "Hoochie Coochie Man",
+        "1954",
+        "Willie Dixon's stop-time boast for Muddy Waters, a Chess landmark."
+      ],
+      [
+        "smokestack_lightning_1956",
+        "Smokestack Lightning",
+        "1956",
+        "Howlin' Wolf's hypnotic one-chord incantation."
+      ],
+      [
+        "johnny_b_goode_1958",
+        "Johnny B. Goode",
+        "1958",
+        "Berry's autobiography in three minutes, recorded on South Michigan Avenue."
+      ],
+      [
+        "your_love_house_1984",
+        "Your Love / On & On era demos",
+        "1984",
+        "Jamie Principle and Frankie Knuckles' cassette-to-club hit that seeded house."
+      ],
+      [
+        "move_your_body_1986",
+        "Move Your Body",
+        "1986",
+        "Marshall Jefferson's anthem that made piano house gospel."
+      ]
+    ],
+    "instruments": [
+      [
+        "electric_slide_guitar",
+        "Amplified Slide Guitar",
+        "Delta bottleneck electrified on Chicago's South and West Sides."
+      ],
+      [
+        "amplified_harmonica",
+        "Amplified Harmonica",
+        "Small harp through big amps — Little Walter's invention."
+      ],
+      [
+        "drum_machine_house",
+        "Drum Machines (TR-series)",
+        "Imported hardware that gave house its four-on-the-floor heartbeat."
+      ]
+    ],
+    "landmarks": [
+      [
+        "chess_records_studio",
+        "Chess Records (2120 S. Michigan)",
+        "Studio and label HQ where electric blues and early rock were committed to tape.",
+        1950
+      ],
+      [
+        "the_warehouse_club",
+        "The Warehouse",
+        "Near-South-Side club whose all-night crowds named 'house music' after the room.",
+        1977
+      ],
+      [
+        "checkerboard_lounge",
+        "Checkerboard Lounge",
+        "South Side blues club where Muddy Waters famously jammed with the Rolling Stones.",
+        1972
+      ]
+    ],
+    "milestones": [
+      [
+        "great_migration_blues_arrival",
+        "Great Migration brings Delta blues north",
+        "c. 1916",
+        "Hundreds of thousands of Black Southerners carried blues to Chicago's South Side."
+      ],
+      [
+        "aristocrat_chess_founded",
+        "Aristocrat becomes Chess Records",
+        "1950",
+        "Chess brothers' label becomes the world capital of recorded blues."
+      ],
+      [
+        "knuckles_warehouse_residency",
+        "Knuckles begins Warehouse residency",
+        "1983",
+        "Residency that codified house's continuous-mix, all-welcome ethos."
+      ],
+      [
+        "move_body_release_1986",
+        "'Move Your Body' released",
+        "1986",
+        "House's piano anthem crosses from Chicago warehouses to world dancefloors."
+      ],
+      [
+        "house_hits_uk_radio",
+        "House crosses to UK radio",
+        "1986",
+        "Farley Jackmaster Funk's WBMX show and imports spark Britain's house explosion."
+      ]
+    ],
+    "scenes": [
+      [
+        "chicago_blues_scene",
+        "Chicago Electric Blues",
+        "South Side clubs' amplified, band-led blues tradition."
+      ],
+      [
+        "house_music_scene",
+        "House Music",
+        "Four-on-the-floor disco descendant built by Black and queer Chicago DJs."
+      ],
+      [
+        "footwork_juke_scene",
+        "Footwork / Juke",
+        "160-BPM battle dance and production style from the city's South Side."
+      ]
+    ],
+    "celebrations": [
+      [
+        "chicago_blues_festival",
+        "Chicago Blues Festival",
+        "Free annual festival in Grant Park since 1984 honoring the city's blues lineage."
+      ],
+      [
+        "house_music_monument_day",
+        "Chosen Few Picnic",
+        "Long-running house reunion in Jackson Park nicknamed 'house music's family reunion.'"
+      ],
+      [
+        "juke_nights_tradition",
+        "Juke & Footwork Battles",
+        "Community dance nights keeping footwork's competitive flame alive."
+      ]
+    ]
+  },
+  "havana": {
+    "place_path": "cu/havana",
+    "identity": "Where Spanish song met African drums and son cubano grew into rumba, mambo, Afro-Cuban jazz, and the world's romance with Cuban rhythm.",
+    "sources": [
+      [
+        "museo_nacional_musica_cuba",
+        "Museo Nacional de la Música (Cuba)",
+        "http://www.museonacionaldemusicacuba.cult.cu/",
+        "museum"
+      ],
+      [
+        "granma_son_cubano",
+        "Granma — Son Cubano heritage",
+        "https://www.granma.cu/",
+        "press_archive"
+      ]
+    ],
+    "artists": [
+      [
+        "compay_segundo",
+        "Compay Segundo",
+        "Find-your-love armónico master who co-founded the Buena Vista Social Club revival."
+      ],
+      [
+        "ibrahim_ferrer",
+        "Ibrahim Ferrer",
+        "Velvet-voiced bolero-son singer rediscovered by World Circuit in the 1990s."
+      ],
+      [
+        "ruben_gonzalez",
+        "Rubén González",
+        "Piano aristocrat whose danzón touch anchored Buena Vista's sessions."
+      ],
+      [
+        "omara_portuondo",
+        "Omara Portuondo",
+        "Havana's great female voice from filin cabarets to Buena Vista duets."
+      ],
+      [
+        "celia_cruz_havana",
+        "Celia Cruz",
+        "The Queen of Salsa launched from Havana radio with La Sonora Matancera."
+      ],
+      [
+        "benny_more",
+        "Benny Moré",
+        "El Bárbaro del Ritmo, the greatest mambo-son bandleader-singer of his age."
+      ],
+      [
+        "arsenio_rodriguez",
+        "Arsenio Rodríguez",
+        "Tres innovator whose conjunto format created modern salsa's template."
+      ],
+      [
+        "mario_bauza",
+        "Mario Bauzá",
+        "Trumpeter-arranger who carried Cuban forms into New York jazz big bands."
+      ],
+      [
+        "chano_pozo",
+        "Chano Pozo",
+        "Conguero whose collaboration with Dizzy Gillespie lit the Afro-Cuban jazz fuse."
+      ],
+      [
+        "chucho_valdes",
+        "Chucho Valdés",
+        "Irakere founder fusing folkloric ritual drumming with jazz virtuosity."
+      ],
+      [
+        "juan_formell",
+        "Juan Formell",
+        "Los Van Van architect of the ever-evolving songo groove."
+      ],
+      [
+        "miguel_matamoros",
+        "Miguel Matamoros",
+        "Trío Matamoros composer whose sons became Cuba's folk canon."
+      ],
+      [
+        "maria_teresa_vera",
+        "María Teresa Vera",
+        "Trova grande dame whose 'Veinte Años' is a national standard."
+      ],
+      [
+        "gonzalo_rubalcaba",
+        "Gonzalo Rubalcaba",
+        "Conservatory-trained pianist carrying Havana jazz into the contemporary era."
+      ],
+      [
+        "rita_montaner",
+        "Rita Montaner",
+        "Stage legend who premiered many of Gonzalo Rojo-era classics and embodied Havana cabaret artistry."
+      ]
+    ],
+    "recordings": [
+      [
+        "el_manisero_1930",
+        "El Manisero (The Peanut Vendor)",
+        "1930",
+        "Don Azpiazú's rhumba-mania smash that conquered Broadway and Paris."
+      ],
+      [
+        "veinte_anios_1935",
+        "Veinte Años",
+        "1935",
+        "María Teresa Vera's timeless trova lament."
+      ],
+      [
+        "guantanamera_1939",
+        "Guantanamera",
+        "c. 1939",
+        "Joseíto Fernández's patriotic improvisation standard, Cuba's unofficial anthem."
+      ],
+      [
+        "manteca_1947",
+        "Manteca",
+        "1947",
+        "Gillespie-Pozo-Gillespie composition that named the Afro-Cuban jazz sound."
+      ],
+      [
+        "chan_chan_1997",
+        "Chan Chan",
+        "1997",
+        "Compay Segundo's Buena Vista signature heard around the world."
+      ]
+    ],
+    "instruments": [
+      [
+        "cuban_tres",
+        "Tres",
+        "Nine-string cousin of the guitar carrying son's syncopated lead lines."
+      ],
+      [
+        "bongo_drums",
+        "Bongó",
+        "Twin hand drums driving son oriental's galloping pulse."
+      ],
+      [
+        "claves",
+        "Claves",
+        "Two hardwood sticks sounding the five-stroke key that organizes Cuban rhythm."
+      ]
+    ],
+    "landmarks": [
+      [
+        "bodeguita_del_medio",
+        "La Bodeguita del Medio",
+        "Old Havana tavern inseparable from trova, poets, and mojito mythology.",
+        "1940s"
+      ],
+      [
+        "tropicana_club",
+        "Tropicana",
+        "Open-air casino cabaret where mambo spectacle met tourist glamour.",
+        1939
+      ],
+      [
+        "gran_teatro_habana",
+        "Gran Teatro de La Habana",
+        "Grand stage hosting opera, zarzuela, and the island's concert life.",
+        1838
+      ]
+    ],
+    "milestones": [
+      [
+        "son_maturing_1920s",
+        "Son cubano matures in Havana",
+        "1920s",
+        "Eastern sextetos bring son to the capital's cafes and radio."
+      ],
+      [
+        "rhumba_mania_1930",
+        "Rhumba mania sweeps the world",
+        "1930",
+        "'El Manisero' sells a million copies and ignites a dance craze abroad."
+      ],
+      [
+        "pozo_gillespie_1947",
+        "Pozo meets Gillespie",
+        "1947",
+        "Carnival drums meet bebop horns; Afro-Cuban jazz is born."
+      ],
+      [
+        "irakere_founded_1973",
+        "Irakere founded",
+        "1973",
+        "Valdés's collective wins global acclaim fusing batá, funk, and jazz."
+      ],
+      [
+        "buenavista_grammy_1998",
+        "Buena Vista Social Club wins Grammy",
+        "1998",
+        "Elder statesmen of Havana son conquer world charts decades later."
+      ]
+    ],
+    "scenes": [
+      [
+        "son_habana_scene",
+        "Son Habanero",
+        "Septeto-era son that made Havana the music's cosmopolitan capital."
+      ],
+      [
+        "filin_scene",
+        "Filin (Feeling)",
+        "Postwar intimate jazz-harmony singing movement born in Havana living rooms."
+      ],
+      [
+        "timba_scene",
+        "Timba",
+        "Aggressive 1990s evolution of salsa built by Los Van Van and NG La Banda successors."
+      ]
+    ],
+    "celebrations": [
+      [
+        "carnaval_habana",
+        "Carnaval de la Habana",
+        "Summer carnival of congas, comparsas, and neighborhood pride."
+      ],
+      [
+        "rumba_patios",
+        "Rumba Patios",
+        "Sunday guaguancó circles kept alive in working-class patios."
+      ],
+      [
+        "jazz_plaza_festival",
+        "Festival Internacional Jazz Plaza",
+        "Annual Havana jazz gathering since 1978."
+      ]
+    ]
+  },
+  "rio-de-janeiro": {
+    "place_path": "br/rj/rio-de-janeiro",
+    "identity": "Home of samba and bossa nova, where hillside rodas and Copacabana apartments rewrote the world's idea of Brazilian song.",
+    "sources": [
+      [
+        "biblioteca_nacional_brasil_bossa",
+        "Biblioteca Nacional do Brasil — Bossa Nova",
+        "https://bndigital.bn.gov.br/",
+        "national_library"
+      ],
+      [
+        "rio_music_reference_bossa",
+        "Rio de Janeiro State Cultural Archive — Bossa Nova & Samba",
+        "https://www.culturario.rj.gov.br/",
+        "archive"
+      ]
+    ],
+    "artists": [
+      [
+        "pixinguinha",
+        "Pixinguinha",
+        "Flutist-saxophonist who composed choro's canon and modernized Brazilian popular music."
+      ],
+      [
+        "donga_composer",
+        "Donga",
+        "Pelo Telefone co-composer, credited with the first recorded samba."
+      ],
+      [
+        "cartola",
+        "Cartola",
+        "Mangueira hat-maker whose sublime sambas defined the genre's poetry."
+      ],
+      [
+        "noel_rosa",
+        "Noel Rosa",
+        "Vila Isabel wit who urbanized samba's language with irony and tenderness."
+      ],
+      [
+        "ismael_silva",
+        "Ismael Silva",
+        "Estácio pioneer who reshaped samba for parade marching."
+      ],
+      [
+        "joao_gilberto",
+        "João Gilberto",
+        "Bahia-born whisper-guitarist whose rhythm invented bossa nova in Rio apartments."
+      ],
+      [
+        "tom_jobim",
+        "Tom Jobim",
+        "Composer-pianist of 'Garota de Ipanema' and bossa's classical architecture."
+      ],
+      [
+        "vinicius_de_moraes",
+        "Vinicius de Moraes",
+        "Poet-diplomat whose lyrics married bossa to literature."
+      ],
+      [
+        "baden_powell_rio",
+        "Baden Powell",
+        "Guitarist fusing bossa with Afro-Brazilian themes."
+      ],
+      [
+        "nara_leao",
+        "Nara Leão",
+        "The 'muse of bossa nova' who opened doors to MPB protest song."
+      ],
+      [
+        "jorge_ben_jor",
+        "Jorge Ben Jor",
+        "Samba-rock inventor behind 'Pelo Telephone'-era grooves' next generation."
+      ],
+      [
+        "caetano_veloso_rio",
+        "Caetano Veloso",
+        "Tropicália instigator whose Rio years fused rock, avant-garde, and bahianidade."
+      ],
+      [
+        "gilberto_gil_rio",
+        "Gilberto Gil",
+        "Tropicália co-founder and later culture minister of Brazil."
+      ],
+      [
+        "elis_regina_rio",
+        "Elis Regina",
+        "Voice of a generation who championed MPB's greatest songwriters from Rio stages."
+      ],
+      [
+        "sergio_mendes_rio",
+        "Sérgio Mendes",
+        "Bossa pianist whose Brasil '66 carried Rio rhythms to pop charts worldwide."
+      ]
+    ],
+    "recordings": [
+      [
+        "aquarela_do_brasil_1939",
+        "Aquarela do Brasil",
+        "1939",
+        "Ary Barroso's exuberant samba-exaltação that introduced Brazil to Hollywood."
+      ],
+      [
+        "chega_de_saudade_1958",
+        "Chega de Saudade",
+        "1958",
+        "João Gilberto's single that started bossa nova."
+      ],
+      [
+        "desafinado_1962",
+        "Desafinado",
+        "1962",
+        "Jobim-Gilberto Grammy-winning answer to critics of the 'off-key' new style."
+      ],
+      [
+        "garota_ipanema_1964",
+        "Garota de Ipanema",
+        "1964",
+        "The second-most-recorded song in history, born at a Veloso bar in Ipanema."
+      ],
+      [
+        "pelo_telefone_jorge_ben_1970",
+        "Pelo Telephone",
+        "1970",
+        "Jorge Ben's samba-rocker that topped British charts."
+      ]
+    ],
+    "instruments": [
+      [
+        "cavaquinho",
+        "Cavaquinho",
+        "Small four-string guitar strumming samba's rhythmic engine."
+      ],
+      [
+        "pandeiro_rio",
+        "Pandeiro",
+        "Frame drum whose slap-roll patterns are samba's conversational heartbeat."
+      ],
+      [
+        "surdo",
+        "Surdo",
+        "Deep parade bass drum that anchors every samba school."
+      ]
+    ],
+    "landmarks": [
+      [
+        "portela_quadra_madureira",
+        "Portela Quadra (Madureira)",
+        "Headquarters of the record-setting samba school founded in 1923.",
+        1923
+      ],
+      [
+        "beco_das_garrafas",
+        "Beco das Garrafas (Copacabana)",
+        "Alley of tiny clubs where bossa nova was honed night after night.",
+        "late-1950s"
+      ],
+      [
+        "circo_voador_lapa",
+        "Circo Voador (Lapa)",
+        "Iconic big-top venue anchoring Lapa's music revival.",
+        1982
+      ]
+    ],
+    "milestones": [
+      [
+        "pelo_telefone_1917",
+        "'Pelo Telefone' recorded",
+        "1917",
+        "Donga's Carnival hit is recognized as the first recorded samba."
+      ],
+      [
+        "deixa_falar_1928",
+        "Deixa Falar founded",
+        "1928",
+        "The first samba school forms in Estácio; parades become institutions."
+      ],
+      [
+        "bossa_crystallizes_1958",
+        "Bossa nova crystallizes",
+        "1958",
+        "'Chega de Saudade' launches the whispering revolution."
+      ],
+      [
+        "ipanema_grammy_1965",
+        "'Girl from Ipanema' wins Grammy",
+        "1965",
+        "Getz/Gilberto takes Record of the Song at the Grammys."
+      ],
+      [
+        "sambodromo_opens_1984",
+        "Sambódromo opens",
+        "1984",
+        "Oscar Niemeyer's purpose-built parade ground institutionalizes Carnival."
+      ]
+    ],
+    "scenes": [
+      [
+        "samba_raiz_scene",
+        "Samba Raiz",
+        "Roots samba of the hills — partido alto, samba-enredo, and roda traditions."
+      ],
+      [
+        "bossa_nova_scene",
+        "Bossa Nova",
+        "Cool-toned harmony-meets-whisper genre born in South Zone apartments."
+      ],
+      [
+        "tropicalia_scene",
+        "Tropicália",
+        "Late-'60s movement merging rock, experimentalism, and Brazilian identity."
+      ]
+    ],
+    "celebrations": [
+      [
+        "carnival_parades_rio",
+        "Carnival Samba-School Parades",
+        "The world's largest party: schools compete at the Sambódromo each Lent."
+      ],
+      [
+        "roda_de_samba",
+        "Roda de Samba",
+        "Table-tapping circle sessions in bars across Lapa and Subúrcio."
+      ],
+      [
+        "sao_cristovao_feira",
+        "Feira de São Cristóvão",
+        "Northeastern culture fair bringing forró and bumba-meu-boi to Rio weekly."
+      ]
+    ]
+  }
+}
