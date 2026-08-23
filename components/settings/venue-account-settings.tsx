@@ -42,6 +42,10 @@ import {
 } from 'lucide-react'
 
 import { PostStylesSettingsPanel } from '@/components/settings/post-styles-settings-panel'
+// VEN-238/VEN-242: real components for previously dead tabs.
+import { NotificationSettings } from '@/components/settings/notification-settings'
+import { SecuritySettings } from '@/components/settings/security-settings'
+import { EnhancedVenueSettings } from '@/components/settings/enhanced-venue-settings'
 
 interface VenueAccountSettingsProps {
   activeTab: string
@@ -2212,6 +2216,18 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
 
       case 'appearance':
         return <PostStylesSettingsPanel />
+
+      // VEN-238: every visible tab resolves a real component — no fallbacks.
+      case 'notifications':
+        return <NotificationSettings />
+
+      case 'privacy':
+        return <SecuritySettings />
+
+      // VEN-242: Venue Info routes to the canonical venue editor sections
+      // instead of the "content not found" fallback.
+      case 'venue':
+        return <EnhancedVenueSettings />
 
       default:
         return <div className="text-gray-400">Settings content not found for {activeTab}</div>
