@@ -1,4 +1,5 @@
 "use client"
+import { WorldListenHere } from "@/components/world/listen/WorldListenHere"
 
 /**
  * P11 — Complete Detroit Regional Experience (reference implementation).
@@ -56,7 +57,16 @@ function HistoricBadge() {
   )
 }
 
-export function WorldPlacePageV2({ data }: { data: WorldPlaceResponseV2 }) {
+export function WorldPlacePageV2({
+  data,
+  listen = null,
+  listenLoading = false,
+}: {
+  data: WorldPlaceResponseV2
+  /** P16 - live listening data; absent keeps the rights-review placeholder. */
+  listen?: import("@/components/world/listen/WorldListenHere").ListenHereData | null
+  listenLoading?: boolean
+}) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const toggle = (key: string) => setExpandedSection((prev) => (prev === key ? null : prev === key ? null : (prev === key ? null : key)))
   const toggleSafe = (key: string) => setExpandedSection((prev) => (prev === key ? null : key))
@@ -132,9 +142,13 @@ export function WorldPlacePageV2({ data }: { data: WorldPlaceResponseV2 }) {
       </SectionShell>
 
       <SectionShell icon={Radio} title="Listen Here" accent="emerald">
-        <div className="rounded-lg border border-emerald-300/15 bg-emerald-300/[0.06] p-3 text-xs text-emerald-100/80">
-          Radio and guided listening unlock after rights review. Playback remains rights-resolved.
-        </div>
+        {listen ? (
+          <WorldListenHere data={listen} loading={listenLoading} />
+        ) : (
+          <div className="rounded-lg border border-emerald-300/15 bg-emerald-300/[0.06] p-3 text-xs text-emerald-100/80">
+            Radio and guided listening unlock after rights review. Playback remains rights-resolved.
+          </div>
+        )}
       </SectionShell>
 
       <SectionShell icon={Landmark} title="History" accent="amber">
