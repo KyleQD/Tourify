@@ -159,7 +159,7 @@ export async function PATCH(request: NextRequest) {
       p_note: body.responseMessage || null,
     })
     if (error) {
-      const conflict = error.code === "40001" || error.code === "23505"
+      const conflict = error.code === "40001" || error.code === "23505" || error.code === "40901"
       return NextResponse.json(
         {
           success: false,

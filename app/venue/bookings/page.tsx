@@ -305,28 +305,9 @@ export default function BookingsPage() {
     const target = bookings.find((row) => row.id === bookingId)
     try {
       setIsActionInProgress(bookingId)
-
-      if (action === "approved" && target) {
-        const sameDayConflict = bookings.some(
-          (row) =>
-            row.id !== bookingId &&
-            row.status === "approved" &&
-            isSameCalendarDay(row.event_date, new Date(target.event_date)),
-        )
-        if (sameDayConflict) {
-          toast({
-            title: "Date conflict",
-            description: "Another approved booking already exists on this date. Review the calendar before confirming.",
-            variant: "destructive",
-          })
-        }
-      }
-
-      setBookings(prev => prev.map(booking =>
-        booking.id === bookingId
-          ? { ...booking, status: action, response_message: message || "", responded_at: new Date().toISOString() }
-          : booking
-      ))
+      // VEN-078: day-level browser warnings removed — interval/resource
+      // conflicts are decided transactionally by the reservation exclusion
+      // constraint and surfaced here as action failures.
 
       let createdEventId: string | null = null
       if (action === "approved") {
