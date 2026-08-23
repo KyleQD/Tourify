@@ -46,6 +46,8 @@ import { PostStylesSettingsPanel } from '@/components/settings/post-styles-setti
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { EnhancedVenueSettings } from '@/components/settings/enhanced-venue-settings'
+import { VenueTypeMultiSelect } from '@/components/settings/venue-type-multi-select'
+import { normalizeVenueTypeLabels, readCanonicalLocation } from '@/lib/venue/settings-shapes'
 
 interface VenueAccountSettingsProps {
   activeTab: string
@@ -102,56 +104,6 @@ const bookingPolicySchema = z.object({
   age_restriction: z.string().default('all_ages'),
 })
 
-const amenitiesSchema = z.object({
-  // Audio/Visual
-  sound_system: z.boolean().default(false),
-  lighting_system: z.boolean().default(false),
-  stage: z.boolean().default(false),
-  recording_capabilities: z.boolean().default(false),
-  live_streaming: z.boolean().default(false),
-  projection_screen: z.boolean().default(false),
-  dj_booth: z.boolean().default(false),
-  
-  // Facilities
-  green_room: z.boolean().default(false),
-  dressing_rooms: z.boolean().default(false),
-  storage_space: z.boolean().default(false),
-  load_in_dock: z.boolean().default(false),
-  merchandise_space: z.boolean().default(false),
-  office_space: z.boolean().default(false),
-  
-  // Services
-  bar_service: z.boolean().default(false),
-  food_service: z.boolean().default(false),
-  catering_kitchen: z.boolean().default(false),
-  security: z.boolean().default(false),
-  coat_check: z.boolean().default(false),
-  valet_parking: z.boolean().default(false),
-  event_planning: z.boolean().default(false),
-  photography_services: z.boolean().default(false),
-  
-  // Accessibility & Comfort
-  accessible: z.boolean().default(false),
-  elevator: z.boolean().default(false),
-  air_conditioning: z.boolean().default(false),
-  heating: z.boolean().default(false),
-  outdoor_space: z.boolean().default(false),
-  smoking_area: z.boolean().default(false),
-  
-  // Parking & Transportation
-  parking: z.boolean().default(false),
-  parking_spaces: z.number().optional(),
-  valet_available: z.boolean().default(false),
-  public_transport_nearby: z.boolean().default(false),
-  uber_dropoff: z.boolean().default(false),
-  
-  // Technology
-  wifi: z.boolean().default(false),
-  high_speed_internet: z.boolean().default(false),
-  power_outlets: z.boolean().default(false),
-  charging_stations: z.boolean().default(false),
-})
-
 const technicalSpecsSchema = z.object({
   stage_dimensions: z.object({
     length: z.number().optional(),
@@ -192,26 +144,12 @@ const paymentSettingsSchema = z.object({
   currency: z.string().default('USD'),
 })
 
-const venueTypes = [
-  'Concert Hall', 'Theater', 'Music Venue', 'Nightclub', 'Bar', 'Pub', 'Lounge',
-  'Restaurant', 'Cafe', 'Art Gallery', 'Recording Studio', 'Rehearsal Studio',
-  'Warehouse', 'Loft Space', 'Outdoor Venue', 'Festival Ground', 'Park',
-  'Beach Venue', 'Rooftop', 'Terrace', 'Courtyard', 'Garden',
-  'Church', 'Community Center', 'Convention Center', 'Hotel', 'Resort',
-  'Private Residence', 'Mansion', 'Estate', 'Farm', 'Barn',
-  'Sports Venue', 'Stadium', 'Arena', 'Gymnasium', 'Ballroom',
-  'Conference Room', 'Corporate Space', 'Co-working Space', 'Pop-up Space',
-  'Food Truck', 'Mobile Venue', 'Boat/Yacht', 'Historic Building', 'Museum',
-  'Library', 'University', 'School', 'Other'
-]
-
 const paymentMethods = [
   'Cash', 'Check', 'Bank Transfer', 'Credit Card', 'PayPal', 'Venmo', 'Stripe'
 ]
 
 type VenueProfileFormData = z.infer<typeof venueProfileSchema>
 type BookingPolicyFormData = z.infer<typeof bookingPolicySchema>
-type AmenitiesFormData = z.infer<typeof amenitiesSchema>
 type PaymentSettingsFormData = z.infer<typeof paymentSettingsSchema>
 
 export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
@@ -263,24 +201,6 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
     }
   })
 
-  const amenitiesForm = useForm<AmenitiesFormData>({
-    resolver: zodResolver(amenitiesSchema),
-    defaultValues: {
-      sound_system: false,
-      lighting_system: false,
-      stage: false,
-      green_room: false,
-      parking: false,
-      wifi: false,
-      bar_service: false,
-      food_service: false,
-      security: false,
-      coat_check: false,
-      accessible: false,
-      air_conditioning: false,
-    }
-  })
-
   const paymentForm = useForm<PaymentSettingsFormData>({
     resolver: zodResolver(paymentSettingsSchema),
     defaultValues: {
@@ -303,32 +223,42 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
   const loadVenueProfile = async () => {
     try {
       setIsLoading(true)
-      const { data, error } = await supabase
-        .from('venue_profiles')
-        .select('*')
-        .eq('user_id', currentAccount?.profile_data?.user_id || currentAccount?.profile_id)
-        .single()
+
+      // Resolve the acting venue from the canonical active account context
+      // (profile_id); never infer it from owner user_id when delegated.
+      const activeVenueId =
+        currentAccount?.account_type === 'venue' && currentAccount?.profile_id
+          ? currentAccount.profile_id
+          : null
+
+      const baseQuery = supabase.from('venue_profiles').select('*')
+      const { data, error } = activeVenueId
+        ? await baseQuery.eq('id', activeVenueId).maybeSingle()
+        : await baseQuery
+            .eq('user_id', currentAccount?.profile_data?.user_id || currentAccount?.profile_id)
+            .single()
 
       if (error && error.code !== 'PGRST116') throw error
 
       if (data) {
         setVenueProfile(data)
-        
-        // Update profile form
+        const location = readCanonicalLocation(data)
+
+        // Update profile form — VEN-246: top-level columns are canonical.
         profileForm.reset({
           venue_name: data.venue_name || '',
           description: data.description || '',
           tagline: data.tagline || '',
-          address: data.address || '',
-          city: data.contact_info?.city || '',
-          state: data.contact_info?.state || '',
-          country: data.contact_info?.country || '',
-          postal_code: data.contact_info?.postal_code || '',
+          address: location.address,
+          city: location.city,
+          state: location.state,
+          country: location.country,
+          postal_code: location.postal_code,
           neighborhood: data.neighborhood || '',
           capacity_standing: data.capacity_standing || undefined,
           capacity_seated: data.capacity_seated || undefined,
           capacity_total: data.capacity_total || data.capacity || undefined,
-          venue_types: data.venue_types || [],
+          venue_types: normalizeVenueTypeLabels(data.venue_types),
           age_restrictions: data.age_restrictions || '',
           phone: data.contact_info?.phone || '',
           email: data.contact_info?.email || '',
@@ -353,23 +283,6 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
           cancellation_policy: bookingSettings.cancellation_policy || '',
           house_rules: bookingSettings.house_rules || '',
           age_restriction: bookingSettings.age_restriction || 'all_ages',
-        })
-
-        // Update amenities form
-        const amenities = data.settings?.amenities || {}
-        amenitiesForm.reset({
-          sound_system: amenities.sound_system ?? false,
-          lighting_system: amenities.lighting_system ?? false,
-          stage: amenities.stage ?? false,
-          green_room: amenities.green_room ?? false,
-          parking: amenities.parking ?? false,
-          wifi: amenities.wifi ?? false,
-          bar_service: amenities.bar_service ?? false,
-          food_service: amenities.food_service ?? false,
-          security: amenities.security ?? false,
-          coat_check: amenities.coat_check ?? false,
-          accessible: amenities.accessible ?? false,
-          air_conditioning: amenities.air_conditioning ?? false,
         })
 
         // Update payment form
@@ -399,24 +312,26 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
   const onSubmitProfile = async (data: VenueProfileFormData) => {
     try {
       setIsLoading(true)
+      // VEN-246: location persists to canonical top-level columns; the
+      // contact_info JSON keeps only non-location contact fields.
       const profileData = {
         venue_name: data.venue_name,
         description: data.description,
         tagline: data.tagline,
         address: data.address,
+        city: data.city,
+        state: data.state,
+        country: data.country,
+        postal_code: data.postal_code,
         neighborhood: data.neighborhood,
         capacity_standing: data.capacity_standing,
         capacity_seated: data.capacity_seated,
         capacity_total: data.capacity_total,
-        venue_types: data.venue_types,
+        venue_types: normalizeVenueTypeLabels(data.venue_types),
         age_restrictions: data.age_restrictions,
         contact_info: {
           phone: data.phone,
           email: data.email,
-          city: data.city,
-          state: data.state,
-          country: data.country,
-          postal_code: data.postal_code,
         },
         social_links: {
           website: data.website,
@@ -507,43 +422,6 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
     }
   }
 
-  const onSubmitAmenities = async (data: AmenitiesFormData) => {
-    try {
-      setIsLoading(true)
-      
-      const settings = {
-        ...venueProfile?.settings,
-        amenities: data
-      }
-
-      const { error } = await supabase
-        .from('venue_profiles')
-        .update({
-          settings,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', venueProfile?.id)
-
-      if (error) throw error
-
-      toast({
-        title: 'Success',
-        description: 'Amenities updated successfully'
-      })
-      
-      loadVenueProfile()
-    } catch (error) {
-      console.error('Error updating amenities:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to update amenities',
-        variant: 'destructive'
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const onSubmitPayments = async (data: PaymentSettingsFormData) => {
     try {
       setIsLoading(true)
@@ -615,49 +493,26 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
             {/* Venue Profile Form */}
             <Form {...profileForm}>
               <form onSubmit={profileForm.handleSubmit(onSubmitProfile)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={profileForm.control}
-                    name="venue_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-gray-300">Venue Name *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                            placeholder="Your venue name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={profileForm.control}
-                    name="capacity_total"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-gray-300">Total Capacity</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              {...field} 
-                              type="number"
-                              value={field.value || ''}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pl-10"
-                              placeholder="100"
-                            />
-                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                {/* VEN-249: capacity/address appear exactly once — the
+                    dedicated Capacity Information and Location Information
+                    sections below are the single edit points. */}
+                <FormField
+                  control={profileForm.control}
+                  name="venue_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Venue Name *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                          placeholder="Your venue name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={profileForm.control}
@@ -703,28 +558,18 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
                   )}
                 />
 
+                {/* VEN-248: true multi-select on the canonical taxonomy */}
                 <FormField
                   control={profileForm.control}
                   name="venue_types"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-300">Venue Type *</FormLabel>
+                      <FormLabel className="text-gray-300">Venue Types *</FormLabel>
                       <FormControl>
-                        <Select 
-                          value={field.value[0] || ''} 
-                          onValueChange={(value) => field.onChange([value])}
-                        >
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Select venue type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {venueTypes.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <VenueTypeMultiSelect
+                          value={field.value}
+                          onChange={(next) => field.onChange(next)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -951,89 +796,6 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
                     </FormItem>
                   )}
                 />
-
-                <Separator className="bg-white/10" />
-
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-white">Address Information</h4>
-                  
-                  <FormField
-                    control={profileForm.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-gray-300">Street Address</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              {...field} 
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pl-10"
-                              placeholder="123 Main Street"
-                            />
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField
-                      control={profileForm.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-300">City</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                              placeholder="New York"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={profileForm.control}
-                      name="state"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-300">State/Province</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                              placeholder="NY"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={profileForm.control}
-                      name="postal_code"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-300">Postal Code</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                              placeholder="10001"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
 
                 <Separator className="bg-white/10" />
 
@@ -1616,606 +1378,25 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
           </Form>
         )
 
-      case 'amenities':
-        return (
-          <Form {...amenitiesForm}>
-            <form onSubmit={amenitiesForm.handleSubmit(onSubmitAmenities)} className="space-y-6">
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-white">Venue Amenities & Features</h3>
-                
-                {/* Audio/Visual Equipment */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Music className="h-5 w-5 text-green-400" />
-                    Audio/Visual Equipment
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="sound_system"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Sound System</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Professional sound system available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="lighting_system"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Lighting System</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Professional lighting available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="stage"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Stage</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Dedicated performance stage
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="recording_capabilities"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Recording Capabilities</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Audio/video recording equipment
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="live_streaming"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Live Streaming</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Live streaming capabilities
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="projection_screen"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Projection Screen</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Large projection screen available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="dj_booth"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">DJ Booth</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Dedicated DJ booth/setup
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Facilities */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Building className="h-5 w-5 text-green-400" />
-                    Facilities
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="green_room"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Green Room</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Private artist preparation space
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="dressing_rooms"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Dressing Rooms</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Multiple dressing rooms available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="storage_space"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Storage Space</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Secure storage for equipment
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="load_in_dock"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Load-in Dock</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Easy equipment load-in access
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="merchandise_space"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Merchandise Space</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Dedicated merch table/booth
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="outdoor_space"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Outdoor Space</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Outdoor area or patio
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Services */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-green-400" />
-                    Services
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="bar_service"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Bar Service</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Full bar service available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="food_service"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Food Service</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Food service or catering
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="security"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Security</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Professional security staff
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="coat_check"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Coat Check</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Coat check service available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="event_planning"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Event Planning</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Event planning assistance
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="photography_services"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Photography Services</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Professional photography
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Accessibility & Comfort */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Users className="h-5 w-5 text-green-400" />
-                    Accessibility & Comfort
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="accessible"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Wheelchair Accessible</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              ADA compliant accessibility
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="elevator"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Elevator</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Elevator access available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="air_conditioning"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Air Conditioning</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Climate controlled environment
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="heating"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Heating</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Heating system available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Parking & Technology */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Car className="h-5 w-5 text-green-400" />
-                    Parking & Technology
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="parking"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Parking</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Parking available on-site
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="wifi"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">WiFi</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              WiFi internet access
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="high_speed_internet"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">High-Speed Internet</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Fast broadband connection
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="power_outlets"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Power Outlets</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Adequate power outlets
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="charging_stations"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="space-y-1">
-                            <FormLabel className="text-gray-300">Charging Stations</FormLabel>
-                            <FormDescription className="text-gray-400 text-sm">
-                              Device charging stations
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Parking Details */}
-                {amenitiesForm.watch('parking') && (
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-white">Parking Details</h4>
-                    <FormField
-                      control={amenitiesForm.control}
-                      name="parking_spaces"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-gray-300">Number of Parking Spaces</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="number"
-                              value={field.value || ''}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                              placeholder="20"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Amenities
-                </Button>
-              </div>
-            </form>
-          </Form>
-        )
+      // VEN-243: the unreachable duplicate amenities editor was retired.
+      // The canonical amenity editor lives in EnhancedVenueSettings (Venue
+      // Info tab → Technical) and persists venue_profiles.amenities TEXT[].
 
       case 'appearance':
-        return <PostStylesSettingsPanel />
+        // VEN-241: explicit scope — these styles brand content published as
+        // this venue. The personal dashboard theme is a separate, human-scoped
+        // preference and never writes to this account.
+        return (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-gray-300">
+              <span className="font-semibold text-white">Scope: this Venue account.</span>{' '}
+              These post styles apply to content published as{" "}
+              {venueProfile?.venue_name || 'this venue'}. Your dashboard theme lives in your
+              personal settings and is never affected by this page.
+            </div>
+            <PostStylesSettingsPanel />
+          </div>
+        )
 
       // VEN-238: every visible tab resolves a real component — no fallbacks.
       case 'notifications':

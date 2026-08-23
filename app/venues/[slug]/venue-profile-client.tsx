@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { amenityLabel, hasAmenity, reconcileAmenities } from "@/lib/venue/settings-shapes"
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -67,7 +68,6 @@ function safeExternalHref(raw: unknown): string | null {
 import Link from "next/link"
 import { Settings as SettingsIcon } from "lucide-react"
 import { MessageModal } from "@/components/messaging/message-modal"
-import { AmenitiesGrid } from "@/components/venue-kit/amenities-section"
 
 interface VenueProfile {
   id: string
@@ -86,6 +86,12 @@ interface VenueProfile {
   capacity_total?: number
   venue_types: string[]
   amenities?: string[]
+  /** VEN-240 — server-projected public contact (policy-gated). */
+  public_contact?: {
+    booking_email: string | null
+    email: string | null
+    phone: string | null
+  } | null
   age_restrictions?: string
   operating_hours?: Record<string, any>
   contact_info?: Record<string, any>
@@ -268,7 +274,11 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
   }
 
   const renderAmenities = () => {
-    if (!venue?.settings?.amenities) return null
+    // VEN-247: canonical TEXT[] is the source of truth; the settings JSON
+    // object is a legacy fallback reconciled through the shared normalizer.
+    const amenityKeys = reconcileAmenities(venue?.amenities, venue?.settings?.amenities)
+
+    if (amenityKeys.length === 0) return null
 
     const amenityIcons: Record<string, any> = {
       sound_system: Volume2,
@@ -276,7 +286,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
       stage: Music,
       wifi: Wifi,
       parking: Car,
-      accessible: Accessibility,
+      ada_accessible: Accessibility,
       security: Shield,
       bar_service: Coffee,
       food_service: Utensils,
@@ -284,19 +294,15 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
       photography_services: Camera,
     }
 
-    const amenities = Object.entries(venue.settings.amenities)
-      .filter(([_, value]) => value === true)
-      .map(([key, _]) => {
-        const Icon = amenityIcons[key] || CheckCircle
-        return (
-          <div key={key} className="flex items-center gap-2 p-2 bg-gray-800 rounded-lg">
-            <Icon className="h-4 w-4 text-green-400" />
-            <span className="text-sm text-gray-300 capitalize">
-              {key.replace(/_/g, ' ')}
-            </span>
-          </div>
-        )
-      })
+    const amenities = amenityKeys.map((key) => {
+      const Icon = amenityIcons[key] || CheckCircle
+      return (
+        <div key={key} className="flex items-center gap-2 p-2 bg-gray-800 rounded-lg">
+          <Icon className="h-4 w-4 text-green-400" />
+          <span className="text-sm text-gray-300">{amenityLabel(key)}</span>
+        </div>
+      )
+    })
 
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -763,7 +769,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                   </CardContent>
                 </Card>
 
-                {Boolean((venue.amenities as unknown as Record<string, unknown> | null)?.accessibility) && (
+                {hasAmenity(reconcileAmenities(venue.amenities, venue.settings?.amenities), 'ada_accessible') && (
                   <Card className="border-emerald-500/30 bg-emerald-500/5">
                     <CardContent className="flex items-start gap-3 p-4">
                       <CheckCircle className="mt-0.5 h-5 w-5 text-emerald-400" />
@@ -786,10 +792,9 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {/* Use new amenities grid from VK data if available, else fall back to legacy */}
-                    {(venue.amenities && venue.amenities.length > 0) ? (
-                      <AmenitiesGrid amenities={venue.amenities} />
-                    ) : renderAmenities() || (
+                    {/* VEN-247: one canonical amenity representation drives the
+                        public rendering (legacy object reconciled as fallback). */}
+                    {renderAmenities() || (
                       <p className="text-gray-400">No amenities information available.</p>
                     )}
                   </CardContent>
@@ -986,18 +991,27 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {venue.contact_info?.phone && (
+                    {venue.public_contact?.phone && (
                       <div className="flex items-center gap-3">
                         <Phone className="h-4 w-4 text-green-400" />
-                        <span className="text-gray-300">{venue.contact_info.phone}</span>
+                        <span className="text-gray-300">{venue.public_contact.phone}</span>
                       </div>
                     )}
-                    
-                    {venue.contact_info?.email && (
+
+                    {(venue.public_contact?.email || venue.public_contact?.booking_email) && (
                       <div className="flex items-center gap-3">
                         <Mail className="h-4 w-4 text-green-400" />
-                        <span className="text-gray-300">{venue.contact_info.email}</span>
+                        <span className="text-gray-300">
+                          {venue.public_contact.booking_email || venue.public_contact.email}
+                        </span>
                       </div>
+                    )}
+
+                    {!venue.public_contact?.phone && !venue.public_contact?.email && !venue.public_contact?.booking_email && (
+                      <p className="text-sm text-gray-400">
+                        This venue keeps its direct contact details private. Use the message
+                        button to reach the venue team.
+                      </p>
                     )}
 
                     {venue.social_links?.website && (

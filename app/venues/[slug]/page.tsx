@@ -24,7 +24,7 @@ async function loadPublicVenue(slug: string) {
   const { data } = await supabase
     .from("venue_profiles")
     .select(
-      "id, user_id, venue_name, url_slug, description, city, state, country, capacity, capacity_total, venue_types, amenities, social_links, avatar_url, cover_image_url, verification_status, account_tier, sound_system, lighting_rig, stage_dimensions, curfew, is_public, created_at, updated_at",
+      "id, user_id, venue_name, url_slug, description, city, state, country, capacity, capacity_total, venue_types, amenities, social_links, avatar_url, cover_image_url, verification_status, account_tier, sound_system, lighting_rig, stage_dimensions, curfew, is_public, settings, contact_info, created_at, updated_at",
     )
     .or(`url_slug.eq.${slug},url_slug.eq.${normalized}`)
     .limit(1)
@@ -35,7 +35,23 @@ async function loadPublicVenue(slug: string) {
   // preview flows through the authenticated API instead.
   if (data.is_public === false) return null
 
-  const publicVenue = toPublicVenueProfile(data as unknown as Record<string, unknown>)
+  const record = data as unknown as Record<string, unknown>
+
+  // VEN-240: public contact exposure is governed by the Venue's own
+  // show_contact_info policy — projected here on the server so raw
+  // contact_info never crosses the client boundary.
+  const settings = (record.settings ?? {}) as Record<string, unknown>
+  if (settings.show_contact_info === true) {
+    const contact = (record.contact_info ?? {}) as Record<string, unknown>
+    record.public_contact = {
+      booking_email: typeof contact.booking_email === "string" ? contact.booking_email : null,
+      email: typeof contact.email === "string" ? contact.email : null,
+      phone: typeof contact.phone === "string" ? contact.phone : null,
+    }
+  }
+
+  const { settings: _strippedSettings, ...safeRow } = record
+  const publicVenue = toPublicVenueProfile(safeRow)
   return publicVenue
 }
 

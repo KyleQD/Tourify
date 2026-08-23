@@ -46,6 +46,19 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
+import { useMultiAccount } from "@/hooks/use-multi-account"
+import {
+  EMPTY_OPERATIONAL_POLICIES,
+  VENUE_AMENITY_GROUPS,
+  VENUE_TYPE_TAXONOMY,
+  amenitiesFromLegacyObject,
+  legacyObjectFromAmenities,
+  normalizeVenueTypeLabels,
+  operationalPoliciesSchema,
+  parseOperationalPolicies,
+  readCanonicalLocation,
+  reconcileAmenities,
+} from "@/lib/venue/settings-shapes"
 
 const venueProfileSchema = z.object({
   venue_name: z.string().min(1, 'Venue name is required').max(100),
@@ -72,27 +85,20 @@ const venueProfileSchema = z.object({
   facebook: z.string().optional(),
   twitter: z.string().optional(),
   
-  // Technical Specs
+  // Technical Specs — persisted to canonical top-level columns (VEN-244)
   stage_size: z.string().optional(),
   sound_system: z.string().optional(),
   lighting: z.string().optional(),
   curfew: z.string().optional(),
+  operational_policies: operationalPoliciesSchema.default(EMPTY_OPERATIONAL_POLICIES),
   age_restrictions: z.string().optional(),
   parking_spots: z.number().optional(),
-  
-  // Amenities
-  green_room: z.boolean().default(false),
-  loading_dock: z.boolean().default(false),
-  wifi: z.boolean().default(true),
-  accessibility: z.boolean().default(false),
-  alcohol_license: z.boolean().default(false),
-  food_service: z.boolean().default(false),
-  
+
   // Business Settings
   accepting_bookings: z.boolean().default(true),
   min_booking_notice: z.string().default('2_weeks'),
   base_rate: z.string().optional(),
-  
+
   // Privacy Settings
   public_profile: z.boolean().default(true),
   show_contact_info: z.boolean().default(false),
@@ -100,29 +106,19 @@ const venueProfileSchema = z.object({
   require_approval: z.boolean().default(false),
 })
 
-const venueTypes = [
-  'Concert Hall',
-  'Club',
-  'Bar',
-  'Theater',
-  'Festival Ground',
-  'Warehouse',
-  'Stadium',
-  'Arena',
-  'Intimate Venue',
-  'Outdoor Space',
-  'Recording Studio',
-  'Rehearsal Space',
-  'Other'
-]
+// VEN-248: one canonical taxonomy shared by every venue-type editor.
+const venueTypes = VENUE_TYPE_TAXONOMY
 
 type VenueProfileFormData = z.infer<typeof venueProfileSchema>
 
 export function EnhancedVenueSettings() {
   const { user } = useAuth()
+  const { currentAccount } = useMultiAccount()
   const [isLoading, setIsLoading] = useState(false)
   const [venueProfile, setVenueProfile] = useState<any>(null)
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  // VEN-247: canonical amenity selection is a normalized key array.
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("profile")
 
   const form = useForm<VenueProfileFormData>({
@@ -149,14 +145,9 @@ export function EnhancedVenueSettings() {
       sound_system: '',
       lighting: '',
       curfew: '',
+      operational_policies: EMPTY_OPERATIONAL_POLICIES,
       age_restrictions: '',
       parking_spots: 0,
-      green_room: false,
-      loading_dock: false,
-      wifi: true,
-      accessibility: false,
-      alcohol_license: false,
-      food_service: false,
       accepting_bookings: true,
       min_booking_notice: '2_weeks',
       base_rate: '',
@@ -168,20 +159,26 @@ export function EnhancedVenueSettings() {
   })
 
   useEffect(() => {
-    if (user) {
+    if (user || currentAccount) {
       loadVenueProfile()
     }
-  }, [user])
+  }, [user, currentAccount?.profile_id])
 
   const loadVenueProfile = async () => {
     try {
       setIsLoading(true)
-      
-      const { data: profile, error } = await supabase
-        .from('venue_profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single()
+
+      // Resolve the acting venue from the canonical active account context;
+      // owner user_id lookup is only the fallback for legacy personal sessions.
+      const activeVenueId =
+        currentAccount?.account_type === 'venue' && currentAccount?.profile_id
+          ? currentAccount.profile_id
+          : null
+
+      const baseQuery = supabase.from('venue_profiles').select('*')
+      const { data: profile, error } = activeVenueId
+        ? await baseQuery.eq('id', activeVenueId).maybeSingle()
+        : await baseQuery.eq('user_id', user?.id).single()
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error loading venue profile:', error)
@@ -190,19 +187,28 @@ export function EnhancedVenueSettings() {
 
       if (profile) {
         setVenueProfile(profile)
-        setSelectedTypes(profile.venue_types || [])
-        
+        // VEN-248: normalize stored taxonomy to the canonical set (dedupe,
+        // case-insensitive match); unknown legacy labels are preserved as-is.
+        setSelectedTypes(normalizeVenueTypeLabels(profile.venue_types))
+        // VEN-247: reconcile the canonical TEXT[] with the legacy settings
+        // cache so both representations agree during the migration window.
+        setSelectedAmenities(reconcileAmenities(profile.amenities, profile.settings?.amenities))
+
+        const location = readCanonicalLocation(profile)
+        const policies = parseOperationalPolicies(profile.settings?.operational_policies)
+        const settings = profile.settings || {}
+
         // Populate form with existing data
         form.reset({
           venue_name: profile.venue_name || '',
           description: profile.description || '',
-          capacity: profile.capacity || 100,
-          venue_types: profile.venue_types || [],
-          address: profile.address || '',
-          city: profile.city || '',
-          state: profile.state || '',
-          country: profile.country || '',
-          postal_code: profile.postal_code || '',
+          capacity: profile.capacity_total || profile.capacity || 100,
+          venue_types: normalizeVenueTypeLabels(profile.venue_types),
+          address: location.address,
+          city: location.city,
+          state: location.state,
+          country: location.country,
+          postal_code: location.postal_code,
           contact_email: profile.contact_info?.email || '',
           contact_phone: profile.contact_info?.phone || '',
           booking_email: profile.contact_info?.booking_email || '',
@@ -211,25 +217,21 @@ export function EnhancedVenueSettings() {
           instagram: profile.social_links?.instagram || '',
           facebook: profile.social_links?.facebook || '',
           twitter: profile.social_links?.twitter || '',
-          stage_size: profile.technical_specs?.stage_size || '',
-          sound_system: profile.technical_specs?.sound_system || '',
-          lighting: profile.technical_specs?.lighting || '',
-          curfew: profile.technical_specs?.curfew || '',
-          age_restrictions: profile.technical_specs?.age_restrictions || '',
-          parking_spots: profile.technical_specs?.parking_spots || 0,
-          green_room: profile.amenities?.green_room || false,
-          loading_dock: profile.amenities?.loading_dock || false,
-          wifi: profile.amenities?.wifi ?? true,
-          accessibility: profile.amenities?.accessibility || false,
-          alcohol_license: profile.amenities?.alcohol_license || false,
-          food_service: profile.amenities?.food_service || false,
-          accepting_bookings: profile.settings?.allow_bookings ?? true,
-          min_booking_notice: profile.settings?.min_booking_notice || '2_weeks',
-          base_rate: profile.settings?.base_rate || '',
-          public_profile: profile.is_public ?? profile.settings?.public_profile ?? true,
-          show_contact_info: profile.settings?.show_contact_info || false,
-          allow_bookings: profile.settings?.allow_bookings ?? true,
-          require_approval: profile.settings?.require_approval || false,
+          // VEN-244: canonical top-level technical-spec columns
+          stage_size: profile.stage_dimensions || '',
+          sound_system: profile.sound_system || '',
+          lighting: profile.lighting_rig || '',
+          curfew: profile.curfew || '',
+          age_restrictions: profile.age_restrictions || '',
+          parking_spots: profile.parking_spots || 0,
+          operational_policies: policies,
+          accepting_bookings: settings.allow_bookings ?? true,
+          min_booking_notice: settings.min_booking_notice || '2_weeks',
+          base_rate: settings.base_rate || '',
+          public_profile: profile.is_public ?? settings.public_profile ?? true,
+          show_contact_info: settings.show_contact_info || false,
+          allow_bookings: settings.allow_bookings ?? true,
+          require_approval: settings.require_approval || false,
         })
       }
     } catch (error) {
@@ -244,16 +246,16 @@ export function EnhancedVenueSettings() {
     try {
       setIsLoading(true)
 
-      const profileData = {
-        user_id: user?.id,
+      const amenitiesArray = Array.from(new Set(selectedAmenities))
+
+      // VEN-247: canonical TEXT[] + dual-written legacy cache so older readers
+      // stay truthful during the migration window.
+      const profileData: Record<string, unknown> = {
         venue_name: data.venue_name,
-        url_slug: (data.venue_name || '')
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, ''),
         description: data.description,
         capacity: data.capacity,
-        venue_types: selectedTypes,
+        capacity_total: data.capacity,
+        venue_types: normalizeVenueTypeLabels(selectedTypes),
         address: data.address,
         city: data.city,
         state: data.state,
@@ -271,23 +273,22 @@ export function EnhancedVenueSettings() {
           facebook: data.facebook,
           twitter: data.twitter,
         },
-        technical_specs: {
-          stage_size: data.stage_size,
-          sound_system: data.sound_system,
-          lighting: data.lighting,
-          curfew: data.curfew,
-          age_restrictions: data.age_restrictions,
-          parking_spots: data.parking_spots,
-        },
-        amenities: {
-          green_room: data.green_room,
-          loading_dock: data.loading_dock,
-          wifi: data.wifi,
-          accessibility: data.accessibility,
-          alcohol_license: data.alcohol_license,
-          food_service: data.food_service,
-        },
+        // VEN-244: technical specs persist to canonical top-level columns
+        // (the public contract projects these fields directly).
+        stage_dimensions: data.stage_size || null,
+        sound_system: data.sound_system || null,
+        lighting_rig: data.lighting || null,
+        curfew: data.curfew || null,
+        age_restrictions: data.age_restrictions || null,
+        parking_spots: data.parking_spots || 0,
+        amenities: amenitiesArray,
+        // VEN-245: operational policies persist in the defined schema under
+        // settings.operational_policies. Existing settings keys (booking,
+        // payment, …) are preserved, never wiped.
         settings: {
+          ...(venueProfile?.settings ?? {}),
+          amenities: legacyObjectFromAmenities(amenitiesArray),
+          operational_policies: operationalPoliciesSchema.parse(data.operational_policies),
           public_profile: data.public_profile,
           show_contact_info: data.show_contact_info,
           allow_bookings: data.allow_bookings,
@@ -301,9 +302,26 @@ export function EnhancedVenueSettings() {
         updated_at: new Date().toISOString()
       }
 
-      const { error } = await supabase
-        .from('venue_profiles')
-        .upsert(profileData, { onConflict: 'user_id' })
+      // Only seed a slug when none exists yet — stored slugs own the public
+      // URL and redirect history; renames must never silently rewrite them.
+      if (!venueProfile?.url_slug) {
+        profileData.url_slug = (data.venue_name || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      }
+
+      let error
+      if (venueProfile?.id) {
+        ;({ error } = await supabase
+          .from('venue_profiles')
+          .update(profileData)
+          .eq('id', venueProfile.id))
+      } else {
+        ;({ error } = await supabase
+          .from('venue_profiles')
+          .insert({ ...profileData, user_id: user?.id }))
+      }
 
       if (error) {
         console.error('Error saving venue profile:', error)
@@ -326,10 +344,17 @@ export function EnhancedVenueSettings() {
       const newTypes = prev.includes(type)
         ? prev.filter(t => t !== type)
         : [...prev, type]
-      
+
       form.setValue('venue_types', newTypes)
       return newTypes
     })
+  }
+
+  // VEN-247: canonical amenity toggles drive one normalized key array.
+  const toggleAmenity = (key: string) => {
+    setSelectedAmenities(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key],
+    )
   }
 
   if (isLoading && !venueProfile) {
@@ -746,6 +771,112 @@ export function EnhancedVenueSettings() {
                     />
                   </div>
 
+                  {/* VEN-245: Operational Policies */}
+                  <div className="space-y-4 pt-2">
+                    <h3 className="text-lg font-medium">Operational Policies</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.setup_time"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Load-in / Setup window</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. 4 hours before doors" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.breakdown_time"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Breakdown / Load-out window</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. 2 hours after show" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.permits"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Permits held</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Place of assembly, liquor" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.outside_vendors"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Outside vendors</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Allowed with approval" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.alcohol_policy"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Alcohol policy</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. House bars only" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.security"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Security requirements</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Licensed security for 150+ guests" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="operational_policies.union_rules"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Union rules</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. IATSE crew required" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="operational_policies.insurance_required"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel>Certificate of insurance required</FormLabel>
+                            <FormDescription>Promoters must provide COI before load-in.</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="sound_system"
@@ -780,118 +911,30 @@ export function EnhancedVenueSettings() {
                     )}
                   />
 
-                  {/* Amenities */}
+                  {/* VEN-247: canonical amenity editor — one representation
+                      (venue_profiles.amenities TEXT[]) drives the editor, the
+                      public profile and search filters. */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Amenities</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="green_room"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
+                    {VENUE_AMENITY_GROUPS.map((group) => (
+                      <div key={group.category} className="space-y-3">
+                        <p className="text-sm font-medium text-muted-foreground">{group.category}</p>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                          {group.items.map(({ key, label }) => (
+                            <label
+                              key={key}
+                              className="flex cursor-pointer flex-row items-center space-x-3 space-y-0 rounded-lg border p-3"
+                            >
                               <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
+                                checked={selectedAmenities.includes(key)}
+                                onCheckedChange={() => toggleAmenity(key)}
                               />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Green Room</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="loading_dock"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Loading Dock</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="wifi"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Wi-Fi</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="accessibility"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>ADA Accessible</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="alcohol_license"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Alcohol License</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="food_service"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Food Service</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                              <span className="text-sm leading-none">{label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </Form>
@@ -991,9 +1034,11 @@ export function EnhancedVenueSettings() {
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Public Profile</FormLabel>
+                          <FormLabel className="text-base">List in public directory</FormLabel>
                           <FormDescription>
-                            Make your venue discoverable by artists
+                            Publish this venue in the Tourify directory (/venues) so organizers
+                            and artists can discover and book it. Unpublishing hides it everywhere
+                            public instantly.
                           </FormDescription>
                         </div>
                         <FormControl>

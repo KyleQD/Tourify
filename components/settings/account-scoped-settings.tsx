@@ -147,20 +147,44 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
         label: 'Notifications',
         icon: Bell,
         description: 'Communication preferences'
-      },
-      {
+      }
+    ]
+
+    if (accountType === 'venue') {
+      // VEN-240: venue accounts get account-scoped security here; the Venue's
+      // own privacy/publishing controls live under Venue Info → Privacy.
+      baseTabs.push({
+        value: 'privacy',
+        label: 'Security',
+        icon: Lock,
+        description: 'Password, sessions & account security'
+      })
+    } else {
+      baseTabs.push({
         value: 'privacy',
         label: 'Privacy',
         icon: Lock,
         description: 'Security & privacy settings'
-      },
-      {
-        value: 'appearance',
-        label: 'Appearance',
-        icon: Palette,
-        description: 'Customize your experience'
-      }
-    ]
+      })
+    }
+
+    // VEN-241: dashboard appearance is always human/device-scoped; venue
+    // branding is a separate surface.
+    baseTabs.push(
+      accountType === 'venue'
+        ? {
+            value: 'appearance',
+            label: 'Appearance',
+            icon: Palette,
+            description: 'Post styles published as this venue'
+          }
+        : {
+            value: 'appearance',
+            label: 'Appearance',
+            icon: Palette,
+            description: 'Customize your experience'
+          }
+    )
 
     // Add account-specific tabs
     if (isOrganizationType(accountType)) {

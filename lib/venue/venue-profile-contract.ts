@@ -115,6 +115,13 @@ export interface PublicVenueProfile {
   stage_dimensions?: string | null
   curfew?: string | null
   age_restrictions?: string | null
+  /** VEN-240 — server-projected public contact (only present when the venue's
+   * show_contact_info policy allows it). Raw contact_info never crosses. */
+  public_contact?: {
+    booking_email: string | null
+    email: string | null
+    phone: string | null
+  } | null
   is_public: boolean
   created_at: string | null
   updated_at: string | null
@@ -154,6 +161,7 @@ const PUBLIC_KEYS = [
   "stage_dimensions",
   "curfew",
   "age_restrictions",
+  "public_contact",
   "is_public",
   "created_at",
   "updated_at",
