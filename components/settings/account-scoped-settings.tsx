@@ -226,6 +226,13 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
             label: 'Payments',
             icon: CreditCard,
             description: 'Payment methods & billing'
+          },
+          // VEN-258: institutional accounts manage people, not just content.
+          {
+            value: 'team',
+            label: 'Team',
+            icon: Users,
+            description: 'Roster & role assignments'
           }
         ]
       default:

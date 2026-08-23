@@ -127,6 +127,125 @@ export function EnhancedVenueSettings() {
   const completion = useMemo(() => computeVenueCompletion(venueProfile), [venueProfile])
   const missingItems = completion.checklist.filter((c) => !c.done)
 
+  // VEN-256/257: lifecycle state (archive + ownership transfer).
+  const [pendingTransfer, setPendingTransfer] = useState<{
+    id: string
+    to_user_id: string
+    created_at: string
+    expires_at: string
+  } | null>(null)
+  const [confirmName, setConfirmName] = useState("")
+  const [transferTarget, setTransferTarget] = useState("")
+  const [lifecycleBusy, setLifecycleBusy] = useState(false)
+
+  const loadLifecycleState = async () => {
+    if (!venueProfile?.id) return
+    const fromTransfers = supabase.from as unknown as (
+      table: "venue_ownership_transfers",
+    ) => {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: string,
+        ) => {
+          eq: (
+            column: string,
+            value: string,
+          ) => PromiseLike<{ data: typeof pendingTransfer[] | null }>
+        }
+      }
+    }
+    // Table ships with the lifecycle migration; typed client may lag behind.
+    const { data } = await fromTransfers("venue_ownership_transfers")
+      .select("id,to_user_id,created_at,expires_at")
+      .eq("venue_profile_id", venueProfile.id)
+      .eq("status", "pending")
+    setPendingTransfer(data?.[0] ?? null)
+  }
+
+  useEffect(() => {
+    void loadLifecycleState()
+  }, [venueProfile?.id])
+
+  // Lifecycle RPCs ship with migration 20260823120000; the generated client
+  // doesn't know them yet, so invoke through a loose typed shim.
+  const lifecycleRpc = supabase.rpc as unknown as (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>
+
+  const runLifecycle = async (fn: () => Promise<unknown>) => {
+    setLifecycleBusy(true)
+    try {
+      await fn()
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
+  const handleArchive = () =>
+    runLifecycle(async () => {
+      const { error } = await lifecycleRpc("archive_venue_profile", {
+        p_venue_id: venueProfile.id,
+        p_confirm_name: confirmName.trim(),
+      })
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+      toast.success("Venue archived. It is now hidden everywhere public; restore anytime.")
+      setConfirmName("")
+      await loadVenueProfile()
+    })
+
+  const handleUnarchive = () =>
+    runLifecycle(async () => {
+      const { error } = await lifecycleRpc("unarchive_venue_profile", {
+        p_venue_id: venueProfile.id,
+      })
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+      toast.success("Venue restored — republish when you're ready.")
+      await loadVenueProfile()
+    })
+
+  const handleRequestTransfer = () =>
+    runLifecycle(async () => {
+      const target = transferTarget.trim()
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) {
+        toast.error("Enter the recipient's account ID (a GUID copied from their profile).")
+        return
+      }
+      const { error } = await lifecycleRpc("request_venue_ownership_transfer", {
+        p_venue_id: venueProfile.id,
+        p_to_user_id: target,
+      })
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+      toast.success(
+        "Transfer requested. The recipient has 7 days to accept; you can cancel until then.",
+      )
+      setTransferTarget("")
+      await loadLifecycleState()
+    })
+
+  const handleCancelTransfer = () =>
+    runLifecycle(async () => {
+      const { error } = await lifecycleRpc("cancel_venue_ownership_transfer", {
+        p_venue_id: venueProfile.id,
+      })
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+      toast.success("Pending transfer cancelled.")
+      await loadLifecycleState()
+    })
+
   const form = useForm<VenueProfileFormData>({
     resolver: zodResolver(venueProfileSchema),
     defaultValues: {
@@ -1155,6 +1274,93 @@ export function EnhancedVenueSettings() {
                       </FormItem>
                     )}
                   />
+
+                  {/* VEN-256/257/259: server-verified lifecycle actions with
+                      typed confirmation + audit trail (written inside the
+                      RPCs). Public identity never changes here. */}
+                  <Separator />
+                  <div className="space-y-4 rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+                    <div>
+                      <p className="text-base font-semibold text-red-400">Danger zone</p>
+                      <p className="text-sm text-muted-foreground">
+                        {venueProfile?.archived_at
+                          ? `Archived ${new Date(venueProfile.archived_at).toLocaleDateString()} — hidden everywhere public.`
+                          : "Archiving hides this venue publicly while keeping all data recoverable."}
+                      </p>
+                    </div>
+
+                    {!venueProfile?.archived_at ? (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                          value={confirmName}
+                          onChange={(e) => setConfirmName(e.target.value)}
+                          placeholder={`Type "${venueProfile?.venue_name ?? "venue name"}" to confirm`}
+                          aria-label="Type venue name to confirm archiving"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          disabled={lifecycleBusy || confirmName.trim() !== venueProfile?.venue_name}
+                          onClick={handleArchive}
+                        >
+                          Archive venue
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button type="button" variant="outline" disabled={lifecycleBusy} onClick={handleUnarchive}>
+                        Restore venue
+                      </Button>
+                    )}
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-base font-semibold">Transfer ownership</p>
+                      <p className="text-sm text-muted-foreground">
+                        Hand this venue to another Tourify account. The recipient must accept
+                        within 7 days; your access becomes Venue Manager after acceptance and the
+                        public page (name, slug, reviews) is unchanged.
+                      </p>
+                    </div>
+
+                    {pendingTransfer ? (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+                        <p>
+                          Pending since{" "}
+                          {new Date(pendingTransfer.created_at).toLocaleDateString()} — expires{" "}
+                          {new Date(pendingTransfer.expires_at).toLocaleDateString()}.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          disabled={lifecycleBusy}
+                          onClick={handleCancelTransfer}
+                        >
+                          Cancel transfer request
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                          value={transferTarget}
+                          onChange={(e) => setTransferTarget(e.target.value)}
+                          placeholder="Recipient account ID (GUID from their profile)"
+                          aria-label="Recipient account ID"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={lifecycleBusy || !transferTarget.trim()}
+                          onClick={handleRequestTransfer}
+                        >
+                          Request transfer
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Form>
             </CardContent>

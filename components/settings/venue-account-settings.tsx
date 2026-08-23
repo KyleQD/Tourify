@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -1196,6 +1197,41 @@ export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
               </div>
             </form>
           </Form>
+        )
+
+      // VEN-258: entry point into canonical Venue membership & roles.
+      case 'team':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-400">
+              This venue is an institutional account — manage the people who operate it from the
+              canonical workforce surfaces (canonical staff roster + entity RBAC).
+            </p>
+            <Link
+              href="/venue/staff"
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10"
+            >
+              <div>
+                <div className="font-semibold text-white">Staff roster</div>
+                <div className="text-sm text-gray-400">
+                  Hire, onboard and manage venue workers
+                </div>
+              </div>
+              <Users className="h-5 w-5 text-green-400" />
+            </Link>
+            <Link
+              href="/venue/staff/roles-permissions"
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10"
+            >
+              <div>
+                <div className="font-semibold text-white">Roles &amp; permissions</div>
+                <div className="text-sm text-gray-400">
+                  Assign canonical RBAC roles to roster members
+                </div>
+              </div>
+              <Shield className="h-5 w-5 text-green-400" />
+            </Link>
+          </div>
         )
 
       case 'payments':
