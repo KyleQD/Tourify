@@ -569,10 +569,10 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="overview" className="space-y-6">
               <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-gray-800 p-1">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="events">Events</TabsTrigger>
-                <TabsTrigger value="amenities">Amenities</TabsTrigger>
-                <TabsTrigger value="reviews">
+                <TabsTrigger value="overview" className="min-h-11">Overview</TabsTrigger>
+                <TabsTrigger value="events" className="min-h-11">Events</TabsTrigger>
+                <TabsTrigger value="amenities" className="min-h-11">Amenities</TabsTrigger>
+                <TabsTrigger value="reviews" className="min-h-11">
                   Reviews
                   {reviews.length > 0 && (
                     <span className="ml-1.5 rounded-full bg-yellow-500/20 px-1.5 py-0.5 text-xs text-yellow-300">
@@ -580,9 +580,9 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="gallery">Gallery</TabsTrigger>
-                <TabsTrigger value="posts">Posts</TabsTrigger>
-                <TabsTrigger value="contact">Contact</TabsTrigger>
+                <TabsTrigger value="gallery" className="min-h-11">Gallery</TabsTrigger>
+                <TabsTrigger value="posts" className="min-h-11">Posts</TabsTrigger>
+                <TabsTrigger value="contact" className="min-h-11">Contact</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
@@ -724,6 +724,55 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                             <p className="mt-1 font-semibold text-white">{venue.age_restrictions}</p>
                           </div>
                         )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-green-400" />
+                      Location &amp; Getting There
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-gray-300">
+                      {[venue.city, venue.state, venue.country].filter(Boolean).join(', ') || 'Location not published'}
+                    </p>
+                    {(venue.city || venue.venue_name) && (
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          className="inline-flex items-center rounded-md border border-gray-600 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([venue.venue_name, venue.city, venue.state].filter(Boolean).join(', '))}`}
+                        >
+                          Open in Maps
+                        </a>
+                        <a
+                          className="inline-flex items-center rounded-md border border-gray-600 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([venue.venue_name, venue.city, venue.state].filter(Boolean).join(', '))}`}
+                        >
+                          Directions
+                        </a>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {Boolean((venue.amenities as unknown as Record<string, unknown> | null)?.accessibility) && (
+                  <Card className="border-emerald-500/30 bg-emerald-500/5">
+                    <CardContent className="flex items-start gap-3 p-4">
+                      <CheckCircle className="mt-0.5 h-5 w-5 text-emerald-400" />
+                      <div>
+                        <p className="font-medium text-white">Wheelchair accessible</p>
+                        <p className="text-sm text-gray-400">
+                          This venue reports step-free access. Contact the venue for specific
+                          accessibility requirements.
+                        </p>
                       </div>
                     </CardContent>
                   </Card>

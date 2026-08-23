@@ -24,7 +24,7 @@ async function loadPublicVenue(slug: string) {
   const { data } = await supabase
     .from("venue_profiles")
     .select(
-      "id, user_id, venue_name, url_slug, description, city, state, country, capacity, capacity_total, venue_types, amenities, social_links, avatar_url, cover_image_url, verification_status, account_tier, sound_system, lighting_rig, stage_dimensions, is_public, created_at, updated_at",
+      "id, user_id, venue_name, url_slug, description, city, state, country, capacity, capacity_total, venue_types, amenities, social_links, avatar_url, cover_image_url, verification_status, account_tier, sound_system, lighting_rig, stage_dimensions, curfew, is_public, created_at, updated_at",
     )
     .or(`url_slug.eq.${slug},url_slug.eq.${normalized}`)
     .limit(1)

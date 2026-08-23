@@ -113,6 +113,8 @@ export interface PublicVenueProfile {
   sound_system?: string | null
   lighting_rig?: string | null
   stage_dimensions?: string | null
+  curfew?: string | null
+  age_restrictions?: string | null
   is_public: boolean
   created_at: string | null
   updated_at: string | null
@@ -150,6 +152,8 @@ const PUBLIC_KEYS = [
   "sound_system",
   "lighting_rig",
   "stage_dimensions",
+  "curfew",
+  "age_restrictions",
   "is_public",
   "created_at",
   "updated_at",
