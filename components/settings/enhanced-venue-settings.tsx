@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { supabase } from '@/lib/supabase/client'
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Progress } from "@/components/ui/progress"
 import {
   Form,
   FormControl,
@@ -47,6 +48,7 @@ import {
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { computeVenueCompletion } from "@/lib/venue/completion"
 import {
   EMPTY_OPERATIONAL_POLICIES,
   VENUE_AMENITY_GROUPS,
@@ -120,6 +122,10 @@ export function EnhancedVenueSettings() {
   // VEN-247: canonical amenity selection is a normalized key array.
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("profile")
+
+  // VEN-015: deterministic readiness score drives the editor checklist.
+  const completion = useMemo(() => computeVenueCompletion(venueProfile), [venueProfile])
+  const missingItems = completion.checklist.filter((c) => !c.done)
 
   const form = useForm<VenueProfileFormData>({
     resolver: zodResolver(venueProfileSchema),
@@ -248,6 +254,37 @@ export function EnhancedVenueSettings() {
 
       const amenitiesArray = Array.from(new Set(selectedAmenities))
 
+      // VEN-015: persist the deterministic score so it is never stale-zero.
+      const completionScore = computeVenueCompletion({
+        ...venueProfile,
+        venue_name: data.venue_name,
+        url_slug: venueProfile?.url_slug ?? (data.venue_name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        description: data.description,
+        city: data.city,
+        state: data.state,
+        country: data.country,
+        capacity: data.capacity,
+        capacity_total: data.capacity,
+        avatar_url: venueProfile?.avatar_url,
+        cover_image_url: venueProfile?.cover_image_url,
+        venue_types: normalizeVenueTypeLabels(selectedTypes),
+        amenities: amenitiesArray,
+        stage_dimensions: data.stage_size,
+        sound_system: data.sound_system,
+        lighting_rig: data.lighting,
+        social_links: {
+          website: data.website,
+          instagram: data.instagram,
+          facebook: data.facebook,
+          twitter: data.twitter,
+        },
+        settings: {
+          booking_email: data.booking_email,
+          base_rate: data.base_rate,
+          operational_policies: data.operational_policies,
+        },
+      }).score
+
       // VEN-247: canonical TEXT[] + dual-written legacy cache so older readers
       // stay truthful during the migration window.
       const profileData: Record<string, unknown> = {
@@ -299,6 +336,7 @@ export function EnhancedVenueSettings() {
         // VEN-008: is_public is the canonical publish control; settings cache
         // mirrors it (DB trigger enforces alignment too).
         is_public: data.public_profile,
+        profile_completion: completionScore,
         updated_at: new Date().toISOString()
       }
 
@@ -400,6 +438,31 @@ export function EnhancedVenueSettings() {
         </TabsList>
 
         <TabsContent value="profile">
+          {/* VEN-015: deterministic completion checklist — reflects real
+              persisted fields, never fabricated. */}
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="text-base">Listing readiness</CardTitle>
+                <span
+                  className={`text-sm font-semibold ${completion.isReady ? "text-green-500" : "text-amber-500"}`}
+                  aria-live="polite"
+                >
+                  {completion.score}% complete{completion.isReady ? " · ready to publish" : ""}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Progress value={completion.score} aria-label="Listing completeness" />
+              {missingItems.length > 0 && (
+                <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+                  {missingItems.map((item) => (
+                    <li key={item.key}>• {item.label}</li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
           <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
             <CardHeader>
               <CardTitle className="text-white text-xl flex items-center gap-2">

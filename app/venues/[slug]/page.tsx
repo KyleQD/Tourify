@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { toPublicVenueProfile } from "@/lib/venue/venue-profile-contract"
 import { VenueProfileClient } from "./venue-profile-client"
@@ -11,6 +11,10 @@ import { VenueProfileClient } from "./venue-profile-client"
  *
  * VEN-020 groundwork lives here too: canonical metadata is generated from the
  * STORED slug, not regenerated from the name.
+ *
+ * VEN-289 — unknown slugs resolve deterministically through
+ * venue_slug_history (latest mapping first) and 308-redirect to the current
+ * canonical slug, so renamed/malformed historical links keep working.
  */
 
 interface VenueProfilePageProps {
@@ -55,6 +59,61 @@ async function loadPublicVenue(slug: string) {
   return publicVenue
 }
 
+/**
+ * VEN-289 — deterministic history resolution: latest recorded mapping wins,
+ * and only mappings whose live profile still carries a public slug redirect.
+ * Returns the current canonical slug, or null when no resolvable mapping exists.
+ */
+// venue_slug_history ships with migration 20260823020000, which postdates the
+// generated DB types — access it through a minimal structural shim until
+// types are regenerated.
+interface HistoryRow {
+  venue_profile_id: string
+}
+
+async function resolveHistoricalSlug(slug: string): Promise<string | null> {
+  const supabase = await createClient()
+  const fromHistory = supabase.from as unknown as (table: "venue_slug_history") => {
+    select: (
+      columns: string,
+    ) => {
+      eq: (
+        column: string,
+        value: string,
+      ) => {
+        order: (
+          column: string,
+          options: { ascending: boolean },
+        ) => {
+          limit: (count: number) => PromiseLike<{ data: HistoryRow[] | null }>
+        }
+      }
+    }
+  }
+
+  const { data: history } = await fromHistory("venue_slug_history")
+    .select("venue_profile_id")
+    .eq("old_slug", slug.toLowerCase())
+    .order("created_at", { ascending: false })
+    .limit(5)
+
+  const ids = Array.from(new Set((history ?? []).map((h) => h.venue_profile_id)))
+  if (ids.length === 0) return null
+
+  const { data: profiles } = await supabase
+    .from("venue_profiles")
+    .select("id, url_slug, is_public")
+    .in("id", ids)
+    .limit(1)
+    .maybeSingle()
+
+  const target = profiles as { id: string; url_slug: string | null; is_public: boolean | null } | null
+  if (target?.url_slug && target.url_slug !== slug && target.is_public !== false) {
+    return target.url_slug
+  }
+  return null
+}
+
 export async function generateMetadata({ params }: VenueProfilePageProps): Promise<Metadata> {
   const { slug } = await params
   const venue = await loadPublicVenue(slug)
@@ -84,7 +143,16 @@ export async function generateMetadata({ params }: VenueProfilePageProps): Promi
 
 export default async function VenueProfilePage({ params }: VenueProfilePageProps) {
   const { slug } = await params
-  const venue = await loadPublicVenue(slug)
+  let venue = await loadPublicVenue(slug)
+
+  // VEN-289: renamed/malformed historical slugs 308 to the canonical URL.
+  if (!venue) {
+    const canonical = await resolveHistoricalSlug(slug)
+    if (canonical) {
+      permanentRedirect(`/venues/${encodeURIComponent(canonical)}`)
+    }
+    notFound()
+  }
 
   if (!venue) notFound()
 
