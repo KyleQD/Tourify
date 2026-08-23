@@ -9,6 +9,7 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 
+import { DisposalLedger } from "@/lib/world/globe/disposal-ledger"
 import type { GlobePlace } from "@/lib/world/globe/build-globe-index"
 
 const THEME = {
@@ -32,6 +33,24 @@ export interface GlobeSceneOptions {
   initialSelected?: string | null
   onSelect: (key: string) => void
   onHover?: (key: string | null, screenX: number, screenY: number) => void
+  /**
+   * P13-T09 — server density hint. "mobile" lowers marker counts and
+   * enlarges interaction hit targets for touch input.
+   */
+  densityHint?: "desktop" | "mobile"
+  /** P13-T05 — throttled camera reports (distance in globe radii). */
+  onCameraChange?: (distance: number) => void
+}
+
+/** One entry from the viewport stream rendered as a dynamic marker. */
+export interface ViewportMarker {
+  key: string
+  lat: number
+  lng: number
+  weight: number
+  /** "cluster" markers render aggregate glow + count labels (P13-T07). */
+  kind?: "place" | "cluster"
+  count?: number
 }
 
 interface Marker {
@@ -134,10 +153,21 @@ export class WorldGlobeScene {
   private readonly controls: OrbitControls
   private readonly globeGroup = new THREE.Group()
   private readonly markers = new Map<string, Marker>()
+  /** P13-T10 — dynamic viewport markers live here; replaced wholesale on updates. */
+  private readonly viewportGroup = new THREE.Group()
+  /** P13-T07 — restrained connection arcs from the selection to top-weighted peers. */
+  private readonly arcsGroup = new THREE.Group()
+  private readonly viewportMarkers = new Map<
+    string,
+    { key: string; anchor: THREE.Vector3; sprite: THREE.Sprite; label: THREE.Sprite | null; baseScale: number; phase: number }
+  >()
   private readonly raycaster = new THREE.Raycaster()
-  private readonly hitMeshes: THREE.Mesh[] = []
+  private readonly staticHitMeshes: THREE.Mesh[] = []
+  private readonly viewportHitMeshes: THREE.Mesh[] = []
   private readonly pointer = new THREE.Vector2(-2, -2)
   private readonly disposables: { dispose(): void }[] = []
+  /** P13-T10 — accounting for dynamic GPU resources (leak-free teardown proof). */
+  private readonly gpuLedger = new DisposalLedger()
 
   private frameHandle = 0
   private disposed = false
@@ -150,6 +180,11 @@ export class WorldGlobeScene {
   private pointerDownY = 0
   private needsPick = false
   private reducedMotion: boolean
+  /** P13-T09 — touch devices get larger hit targets; mobile hint lowers density. */
+  private readonly coarsePointer: boolean
+  private readonly densityHint: "desktop" | "mobile"
+  private lastReportedDistance = 0
+  private lastCameraReportAt = 0
 
   /** Camera tween state (direction slerp + distance lerp). */
   private tween: {
@@ -168,6 +203,8 @@ export class WorldGlobeScene {
     private readonly options: GlobeSceneOptions,
   ) {
     this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    this.coarsePointer = window.matchMedia("(pointer: coarse)").matches
+    this.densityHint = options.densityHint ?? (this.coarsePointer ? "mobile" : "desktop")
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -213,6 +250,8 @@ export class WorldGlobeScene {
     this.buildHologram()
     this.buildMarkers()
     this.scene.add(this.globeGroup)
+    this.globeGroup.add(this.viewportGroup)
+    this.scene.add(this.arcsGroup)
 
     // Events -------------------------------------------------------------
     this.renderer.domElement.addEventListener("pointermove", this.onPointerMove)
@@ -310,7 +349,8 @@ export class WorldGlobeScene {
     this.disposables.push(atmosphereGeometry, atmosphereMaterial)
 
     // Holographic dust — fibonacci-distributed points with two-tone shimmer.
-    const dustCount = 3200
+    // Mobile hint trims particle count for GPU headroom (P13-T09/T10).
+    const dustCount = this.densityHint === "mobile" ? 1800 : 3200
     const positions = new Float32Array(dustCount * 3)
     const colors = new Float32Array(dustCount * 3)
     const goldenAngle = Math.PI * (3 - Math.sqrt(5))
@@ -446,15 +486,17 @@ export class WorldGlobeScene {
       this.globeGroup.add(label)
       this.disposables.push(labelMaterial, labelTextures)
 
-      // Invisible-but-raycastable hit proxy sized generously for touch.
-      const hitGeometry = new THREE.SphereGeometry(baseScale * 0.55, 12, 12)
+      // Invisible-but-raycastable hit proxy sized generously for touch
+      // (P13-T09: coarse pointers get ~60% larger targets).
+      const hitRadius = baseScale * (this.coarsePointer ? 0.88 : 0.55)
+      const hitGeometry = new THREE.SphereGeometry(hitRadius, 12, 12)
       const hitMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
       const hit = new THREE.Mesh(hitGeometry, hitMaterial)
       hit.position.copy(anchor)
       hit.userData.placeKey = place.key
       this.globeGroup.add(hit)
       this.disposables.push(hitGeometry, hitMaterial)
-      this.hitMeshes.push(hit)
+      this.staticHitMeshes.push(hit)
 
       this.markers.set(place.key, {
         key: place.key,
@@ -520,7 +562,7 @@ export class WorldGlobeScene {
 
   private pick(): string | null {
     this.raycaster.setFromCamera(this.pointer, this.camera)
-    const hits = this.raycaster.intersectObjects(this.hitMeshes, false)
+    const hits = this.raycaster.intersectObjects([...this.staticHitMeshes, ...this.viewportHitMeshes], false)
     return (hits[0]?.object.userData.placeKey as string | undefined) ?? null
   }
 
@@ -532,12 +574,188 @@ export class WorldGlobeScene {
   }
 
   // ---------------------------------------------------------------------
+  // P13 — dynamic viewport layer (T07/T09/T10)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Replace the dynamic viewport marker set. The previous group is fully
+   * disposed (geometry/material/texture) before the new one is built, so
+   * layer switches and World exits never leak GPU memory (P13-T10).
+   */
+  setViewportMarkers(items: readonly ViewportMarker[]): void {
+    this.clearViewportGroup()
+
+    if (items.length === 0) return
+    const maxWeight = Math.max(...items.map((i) => i.weight), 1)
+
+    for (const item of items) {
+      const anchor = latLngToVector(item.lat, item.lng, GLOBE_RADIUS * 1.012)
+      const normalized = Math.min(Math.max(item.weight / maxWeight, 0.12), 1)
+      const baseScale =
+        (item.kind === "cluster" ? 0.09 : 0.075) + normalized * 0.08
+
+      const glowMaterial = new THREE.SpriteMaterial({
+        map: this.glowTexture ?? makeGlowTexture(),
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+      })
+      const sprite = new THREE.Sprite(glowMaterial)
+      sprite.position.copy(anchor)
+      sprite.scale.setScalar(baseScale)
+      this.viewportGroup.add(sprite)
+
+      let label: THREE.Sprite | null = null
+      const labelText =
+        item.kind === "cluster" && item.count && item.count > 1
+          ? `${item.count}`
+          : null
+      if (labelText) {
+        const { texture, aspect } = makeLabelTexture(labelText)
+        const labelMaterial = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          depthWrite: false,
+          depthTest: false,
+          opacity: 0.92,
+        })
+        label = new THREE.Sprite(labelMaterial)
+        const height = 0.062
+        label.scale.set(height * aspect, height, 1)
+        label.position
+          .copy(anchor)
+          .add(anchor.clone().normalize().multiplyScalar(0.11))
+        this.viewportGroup.add(label)
+      }
+
+      const hitGeometry = new THREE.SphereGeometry(
+        baseScale * (this.coarsePointer ? 0.88 : 0.55),
+        12,
+        12,
+      )
+      const hitMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      const hit = new THREE.Mesh(hitGeometry, hitMaterial)
+      hit.position.copy(anchor)
+      hit.userData.placeKey = item.key
+      this.viewportGroup.add(hit)
+      this.viewportHitMeshes.push(hit)
+
+      this.gpuLedger.acquire(label ? 4 : 3)
+      this.viewportMarkers.set(item.key, {
+        key: item.key,
+        anchor,
+        sprite,
+        label,
+        baseScale,
+        phase: Math.random() * Math.PI * 2,
+      })
+    }
+    this.gpuLedger.acquire(1) // shared glow texture reference
+  }
+
+  /** Remove the dynamic layer entirely (leaving World / clearing filters). */
+  clearViewport(): void {
+    this.clearViewportGroup()
+  }
+
+  private clearViewportGroup(): void {
+    // Dispose every dynamic object (geometry + material + unique label
+    // textures) so repeated layer switches cannot accumulate GPU memory.
+    this.viewportGroup.traverse((object) => {
+      const mesh = object as THREE.Mesh
+      mesh.geometry?.dispose()
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined
+      if (Array.isArray(material)) material.forEach((m) => m.dispose())
+      else material?.dispose()
+    })
+    for (const marker of this.viewportMarkers.values()) {
+      const labelMaterial = marker.label?.material as THREE.SpriteMaterial | undefined
+      labelMaterial?.map?.dispose()
+    }
+    this.viewportGroup.clear()
+    this.viewportMarkers.clear()
+    this.viewportHitMeshes.length = 0
+    this.gpuLedger.release(this.gpuLedger.stats().outstanding)
+  }
+
+  /**
+   * P13-T07 — restrained connection arcs: thin, low-opacity curves from the
+   * selected place to the top-weighted peers (hard cap 6). No cultural
+   * claim is expressed — this is visual connective tissue only; evidence-
+   * backed transmission arcs arrive with P19.
+   */
+  showSelectionArcs(selectedKey: string): void {
+    this.clearArcs()
+    const from = this.markers.get(selectedKey) ?? this.viewportMarkers.get(selectedKey)
+    if (!from) return
+
+    const peers = [...this.markers.values(), ...this.viewportMarkers.values()]
+      .filter((m) => m.anchor !== from.anchor)
+      .sort((a, b) => b.baseScale - a.baseScale || a.key.localeCompare(b.key))
+      .slice(0, 6)
+
+    const arcMaterial = new THREE.LineBasicMaterial({
+      color: new THREE.Color("#6f5bd6"),
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    for (const peer of peers) {
+      const start = from.anchor.clone().normalize().multiplyScalar(GLOBE_RADIUS * 1.01)
+      const end = peer.anchor.clone().normalize().multiplyScalar(GLOBE_RADIUS * 1.01)
+      const mid = start.clone().add(end).normalize().multiplyScalar(GLOBE_RADIUS * (1.18 + 0.22 * start.distanceTo(end)))
+      const curve = new THREE.QuadraticBezierCurve3(start, mid, end)
+      const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48))
+      const line = new THREE.Line(geometry, arcMaterial)
+      this.arcsGroup.add(line)
+    }
+    // One shared material; the group owns it for disposal.
+    this.arcsGroup.userData.material = arcMaterial
+  }
+
+  clearArcs(): void {
+    this.arcsGroup.traverse((object) => {
+      const mesh = object as THREE.Mesh
+      mesh.geometry?.dispose()
+    })
+    const material = this.arcsGroup.userData.material as THREE.Material | undefined
+    material?.dispose()
+    this.arcsGroup.clear()
+    delete this.arcsGroup.userData.material
+  }
+
+  // ---------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------
 
   setSelected(key: string | null): void {
     this.selectedKey = key
-    if (key) this.focusPlace(key, { immediate: this.reducedMotion })
+    // P13-T07 — restrained arcs follow the selection; cleared on deselect.
+    if (key) {
+      this.focusPlace(key, { immediate: this.reducedMotion })
+      if (!this.reducedMotion) this.showSelectionArcs(key)
+      else this.clearArcs()
+    } else {
+      this.clearArcs()
+    }
+  }
+
+  /** P13-T10 — disposal accounting surface for verification/profiling. */
+  getDisposalStats(): { acquired: number; released: number; outstanding: number } {
+    return this.gpuLedger.stats()
+  }
+
+  /** P13-T05 — lat/lng currently centered under the camera. */
+  getCameraCenter(): { lat: number; lng: number } {
+    const dir = this.camera.position.clone().normalize()
+    const lat = 90 - (Math.acos(THREE.MathUtils.clamp(dir.y, -1, 1)) * 180) / Math.PI
+    let theta = Math.atan2(dir.z, -dir.x)
+    let lng = (theta * 180) / Math.PI - 180
+    while (lng < -180) lng += 360
+    while (lng >= 180) lng -= 360
+    return { lat, lng }
   }
 
   focusPlace(key: string, opts: { immediate?: boolean } = {}): void {
@@ -575,6 +793,9 @@ export class WorldGlobeScene {
     document.removeEventListener("visibilitychange", this.onVisibilityChange)
     this.resizeObserver.disconnect()
     this.controls.dispose()
+    // P13-T10 — dispose dynamic layers before the global teardown sweep.
+    this.clearArcs()
+    this.clearViewportGroup()
     this.scene.traverse((object) => {
       const mesh = object as THREE.Mesh
       if (mesh.geometry) mesh.geometry.dispose()
@@ -620,6 +841,21 @@ export class WorldGlobeScene {
       if (rawT >= 1) this.tween = null
     }
 
+    // P13-T05 — throttled camera reporting for the viewport stream: emit at
+    // most every 250ms and only when distance moved meaningfully.
+    const distance = this.camera.position.length()
+    if (
+      this.options.onCameraChange &&
+      (Math.abs(distance - this.lastReportedDistance) > 0.04 ||
+        now - this.lastCameraReportAt > 1000)
+    ) {
+      if (now - this.lastCameraReportAt > 250) {
+        this.lastReportedDistance = distance
+        this.lastCameraReportAt = now
+        this.options.onCameraChange(distance)
+      }
+    }
+
     // Marker pulses + selection styling.
     for (const [, marker] of this.markers) {
       const isSelected = marker.key === this.selectedKey
@@ -645,6 +881,15 @@ export class WorldGlobeScene {
 
       const glow = marker.sprite.material as THREE.SpriteMaterial
       glow.color.set(isSelected ? THEME.markerCyan : isHovered ? "#cdbaff" : "#ffffff")
+    }
+
+    // P13-T07 — viewport markers: aggregate glows breathe with the pulse;
+    // cluster count labels stay steady for readability.
+    for (const [, vp] of this.viewportMarkers) {
+      const pulse = 0.5 + 0.5 * Math.sin(seconds * 2.1 + vp.phase)
+      const targetScale = vp.baseScale * (1 + pulse * 0.08)
+      vp.sprite.scale.setScalar(THREE.MathUtils.lerp(vp.sprite.scale.x, targetScale, 0.14))
+      ;(vp.sprite.material as THREE.SpriteMaterial).opacity = 0.75 + pulse * 0.25
     }
 
     if (this.needsPick) {

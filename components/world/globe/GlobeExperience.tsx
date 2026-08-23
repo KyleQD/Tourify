@@ -6,12 +6,17 @@
  * Layout: full-bleed holographic globe (custom Three.js scene) + neon search +
  * place side panel. Mobile collapses the panel into a bottom sheet. A
  * non-WebGL fallback renders the same content as an accessible card grid.
+ *
+ * P13: when live viewport data is available (preview flag on) the globe
+ * consumes the bounded /api/world/viewport stream — debounced camera
+ * updates, cancelled stale requests, cached frames, prefetch on hover.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Disc3, Globe2, MapPin, Radio, Search, Sparkles, X } from "lucide-react"
 
 import type { GlobePlace } from "@/lib/world/globe/types"
+import { useViewportStream, type ViewportCameraState } from "@/lib/world/globe/use-viewport-stream"
 import { cn } from "@/lib/utils"
 
 interface PanelPayload {
@@ -26,6 +31,13 @@ interface PanelPayload {
     radio?: { status?: string; message?: string | null }
   }
   provenance?: { sourceRefs?: unknown[] }
+}
+
+interface ViewportPayloadShape {
+  tier?: "global" | "regional" | "city"
+  granularity?: "aggregate" | "entity" | "heat"
+  places?: Array<{ placeKey: string; center: { lat: number; lng: number }; weight: number }>
+  clusters?: Array<{ key: string; center: { lat: number; lng: number }; totalWeight: number; count: number; representativeId: string }>
 }
 
 function supportsWebGL(): boolean {
@@ -46,9 +58,21 @@ const COUNT_CHIPS: Array<{ key: keyof GlobePlace["counts"]; label: string; icon:
   { key: "landmarks", label: "Landmarks", icon: MapPin },
 ]
 
-export function WorldGlobeExperience({ places }: { places: GlobePlace[] }) {
+export function WorldGlobeExperience({
+  places,
+  liveViewport = false,
+}: {
+  places: GlobePlace[]
+  /** P13 — enable the bounded /api/world/viewport stream when preview data is on. */
+  liveViewport?: boolean
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const sceneRef = useRef<{ setSelected(k: string | null): void; focusPlace(k: string): void; dispose(): void } | null>(null)
+  const sceneRef = useRef<{
+    setSelected(k: string | null): void
+    focusPlace(k: string): void
+    dispose(): void
+    setViewportMarkers?(items: unknown): void
+  } | null>(null)
   const cacheRef = useRef(new Map<string, PanelPayload>())
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -56,6 +80,18 @@ export function WorldGlobeExperience({ places }: { places: GlobePlace[] }) {
   const [panelLoading, setPanelLoading] = useState(false)
   const [query, setQuery] = useState("")
   const [webglFailed, setWebglFailed] = useState(false)
+
+  // P13-T05 — camera state for the viewport stream. Static pilots render
+  // immediately; the stream refines density once camera state settles.
+  const [camera, setCamera] = useState<ViewportCameraState>({
+    north: 90,
+    south: -90,
+    east: 180,
+    west: -180,
+    zoom: 3,
+  })
+
+  const viewport = useViewportStream(camera, { enabled: liveViewport && !webglFailed })
 
   const selectedPlace = useMemo(
     () => places.find((place) => place.key === selectedKey) ?? null,
@@ -75,6 +111,58 @@ export function WorldGlobeExperience({ places }: { places: GlobePlace[] }) {
     window.history.replaceState(null, "", `/discover/world?place=${key}`)
   }, [])
 
+  // P13-T05 — camera reports drive the debounced viewport request.
+  const handleCameraChange = useCallback((distance: number) => {
+    const scene = sceneRef.current as { getCameraCenter?: () => { lat: number; lng: number } } | null
+    const center = scene?.getCameraCenter?.() ?? { lat: 0, lng: 0 }
+    // Span narrows with zoom; global keeps the whole world in view.
+    const span =
+      distance >= 2.6 ? 180 : distance >= 1.9 ? 30 : 10
+    setCamera({
+      north: Math.min(center.lat + span, 90),
+      south: Math.max(center.lat - span, -90),
+      east: Math.min(center.lng + span, 180),
+      west: Math.max(center.lng - span, -180),
+      zoom: distance,
+    })
+  }, [])
+
+  // P13-T07 — feed bounded viewport results into the dynamic marker layer.
+  useEffect(() => {
+    const scene = sceneRef.current as { setViewportMarkers?: (items: unknown) => void } | null
+    if (!scene?.setViewportMarkers) return
+    if (!liveViewport) {
+      scene.setViewportMarkers([])
+      return
+    }
+    const payload = viewport.payload as ViewportPayloadShape | null
+    if (!payload) {
+      scene.setViewportMarkers([])
+      return
+    }
+    const staticKeys = new Set<string>(places.map((place) => place.key))
+    const clusterItems =
+      payload.granularity !== "entity"
+        ? (payload.clusters ?? []).map((cluster) => ({
+            key: cluster.key,
+            lat: cluster.center.lat,
+            lng: cluster.center.lng,
+            weight: cluster.totalWeight,
+            kind: "cluster" as const,
+            count: cluster.count,
+          }))
+        : (payload.places ?? [])
+            .filter((p) => !staticKeys.has(p.placeKey))
+            .map((p) => ({
+              key: p.placeKey,
+              lat: p.center.lat,
+              lng: p.center.lng,
+              weight: p.weight,
+              kind: "place" as const,
+            }))
+    scene.setViewportMarkers(clusterItems)
+  }, [viewport.payload, liveViewport, places])
+
   // Boot the Three.js scene once.
   useEffect(() => {
     if (!supportsWebGL()) {
@@ -87,6 +175,11 @@ export function WorldGlobeExperience({ places }: { places: GlobePlace[] }) {
       if (disposed || !containerRef.current) return
       sceneRef.current = new WorldGlobeScene(containerRef.current, places, {
         onSelect: (key) => selectPlace(key),
+        onHover: (key) => {
+          // P13-T06 — prefetch the place payload while the user hovers.
+          if (key) viewport.prefetchPlace(key)
+        },
+        onCameraChange: handleCameraChange,
       })
     }
     void boot()
@@ -95,6 +188,7 @@ export function WorldGlobeExperience({ places }: { places: GlobePlace[] }) {
       sceneRef.current?.dispose()
       sceneRef.current = null
     }
+    // Boot once; stream callbacks are stable and read via refs.
   }, [places, selectPlace])
 
   // Deep link ?place=…
