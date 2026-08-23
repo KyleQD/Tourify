@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * P4 tests — search hook (injectable fetch), visibility rules, telemetry
  * scrubbing, and unresolved-route payload contract.
