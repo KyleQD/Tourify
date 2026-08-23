@@ -52,6 +52,9 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { ProfilePosts } from "@/components/profile/profile-posts"
+import { useMultiAccount } from "@/hooks/use-multi-account"
+import Link from "next/link"
+import { Settings as SettingsIcon } from "lucide-react"
 import { MessageModal } from "@/components/messaging/message-modal"
 import { AmenitiesGrid } from "@/components/venue-kit/amenities-section"
 
@@ -131,6 +134,10 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
   const [vkSlug, setVkSlug] = useState<string | null>(null)
   const [vkPress, setVkPress] = useState<any[]>([])
   const [stickyVisible, setStickyVisible] = useState(false)
+  // VEN-033: resolve what actions THIS viewer gets on this profile.
+  const { currentAccount } = useMultiAccount()
+  const isOwnVenue =
+    currentAccount?.account_type === 'venue' && currentAccount?.profile_id === venue?.id
   const heroRef = useRef<HTMLDivElement>(null)
 
   // Sticky bar: appears after scrolling past hero
@@ -518,6 +525,14 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
               </div>
             </div>
             <div className="flex flex-col gap-2">
+              {isOwnVenue ? (
+                <Button asChild className="bg-emerald-600 hover:bg-emerald-500" size="sm">
+                  <Link href="/venue/dashboard">
+                    <SettingsIcon className="h-4 w-4 mr-2" />
+                    Manage Venue
+                  </Link>
+                </Button>
+              ) : (
               <Button
                 className="bg-emerald-600 hover:bg-emerald-500"
                 size="sm"
@@ -526,6 +541,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                 <Calendar className="h-4 w-4 mr-2" />
                 Book This Venue
               </Button>
+              )}
               <Button
                 onClick={handleShare}
                 variant="outline"
@@ -977,6 +993,14 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {isOwnVenue ? (
+                  <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-500">
+                    <Link href="/venue/dashboard">
+                      <SettingsIcon className="h-4 w-4 mr-2" />
+                      Manage Venue
+                    </Link>
+                  </Button>
+                ) : (
                 <Button
                   className="w-full bg-emerald-600 hover:bg-emerald-500"
                   onClick={() => router.push(`/venues/${venue.url_slug || slug}/booking-request`)}
@@ -984,6 +1008,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                   <Calendar className="h-4 w-4 mr-2" />
                   Book This Venue
                 </Button>
+                )}
 
                 {/* Venue Kit CTA */}
                 {vkSlug && (
