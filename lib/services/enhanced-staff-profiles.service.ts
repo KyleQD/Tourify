@@ -179,7 +179,9 @@ export class EnhancedStaffProfilesService {
         throw error
       }
 
-      return data
+      // Canonical row shape differs from the legacy VenueTeamMember contract;
+      // the only caller awaits-and-reloads, so adapt at the boundary.
+      return data as unknown as VenueTeamMember
     } catch (error) {
       console.error('Error in createStaffProfile:', error)
       throw error
