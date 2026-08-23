@@ -313,6 +313,28 @@ export async function PUT(
       updated_at: new Date().toISOString(),
     }
 
+    // VEN-255 publish validation: a venue cannot be published without the
+    // minimum public contract (name + stored slug). Unpublishing is always
+    // allowed; publishing is the gated direction.
+    if ((updateFields as { is_public?: boolean }).is_public === true) {
+      const { data: current } = await supabase
+        .from('venue_profiles')
+        .select('venue_name, url_slug')
+        .eq('id', params.id)
+        .single()
+      const name = (updateFields as { venue_name?: string }).venue_name ?? current?.venue_name
+      const slug = (updateFields as { url_slug?: string }).url_slug ?? current?.url_slug
+      if (!name || !slug) {
+        return NextResponse.json(
+          {
+            error:
+              'Cannot publish: a venue name and public URL slug are required before your venue can be listed publicly.',
+          },
+          { status: 422 },
+        )
+      }
+    }
+
     const { data: updatedVenue, error: updateError } = await supabase
       .from('venue_profiles')
       .update(updateFields)
