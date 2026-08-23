@@ -98,7 +98,7 @@ interface VenueProfile {
   stats?: {
     average_rating: number
     total_reviews: number
-    monthly_views: number
+    /** VEN-031: operator view counts are never part of the public profile. */
     upcoming_events: number
   }
   recent_events?: any[]
@@ -347,7 +347,18 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     )}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="border-gray-600 text-gray-300">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-gray-600 text-gray-300"
+                  onClick={() =>
+                    router.push(
+                      event.event_table === 'events_v2'
+                        ? `/venue/events/${event.id}`
+                        : `/events/${event.id}`,
+                    )
+                  }
+                >
                   View Event
                 </Button>
               </div>
@@ -612,12 +623,6 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                             {venue.stats.total_reviews}
                           </div>
                           <div className="text-sm text-gray-400">Reviews</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-purple-400">
-                            {venue.stats.monthly_views}
-                          </div>
-                          <div className="text-sm text-gray-400">Monthly Views</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-orange-400">
