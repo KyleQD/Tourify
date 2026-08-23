@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useProfile } from "@/context/venue/profile-context"
 import { useToast } from "@/hooks/use-toast"
 import { Briefcase, DollarSign, MapPin, Plus, X } from "lucide-react"
 import type { JobPosting } from "@/lib/venue/types"
@@ -31,9 +30,10 @@ interface CreateJobModalProps {
 }
 
 export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
-  const { postJob } = useProfile()
+  // VEN-035: legacy localStorage profile context retired. Real job posting
+  // lands with the canonical hiring pipeline; until then this modal must not
+  // fabricate success.
   const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [requirements, setRequirements] = useState<string[]>([])
   const [newRequirement, setNewRequirement] = useState("")
   const [formData, setFormData] = useState<Omit<JobPosting, "id" | "userId" | "createdAt" | "isActive">>({
@@ -88,50 +88,14 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
       return
     }
 
-    setIsSubmitting(true)
-
-    try {
-      const jobData = {
-        ...formData,
-        requirements,
-        id: "",
-        userId: "",
-        createdAt: new Date().toISOString(),
-        isActive: true,
-      }
-
-      const success = await postJob(jobData)
-
-      if (success) {
-        toast({
-          title: "Job posted",
-          description: `Your job listing for "${formData.title}" has been posted successfully.`,
-        })
-        onClose()
-        setFormData({
-          title: "",
-          description: "",
-          location: "",
-          type: "one-time",
-          category: "musician",
-          compensation: {
-            type: "fixed",
-          },
-          contactEmail: "",
-          requirements: [],
-        })
-        setRequirements([])
-      }
-    } catch (error) {
-      console.error("Error posting job:", error)
-      toast({
-        title: "Error posting job",
-        description: "There was an error posting your job. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+    // VEN-035: no server-side job posting exists yet — surface a truthful
+    // unavailable state instead of fabricating success.
+    toast({
+      title: "Job posting not available yet",
+      description:
+        "Venue hiring is being migrated to the canonical hiring pipeline. Job listings will return with the new hiring tools.",
+      variant: "destructive",
+    })
   }
 
   return (
@@ -334,8 +298,8 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
             <Button type="button" variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} className={detailSurfacePattern.btnPrimary}>
-              {isSubmitting ? "Posting..." : "Post Job"}
+            <Button type="submit" className={detailSurfacePattern.btnPrimary}>
+              Post Job
             </Button>
           </DialogFooter>
         </form>

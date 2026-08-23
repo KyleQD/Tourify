@@ -41,10 +41,30 @@ export default function MediaSection({ vkData, updateVKData }: Props) {
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
+    // VEN-037: validate before upload — images only, 10 MB max per file.
+    const rejected: string[] = []
+    const accepted: File[] = []
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) {
+        rejected.push(`${file.name} (not an image)`)
+      } else if (file.size > 10 * 1024 * 1024) {
+        rejected.push(`${file.name} (over 10 MB)`)
+      } else {
+        accepted.push(file)
+      }
+    }
+    if (rejected.length > 0) {
+      toast({
+        title: "Some files were skipped",
+        description: `Images only, up to 10 MB each: ${rejected.join(", ")}`,
+        variant: "destructive",
+      })
+    }
+    if (accepted.length === 0) return
     setUploading(true)
     try {
       const newPhotos: Photo[] = []
-      for (const file of Array.from(files)) {
+      for (const file of accepted) {
         const url = await uploadPhoto(file)
         if (url) {
           newPhotos.push({

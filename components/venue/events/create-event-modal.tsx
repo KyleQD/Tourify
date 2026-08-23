@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { useProfile } from "@/context/venue/profile-context"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar, Clock, DollarSign, MapPin, Upload, Users } from "lucide-react"
 import type { EventData } from "@/lib/venue/types"
@@ -27,9 +26,10 @@ interface CreateEventModalProps {
 }
 
 export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
-  const { createEvent } = useProfile()
+  // VEN-035: legacy localStorage profile context retired. Real event creation
+  // lands with the canonical events service (VEN-091); until then this modal
+  // must not fabricate success.
   const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<EventData>({
     title: "",
     description: "",
@@ -67,38 +67,14 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
       return
     }
 
-    setIsSubmitting(true)
-
-    try {
-      const success = await createEvent(formData)
-
-      if (success) {
-        toast({
-          title: "Event created",
-          description: `Your event "${formData.title}" has been created successfully.`,
-        })
-        onClose()
-        setFormData({
-          title: "",
-          description: "",
-          startDate: "",
-          endDate: "",
-          location: "",
-          venue: "",
-          isPublic: true,
-          capacity: 0,
-        })
-      }
-    } catch (error) {
-      console.error("Error creating event:", error)
-      toast({
-        title: "Error creating event",
-        description: "There was an error creating your event. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+    // VEN-035/VEN-091: no server-side event creation exists yet — surface a
+    // truthful unavailable state instead of fabricating success.
+    toast({
+      title: "Event creation not available yet",
+      description:
+        "Venue event publishing is being migrated to the canonical events service. Use the venue dashboard events tools in the meantime.",
+      variant: "destructive",
+    })
   }
 
   return (
@@ -264,9 +240,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
             <Button type="button" variant="outline" onClick={onClose} className="border-gray-700">
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Event"}
-            </Button>
+            <Button type="submit">Create Event</Button>
           </DialogFooter>
         </form>
       </DialogContent>

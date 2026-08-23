@@ -1,24 +1,29 @@
 "use client"
 /**
- * /venue/edit — Expanded venue profile editor
+ * /venue/edit — Venue profile editor
  *
- * This page EXTENDS the existing edit experience by adding:
- *  - VkCommandHeader (save/publish/copy link status bar)
- *  - "Venue Kit" tab panel with VkEditorTabs (all content sections)
- *  - "Appearance" tab panel with VkAppearancePanel (template + styling)
+ * VEN-034: this page contains venue-specific sections only.
+ *  - Profile: canonical venue identity/location/specs editor (EnhancedVenueSettings)
+ *  - Venue Kit Content: persisted VK sections (useVKSync -> venue_kit_settings)
+ *  - Appearance: VK template + styling
  *
- * The existing ProfileProvider + EditProfileContent are preserved
- * and rendered alongside the new VK tabs.
+ * VEN-035: the legacy localStorage ProfileProvider and its personal
+ * experience/skills/certifications editor were removed — the server-backed
+ * venue profile context is the only remaining profile context.
+ *
+ * VEN-036/VEN-037/VEN-038: saving round-trips through real services
+ * (venue_profiles upsert; venueKitService for VK data), media persists to the
+ * `venue-media` bucket with captions/ordering, and VkCommandHeader drives
+ * draft save -> exact-render preview (/venue/kit) -> publish/unpublish.
  */
-import { Suspense, useState, useCallback } from "react"
+import { useState, useCallback } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { useVKSync } from "@/hooks/use-vk-sync"
 import VkCommandHeader from "@/components/venue-kit/vk-command-header"
 import VkEditorTabs from "@/components/venue-kit/vk-editor-tabs"
 import VkAppearancePanel from "@/components/venue-kit/vk-appearance-panel"
-import { ProfileProvider } from "@/context/venue/profile-context"
-import EditProfileContent from "@/components/venue/edit-profile-content"
+import { EnhancedVenueSettings } from "@/components/settings/enhanced-venue-settings"
 import dynamic from "next/dynamic"
 
 // Lazy-load PDF so it doesn't block initial render
@@ -93,14 +98,14 @@ function VenueEditInner() {
           />
         )}
 
-        {/* Root tabs: Profile (existing) | Venue Kit | Appearance */}
+        {/* Root tabs: Profile (venue fields) | Venue Kit | Appearance */}
         <Tabs value={activeRootTab} onValueChange={setActiveRootTab}>
           <TabsList className="flex h-auto flex-wrap gap-1 rounded-xl bg-white/5 p-1">
             <TabsTrigger
               value="profile"
               className="rounded-lg px-4 py-2 text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white"
             >
-              Profile
+              Venue Profile
             </TabsTrigger>
             <TabsTrigger
               value="kit"
@@ -116,14 +121,12 @@ function VenueEditInner() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Existing profile editor */}
+          {/* Canonical venue editor — identity, location, specs, policies */}
           <TabsContent value="profile" className="mt-6">
-            <ProfileProvider>
-              <EditProfileContent />
-            </ProfileProvider>
+            <EnhancedVenueSettings />
           </TabsContent>
 
-          {/* New VK content tabs */}
+          {/* VK content tabs */}
           <TabsContent value="kit" className="mt-6">
             {vkData ? (
               <VkEditorTabs
