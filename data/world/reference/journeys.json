@@ -1,0 +1,361 @@
+{
+  "schema_version": "world-journeys-v0.1",
+  "journeys": [
+    {
+      "key": "birth-of-techno",
+      "title": "Birth of Techno",
+      "summary": "From Belleville High to Berlin: how five friends from Detroit built machine music.",
+      "shareUrlPath": "/discover/world/journeys/birth-of-techno",
+      "stops": [
+        {
+          "order": 0,
+          "placeKey": "detroit",
+          "title": "The Belleville Three",
+          "narration": "Juan Atkins, Kevin Saunderson, and Derrick May meet at Belleville High and absorb European synth records alongside Motown and WBMX house imports.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "detroit_historical_atkins"
+          ]
+        },
+        {
+          "order": 1,
+          "placeKey": "chicago",
+          "title": "House arrives on the radio",
+          "narration": "Hot Mix 5 and the Warehouse show Detroit listeners what looped disco grooves could do to a dancefloor.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "chicago_house_detroit_link"
+          ]
+        },
+        {
+          "order": 2,
+          "placeKey": "detroit",
+          "title": "Cybotron and Model 500",
+          "narration": "Atkins's sci-fi electro records sketch techno's blueprint: machines with a Black futurist voice.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "detroit_historical_atkins"
+          ]
+        },
+        {
+          "order": 3,
+          "placeKey": "detroit",
+          "title": "Transmat and Metroplex",
+          "narration": "Saunderson's KMS and May's Transmat turn Detroit bedrooms into world-class labels.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "detroit_historical_transmat"
+          ]
+        },
+        {
+          "order": 4,
+          "placeKey": "london",
+          "title": "Techno! crosses the Atlantic",
+          "narration": "The 1988 compilation Techno! The New Dance Sound of Detroit lands in Europe and never leaves.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "detroit_historical_transmat"
+          ]
+        }
+      ],
+      "educator": {
+        "citations": [
+          "detroit_historical_transmat",
+          "detroit_historical_atkins"
+        ],
+        "vocabulary": [
+          {
+            "term": "techno",
+            "definition": "Four-on-the-floor electronic dance music pioneered in mid-1980s Detroit."
+          }
+        ],
+        "furtherReading": [
+          "Energy Flash by Simon Reynolds"
+        ]
+      }
+    },
+    {
+      "key": "kingston-to-london",
+      "title": "Kingston to London",
+      "summary": "How Windrush migration carried sound-system culture across the Atlantic into UK dub, jungle, and grime.",
+      "shareUrlPath": "/discover/world/journeys/kingston-to-london",
+      "stops": [
+        {
+          "order": 0,
+          "placeKey": "kingston",
+          "title": "Yard dances",
+          "narration": "Open-air sound clashes make music a communal, competitive sport in Kingston.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "unesco_reggae_jamaica"
+          ]
+        },
+        {
+          "order": 1,
+          "placeKey": "london",
+          "title": "Windrush sound systems",
+          "narration": "Caribbean communities rebuild yard culture in London front rooms and blues parties.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "london_museum_dub"
+          ]
+        },
+        {
+          "order": 2,
+          "placeKey": "london",
+          "title": "Dub comes home on vinyl",
+          "narration": "Kingston's studio innovations return as British dub records and soundsystems.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "london_museum_dub_records"
+          ]
+        },
+        {
+          "order": 3,
+          "placeKey": "london",
+          "title": "Jungle to grime",
+          "narration": "Breakbeat science and Caribbean deejay vocal styles evolve into distinctly London forms.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "london_museum_grime"
+          ]
+        }
+      ],
+      "educator": {
+        "citations": [
+          "london_museum_dub",
+          "unesco_reggae_jamaica"
+        ],
+        "vocabulary": [
+          {
+            "term": "sound system",
+            "definition": "A crew of DJs, engineers, and MCs built around massive custom speakers."
+          }
+        ],
+        "furtherReading": [
+          "Bass Culture by Lloyd Bradley"
+        ]
+      }
+    },
+    {
+      "key": "evolution-of-hip-hop",
+      "title": "Evolution of Hip-Hop",
+      "summary": "From a Bronx rec room to a global lingua franca of youth culture.",
+      "shareUrlPath": "/discover/world/journeys/evolution-of-hip-hop",
+      "stops": [
+        {
+          "order": 0,
+          "placeKey": "bronx",
+          "title": "1973: the rec room jam",
+          "narration": "Kool Herc's merry-go-round technique keeps b-boys dancing on the break.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "smithsonian_hip_hop_block_party"
+          ]
+        },
+        {
+          "order": 1,
+          "placeKey": "bronx",
+          "title": "MCs step forward",
+          "narration": "Party shouting becomes lyricism; crews form around turntable wizards like Flash.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "bronx_council_arts_hip_hop"
+          ]
+        },
+        {
+          "order": 2,
+          "placeKey": "bronx",
+          "title": "Records and message",
+          "narration": "'Rapper's Delight' and 'The Message' prove rap can chart and testify.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "smithsonian_hip_hop_block_party"
+          ]
+        },
+        {
+          "order": 3,
+          "placeKey": "lagos",
+          "title": "Afrobeats dialogue",
+          "narration": "Nigeria's Fela-influenced pop and hip-hop trade rhythms back across the diaspora.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "grammy_afrobeats_evolution"
+          ]
+        }
+      ],
+      "educator": {
+        "citations": [
+          "bronx_council_arts_hip_hop",
+          "smithsonian_hip_hop_block_party"
+        ],
+        "vocabulary": [
+          {
+            "term": "breakbeat",
+            "definition": "The isolated drum section of a funk or soul record, looped for dancing."
+          }
+        ],
+        "furtherReading": [
+          "Can't Stop Won't Stop by Jeff Chang"
+        ]
+      }
+    },
+    {
+      "key": "origins-of-house",
+      "title": "Origins of House",
+      "summary": "Disco's afterlife in Black Chicago becomes the world's dance floor default.",
+      "shareUrlPath": "/discover/world/journeys/origins-of-house",
+      "stops": [
+        {
+          "order": 0,
+          "placeKey": "chicago",
+          "title": "Disco demolition backlash",
+          "narration": "After Comiskey Park's anti-disco riot, queer Black clubs keep four-on-the-floor alive.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "chicago_house_detroit_link"
+          ]
+        },
+        {
+          "order": 1,
+          "placeKey": "chicago",
+          "title": "The Warehouse",
+          "narration": "Frankie Knuckles edits and re-dreams disco records for a devoted midnight crowd.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "chicago_house_detroit_link"
+          ]
+        },
+        {
+          "order": 2,
+          "placeKey": "chicago",
+          "title": "House records appear",
+          "narration": "Trax and DJ International press the genre's first anthems.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "chicago_house_detroit_link"
+          ]
+        },
+        {
+          "order": 3,
+          "placeKey": "detroit",
+          "title": "Detroit listens",
+          "narration": "WBMX signals cross Lake Michigan; Detroit answers with its own machines.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "chicago_house_detroit_link"
+          ]
+        },
+        {
+          "order": 4,
+          "placeKey": "london",
+          "title": "Acid summer",
+          "narration": "British ravers adopt house; 1988's Second Summer of Love begins.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "chicago_house_detroit_link"
+          ]
+        }
+      ],
+      "educator": {
+        "citations": [
+          "chicago_house_detroit_link"
+        ],
+        "vocabulary": [
+          {
+            "term": "four-on-the-floor",
+            "definition": "A steady kick drum on every beat, house's foundational pulse."
+          }
+        ],
+        "furtherReading": [
+          "Last Night a DJ Saved My Life by Brewster & Broughton"
+        ]
+      }
+    },
+    {
+      "key": "afrobeats-and-diaspora",
+      "title": "Afrobeats and Diaspora",
+      "summary": "Fela's afrobeat and Lagos studio culture evolve into Afrobeats, conquering charts through London.",
+      "shareUrlPath": "/discover/world/journeys/afrobeats-and-diaspora",
+      "stops": [
+        {
+          "order": 0,
+          "placeKey": "lagos",
+          "title": "Afrobeat origins",
+          "narration": "Fela Kuti fuses highlife, funk, and Yoruba rhythm into extended protest suites.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "grammy_kuti_guide"
+          ]
+        },
+        {
+          "order": 1,
+          "placeKey": "lagos",
+          "title": "Studio culture matures",
+          "narration": "Lagos pop absorbs reggae, dancehall, hip-hop production techniques.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "grammy_afrobeats_evolution"
+          ]
+        },
+        {
+          "order": 2,
+          "placeKey": "london",
+          "title": "London club crossover",
+          "narration": "Diaspora DJs build Afrobeats nights; UK charts follow.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "grammy_afrobeats_evolution"
+          ]
+        },
+        {
+          "order": 3,
+          "placeKey": "lagos",
+          "title": "Global feedback loop",
+          "narration": "Wizkid, Burna Boy, and Tems win Grammys as Lagos-London traffic runs both ways.",
+          "narrationOrigin": "human_approved",
+          "mediaIds": [],
+          "claimRefs": [
+            "grammy_kuti_guide"
+          ]
+        }
+      ],
+      "educator": {
+        "citations": [
+          "grammy_kuti_guide",
+          "grammy_afrobeats_evolution"
+        ],
+        "vocabulary": [
+          {
+            "term": "afrobeat vs Afrobeats",
+            "definition": "Afrobeat is Fela's 1970s genre; Afrobeats is the 2010s Nigerian/Ghanaian pop wave."
+          }
+        ],
+        "furtherReading": [
+          "Fela: This Bitch of a Life by Carlos Moore"
+        ]
+      }
+    }
+  ]
+}
