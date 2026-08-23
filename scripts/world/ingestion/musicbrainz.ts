@@ -68,14 +68,27 @@ interface MbAreaDetail extends MbArea {
 export async function findCityArea(
   cityName: string,
   expectedAncestors: string[],
+  opts: { countryCode?: string | null } = {},
 ): Promise<MbArea | null> {
-  const query = `"${cityName}" AND type:City`
-  const data = await mbGet<{ areas: MbArea[] }>(
-    `/area?query=${encodeURIComponent(query)}&limit=10`,
-  )
-  const candidates = (data.areas ?? []).filter(
-    (area) => area.name.toLowerCase() === cityName.toLowerCase(),
-  )
+  // NOTE: the area search index does NOT support a `country:` field (verified
+  // live during P15); same-named cities are disambiguated solely by walking
+  // "part of" containment ancestors below. opts.countryCode is accepted for
+  // interface stability but intentionally unused until upstream adds support.
+  void opts
+  // Prefer exact City areas; some capitals only exist at Subdivision level
+  // (e.g. Tokyo is typed Subdivision upstream). Both paths require the
+  // containment-ancestor proof, so neither can silently guess.
+  const queries = [`"${cityName}" AND type:City`, `"${cityName}" AND type:Subdivision`]
+  let candidates: MbArea[] = []
+  for (const query of queries) {
+    const data = await mbGet<{ areas: MbArea[] }>(
+      `/area?query=${encodeURIComponent(query)}&limit=25`,
+    )
+    candidates = (data.areas ?? []).filter(
+      (area) => typeof area.name === "string" && area.name.trim().length > 0 && area.name.toLowerCase() === cityName.toLowerCase(),
+    )
+    if (candidates.length > 0) break
+  }
   if (candidates.length === 0) return null
   const wanted = new Set(expectedAncestors.map((name) => name.toLowerCase()))
   for (const candidate of candidates.slice(0, 5)) {

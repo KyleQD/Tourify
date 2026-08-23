@@ -22,10 +22,25 @@ export default async function ConsoleDashboard() {
       .from("world_ingestion_runs")
       .select("adapter_key,status,request_count,records_received,candidates_created,error_count,started_at")
       .order("started_at", { ascending: false })
-      .limit(6),
+      .limit(50),
     trusted.from("world_radio_stations").select("id", { count: "exact", head: true }),
     trusted.from("world_sources").select("source_key").limit(1000),
   ])
+
+  // P15-T08 — provider failure rate over the most recent runs.
+  const runsList = (runs.data ?? []) as ConsoleRunRow[]
+  const byAdapter = new Map<string, { total: number; failed: number }>()
+  for (const run of runsList) {
+    const entry = byAdapter.get(run.adapter_key) ?? { total: 0, failed: 0 }
+    entry.total += 1
+    if (run.status === "failed" || run.status === "partial") entry.failed += 1
+    byAdapter.set(run.adapter_key, entry)
+  }
+  const failureRate = (adapterKey: string): string => {
+    const entry = byAdapter.get(adapterKey)
+    if (!entry || entry.total === 0) return "—"
+    return `${Math.round((entry.failed / entry.total) * 100)}%`
+  }
 
   const byReview = new Map<string, number>()
   const byMatch = new Map<string, number>()
@@ -67,6 +82,18 @@ export default async function ConsoleDashboard() {
               match:{status} · {count}
             </span>
           ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Provider health (recent runs)</h2>
+        <div className="flex flex-wrap gap-2">
+          {[...byAdapter.keys()].sort().map((adapterKey) => (
+            <span key={adapterKey} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-slate-300">
+              {adapterKey}: fail {failureRate(adapterKey)} · {byAdapter.get(adapterKey)!.total} runs
+            </span>
+          ))}
+          {byAdapter.size === 0 && <span className="text-xs text-slate-500">No runs recorded yet.</span>}
         </div>
       </section>
 

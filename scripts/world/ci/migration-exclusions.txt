@@ -5,3 +5,6 @@
 #
 # owner: venue-program (VEN) — fresh-replay failures, repair tracked by VEN
 20260823010000_venue_identity_bridge.sql
+# owner: venue-program (VEN) — cascades from the missing main_profile_id
+# column that only the excluded identity bridge would have created (R-P1-01)
+20260823030000_rpc_authorization_hardening.sql

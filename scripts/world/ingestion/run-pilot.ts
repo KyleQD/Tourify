@@ -29,6 +29,31 @@ const PILOT_GEO: Record<string, { countryName: string; countryCode: string; city
     stateName: "Michigan",
         paths: ["us", "us/mi", "us/mi/detroit"],
   },
+  kingston: {
+    countryName: "Jamaica",
+    countryCode: "JM",
+    cityName: "Kingston",
+    paths: ["jm", "jm/kingston"],
+  },
+  lagos: {
+    countryName: "Nigeria",
+    countryCode: "NG",
+    cityName: "Lagos",
+    paths: ["ng", "ng/lagos"],
+  },
+  london: {
+    countryName: "United Kingdom",
+    countryCode: "GB",
+    cityName: "London",
+    // Seeded hierarchy is gb/eng/london (matches data/world/reference).
+    paths: ["gb", "gb/eng", "gb/eng/london"],
+  },
+  tokyo: {
+    countryName: "Japan",
+    countryCode: "JP",
+    cityName: "Tokyo",
+    paths: ["jp", "jp/tokyo"],
+  },
 }
 
 function parseArgs() {
@@ -40,7 +65,10 @@ function parseArgs() {
   const source = get("--source")
   const pilot = get("--pilot") ?? "detroit"
   if (source !== "musicbrainz" && source !== "radio-browser") {
-    throw new Error("usage: run-pilot.ts --source musicbrainz|radio-browser [--pilot detroit] [--limit N]")
+    throw new Error("usage: run-pilot.ts --source musicbrainz|radio-browser [--pilot detroit|kingston|lagos|london|tokyo] [--limit N]")
+  }
+  if (!Object.keys(PILOT_GEO).includes(pilot)) {
+    throw new Error(`unknown pilot '${pilot}' — expected one of: ${Object.keys(PILOT_GEO).join(", ")}`)
   }
   return { source, pilot, limit: Number(get("--limit") ?? (source === "musicbrainz" ? 15 : 25)) }
 }
@@ -190,8 +218,28 @@ async function runMusicBrainz(client: Client, pilot: string, limit: number) {
   try {
     // Area identity + exact-match to the seeded canonical place.
     counters.requests += 1
-    const area = await findCityArea(geo.cityName!, [geo.stateName!, geo.countryName])
-    if (!area) throw new Error(`MB city area not found: ${geo.cityName}`)
+    const area = await findCityArea(
+      geo.cityName!,
+      [geo.stateName, geo.countryName].filter((n): n is string => typeof n === 'string' && n.length > 0),
+      { countryCode: geo.countryCode },
+    )
+    if (!area) {
+      // P15-T04 fail-closed: unresolved city identity becomes a recorded run
+      // error + partial status, never a guessed match.
+      counters.errors += 1
+      counters.notes.push(`MB city area not found: ${geo.cityName}`)
+      await finishRun(client, runId, "partial", {
+        request_count: counters.requests,
+        records_received: counters.received,
+        candidates_created: counters.created,
+        error_count: counters.errors,
+        error_summary: { notes: [...counters.notes] },
+      })
+      console.log(
+        `musicbrainz ${pilot}: PARTIAL (city area unresolved) requests=${counters.requests} created=${counters.created} errors=${counters.errors}`,
+      )
+      return
+    }
     const placeRow = await client
       .from("geo_places")
       .select("id")
@@ -432,6 +480,15 @@ async function runRadioBrowser(client: Client, pilot: string, limit: number) {
 
 async function main() {
   const { source, pilot, limit } = parseArgs()
+  // P15-T07 — per-provider kill switches, fail-closed (see
+  // lib/world/ingestion/operations.ts). WORLD_INGEST_KILLED stops everything.
+  if (process.env.WORLD_INGEST_KILLED?.toLowerCase() === "true") {
+    throw new Error("WORLD_INGEST_KILLED=true — global ingestion kill switch is engaged.")
+  }
+  const flagName = `WORLD_INGEST_${source.replace(/[^a-zA-Z0-9]+/g, "_").toUpperCase()}_ENABLED`
+  if (process.env[flagName]?.toLowerCase() !== "true" && process.env.WORLD_INGEST_ALLOW_UNSAFE !== "true") {
+    throw new Error(`${flagName}=true is required to run this provider (fail-closed by default).`)
+  }
   const url = process.env.WORLD_DB_URL
   const key = process.env.WORLD_SERVICE_KEY
   if (!url || !key) throw new Error("WORLD_DB_URL and WORLD_SERVICE_KEY required (local isolated stack only)")
