@@ -29,6 +29,9 @@ import {
   type VenueBookingLifecycleStatus,
 } from "@/lib/venue/booking-lifecycle"
 import { formatDurationMinutes } from "@/lib/venue/duration"
+import { BookingFiltersBar } from "./booking-filters-bar"
+import { BookingSettingsPanel } from "./booking-settings-panel"
+import { bookingsToCsv, downloadCsv } from "@/lib/venue/bookings-export"
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -464,7 +467,16 @@ export default function BookingsPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // VEN-099: export the already-authorized result set.
+              const csv = bookingsToCsv(filteredBookings ?? bookings ?? [])
+              downloadCsv(csv, `bookings-${new Date().toISOString().slice(0, 10)}.csv`)
+              toast({ title: "Export ready", description: `${(filteredBookings ?? bookings ?? []).length} booking(s) exported.` })
+            }}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -550,133 +562,25 @@ export default function BookingsPage() {
         </TabsList>
 
         <TabsContent value="requests" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[200px]">
-                  <Label htmlFor="search">Search</Label>
-            <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                      id="search"
-                      placeholder="Search by event name or contact..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-              />
-            </div>
-                </div>
-
-                <div className="min-w-[120px]">
-                  <Label>Status</Label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      {isLifecycleAvailable ? (
-                        <>
-                          <SelectItem value="inquiry">Inquiry</SelectItem>
-                          <SelectItem value="hold">Hold</SelectItem>
-                          <SelectItem value="offer">Offer</SelectItem>
-                          <SelectItem value="contract">Contract</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                        </>
-                      ) : (
-                        <>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="approved">Approved</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
-                        </>
-                      )}
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-                </div>
-
-                <div className="min-w-[150px]">
-                  <Label>Event Type</Label>
-                  <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
-              <SelectTrigger>
-                      <SelectValue placeholder="All types" />
-              </SelectTrigger>
-              <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="music">Music</SelectItem>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="entertainment">Entertainment</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-                </div>
-
-                <div className="min-w-[150px]">
-                  <Label>Genre</Label>
-                  <Select value={genreFilter} onValueChange={setGenreFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All genres" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Genres</SelectItem>
-                      <SelectItem value="edm">EDM</SelectItem>
-                      <SelectItem value="hiphop">Hip-Hop</SelectItem>
-                      <SelectItem value="rock">Rock</SelectItem>
-                      <SelectItem value="jazz">Jazz</SelectItem>
-                      <SelectItem value="pop">Pop</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="min-w-[150px]">
-                  <Label>Event Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFilter ? format(dateFilter, "PPP") : "Any date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateFilter}
-                        onSelect={setDateFilter}
-                        initialFocus
-                      />
-                      {dateFilter && (
-                        <div className="p-3 border-t">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDateFilter(undefined)}
-                            className="w-full"
-                          >
-                            Clear Date
-                          </Button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-            <Button
-              variant="outline"
-                  onClick={() => {
-                    setSearchTerm("")
-                    setStatusFilter("all")
-                    setEventTypeFilter("all")
-                    setDateFilter(undefined)
-                  }}
-            >
-                  Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          {/* VEN-097: filters extracted to a focused component */}
+          <BookingFiltersBar
+            values={{ searchTerm, statusFilter, eventTypeFilter, genreFilter, dateFilter }}
+            isLifecycleAvailable={isLifecycleAvailable}
+            onChange={(patch) => {
+              if ("searchTerm" in patch) setSearchTerm(patch.searchTerm ?? "")
+              if ("statusFilter" in patch) setStatusFilter(patch.statusFilter ?? "all")
+              if ("eventTypeFilter" in patch) setEventTypeFilter(patch.eventTypeFilter ?? "all")
+              if ("genreFilter" in patch) setGenreFilter(patch.genreFilter ?? "all")
+              if ("dateFilter" in patch) setDateFilter(patch.dateFilter)
+            }}
+            onClear={() => {
+              setSearchTerm("")
+              setStatusFilter("all")
+              setEventTypeFilter("all")
+              setGenreFilter("all")
+              setDateFilter(undefined)
+            }}
+          />
 
           {/* Booking Requests List */}
           <div className="space-y-4">
@@ -1023,106 +927,20 @@ export default function BookingsPage() {
         </TabsContent>
 
         <TabsContent value="settings">
-              <Card>
-                <CardHeader>
-              <CardTitle>Booking Settings</CardTitle>
-              <CardDescription>Configure your venue&apos;s booking preferences</CardDescription>
-                </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Booking Policies</h4>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="lead-time">Minimum Lead Time</Label>
-                    <Select value={leadTime} onValueChange={setLeadTime}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select lead time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1day">1 Day</SelectItem>
-                        <SelectItem value="3days">3 Days</SelectItem>
-                        <SelectItem value="1week">1 Week</SelectItem>
-                        <SelectItem value="2weeks">2 Weeks</SelectItem>
-                        <SelectItem value="1month">1 Month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="max-advance">Maximum Advance Booking</Label>
-                    <Select value={maxAdvance} onValueChange={setMaxAdvance}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select maximum advance" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="3months">3 Months</SelectItem>
-                        <SelectItem value="6months">6 Months</SelectItem>
-                        <SelectItem value="1year">1 Year</SelectItem>
-                        <SelectItem value="2years">2 Years</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="auto-approve">Auto-Approval Settings</Label>
-                    <Select value={autoApprove} onValueChange={setAutoApprove}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select auto-approval policy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manual">Manual Review (Recommended)</SelectItem>
-                        <SelectItem value="trusted">Trusted Clients Only</SelectItem>
-                        <SelectItem value="small">Small Events (&lt;50 people)</SelectItem>
-                        <SelectItem value="all">All Requests</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-medium">Notifications</h4>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="notification-email">Notification Email</Label>
-                    <Input
-                      id="notification-email"
-                      type="email"
-                      placeholder="bookings@yourvenue.com"
-                      value={notificationEmail}
-                      onChange={(e) => setNotificationEmail(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="response-template">Default Response Template</Label>
-                    <Textarea
-                      id="response-template"
-                      value={responseTemplate}
-                      onChange={(e) => setResponseTemplate(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="rejection-template">Rejection Template</Label>
-                    <Textarea
-                      id="rejection-template"
-                      value={rejectionTemplate}
-                      onChange={(e) => setRejectionTemplate(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t">
-                <Button onClick={() => void saveBookingSettings()} disabled={isSavingSettings}>
-                  {isSavingSettings ? "Saving…" : "Save Settings"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* VEN-097: policies/notifications panel extracted */}
+          <BookingSettingsPanel
+            values={{ leadTime, maxAdvance, autoApprove, notificationEmail, responseTemplate, rejectionTemplate }}
+            isSaving={isSavingSettings}
+            onChange={(patch) => {
+              if (patch.leadTime !== undefined) setLeadTime(patch.leadTime)
+              if (patch.maxAdvance !== undefined) setMaxAdvance(patch.maxAdvance)
+              if (patch.autoApprove !== undefined) setAutoApprove(patch.autoApprove)
+              if (patch.notificationEmail !== undefined) setNotificationEmail(patch.notificationEmail)
+              if (patch.responseTemplate !== undefined) setResponseTemplate(patch.responseTemplate)
+              if (patch.rejectionTemplate !== undefined) setRejectionTemplate(patch.rejectionTemplate)
+            }}
+            onSave={() => void saveBookingSettings()}
+          />
         </TabsContent>
       </Tabs>
 
