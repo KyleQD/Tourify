@@ -121,6 +121,26 @@ describe("composeViewport — density hints and hard caps", () => {
   })
 })
 
+describe("P23-T09 synthetic large-dataset stress", () => {
+  it("50k points stay bounded and fast to compose", () => {
+    const t0 = performance.now()
+    const result = composeViewport({ bounds: { north: 85, south: -85, east: 180, west: -180 }, zoom: 3.4 }, () =>
+      Array.from({ length: 50_000 }, (_, i) => ({
+        id: `q${i}`,
+        lat: (i % 170) - 85,
+        lng: ((i * 7) % 360) - 180,
+        weight: (i % 9) + 1,
+        layer: "places" as const,
+      })),
+    )
+    const elapsed = performance.now() - t0
+    if (!result.ok) throw new Error("expected ok")
+    expect(result.payload.clusters.length).toBeLessThanOrEqual(VIEWPORT_HARD_CAP)
+    // Composition is pure array work; 50k rows must finish in well under a second.
+    expect(elapsed).toBeLessThan(1000)
+  })
+})
+
 describe("frozen contract compatibility (P2-T08)", () => {
   it("v1.1 payload structurally satisfies the frozen v1.0 base fields", () => {
     const result = composeViewport({ bounds: BOUNDS, zoom: 2.2 }, () => source(50))

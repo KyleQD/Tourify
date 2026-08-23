@@ -80,6 +80,15 @@ export function WorldGlobeExperience({
   const [panelLoading, setPanelLoading] = useState(false)
   const [query, setQuery] = useState("")
   const [webglFailed, setWebglFailed] = useState(false)
+  // P23-T05 — reduced-motion users get instant panel transitions too.
+  const [reducedMotion, setReducedMotion] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setReducedMotion(query.matches)
+    const listener = (event: MediaQueryListEvent) => setReducedMotion(event.matches)
+    query.addEventListener("change", listener)
+    return () => query.removeEventListener("change", listener)
+  }, [])
 
   // P13-T05 — camera state for the viewport stream. Static pilots render
   // immediately; the stream refines density once camera state settles.
@@ -339,7 +348,7 @@ export function WorldGlobeExperience({
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 40 }}
-            transition={{ type: "spring", stiffness: 260, damping: 30 }}
+            transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 30 }}
             className="absolute inset-x-3 bottom-3 z-30 max-h-[62%] overflow-y-auto rounded-2xl border border-violet-400/20 bg-[#0a0d24]/92 p-5 backdrop-blur-xl md:inset-y-auto md:right-5 md:top-5 md:bottom-5 md:left-auto md:w-[380px]"
           >
             <button
