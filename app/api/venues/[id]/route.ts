@@ -5,6 +5,7 @@ import { normalizeVenueSlug } from '@/lib/venue/routing'
 import {
   isVenueProfileOwner,
   parseVenueProfileUpdate,
+  toPublicVenueProfile,
   venueProfileResponse,
 } from '@/lib/venue/venue-profile-contract'
 
@@ -227,19 +228,41 @@ export async function GET(
       eventDate: event.event_date,
     }))
 
-    const enhancedVenue = venueProfileResponse({
-      ...venue,
-      tagline: venue.description?.split('.')[0] || '',
-      stats,
-      recent_events: recentEvents || [],
-      upcomingEvents,
-      user_profile: userProfile,
-      // Generate a URL-friendly slug
-      url_slug:
-        venue.url_slug ||
-        venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
-        venue.id
-    }, ownerView)
+    const enhancedVenue = ownerView
+      ? // VEN-010: owners receive the full private contract.
+        venueProfileResponse(
+          {
+            ...venue,
+            tagline: venue.description?.split('.')[0] || '',
+            stats,
+            recent_events: recentEvents || [],
+            upcomingEvents,
+            user_profile: userProfile,
+            url_slug:
+              venue.url_slug ||
+              venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+              venue.id,
+          },
+          true,
+        )
+      : // VEN-009: anonymous/public consumers receive the allowlisted public
+        // contract only — no street address, owner ids, settings, or contacts.
+        {
+          ...toPublicVenueProfile({
+            ...(venue as unknown as Record<string, unknown>),
+            url_slug:
+              venue.url_slug ||
+              venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+              venue.id,
+          }),
+          stats: {
+            average_rating: stats.average_rating,
+            total_reviews: stats.total_reviews,
+            upcoming_events: stats.upcoming_events,
+          },
+          recent_events: recentEvents || [],
+          upcomingEvents,
+        }
 
     return NextResponse.json({ venue: enhancedVenue })
   } catch (error) {
