@@ -23,6 +23,14 @@ export type VenuePermission =
   | "approve_finances"
   | "pay_finances"
   | "export_finances"
+  // VEN-130 granular workforce authorities (ADR-0002)
+  | "roster_view"
+  | "roster_manage"
+  | "hiring_manage"
+  | "scheduling_manage"
+  | "timekeeping_view"
+  | "timekeeping_manage"
+  | "hr_sensitive_view"
   | "door_check_in"
 
 export interface VenueAccessResult {
