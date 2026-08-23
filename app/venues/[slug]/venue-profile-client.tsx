@@ -996,7 +996,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     View Venue Kit
                   </Button>
                 )}
-                {venue.user_id ? (
+                {
                   <Button
                     variant="outline"
                     className="w-full border-gray-600"
@@ -1005,20 +1005,7 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
                     <MessageCircle className="h-4 w-4 mr-2" />
                     Message Venue
                   </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full border-gray-600"
-                    onClick={() => {
-                      const email = venue.contact_info?.booking_email || venue.contact_info?.email
-                      if (email) window.location.href = `mailto:${email}?subject=Venue inquiry: ${venue.venue_name}`
-                    }}
-                    disabled={!venue.contact_info?.booking_email && !venue.contact_info?.email}
-                  >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Contact Venue
-                  </Button>
-                )}
+                }
                 <Button variant="outline" className="w-full border-gray-600">
                   <Heart className="h-4 w-4 mr-2" />
                   Save to Favorites
@@ -1055,15 +1042,19 @@ export function VenueProfileClient({ slug, initialVenue }: VenueProfileClientPro
         </div>
       </div>
 
-      {venue.user_id ? (
+      {/* VEN-025: threads land in the VENUE account inbox (target profile id +
+          account type), keyed to the institution — not the owner human — so
+          they survive membership changes; the API records the acting sender
+          separately from the target account. */}
+      {venue.id ? (
         <MessageModal
           isOpen={isMessageOpen}
           onClose={() => setIsMessageOpen(false)}
           recipient={{
-            id: venue.user_id,
-            username: venue.user_profile?.username || venue.url_slug || venue.venue_name,
+            id: venue.id,
+            username: venue.url_slug || venue.venue_name,
             full_name: venue.venue_name,
-            avatar_url: venue.avatar_url || venue.user_profile?.avatar_url,
+            avatar_url: venue.avatar_url,
           }}
           recipientAccount={{
             profileId: venue.id,
