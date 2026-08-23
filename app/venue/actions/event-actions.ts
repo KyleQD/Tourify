@@ -208,17 +208,46 @@ export async function deleteEvent(eventId: string) {
 
 export async function uploadEventDocument(eventId: string, file: File) {
   try {
-    // Placeholder: hook to storage later
-    void eventId
-    void file
-    
+    // VEN-100: real storage-backed upload — file goes to the `venue-media`
+    // bucket, metadata lands in event_documents (typed row), then revalidate.
+    if (!file || file.size === 0) {
+      return { success: false, error: 'No file provided' }
+    }
+    if (!file.type.startsWith('application/') && !file.type.startsWith('text/') && !file.type.startsWith('image/')) {
+      return { success: false, error: 'Unsupported file type' }
+    }
+    const MAX_BYTES = 25 * 1024 * 1024
+    if (file.size > MAX_BYTES) {
+      return { success: false, error: 'File exceeds the 25 MB limit' }
+    }
+
+    const service = createServiceRoleClient()
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase()
+    const path = `event-documents/${eventId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+    const { error: storageError } = await service.storage
+      .from('venue-media')
+      .upload(path, file, { upsert: false })
+    if (storageError) return { success: false, error: storageError.message }
+
+    const { data: publicUrl } = service.storage.from('venue-media').getPublicUrl(path)
+
+    const { error: insertError } = await service.from('event_documents').insert({
+      event_id: eventId,
+      title: file.name,
+      document_type: 'attachment',
+      content: publicUrl.publicUrl,
+      visible_to: 'all',
+    })
+    if (insertError) return { success: false, error: insertError.message }
+
     revalidateVenueOperationPaths(eventId)
-    
-    return { success: true }
+    return { success: true as const, url: publicUrl.publicUrl }
   } catch (error) {
-    return { 
-      success: false, 
-      error: 'Failed to upload document' 
+    console.error('[VEN-100] uploadEventDocument failed:', error)
+    return {
+      success: false,
+      error: 'Failed to upload document'
     }
   }
 } 

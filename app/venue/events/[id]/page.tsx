@@ -16,7 +16,6 @@ import {
   VENUE_EVENT_OPS_TABS,
   type VenueEventOpsTab,
 } from "@/lib/venue/event-ops-tabs"
-import { useVenueEvents } from "@/app/venue/lib/hooks/use-venue-events"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
@@ -48,7 +47,6 @@ function collaborationLabel(organizerId?: string, venueUserId?: string) {
 export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
   const { id } = use(params)
   const { venue } = useCurrentVenue()
-  const { events, isLoading } = useVenueEvents({ venueId: venue?.id })
   const [activeTab, setActiveTab] = useState<VenueEventOpsTab>("overview")
   const [ticketSummary, setTicketSummary] = useState<{
     sold: number
@@ -63,7 +61,39 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
   const [bookingRequest, setBookingRequest] = useState<any | null>(null)
   const [siteMapCount, setSiteMapCount] = useState<number>(0)
 
-  const event = useMemo(() => events.find((row) => row.id === id), [events, id])
+  // VEN-090: authorized single-event fetch replaces the ±365-day collection
+  // scan; loading/error states are explicit.
+  const [eventRecord, setEventRecord] = useState<any | null>(null)
+  const [eventError, setEventError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!venue?.id || !id) return
+    let cancelled = false
+    setEventError(null)
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `/api/venue/events/${encodeURIComponent(id)}?venue_id=${encodeURIComponent(venue.id)}`,
+          { credentials: "include", cache: "no-store" },
+        )
+        const payload = await res.json().catch(() => null)
+        if (cancelled) return
+        if (!res.ok || !payload?.success) {
+          setEventError(payload?.error || "Event not found")
+          setEventRecord(null)
+          return
+        }
+        setEventRecord(payload.data)
+      } catch {
+        if (!cancelled) setEventError("Failed to load event")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [venue?.id, id])
+
+  const event = eventRecord
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab")
@@ -155,7 +185,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
     return () => { cancelled = true }
   }, [venue?.id, id])
 
-  if (isLoading) return <VenuePageSkeleton />
+  if (!venue?.id || (!eventRecord && !eventError)) return <VenuePageSkeleton />
   if (!event) notFound()
 
   const collab = collaborationLabel(event.organizerId, venue?.user_id)
