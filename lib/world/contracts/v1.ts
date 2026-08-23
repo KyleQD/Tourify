@@ -1,5 +1,5 @@
 /**
- * World Core Contracts v1 — FROZEN (P2).
+ * World Core Contracts v1.1 — FROZEN (P2; v1.1 adds venue_place|located_in for P5).
  *
  * Source of truth for relation types, entity kinds, visibility levels,
  * confidence semantics, and lifecycle states. Everything here is fail-closed:
@@ -14,6 +14,7 @@
 // ─── Relation domains ─────────────────────────────────────────────────────
 
 export const RELATION_DOMAINS = [
+  "venue_place",
   "artist_place",
   "cultural_place",
   "cultural_graph",
@@ -32,6 +33,7 @@ export type RelationDomain = (typeof RELATION_DOMAINS)[number]
 
 /** Retained from Migration B seed (world_relation_types). */
 export const RETAINED_RELATION_KEYS = {
+  venue_place: [], // located_in is newly required below (v1.1)
   artist_place: [
     "active_in",
     "associated_with",
@@ -65,8 +67,9 @@ export const RETAINED_RELATION_KEYS = {
   radio_place: ["associated_with", "broadcasts_from", "serves"],
 } as const
 
-/** Newly required by the suite freeze (P2-T02). */
+/** Newly required by the suite freeze (P2-T02) and P5 (v1.1). */
 export const NEW_RELATION_KEYS = {
+  venue_place: ["located_in"],
   event_place: ["occurs_in"],
   org_place: ["headquartered_in", "associated_with"],
   content_place: ["about_place", "associated_with"],
@@ -80,6 +83,7 @@ export type RelationKey =
 
 /** Full frozen registry: domain → allowed relation keys. */
 export const RELATION_REGISTRY: Readonly<Record<RelationDomain, readonly string[]>> = Object.freeze({
+  venue_place: [...RETAINED_RELATION_KEYS.venue_place, ...NEW_RELATION_KEYS.venue_place],
   artist_place: [
     ...RETAINED_RELATION_KEYS.artist_place,
     ...NEW_RELATION_KEYS.artist_place_new,
