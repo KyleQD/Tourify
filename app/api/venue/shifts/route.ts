@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { canManageVenue, ensureVenueOperationalContext, getCurrentVenueContext } from "@/lib/venue/venue-access"
+import { canManageVenue, getCurrentVenueContext } from "@/lib/venue/venue-access"
 
 export const dynamic = "force-dynamic"
 
@@ -34,11 +34,9 @@ export async function GET(request: NextRequest) {
   if (!access.allowed) return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
 
   const service = createServiceRoleClient()
-  const venue = await getCurrentVenueContext(auth.supabase, auth.user.id, venueId)
-  if (!venue) return NextResponse.json({ success: false, error: "No manageable venue found" }, { status: 404 })
-  const mappedVenue = await ensureVenueOperationalContext(service as any, venue, auth.user.id)
-  // Live staff_shifts schema has no deleted_at / adhoc_venue_id columns.
-  void mappedVenue
+  // VEN-110: canonical scope is venue_profiles.id persisted directly in
+  // staff_shifts.venue_id — the live schema has no adhoc_venue_id column and
+  // its CHECK requires org_id or venue_id.
   let query = service.from("staff_shifts").select("*").eq("venue_id", venueId)
 
   const eventId = searchParams.get("eventId") || searchParams.get("event_id")
@@ -67,15 +65,12 @@ export async function POST(request: NextRequest) {
   if (!access.allowed) return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
 
   const service = createServiceRoleClient()
-  const venue = await getCurrentVenueContext(auth.supabase, auth.user.id, body.venue_id)
-  if (!venue) return NextResponse.json({ success: false, error: "No manageable venue found" }, { status: 404 })
-  const mappedVenue = await ensureVenueOperationalContext(service as any, venue, auth.user.id)
   const { data, error } = await service
     .from("staff_shifts")
     .insert({
       ...body,
-      venue_id: null,
-      adhoc_venue_id: mappedVenue.venuesV2Id || null,
+      // VEN-110: venue_id comes straight from the validated request body —
+      // the canonical venue_profiles.id. No operational-mirror indirection.
       created_by: auth.user.id,
     })
     .select("*")

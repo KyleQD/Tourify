@@ -15,7 +15,7 @@ import {
   Download,
   Upload
 } from 'lucide-react'
-import { ShiftCalendar } from '@/components/venue/staff/shift-calendar'
+import { VenueStaffSchedulerShell } from '@/components/venue/staff/venue-staff-scheduler-shell'
 import { ShiftManagement } from '@/components/venue/staff/shift-management'
 import { ShiftTemplates } from '@/components/venue/staff/shift-templates'
 import { ShiftAnalytics } from '@/components/venue/staff/shift-analytics'
@@ -265,7 +265,9 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
             </CardHeader>
             <CardContent>
               <Suspense fallback={<div>Loading calendar...</div>}>
-                <ShiftCalendar venueId={venueId} />
+                {/* VEN-109: canonical scheduler shell (VenueStaffShiftsPanel) replaces the
+                    ShiftCalendar contract, which sent incompatible date params and payloads. */}
+                <VenueStaffSchedulerShell venueId={venueId} />
               </Suspense>
             </CardContent>
           </Card>

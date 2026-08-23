@@ -21,16 +21,28 @@ async function getShiftVenue(service: any, shiftId: string) {
 }
 
 async function resolveVenueProfileIdForShift(service: any, shift: any) {
+  // VEN-110: canonical rows carry venue_profiles.id directly in venue_id.
+  if (shift?.venue_id) return shift.venue_id
+
+  // Legacy fallback for pre-migration rows scoped by the operational mirror.
   if (shift?.adhoc_venue_id) {
     const { data } = await service
+      .from("venue_identity_bridges")
+      .select("venue_profile_id")
+      .eq("venues_v2_id", shift.adhoc_venue_id)
+      .maybeSingle()
+    if (data?.venue_profile_id) return data.venue_profile_id
+
+    // Settings-JSON fallback during the ADR-0001 migration window.
+    const { data: legacy } = await service
       .from("venue_profiles")
       .select("id")
       .contains("settings", { venues_v2_id: shift.adhoc_venue_id })
       .maybeSingle()
-    if (data?.id) return data.id
+    if (legacy?.id) return legacy.id
   }
 
-  return shift?.venue_id || null
+  return null
 }
 
 export async function PATCH(request: NextRequest) {
