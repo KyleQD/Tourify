@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -122,6 +124,10 @@ export default function FinancesPage() {
   const { toast } = useToast()
   
   const [transactions, setTransactions] = useState<Transaction[]>([])
+
+  // VEN-092: event-ops context binding.
+  const searchParamsCtx = useSearchParams()
+  const eventIdContext = searchParamsCtx.get("event_id")
   const [manualTransactions, setManualTransactions] = useState<Transaction[]>([])
   const [summary, setSummary] = useState<FinancialSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -288,6 +294,9 @@ export default function FinancesPage() {
     // Status filter
     if (statusFilter !== "all" && transaction.status !== statusFilter) return false
 
+    // VEN-092: event-ops context binding — scope to the acting event.
+    if (eventIdContext && transaction.event_id !== eventIdContext) return false
+
     // Search filter
     if (searchTerm && !transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) &&
         !transaction.category.toLowerCase().includes(searchTerm.toLowerCase())) return false
@@ -404,6 +413,12 @@ export default function FinancesPage() {
 
   return (
     <div className="space-y-6">
+      {eventIdContext && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">
+          Showing finances for event <span className="font-semibold">{eventIdContext}</span>.{" "}
+          <Link href="/venue/finances" className="underline">Clear context</Link>
+        </div>
+      )}
       <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Financial Management</h1>

@@ -42,6 +42,8 @@ interface VenueTicketEvent {
 function TicketsPageInner() {
   const searchParams = useSearchParams()
   const checkInView = searchParams.get("view") === "check-in"
+  // VEN-092: event-ops context binding.
+  const eventIdContext = searchParams.get("event_id")
   const { venue, isLoading: isVenueLoading } = useCurrentVenue()
   const [showCreateEventModal, setShowCreateEventModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -65,7 +67,10 @@ function TicketsPageInner() {
       }
 
       const payload = await response.json()
-      const rows = Array.isArray(payload?.summary?.events) ? payload.summary.events : []
+      const allRows = Array.isArray(payload?.summary?.events) ? payload.summary.events : []
+      const rows = eventIdContext
+        ? allRows.filter((event: { id?: string }) => String(event.id) === eventIdContext)
+        : allRows
       const mapped = rows.map((event: any): VenueTicketEvent => {
         const ticketTypes = Array.isArray(event.ticket_types) ? event.ticket_types : []
         const ticketsTotal =
@@ -132,6 +137,12 @@ function TicketsPageInner() {
 
   return (
     <div className="space-y-6 pb-20">
+      {eventIdContext && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">
+          Showing ticketing for event <span className="font-semibold">{eventIdContext}</span>.{" "}
+          <Link href="/venue/dashboard/tickets" className="underline">Clear context</Link>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold">Ticket Management</h1>

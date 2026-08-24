@@ -309,10 +309,10 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                   <Link href={`/venue/events/${event.id}/check-in`}>Open door</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                  <Link href="/venue/staff/scheduling">Assign staff</Link>
+                  <Link href={`/venue/staff/scheduling?event_id=${event.id}`}>Assign staff</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                  <Link href="/venue/messages">
+                  <Link href={`/venue/messages?event_id=${event.id}`}>
                     Message partners
                     <ExternalLink className="ml-1 h-3.5 w-3.5" />
                   </Link>
@@ -352,7 +352,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                       <Link href={`/venue/events/${event.id}/check-in`}>Open check-in</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                      <Link href="/venue/dashboard/tickets">Ticket management</Link>
+                      <Link href={`/venue/dashboard/tickets?event_id=${event.id}`}>Ticket management</Link>
                     </Button>
                   </div>
                 </>
@@ -361,7 +361,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                   icon={QrCode}
                   title="Ticketing & door"
                   description="No ticket sales yet for this event. Open ticket management to configure tiers, then run door check-in."
-                  action={{ label: "Open tickets", href: "/venue/dashboard/tickets" }}
+                  action={{ label: "Open tickets", href: `/venue/dashboard/tickets?event_id=${event.id}` }}
                 />
               )}
             </CardContent>
@@ -374,7 +374,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base text-zinc-100">Staff & crew</CardTitle>
               <Button asChild size="sm" className={VENUE_PRIMARY_BTN}>
-                <Link href="/venue/staff/scheduling">Manage shifts</Link>
+                <Link href={`/venue/staff/scheduling?event_id=${event.id}`}>Manage shifts</Link>
               </Button>
             </CardHeader>
             <CardContent>
@@ -383,7 +383,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                   icon={Users}
                   title="No shifts scheduled"
                   description="Assign staff shifts for this event from the Scheduling page."
-                  action={{ label: "Open scheduling", href: "/venue/staff/scheduling" }}
+                  action={{ label: "Open scheduling", href: `/venue/staff/scheduling?event_id=${event.id}` }}
                 />
               ) : (
                 <div className="divide-y divide-zinc-800">
@@ -418,7 +418,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base text-zinc-100">Equipment</CardTitle>
               <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                <Link href="/venue/equipment">Manage all</Link>
+                <Link href={`/venue/equipment?event_id=${event.id}`}>Manage all</Link>
               </Button>
             </CardHeader>
             <CardContent>
@@ -479,7 +479,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base text-zinc-100">Advance documents</CardTitle>
               <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                <Link href="/venue/documents">Manage all</Link>
+                <Link href={`/venue/documents?event_id=${event.id}`}>Manage all</Link>
               </Button>
             </CardHeader>
             <CardContent>
@@ -488,7 +488,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                   icon={FileText}
                   title="No documents"
                   description="Upload riders, tech specs, insurance certificates, and house rules in Documents."
-                  action={{ label: "Open documents", href: "/venue/documents" }}
+                  action={{ label: "Open documents", href: `/venue/documents?event_id=${event.id}` }}
                 />
               ) : (
                 <div className="divide-y divide-zinc-800">
@@ -543,7 +543,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base text-zinc-100">Event communications</CardTitle>
               <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                <Link href="/venue/messages">Open inbox</Link>
+                <Link href={`/venue/messages?event_id=${event.id}`}>Open inbox</Link>
               </Button>
             </CardHeader>
             <CardContent>
@@ -568,7 +568,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                     )}
                   </div>
                   <Button asChild size="sm" className={VENUE_PRIMARY_BTN}>
-                    <Link href="/venue/messages">
+                    <Link href={`/venue/messages?event_id=${event.id}`}>
                       <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
                       Message organizer
                     </Link>
@@ -579,7 +579,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                   icon={MessageSquare}
                   title="No booking request found"
                   description="If this event came in via a booking request, the requester details will appear here. Message artists and organizers from the venue inbox."
-                  action={{ label: "Open messages", href: "/venue/messages" }}
+                  action={{ label: "Open messages", href: `/venue/messages?event_id=${event.id}` }}
                 />
               )}
             </CardContent>
@@ -592,7 +592,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base text-zinc-100">Revenue & settlements</CardTitle>
               <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                <Link href="/venue/finances">Full finances</Link>
+                <Link href={`/venue/finances?event_id=${event.id}`}>Full finances</Link>
               </Button>
             </CardHeader>
             <CardContent>
@@ -630,7 +630,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                       </Link>
                     </Button>
                     <Button asChild size="sm" variant="outline" className="border-zinc-700">
-                      <Link href="/venue/finances">View all finances</Link>
+                      <Link href={`/venue/finances?event_id=${event.id}`}>View all finances</Link>
                     </Button>
                   </div>
                 </div>
@@ -639,7 +639,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                   icon={DollarSign}
                   title="No revenue data yet"
                   description="Ticket sales and revenue for this event will appear here once tickets are sold."
-                  action={{ label: "Set up ticketing", href: "/venue/dashboard/tickets" }}
+                  action={{ label: "Set up ticketing", href: `/venue/dashboard/tickets?event_id=${event.id}` }}
                 />
               )}
             </CardContent>

@@ -15,6 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
@@ -53,7 +55,7 @@ import {
   Calendar,
   Tag,
   Shield,
-  Link,
+  Link as LinkIcon,
 } from "lucide-react"
 
 interface Document {
@@ -114,6 +116,9 @@ const formatFileSize = (bytes: number) => {
 
 export default function DocumentsPage() {
   const { venue, isLoading: venueLoading } = useCurrentVenue()
+  // VEN-092: event-ops context binding.
+  const searchParamsCtx = useSearchParams()
+  const eventIdContext = searchParamsCtx.get("event_id")
   const { toast } = useToast()
   
   const [documents, setDocuments] = useState<Document[]>([])
@@ -150,7 +155,31 @@ export default function DocumentsPage() {
     
     try {
       setIsLoading(true)
-      const documentsData = await venueService.getVenueDocuments(venue.id)
+      // VEN-092: when opened from event ops, show ONLY that event's documents
+      // (event_documents store) instead of the venue-wide library.
+      let documentsData: Document[] = []
+      if (eventIdContext) {
+        const supabase = (await import("@/lib/supabase/client")).default
+        const { data: eventDocs } = await supabase
+          .from("event_documents")
+          .select("id, title, content, document_type, created_at")
+          .eq("event_id", eventIdContext)
+          .order("created_at", { ascending: false })
+        documentsData = (eventDocs ?? []).map((d): Document => ({
+          id: String(d.id),
+          name: String(d.title ?? "Event document"),
+          document_type: "other" as const,
+          file_url: String(d.content ?? ""),
+          file_size: 0,
+          mime_type: "application/octet-stream",
+          is_public: false,
+          uploaded_by: "Event ops",
+          created_at: String(d.created_at ?? new Date().toISOString()),
+          updated_at: String(d.created_at ?? new Date().toISOString()),
+        }))
+      } else {
+        documentsData = (await venueService.getVenueDocuments(venue.id)) as Document[]
+      }
       
       const enhancedDocuments: Document[] = documentsData.map((doc) => ({
         ...doc,
@@ -308,6 +337,12 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6">
+      {eventIdContext && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">
+          Showing documents for event <span className="font-semibold">{eventIdContext}</span>.{" "}
+          <Link href="/venue/documents" className="underline">Clear context</Link>
+        </div>
+      )}
       <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Document Management</h1>
@@ -717,7 +752,7 @@ export default function DocumentsPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">Public</Badge>
                         <Button variant="outline" size="sm">
-                          <Link className="h-4 w-4 mr-2" />
+                          <LinkIcon className="h-4 w-4 mr-2" />
                           Copy Link
                         </Button>
                       </div>
