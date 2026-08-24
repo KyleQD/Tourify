@@ -1,0 +1,877 @@
+{
+  "schema_version": "world-history-seed-v0.1",
+  "pilot_key": "new-orleans",
+  "place_path": "us/la/new-orleans",
+  "overview": {
+    "musical_identity": "The birthplace of jazz, where African rhythms, Caribbean song, brass bands, and barrelhouse piano fused into America's original musical art form."
+  },
+  "entities": [
+    {
+      "seed_id": "new_orleans_buddy_bolden",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-buddy_bolden",
+      "canonical_name": "Buddy Bolden",
+      "short_description": "Cornetist whose loud, blues-inflected band around 1895-1906 is remembered as the first jazz.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_jelly_roll_morton",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-jelly_roll_morton",
+      "canonical_name": "Jelly Roll Morton",
+      "short_description": "Creole pianist-composer who bridged ragtime and jazz and claimed to have 'invented' the music in 1902.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_louis_armstrong",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-louis_armstrong",
+      "canonical_name": "Louis Armstrong",
+      "short_description": "Trumpeter and singer from the Storyville era who became jazz's first great soloist.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_king_oliver",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-king_oliver",
+      "canonical_name": "King Oliver",
+      "short_description": "Cornetist and bandleader who mentored Armstrong and led a leading Creole Jazz Band.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_sidney_bechet",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-sidney_bechet",
+      "canonical_name": "Sidney Bechet",
+      "short_description": "Soprano saxophone and clarinet virtuoso, one of jazz's first great solo voices.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_fats_domino",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-fats_domino",
+      "canonical_name": "Fats Domino",
+      "short_description": "Rhythm-and-blues pioneer whose boogie-woogie piano anchored early rock and roll.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_professor_longhair",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-professor_longhair",
+      "canonical_name": "Professor Longhair",
+      "short_description": "Piano innovator whose rhumba-flavored left hand defined New Orleans rhythm and blues.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_allen_toussaint",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-allen_toussaint",
+      "canonical_name": "Allen Toussaint",
+      "short_description": "Songwriter, arranger, and producer central to the city's soul and funk legacy.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_dr_john",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-dr_john",
+      "canonical_name": "Dr. John",
+      "short_description": "Pianist and singer who wrapped New Orleans funk and voodoo imagery into a global persona.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_mahalia_jackson",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-mahalia_jackson",
+      "canonical_name": "Mahalia Jackson",
+      "short_description": "Gospel's greatest voice, born uptown and raised in the city's Baptist tradition.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_irma_thomas",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-irma_thomas",
+      "canonical_name": "Irma Thomas",
+      "short_description": "The 'Soul Queen of New Orleans,' a defining voice of the city's R&B era.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_ernie_k_doe",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-ernie_k_doe",
+      "canonical_name": "Ernie K-Doe",
+      "short_description": "R&B showman behind the 1961 chart-topper 'Mother-in-Law.'",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_wynton_marsalis",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-wynton_marsalis",
+      "canonical_name": "Wynton Marsalis",
+      "short_description": "Trumpeter and artistic director who championed the acoustic jazz canon worldwide.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_big_freedia",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-big_freedia",
+      "canonical_name": "Big Freedia",
+      "short_description": "Bounce icon who carried the city's high-energy call-and-response genre to national stages.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_trombone_shorty",
+      "entity_type": "artist_reference",
+      "slug": "new_orleans-trombone_shorty",
+      "canonical_name": "Trombone Shorty",
+      "short_description": "Trombonist-trumpeter leading the modern brass-band revival.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_black_bottom_stomp_1926",
+      "entity_type": "recording_reference",
+      "slug": "new_orleans-black_bottom_stomp_1926",
+      "canonical_name": "Black Bottom Stomp (1926)",
+      "short_description": "Jelly Roll Morton's Red Hot Peppers set the standard for composed small-group jazz.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1926
+    },
+    {
+      "seed_id": "new_orleans_west_end_blues_1928",
+      "entity_type": "recording_reference",
+      "slug": "new_orleans-west_end_blues_1928",
+      "canonical_name": "West End Blues (1928)",
+      "short_description": "Armstrong's opening cadenza redefined what a solo could be.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1928
+    },
+    {
+      "seed_id": "new_orleans_the_fat_man_1949",
+      "entity_type": "recording_reference",
+      "slug": "new_orleans-the_fat_man_1949",
+      "canonical_name": "The Fat Man (1949)",
+      "short_description": "Domino's million-selling R&B record often cited among the first rock-and-roll hits.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1949
+    },
+    {
+      "seed_id": "new_orleans_tipitina_1959",
+      "entity_type": "recording_reference",
+      "slug": "new_orleans-tipitina_1959",
+      "canonical_name": "Tipitina (1959)",
+      "short_description": "Professor Longhair's rhumba-boogie signature.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1959
+    },
+    {
+      "seed_id": "new_orleans_right_place_wrong_time_1973",
+      "entity_type": "recording_reference",
+      "slug": "new_orleans-right_place_wrong_time_1973",
+      "canonical_name": "Right Place, Wrong Time (1973)",
+      "short_description": "Dr. John's funk-era crossover smash arranged by Toussaint.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1973
+    },
+    {
+      "seed_id": "new_orleans_cornet_trumpet_lineage",
+      "entity_type": "instrument",
+      "slug": "new_orleans-cornet_trumpet_lineage",
+      "canonical_name": "Cornet & Trumpet",
+      "short_description": "The lead voice of early collective improvisation, from Bolden through Armstrong.",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_barrelhouse_piano",
+      "entity_type": "instrument",
+      "slug": "new_orleans-barrelhouse_piano",
+      "canonical_name": "Barrelhouse Piano",
+      "short_description": "Rolling, rhumba-tinted keyboard style unique to the city's parlors and bars.",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_brass_band_trombone",
+      "entity_type": "instrument",
+      "slug": "new_orleans-brass_band_trombone",
+      "canonical_name": "Brass-Band Trombone",
+      "short_description": "The tailgating slide lines that still push second-line parades.",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_congo_square",
+      "entity_type": "studio_landmark",
+      "slug": "new_orleans-congo_square",
+      "canonical_name": "Congo Square",
+      "short_description": "Public square where enslaved and free people gathered on Sundays to drum and dance, sustaining African rhythmic traditions.",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "new_orleans_preservation_hall_1961",
+      "entity_type": "studio_landmark",
+      "slug": "new_orleans-preservation_hall_1961",
+      "canonical_name": "Preservation Hall",
+      "short_description": "French Quarter venue opened in 1961 to protect traditional New Orleans jazz.",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "new_orleans_matassa_jm_studio_1945",
+      "entity_type": "studio_landmark",
+      "slug": "new_orleans-matassa_jm_studio_1945",
+      "canonical_name": "Cosimo Matassa's J&M Studio",
+      "short_description": "Rampart Street studio where Fats Domino, Little Richard, and scores of others cut foundational R&B from 1945.",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "new_orleans_bolden_band_c1895",
+      "entity_type": "historical_milestone",
+      "slug": "new_orleans-bolden_band_c1895",
+      "canonical_name": "Buddy Bolden's band takes shape",
+      "short_description": "The first jazz band leaves its mark on Storyville-era New Orleans.",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1895
+    },
+    {
+      "seed_id": "new_orleans_storyville_opens_1897",
+      "entity_type": "historical_milestone",
+      "slug": "new_orleans-storyville_opens_1897",
+      "canonical_name": "Storyville district opens",
+      "short_description": "The legal red-light district concentrates pianists, brass players, and blues shouters.",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1897
+    },
+    {
+      "seed_id": "new_orleans_hot_five_sessions_1925",
+      "entity_type": "historical_milestone",
+      "slug": "new_orleans-hot_five_sessions_1925",
+      "canonical_name": "Armstrong's Hot Five sessions begin",
+      "short_description": "Studio series that turned jazz into a soloist's art.",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1925
+    },
+    {
+      "seed_id": "new_orleans_domino_rock_pioneer_1949",
+      "entity_type": "historical_milestone",
+      "slug": "new_orleans-domino_rock_pioneer_1949",
+      "canonical_name": "'The Fat Man' launches R&B into rock",
+      "short_description": "Imperial Records release becomes a milestone of early rock and roll.",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1949
+    },
+    {
+      "seed_id": "new_orleans_jazz_fest_founded_1969",
+      "entity_type": "historical_milestone",
+      "slug": "new_orleans-jazz_fest_founded_1969",
+      "canonical_name": "New Orleans Jazz & Heritage Festival founded",
+      "short_description": "Annual festival institutionalizes the city's musical heritage.",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1969
+    },
+    {
+      "seed_id": "new_orleans_early_jazz_scene",
+      "entity_type": "scene",
+      "slug": "new_orleans-early_jazz_scene",
+      "canonical_name": "Early Jazz (Dixieland)",
+      "short_description": "Collective-improvising small bands of the Storyville era.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "smithsonian_jazz_oral_history"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_nola_rnb_scene",
+      "entity_type": "scene",
+      "slug": "new_orleans-nola_rnb_scene",
+      "canonical_name": "New Orleans R&B",
+      "short_description": "Piano-driven rhythm and blues engineered by Cosimo Matassa and Allen Toussaint.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "smithsonian_jazz_oral_history"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_bounce_scene",
+      "entity_type": "scene",
+      "slug": "new_orleans-bounce_scene",
+      "canonical_name": "Bounce",
+      "short_description": "Sample-driven call-and-response party rap born in the 1980s-'90s housing projects.",
+      "source_keys": [
+        "nola_jazz_museum",
+        "smithsonian_jazz_oral_history"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_mardi_gras_indians",
+      "entity_type": "tradition",
+      "slug": "new_orleans-mardi_gras_indians",
+      "canonical_name": "Mardi Gras Indians",
+      "short_description": "Masked tribes hand-sewing suits and 'spy boy' call-and-response chants on Carnival day.",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_second_line_parades",
+      "entity_type": "tradition",
+      "slug": "new_orleans-second_line_parades",
+      "canonical_name": "Second-Line Parades",
+      "short_description": "Social aid and pleasure club processions with brass bands and dancing followers.",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "new_orleans_nola_jazz_fest_tradition",
+      "entity_type": "tradition",
+      "slug": "new_orleans-nola_jazz_fest_tradition",
+      "canonical_name": "Jazz & Heritage Festival",
+      "short_description": "Annual gathering of jazz, gospel, R&B, and Louisiana traditions since 1969.",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ],
+  "relationships": [
+    {
+      "subject_seed_id": "new_orleans_black_bottom_stomp_1926",
+      "relation_key": "credited_to",
+      "object_seed_id": "new_orleans_buddy_bolden",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_west_end_blues_1928",
+      "relation_key": "credited_to",
+      "object_seed_id": "new_orleans_jelly_roll_morton",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_the_fat_man_1949",
+      "relation_key": "credited_to",
+      "object_seed_id": "new_orleans_louis_armstrong",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_tipitina_1959",
+      "relation_key": "credited_to",
+      "object_seed_id": "new_orleans_king_oliver",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_right_place_wrong_time_1973",
+      "relation_key": "credited_to",
+      "object_seed_id": "new_orleans_sidney_bechet",
+      "source_keys": [
+        "nola_jazz_museum"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_buddy_bolden",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_early_jazz_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_buddy_bolden",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_cornet_trumpet_lineage",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_jelly_roll_morton",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_nola_rnb_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_jelly_roll_morton",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_barrelhouse_piano",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_louis_armstrong",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_bounce_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_louis_armstrong",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_brass_band_trombone",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_king_oliver",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_early_jazz_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_king_oliver",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_cornet_trumpet_lineage",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_sidney_bechet",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_nola_rnb_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_sidney_bechet",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_barrelhouse_piano",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_fats_domino",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_bounce_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_fats_domino",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_brass_band_trombone",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_professor_longhair",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_early_jazz_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_professor_longhair",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_cornet_trumpet_lineage",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_allen_toussaint",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_nola_rnb_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_allen_toussaint",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_barrelhouse_piano",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_dr_john",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_bounce_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_dr_john",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_brass_band_trombone",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_mahalia_jackson",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_early_jazz_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_mahalia_jackson",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_cornet_trumpet_lineage",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_irma_thomas",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_nola_rnb_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_irma_thomas",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_barrelhouse_piano",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_ernie_k_doe",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_bounce_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_ernie_k_doe",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_brass_band_trombone",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_wynton_marsalis",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_early_jazz_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_wynton_marsalis",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_cornet_trumpet_lineage",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_big_freedia",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_nola_rnb_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_big_freedia",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_barrelhouse_piano",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_trombone_shorty",
+      "relation_key": "part_of",
+      "object_seed_id": "new_orleans_bounce_scene",
+      "source_keys": [
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "new_orleans_trombone_shorty",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "new_orleans_brass_band_trombone",
+      "source_keys": [
+        "nola_historical_collection"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ]
+}

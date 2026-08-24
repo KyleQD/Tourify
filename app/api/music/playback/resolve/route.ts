@@ -3,21 +3,38 @@
  *
  * POST /api/music/playback/resolve
  *
- * Resolves a PlaybackDescriptor for a canonical Tourify track.
- * For Audius tracks: calls the adapter to get a temporary stream URL.
- * For native tracks: returns the stream path for the client to use directly.
+ * Resolves a playable instruction for canonical Tourify tracks and, behind
+ * disabled World flags, radio streams and world media (sound guides, archive
+ * audio, narration).
  *
- * SECURITY: The resolved stream URL is returned with Cache-Control: private, no-store.
- * It is never logged or persisted.
+ * Track behavior is byte-identical to the pre-evolution route: absent `kind`
+ * means `track`, and explicit `{ kind: "track" }` behaves the same way.
+ * Non-track kinds dispatch through the generic media resolver registry.
+ *
+ * SECURITY: resolved stream URLs are returned with Cache-Control: private, no-store.
+ * They are never logged or persisted. Server-only source records
+ * (world_radio_streams / world_media_sources) are never returned wholesale.
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
 import { jsonError, readJson, requireApiUser } from "@/lib/api/route-helpers"
 import { createRateLimiter } from "@/lib/utils/rate-limit"
 import { isAudiusEnabled } from "@/lib/music/providers/audius/audius-config"
 import { audiusAdapter } from "@/lib/music/providers/audius/audius-adapter"
 import { TourifyMusicError } from "@/lib/music/providers/contracts"
+import { parseResolveRequest } from "@/lib/playback/normalize"
+import {
+  dispatchMediaResolve,
+  registerMediaResolver,
+} from "@/lib/playback/registry"
+import { trackResolver } from "@/lib/playback/resolvers/track"
+import { radioStreamResolver } from "@/lib/playback/resolvers/radio"
+import {
+  archiveAudioResolver,
+  narrationResolver,
+  soundGuideResolver,
+} from "@/lib/playback/resolvers/world-media"
+import { getTrustedMusicWriteClient } from "@/lib/music/music-access"
 
 export const dynamic = "force-dynamic"
 
@@ -27,20 +44,29 @@ const resolveLimiter = createRateLimiter({
   windowSec: 60,
 })
 
-const ResolveBodySchema = z.object({
-  trackId: z.string().uuid(),
-  playbackSessionId: z.string().uuid().optional().nullable(),
-  sourceSurface: z.string().max(100).optional().nullable(),
-})
+// Generic media resolvers (radio/world kinds). Track requests intentionally
+// keep the original inline path below so legacy behavior cannot drift.
+let resolversRegistered = false
+function ensureResolvers() {
+  if (resolversRegistered) return
+  registerMediaResolver(radioStreamResolver)
+  registerMediaResolver(soundGuideResolver)
+  registerMediaResolver(archiveAudioResolver)
+  registerMediaResolver(narrationResolver)
+  resolversRegistered = true
+}
 
 export async function POST(request: NextRequest) {
   const authResult = await requireApiUser(request)
   if (!authResult.success) return authResult.response
   const { user, supabase } = authResult.auth
 
-  const bodyResult = await readJson(request, ResolveBodySchema)
-  if (!bodyResult.success) return bodyResult.response
-  const { trackId, playbackSessionId, sourceSurface } = bodyResult.data
+  const rawBody = await request.clone().json().catch(() => null)
+  const parsed = rawBody === null ? { ok: false as const, reason: "invalid JSON body" } : parseResolveRequest(rawBody)
+  if (!parsed.ok) {
+    return jsonError({ status: 400, code: "INVALID_REQUEST", message: parsed.reason, retryable: false })
+  }
+  const body = parsed.request
 
   // Rate limit by user ID
   const rl = await resolveLimiter.check(user.id)
@@ -49,6 +75,39 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (body.kind !== "track") {
+      ensureResolvers()
+      const trustedSupabase = await getTrustedMusicWriteClient(supabase)
+      const resolution = await dispatchMediaResolve(body, {
+        supabase,
+        trustedSupabase,
+        userId: user.id,
+      })
+      // SECURITY: never log resolution.sourceUrl; private operational records
+      // are projected into identity/attribution only.
+      const response = NextResponse.json({
+        data: {
+          kind: resolution.identity.kind,
+          identityId: resolution.identity.id,
+          title: resolution.identity.title,
+          creatorName: resolution.identity.creatorName ?? null,
+          attribution: resolution.identity.attribution ?? null,
+          sourceType: resolution.sourceType,
+          sourceUrl: resolution.sourceUrl,
+          expiresAt: resolution.expiresAt ?? null,
+          capabilities: resolution.capabilities,
+          playbackSessionId: resolution.playbackSessionId ?? null,
+        },
+        error: null,
+      })
+      response.headers.set("Cache-Control", "private, no-store")
+      return response
+    }
+
+    // ── Legacy track path (unchanged) ───────────────────────────────
+    const trackId = body.trackId
+    const { playbackSessionId } = body
+
     // Load the canonical track and its provider reference
     const { data: track, error: trackError } = await supabase
       .from("artist_music")
@@ -121,6 +180,8 @@ export async function POST(request: NextRequest) {
       const status = err.code === "TRACK_NOT_FOUND" ? 404
         : err.code === "TRACK_UNAVAILABLE" ? 410
         : err.code === "FEATURE_DISABLED" ? 403
+        : err.code === "FORBIDDEN" ? 403
+        : err.code === "INVALID_REQUEST" ? 400
         : err.code === "PROVIDER_TIMEOUT" ? 504
         : err.code === "PLAYBACK_RESOLUTION_FAILED" ? 502
         : 502

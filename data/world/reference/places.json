@@ -1,0 +1,342 @@
+{
+  "schema_version": "world-place-seed-v0.1",
+  "places": [
+    {
+      "canonical_path": "us",
+      "slug": "us",
+      "name": "United States",
+      "place_type": "country",
+      "country_code": "US",
+      "parent_path": null,
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "us/mi",
+      "slug": "mi",
+      "name": "Michigan",
+      "place_type": "state_province",
+      "country_code": "US",
+      "admin1_code": "MI",
+      "parent_path": "us",
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "us/mi/detroit",
+      "slug": "detroit",
+      "name": "Detroit",
+      "place_type": "city",
+      "country_code": "US",
+      "admin1_code": "MI",
+      "parent_path": "us/mi",
+      "publication_status": "draft",
+      "aliases": [
+        "Detroit, Michigan",
+        "Detroit, MI"
+      ],
+      "center": {
+        "lat": 42.3316667,
+        "lng": -83.0475,
+        "source_key": "wikidata_geo"
+      },
+      "external_refs": [
+        {
+          "provider": "wikidata",
+          "external_type": "place",
+          "external_id": "Q12439",
+          "canonical_url": "https://www.wikidata.org/wiki/Q12439",
+          "source_key": "wikidata_geo"
+        },
+        {
+          "provider": "musicbrainz",
+          "external_type": "area",
+          "external_id": "b03ff310-d8e2-45cf-9455-769f76641eb2",
+          "canonical_url": "https://musicbrainz.org/area/b03ff310-d8e2-45cf-9455-769f76641eb2",
+          "source_key": "musicbrainz_geo"
+        }
+      ]
+    },
+    {
+      "canonical_path": "jm",
+      "slug": "jm",
+      "name": "Jamaica",
+      "place_type": "country",
+      "country_code": "JM",
+      "parent_path": null,
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "jm/kingston",
+      "slug": "kingston",
+      "name": "Kingston",
+      "place_type": "city",
+      "country_code": "JM",
+      "parent_path": "jm",
+      "publication_status": "draft",
+      "aliases": [
+        "Kingston, Jamaica"
+      ],
+      "center": {
+        "lat": 17.9713889,
+        "lng": -76.7930556,
+        "source_key": "wikidata_geo"
+      },
+      "external_refs": [
+        {
+          "provider": "wikidata",
+          "external_type": "place",
+          "external_id": "Q34692",
+          "canonical_url": "https://www.wikidata.org/wiki/Q34692",
+          "source_key": "wikidata_geo"
+        }
+      ]
+    },
+    {
+      "canonical_path": "ng",
+      "slug": "ng",
+      "name": "Nigeria",
+      "place_type": "country",
+      "country_code": "NG",
+      "parent_path": null,
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "ng/lagos",
+      "slug": "lagos",
+      "name": "Lagos",
+      "place_type": "city",
+      "country_code": "NG",
+      "parent_path": "ng",
+      "publication_status": "draft",
+      "aliases": [
+        "Lagos, Nigeria"
+      ],
+      "center": {
+        "lat": 6.4561111,
+        "lng": 3.3936111,
+        "source_key": "wikidata_geo"
+      },
+      "external_refs": [
+        {
+          "provider": "wikidata",
+          "external_type": "place",
+          "external_id": "Q8673",
+          "canonical_url": "https://www.wikidata.org/wiki/Q8673",
+          "source_key": "wikidata_geo"
+        },
+        {
+          "provider": "musicbrainz",
+          "external_type": "area",
+          "external_id": "a7771250-45aa-426a-86db-5101f6647b79",
+          "canonical_url": "https://musicbrainz.org/area/a7771250-45aa-426a-86db-5101f6647b79",
+          "source_key": "musicbrainz_geo"
+        }
+      ]
+    },
+    {
+      "canonical_path": "gb",
+      "slug": "gb",
+      "name": "United Kingdom",
+      "place_type": "country",
+      "country_code": "GB",
+      "parent_path": null,
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "gb/eng",
+      "slug": "eng",
+      "name": "England",
+      "place_type": "region",
+      "country_code": "GB",
+      "admin1_code": "ENG",
+      "parent_path": "gb",
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "gb/eng/london",
+      "slug": "london",
+      "name": "London",
+      "place_type": "city",
+      "country_code": "GB",
+      "admin1_code": "ENG",
+      "parent_path": "gb/eng",
+      "publication_status": "draft",
+      "aliases": [
+        "London, England",
+        "London, UK"
+      ],
+      "center": {
+        "lat": 51.5072222,
+        "lng": -0.1275,
+        "source_key": "wikidata_geo"
+      },
+      "external_refs": [
+        {
+          "provider": "wikidata",
+          "external_type": "place",
+          "external_id": "Q84",
+          "canonical_url": "https://www.wikidata.org/wiki/Q84",
+          "source_key": "wikidata_geo"
+        },
+        {
+          "provider": "musicbrainz",
+          "external_type": "area",
+          "external_id": "f03d09b3-39dc-4083-afd6-159e3f0d462f",
+          "canonical_url": "https://musicbrainz.org/area/f03d09b3-39dc-4083-afd6-159e3f0d462f",
+          "source_key": "musicbrainz_geo"
+        }
+      ]
+    },
+    {
+      "canonical_path": "jp",
+      "slug": "jp",
+      "name": "Japan",
+      "place_type": "country",
+      "country_code": "JP",
+      "parent_path": null,
+      "publication_status": "draft"
+    },
+    {
+      "canonical_path": "jp/tokyo",
+      "slug": "tokyo",
+      "name": "Tokyo",
+      "place_type": "city",
+      "country_code": "JP",
+      "parent_path": "jp",
+      "publication_status": "draft",
+      "aliases": [
+        "Tokyo, Japan",
+        "東京都"
+      ],
+      "center": {
+        "lat": 35.6894444,
+        "lng": 139.6916667,
+        "source_key": "wikidata_geo"
+      },
+      "external_refs": [
+        {
+          "provider": "wikidata",
+          "external_type": "place",
+          "external_id": "Q1490",
+          "canonical_url": "https://www.wikidata.org/wiki/Q1490",
+          "source_key": "wikidata_geo"
+        },
+        {
+          "provider": "musicbrainz",
+          "external_type": "area",
+          "external_id": "8dc97297-ac95-4d33-82bc-e07fab26fb5f",
+          "canonical_url": "https://musicbrainz.org/area/8dc97297-ac95-4d33-82bc-e07fab26fb5f",
+          "source_key": "musicbrainz_geo"
+        }
+      ]
+    },
+    {
+      "slug": "cu",
+      "name": "Cuba",
+      "place_type": "country",
+      "canonical_path": "cu",
+      "country_code": "CU",
+      "center": {
+        "lat": 21.5218,
+        "lng": -77.7812
+      }
+    },
+    {
+      "slug": "havana",
+      "name": "Havana",
+      "place_type": "city",
+      "canonical_path": "cu/havana",
+      "country_code": "CU",
+      "center": {
+        "lat": 23.1136,
+        "lng": -82.3666
+      }
+    },
+    {
+      "slug": "br",
+      "name": "Brazil",
+      "place_type": "country",
+      "canonical_path": "br",
+      "country_code": "BR",
+      "center": {
+        "lat": -14.235,
+        "lng": -51.9253
+      }
+    },
+    {
+      "slug": "rj",
+      "name": "Rio de Janeiro",
+      "place_type": "state_province",
+      "canonical_path": "br/rj",
+      "country_code": "BR",
+      "center": null
+    },
+    {
+      "slug": "rio-de-janeiro",
+      "name": "Rio de Janeiro",
+      "place_type": "city",
+      "canonical_path": "br/rj/rio-de-janeiro",
+      "country_code": "BR",
+      "center": {
+        "lat": -22.9068,
+        "lng": -43.1729
+      }
+    },
+    {
+      "slug": "la",
+      "name": "Louisiana",
+      "place_type": "state_province",
+      "canonical_path": "us/la",
+      "country_code": "US",
+      "center": null
+    },
+    {
+      "slug": "new-orleans",
+      "name": "New Orleans",
+      "place_type": "city",
+      "canonical_path": "us/la/new-orleans",
+      "country_code": "US",
+      "center": {
+        "lat": 29.9511,
+        "lng": -90.0715
+      }
+    },
+    {
+      "slug": "ny",
+      "name": "New York",
+      "place_type": "state_province",
+      "canonical_path": "us/ny",
+      "country_code": "US",
+      "center": null
+    },
+    {
+      "slug": "bronx",
+      "name": "The Bronx",
+      "place_type": "city",
+      "canonical_path": "us/ny/bronx",
+      "country_code": "US",
+      "center": {
+        "lat": 40.8448,
+        "lng": -73.8648
+      }
+    },
+    {
+      "slug": "il",
+      "name": "Illinois",
+      "place_type": "state_province",
+      "canonical_path": "us/il",
+      "country_code": "US",
+      "center": null
+    },
+    {
+      "slug": "chicago",
+      "name": "Chicago",
+      "place_type": "city",
+      "canonical_path": "us/il/chicago",
+      "country_code": "US",
+      "center": {
+        "lat": 41.8781,
+        "lng": -87.6298
+      }
+    }
+  ]
+}

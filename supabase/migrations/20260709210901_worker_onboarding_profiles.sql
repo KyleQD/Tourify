@@ -2,6 +2,8 @@
 -- Non-sensitive answers live in profile_data; sensitive values are AES-encrypted
 -- in sensitive_envelope. Employers have no SELECT policy on this table.
 
+begin;
+
 create table if not exists public.worker_onboarding_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   profile_data jsonb not null default '{}'::jsonb,
@@ -36,6 +38,9 @@ create policy worker_onboarding_profiles_owner
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Explicitly revoke broad grants; owner policy + service role cover access.
 revoke all on public.worker_onboarding_profiles from anon;
 grant select, insert, update, delete on public.worker_onboarding_profiles to authenticated;
-grant all on public.worker_onboarding_profiles to service_role;;
+grant all on public.worker_onboarding_profiles to service_role;
+
+commit;

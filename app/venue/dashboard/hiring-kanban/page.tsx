@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { normalizeAccountType } from "@/lib/accounts/account-types"
 import { VenueHiringKanban } from "@/components/hiring/venue-hiring-kanban"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,9 +13,20 @@ import { VENUE_PRIMARY_BTN } from "@/components/dashboard/venue-tokens"
 
 function VenueHiringKanbanPageContent() {
   const searchParams = useSearchParams()
-  const { venue, isLoading: venueLoading } = useCurrentVenue()
+  const { venue, isLoading: venueLoading, accounts, isAccountsReady } = useCurrentVenue()
+  // VEN-137: precedence is server-validated context first; the ?venue_id= query
+  // param is honored only when it matches an active venue account of this user.
   const queryVenueId = searchParams.get("venue_id")?.trim() || ""
-  const resolvedVenueId = venue?.id || queryVenueId
+  const queryVenueAuthorized =
+    Boolean(queryVenueId) &&
+    isAccountsReady &&
+    accounts.some(
+      (account) =>
+        account.profile_id === queryVenueId &&
+        normalizeAccountType(account.account_type) === "venue" &&
+        account.is_active,
+    )
+  const resolvedVenueId = venue?.id || (queryVenueAuthorized ? queryVenueId : "")
 
   if (venueLoading) {
     return (

@@ -1,7 +1,21 @@
 set client_min_messages = warning;
 
+-- Harden admin tour/event builder access:
+-- 1) tour_events: replace broad authenticated ALL with org/tour-scoped policies
+-- 2) tours: allow org_members access alongside owner/team helpers
+-- 3) unique (tour_id, event_id) index (idempotent)
+-- 4) lock down touch_tour_events_updated_at execute grants
+
+-- ---------------------------------------------------------------------------
+-- 1. Unique assignment constraint (idempotent)
+-- ---------------------------------------------------------------------------
+
 create unique index if not exists tour_events_tour_id_event_id_key
   on public.tour_events (tour_id, event_id);
+
+-- ---------------------------------------------------------------------------
+-- 2. Trigger function hygiene (non-security-definer, locked grants)
+-- ---------------------------------------------------------------------------
 
 create or replace function public.touch_tour_events_updated_at()
 returns trigger
@@ -29,6 +43,10 @@ begin
   end if;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 3. tours: org_members access in addition to owner/team
+-- ---------------------------------------------------------------------------
 
 drop policy if exists tours_select_owner_or_team on public.tours;
 drop policy if exists tours_select_owner_team_or_org on public.tours;
@@ -83,6 +101,10 @@ using (
   public.is_tour_owner(id)
   or (org_id is not null and public.has_perm(auth.uid(), org_id, 'event.manage'))
 );
+
+-- ---------------------------------------------------------------------------
+-- 4. tour_events: org-scoped + tour-owner access
+-- ---------------------------------------------------------------------------
 
 drop policy if exists tour_events_all on public.tour_events;
 drop policy if exists tour_events_select on public.tour_events;
@@ -179,4 +201,4 @@ using (
       and t.org_id = e.org_id
       and public.has_perm(auth.uid(), t.org_id, 'event.manage')
   )
-);;
+);

@@ -2,6 +2,9 @@
 
 set client_min_messages = warning;
 
+-- ---------------------------------------------------------------------------
+-- organization_social_integrations
+-- ---------------------------------------------------------------------------
 create table if not exists public.organization_social_integrations (
   id uuid primary key default gen_random_uuid(),
   organizer_account_id uuid not null references public.organizer_accounts(id) on delete cascade,
@@ -31,6 +34,13 @@ create index if not exists idx_org_social_integrations_organizer
 create index if not exists idx_org_social_integrations_connected
   on public.organization_social_integrations (is_connected)
   where is_connected = true;
+
+comment on table public.organization_social_integrations is
+  'OAuth-connected social platforms for an organizer account (Admin Content Hub).';
+comment on column public.organization_social_integrations.access_token is
+  'Provider access token for Edge Function sync. Never expose via client APIs.';
+comment on column public.organization_social_integrations.token_envelope is
+  'Encrypted access token envelope (marketplace credential pattern).';
 
 drop trigger if exists update_organization_social_integrations_updated_at
   on public.organization_social_integrations;
@@ -104,6 +114,9 @@ create policy "org_social_integrations_delete"
     )
   );
 
+-- ---------------------------------------------------------------------------
+-- organization_social_media_insights (Meta post-level metrics)
+-- ---------------------------------------------------------------------------
 create table if not exists public.organization_social_media_insights (
   id uuid primary key default gen_random_uuid(),
   integration_id uuid not null
@@ -205,4 +218,4 @@ create policy "org_social_media_insights_delete"
       where oa.id = organizer_account_id
         and oa.user_id = auth.uid()
     )
-  );;
+  );

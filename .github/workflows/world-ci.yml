@@ -1,0 +1,127 @@
+name: World CI
+
+# P1-T06 - World of Music continuous integration.
+# Source of truth for World slice build health: unit suites, geo, playback,
+# ingestion helpers, full governed-migration replay (including the five
+# canonical promotions), generated-type drift guard, scoped TypeScript,
+# RLS + feature-flag behavior probes.
+
+on:
+  push:
+    branches: [feature/world-of-music]
+  pull_request:
+    branches: [feature/world-of-music, main, integration/tourify-reconcile-2026-08]
+    paths:
+      - "app/discover/world/**"
+      - "app/api/world/**"
+      - "app/internal/world/**"
+      - "lib/world/**"
+      - "lib/geo/**"
+      - "lib/playback/**"
+      - "components/world/globe/**"
+      - "scripts/world/**"
+      - "__tests__/world/**"
+      - "__tests__/geo/**"
+      - "__tests__/playback/**"
+      - "__tests__/world-ingestion/**"
+      - "supabase/migrations/*world*"
+      - ".github/workflows/world-ci.yml"
+
+concurrency:
+  group: world-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-suites:
+    name: World unit suites + scoped TS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Scoped TypeScript (world slice)
+        run: npx tsc --noEmit -p tsconfig.world-slice.json
+      - name: Unit suites (world / geo / playback / ingestion)
+        run: npx vitest run __tests__/world __tests__/geo __tests__/playback __tests__/world-ingestion --reporter=dot 2>&1 | tee world-tests.log
+      - name: Scoped ESLint (advisory)
+        run: npx eslint lib/world lib/geo lib/playback components/world app/discover/world app/api/world app/internal/world scripts/world || true
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-unit-evidence
+          path: world-tests.log
+          if-no-files-found: ignore
+
+  migration-replay:
+    name: Governed migration replay + drift + flags
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Pin Supabase CLI to the audited version (standalone binary)
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.22.6
+      - name: Apply registered migration exclusions (registry-owned)
+        run: |
+          REG=scripts/world/ci/migration-exclusions.txt
+          while IFS= read -r line; do
+            case "$line" in ""|\#*) continue ;; esac
+            f="supabase/migrations/$line"
+            if [ ! -f "$f" ]; then echo "registered exclusion missing: $line"; exit 1; fi
+            mv "$f" "$f.excluded"
+            echo "excluded: $line"
+          done < "$REG"
+      - name: Start local Supabase stack (DB only)
+        run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,storage-api,pooler
+      - name: Replay full lineage (World A/B/C + activation + five promotions)
+        run: |
+          set -o pipefail
+          supabase db reset 2>&1 | tee /tmp/world-replay.log | tail -5
+          grep -q "20260822172420_world_tokyo_canonical_promotion.sql" /tmp/world-replay.log \
+            || { echo "Tokyo promotion missing from replay"; exit 1; }
+      - name: Verify World tables + RLS post-replay
+        run: |
+          TOTAL=$(docker exec supabase_db_tourify-beta psql -U postgres -d postgres -tAc \
+            "select count(*) from pg_tables where schemaname='public' and tablename like 'world_%';")
+          RLS=$(docker exec supabase_db_tourify-beta psql -U postgres -d postgres -tAc \
+            "select count(*) from pg_tables where schemaname='public' and tablename like 'world_%' and rowsecurity;")
+          echo "world tables=$TOTAL rls=$RLS"
+          [ "$TOTAL" -ge 20 ] || { echo "expected >=20 world tables"; exit 1; }
+          [ "$TOTAL" = "$RLS" ] || { echo "RLS missing on some world tables"; exit 1; }
+      - name: Verify all World feature flags are disabled by default
+        run: |
+          OFF=$(docker exec supabase_db_tourify-beta psql -U postgres -d postgres -tAc \
+            "select count(*) from public.feature_flags where key like 'world_music_%' and enabled;")
+          echo "enabled world flags: $OFF"
+          [ "$OFF" = "0" ]
+      - name: Generated-type drift guard
+        run: |
+          npx supabase gen types typescript --local > /tmp/world.generated.types.ts
+          for t in geo_places geo_place_aliases world_sources world_claims world_claim_evidence \
+                   world_cultural_entities world_cultural_relationships world_radio_streams \
+                   world_media_sources world_ingestion_candidates; do
+            grep -q "$t" /tmp/world.generated.types.ts || { echo "missing generated table $t"; exit 1; }
+          done
+          git diff --exit-code -- types/database.types.ts \
+            || { echo "curated types/database.types.ts must not change"; exit 1; }
+      - name: Upload replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-migration-replay
+          path: /tmp/world-replay.log
+          if-no-files-found: ignore
+      - name: Restore excluded migrations (registry-owned cleanup)
+        if: always()
+        run: |
+          find supabase/migrations -name "*.excluded" | while read -r f; do
+            mv "$f" "${f%.excluded}"
+          done
+          git status --short supabase/migrations

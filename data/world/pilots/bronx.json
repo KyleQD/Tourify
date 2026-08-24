@@ -1,0 +1,877 @@
+{
+  "schema_version": "world-history-seed-v0.1",
+  "pilot_key": "bronx",
+  "place_path": "us/ny/bronx",
+  "overview": {
+    "musical_identity": "The birthplace of hip-hop, where two turntables, a park sound system, and Bronx creativity turned block parties into a global culture."
+  },
+  "entities": [
+    {
+      "seed_id": "bronx_dj_kool_herc",
+      "entity_type": "artist_reference",
+      "slug": "bronx-dj_kool_herc",
+      "canonical_name": "DJ Kool Herc",
+      "short_description": "Jamaican-born deejay whose 'merry-go-round' technique isolated breakbeats at 1520 Sedgwick Avenue.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_afrika_bambaataa",
+      "entity_type": "artist_reference",
+      "slug": "bronx-afrika_bambaataa",
+      "canonical_name": "Afrika Bambaataa",
+      "short_description": "Former gang leader who founded the Universal Zulu Nation and fused electro-funk with community organizing.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_grandmaster_flash",
+      "entity_type": "artist_reference",
+      "slug": "bronx-grandmaster_flash",
+      "canonical_name": "Grandmaster Flash",
+      "short_description": "Barbados-born turntablist who perfected backspinning, punch-phrasing, and the quick-mix theory in the Bronx.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_grand_wizzard_theodore",
+      "entity_type": "artist_reference",
+      "slug": "bronx-grand_wizzard_theodore",
+      "canonical_name": "Grand Wizzard Theodore",
+      "short_description": "Teenager credited with inventing scratching while practicing at home in the Bronx.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_krs_one",
+      "entity_type": "artist_reference",
+      "slug": "bronx-krs_one",
+      "canonical_name": "KRS-One",
+      "short_description": "The 'teacha' from the South Bronx whose Boogie Down Productions made hip-hop's first great manifesto records.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_melle_mel",
+      "entity_type": "artist_reference",
+      "slug": "bronx-melle_mel",
+      "canonical_name": "Melle Mel",
+      "short_description": "Furious Five MC who wrote 'The Message,' turning rap into social commentary.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_kurtis_blow",
+      "entity_type": "artist_reference",
+      "slug": "bronx-kurtis_blow",
+      "canonical_name": "Kurtis Blow",
+      "short_description": "Harlem-raised MC with Bronx roots behind 'The Breaks' — rap's first gold single.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_cold_crush_brothers",
+      "entity_type": "artist_reference",
+      "slug": "bronx-cold_crush_brothers",
+      "canonical_name": "Cold Crush Brothers",
+      "short_description": "Legendary four-MC crew whose harmonic routines defined live battle culture at Harlem World and the Fever.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_rock_steady_crew_founders",
+      "entity_type": "artist_reference",
+      "slug": "bronx-rock_steady_crew_founders",
+      "canonical_name": "Rock Steady Crew (founders)",
+      "short_description": "B-boying collective whose Bronx-founded crew took breaking to film and world stages.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_fat_joe",
+      "entity_type": "artist_reference",
+      "slug": "bronx-fat_joe",
+      "canonical_name": "Fat Joe",
+      "short_description": "South Bronx terror squad general who carried boom-bap into Latin trap crossover.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_big_pun",
+      "entity_type": "artist_reference",
+      "slug": "bronx-big_pun",
+      "canonical_name": "Big Pun",
+      "short_description": "Bronx lyricist and the first Latino rapper to go platinum.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_cardi_b",
+      "entity_type": "artist_reference",
+      "slug": "bronx-cardi_b",
+      "canonical_name": "Cardi B",
+      "short_description": "Highbridge-born star who turned Bronx hustle into chart-topping rap.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_a_afrika_bambaataa_soulsonic_force",
+      "entity_type": "artist_reference",
+      "slug": "bronx-a_afrika_bambaataa_soulsonic_force",
+      "canonical_name": "Soulsonic Force",
+      "short_description": "Bambaataa's crew behind 'Planet Rock' and electro's birth.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_furious_five",
+      "entity_type": "artist_reference",
+      "slug": "bronx-furious_five",
+      "canonical_name": "Grandmaster Flash and the Furious Five",
+      "short_description": "The first hip-hop group inducted into the Rock and Roll Hall of Fame.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_doug_e_fresh",
+      "entity_type": "artist_reference",
+      "slug": "bronx-doug_e_fresh",
+      "canonical_name": "Doug E. Fresh",
+      "short_description": "Barbados-born beatbox pioneer raised in the Bronx whose human percussion redefined the art.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_rappers_delight_1979",
+      "entity_type": "recording_reference",
+      "slug": "bronx-rappers_delight_1979",
+      "canonical_name": "Rapper's Delight (1979)",
+      "short_description": "Sugarhill Gang single that put recorded rap on national radio.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1979
+    },
+    {
+      "seed_id": "bronx_planet_rocks_1982",
+      "entity_type": "recording_reference",
+      "slug": "bronx-planet_rocks_1982",
+      "canonical_name": "Planet Rock (1982)",
+      "short_description": "Soulsonic Force's electro blueprint built on Kraftwerk-style 808s.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1982
+    },
+    {
+      "seed_id": "bronx_the_message_1982",
+      "entity_type": "recording_reference",
+      "slug": "bronx-the_message_1982",
+      "canonical_name": "The Message (1982)",
+      "short_description": "Melle Mel's social-realist anthem that proved rap could be reportage.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1982
+    },
+    {
+      "seed_id": "bronx_south_bronx_1986",
+      "entity_type": "recording_reference",
+      "slug": "bronx-south_bronx_1986",
+      "canonical_name": "South Bronx (1986)",
+      "short_description": "KRS-One's bridge-warrior answer that claimed the culture for the borough.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1986
+    },
+    {
+      "seed_id": "bronx_la_di_da_di_1985",
+      "entity_type": "recording_reference",
+      "slug": "bronx-la_di_da_di_1985",
+      "canonical_name": "La Di Da Di (1985)",
+      "short_description": "Doug E. Fresh and Slick Rick's human-beatbox showcase covered by generations since.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1985
+    },
+    {
+      "seed_id": "bronx_turntable_mixer_setup",
+      "entity_type": "instrument",
+      "slug": "bronx-turntable_mixer_setup",
+      "canonical_name": "Two Turntables & a Mixer",
+      "short_description": "The instrument of hip-hop: looping breaks, cutting, and scratching.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_roland_tr_808",
+      "entity_type": "instrument",
+      "slug": "bronx-roland_tr_808",
+      "canonical_name": "Roland TR-808",
+      "short_description": "Drum machine whose booming kick became electro and rap's signature pulse.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_beatbox_voice",
+      "entity_type": "instrument",
+      "slug": "bronx-beatbox_voice",
+      "canonical_name": "Beatbox (Voice)",
+      "short_description": "Human mouth-as-drum-machine tradition popularized by Bronx performers.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_sedgwick_ave_rec_room_1973",
+      "entity_type": "studio_landmark",
+      "slug": "bronx-sedgwick_ave_rec_room_1973",
+      "canonical_name": "1520 Sedgwick Avenue Rec Room",
+      "short_description": "High-rise community room where DJ Kool Herc's August 1973 party ignited the culture.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1973
+    },
+    {
+      "seed_id": "bronx_cedar_park_parties",
+      "entity_type": "studio_landmark",
+      "slug": "bronx-cedar_park_parties",
+      "canonical_name": "Cedar Park (Hip-Hop Boulevard)",
+      "short_description": "Public park where Herc's massive sound-system jams drew thousands each summer.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "bronx_disco_fever_club",
+      "entity_type": "studio_landmark",
+      "slug": "bronx-disco_fever_club",
+      "canonical_name": "Disco Fever",
+      "short_description": "Grand Concourse club where Bronx crews taped legendary battles for video broadcast.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "bronx_herc_back_to_school_1973",
+      "entity_type": "historical_milestone",
+      "slug": "bronx-herc_back_to_school_1973",
+      "canonical_name": "Kool Herc's back-to-school jam",
+      "short_description": "Widely cited birth date of hip-hop as a distinct performance culture.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1973
+    },
+    {
+      "seed_id": "bronx_zulu_nation_founded_1973",
+      "entity_type": "historical_milestone",
+      "slug": "bronx-zulu_nation_founded_1973",
+      "canonical_name": "Universal Zulu Nation founded",
+      "short_description": "Bambaataa organized crews around peace, love, unity, and having fun.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1973
+    },
+    {
+      "seed_id": "bronx_first_rap_gold_1980",
+      "entity_type": "historical_milestone",
+      "slug": "bronx-first_rap_gold_1980",
+      "canonical_name": "Rap earns its first gold record",
+      "short_description": "'Rapper's Delight' and Kurtis Blow's 'The Breaks' prove commercial viability.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1980
+    },
+    {
+      "seed_id": "bronx_wild_style_1983",
+      "entity_type": "historical_milestone",
+      "slug": "bronx-wild_style_1983",
+      "canonical_name": "'Wild Style' premieres",
+      "short_description": "Bronx-filmed movie that exported the four elements worldwide.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1983
+    },
+    {
+      "seed_id": "bronx_hip_hop_boulevard_designated",
+      "entity_type": "historical_milestone",
+      "slug": "bronx-hip_hop_boulevard_designated",
+      "canonical_name": "Hip-Hop Boulevard designated",
+      "short_description": "Sedgwick & Cedar honored as the culture's birthplace street.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 2016
+    },
+    {
+      "seed_id": "bronx_bronx_boom_bap_scene",
+      "entity_type": "scene",
+      "slug": "bronx-bronx_boom_bap_scene",
+      "canonical_name": "Bronx Boom-Bap",
+      "short_description": "Sample-heavy, drum-driven rap rooted in park jams and battle culture.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_electro_scene",
+      "entity_type": "scene",
+      "slug": "bronx-electro_scene",
+      "canonical_name": "Electro-Funk",
+      "short_description": "808-and-synth style bridging breakdancing floors and early rap records.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_latin_rap_scene",
+      "entity_type": "scene",
+      "slug": "bronx-latin_rap_scene",
+      "canonical_name": "Latin Rap",
+      "short_description": "Puerto Rican and Dominican Bronx contributions from Pun to today's wave.",
+      "source_keys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_block_party_tradition",
+      "entity_type": "tradition",
+      "slug": "bronx-block_party_tradition",
+      "canonical_name": "Block Parties",
+      "short_description": "Summer streets closed for sound systems, dancing, and community.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_bboy_cyphers",
+      "entity_type": "tradition",
+      "slug": "bronx-bboy_cyphers",
+      "canonical_name": "Breaking Cyphers",
+      "short_description": "Circle-based b-boy/b-girl battles central to the culture's body language.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "bronx_bronx_week_hip_hop",
+      "entity_type": "tradition",
+      "slug": "bronx-bronx_week_hip_hop",
+      "canonical_name": "Bronx Week Hip-Hop Tribute",
+      "short_description": "Annual borough celebration honoring hip-hop's founding generation.",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ],
+  "relationships": [
+    {
+      "subject_seed_id": "bronx_rappers_delight_1979",
+      "relation_key": "credited_to",
+      "object_seed_id": "bronx_dj_kool_herc",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_planet_rocks_1982",
+      "relation_key": "credited_to",
+      "object_seed_id": "bronx_afrika_bambaataa",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_the_message_1982",
+      "relation_key": "credited_to",
+      "object_seed_id": "bronx_grandmaster_flash",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_south_bronx_1986",
+      "relation_key": "credited_to",
+      "object_seed_id": "bronx_grand_wizzard_theodore",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_la_di_da_di_1985",
+      "relation_key": "credited_to",
+      "object_seed_id": "bronx_krs_one",
+      "source_keys": [
+        "bronx_council_arts_hip_hop"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_dj_kool_herc",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_bronx_boom_bap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_dj_kool_herc",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_turntable_mixer_setup",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_afrika_bambaataa",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_electro_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_afrika_bambaataa",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_roland_tr_808",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_grandmaster_flash",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_latin_rap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_grandmaster_flash",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_beatbox_voice",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_grand_wizzard_theodore",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_bronx_boom_bap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_grand_wizzard_theodore",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_turntable_mixer_setup",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_krs_one",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_electro_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_krs_one",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_roland_tr_808",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_melle_mel",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_latin_rap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_melle_mel",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_beatbox_voice",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_kurtis_blow",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_bronx_boom_bap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_kurtis_blow",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_turntable_mixer_setup",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_cold_crush_brothers",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_electro_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_cold_crush_brothers",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_roland_tr_808",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_rock_steady_crew_founders",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_latin_rap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_rock_steady_crew_founders",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_beatbox_voice",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_fat_joe",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_bronx_boom_bap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_fat_joe",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_turntable_mixer_setup",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_big_pun",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_electro_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_big_pun",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_roland_tr_808",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_cardi_b",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_latin_rap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_cardi_b",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_beatbox_voice",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_a_afrika_bambaataa_soulsonic_force",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_bronx_boom_bap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_a_afrika_bambaataa_soulsonic_force",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_turntable_mixer_setup",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_furious_five",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_electro_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_furious_five",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_roland_tr_808",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_doug_e_fresh",
+      "relation_key": "part_of",
+      "object_seed_id": "bronx_latin_rap_scene",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "bronx_doug_e_fresh",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "bronx_beatbox_voice",
+      "source_keys": [
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ]
+}

@@ -78,6 +78,7 @@ export async function middleware(request: NextRequest) {
 
   // Canonical public venue profiles now live under /venues/[slug].
   // Keep /venue/* reserved for authenticated venue account surfaces.
+  // Reserved segments derive from the canonical route registry (lib/venue/route-registry.ts).
   const venueProfileRedirect = getLegacyVenueProfileRedirect(pathname)
   if (venueProfileRedirect) {
     const redirectUrl = new URL(venueProfileRedirect, request.url)

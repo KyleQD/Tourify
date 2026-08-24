@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { staffSummarySelect, toStaffSummaryDto } from "@/lib/venue/staff-dto"
 
 // Types for our three-tier system
 export interface StaffMember {
@@ -85,14 +86,16 @@ export interface StaffDashboardStats {
 export class StaffManagementService {
   // Staff Management
   static async getStaffMembers(venueId: string): Promise<StaffMember[]> {
+    // VEN-017: roster reads project only permission-scoped summary columns —
+    // never HR/pay/PII fields (date_of_birth, emergency_contact, hourly_rate, …).
     const { data, error } = await supabase
       .from('venue_team_members')
-      .select('*')
+      .select(staffSummarySelect())
       .eq('venue_id', venueId)
       .order('name')
 
     if (error) throw error
-    return data || []
+    return (data || []).map((row) => toStaffSummaryDto(row)) as unknown as StaffMember[]
   }
 
   static async createStaffMember(staffData: Partial<StaffMember>): Promise<StaffMember> {

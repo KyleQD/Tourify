@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260822151252_world_editorial_rbac.sql",
+  "taskId": "WOM-ACT-RBAC",
+  "status": "local_rehearsal",
+  "owner": "world-of-music",
+  "reviewer": "security-data",
+  "domains": [
+    "rbac",
+    "world-editorial"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Platform World RBAC roles/permissions seeded in disposable local Supabase; zero user assignments",
+    "evidenceArtifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm world.* permissions absent before apply",
+      "Confirm rbac tables exist"
+    ],
+    "expectedAffectedRows": "Idempotent upserts of permissions/roles/bindings only; no users touched",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Single transaction; retry from version on interruption",
+    "resumeCursor": "supabase migration version 20260822151252",
+    "idempotency": "Idempotent upserts of permissions/roles/bindings only; no users touched"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Rehearsal-only artifact"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Covered by activation evidence suite"
+  },
+  "recovery": {
+    "rollback": "Delete inserted rbac_roles/rbac_permissions rows by name prefix 'world'",
+    "forwardFix": "Regenerate from reviewed source artifact via governed conversion"
+  },
+  "postflight": {
+    "queries": [
+      "Row-count and state checks recorded in activation evidence"
+    ],
+    "artifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md",
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md",
+    "staging": null,
+    "production": null
+  },
+  "exclusions": {
+    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW \u2014 local rehearsal migration per docs/24 A1-A4"
+  },
+  "exceptions": []
+}

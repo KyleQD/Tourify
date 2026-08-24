@@ -1,0 +1,171 @@
+{
+  "schema_version": "world-transmission-narratives-v1.0",
+  "retrieved_at": "2026-08-23",
+  "edges": [
+    {
+      "id": "kingston_to_london_sound_system",
+      "fromPlaceKey": "kingston",
+      "toPlaceKey": "london",
+      "subtype": "scene_influence",
+      "startYear": 1954,
+      "era": "1950s-1970s Windrush era",
+      "sourceKeys": [
+        "london_museum_dub",
+        "london_museum_dub_records"
+      ],
+      "confidence": 0.9,
+      "reviewStatus": "needs_review",
+      "narrative": "Caribbean migrants carried Kingston's sound-system culture to London, seeding UK dub, reggae, and eventually jungle/grime."
+    },
+    {
+      "id": "kingston_to_bronx_herc",
+      "fromPlaceKey": "kingston",
+      "toPlaceKey": "bronx",
+      "subtype": "migration_diaspora",
+      "startYear": 1967,
+      "era": "late-1960s migration",
+      "sourceKeys": [
+        "bronx_council_arts_hip_hop",
+        "smithsonian_hip_hop_block_party"
+      ],
+      "confidence": 0.95,
+      "reviewStatus": "needs_review",
+      "narrative": "Jamaican-born DJ Kool Herc moved to the Bronx in 1967 and transplanted sound-system practice; his 1973 party is cited as hip-hop's birth."
+    },
+    {
+      "id": "new_orleans_to_chicago_jazz",
+      "fromPlaceKey": "new-orleans",
+      "toPlaceKey": "chicago",
+      "subtype": "migration_diaspora",
+      "startYear": 1917,
+      "era": "1910s-1920s Great Migration",
+      "sourceKeys": [
+        "chicago_history_museum_blues",
+        "smithsonian_jazz_oral_history"
+      ],
+      "confidence": 0.9,
+      "reviewStatus": "needs_review",
+      "narrative": "Storyville's closure and northern migration brought New Orleans jazz pioneers to Chicago's South Side cabarets."
+    },
+    {
+      "id": "new_orleans_to_nyc_armstrong",
+      "fromPlaceKey": "new-orleans",
+      "toPlaceKey": "bronx",
+      "subtype": "touring_exchange",
+      "startYear": 1924,
+      "era": "mid-1920s",
+      "sourceKeys": [
+        "smithsonian_jazz_oral_history",
+        "nola_jazz_museum"
+      ],
+      "confidence": 0.8,
+      "reviewStatus": "needs_review",
+      "narrative": "Louis Armstrong joined Fletcher Henderson in New York, broadcasting New Orleans improvisational language to national audiences."
+    },
+    {
+      "id": "chicago_house_to_detroit",
+      "fromPlaceKey": "chicago",
+      "toPlaceKey": "detroit",
+      "subtype": "genre_evolution",
+      "startYear": 1983,
+      "era": "early-1980s radio + clubs",
+      "sourceKeys": [
+        "chicago_house_detroit_link",
+        "detroit_historical_transmat"
+      ],
+      "confidence": 0.85,
+      "reviewStatus": "needs_review",
+      "narrative": "Detroit listeners heard Frankie Knuckles on WBMX's Hot Mix 5; the Belleville Three fused that blueprint with European synth records into techno."
+    },
+    {
+      "id": "chicago_house_to_london",
+      "fromPlaceKey": "chicago",
+      "toPlaceKey": "london",
+      "subtype": "radio_broadcast",
+      "startYear": 1986,
+      "era": "mid-1980s",
+      "sourceKeys": [
+        "chicago_house_detroit_link",
+        "london_museum_grime"
+      ],
+      "confidence": 0.75,
+      "reviewStatus": "needs_review",
+      "narrative": "Chicago house imports ignited Britain's acid-house summer and the global dance culture that followed."
+    },
+    {
+      "id": "detroit_techno_to_europe",
+      "fromPlaceKey": "detroit",
+      "toPlaceKey": "london",
+      "subtype": "technology_transfer",
+      "startYear": 1988,
+      "era": "late-1980s",
+      "sourceKeys": [
+        "detroit_historical_transmat",
+        "london_museum_dub"
+      ],
+      "confidence": 0.85,
+      "reviewStatus": "needs_review",
+      "narrative": "Techno! The New Dance Sound of Detroit and Transmat imports rewired European electronic music, with Berlin building a permanent home for it."
+    },
+    {
+      "id": "lagos_to_london_afrobeats",
+      "fromPlaceKey": "lagos",
+      "toPlaceKey": "london",
+      "subtype": "scene_influence",
+      "startYear": 2010,
+      "era": "2010s Afrobeats wave",
+      "sourceKeys": [
+        "grammy_kuti_guide",
+        "grammy_afrobeats_evolution"
+      ],
+      "confidence": 0.8,
+      "reviewStatus": "needs_review",
+      "narrative": "Nigerian pop built on Fela's afrobeat foundations crossed into London club culture, charting globally as Afrobeats."
+    },
+    {
+      "id": "havana_to_nyc_afrocuban",
+      "fromPlaceKey": "havana",
+      "toPlaceKey": "bronx",
+      "subtype": "genre_evolution",
+      "startYear": 1947,
+      "era": "late-1940s bebop era",
+      "sourceKeys": [
+        "museo_nacional_musica_cuba",
+        "granma_son_cubano"
+      ],
+      "confidence": 0.85,
+      "reviewStatus": "needs_review",
+      "narrative": "Chano Pozo's congas with Dizzy Gillespie's band fused Cuban rhythm with bebop harmony — the birth of Afro-Cuban jazz (note: Pozo performed largely in Harlem)."
+    },
+    {
+      "id": "rio_to_world_bossa",
+      "fromPlaceKey": "rio-de-janeiro",
+      "toPlaceKey": "london",
+      "subtype": "genre_evolution",
+      "startYear": 1962,
+      "era": "early-1960s bossa export",
+      "sourceKeys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.8,
+      "reviewStatus": "needs_review",
+      "narrative": "Bossa nova's quiet revolution left Rio's South Zone apartments for global stages, peaking with Getz/Gilberto's Grammy sweep."
+    },
+    {
+      "id": "tokyo_city_pop_rediscovery",
+      "fromPlaceKey": "tokyo",
+      "toPlaceKey": "london",
+      "subtype": "technology_transfer",
+      "startYear": 2017,
+      "era": "late-2010s streaming rediscovery",
+      "sourceKeys": [
+        "jpf_city_pop",
+        "japan_times_music_archive"
+      ],
+      "confidence": 0.7,
+      "reviewStatus": "needs_review",
+      "narrative": "YouTube algorithms and vinyl collectors worldwide resurrected Tokyo's 1980s city pop, sending royalties and reissues back to its originators."
+    }
+  ]
+}

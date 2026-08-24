@@ -2,6 +2,10 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { canManageHiring } from "@/lib/auth/hiring-permissions"
+import {
+  fetchVenueIdentityBridge,
+  upsertVenueIdentityBridge,
+} from "@/lib/venue/identity-bridge"
 
 export type VenuePermission =
   | "manage_bookings"
@@ -282,8 +286,10 @@ export async function ensureVenueOperationalContext(
   userId: string,
 ) {
   const settings = normalizeSettings(venue.settings)
-  let venuesV2Id = venue.venuesV2Id || null
-  let operationalOrgId = venue.operationalOrgId || null
+  // ADR-0001: prefer the relational identity bridge over settings JSON.
+  const bridge = await fetchVenueIdentityBridge(service, venue.id)
+  let venuesV2Id = bridge?.venuesV2Id || venue.venuesV2Id || null
+  let operationalOrgId = bridge?.operationalOrgId || venue.operationalOrgId || null
 
   if (!operationalOrgId) {
     const baseSlug = buildSlug(venue.url_slug || venue.venue_name || venue.id, `venue-${venue.id.slice(0, 8)}`)
@@ -307,11 +313,16 @@ export async function ensureVenueOperationalContext(
     operationalOrgId = org?.id || null
 
     if (operationalOrgId) {
+      // VEN-087: org membership must derive from verified Venue authority.
+      // Provisioning must never escalate the first caller to org owner — only
+      // a verified Venue account owner may hold the mirrored owner role;
+      // delegated members enter as plain members pending canonical entity RBAC.
+      const mirroredRole: "owner" | "member" = venue.role === "owner" ? "owner" : "member"
       await service.from("org_members").upsert(
         {
           org_id: operationalOrgId,
           user_id: userId,
-          role: "owner",
+          role: mirroredRole,
           invited_by: userId,
         },
         { onConflict: "org_id,user_id" },
@@ -345,6 +356,21 @@ export async function ensureVenueOperationalContext(
 
   if (venuesV2Id !== venue.venuesV2Id || operationalOrgId !== venue.operationalOrgId) {
     await service.from("venue_profiles").update({ settings: nextSettings }).eq("id", venue.id)
+  }
+
+  // Write-through to the relational bridge (ADR-0001 migration window dual-write).
+  if (venuesV2Id || operationalOrgId) {
+    const bridgeChanged =
+      !bridge ||
+      bridge.venuesV2Id !== venuesV2Id ||
+      bridge.operationalOrgId !== operationalOrgId
+    if (bridgeChanged) {
+      await upsertVenueIdentityBridge(
+        service,
+        { venueProfileId: venue.id, venuesV2Id, operationalOrgId },
+        "runtime",
+      )
+    }
   }
 
   return {

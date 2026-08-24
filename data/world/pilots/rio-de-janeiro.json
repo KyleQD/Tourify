@@ -1,0 +1,877 @@
+{
+  "schema_version": "world-history-seed-v0.1",
+  "pilot_key": "rio-de-janeiro",
+  "place_path": "br/rj/rio-de-janeiro",
+  "overview": {
+    "musical_identity": "Home of samba and bossa nova, where hillside rodas and Copacabana apartments rewrote the world's idea of Brazilian song."
+  },
+  "entities": [
+    {
+      "seed_id": "rio_de_janeiro_pixinguinha",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-pixinguinha",
+      "canonical_name": "Pixinguinha",
+      "short_description": "Flutist-saxophonist who composed choro's canon and modernized Brazilian popular music.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_donga_composer",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-donga_composer",
+      "canonical_name": "Donga",
+      "short_description": "Pelo Telefone co-composer, credited with the first recorded samba.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_cartola",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-cartola",
+      "canonical_name": "Cartola",
+      "short_description": "Mangueira hat-maker whose sublime sambas defined the genre's poetry.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_noel_rosa",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-noel_rosa",
+      "canonical_name": "Noel Rosa",
+      "short_description": "Vila Isabel wit who urbanized samba's language with irony and tenderness.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_ismael_silva",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-ismael_silva",
+      "canonical_name": "Ismael Silva",
+      "short_description": "Estácio pioneer who reshaped samba for parade marching.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_joao_gilberto",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-joao_gilberto",
+      "canonical_name": "João Gilberto",
+      "short_description": "Bahia-born whisper-guitarist whose rhythm invented bossa nova in Rio apartments.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_tom_jobim",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-tom_jobim",
+      "canonical_name": "Tom Jobim",
+      "short_description": "Composer-pianist of 'Garota de Ipanema' and bossa's classical architecture.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_vinicius_de_moraes",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-vinicius_de_moraes",
+      "canonical_name": "Vinicius de Moraes",
+      "short_description": "Poet-diplomat whose lyrics married bossa to literature.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_baden_powell_rio",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-baden_powell_rio",
+      "canonical_name": "Baden Powell",
+      "short_description": "Guitarist fusing bossa with Afro-Brazilian themes.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_nara_leao",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-nara_leao",
+      "canonical_name": "Nara Leão",
+      "short_description": "The 'muse of bossa nova' who opened doors to MPB protest song.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_jorge_ben_jor",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-jorge_ben_jor",
+      "canonical_name": "Jorge Ben Jor",
+      "short_description": "Samba-rock inventor behind 'Pelo Telephone'-era grooves' next generation.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_caetano_veloso_rio",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-caetano_veloso_rio",
+      "canonical_name": "Caetano Veloso",
+      "short_description": "Tropicália instigator whose Rio years fused rock, avant-garde, and bahianidade.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_gilberto_gil_rio",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-gilberto_gil_rio",
+      "canonical_name": "Gilberto Gil",
+      "short_description": "Tropicália co-founder and later culture minister of Brazil.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_elis_regina_rio",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-elis_regina_rio",
+      "canonical_name": "Elis Regina",
+      "short_description": "Voice of a generation who championed MPB's greatest songwriters from Rio stages.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_sergio_mendes_rio",
+      "entity_type": "artist_reference",
+      "slug": "rio_de_janeiro-sergio_mendes_rio",
+      "canonical_name": "Sérgio Mendes",
+      "short_description": "Bossa pianist whose Brasil '66 carried Rio rhythms to pop charts worldwide.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_aquarela_do_brasil_1939",
+      "entity_type": "recording_reference",
+      "slug": "rio_de_janeiro-aquarela_do_brasil_1939",
+      "canonical_name": "Aquarela do Brasil (1939)",
+      "short_description": "Ary Barroso's exuberant samba-exaltação that introduced Brazil to Hollywood.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1939
+    },
+    {
+      "seed_id": "rio_de_janeiro_chega_de_saudade_1958",
+      "entity_type": "recording_reference",
+      "slug": "rio_de_janeiro-chega_de_saudade_1958",
+      "canonical_name": "Chega de Saudade (1958)",
+      "short_description": "João Gilberto's single that started bossa nova.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1958
+    },
+    {
+      "seed_id": "rio_de_janeiro_desafinado_1962",
+      "entity_type": "recording_reference",
+      "slug": "rio_de_janeiro-desafinado_1962",
+      "canonical_name": "Desafinado (1962)",
+      "short_description": "Jobim-Gilberto Grammy-winning answer to critics of the 'off-key' new style.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1962
+    },
+    {
+      "seed_id": "rio_de_janeiro_garota_ipanema_1964",
+      "entity_type": "recording_reference",
+      "slug": "rio_de_janeiro-garota_ipanema_1964",
+      "canonical_name": "Garota de Ipanema (1964)",
+      "short_description": "The second-most-recorded song in history, born at a Veloso bar in Ipanema.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1964
+    },
+    {
+      "seed_id": "rio_de_janeiro_pelo_telefone_jorge_ben_1970",
+      "entity_type": "recording_reference",
+      "slug": "rio_de_janeiro-pelo_telefone_jorge_ben_1970",
+      "canonical_name": "Pelo Telephone (1970)",
+      "short_description": "Jorge Ben's samba-rocker that topped British charts.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1970
+    },
+    {
+      "seed_id": "rio_de_janeiro_cavaquinho",
+      "entity_type": "instrument",
+      "slug": "rio_de_janeiro-cavaquinho",
+      "canonical_name": "Cavaquinho",
+      "short_description": "Small four-string guitar strumming samba's rhythmic engine.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_pandeiro_rio",
+      "entity_type": "instrument",
+      "slug": "rio_de_janeiro-pandeiro_rio",
+      "canonical_name": "Pandeiro",
+      "short_description": "Frame drum whose slap-roll patterns are samba's conversational heartbeat.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_surdo",
+      "entity_type": "instrument",
+      "slug": "rio_de_janeiro-surdo",
+      "canonical_name": "Surdo",
+      "short_description": "Deep parade bass drum that anchors every samba school.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_portela_quadra_madureira",
+      "entity_type": "studio_landmark",
+      "slug": "rio_de_janeiro-portela_quadra_madureira",
+      "canonical_name": "Portela Quadra (Madureira)",
+      "short_description": "Headquarters of the record-setting samba school founded in 1923.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1923
+    },
+    {
+      "seed_id": "rio_de_janeiro_beco_das_garrafas",
+      "entity_type": "studio_landmark",
+      "slug": "rio_de_janeiro-beco_das_garrafas",
+      "canonical_name": "Beco das Garrafas (Copacabana)",
+      "short_description": "Alley of tiny clubs where bossa nova was honed night after night.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": null
+    },
+    {
+      "seed_id": "rio_de_janeiro_circo_voador_lapa",
+      "entity_type": "studio_landmark",
+      "slug": "rio_de_janeiro-circo_voador_lapa",
+      "canonical_name": "Circo Voador (Lapa)",
+      "short_description": "Iconic big-top venue anchoring Lapa's music revival.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1982
+    },
+    {
+      "seed_id": "rio_de_janeiro_pelo_telefone_1917",
+      "entity_type": "historical_milestone",
+      "slug": "rio_de_janeiro-pelo_telefone_1917",
+      "canonical_name": "'Pelo Telefone' recorded",
+      "short_description": "Donga's Carnival hit is recognized as the first recorded samba.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1917
+    },
+    {
+      "seed_id": "rio_de_janeiro_deixa_falar_1928",
+      "entity_type": "historical_milestone",
+      "slug": "rio_de_janeiro-deixa_falar_1928",
+      "canonical_name": "Deixa Falar founded",
+      "short_description": "The first samba school forms in Estácio; parades become institutions.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1928
+    },
+    {
+      "seed_id": "rio_de_janeiro_bossa_crystallizes_1958",
+      "entity_type": "historical_milestone",
+      "slug": "rio_de_janeiro-bossa_crystallizes_1958",
+      "canonical_name": "Bossa nova crystallizes",
+      "short_description": "'Chega de Saudade' launches the whispering revolution.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1958
+    },
+    {
+      "seed_id": "rio_de_janeiro_ipanema_grammy_1965",
+      "entity_type": "historical_milestone",
+      "slug": "rio_de_janeiro-ipanema_grammy_1965",
+      "canonical_name": "'Girl from Ipanema' wins Grammy",
+      "short_description": "Getz/Gilberto takes Record of the Song at the Grammys.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1965
+    },
+    {
+      "seed_id": "rio_de_janeiro_sambodromo_opens_1984",
+      "entity_type": "historical_milestone",
+      "slug": "rio_de_janeiro-sambodromo_opens_1984",
+      "canonical_name": "Sambódromo opens",
+      "short_description": "Oscar Niemeyer's purpose-built parade ground institutionalizes Carnival.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "start_year": 1984
+    },
+    {
+      "seed_id": "rio_de_janeiro_samba_raiz_scene",
+      "entity_type": "scene",
+      "slug": "rio_de_janeiro-samba_raiz_scene",
+      "canonical_name": "Samba Raiz",
+      "short_description": "Roots samba of the hills — partido alto, samba-enredo, and roda traditions.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_bossa_nova_scene",
+      "entity_type": "scene",
+      "slug": "rio_de_janeiro-bossa_nova_scene",
+      "canonical_name": "Bossa Nova",
+      "short_description": "Cool-toned harmony-meets-whisper genre born in South Zone apartments.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_tropicalia_scene",
+      "entity_type": "scene",
+      "slug": "rio_de_janeiro-tropicalia_scene",
+      "canonical_name": "Tropicália",
+      "short_description": "Late-'60s movement merging rock, experimentalism, and Brazilian identity.",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa",
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_carnival_parades_rio",
+      "entity_type": "tradition",
+      "slug": "rio_de_janeiro-carnival_parades_rio",
+      "canonical_name": "Carnival Samba-School Parades",
+      "short_description": "The world's largest party: schools compete at the Sambódromo each Lent.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_roda_de_samba",
+      "entity_type": "tradition",
+      "slug": "rio_de_janeiro-roda_de_samba",
+      "canonical_name": "Roda de Samba",
+      "short_description": "Table-tapping circle sessions in bars across Lapa and Subúrcio.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "seed_id": "rio_de_janeiro_sao_cristovao_feira",
+      "entity_type": "tradition",
+      "slug": "rio_de_janeiro-sao_cristovao_feira",
+      "canonical_name": "Feira de São Cristóvão",
+      "short_description": "Northeastern culture fair bringing forró and bumba-meu-boi to Rio weekly.",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ],
+  "relationships": [
+    {
+      "subject_seed_id": "rio_de_janeiro_aquarela_do_brasil_1939",
+      "relation_key": "credited_to",
+      "object_seed_id": "rio_de_janeiro_pixinguinha",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_chega_de_saudade_1958",
+      "relation_key": "credited_to",
+      "object_seed_id": "rio_de_janeiro_donga_composer",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_desafinado_1962",
+      "relation_key": "credited_to",
+      "object_seed_id": "rio_de_janeiro_cartola",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_garota_ipanema_1964",
+      "relation_key": "credited_to",
+      "object_seed_id": "rio_de_janeiro_noel_rosa",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_pelo_telefone_jorge_ben_1970",
+      "relation_key": "credited_to",
+      "object_seed_id": "rio_de_janeiro_ismael_silva",
+      "source_keys": [
+        "biblioteca_nacional_brasil_bossa"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_pixinguinha",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_samba_raiz_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_pixinguinha",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_cavaquinho",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_donga_composer",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_bossa_nova_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_donga_composer",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_pandeiro_rio",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_cartola",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_tropicalia_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_cartola",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_surdo",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_noel_rosa",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_samba_raiz_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_noel_rosa",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_cavaquinho",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_ismael_silva",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_bossa_nova_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_ismael_silva",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_pandeiro_rio",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_joao_gilberto",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_tropicalia_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_joao_gilberto",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_surdo",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_tom_jobim",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_samba_raiz_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_tom_jobim",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_cavaquinho",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_vinicius_de_moraes",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_bossa_nova_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_vinicius_de_moraes",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_pandeiro_rio",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_baden_powell_rio",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_tropicalia_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_baden_powell_rio",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_surdo",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_nara_leao",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_samba_raiz_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_nara_leao",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_cavaquinho",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_jorge_ben_jor",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_bossa_nova_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_jorge_ben_jor",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_pandeiro_rio",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_caetano_veloso_rio",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_tropicalia_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_caetano_veloso_rio",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_surdo",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_gilberto_gil_rio",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_samba_raiz_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_gilberto_gil_rio",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_cavaquinho",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_elis_regina_rio",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_bossa_nova_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_elis_regina_rio",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_pandeiro_rio",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_sergio_mendes_rio",
+      "relation_key": "part_of",
+      "object_seed_id": "rio_de_janeiro_tropicalia_scene",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "rio_de_janeiro_sergio_mendes_rio",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "rio_de_janeiro_surdo",
+      "source_keys": [
+        "rio_music_reference_bossa"
+      ],
+      "confidence": 0.85,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    }
+  ]
+}

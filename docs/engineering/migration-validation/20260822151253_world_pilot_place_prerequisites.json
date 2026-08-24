@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260822151253_world_pilot_place_prerequisites.sql",
+  "taskId": "WOM-ACT-PLACES",
+  "status": "local_rehearsal",
+  "owner": "world-of-music",
+  "reviewer": "security-data",
+  "domains": [
+    "geography"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "12 places / 8 aliases / 9 external refs seeded draft in local DB",
+    "evidenceArtifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count pre-existing geo rows"
+    ],
+    "expectedAffectedRows": "ON CONFLICT updates; idempotent (proven by full-lineage replay)",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Single transaction; retry from version on interruption",
+    "resumeCursor": "supabase migration version 20260822151253",
+    "idempotency": "ON CONFLICT updates; idempotent (proven by full-lineage replay)"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Rehearsal-only artifact"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Covered by activation evidence suite"
+  },
+  "recovery": {
+    "rollback": "update publication_status='retired' for seeded slugs or delete by metadata source_key",
+    "forwardFix": "Regenerate from reviewed source artifact via governed conversion"
+  },
+  "postflight": {
+    "queries": [
+      "Row-count and state checks recorded in activation evidence"
+    ],
+    "artifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md",
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md",
+    "staging": null,
+    "production": null
+  },
+  "exclusions": {
+    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW \u2014 local rehearsal migration per docs/24 A1-A4"
+  },
+  "exceptions": []
+}
