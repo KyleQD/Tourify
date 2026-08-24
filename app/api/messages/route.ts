@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isConversationParticipant, resolveActingAccountIds } from '@/lib/messages/participant-auth'
 import { z } from 'zod'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
 import { checkAdminPermissions } from '@/lib/auth/api-auth'
@@ -309,8 +310,15 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
       }
 
-      const isParticipant = conversation.participant_1 === userId || conversation.participant_2 === userId
-      if (!isParticipant) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      // VEN-095: acting-account aware membership.
+      const acting = await resolveActingAccountIds(
+        userId,
+        request.headers.get('x-acting-profile-id') ?? searchParams.get('acting_account_id'),
+      )
+      if (acting.error) return NextResponse.json({ error: acting.error }, { status: 403 })
+
+      if (!isConversationParticipant(conversation, acting.ids))
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
       const rawLimit = Number(searchParams.get('limit') ?? '50')
       const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 100)

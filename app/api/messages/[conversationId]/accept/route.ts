@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
+import { isConversationParticipant, resolveActingAccountIds } from '@/lib/messages/participant-auth'
 
 const conversationIdSchema = z.string().uuid({ message: 'Invalid conversation id' })
 
@@ -12,7 +13,8 @@ function getConversationIdFromPath(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const rawId = getConversationIdFromPath(request)
@@ -22,6 +24,13 @@ export async function POST(request: NextRequest) {
 
     const conversationId = parsed.data
     const supabase = createServiceRoleClient()
+
+    // VEN-095: validate the ACTING account (venue identity), not just the user.
+    const acting = await resolveActingAccountIds(
+      user.id,
+      request.headers.get('x-acting-profile-id'),
+    )
+    if (acting.error) return NextResponse.json({ error: acting.error }, { status: 403 })
 
     const { data: conversation, error: conversationError } = await supabase
       .from('conversations')
@@ -33,8 +42,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
     }
 
-    const isParticipant = conversation.participant_1 === user.id || conversation.participant_2 === user.id
-    if (!isParticipant) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!isConversationParticipant(conversation, acting.ids))
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     if (conversation.trust_tier !== 'request' || conversation.accepted_at) {
       return NextResponse.json(
