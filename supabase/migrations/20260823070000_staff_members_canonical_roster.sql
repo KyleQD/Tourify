@@ -37,8 +37,10 @@ BEGIN
   SELECT count(*) INTO legacy_total FROM public.venue_team_members;
 
   FOR rec IN
-    SELECT vtm.id, vtm.user_id, vtm.name, vtm.email, vtm.role, vtm.status,
-           vtm.canonical_staff_member_id
+    SELECT vtm.id, vtm.user_id, vtm.name, vtm.email,
+           COALESCE(vtm.role, 'member') AS role, vtm.status,
+           vtm.department, vtm.employment_type,
+           vtm.venue_id, vtm.canonical_staff_member_id
     FROM public.venue_team_members vtm
   LOOP
     IF rec.canonical_staff_member_id IS NOT NULL THEN
@@ -64,14 +66,18 @@ BEGIN
 
     IF v_staff_id IS NULL THEN
       -- No canonical twin exists → migrate the legacy row forward as canonical.
+      -- Live schema requires NOT NULL department/employment_type (VEN-103).
       INSERT INTO public.staff_members (
         user_id, name, email, role, status,
+        department, employment_type,
         employer_entity_type, employer_entity_id, created_at, updated_at
       )
       VALUES (
         rec.user_id, rec.name, rec.email,
         COALESCE(rec.role, 'member'),
         CASE rec.status WHEN 'active' THEN 'active' ELSE 'inactive' END,
+        COALESCE(rec.department, 'operations'),
+        COALESCE(rec.employment_type, 'full_time'),
         'venue',
         rec.venue_id,
         NOW() - INTERVAL '1 second', NOW()

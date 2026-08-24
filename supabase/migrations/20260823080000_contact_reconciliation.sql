@@ -24,7 +24,15 @@ DECLARE
   v_last     TEXT;
 BEGIN
   FOR rec IN
-    SELECT vp.id AS venue_id,
+    SELECT vp.id AS venue_profile_id,
+           -- venue_contacts FKs to the OPS mirror (venues), not profiles —
+           -- resolve canonical→mirror via the ADR-0001 bridge first, then the
+           -- legacy settings JSON key; profile-only venues are counted/skipped.
+           CASE
+             WHEN b.venues_v2_id IS NOT NULL THEN b.venues_v2_id
+             WHEN vp.settings ->> 'venues_v2_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+               THEN (vp.settings ->> 'venues_v2_id')::uuid
+           END AS target_venue_id,
            vp.contact_info,
            COALESCE(
              NULLIF(vp.contact_info ->> 'manager_name', ''),
@@ -35,6 +43,7 @@ BEGIN
            NULLIF(vp.contact_info ->> 'email', '')         AS fallback_email,
            NULLIF(vp.contact_info ->> 'phone', '')         AS phone
     FROM public.venue_profiles vp
+    LEFT JOIN public.venue_identity_bridges b ON b.venue_profile_id = vp.id
     WHERE vp.contact_info IS NOT NULL
       AND jsonb_strip_nulls(vp.contact_info) <> '{}'::jsonb
       AND (
@@ -45,10 +54,16 @@ BEGIN
   LOOP
     scanned := scanned + 1;
 
+    -- No operational mirror for this profile-only venue → nothing to attach.
+    IF rec.target_venue_id IS NULL THEN
+      skipped := skipped + 1;
+      CONTINUE;
+    END IF;
+
     -- Skip venues that already have a primary booking contact (idempotency).
     IF EXISTS (
       SELECT 1 FROM public.venue_contacts vc
-      WHERE vc.venue_id = rec.venue_id
+      WHERE vc.venue_id = rec.target_venue_id
         AND vc.is_primary = true
         AND vc.department = 'booking'
     ) THEN
@@ -72,7 +87,7 @@ BEGIN
         department, position, is_primary, notes
       )
       VALUES (
-        rec.venue_id,
+        rec.target_venue_id,
         v_first,
         v_last,
         COALESCE(rec.booking_email, rec.fallback_email),

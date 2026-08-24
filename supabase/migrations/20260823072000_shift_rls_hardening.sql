@@ -72,6 +72,7 @@ $$;
 
 -- ── VEN-120: venue_shifts read scoping ───────────────────────────────────────
 DROP POLICY IF EXISTS venue_shifts_staff_read ON public.venue_shifts;
+DROP POLICY IF EXISTS venue_shifts_operator_read ON public.venue_shifts;
 CREATE POLICY venue_shifts_operator_read ON public.venue_shifts
   FOR SELECT
   USING (
@@ -87,6 +88,7 @@ CREATE POLICY venue_shifts_operator_read ON public.venue_shifts
 -- ── VEN-119: venue_shift_assignments split policies ──────────────────────────
 DROP POLICY IF EXISTS venue_shift_assignments_auth ON public.venue_shift_assignments;
 
+DROP POLICY IF EXISTS venue_shift_assignments_select ON public.venue_shift_assignments;
 CREATE POLICY venue_shift_assignments_select ON public.venue_shift_assignments
   FOR SELECT
   USING (
@@ -98,6 +100,7 @@ CREATE POLICY venue_shift_assignments_select ON public.venue_shift_assignments
     )
   );
 
+DROP POLICY IF EXISTS venue_shift_assignments_manage ON public.venue_shift_assignments;
 CREATE POLICY venue_shift_assignments_manage ON public.venue_shift_assignments
   FOR ALL
   USING (
@@ -117,6 +120,7 @@ CREATE POLICY venue_shift_assignments_manage ON public.venue_shift_assignments
 
 -- Workers may update ONLY their own assignment status (accept/decline style),
 -- never reassign to someone else.
+DROP POLICY IF EXISTS venue_shift_assignments_worker_update ON public.venue_shift_assignments;
 CREATE POLICY venue_shift_assignments_worker_update ON public.venue_shift_assignments
   FOR UPDATE
   USING (

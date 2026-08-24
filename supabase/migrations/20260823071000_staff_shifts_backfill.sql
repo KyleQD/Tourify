@@ -25,6 +25,11 @@ COMMENT ON COLUMN public.staff_shifts.legacy_venue_shift_id IS
   'VEN-111 backfill provenance: original venue_shifts row. Read-only after cutover.';
 
 -- ── Shift backfill ────────────────────────────────────────────────────────────
+-- Live schema requires staff_member_id NOT NULL; unassigned legacy shifts are
+-- migrated with a NULL worker (binding lives in employment_assignments), so
+-- relax the constraint for the migration window. Zero-loss requirement wins.
+ALTER TABLE public.staff_shifts ALTER COLUMN staff_member_id DROP NOT NULL;
+
 INSERT INTO public.staff_shifts (
   venue_id,
   staff_member_id,
@@ -36,7 +41,8 @@ INSERT INTO public.staff_shifts (
   role_assignment,
   notes,
   status,
-  legacy_venue_shift_id
+  legacy_venue_shift_id,
+  created_by
 )
 SELECT
   vs.venue_id,
@@ -54,7 +60,11 @@ SELECT
     WHEN 'cancelled'   THEN 'cancelled'
     ELSE 'scheduled'                       -- open / in_progress / unknown
   END,
-  vs.id
+  vs.id,
+  COALESCE(
+    (SELECT vp.user_id FROM public.venue_profiles vp WHERE vp.id = vs.venue_id),
+    '00000000-0000-0000-0000-000000000000'::uuid  -- system sentinel for orphaned seed venues
+  )
 FROM public.venue_shifts vs
 WHERE NOT EXISTS (
   SELECT 1 FROM public.staff_shifts ss WHERE ss.legacy_venue_shift_id = vs.id

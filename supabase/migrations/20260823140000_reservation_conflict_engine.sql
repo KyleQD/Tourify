@@ -30,15 +30,11 @@ CREATE TABLE IF NOT EXISTS public.venue_reservations (
   ends_at               timestamptz NOT NULL,
   setup_buffer_minutes  integer NOT NULL DEFAULT 0 CHECK (setup_buffer_minutes BETWEEN 0 AND 720),
   teardown_buffer_minutes integer NOT NULL DEFAULT 0 CHECK (teardown_buffer_minutes BETWEEN 0 AND 720),
-  -- Guarded interval = [start - setup, end + teardown]; immutable expression,
-  -- usable in the exclusion constraint below.
-  reserved_range        tstzrange GENERATED ALWAYS AS (
-                          tstzrange(
-                            starts_at - make_interval(secs => setup_buffer_minutes * 60),
-                            ends_at   + make_interval(secs => teardown_buffer_minutes * 60),
-                            '[)'
-                          )
-                        ) STORED,
+  -- Buffered guarded interval [start - setup, end + teardown], computed on
+  -- every write by trg_venue_reservations_range (timestamptz ± interval is
+  -- only STABLE, which disqualifies GENERATED columns; all program writes go
+  -- through create_venue_reservation and this trigger keeps direct SQL sane).
+  reserved_range        tstzrange NOT NULL DEFAULT tstzrange(now(), now(), '[)'),
   status                text NOT NULL DEFAULT 'hold'
                         CHECK (status IN ('hold','offer','contract','confirmed','released')),
   source_type           text NOT NULL DEFAULT 'booking_request',
@@ -50,6 +46,24 @@ CREATE TABLE IF NOT EXISTS public.venue_reservations (
 
 COMMENT ON TABLE public.venue_reservations IS
   'VEN-084: consuming time/resource ledger. Active statuses (hold/offer/contract/confirmed) may not overlap per (venue, resource) — enforced by exclusion constraint, not application code.';
+
+CREATE OR REPLACE FUNCTION public.compute_reservation_range()
+RETURNS trigger LANGUAGE plpgsql SET search_path = 'public' AS $$
+BEGIN
+  NEW.reserved_range := tstzrange(
+    NEW.starts_at - make_interval(secs => NEW.setup_buffer_minutes * 60),
+    NEW.ends_at   + make_interval(secs => NEW.teardown_buffer_minutes * 60),
+    '[)'
+  );
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_venue_reservations_range ON public.venue_reservations;
+CREATE TRIGGER trg_venue_reservations_range
+  BEFORE INSERT OR UPDATE OF starts_at, ends_at, setup_buffer_minutes, teardown_buffer_minutes
+  ON public.venue_reservations
+  FOR EACH ROW EXECUTE FUNCTION public.compute_reservation_range();
 
 CREATE INDEX IF NOT EXISTS idx_venue_reservations_source
   ON public.venue_reservations (source_type, source_id);
@@ -88,11 +102,11 @@ CREATE OR REPLACE FUNCTION public.create_venue_reservation(
   p_venue_id           uuid,
   p_starts_at          timestamptz,
   p_ends_at            timestamptz,
+  p_source_id          uuid,
   p_setup_minutes      integer default 0,
   p_teardown_minutes   integer default 0,
   p_resource_key       text    default 'whole_venue',
   p_source_type        text    default 'booking_request',
-  p_source_id          uuid,
   p_actor              uuid    default null
 )
 RETURNS uuid
@@ -114,7 +128,7 @@ BEGIN
        COALESCE(p_setup_minutes,0), COALESCE(p_teardown_minutes,0),
        'hold', p_source_type, p_source_id, p_actor)
     RETURNING id INTO v_id;
-  EXCEPTION WHEN exclude_violation THEN
+  EXCEPTION WHEN SQLSTATE '23P01' THEN
     RAISE EXCEPTION 'Time range conflicts with an existing active reservation'
       USING ERRCODE = '40901';
   END;
@@ -126,16 +140,22 @@ CREATE OR REPLACE FUNCTION public.release_venue_reservation(
   p_source_type text, p_source_id uuid
 )
 RETURNS integer
-LANGUAGE sql SECURITY DEFINER SET search_path = 'public' AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public' AS $$
+DECLARE
+  v_rows integer;
+BEGIN
   UPDATE public.venue_reservations
   SET status = 'released'
   WHERE source_type = p_source_type AND source_id = p_source_id
     AND status IN ('hold','offer','contract','confirmed');
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows;
+END;
 $$;
 
-REVOKE ALL ON FUNCTION public.create_venue_reservation(uuid,timestamptz,timestamptz,integer,integer,text,text,uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_venue_reservation(uuid,timestamptz,timestamptz,uuid,integer,integer,text,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.release_venue_reservation(text,uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_venue_reservation(uuid,timestamptz,timestamptz,integer,integer,text,text,uuid,uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_venue_reservation(uuid,timestamptz,timestamptz,uuid,integer,integer,text,text,uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.release_venue_reservation(text,uuid) TO authenticated;
 
 -- ── 3. Transition engine consumes/releases reservations (VEN-078/049/086) ──
