@@ -28,11 +28,7 @@ BEGIN
            -- venue_contacts FKs to the OPS mirror (venues), not profiles —
            -- resolve canonical→mirror via the ADR-0001 bridge first, then the
            -- legacy settings JSON key; profile-only venues are counted/skipped.
-           CASE
-             WHEN b.venues_v2_id IS NOT NULL THEN b.venues_v2_id
-             WHEN vp.settings ->> 'venues_v2_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-               THEN (vp.settings ->> 'venues_v2_id')::uuid
-           END AS target_venue_id,
+           vv.id AS target_venue_id,
            vp.contact_info,
            COALESCE(
              NULLIF(vp.contact_info ->> 'manager_name', ''),
@@ -44,6 +40,15 @@ BEGIN
            NULLIF(vp.contact_info ->> 'phone', '')         AS phone
     FROM public.venue_profiles vp
     LEFT JOIN public.venue_identity_bridges b ON b.venue_profile_id = vp.id
+    -- Only accept targets that REALLY exist in venues (stale settings ids
+    -- would violate the FK); join filters them to NULL -> skipped below.
+    LEFT JOIN public.venues vv ON vv.id = COALESCE(
+      b.venues_v2_id,
+      CASE
+        WHEN vp.settings ->> 'venues_v2_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          THEN (vp.settings ->> 'venues_v2_id')::uuid
+      END
+    )
     WHERE vp.contact_info IS NOT NULL
       AND jsonb_strip_nulls(vp.contact_info) <> '{}'::jsonb
       AND (

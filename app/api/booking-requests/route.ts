@@ -46,6 +46,42 @@ function parseEventDurationMinutes(durationText?: string) {
   return Math.max(30, Math.round((endDate - startDate) / (1000 * 60)))
 }
 
+// ── VEN-081: typed, server-enforced booking policies ────────────────────────
+const LEAD_TIME_DAYS: Record<string, number> = {
+  '1day': 1, '3days': 3, '1week': 7, '2weeks': 14, '1month': 30,
+}
+const MAX_ADVANCE_DAYS: Record<string, number> = {
+  '3months': 90, '6months': 180, '1year': 365, '2years': 730,
+}
+const AUTO_APPROVE_MODES = ['manual', 'trusted', 'small', 'all'] as const
+
+interface VenueBookingPolicies {
+  allowBookings: boolean
+  leadTimeDays: number
+  maxAdvanceDays: number | null
+  autoApprove: (typeof AUTO_APPROVE_MODES)[number]
+}
+
+function pickEnum<T extends string>(v: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : fallback
+}
+
+function readVenueBookingPolicies(settings: unknown): VenueBookingPolicies {
+  const rawSettings: unknown = settings
+  const s: Record<string, unknown> =
+    typeof rawSettings === "object" && rawSettings !== null ? (rawSettings as Record<string, unknown>) : {}
+  const rawPolicies: unknown = s.booking_policies
+  const p: Record<string, unknown> =
+    typeof rawPolicies === "object" && rawPolicies !== null ? (rawPolicies as Record<string, unknown>) : {}
+  return {
+    // VEN-255 canonical switch; default open.
+    allowBookings: s.allow_bookings !== false,
+    leadTimeDays: LEAD_TIME_DAYS[String(p.lead_time ?? '')] ?? 0,
+    maxAdvanceDays: MAX_ADVANCE_DAYS[String(p.max_advance ?? '')] ?? null,
+    autoApprove: pickEnum(p.auto_approve, AUTO_APPROVE_MODES, 'manual'),
+  }
+}
+
 async function validateVenueAvailability(input: {
   venueId: string
   eventDate?: string
@@ -319,11 +355,56 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // ── VEN-081: enforce the venue's saved policies server-side ───────────
+      const { data: venueRow } = await service
+        .from("venue_profiles")
+        .select("settings")
+        .eq("id", validatedData.venueId)
+        .maybeSingle()
+      const policies = readVenueBookingPolicies(venueRow?.settings)
+
+      if (!policies.allowBookings) {
+        return NextResponse.json(
+          { error: "This venue is not accepting booking requests right now." },
+          { status: 422 }
+        )
+      }
+
+      const eventStart = eventDate ? new Date(eventDate) : null
+      if (eventStart && !Number.isNaN(eventStart.getTime())) {
+        if (policies.leadTimeDays > 0) {
+          const cutoff = new Date(Date.now() + policies.leadTimeDays * 86_400_000)
+          if (eventStart < cutoff) {
+            return NextResponse.json(
+              { error: `This venue requires at least ${policies.leadTimeDays} day(s) of lead time.` },
+              { status: 422 }
+            )
+          }
+        }
+        if (policies.maxAdvanceDays != null) {
+          const horizon = new Date(Date.now() + policies.maxAdvanceDays * 86_400_000)
+          if (eventStart > horizon) {
+            return NextResponse.json(
+              { error: `This venue accepts events up to ${policies.maxAdvanceDays} days in advance.` },
+              { status: 422 }
+            )
+          }
+        }
+      }
+
+      // 'all' mirrors instant approval; trusted/small stay manual until trust
+      // signals exist server-side (never auto-approve on unverifiable claims).
+      const initialStatus =
+        policies.autoApprove === "all" && eventStart ? "approved" : "pending"
+
       const { data, error } = await supabase
         .from("venue_booking_requests")
         .insert({
           venue_id: validatedData.venueId,
           requester_id: requesterId,
+          // VEN-085/050: acting account identity alongside human actor.
+          requester_profile_id: context.profileId || null,
+          requester_account_type: context.accountType || null,
           event_name:
             validatedData.eventName ||
             validatedData.bookingDetails.performanceType ||
@@ -342,7 +423,7 @@ export async function POST(req: NextRequest) {
             null,
           contact_email: requesterEmail,
           contact_phone: validatedData.phone || null,
-          status: "pending"
+          status: initialStatus
         })
         .select()
         .single()
