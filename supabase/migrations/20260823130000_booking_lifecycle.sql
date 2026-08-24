@@ -203,18 +203,21 @@ GRANT EXECUTE ON FUNCTION public.transition_venue_booking_lifecycle(uuid, intege
 DROP POLICY IF EXISTS "Venue owners can manage all booking requests for their venues" ON public.venue_booking_requests;
 DROP POLICY IF EXISTS "Users can view and manage their own booking requests" ON public.venue_booking_requests;
 
+DROP POLICY IF EXISTS booking_requests_select ON public.venue_booking_requests;
 CREATE POLICY booking_requests_select ON public.venue_booking_requests
   FOR SELECT USING (
     requester_id = auth.uid()
     OR public.venue_has_operator_access(venue_id)
   );
 
+DROP POLICY IF EXISTS booking_requests_insert ON public.venue_booking_requests;
 CREATE POLICY booking_requests_insert ON public.venue_booking_requests
   FOR INSERT WITH CHECK (
     requester_id = auth.uid()
     AND status = 'pending'
   );
 
+DROP POLICY IF EXISTS booking_requests_update ON public.venue_booking_requests;
 CREATE POLICY booking_requests_update ON public.venue_booking_requests
   FOR UPDATE
   USING (
@@ -226,6 +229,7 @@ CREATE POLICY booking_requests_update ON public.venue_booking_requests
     OR (requester_id = auth.uid() AND status IN ('pending','cancelled'))
   );
 
+DROP POLICY IF EXISTS booking_requests_delete ON public.venue_booking_requests;
 CREATE POLICY booking_requests_delete ON public.venue_booking_requests
   FOR DELETE USING (public.venue_has_operator_access(venue_id));
 

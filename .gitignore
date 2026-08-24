@@ -52,3 +52,6 @@ docs/audits/flow-notes/*.json
 .DS_Store
 
 .bob/mcp.json
+
+# Supabase credentials (local only)
+.env.supabase.local
