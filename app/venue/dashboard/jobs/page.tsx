@@ -18,6 +18,7 @@ import {
 import Link from "next/link"
 import { CreateJobModal } from "../../components/jobs/create-job-modal"
 import { VenueHiringKanban } from "@/components/hiring/venue-hiring-kanban"
+import { OnboardingCandidates } from "./onboarding-candidates"
 import {
   Briefcase, Search, MapPin, DollarSign, Calendar, Filter, AlertCircle,
   MoreHorizontal, PauseCircle, PlayCircle, CheckCircle2, RefreshCw,
@@ -652,6 +653,11 @@ export default function JobsPage() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* VEN-138: Onboarding surface — canonical staff_onboarding_candidates */}
+        <TabsContent value="onboarding" className="mt-6">
+          <OnboardingCandidates venueId={venue.id} />
         </TabsContent>
 
         <TabsContent value="recognition" className="mt-6">
