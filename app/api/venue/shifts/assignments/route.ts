@@ -3,6 +3,7 @@ import { z } from "zod"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { canManageVenue } from "@/lib/venue/venue-access"
+import { syncEmploymentAssignmentForShift, type StaffShiftRow } from "@/lib/services/staff-shift-assignment-sync"
 
 export const dynamic = "force-dynamic"
 
@@ -29,5 +30,22 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true, data })
+
+  // VEN-141: propagate the assignment into employment_assignments so the shift
+  // appears in the worker's Work Mode (and notifications fire) exactly like the
+  // admin publishing path.
+  let syncError: string | null = null
+  try {
+    await syncEmploymentAssignmentForShift({
+      supabase: service,
+      shift: data as StaffShiftRow,
+      actorUserId: auth.user.id,
+      notify: Boolean(body.staff_member_id),
+      cancelled: body.staff_member_id === null,
+    })
+  } catch (err) {
+    syncError = err instanceof Error ? err.message : "Assignment sync failed"
+  }
+
+  return NextResponse.json({ success: true, data, syncError })
 }

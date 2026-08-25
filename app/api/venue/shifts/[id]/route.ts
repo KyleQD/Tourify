@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { canManageVenue } from "@/lib/venue/venue-access"
+import { syncEmploymentAssignmentForShift, type StaffShiftRow } from "@/lib/services/staff-shift-assignment-sync"
 
 export const dynamic = "force-dynamic"
 
@@ -60,6 +61,11 @@ export async function PATCH(request: NextRequest) {
   if (!access.allowed) return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
 
   const body = await request.json()
+  const touchesAssignment =
+    typeof body === "object" &&
+    body !== null &&
+    ("staff_member_id" in body || "status" in body || "start_time" in body || "end_time" in body)
+
   const { data, error } = await service
     .from("staff_shifts")
     .update({ ...body, updated_at: new Date().toISOString() })
@@ -68,7 +74,24 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true, data })
+
+  // VEN-141: keep employment_assignments (Work Mode) in lockstep with any
+  // assignment/time/status change made through the venue scheduler.
+  let syncError: string | null = null
+  if (touchesAssignment) {
+    try {
+      await syncEmploymentAssignmentForShift({
+        supabase: service,
+        shift: data as StaffShiftRow,
+        actorUserId: auth.user.id,
+        notify: true,
+      })
+    } catch (err) {
+      syncError = err instanceof Error ? err.message : "Assignment sync failed"
+    }
+  }
+
+  return NextResponse.json({ success: true, data, syncError })
 }
 
 export async function DELETE(request: NextRequest) {

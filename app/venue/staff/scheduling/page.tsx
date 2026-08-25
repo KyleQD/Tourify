@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { VenueStaffSchedulerShell } from '@/components/venue/staff/venue-staff-scheduler-shell'
 import { ScheduleExportButton } from './schedule-export-button'
+import { resolveShiftWindow } from '@/lib/venue/shift-time'
 import { ShiftTemplates } from '@/components/venue/staff/shift-templates'
 import { ShiftRequests } from '@/components/venue/staff/shift-requests'
 import { createClient } from '@/lib/supabase/server'
@@ -121,11 +122,20 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
   const shifts = shiftResult.data || []
   const assignedShiftCount = shifts.filter((shift: any) => Boolean(shift.staff_member_id)).length
   const completedShiftCount = shifts.filter((shift: any) => shift.status === 'completed').length
+  // VEN-113: timezone/DST-safe duration via the canonical shift-window helper.
+  const venueTimeZone = (venue as { timezone?: string } | null)?.timezone || "UTC"
   const totalScheduledHours = shifts.reduce((sum: number, shift: any) => {
-    const start = Date.parse(`1970-01-01T${shift.start_time || '00:00'}Z`)
-    const end = Date.parse(`1970-01-01T${shift.end_time || '00:00'}Z`)
-    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return sum
-    return sum + (end - start) / (1000 * 60 * 60)
+    try {
+      const window = resolveShiftWindow({
+        shiftDate: String(shift.shift_date || ""),
+        startTime: String(shift.start_time || "00:00"),
+        endTime: String(shift.end_time || "00:00"),
+        timeZone: venueTimeZone,
+      })
+      return sum + window.durationMinutes / 60
+    } catch {
+      return sum
+    }
   }, 0)
   const completionRate = shifts.length ? Math.round((completedShiftCount / shifts.length) * 100) : 0
 

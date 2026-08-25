@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 const createSchema = z.object({
   venue_id: z.string().uuid(),
   event_id: z.string().uuid().optional().nullable(),
-  staff_member_id: z.string().uuid(),
+  staff_member_id: z.string().uuid().nullable(),
   shift_date: z.string(),
   start_time: z.string(),
   end_time: z.string(),
