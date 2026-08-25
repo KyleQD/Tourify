@@ -183,6 +183,12 @@ export type VenueEquipment = {
   next_maintenance: string | null;
   is_available_for_rent: boolean;
   rental_price: number | null;
+  manufacturer: string | null;
+  model: string | null;
+  serial_number: string | null;
+  purchase_price: number | null;
+  replacement_value: number | null;
+  insurance_policy: string | null;
   created_at: string;
   updated_at: string;
 };

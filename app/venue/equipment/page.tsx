@@ -58,6 +58,12 @@ interface VenueEquipment {
   purchase_date: string | null
   last_maintenance: string | null
   next_maintenance: string | null
+  manufacturer?: string | null
+  model?: string | null
+  serial_number?: string | null
+  purchase_price?: number | null
+  replacement_value?: number | null
+  insurance_policy?: string | null
   is_available_for_rent: boolean
   rental_price: number | null
   created_at: string
@@ -101,6 +107,12 @@ type EquipmentFormState = {
   next_maintenance: string
   is_available_for_rent: boolean
   rental_price: string | number
+  manufacturer: string
+  model: string
+  serial_number: string
+  purchase_price: string | number
+  replacement_value: string | number
+  insurance_policy: string
 }
 
 function EquipmentForm({
@@ -149,6 +161,36 @@ function EquipmentForm({
         <Label>Description</Label>
         <Textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="Optional notes…" rows={2} />
       </div>
+
+      {/* VEN-207: identity & value fields */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-manufacturer">Manufacturer</Label>
+          <Input id="eq-manufacturer" value={form.manufacturer} onChange={e => set("manufacturer", e.target.value)} placeholder="e.g. Shure" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-model">Model</Label>
+          <Input id="eq-model" value={form.model} onChange={e => set("model", e.target.value)} placeholder="e.g. SM58" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-serial">Serial Number</Label>
+          <Input id="eq-serial" value={form.serial_number} onChange={e => set("serial_number", e.target.value)} placeholder="Serial #" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-purchase-price">Purchase Price ($)</Label>
+          <Input id="eq-purchase-price" type="number" min={0} step="0.01" value={form.purchase_price} onChange={e => set("purchase_price", e.target.value)} placeholder="Optional" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-replacement">Replacement Value ($)</Label>
+          <Input id="eq-replacement" type="number" min={0} step="0.01" value={form.replacement_value} onChange={e => set("replacement_value", e.target.value)} placeholder="Optional" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-insurance">Insurance Policy #</Label>
+          <Input id="eq-insurance" value={form.insurance_policy} onChange={e => set("insurance_policy", e.target.value)} placeholder="Optional" />
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor="eq-qty">Quantity</Label>
@@ -183,6 +225,12 @@ function EquipmentForm({
 
 const emptyForm = {
   name: "",
+  manufacturer: "",
+  model: "",
+  serial_number: "",
+  purchase_price: "" as string | number,
+  replacement_value: "" as string | number,
+  insurance_policy: "",
   category: "other" as VenueEquipment["category"],
   description: "",
   quantity: 1,
@@ -200,6 +248,7 @@ export default function EquipmentPage() {
   const { toast } = useToast()
 
   const [equipment, setEquipment] = useState<VenueEquipment[]>([])
+
   const [isLoading, setIsLoading] = useState(true)
   const [selectedEquipment, setSelectedEquipment] = useState<VenueEquipment | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -209,6 +258,68 @@ export default function EquipmentPage() {
   const [addForm, setAddForm] = useState({ ...emptyForm })
   const [editForm, setEditForm] = useState({ ...emptyForm })
   
+  const [maintenanceLog, setMaintenanceLog] = useState<any[]>([])
+
+  // VEN-208/209 — canonical maintenance work-order log. Table ships with
+  // migration 20260823210000; loose shim until types regenerate.
+  // Loose accessor for equipment_maintenance_log (migration 210000; types lag).
+  const getLogDb = async () => {
+    const mod = await import("@/lib/supabase/client")
+    return mod.default as unknown as {
+      from: (
+        table: "equipment_maintenance_log",
+      ) => any
+    }
+  }
+
+  const fetchMaintenanceLog = async () => {
+    if (!venue?.id) return
+    const db = await getLogDb()
+    const { data } = await db
+      .from("equipment_maintenance_log")
+      .select(
+        "id, equipment_id, title, type, status, scheduled_date, completed_date, performed_by, cost, notes",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100)
+    setMaintenanceLog(data ?? [])
+  }
+
+  const scheduleMaintenance = async (equipmentId: string, name: string) => {
+    const db = await getLogDb()
+    const scheduledDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+    const { error } = await db
+      .from("equipment_maintenance_log")
+      .insert({
+        equipment_id: equipmentId,
+        title: `${name} - scheduled service`,
+        type: "service",
+        status: "scheduled",
+        scheduled_date: scheduledDate,
+      })
+    if (error) {
+      toast({ title: "Could not schedule maintenance", description: error.message, variant: "destructive" })
+      return
+    }
+    toast({ title: "Maintenance scheduled", description: `Service visit on ${scheduledDate}.` })
+    await fetchMaintenanceLog()
+  }
+
+  const completeMaintenance = async (logId: string, equipmentId: string) => {
+    const db = await getLogDb()
+    const today = new Date().toISOString().slice(0, 10)
+    const { error } = await db
+      .from("equipment_maintenance_log")
+      .update({ status: "completed", completed_date: today })
+      .eq("id", logId)
+    if (error) {
+      toast({ title: "Could not complete entry", description: error.message, variant: "destructive" })
+      return
+    }
+    toast({ title: "Marked completed", description: "Asset's last-maintenance date updated." })
+    await Promise.all([fetchEquipment(), fetchMaintenanceLog()])
+  }
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -218,6 +329,7 @@ export default function EquipmentPage() {
   useEffect(() => {
     if (venue?.id) {
       fetchEquipment()
+      void fetchMaintenanceLog()
     }
   }, [venue?.id])
 
@@ -307,12 +419,18 @@ export default function EquipmentPage() {
         ...addForm,
         quantity: Number(addForm.quantity) || 1,
         rental_price: addForm.rental_price !== "" ? Number(addForm.rental_price) : null,
+        manufacturer: addForm.manufacturer || null,
+        model: addForm.model || null,
+        serial_number: addForm.serial_number || null,
+        purchase_price: addForm.purchase_price !== "" ? Number(addForm.purchase_price) : null,
+        replacement_value: addForm.replacement_value !== "" ? Number(addForm.replacement_value) : null,
+        insurance_policy: addForm.insurance_policy || null,
         purchase_date: addForm.purchase_date || null,
         last_maintenance: addForm.last_maintenance || null,
         next_maintenance: addForm.next_maintenance || null,
         description: addForm.description || null,
       })
-      setEquipment(prev => [created, ...prev])
+      setEquipment(prev => [created as VenueEquipment, ...prev])
       setIsAddModalOpen(false)
       setAddForm({ ...emptyForm })
       toast({ title: "Equipment added", description: `${created.name} has been added to inventory.` })
@@ -331,12 +449,18 @@ export default function EquipmentPage() {
         ...editForm,
         quantity: Number(editForm.quantity) || 1,
         rental_price: editForm.rental_price !== "" ? Number(editForm.rental_price) : null,
+        manufacturer: editForm.manufacturer || null,
+        model: editForm.model || null,
+        serial_number: editForm.serial_number || null,
+        purchase_price: editForm.purchase_price !== "" ? Number(editForm.purchase_price) : null,
+        replacement_value: editForm.replacement_value !== "" ? Number(editForm.replacement_value) : null,
+        insurance_policy: editForm.insurance_policy || null,
         purchase_date: editForm.purchase_date || null,
         last_maintenance: editForm.last_maintenance || null,
         next_maintenance: editForm.next_maintenance || null,
         description: editForm.description || null,
       })
-      setEquipment(prev => prev.map(e => e.id === updated.id ? updated : e))
+      setEquipment(prev => prev.map(e => (e.id === updated.id ? (updated as VenueEquipment) : e)))
       setIsEditModalOpen(false)
       toast({ title: "Equipment updated", description: `${updated.name} has been updated.` })
     } catch (err: any) {
@@ -361,6 +485,12 @@ export default function EquipmentPage() {
     setSelectedEquipment(item)
     setEditForm({
       name: item.name,
+      manufacturer: item.manufacturer ?? "",
+      model: item.model ?? "",
+      serial_number: item.serial_number ?? "",
+      purchase_price: item.purchase_price ?? "",
+      replacement_value: item.replacement_value ?? "",
+      insurance_policy: item.insurance_policy ?? "",
       category: item.category,
       description: item.description || "",
       quantity: item.quantity,
@@ -719,10 +849,49 @@ export default function EquipmentPage() {
                             </Badge>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
+                        {/* VEN-209: schedule action persists a work order */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void scheduleMaintenance(item.id, item.name)}
+                        >
                           <Wrench className="h-4 w-4 mr-2" />
                           Schedule
                         </Button>
+                      </div>
+                    ))}
+                </div>
+              )}
+              </CardContent>
+            </Card>
+
+            {/* VEN-208: work-order history from the canonical log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Maintenance History</CardTitle>
+                <CardDescription>Work orders, inspections and repairs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {maintenanceLog.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground">No maintenance logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {maintenanceLog.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-3">
+                          {entry.status === "scheduled" ? (
+                            <Button size="sm" variant="outline" onClick={() => void completeMaintenance(entry.id, entry.equipment_id)}>
+                              Complete
+                            </Button>
+                          ) : null}
+                          <div>
+                            <p className="font-medium">{entry.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {entry.status}
+                              {entry.completed_date ? ` · completed ${entry.completed_date}` : entry.scheduled_date ? ` · due ${entry.scheduled_date}` : ""}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
