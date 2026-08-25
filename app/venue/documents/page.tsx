@@ -307,28 +307,69 @@ export default function DocumentsPage() {
     setIsUploadModalOpen(false)
   }
 
-  const handleBulkAction = (action: string) => {
+  // VEN-190: authorized file access via signed URLs.
+  const openDocument = async (docId: string, mode: "view" | "download") => {
+    try {
+      const res = await fetch(
+        `/api/venue/documents/${encodeURIComponent(docId)}?mode=${mode}${venue?.id ? `&venue_id=${encodeURIComponent(venue.id)}` : ""}`,
+        { credentials: "include", cache: "no-store" },
+      )
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.success) throw new Error(json?.error || "Access denied")
+      window.open(json.data.url, "_blank", "noopener")
+    } catch (err) {
+      toast({
+        title: mode === "download" ? "Download failed" : "Preview failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBulkAction = async (action: string) => {
     const count = selectedDocuments.length
     
     switch (action) {
-      case "download":
-        toast({
-          title: "Download Started",
-          description: `Downloading ${count} document${count > 1 ? 's' : ''}...`,
-        })
+      case "download": {
+        // VEN-190: real sequential downloads through the signed-URL endpoint.
+        for (const doc of documents.filter((d) => selectedDocuments.includes(d.id))) {
+          await openDocument(doc.id, "download")
+        }
         break
-      case "delete":
-        setDocuments(prev => prev.filter(doc => !selectedDocuments.includes(doc.id)))
-        toast({
-          title: "Documents Deleted",
-          description: `${count} document${count > 1 ? 's' : ''} deleted successfully.`,
-        })
+      }
+      case "delete": {
+        try {
+          const res = await fetch("/api/venue/documents/bulk-delete", {
+            method: "DELETE",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: selectedDocuments }),
+          })
+          const json = await res.json().catch(() => null)
+          if (!res.ok || json.success === false) {
+            throw new Error(json?.error || "Delete failed")
+          }
+          setDocuments(prev => prev.filter(doc => !selectedDocuments.includes(doc.id)))
+          toast({
+            title: "Documents Deleted",
+            description: `${json.deleted?.length ?? count} deleted${
+              (json.failed?.length ?? 0) > 0 ? `, ${json.failed.length} failed` : "."
+            }`,
+          })
+        } catch (err) {
+          toast({
+            title: "Delete failed",
+            description: err instanceof Error ? err.message : "Try again.",
+            variant: "destructive",
+          })
+        }
         break
+      }
       case "share":
         setIsShareModalOpen(true)
         return
     }
-    
+
     setSelectedDocuments([])
   }
 
@@ -696,7 +737,11 @@ export default function DocumentsPage() {
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void openDocument(document.id, "view")}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
@@ -707,7 +752,7 @@ export default function DocumentsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => void openDocument(document.id, "download")}>
                                 <Download className="h-4 w-4 mr-2" />
                                 Download
                               </DropdownMenuItem>
