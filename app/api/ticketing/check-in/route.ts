@@ -5,12 +5,18 @@ import { parseQrPayload } from '@/lib/ticketing/credentials'
 import { hasTicketingPermission } from '@/lib/ticketing/permissions'
 import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
+import { createRateLimiter, clientKeyFromRequest, isRateLimitingActive } from '@/lib/utils/rate-limit'
 
+// Distributed sliding-window limiter. The previous in-process Map was a no-op
+// across serverless instances (AUDIT H9); keep it only as an in-memory
+// fallback when Redis is not configured.
 const rateMap = new Map<string, { count: number; resetAt: number }>()
 const RATE_LIMIT = 30
+const STATS_RATE_LIMIT = 120
 const RATE_WINDOW_MS = 60_000
 
 function isRateLimited(ip: string): boolean {
+  if (isRateLimitingActive()) return false // handled by distributed limiter below
   const now = Date.now()
   const entry = rateMap.get(ip)
   if (!entry || now > entry.resetAt) {
@@ -21,61 +27,65 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT
 }
 
+/**
+ * Door authority derives exclusively from the canonical catalog (VEN-149):
+ * scan_tickets / operate_box_office grants, venue ticketing authority or
+ * workforce door assignments. Bare organization/assignment existence no
+ * longer implies scanning power.
+ */
 async function authorizeScanner(params: {
   supabase: ReturnType<typeof createServiceRoleClient>
   userId: string
   eventId: string
 }): Promise<boolean> {
-  if (await hasTicketingPermission({
-    supabase: params.supabase,
-    userId: params.userId,
-    eventId: params.eventId,
-    permission: 'scan_tickets',
-  }))
-    return true
-
-  if (await hasTicketingPermission({
-    supabase: params.supabase,
-    userId: params.userId,
-    eventId: params.eventId,
-    permission: 'operate_box_office',
-  }))
-    return true
-
-  // Legacy fallback when v2 flag off
-  if (!isTicketingV2Enabled()) {
-    const { data: eventScope } = await params.supabase
-      .from('events_v2')
-      .select('org_id')
-      .eq('id', params.eventId)
-      .maybeSingle()
-
-    if (eventScope?.org_id) {
-      const { data: membership } = await params.supabase
-        .from('org_members')
-        .select('id')
-        .eq('org_id', eventScope.org_id)
-        .eq('user_id', params.userId)
-        .maybeSingle()
-      if (membership?.id) return true
-    }
-
-    const { data: assignment } = await params.supabase
-      .from('employment_assignments')
-      .select('id')
-      .eq('event_id', params.eventId)
-      .eq('user_id', params.userId)
-      .in('status', ['confirmed', 'active'])
-      .maybeSingle()
-    if (assignment?.id) return true
+  for (const permission of ['scan_tickets', 'operate_box_office'] as const) {
+    if (
+      await hasTicketingPermission({
+        supabase: params.supabase,
+        userId: params.userId,
+        eventId: params.eventId,
+        permission,
+      })
+    )
+      return true
   }
-
   return false
 }
 
+/**
+ * VEN-155 — attendee identity projection. Contact fields exist ONLY with
+ * view_attendee_contact; names never silently fall back to raw emails.
+ */
+function projectAttendee(input: { name?: string | null; email?: string | null }, canViewContact: boolean) {
+  const name = input.name?.trim() ? input.name.trim() : 'Guest'
+  return {
+    buyer_name: name,
+    ...(canViewContact && input.email ? { buyer_email: input.email } : {}),
+  }
+}
+
+function isValidUuid(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
+/** Active checkpoint names for an event ([] when no registry exists yet). */
+async function loadCheckpoints(supabase: ReturnType<typeof createServiceRoleClient>, eventId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('ticket_checkpoints')
+    .select('name')
+    .eq('event_id', eventId)
+    .eq('is_active', true)
+    .order('name')
+  return (data || []).map((row: any) => String(row.name))
+}
+
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = clientKeyFromRequest(request)
   if (isRateLimited(ip))
+    return NextResponse.json({ error: 'Too many check-in attempts. Please wait and try again.' }, { status: 429 })
+
+  const rl = createRateLimiter({ namespace: 'ticket-checkin', limit: RATE_LIMIT, windowSec: RATE_WINDOW_MS / 1000 })
+  if (!(await rl.check(ip)).success)
     return NextResponse.json({ error: 'Too many check-in attempts. Please wait and try again.' }, { status: 429 })
 
   const auth = await authenticateApiRequest(request)
@@ -91,12 +101,33 @@ export async function POST(request: NextRequest) {
       checkpoint = 'main',
       reverse = false,
       checkin_id,
+      reason,
+      // VEN-157 — stable client operation identity for offline reconciliation.
+      client_scan_id,
     } = body
 
     const supabase = createServiceRoleClient()
 
-    // Reverse check-in
+    if (client_scan_id !== undefined && !isValidUuid(client_scan_id)) {
+      return NextResponse.json(
+        { success: false, error: 'client_scan_id must be a UUID', code: 'VALIDATION_ERROR' },
+        { status: 400 },
+      )
+    }
+
+    // ── Reverse check-in (VEN-158): permissioned, reasoned, audited ─────────
     if (reverse && checkin_id) {
+      if (!isValidUuid(checkin_id))
+        return NextResponse.json({ success: false, error: 'Invalid check-in id', code: 'VALIDATION_ERROR' }, { status: 400 })
+
+      const normalizedReason = typeof reason === 'string' ? reason.trim() : ''
+      if (normalizedReason.length < 4 || normalizedReason.length > 300) {
+        return NextResponse.json(
+          { success: false, error: 'A reversal reason (4–300 characters) is required', code: 'VALIDATION_ERROR' },
+          { status: 422 },
+        )
+      }
+
       const { data: checkin } = await supabase
         .from('ticket_checkins')
         .select('*')
@@ -105,6 +136,14 @@ export async function POST(request: NextRequest) {
 
       if (!checkin)
         return NextResponse.json({ success: false, error: 'Check-in not found', code: 'NOT_FOUND' }, { status: 404 })
+
+      if (checkin.reversed_at) {
+        // Idempotent double-reverse guard.
+        return NextResponse.json(
+          { success: false, error: 'This check-in was already reversed', code: 'ALREADY_REVERSED' },
+          { status: 409 },
+        )
+      }
 
       const allowed = await hasTicketingPermission({
         supabase,
@@ -115,20 +154,43 @@ export async function POST(request: NextRequest) {
       if (!allowed)
         return NextResponse.json({ success: false, error: 'Reverse check-in permission required', code: 'FORBIDDEN' }, { status: 403 })
 
-      await supabase
+      const reversedAt = new Date().toISOString()
+      const { error: reverseError } = await supabase
         .from('ticket_checkins')
         .update({
-          reversed_at: new Date().toISOString(),
+          reversed_at: reversedAt,
           reversed_by: auth.user.id,
-          reverse_reason: body.reason || 'manual_reversal',
+          reverse_reason: normalizedReason,
         })
+        // Conditional guard closes the double-reverse race.
         .eq('id', checkin_id)
+        .is('reversed_at', null)
+
+      if (reverseError)
+        return NextResponse.json({ success: false, error: 'Failed to reverse check-in' }, { status: 500 })
 
       await supabase
         .from('tickets')
-        .update({ status: 'valid', updated_at: new Date().toISOString() })
+        .update({ status: 'valid', updated_at: reversedAt })
         .eq('id', checkin.ticket_id)
         .eq('status', 'checked_in')
+
+      // Reconcile order-level rollup after reversal.
+      const { data: ticketRow } = await supabase.from('tickets').select('order_id').eq('id', checkin.ticket_id).maybeSingle()
+      if (ticketRow?.order_id) {
+        const { data: siblings } = await supabase
+          .from('tickets')
+          .select('status')
+          .eq('order_id', ticketRow.order_id)
+        const anyCheckedIn = (siblings || []).some((t: any) => t.status === 'checked_in')
+        if (!anyCheckedIn) {
+          await supabase
+            .from('ticket_sales')
+            .update({ checked_in: false, checked_in_at: null, checked_in_by: null, updated_at: reversedAt })
+            .eq('id', ticketRow.order_id)
+            .eq('checked_in', true)
+        }
+      }
 
       await emitTicketAnalyticsEvent({
         supabase,
@@ -136,12 +198,13 @@ export async function POST(request: NextRequest) {
         eventId: checkin.event_id,
         ticketId: checkin.ticket_id,
         actorUserId: auth.user.id,
+        metadata: { reason: normalizedReason, checkpoint: checkin.checkpoint },
       })
 
-      return NextResponse.json({ success: true, message: 'Check-in reversed' })
+      return NextResponse.json({ success: true, message: 'Check-in reversed', checkin_id })
     }
 
-    // V2 credential-based scan
+    // ── V2 credential-based scan ─────────────────────────────────────────────
     if (isTicketingV2Enabled() && (qr_code || ticket_id)) {
       const token = qr_code ? parseQrPayload(String(qr_code)) : null
       let ticket: any = null
@@ -207,27 +270,64 @@ export async function POST(request: NextRequest) {
       if (!allowed)
         return NextResponse.json({ success: false, error: 'Check-in permission required', code: 'FORBIDDEN' }, { status: 403 })
 
+      // Idempotent replay: same client_scan_id resolves to its original outcome.
+      if (client_scan_id) {
+        const { data: replayed } = await supabase
+          .from('ticket_checkins')
+          .select('id, result, reversed_at')
+          .eq('client_scan_id', client_scan_id)
+          .maybeSingle()
+        if (replayed) {
+          const canViewContactReplay = await hasTicketingPermission({
+            supabase,
+            userId: auth.user.id,
+            eventId,
+            permission: 'view_attendee_contact',
+          })
+          return NextResponse.json({
+            success: true,
+            message: replayed.result === 'valid' ? 'Welcome!' : `Scan previously resolved: ${replayed.result}`,
+            checkin_id: replayed.id,
+            replayed: true,
+            result: replayed.result,
+            ...projectAttendee({ name: ticket.owner_name, email: ticket.owner_email }, canViewContactReplay),
+            ticket_type: (ticket.ticket_types as any)?.name || 'General',
+            event_title: (ticket.events_v2 as any)?.title || '',
+            checkpoint,
+          })
+        }
+      }
+
       if (ticket.status === 'refunded')
-        return NextResponse.json({ success: false, error: 'Ticket refunded', code: 'REFUNDED', owner_name: ticket.owner_name }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Ticket refunded', code: 'REFUNDED' }, { status: 400 })
 
       if (ticket.status === 'canceled' || ticket.status === 'void')
-        return NextResponse.json({ success: false, error: 'Ticket canceled', code: 'CANCELED', owner_name: ticket.owner_name }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Ticket canceled', code: 'CANCELED' }, { status: 400 })
 
       if (ticket.status === 'checked_in') {
         return NextResponse.json({
           success: false,
           error: 'Already checked in',
           code: 'ALREADY_CHECKED_IN',
-          owner_name: ticket.owner_name,
           ticket_type: (ticket.ticket_types as any)?.name || 'General',
         }, { status: 409 })
+      }
+
+      // VEN-159 — validate checkpoint against the event's registry.
+      const normalizedCheckpoint = typeof checkpoint === 'string' && checkpoint.trim() ? checkpoint.trim().slice(0, 60) : 'main'
+      const registry = await loadCheckpoints(supabase, eventId)
+      if (registry.length > 0 && !registry.includes(normalizedCheckpoint)) {
+        return NextResponse.json(
+          { success: false, error: `Unknown checkpoint "${normalizedCheckpoint}"`, code: 'UNKNOWN_CHECKPOINT' },
+          { status: 422 },
+        )
       }
 
       const { data: existingCheckin } = await supabase
         .from('ticket_checkins')
         .select('id, created_at')
         .eq('ticket_id', ticket.id)
-        .eq('checkpoint', checkpoint)
+        .eq('checkpoint', normalizedCheckpoint)
         .eq('result', 'valid')
         .is('reversed_at', null)
         .maybeSingle()
@@ -235,9 +335,8 @@ export async function POST(request: NextRequest) {
       if (existingCheckin) {
         return NextResponse.json({
           success: false,
-          error: `Already checked in at ${checkpoint}`,
+          error: `Already checked in at ${normalizedCheckpoint}`,
           code: 'ALREADY_CHECKED_IN',
-          owner_name: ticket.owner_name,
           ticket_type: (ticket.ticket_types as any)?.name || 'General',
         }, { status: 409 })
       }
@@ -249,8 +348,9 @@ export async function POST(request: NextRequest) {
           event_id: eventId,
           credential_id: credential?.id ?? null,
           scanned_by: auth.user.id,
-          checkpoint,
+          checkpoint: normalizedCheckpoint,
           result: 'valid',
+          ...(client_scan_id ? { client_scan_id } : {}),
         })
         .select('id')
         .single()
@@ -261,7 +361,6 @@ export async function POST(request: NextRequest) {
             success: false,
             error: 'Already checked in',
             code: 'ALREADY_CHECKED_IN',
-            owner_name: ticket.owner_name,
           }, { status: 409 })
         }
         return NextResponse.json({ success: false, error: 'Failed to check in ticket' }, { status: 500 })
@@ -298,7 +397,7 @@ export async function POST(request: NextRequest) {
         ticketId: ticket.id,
         orderId: ticket.order_id,
         actorUserId: auth.user.id,
-        metadata: { checkpoint },
+        metadata: { checkpoint: normalizedCheckpoint, ...(client_scan_id ? { client_scan_id } : {}) },
       })
 
       const canViewContact = await hasTicketingPermission({
@@ -312,17 +411,19 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Welcome!',
         checkin_id: checkin.id,
-        buyer_name: ticket.owner_name || ticket.owner_email || 'Guest',
-        buyer_email: canViewContact ? ticket.owner_email : undefined,
+        ...projectAttendee({ name: ticket.owner_name, email: ticket.owner_email }, canViewContact),
         ticket_type: (ticket.ticket_types as any)?.name || 'General',
         event_title: (ticket.events_v2 as any)?.title || '',
-        checkpoint,
+        checkpoint: normalizedCheckpoint,
       })
     }
 
-    // Legacy sale-level check-in path
+    // ── Legacy sale-level check-in path (flag-off deployments) ──────────────
     if (!qr_code && !sale_id)
       return NextResponse.json({ error: 'qr_code or sale_id is required' }, { status: 400 })
+
+    if (sale_id !== undefined && !isValidUuid(sale_id))
+      return NextResponse.json({ success: false, error: 'Invalid sale id', code: 'VALIDATION_ERROR' }, { status: 400 })
 
     let query = supabase
       .from('ticket_sales')
@@ -351,7 +452,6 @@ export async function POST(request: NextRequest) {
         success: false,
         error: `Ticket is not paid (status: ${sale.payment_status})`,
         code: 'NOT_PAID',
-        buyer_name: sale.buyer_name,
       }, { status: 400 })
     }
 
@@ -363,7 +463,6 @@ export async function POST(request: NextRequest) {
         success: false,
         error: `Already checked in at ${checkedInAt}`,
         code: 'ALREADY_CHECKED_IN',
-        buyer_name: sale.buyer_name,
         ticket_type: (sale.ticket_types as any)?.name || 'General',
       }, { status: 409 })
     }
@@ -391,8 +490,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Welcome!',
-      buyer_name: sale.buyer_name || sale.buyer_email || 'Guest',
-      buyer_email: canViewContact ? sale.buyer_email : undefined,
+      ...projectAttendee({ name: sale.buyer_name, email: sale.buyer_email }, canViewContact),
       ticket_type: (sale.ticket_types as any)?.name || 'General',
       event_title: (sale.events_v2 as any)?.title || '',
     })
@@ -403,6 +501,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const ip = clientKeyFromRequest(request)
+  if (isRateLimited(`stats:${ip}`))
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  const rl = createRateLimiter({ namespace: 'ticket-checkin-stats', limit: STATS_RATE_LIMIT, windowSec: RATE_WINDOW_MS / 1000 })
+  if (!(await rl.check(`stats:${ip}`)).success)
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const auth = await authenticateApiRequest(request)
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -411,26 +516,111 @@ export async function GET(request: NextRequest) {
   if (!eventId) return NextResponse.json({ error: 'event_id required' }, { status: 400 })
 
   const supabase = createServiceRoleClient()
-  const allowed = await authorizeScanner({
-    supabase,
-    userId: auth.user.id,
-    eventId,
-  })
+  const allowed = await authorizeScanner({ supabase, userId: auth.user.id, eventId })
   if (!allowed)
     return NextResponse.json({ error: 'Check-in permission required', code: 'FORBIDDEN' }, { status: 403 })
 
+  const headers = { 'Cache-Control': 'no-store' }
+
+  // ── Recent admissions feed for the reverse workflow (VEN-158) ────────────
+  if (searchParams.get('recent') === '1') {
+    const canReverse = await hasTicketingPermission({
+      supabase,
+      userId: auth.user.id,
+      eventId,
+      permission: 'reverse_checkin',
+    })
+    if (!canReverse)
+      return NextResponse.json({ error: 'Reverse check-in permission required', code: 'FORBIDDEN' }, { status: 403 })
+
+    const canViewContact = await hasTicketingPermission({
+      supabase,
+      userId: auth.user.id,
+      eventId,
+      permission: 'view_attendee_contact',
+    })
+
+    const includeReversed = searchParams.get('include_reversed') === '1'
+    let recentQuery = supabase
+      .from('ticket_checkins')
+      .select('id, checkpoint, result, created_at, reversed_at, reverse_reason, ticket_id, tickets(owner_name, owner_email, status, ticket_types(name))')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false })
+      .limit(25)
+    if (!includeReversed) recentQuery = recentQuery.is('reversed_at', null)
+
+    const { data: recentRows, error: recentError } = await recentQuery
+    if (recentError) return NextResponse.json({ error: 'Failed to load admissions' }, { status: 500, headers })
+
+    return NextResponse.json(
+      {
+        admissions: (recentRows || []).map((row: any) => ({
+          checkin_id: row.id,
+          checkpoint: row.checkpoint,
+          result: row.result,
+          created_at: row.created_at,
+          reversed_at: row.reversed_at,
+          reverse_reason: canReverse ? row.reverse_reason : undefined,
+          attendee: projectAttendee(
+            { name: row.tickets?.owner_name, email: row.tickets?.owner_email },
+            canViewContact,
+          ),
+          ticket_status: row.tickets?.status,
+          ticket_type: row.tickets?.ticket_types?.name || 'General',
+        })),
+        contact_visible: canViewContact,
+      },
+      { headers },
+    )
+  }
+
+  // ── Door statistics (VEN-154: attendance-permission gated) ───────────────
   if (isTicketingV2Enabled()) {
-    const [totalRes, checkedInRes, capRes] = await Promise.allSettled([
+    const wantByCheckpoint = searchParams.get('by_checkpoint') === '1'
+    const checkpointFilter = searchParams.get('checkpoint')
+
+    let checkedInQuery = supabase
+      .from('ticket_checkins')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('result', 'valid')
+      .is('reversed_at', null)
+    if (checkpointFilter) checkedInQuery = checkedInQuery.eq('checkpoint', checkpointFilter)
+
+    const [totalRes, checkedInRes, capRes, checkpointsRes] = await Promise.allSettled([
       supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId).in('status', ['valid', 'assigned', 'transferred', 'checked_in']),
-      supabase.from('ticket_checkins').select('id', { count: 'exact', head: true }).eq('event_id', eventId).eq('result', 'valid').is('reversed_at', null),
+      checkedInQuery,
       supabase.from('events_v2').select('capacity').eq('id', eventId).maybeSingle(),
+      loadCheckpoints(supabase, eventId),
     ])
 
-    return NextResponse.json({
-      total: totalRes.status === 'fulfilled' ? (totalRes.value.count ?? 0) : 0,
-      checked_in: checkedInRes.status === 'fulfilled' ? (checkedInRes.value.count ?? 0) : 0,
-      capacity: capRes.status === 'fulfilled' ? (capRes.value.data?.capacity ?? 0) : 0,
-    })
+    // Per-checkpoint breakdown for the door dashboard (VEN-159).
+    let byCheckpoint: Record<string, number> | undefined
+    if (wantByCheckpoint) {
+      const { data: cpRows } = await supabase
+        .from('ticket_checkins')
+        .select('checkpoint')
+        .eq('event_id', eventId)
+        .eq('result', 'valid')
+        .is('reversed_at', null)
+        .limit(10_000)
+      byCheckpoint = {}
+      for (const row of cpRows || []) {
+        const key = String(row.checkpoint || 'main')
+        byCheckpoint[key] = (byCheckpoint[key] || 0) + 1
+      }
+    }
+
+    return NextResponse.json(
+      {
+        total: totalRes.status === 'fulfilled' ? (totalRes.value.count ?? 0) : 0,
+        checked_in: checkedInRes.status === 'fulfilled' ? (checkedInRes.value.count ?? 0) : 0,
+        capacity: capRes.status === 'fulfilled' ? (capRes.value.data?.capacity ?? 0) : 0,
+        checkpoints: checkpointsRes.status === 'fulfilled' ? checkpointsRes.value : [],
+        ...(byCheckpoint ? { by_checkpoint: byCheckpoint } : {}),
+      },
+      { headers },
+    )
   }
 
   const [totalRes, checkedInRes, capRes] = await Promise.allSettled([
@@ -439,9 +629,13 @@ export async function GET(request: NextRequest) {
     supabase.from('events_v2').select('capacity').eq('id', eventId).maybeSingle(),
   ])
 
-  return NextResponse.json({
-    total: totalRes.status === 'fulfilled' ? (totalRes.value.count ?? 0) : 0,
-    checked_in: checkedInRes.status === 'fulfilled' ? (checkedInRes.value.count ?? 0) : 0,
-    capacity: capRes.status === 'fulfilled' ? (capRes.value.data?.capacity ?? 0) : 0,
-  })
+  return NextResponse.json(
+    {
+      total: totalRes.status === 'fulfilled' ? (totalRes.value.count ?? 0) : 0,
+      checked_in: checkedInRes.status === 'fulfilled' ? (checkedInRes.value.count ?? 0) : 0,
+      capacity: capRes.status === 'fulfilled' ? (capRes.value.data?.capacity ?? 0) : 0,
+      checkpoints: [],
+    },
+    { headers },
+  )
 }

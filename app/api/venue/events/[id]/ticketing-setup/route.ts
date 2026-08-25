@@ -75,10 +75,11 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   if (result instanceof NextResponse) return result
   const { supabase } = result
 
-  const [{ data: event }, { data: config }, typesResult] = await Promise.all([
+  const [{ data: event }, { data: config }, typesResult, checkpointsResult] = await Promise.all([
     supabase.from('events_v2').select('id, title, status, start_at, end_at, capacity').eq('id', eventId).maybeSingle(),
     supabase.from('event_ticketing_config').select('*').eq('event_id', eventId).maybeSingle(),
     supabase.from('ticket_types').select('*').eq('event_id', eventId).order('priority_order', { ascending: true }),
+    supabase.from('ticket_checkpoints').select('name, is_active').eq('event_id', eventId).order('name'),
   ])
   if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
 
@@ -153,6 +154,9 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
     sale_state: saleState.state,
     sale_state_label: saleState.label,
     sale_state_reason: saleState.reason,
+    checkpoints: ((checkpointsResult.data || []) as Array<{ name: string; is_active: boolean | null }>)
+      .filter((row) => row.is_active !== false)
+      .map((row) => row.name),
     capabilities,
   })
 }
@@ -195,6 +199,16 @@ const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('archive_type'), type_id: z.string().uuid() }),
   z.object({ action: z.literal('publish_sales') }),
   z.object({ action: z.literal('pause_sales') }),
+  // VEN-159 — replace-all checkpoint registry for this event.
+  z.object({
+    action: z.literal('set_checkpoints'),
+    checkpoints: z
+      .array(z.string().trim().min(1).max(60))
+      .max(20)
+      .refine((names) => new Set(names.map((n) => n.toLowerCase())).size === names.length, {
+        message: 'Checkpoint names must be unique',
+      }),
+  }),
 ])
 
 export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -280,6 +294,18 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       .eq('event_id', eventId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
+  }
+
+  if (parsed.data.action === 'set_checkpoints') {
+    const names = parsed.data.checkpoints.map((name) => name.replace(/\s+/g, ' ').trim()).filter(Boolean)
+    await service.from('ticket_checkpoints').delete().eq('event_id', eventId)
+    if (names.length > 0) {
+      const { error } = await service.from('ticket_checkpoints').insert(
+        names.map((name) => ({ event_id: eventId, name, created_by: auth.user.id })),
+      )
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, checkpoints: names })
   }
 
   // publish_sales / pause_sales — validate before mutating public state.

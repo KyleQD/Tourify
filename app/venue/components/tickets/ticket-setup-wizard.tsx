@@ -32,6 +32,7 @@ export interface TicketSetupPayload {
   sale_state: string
   sale_state_label: string
   sale_state_reason: string
+  checkpoints: string[]
   capabilities: Record<string, boolean>
 }
 
@@ -73,6 +74,7 @@ export function TicketSetupWizard({
   const [saleEnd, setSaleEnd] = useState("")
   const [refundPolicy, setRefundPolicy] = useState("")
   const [termsText, setTermsText] = useState("")
+  const [checkpointsInput, setCheckpointsInput] = useState("")
   const [types, setTypes] = useState<SetupType[]>([])
   const [newType, setNewType] = useState<SetupType>({ name: "", price: 0, quantity_available: 0 })
 
@@ -98,6 +100,7 @@ export function TicketSetupWizard({
       setSaleEnd(toDatetimeLocal(config.sale_end))
       setRefundPolicy(config.refund_policy || "")
       setTermsText(config.terms_text || "")
+      setCheckpointsInput((payload.checkpoints || []).join(", "))
       setTypes(payload.ticket_types.filter((t) => t.is_active).map((t) => ({ ...t })))
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Failed to load ticketing setup")
@@ -151,8 +154,8 @@ export function TicketSetupWizard({
     [post, load, onSaved],
   )
 
-  const saveBasics = () =>
-    runAction(
+  const saveBasics = async () => {
+    await runAction(
       {
         action: "configure",
         patch: {
@@ -162,6 +165,19 @@ export function TicketSetupWizard({
       },
       "Basics saved.",
     )
+    // VEN-159 — persist door checkpoints alongside basics.
+    if (checkpointsInput.trim() || (data?.checkpoints?.length ?? 0) > 0) {
+      const names = checkpointsInput
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .slice(0, 20)
+      await post({ action: "set_checkpoints", checkpoints: names })
+      setSuccessNote("Basics and door checkpoints saved.")
+      await load()
+      onSaved?.()
+    }
+  }
 
   const saveWindow = () =>
     runAction(
@@ -271,8 +287,13 @@ export function TicketSetupWizard({
                     <Input id="ts-max-order" inputMode="numeric" value={maxPerOrder} onChange={(e) => setMaxPerOrder(e.target.value.replace(/[^0-9]/g, ""))} className="bg-gray-800" />
                   </div>
                 </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ts-checkpoints">Door checkpoints</Label>
+                  <Textarea id="ts-checkpoints" rows={2} value={checkpointsInput} onChange={(e) => setCheckpointsInput(e.target.value)} placeholder="Main entrance, Balcony, VIP door" className="bg-gray-800" />
+                  <p className="text-xs text-zinc-500">Comma-separated entrances. Scans record which door admitted each guest.</p>
+                </div>
                 <p className="text-xs text-zinc-500">Current state: {data.sale_state_label} — {data.sale_state_reason}</p>
-                <DialogFooter><Button onClick={saveBasics} disabled={busy}>{busy ? "Saving…" : "Save basics"}</Button></DialogFooter>
+                <DialogFooter><Button onClick={() => void saveBasics()} disabled={busy}>{busy ? "Saving…" : "Save basics"}</Button></DialogFooter>
               </div>
             )}
 

@@ -54,6 +54,7 @@ interface SetupPayload {
   sale_state: TicketSaleState
   sale_state_label: string
   sale_state_reason: string
+  checkpoints?: string[]
   capabilities: Record<string, boolean>
 }
 

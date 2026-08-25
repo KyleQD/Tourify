@@ -124,3 +124,61 @@ describe('account-aware owner resolution (VEN-148)', () => {
     await expect(resolveTicketingOwnerUserIds(supabase as any, 'venue', 'missing' as any, 'event-1')).resolves.toEqual([])
   })
 })
+
+describe('workforce door authority (VEN-160)', () => {
+  async function permitted(handlers: Record<string, any>, permission: 'scan_tickets' | 'reverse_checkin') {
+    const supabase = {
+      from(table: string) {
+        const handler = handlers[table] || { data: null }
+        const builder: any = {
+          select: () => builder,
+          eq: () => builder,
+          in: () => builder,
+          limit: () => builder,
+          maybeSingle: async () => handler,
+          single: async () => handler,
+          // Awaited list queries resolve like supabase-js ({ data: rows[] }).
+          then: (resolve: (v: any) => void) =>
+            Promise.resolve({ data: Array.isArray(handler.data) ? handler.data : handler.data ? [handler.data] : [] }).then(resolve),
+        }
+        return builder
+      },
+    }
+    const { hasTicketingPermission } = await import('@/lib/ticketing/permissions')
+    return hasTicketingPermission({
+      supabase: supabase as any,
+      userId: 'worker-1',
+      eventId: 'event-1',
+      permission,
+    })
+  }
+
+  it('derives scan authority from an active door assignment flag', async () => {
+    const allowed = await permitted(
+      {
+        events_v2: { data: null },
+        event_ticketing_config: { data: null },
+        org_members: { data: null },
+        event_ticketing_grants: { data: null },
+        employment_assignments: { data: { id: 'asg-1', permissions: { door_check_in: true } } },
+      },
+      'scan_tickets',
+    )
+    expect(allowed).toBe(true)
+  })
+
+  it('revokes scan authority once the assignment is no longer active', async () => {
+    // No confirmed/active row exists → the scoped query returns nothing.
+    const denied = await permitted(
+      {
+        events_v2: { data: null },
+        event_ticketing_config: { data: null },
+        org_members: { data: null },
+        event_ticketing_grants: { data: null },
+        employment_assignments: { data: null },
+      },
+      'scan_tickets',
+    )
+    expect(denied).toBe(false)
+  })
+})
