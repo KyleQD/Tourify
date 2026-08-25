@@ -127,9 +127,15 @@ export async function PATCH(request: NextRequest) {
     )
   }
   const service = createServiceRoleClient()
-  const { data: existing, error: existingError } = await service
+  // Conditional select defeats the generated query parser — bypass with a
+  // loosely-typed client, matching other types-lag shims in this repo.
+  const loose = service as any
+  const existingSelect = lifecycleAvailable
+    ? "id, venue_id, status, lifecycle_status, lifecycle_revision"
+    : "id, venue_id, status"
+  const { data: existing, error: existingError } = await loose
     .from("venue_booking_requests")
-    .select(lifecycleAvailable ? "id, venue_id, status, lifecycle_status, lifecycle_revision" : "id, venue_id, status")
+    .select(existingSelect)
     .eq("id", body.requestId)
     .maybeSingle()
 
@@ -170,6 +176,25 @@ export async function PATCH(request: NextRequest) {
         },
         { status: conflict ? 409 : 400 },
       )
+    }
+
+    // VEN-291/292 — role-routed fanout to current manage_bookings holders on
+    // this venue. Fire-and-forget; delivery per human honors preferences.
+    try {
+      const { fanoutVenueNotification } = await import("@/lib/notifications/venue-fanout")
+      void fanoutVenueNotification(service as any, {
+        venueId: existing.venue_id,
+        workflow: "booking_transition",
+        notificationType: "venue_booking",
+        title: "Booking updated",
+        content: `${data.event_name || "A booking"} moved to ${body.lifecycleStatus}.`,
+        link: `/venue/bookings?request_id=${body.requestId}`,
+        actorUserId: auth.user.id,
+        dedupeKey: `booking_transition:${body.requestId}:${body.lifecycleStatus}:${data.lifecycle_revision ?? "0"}`,
+        extraMetadata: { booking_request_id: body.requestId, lifecycle_status: body.lifecycleStatus },
+      }).catch(() => {})
+    } catch {
+      // Fanout must never block the manager action.
     }
 
     return NextResponse.json({
