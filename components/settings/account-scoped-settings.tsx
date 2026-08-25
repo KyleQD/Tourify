@@ -32,6 +32,7 @@ import { VenueAccountSettings } from './venue-account-settings'
 import { AdminAccountSettings } from './admin-account-settings'
 import { OrganizationAccountSettings } from './organization-account-settings'
 import { AccountManagementSettings } from './account-management-settings'
+import { VenueIntegrationsPanel } from '@/app/venue/components/settings/venue-integrations-panel'
 import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
 import {
   accountTypeMatchesSection,
@@ -233,6 +234,13 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
             label: 'Team',
             icon: Users,
             description: 'Roster & role assignments'
+          },
+          // VEN-263/264 — real provider integrations for this venue account.
+          {
+            value: 'integrations',
+            label: 'Integrations',
+            icon: Sparkles,
+            description: 'Connected services & OAuth providers'
           }
         ]
       default:
@@ -244,6 +252,11 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
     // Account Management is available for all account types
     if (tabValue === 'accounts') {
       return <AccountManagementSettings activeTab={tabValue} />
+    }
+
+    // VEN-263/264 — venue acting-account provider integrations surface.
+    if (accountType === 'venue' && tabValue === 'integrations') {
+      return <VenueIntegrationsPanel venueId={currentAccount.profile_id} />
     }
 
     if (isOrganizationType(accountType)) {

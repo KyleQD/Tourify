@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { decodeSocialOAuthState } from '@/lib/admin/content-hub/oauth-state'
+import {
+  decodeSocialOAuthState,
+  verifySignedOAuthState,
+} from '@/lib/admin/content-hub/oauth-state'
 import {
   encryptIntegrationSecret,
 } from '@/lib/marketplace/integration-credentials'
@@ -30,16 +33,15 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
   const stateRaw = url.searchParams.get('state')
-  const state = decodeSocialOAuthState(stateRaw)
-  const platform = (state?.platform || url.searchParams.get('platform') || 'instagram') as Platform
-  const redirect_uri = `${url.origin}/api/social/oauth/callback?platform=${platform}`
 
-  const returnTo = state?.returnTo || 'artist'
-  const organizerAccountId = state?.organizerAccountId
-  const isOrg = state?.scope === 'organization'
+  // Legacy decode is used ONLY to pre-read org context for error redirects;
+  // every security decision below uses the verified signed payload.
+  const legacy = decodeSocialOAuthState(stateRaw)
+  const organizerAccountIdEarly = legacy?.organizerAccountId
+  const isOrgEarly = legacy?.scope === 'organization'
 
   if (!code) {
-    if (isOrg) return adminRedirect(url.origin, organizerAccountId, { oauth_error: 'Missing code' })
+    if (isOrgEarly) return adminRedirect(url.origin, organizerAccountIdEarly, { oauth_error: 'Missing code' })
     return NextResponse.json({ error: 'Missing code' }, { status: 400 })
   }
 
@@ -49,6 +51,22 @@ export async function GET(req: Request) {
     error: userError,
   } = await supabase.auth.getUser()
   if (userError || !user) return NextResponse.redirect(`${url.origin}/login`)
+
+  // VEN-268 — signed state is mandatory. Unsigned/legacy states fail closed;
+  // the initiating actor must be the one completing the exchange, and states
+  // expire after ten minutes.
+  const signed = verifySignedOAuthState(stateRaw, user.id)
+  if (!signed) {
+    if (isOrgEarly) return adminRedirect(url.origin, organizerAccountIdEarly, { oauth_error: 'Invalid or expired OAuth state' })
+    return artistRedirect(url.origin, { oauth_error: 'Invalid or expired OAuth state' })
+  }
+
+  const platform = signed.platform as Platform
+  const redirect_uri = `${url.origin}/api/social/oauth/callback?platform=${platform}`
+
+  const returnTo = signed.returnTo || 'artist'
+  const organizerAccountId = signed.organizerAccountId
+  const isOrg = signed.scope === 'organization'
 
   const {
     data: { session },
@@ -68,8 +86,10 @@ export async function GET(req: Request) {
       redirect_uri,
       scope: isOrg ? 'organization' : 'artist',
       organizer_account_id: organizerAccountId,
-      ops_org_id: state?.opsOrgId,
+      ops_org_id: signed.opsOrgId,
       persist: !isOrg,
+      // VEN-268 — PKCE verifier from the signed state (Twitter S256 flow).
+      ...(signed.codeVerifier ? { code_verifier: signed.codeVerifier } : {}),
     }),
   })
 
@@ -84,7 +104,7 @@ export async function GET(req: Request) {
   }
 
   if (isOrg) {
-    if (!organizerAccountId || !state?.opsOrgId) {
+    if (!organizerAccountId || !signed.opsOrgId) {
       return adminRedirect(url.origin, organizerAccountId, {
         oauth_error: 'Missing organization context',
       })
@@ -114,36 +134,39 @@ export async function GET(req: Request) {
       console.error('[social-oauth-callback] encryption failed', encryptError)
     }
 
-    const { error: upsertError } = await supabase.from('organization_social_integrations').upsert(
-      {
-        organizer_account_id: organizerAccountId,
-        ops_org_id: state.opsOrgId,
-        platform,
-        account_handle: payload.account_handle || '',
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token ?? null,
-        token_envelope: tokenEnvelope,
-        refresh_token_envelope: refreshEnvelope,
-        token_expires_at: payload.expires_in
-          ? new Date(Date.now() + payload.expires_in * 1000).toISOString()
-          : null,
-        is_connected: true,
-        last_sync: new Date().toISOString(),
-        connected_by: user.id,
-        analytics: ['youtube', 'tiktok', 'twitter'].includes(platform)
-          ? {
-              status: 'unsupported',
-              platform,
-              synced_at: new Date().toISOString(),
-              error: `${platform} analytics API not implemented yet`,
-            }
-          : {
-              platform,
-              synced_at: new Date().toISOString(),
-            },
-      },
-      { onConflict: 'organizer_account_id,platform' },
-    )
+    // Types lag the live table (organizer_account_id / ops_org_id added via
+    // execute_sql); loose cast mirrors other pre-regeneration shims.
+    const orgUpsert = {
+      organizer_account_id: organizerAccountId,
+      ops_org_id: signed.opsOrgId,
+      platform,
+      account_handle: payload.account_handle || '',
+      access_token: payload.access_token,
+      refresh_token: payload.refresh_token ?? null,
+      token_envelope: tokenEnvelope,
+      refresh_token_envelope: refreshEnvelope,
+      token_expires_at: payload.expires_in
+        ? new Date(Date.now() + payload.expires_in * 1000).toISOString()
+        : null,
+      is_connected: true,
+      last_sync: new Date().toISOString(),
+      connected_by: user.id,
+      analytics: ['youtube', 'tiktok', 'twitter'].includes(platform)
+        ? {
+            status: 'unsupported',
+            platform,
+            synced_at: new Date().toISOString(),
+            error: `${platform} analytics API not implemented yet`,
+          }
+        : {
+            platform,
+            synced_at: new Date().toISOString(),
+          },
+    } as Record<string, unknown>
+
+    const { error: upsertError } = await supabase
+      .from('organization_social_integrations')
+      .upsert(orgUpsert as never, { onConflict: 'organizer_account_id,platform' })
 
     if (upsertError) {
       return adminRedirect(url.origin, organizerAccountId, {
