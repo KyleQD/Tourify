@@ -17,6 +17,7 @@
 
 -- ── 1. messages: sender must be a participant of THAT conversation ──────────
 DROP POLICY IF EXISTS "Users can send messages" ON public.messages;
+DROP POLICY IF EXISTS messages_insert_sender_participant ON public.messages;
 CREATE POLICY messages_insert_sender_participant ON public.messages
   FOR INSERT WITH CHECK (
     auth.uid() = sender_id
@@ -29,6 +30,7 @@ CREATE POLICY messages_insert_sender_participant ON public.messages
 
 -- Only the author may edit their own message content.
 DROP POLICY IF EXISTS "Users can update their messages" ON public.messages;
+DROP POLICY IF EXISTS messages_update_author_only ON public.messages;
 CREATE POLICY messages_update_author_only ON public.messages
   FOR UPDATE
   USING (auth.uid() = sender_id)
@@ -36,6 +38,7 @@ CREATE POLICY messages_update_author_only ON public.messages
 
 -- ── 2. conversations: participants immutable after creation ─────────────────
 DROP POLICY IF EXISTS "Users can update their conversations" ON public.conversations;
+DROP POLICY IF EXISTS conversations_update_participant ON public.conversations;
 CREATE POLICY conversations_update_participant ON public.conversations
   FOR UPDATE
   USING (auth.uid() IN (participant_1, participant_2))
