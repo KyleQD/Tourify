@@ -49,6 +49,9 @@ FILES=(
   "$MIGRATIONS_DIR"/20260823160000_messaging_isolation.sql
   "$MIGRATIONS_DIR"/20260823170000_worker_checkin_contract.sql
   "$MIGRATIONS_DIR"/20260823180000_hiring_lifecycle.sql
+  "$MIGRATIONS_DIR"/20260823190000_document_folders.sql
+  "$MIGRATIONS_DIR"/20260823210000_equipment_lifecycle.sql
+  "$MIGRATIONS_DIR"/20260823220000_site_map_bridge.sql
 )
 echo "Found ${#FILES[@]} migration files:"
 printf '  %s\n' "${FILES[@]##*/}"
