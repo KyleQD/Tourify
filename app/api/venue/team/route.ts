@@ -6,12 +6,18 @@ import { canManageVenue, getCurrentVenueContext } from "@/lib/venue/venue-access
 
 export const dynamic = "force-dynamic"
 
+// VEN-104: live staff_members requires NOT NULL department + employment_type.
+const DEPARTMENTS = ["operations", "production", "security", "hospitality", "technical", "admin"] as const
+const EMPLOYMENT_TYPES = ["full_time", "part_time", "contract", "seasonal"] as const
+
 const createSchema = z.object({
   venue_id: z.string().uuid().optional(),
   user_id: z.string().uuid().optional().nullable(),
   name: z.string().min(1),
   email: z.string().email(),
   role: z.string().min(1).optional(),
+  department: z.enum(DEPARTMENTS).default("operations"),
+  employment_type: z.enum(EMPLOYMENT_TYPES).default("full_time"),
   permissions: z.record(z.boolean()).optional(),
 })
 
@@ -64,7 +70,7 @@ export async function GET(request: NextRequest) {
       .limit(250),
     service
       .from("venue_team_members")
-      .select("id, user_id, venue_id, name, email, role, permissions, status, created_at, updated_at")
+      .select("id, user_id, venue_id, name, email, role, permissions, status, created_at, updated_at, canonical_staff_member_id")
       .eq("venue_id", venueId)
       .order("created_at", { ascending: false })
       .limit(250),
@@ -74,19 +80,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: staffResult.error.message, members: [] }, { status: 500 })
   }
 
-  const membersByEmail = new Map<string, any>()
-  for (const member of legacyResult.error ? [] : legacyResult.data || []) {
-    membersByEmail.set(String(member.email || member.id).toLowerCase(), { ...member, source: "legacy" })
-  }
-  for (const member of staffResult.error ? [] : staffResult.data || []) {
-    membersByEmail.set(String(member.email || member.id).toLowerCase(), {
-      ...member,
-      venue_id: venueId,
-      source: "staff_members",
-    })
-  }
+  // VEN-106: canonical rows are the roster. Legacy rows appear ONLY when they
+  // have NOT been bridge-linked to a canonical row — email is never an
+  // identity key.
+  const members = (staffResult.error ? [] : staffResult.data || []).map((member: any) => ({
+    ...member,
+    venue_id: venueId,
+    source: "staff_members" as const,
+  }))
 
-  return NextResponse.json({ success: true, members: Array.from(membersByEmail.values()) })
+  const linkedLegacyIds = new Set(
+    (legacyResult.error ? [] : legacyResult.data || [])
+      .filter((row: any) => row.canonical_staff_member_id)
+      .map((row: any) => String(row.id)),
+  )
+  const orphanLegacy = (legacyResult.error ? [] : legacyResult.data || []).filter(
+    (row: any) => !linkedLegacyIds.has(String(row.id)) && !row.canonical_staff_member_id,
+  )
+
+  return NextResponse.json({
+    success: true,
+    members: [
+      ...members,
+      ...orphanLegacy.map((member: any) => ({ ...member, source: "legacy" })),
+    ],
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -111,6 +129,8 @@ export async function POST(request: NextRequest) {
       name: body.name,
       email: body.email,
       role: body.role || "member",
+      department: body.department,
+      employment_type: body.employment_type,
       permissions: body.permissions || defaultPermissions,
       status: "active",
     })
@@ -192,7 +212,14 @@ export async function DELETE(request: NextRequest) {
   const access = await canManageVenue(auth.supabase, auth.user.id, memberVenueId, "manage_team")
   if (!access.allowed) return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
 
-  const { error } = await service.from(table).delete().eq("id", id)
+  // VEN-105: hard delete is replaced by a terminate/deactivate lifecycle so
+  // historical assignments, pay references and audits stay intact.
+  const { error, data } = await service
+    .from(table)
+    .update({ status: table === "staff_members" ? "inactive" : "inactive", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id, status")
+    .single()
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, member: data, terminated: true })
 }
