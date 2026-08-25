@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useCurrentVenue } from "@/hooks/use-venue"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -102,7 +102,7 @@ export default function JobBoardIntegration() {
   const [aiMatchingEnabled, setAiMatchingEnabled] = useState(true)
 
   // Mock job postings
-  const [jobPostings] = useState<JobPosting[]>([
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([
     {
       id: "job-1",
       title: "Senior Sound Engineer",
@@ -201,8 +201,62 @@ export default function JobBoardIntegration() {
     }
   ])
 
+  // VEN-131/134: real persisted jobs + applications via the canonical API.
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
+  const loadHiringData = async () => {
+    setIsLoadingData(true)
+    setDataError(null)
+    try {
+      const response = await fetch('/api/venue/hiring', { credentials: 'include', cache: 'no-store' })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load hiring data')
+      const apiJobs = Array.isArray(payload.jobs) ? payload.jobs : []
+      const apiApps = Array.isArray(payload.applications) ? payload.applications : []
+
+      setJobPostings(apiJobs.map((j: Record<string, unknown>) => ({
+        id: String(j.id),
+        title: String(j.title ?? 'Untitled role'),
+        department: String(j.department ?? 'Operations'),
+        type: String(j.employment_type ?? 'full-time').replace('_', '-'),
+        location: String(j.location ?? 'On-site'),
+        description: String(j.description ?? ''),
+        requirements: Array.isArray(j.requirements) ? (j.requirements as string[]) : [],
+        responsibilities: Array.isArray(j.responsibilities) ? (j.responsibilities as string[]) : [],
+        salaryRange: { min: 0, max: 0 },
+        postedDate: String(j.created_at ?? new Date().toISOString()).slice(0, 10),
+        deadline: '',
+        applicationsCount: apiApps.filter((a: Record<string, unknown>) => a.job_posting_id === j.id).length,
+        priority: 'medium',
+        status: (['active','paused','closed','draft'].includes(String(j.status)) ? j.status : 'active') as 'active'|'paused'|'closed'|'draft',
+      })))
+
+      setApplications(apiApps.map((a: Record<string, unknown>) => ({
+        id: String(a.id),
+        jobId: String(a.job_posting_id ?? ''),
+        applicantName: String(a.applicant_name ?? 'Candidate'),
+        email: String(a.applicant_email ?? ''),
+        phone: String(a.applicant_phone ?? ''),
+        appliedDate: String(a.applied_at ?? '').slice(0, 10),
+        status: (['new','reviewed','interviewed','offer','hired','rejected'].includes(String(a.status))
+          ? a.status : 'reviewed') as 'new'|'reviewed'|'interviewed'|'offered'|'hired'|'rejected',
+        rating: Number(a.rating ?? 0),
+        notes: String(a.reviewer_notes ?? a.decision_note ?? ''),
+        experience: 0,
+        skills: [],
+        availability: '',
+      })))
+    } catch (err) {
+      setDataError(err instanceof Error ? err.message : 'Failed to load hiring data')
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  useEffect(() => { void loadHiringData() }, [])
+
   // Mock applications
-  const [applications] = useState<JobApplication[]>([
+  const [applications, setApplications] = useState<JobApplication[]>([
     {
       id: "app-1",
       jobId: "job-1",
@@ -474,6 +528,17 @@ export default function JobBoardIntegration() {
 
   return (
     <div className="space-y-6">
+      {dataError && (
+        <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+          {dataError}{' '}
+          <button className="underline" onClick={() => void loadHiringData()}>Retry</button>
+        </div>
+      )}
+      {isLoadingData && !dataError && (
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">
+          Loading hiring pipeline…
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
