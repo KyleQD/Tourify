@@ -3,6 +3,7 @@ import { z } from "zod"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { canManageVenue, getCurrentVenueContext } from "@/lib/venue/venue-access"
+import { getVenueFinanceSnapshot } from "@/lib/venue/finance-snapshot"
 
 export const dynamic = "force-dynamic"
 
@@ -57,7 +58,35 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, data })
+  // VEN-163 — server-owned summary + settlement share views (never computed
+  // client-side from synthetic estimators).
+  let summary = null
+  let shares: unknown[] = []
+  try {
+    const snapshot = await getVenueFinanceSnapshot(supabase as any, venueId)
+    summary = snapshot.summary
+    shares = snapshot.shares
+  } catch (summaryError) {
+    console.error("[venue-finances] snapshot failed:", summaryError)
+  }
+
+  const [canApprove, canManage, canExport] = await Promise.all([
+    canManageVenue(auth.supabase, auth.user.id, venueId, "approve_finances"),
+    canManageVenue(auth.supabase, auth.user.id, venueId, "manage_finances"),
+    canManageVenue(auth.supabase, auth.user.id, venueId, "export_finances"),
+  ])
+
+  return NextResponse.json({
+    success: true,
+    data,
+    summary,
+    shares,
+    capabilities: {
+      approve: canApprove.allowed,
+      manage: canManage.allowed,
+      export: canExport.allowed,
+    },
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -93,11 +122,56 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, data }, { status: 201 })
 }
 
+const prefsSchema = z.object({
+  action: z.literal("save_prefs"),
+  venue_id: z.string().uuid().optional(),
+  prefs: z.object({
+    currency: z.string().length(3).optional(),
+    invoice_prefix: z.string().min(1).max(12).optional(),
+    default_tax_rate: z.number().min(0).max(40).optional(),
+    payment_terms_days: z.number().int().min(0).max(120).optional(),
+  }),
+})
+
 export async function PATCH(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
   if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json()
+  const rawBody = await request.json()
+
+  // VEN-172 — accounting preferences persist separately from booking rates.
+  if (rawBody?.action === "save_prefs") {
+    const parsed = prefsSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 })
+    }
+    let venueId = parsed.data.venue_id
+    if (!venueId) venueId = (await resolveVenueId(request, auth)) ?? undefined
+    if (!venueId) return NextResponse.json({ success: false, error: "venue_id is required" }, { status: 400 })
+    const access = await canManageVenue(auth.supabase, auth.user.id, venueId, "manage_finances")
+    if (!access.allowed) {
+      return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
+    }
+    const supabase = createServiceRoleClient()
+    const { data: profile } = await supabase
+      .from("venue_profiles")
+      .select("settings")
+      .eq("id", venueId)
+      .maybeSingle()
+    if (!profile) return NextResponse.json({ success: false, error: "Venue not found" }, { status: 404 })
+    const nextSettings = {
+      ...(profile.settings && typeof profile.settings === "object" ? profile.settings : {}),
+      finance_prefs: parsed.data.prefs,
+    }
+    const { error } = await supabase
+      .from("venue_profiles")
+      .update({ settings: nextSettings })
+      .eq("id", venueId)
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true, prefs: parsed.data.prefs })
+  }
+
+  const body = rawBody
   const parsed = patchSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 })
