@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import QRCode from "qrcode"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -405,9 +406,27 @@ export default function EquipmentPage() {
       "Next Maintenance": item.next_maintenance ? format(new Date(item.next_maintenance), "PPP") : "N/A",
     }))
     
+    // VEN-213: produce and download the actual CSV file.
+    const header = Object.keys(csvData[0] ?? { Name: "" }).join(",")
+    const rows = csvData.map((row) =>
+      Object.values(row)
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(","),
+    )
+    const csv = [header, ...rows].join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `equipment-inventory-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+
     toast({
-      title: "Export Started",
-      description: "Equipment inventory has been exported to CSV.",
+      title: "Export Complete",
+      description: `${csvData.length} item(s) exported.`,
     })
   }
 
@@ -504,9 +523,35 @@ export default function EquipmentPage() {
     setIsEditModalOpen(true)
   }
 
-  const generateQRCode = (equipmentItem: VenueEquipment) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const generateQRCode = async (equipmentItem: VenueEquipment) => {
     setSelectedEquipment(equipmentItem)
-    setIsQrModalOpen(true)
+    try {
+      const deepLink = `${window.location.origin}/venue/equipment?asset=${equipmentItem.id}`
+      const url = await QRCode.toDataURL(deepLink, { width: 320, margin: 2 })
+      setQrDataUrl(url)
+      setIsQrModalOpen(true)
+
+      // VEN-210: persist a scanner token row when the instance ledger is wired.
+      try {
+        const mod = await import("@/lib/supabase/client")
+        const db = mod.default as unknown as {
+          from: (table: "equipment_qr_codes") => {
+            insert: (values: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>
+          }
+        }
+        await db.from("equipment_qr_codes").insert({
+          qr_data: deepLink,
+          is_active: true,
+        })
+      } catch {
+        // Ledger optional — QR remains functional without it.
+      }
+    } catch {
+      // QR rendering failed — show the modal with the placeholder icon.
+      setQrDataUrl(null)
+      setIsQrModalOpen(true)
+    }
   }
 
   if (venueLoading || isLoading) {
@@ -540,10 +585,7 @@ export default function EquipmentPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
+          
           <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
@@ -1053,8 +1095,12 @@ export default function EquipmentPage() {
               </DialogHeader>
               
               <div className="flex flex-col items-center space-y-4">
-                <div className="w-48 h-48 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                  <QrCode className="h-16 w-16 text-gray-400" />
+                <div className="flex h-48 w-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white">
+                  {qrDataUrl ? (
+                    <img src={qrDataUrl} alt="Equipment QR code" className="h-full w-full object-contain" />
+                  ) : (
+                    <QrCode className="h-16 w-16 text-gray-400" />
+                  )}
                 </div>
                 <div className="text-center">
                   <p className="font-medium">{selectedEquipment.name}</p>
@@ -1066,10 +1112,18 @@ export default function EquipmentPage() {
                 <Button variant="outline" onClick={() => setIsQrModalOpen(false)}>
                   Close
                 </Button>
-                <Button onClick={() => {
-                  toast({ title: "QR Code Downloaded", description: "QR code saved to downloads" })
-                  setIsQrModalOpen(false)
-                }}>
+                <Button
+                  onClick={() => {
+                    if (!qrDataUrl) return
+                    const a = document.createElement("a")
+                    a.href = qrDataUrl
+                    a.download = `qr-${selectedEquipment?.name ?? "equipment"}.png`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    toast({ title: "QR Code Downloaded", description: "Label saved as PNG." })
+                  }}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Download
                 </Button>

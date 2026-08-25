@@ -36,6 +36,20 @@ export async function GET(request: NextRequest) {
   })
   if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // VEN-153 — attendee contact is permission-scoped, never leaked by default.
+  const canSeeContact = await hasTicketingPermission({
+    supabase,
+    userId: auth.user.id,
+    eventId,
+    permission: 'view_attendee_contact',
+  })
+  const maskEmail = (email: string | null | undefined) => {
+    if (!email || canSeeContact) return email ?? null
+    const [local, domain] = email.split('@')
+    if (!domain) return null
+    return `${local.slice(0, 1)}•••@${domain}`
+  }
+
   let ordersQuery = supabase
     .from('ticket_sales')
     .select('id, order_number, buyer_name, buyer_email, quantity, total_amount, payment_status, created_at')
@@ -50,13 +64,20 @@ export async function GET(request: NextRequest) {
     .order('issued_at', { ascending: false })
     .limit(50)
 
-  if (q) {
-    ordersQuery = ordersQuery.or(`buyer_email.ilike.%${q}%,buyer_name.ilike.%${q}%,order_number.ilike.%${q}%`)
-    ticketsQuery = ticketsQuery.or(`owner_email.ilike.%${q}%,owner_name.ilike.%${q}%`)
+  // PostgREST or-filter safety: strip characters that alter filter syntax
+  // (commas end clauses, parens nest expressions) before interpolation.
+  const safeQ = q ? q.replace(/[,()\\]/g, ' ').trim() : ''
+  if (safeQ) {
+    ordersQuery = ordersQuery.or(`buyer_email.ilike.%${safeQ}%,buyer_name.ilike.%${safeQ}%,order_number.ilike.%${safeQ}%`)
+    ticketsQuery = ticketsQuery.or(`owner_email.ilike.%${safeQ}%,owner_name.ilike.%${safeQ}%`)
   }
 
   const [{ data: orders }, { data: tickets }] = await Promise.all([ordersQuery, ticketsQuery])
-  return NextResponse.json({ orders: orders || [], tickets: tickets || [] })
+  return NextResponse.json({
+    contact_visible: canSeeContact,
+    orders: (orders || []).map((order: any) => ({ ...order, buyer_email: maskEmail(order.buyer_email) })),
+    tickets: (tickets || []).map((ticket: any) => ({ ...ticket, owner_email: maskEmail(ticket.owner_email) })),
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -119,19 +140,34 @@ export async function POST(request: NextRequest) {
       }
 
       const { issueTicketsForOrder } = await import('@/lib/ticketing/issuance')
-      const issued = await issueTicketsForOrder({
-        supabase: service as any,
-        orderId: pending.orderId,
-        eventId: parsed.event_id,
-        ticketTypeId: parsed.ticket_type_id,
-        quantity: parsed.quantity,
-        unitPrice: 0,
-        ownerUserId: parsed.buyer_user_id ?? null,
-        ownerEmail: parsed.buyer_email,
-        ownerName: parsed.buyer_name,
-        isComplimentary: true,
-        actorUserId: auth.user.id,
-      })
+      let issued: unknown
+      try {
+        issued = await issueTicketsForOrder({
+          supabase: service as any,
+          orderId: pending.orderId,
+          eventId: parsed.event_id,
+          ticketTypeId: parsed.ticket_type_id,
+          quantity: parsed.quantity,
+          unitPrice: 0,
+          ownerUserId: parsed.buyer_user_id ?? null,
+          ownerEmail: parsed.buyer_email,
+          ownerName: parsed.buyer_name,
+          isComplimentary: true,
+          actorUserId: auth.user.id,
+        })
+      } catch (issueError) {
+        // Compensating saga (AUDIT H6): a comp order that completed but
+        // failed issuance must be visibly failed, not silently ticketless.
+        console.error('[Box Office] comp issuance failed — reverting order:', issueError)
+        await service
+          .from('ticket_sales')
+          .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
+          .eq('id', pending.orderId)
+        return NextResponse.json(
+          { error: 'Comp order recorded but issuance failed. Order marked failed — retry.' },
+          { status: 500 }
+        )
+      }
 
       return NextResponse.json({
         order_id: pending.orderId,
@@ -202,11 +238,26 @@ export async function POST(request: NextRequest) {
       .eq('id', pending.orderId)
 
     const { finalizePaidOrder } = await import('@/lib/ticketing/finalize')
-    await finalizePaidOrder({
-      supabase: service as any,
-      orderId: pending.orderId,
-      stripeEventId: `cash_${pending.orderId}`,
-    })
+    try {
+      await finalizePaidOrder({
+        supabase: service as any,
+        orderId: pending.orderId,
+        stripeEventId: `cash_${pending.orderId}`,
+      })
+    } catch (finalizeError) {
+      // Compensating saga (AUDIT H6): never leave a PAID order with no
+      // issued tickets and no signal. Revert to a failed state so the order
+      // is visibly retryable at the door.
+      console.error('[Box Office] cash finalize failed — reverting order:', finalizeError)
+      await service
+        .from('ticket_sales')
+        .update({ payment_status: 'failed', updated_at: new Date().toISOString() })
+        .eq('id', pending.orderId)
+      return NextResponse.json(
+        { error: 'Order recorded but fulfillment failed. Order marked failed — retry the sale.' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       order_id: pending.orderId,

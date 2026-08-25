@@ -1,345 +1,455 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateEventModal } from "../../components/events/create-event-modal"
-import { Calendar, QrCode, ScanLine, Search, TicketIcon } from "lucide-react"
-import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
+import { Calendar, QrCode, ScanLine, Search, Settings2, TicketIcon, Wallet } from "lucide-react"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 import { VenueEmptyState } from "@/components/dashboard/venue-empty-state"
+import { SaleStateBadge } from "../../components/tickets/sale-state-badge"
+import { TicketSetupWizard } from "../../components/tickets/ticket-setup-wizard"
+import { OrdersPanel } from "../../components/tickets/orders-panel"
+import { GuestListPanel } from "../../components/tickets/guestlist-panel"
+import { BoxOfficeSellPanel } from "../../components/tickets/box-office-panel"
+import { deriveSaleState, type TicketSaleState } from "@/lib/ticketing/sale-state"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
-interface TicketTypeItem {
+// VEN-150/151/152/153 — event-scoped sales & box-office workspace.
+// Purchased personal tickets intentionally live in the human wallet
+// (/tickets/my-tickets), not inside Venue operations (VEN-152).
+
+interface RowTicketType {
   id: string
   name: string
-  price: number
-  allInPrice: number
-  mandatoryFees: number
-  available: number
-  sold: number
+  price?: number
+  all_in_price?: number
+  mandatory_fees?: number
+  quantity_available?: number
+  quantity_sold?: number
 }
 
 interface VenueTicketEvent {
   id: string
   title: string
-  date: string
-  venue: string
-  location: string
+  start_at: string | null
+  end_at: string | null
+  status: string | null
+  capacity: number | null
   ticketsSold: number
-  ticketsTotal: number
-  ticketTypes: TicketTypeItem[]
-  revenue: number
-  status: "Draft" | "On Sale"
+  totalInventory: number
+  ticketTypes: RowTicketType[]
+}
+
+interface SetupPayload {
+  config: Record<string, any> | null
+  ticket_types: Array<RowTicketType & { is_active: boolean; is_complimentary: boolean }>
+  inventory: { total_inventory: number; total_sold: number; available: number }
+  sale_state: TicketSaleState
+  sale_state_label: string
+  sale_state_reason: string
+  capabilities: Record<string, boolean>
 }
 
 function TicketsPageInner() {
   const searchParams = useSearchParams()
-  const checkInView = searchParams.get("view") === "check-in"
-  // VEN-092: event-ops context binding.
+  const router = useRouter()
   const eventIdContext = searchParams.get("event_id")
   const { venue, isLoading: isVenueLoading } = useCurrentVenue()
-  const [showCreateEventModal, setShowCreateEventModal] = useState(false)
+
+  const [events, setEvents] = useState<VenueTicketEvent[]>([])
+  const [eventsLoading, setEventsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState(checkInView ? "check-in" : "selling")
-  const [myEvents, setMyEvents] = useState<VenueTicketEvent[]>([])
+  const [activeTab, setActiveTab] = useState("overview")
+  const [setupOpen, setSetupOpen] = useState(false)
+  const [showCreateEvent, setShowCreateEvent] = useState(false)
+  const [setup, setSetup] = useState<SetupPayload | null>(null)
+  const [setupError, setSetupError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (checkInView) setActiveTab("check-in")
-  }, [checkInView])
+  const selectedId = eventIdContext || null
 
-  useEffect(() => {
-    async function loadEvents() {
-      if (!venue?.id) return
-      const response = await fetch(`/api/venue/ticketing?venue_id=${venue.id}`, {
+  const loadEvents = useCallback(async () => {
+    if (!venue?.id) return
+    setEventsLoading(true)
+    try {
+      const response = await fetch(`/api/venue/ticketing?venue_id=${encodeURIComponent(venue.id)}`, {
         credentials: "include",
         cache: "no-store",
       })
       if (!response.ok) {
-        setMyEvents([])
+        setEvents([])
         return
       }
-
       const payload = await response.json()
-      const allRows = Array.isArray(payload?.summary?.events) ? payload.summary.events : []
-      const rows = eventIdContext
-        ? allRows.filter((event: { id?: string }) => String(event.id) === eventIdContext)
-        : allRows
-      const mapped = rows.map((event: any): VenueTicketEvent => {
-        const ticketTypes = Array.isArray(event.ticket_types) ? event.ticket_types : []
-        const ticketsTotal =
-          ticketTypes.reduce((sum: number, ticket: any) => sum + Number(ticket.quantity_available || 0), 0) ||
-          Number(event.capacity || 0)
-        const ticketsSold = Number(event.tickets_sold || 0)
-        const venueLabel = venue.venue_name || venue.name || "Venue"
-        return {
-          id: String(event.id),
-          title: String(event.title || "Event"),
-          date: String(event.start_at || event.date || new Date().toISOString()),
-          venue: venueLabel,
-          location: `${venue.city || ""}${venue.city && venue.state ? ", " : ""}${venue.state || ""}` || "TBD",
-          ticketsSold,
-          ticketsTotal,
-          ticketTypes: ticketTypes.map((ticket: any) => ({
-            id: String(ticket.id),
-            name: String(ticket.name || "Ticket"),
-            price: Number(ticket.base_price ?? ticket.price ?? 0),
-            allInPrice: Number(ticket.all_in_price ?? ticket.price ?? 0),
-            mandatoryFees: Number(ticket.mandatory_fees || 0),
-            available: Math.max(0, Number(ticket.quantity_available || 0) - Number(ticket.quantity_sold || 0)),
-            sold: Number(ticket.quantity_sold || 0),
-          })),
-          revenue: Number(event.gross_revenue || 0),
-          status: event.status === "inquiry" ? "Draft" : "On Sale",
-        }
-      })
-      setMyEvents(mapped)
+      const rows = Array.isArray(payload?.summary?.events) ? payload.summary.events : []
+      setEvents(
+        rows.map((event: any): VenueTicketEvent => {
+          const ticketTypes: RowTicketType[] = Array.isArray(event.ticket_types) ? event.ticket_types : []
+          const totalInventory =
+            ticketTypes.reduce((sum: number, t) => sum + Number(t.quantity_available || 0), 0) || Number(event.capacity || 0)
+          return {
+            id: String(event.id),
+            title: String(event.title || "Event"),
+            start_at: event.start_at || null,
+            end_at: event.end_at || null,
+            status: event.status || null,
+            capacity: Number(event.capacity || 0),
+            ticketsSold: Number(event.tickets_sold || 0),
+            totalInventory,
+            ticketTypes,
+          }
+        }),
+      )
+    } finally {
+      setEventsLoading(false)
     }
+  }, [venue?.id])
+
+  useEffect(() => {
     void loadEvents()
-  }, [venue?.id, venue?.city, venue?.state, venue?.name, venue?.venue_name])
+  }, [loadEvents])
 
-  const formatDate = (dateString: string) => {
-    return formatSafeDate(dateString)
+  const loadSetup = useCallback(async () => {
+    if (!selectedId) {
+      setSetup(null)
+      return
+    }
+    setSetupError(null)
+    try {
+      const response = await fetch(`/api/venue/events/${selectedId}/ticketing-setup`, { credentials: "include", cache: "no-store" })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error || `Load failed (${response.status})`)
+      }
+      setSetup(await response.json())
+    } catch (error) {
+      setSetup(null)
+      setSetupError(error instanceof Error ? error.message : "Failed to load ticketing details")
+    }
+  }, [selectedId])
+
+  useEffect(() => {
+    void loadSetup()
+  }, [loadSetup])
+
+  const selectEvent = (id: string | null) => {
+    router.replace(id ? `/venue/dashboard/tickets?event_id=${id}` : "/venue/dashboard/tickets", { scroll: false })
   }
 
-  const formatTime = (dateString: string) => {
-    return formatSafeTime(dateString)
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const filteredEvents = myEvents.filter(
-    (event) =>
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredEvents = useMemo(
+    () =>
+      events.filter((event) =>
+        `${event.title}`.toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
+    [events, searchQuery],
   )
+
+  const selectedEvent = filteredEvents.find((event) => event.id === selectedId) || null
+  const activeTypes = setup?.ticket_types.filter((t) => t.is_active && !t.is_complimentary) || []
+  const compPools = setup?.ticket_types.filter((t) => t.is_active && t.is_complimentary) || []
+
+  const currency = (amount: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount)
 
   if (isVenueLoading)
     return (
-      <div className="flex justify-center items-center h-96">
+      <div className="flex h-96 items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     )
 
   return (
     <div className="space-y-6 pb-20">
-      {eventIdContext && (
-        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">
-          Showing ticketing for event <span className="font-semibold">{eventIdContext}</span>.{" "}
-          <Link href="/venue/dashboard/tickets" className="underline">Clear context</Link>
-        </div>
-      )}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Ticket Management</h1>
-          <p className="text-gray-400">Generate and manage tickets for your events</p>
+          <h1 className="text-2xl font-bold">Tickets</h1>
+          <p className="text-zinc-400">Sales, guest list and box office for your events</p>
         </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-gray-700" onClick={() => setShowCreateEventModal(true)}>
-            <Calendar className="h-4 w-4 mr-2" />
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedId && (
+            <Button onClick={() => setSetupOpen(true)}>
+              <Settings2 className="mr-2 h-4 w-4" />
+              {setup?.config?.ticketing_enabled ? "Manage ticketing" : "Generate Tickets"}
+            </Button>
+          )}
+          <Button variant="outline" className="border-zinc-700" onClick={() => setShowCreateEvent(true)}>
+            <Calendar className="mr-2 h-4 w-4" />
             Create Event
           </Button>
-          {myEvents.length > 0 ? (
-            <Button asChild>
-              <Link href={`/venue/events/${myEvents[0].id}?tab=tickets`}>
-                <TicketIcon className="h-4 w-4 mr-2" />
-                Manage tickets
-              </Link>
-            </Button>
-          ) : (
-            <Button onClick={() => setShowCreateEventModal(true)}>
-              <TicketIcon className="h-4 w-4 mr-2" />
-              Generate Tickets
-            </Button>
-          )}
+          {/* VEN-152 — human wallet stays outside Venue operations */}
+          <Button asChild variant="ghost" size="sm" className="text-zinc-500" title="Your personal account wallet">
+            <Link href="/tickets/my-tickets">
+              <Wallet className="mr-1 h-4 w-4" />
+              Personal wallet
+            </Link>
+          </Button>
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Search tickets or events..."
-          className="pl-10 bg-gray-800 border-gray-700"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      <Tabs defaultValue="selling" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={venueDashboardTabListClass}>
-          <TabsTrigger value="selling">Tickets I'm Selling</TabsTrigger>
-          <TabsTrigger value="check-in">Door Check-In</TabsTrigger>
-          <TabsTrigger value="purchased">Tickets I've Purchased</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="check-in" className="mt-6 space-y-4">
-          {filteredEvents.length === 0 ? (
-            <Card className="border-gray-800 bg-gray-900">
-              <CardContent className="pt-2">
-                <VenueEmptyState
-                  icon={ScanLine}
-                  title="No events ready for door"
-                  description="Create or publish an event with tickets, then open door check-in from here."
-                  action={{ label: "Create event", href: "/venue/dashboard/calendar" }}
-                />
-              </CardContent>
-            </Card>
+      {/* Event selector */}
+      <Card className="border-zinc-800 bg-gray-900">
+        <CardContent className="space-y-3 p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+            <input
+              aria-label="Filter events"
+              placeholder="Filter events…"
+              className="w-full rounded-md border border-zinc-700 bg-gray-800 py-2 pl-10 pr-3 text-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {eventsLoading ? (
+            <div className="flex h-20 items-center justify-center"><LoadingSpinner /></div>
+          ) : filteredEvents.length === 0 ? (
+            <VenueEmptyState
+              icon={TicketIcon}
+              title={searchQuery ? "No matching events" : "No events yet"}
+              description={searchQuery ? "Try a different filter." : "Create an event, then configure ticketing for it."}
+              action={!searchQuery ? undefined : undefined}
+            />
           ) : (
-            filteredEvents.map((event) => (
-              <Card key={`checkin-${event.id}`} className="border-gray-800 bg-gray-900">
-                <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-white">{event.title}</p>
-                    <p className="text-sm text-gray-400">
-                      {formatDate(event.date)} · {formatTime(event.date)}
-                    </p>
-                  </div>
-                  <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
-                    <Link href={`/venue/events/${event.id}/check-in`}>
-                      <ScanLine className="mr-2 h-4 w-4" />
-                      Open door
-                    </Link>
-                  </Button>
+            <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2" aria-label="Events">
+              {filteredEvents.map((event) => {
+                const saleState = deriveSaleState({
+                  eventStatus: event.status,
+                  eventStartAt: event.start_at,
+                  eventEndAt: event.end_at,
+                  saleStart: setup?.config?.sale_start ?? null,
+                  saleEnd: setup?.config?.sale_end ?? null,
+                  ticketingEnabled: true,
+                  totalInventory: event.totalInventory,
+                  totalSold: event.ticketsSold,
+                  activeTypeCount: event.ticketTypes.length,
+                })
+                const isSelected = event.id === selectedId
+                return (
+                  <li key={event.id}>
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => selectEvent(isSelected ? null : event.id)}
+                      className={`flex w-full flex-col gap-1 rounded-md border p-3 text-left transition ${
+                        isSelected ? "border-purple-500 bg-purple-600/10" : "border-zinc-800 bg-zinc-950/50 hover:border-zinc-600"
+                      }`}
+                    >
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-zinc-100">{event.title}</span>
+                        <SaleStateBadge state={saleState.state} label={saleState.label} />
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {formatSafeDate(event.start_at)} · {formatSafeTime(event.start_at)} ·{" "}
+                        {event.ticketsSold}/{event.totalInventory || "?"} sold
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {!selectedId ? (
+        <VenueEmptyState
+          icon={QrCode}
+          title="Select an event to manage ticketing"
+          description="Pick an event above to view sales, run the box office and manage the guest list."
+        />
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className={venueDashboardTabListClass}>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="types">Ticket Types</TabsTrigger>
+            <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="guestlist">Guest List &amp; Comps</TabsTrigger>
+            <TabsTrigger value="box-office">Box Office</TabsTrigger>
+            <TabsTrigger value="door">Door</TabsTrigger>
+          </TabsList>
+
+          {/* OVERVIEW */}
+          <TabsContent value="overview" className="mt-6 space-y-4">
+            {setupError ? (
+              <Card className="border-red-800 bg-red-950/30">
+                <CardContent className="space-y-2 p-5 text-sm text-red-300">
+                  <p>{setupError}</p>
+                  <Button size="sm" variant="outline" onClick={() => void loadSetup()}>Retry</Button>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </TabsContent>
+            ) : !setup ? (
+              <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Card className="border-zinc-800 bg-gray-900">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-zinc-500">Sale state</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <SaleStateBadge state={setup.sale_state} label={setup.sale_state_label} />
+                      </div>
+                      <p className="mt-2 text-xs text-zinc-400">{setup.sale_state_reason}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-zinc-800 bg-gray-900">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-zinc-500">Inventory</p>
+                      <p className="text-xl font-semibold">{setup.inventory.available} available</p>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className="h-full bg-purple-600"
+                          style={{
+                            width: `${
+                              setup.inventory.total_inventory > 0
+                                ? Math.min(100, (setup.inventory.total_sold / setup.inventory.total_inventory) * 100)
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-zinc-500">{setup.inventory.total_sold}/{setup.inventory.total_inventory || "?"} sold</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-zinc-800 bg-gray-900">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-zinc-500">Door</p>
+                      <p className="mt-1 text-sm text-zinc-300">Open scanner for this event.</p>
+                      <Button asChild size="sm" className="mt-2 bg-emerald-600 hover:bg-emerald-500">
+                        <Link href={`/venue/events/${selectedId}/check-in`}>
+                          <ScanLine className="mr-2 h-4 w-4" />Open door
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
 
-        <TabsContent value="selling" className="mt-6 space-y-6">
-          {filteredEvents.length === 0 ? (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="pt-6 text-center">
-                <p className="text-gray-400">No events found. Create an event to start selling tickets!</p>
-                <Button className="mt-4" onClick={() => setShowCreateEventModal(true)}>
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Create Event
+                {!setup.config?.ticketing_enabled && (
+                  <Card className="border-yellow-700 bg-yellow-950/20">
+                    <CardContent className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-yellow-200">Ticketing isn’t configured for this event yet.</p>
+                      <Button size="sm" onClick={() => setSetupOpen(true)}>
+                        <Settings2 className="mr-2 h-4 w-4" />Set up ticketing
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <p className="text-xs text-zinc-500">
+                  Full order financials are visible only to accounts with finance authority; your share appears under Finance → Settlements.
+                </p>
+              </>
+            )}
+          </TabsContent>
+
+          {/* TYPES */}
+          <TabsContent value="types" className="mt-6 space-y-3">
+            {activeTypes.length === 0 && compPools.length === 0 ? (
+              <VenueEmptyState
+                icon={Settings2}
+                title="No ticket types yet"
+                description="Add tiers, prices and quantities in the setup wizard."
+                action={{ label: "Open setup", onClick: () => setSetupOpen(true) }}
+              />
+            ) : (
+              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label="Ticket types">
+                {[...activeTypes, ...compPools].map((type) => (
+                  <li key={type.id} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-medium text-zinc-100">{type.name}</h3>
+                      {type.is_complimentary ? (
+                        <Badge variant="outline" className="border-sky-600 text-sky-400">Comp pool</Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-zinc-700">{currency(Number(type.all_in_price ?? type.price ?? 0))}</Badge>
+                      )}
+                    </div>
+                    {!type.is_complimentary && (
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {currency(Number(type.price ?? 0))} base
+                        {Number(type.mandatory_fees || 0) > 0 ? ` + ${currency(Number(type.mandatory_fees))} fees` : ""}
+                      </p>
+                    )}
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span>{Number(type.quantity_sold || 0)}/{Number(type.quantity_available || 0)} sold</span>
+                      <span className="text-zinc-400">{Math.max(0, Number(type.quantity_available || 0) - Number(type.quantity_sold || 0))} left</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+
+          {/* ORDERS */}
+          <TabsContent value="orders" className="mt-6">
+            <OrdersPanel eventId={selectedId} canRefund={Boolean(setup?.capabilities?.process_refunds)} />
+          </TabsContent>
+
+          {/* GUEST LIST */}
+          <TabsContent value="guestlist" className="mt-6">
+            <GuestListPanel
+              eventId={selectedId}
+              canManageGuestlist={Boolean(setup?.capabilities?.manage_guestlist)}
+              canIssueComps={Boolean(setup?.capabilities?.issue_comps)}
+              ticketTypes={[...activeTypes, ...compPools].map((t) => ({ id: t.id, name: t.name }))}
+            />
+          </TabsContent>
+
+          {/* BOX OFFICE */}
+          <TabsContent value="box-office" className="mt-6">
+            {setup?.capabilities?.operate_box_office === false ? (
+              <VenueEmptyState icon={QrCode} title="Box office not permitted" description="You need “Operate box office” permission to sell here." />
+            ) : (
+              <BoxOfficeSellPanel
+                eventId={selectedId}
+                ticketTypes={[...activeTypes, ...compPools].map((t) => ({
+                  id: t.id,
+                  name: t.name,
+                  all_in_price: Number(t.all_in_price ?? t.price ?? 0),
+                  available: Math.max(0, Number(t.quantity_available || 0) - Number(t.quantity_sold || 0)),
+                  is_complimentary: t.is_complimentary,
+                }))}
+                onSold={() => void Promise.all([loadEvents(), loadSetup()])}
+              />
+            )}
+          </TabsContent>
+
+          {/* DOOR */}
+          <TabsContent value="door" className="mt-6">
+            <Card className="border-zinc-800 bg-gray-900">
+              <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium text-zinc-100">Door check-in scanner</p>
+                  <p className="text-sm text-zinc-400">Validates QR credentials with idempotent scans and reverse check-in.</p>
+                </div>
+                <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
+                  <Link href={`/venue/events/${selectedId}/check-in`}>
+                    <ScanLine className="mr-2 h-4 w-4" />Open door
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
-          ) : (
-            filteredEvents.map((event) => (
-              <Card key={event.id} className="bg-gray-900 border-gray-800">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <CardTitle>{event.title}</CardTitle>
-                        <Badge
-                          variant={event.status === "Draft" ? "outline" : "default"}
-                          className={event.status === "Draft" ? "border-yellow-600 text-yellow-500" : "bg-green-600"}
-                        >
-                          {event.status}
-                        </Badge>
-                      </div>
-                      <CardDescription className="mt-1">
-                        {formatDate(event.date)} at {formatTime(event.date)} • {event.venue}, {event.location}
-                      </CardDescription>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{event.ticketsSold} sold</p>
-                      <p className="text-sm text-gray-400">Ops summary (finance hidden)</p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>
-                        {event.ticketsSold}/{event.ticketsTotal} tickets sold
-                      </span>
-                      <span>
-                        {event.ticketsTotal > 0 ? ((event.ticketsSold / event.ticketsTotal) * 100).toFixed(0) : 0}% sold
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-purple-600"
-                        style={{
-                          width: `${
-                            event.ticketsTotal > 0 ? Math.min(100, (event.ticketsSold / event.ticketsTotal) * 100) : 0
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
+          </TabsContent>
+        </Tabs>
+      )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {event.ticketTypes.map((ticket) => (
-                        <div key={ticket.id} className="bg-gray-800/50 p-3 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-medium">{ticket.name}</h3>
-                            <Badge variant="outline" className="border-gray-700">
-                              {formatCurrency(ticket.allInPrice)}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 text-xs text-gray-400">
-                            {formatCurrency(ticket.price)} base
-                            {ticket.mandatoryFees > 0 ? ` + ${formatCurrency(ticket.mandatoryFees)} required fees` : " • no required fees configured"}
-                          </p>
-                          <div className="flex items-center justify-between mt-2 text-sm">
-                            <span>
-                              {ticket.sold}/{ticket.sold + ticket.available} sold
-                            </span>
-                            <span>{ticket.available} available</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+      {selectedId && (
+        <TicketSetupWizard
+          eventId={selectedId}
+          open={setupOpen}
+          onOpenChange={setSetupOpen}
+          onSaved={() => void Promise.all([loadEvents(), loadSetup()])}
+        />
+      )}
 
-                    <div className="flex gap-2 mt-4">
-                      <Button asChild className="flex-1" disabled={event.status === "Draft"}>
-                        <Link href={`/venue/events/${event.id}/check-in`}>
-                          <QrCode className="h-4 w-4 mr-2" />
-                          Door check-in
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="border-gray-700">
-                        <Link href={`/tickets/my-tickets`}>
-                          <TicketIcon className="h-4 w-4 mr-2" />
-                          My wallet
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="purchased" className="mt-6 space-y-6">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="pt-6 text-center">
-              <QrCode className="mx-auto mb-3 h-10 w-10 text-gray-500" />
-              <p className="text-gray-300 font-medium">No purchased tickets found</p>
-              <p className="mt-1 text-sm text-gray-500">
-                Venue ticket purchases will appear here when this account buys tickets as an attendee.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <CreateEventModal isOpen={showCreateEventModal} onClose={() => setShowCreateEventModal(false)} />
+      <CreateEventModal isOpen={showCreateEvent} onClose={() => setShowCreateEvent(false)} />
     </div>
   )
 }
-
 
 export default function TicketsPage() {
   return (

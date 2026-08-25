@@ -219,21 +219,44 @@ describe('12. Venue share-only report hides full financials', () => {
 })
 
 describe('ticketing owner grant', () => {
-  it('allows explicit ticketing_owner_id full access', async () => {
+  // VEN-148: ownership resolves through the typed account resolver —
+  // ticketing_owner_id references an account (venue/artist/org), and its
+  // authoritative humans gain access. Raw id equality is no longer enough.
+  it('resolves venue-owned events to their profile humans', async () => {
     const supabase = mockSupabase({
-      events_v2: { data: { org_id: 'org-1', created_by: 'other' } },
-      event_ticketing_config: { data: { ticketing_owner_type: 'venue', ticketing_owner_id: 'venue-owner-1' } },
+      events_v2: { data: { org_id: null, created_by: 'other', settings: { venue_profile_id: 'vp-1' }, venue_id: null } },
+      event_ticketing_config: { data: { ticketing_owner_type: 'venue', ticketing_owner_id: 'vp-1' } },
+      venue_profiles: { data: { user_id: 'venue-human-1', main_profile_id: null } },
       org_members: { data: null },
       event_ticketing_grants: { data: null },
     })
 
     const allowed = await hasTicketingPermission({
       supabase,
-      userId: 'venue-owner-1',
+      userId: 'venue-human-1',
       eventId: 'event-1',
       permission: 'view_full_financials',
     })
     expect(allowed).toBe(true)
+  })
+
+  it('does not grant by raw owner-id equality when resolution fails', async () => {
+    const supabase = mockSupabase({
+      events_v2: { data: { org_id: null, created_by: 'other', settings: {}, venue_id: null } },
+      event_ticketing_config: { data: { ticketing_owner_type: 'venue', ticketing_owner_id: 'mystery-id' } },
+      venue_profiles: { data: null },
+      venue_identity_bridges: { data: null },
+      org_members: { data: null },
+      event_ticketing_grants: { data: null },
+    })
+
+    const allowed = await hasTicketingPermission({
+      supabase,
+      userId: 'mystery-id',
+      eventId: 'event-1',
+      permission: 'view_full_financials',
+    })
+    expect(allowed).toBe(false)
   })
 })
 

@@ -17,6 +17,7 @@ import {
   type VenueEventOpsTab,
 } from "@/lib/venue/event-ops-tabs"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { TicketSetupWizard } from "../../components/tickets/ticket-setup-wizard"
 import { venueService } from "@/lib/services/venue.service"
 import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
@@ -56,6 +57,7 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
     budgetRange?: string
   } | null>(null)
   const [shifts, setShifts] = useState<any[]>([])
+  const [setupWizardOpen, setSetupWizardOpen] = useState(false)
   const [equipment, setEquipment] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
   const [bookingRequest, setBookingRequest] = useState<any | null>(null)
@@ -348,7 +350,10 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" className={VENUE_PRIMARY_BTN}>
+                    <Button size="sm" className={VENUE_PRIMARY_BTN} onClick={() => setSetupWizardOpen(true)}>
+                      Manage ticketing
+                    </Button>
+                    <Button asChild size="sm" variant="outline" className="border-zinc-700">
                       <Link href={`/venue/events/${event.id}/check-in`}>Open check-in</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline" className="border-zinc-700">
@@ -360,8 +365,8 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
                 <VenueEmptyState
                   icon={QrCode}
                   title="Ticketing & door"
-                  description="No ticket sales yet for this event. Open ticket management to configure tiers, then run door check-in."
-                  action={{ label: "Open tickets", href: `/venue/dashboard/tickets?event_id=${event.id}` }}
+                  description="No ticket sales yet for this event. Configure tiers and publish sales, then run door check-in."
+                  action={{ label: "Set up ticketing", onClick: () => setSetupWizardOpen(true) }}
                 />
               )}
             </CardContent>
@@ -646,6 +651,8 @@ export default function VenueEventOpsPage({ params }: EventOpsPageProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <TicketSetupWizard eventId={id} open={setupWizardOpen} onOpenChange={setSetupWizardOpen} />
     </div>
   )
 }

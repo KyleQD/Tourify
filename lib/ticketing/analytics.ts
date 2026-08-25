@@ -4,6 +4,7 @@
 
 export type TicketAnalyticsEventName =
   | 'ticket_sales_published'
+  | 'ticket_sales_paused'
   | 'ticket_page_viewed'
   | 'ticket_type_selected'
   | 'checkout_started'
