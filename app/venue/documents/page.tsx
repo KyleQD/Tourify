@@ -202,6 +202,36 @@ export default function DocumentsPage() {
       }))
 
       setDocuments(enhancedDocuments)
+
+      // VEN-188: folders are persisted rows now. document_folders ships with
+      // migration 20260823190000 — access via a structural shim until the
+      // generated types are regenerated.
+      type FolderRow = { id: string; name: string; created_at: string }
+      const client = (await import("@/lib/supabase/client")).default
+      const fromFolders = client.from as unknown as (
+        table: "document_folders",
+      ) => {
+        select: (columns: string) => {
+          eq: (column: string, value: string) => {
+            order: (
+              column: string,
+              options: { ascending: boolean },
+            ) => PromiseLike<{ data: FolderRow[] | null }>
+          }
+        }
+      }
+      const { data: folderRows } = await fromFolders("document_folders")
+        .select("id, name, created_at")
+        .eq("venue_id", venue.id)
+        .order("name", { ascending: true })
+      setFolders(
+        (folderRows ?? []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          document_count: 0,
+          created_at: f.created_at,
+        })),
+      )
       setFolders([])
       
     } catch (error) {
@@ -261,7 +291,7 @@ export default function DocumentsPage() {
     for (const file of fileArray) {
       try {
         setUploadProgress(prev => ({ ...prev, [file.name]: 10 }))
-        const res = await uploadVenueDocument({ venueId: venue.id, file, name: file.name, documentType: 'other', isPublic: false })
+        const res = await uploadVenueDocument({ venueId: venue.id, file, name: file.name, documentType: 'other', isPublic: false, folderId: currentFolder ?? undefined })
         if (!res.success) {
           toast({ title: 'Upload Failed', description: res.error || `Failed to upload ${file.name}`, variant: 'destructive' })
         } else {
@@ -865,12 +895,39 @@ export default function DocumentsPage() {
             <Button variant="outline" onClick={() => setIsCreateFolderOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              toast({
-                title: "Folder Created",
-                description: "New folder has been created successfully."
-              })
-              setIsCreateFolderOpen(false)
+            <Button onClick={async () => {
+              const input = document.getElementById("folder-name") as HTMLInputElement | null
+              const name = input?.value?.trim()
+              if (!name || !venue?.id) {
+                toast({ title: "Folder name required", variant: "destructive" })
+                return
+              }
+              try {
+                const mod = await import("@/lib/supabase/client")
+                const client = mod.default
+                const insertIntoFolders = (client.from as unknown as (
+                  table: "document_folders",
+                ) => {
+                  insert: (
+                    values: Record<string, unknown>,
+                  ) => PromiseLike<{ error: { message: string } | null }>
+                })("document_folders")
+                const { error: createError } = await insertIntoFolders.insert({
+                  venue_id: venue.id,
+                  name,
+                  created_by: null,
+                })
+                if (createError) throw createError
+                toast({ title: "Folder Created", description: name })
+                setIsCreateFolderOpen(false)
+                await fetchDocuments()
+              } catch (err) {
+                toast({
+                  title: "Could not create folder",
+                  description: err instanceof Error ? err.message : "Try again.",
+                  variant: "destructive",
+                })
+              }
             }}>
               Create Folder
             </Button>
