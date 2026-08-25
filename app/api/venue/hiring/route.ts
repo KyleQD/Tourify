@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
       .select(
         `id, job_posting_id, status, applied_at, applicant_name, applicant_email,
          applicant_phone, rating, reviewer_notes, decision_note,
-         interview_scheduled, interview_date, offer_made, offer_date`,
+         interview_scheduled, interview_date, offer_made, offer_date,
+         form_responses, profile_snapshot`,
       )
       .eq("venue_id", venueId)
       .order("applied_at", { ascending: false })

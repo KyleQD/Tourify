@@ -82,6 +82,11 @@ interface JobApplication {
   experience: number
   skills: string[]
   availability: string
+  // VEN-139: canonical drawer fields
+  form_responses?: Record<string, unknown> | null
+  profile_snapshot?: Record<string, unknown> | null
+  interview_date?: string | null
+  offer_date?: string | null
 }
 
 export default function JobBoardIntegration() {
@@ -97,6 +102,11 @@ export default function JobBoardIntegration() {
   const [showBulkActions, setShowBulkActions] = useState(false)
   const [showOnboardingIntegration, setShowOnboardingIntegration] = useState(false)
   const [candidateForOnboarding, setCandidateForOnboarding] = useState<JobApplication | null>(null)
+
+  // VEN-139: candidate drawer timeline + extended detail.
+  interface AuditEvent { id: string; action: string; from_status: string|null; to_status: string|null; created_at: string; actor_user_id?: string|null }
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
+
   const [sortBy, setSortBy] = useState("appliedDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [aiMatchingEnabled, setAiMatchingEnabled] = useState(true)
@@ -245,6 +255,10 @@ export default function JobBoardIntegration() {
         experience: 0,
         skills: [],
         availability: '',
+        form_responses: (a.form_responses ?? null) as Record<string, unknown> | null,
+        profile_snapshot: (a.profile_snapshot ?? null) as Record<string, unknown> | null,
+        interview_date: (a.interview_date ?? null) as string | null,
+        offer_date: (a.offer_date ?? null) as string | null,
       })))
     } catch (err) {
       setDataError(err instanceof Error ? err.message : 'Failed to load hiring data')
@@ -366,22 +380,61 @@ export default function JobBoardIntegration() {
     })
   }
 
-  const handleApplicationAction = (applicationId: string, action: string) => {
+  const persistTransition = async (applicationId: string, status: 'reviewed' | 'interviewed' | 'offer' | 'rejected' | 'hired') => {
+    try {
+      const response = await fetch(`/api/venue/hiring/applications/${applicationId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || `Failed to move candidate to ${status}`)
+      }
+      await loadHiringData()
+      return true
+    } catch (err) {
+      toast({
+        title: 'Could not update application',
+        description: err instanceof Error ? err.message : 'Unexpected error',
+        variant: 'destructive',
+      })
+      return false
+    }
+  }
+
+  const handleApplicationAction = async (applicationId: string, action: string) => {
     const application = applications.find(app => app.id === applicationId)
-    
+
+    // VEN-134: every transition persists through the canonical endpoint and the
+    // compliance gate lives inside hire_venue_candidate — failures surface verbatim.
+    const ok = await persistTransition(
+      applicationId,
+      action === 'hired'
+        ? 'hired'
+        : action === 'rejected'
+          ? 'rejected'
+          : action === 'interview'
+            ? 'interviewed'
+            : action === 'offer'
+              ? 'offer'
+              : 'reviewed',
+    )
+    if (!ok) return
+
+    toast({
+      title: 'Application updated',
+      description: `${application?.applicantName ?? 'Candidate'} → ${action}`,
+    })
+
     if (action === 'hired' && application) {
-      // Start onboarding process
       setCandidateForOnboarding(application)
       setShowOnboardingIntegration(true)
     }
-    
-    toast({
-      title: "Application Updated",
-      description: `${application?.applicantName}'s application has been ${action}`,
-    })
   }
 
-  const handleBulkAction = (action: string) => {
+  const handleBulkAction = async (action: string) => {
     if (selectedApplications.length === 0) {
       toast({
         title: "No Applications Selected",
@@ -391,31 +444,23 @@ export default function JobBoardIntegration() {
       return
     }
 
-    let actionDescription = ""
-    switch (action) {
-      case "interview":
-        actionDescription = "scheduled for interviews"
-        break
-      case "reject":
-        actionDescription = "rejected"
-        break
-      case "review":
-        actionDescription = "marked for review"
-        break
-      case "hire":
-        actionDescription = "hired"
-        break
-      default:
-        actionDescription = "updated"
-    }
+    const targetStatus =
+      action === 'reject' ? 'rejected' : action === 'hire' ? 'hired' : action === 'interview' ? 'interviewed' : 'reviewed'
+
+    const results = await Promise.allSettled(
+      selectedApplications.map((id) => persistTransition(id, targetStatus)),
+    )
+    const failed = results.filter((r) => r.status === 'rejected').length
 
     toast({
-      title: "Bulk Action Complete",
-      description: `${selectedApplications.length} applications ${actionDescription}`,
+      title: failed > 0 ? 'Bulk update partially failed' : 'Bulk Action Complete',
+      description: `${selectedApplications.length - failed} updated, ${failed} failed${failed ? ' — see individual errors' : ''}.`,
+      variant: failed > 0 ? 'destructive' : undefined,
     })
 
     setSelectedApplications([])
     setShowBulkActions(false)
+    await loadHiringData()
   }
 
   const toggleApplicationSelection = (applicationId: string) => {
@@ -956,9 +1001,20 @@ export default function JobBoardIntegration() {
                             size="sm" 
                             variant="outline" 
                             className="border-slate-600"
-                            onClick={() => {
+                            onClick={async () => {
                               setSelectedApplication(application)
                               setShowApplicationDetail(true)
+                              setAuditEvents([])
+                              try {
+                                const res = await fetch(
+                                  `/api/venue/hiring/audit?application_id=${encodeURIComponent(application.id)}${venue?.id ? `&venue_id=${encodeURIComponent(venue.id)}` : ''}`,
+                                  { credentials: 'include', cache: 'no-store' },
+                                )
+                                const payload = await res.json().catch(() => null)
+                                if (res.ok && payload?.success) setAuditEvents(payload.data ?? [])
+                              } catch {
+                                // Timeline is supplementary — never block the drawer.
+                              }
                             }}
                           >
                             <Eye className="h-4 w-4 mr-1" />
@@ -1565,20 +1621,88 @@ export default function JobBoardIntegration() {
                 </div>
               )}
 
+              {/* VEN-139: profile snapshot */}
+              {selectedApplication.profile_snapshot &&
+               typeof selectedApplication.profile_snapshot === 'object' && (
+                <div>
+                  <h4 className={cn("mb-2 font-medium", detailSurfacePattern.title)}>Profile snapshot</h4>
+                  <pre className={cn("max-h-40 overflow-auto rounded-lg p-3 text-xs", detailSurfacePattern.panel, detailSurfacePattern.subtleText)}>
+                    {JSON.stringify(selectedApplication.profile_snapshot, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* VEN-139: application answers */}
+              {selectedApplication.form_responses &&
+               typeof selectedApplication.form_responses === 'object' &&
+               Object.keys(selectedApplication.form_responses as Record<string, unknown>).length > 0 && (
+                <div>
+                  <h4 className={cn("mb-2 font-medium", detailSurfacePattern.title)}>Answers</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedApplication.form_responses as Record<string, unknown>).map(([q, a]) => (
+                      <div key={q} className={cn("rounded-lg p-3", detailSurfacePattern.panel)}>
+                        <p className="text-xs uppercase tracking-wide text-slate-500">{q}</p>
+                        <p className={detailSurfacePattern.label}>{String(a)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* VEN-139: status timeline from hiring_audit_events */}
+              {auditEvents.length > 0 && (
+                <div>
+                  <h4 className={cn("mb-2 font-medium", detailSurfacePattern.title)}>Timeline</h4>
+                  <ol className="space-y-1.5">
+                    {auditEvents.map((event) => (
+                      <li key={event.id} className="flex items-center gap-2 text-sm text-slate-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                        <span className="capitalize">{event.to_status || event.action}</span>
+                        <span className="text-xs text-slate-500">
+                          {new Date(event.created_at).toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {/* Interview / offer dates when present */}
+              {(selectedApplication.interview_date || selectedApplication.offer_date) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedApplication.interview_date && (
+                    <div className={cn("rounded-lg p-3", detailSurfacePattern.panel)}>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Interview</p>
+                      <p className={detailSurfacePattern.label}>
+                        {new Date(selectedApplication.interview_date).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedApplication.offer_date && (
+                    <div className={cn("rounded-lg p-3", detailSurfacePattern.panel)}>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Offer</p>
+                      <p className={detailSurfacePattern.label}>
+                        {new Date(selectedApplication.offer_date).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-4">
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
-                    <MessageSquare className="h-4 w-4 mr-1" />
-                    Message
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}
+                    onClick={() => void handleApplicationAction(selectedApplication.id, 'reviewed')}>
+                    Mark Reviewed
                   </Button>
-                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Schedule Interview
+                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}
+                    onClick={() => void handleApplicationAction(selectedApplication.id, 'interview')}>
+                    Interview
                   </Button>
-                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}>
-                    <FileText className="h-4 w-4 mr-1" />
-                    View Resume
+                  <Button size="sm" variant="outline" className={detailSurfacePattern.btnOutline}
+                    onClick={() => void handleApplicationAction(selectedApplication.id, 'offer')}>
+                    Extend Offer
                   </Button>
                 </div>
                 <div className="flex space-x-2">
