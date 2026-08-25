@@ -158,6 +158,39 @@ export class StaffOnboardingService {
     }
   }
 
+
+  /**
+   * VEN-135 — mirror progress onto the CANONICAL staff_onboarding_candidates
+   * row (matched via the staff member's identity), keeping legacy tables as
+   * adapters only.
+   */
+  private static async syncCandidateProgress(supabase: ReturnType<typeof createClient>, staffId: string, progress: number, status: string) {
+    try {
+      const { data: member } = await supabase
+        .from('staff_members')
+        .select('email, user_id')
+        .eq('id', staffId)
+        .maybeSingle()
+      if (!member) return
+
+      const match = member.user_id
+        ? { user_id: member.user_id }
+        : { email: member.email }
+
+      await supabase
+        .from('staff_onboarding_candidates')
+        .update({
+          onboarding_progress: progress,
+          status: status === 'completed' ? 'completed' : 'onboarding',
+          updated_at: new Date().toISOString(),
+        })
+        .match(match)
+    } catch (err) {
+      // Adapter sync is best-effort; the legacy write already succeeded.
+      console.warn('[Staff Onboarding] candidate progress sync skipped:', err)
+    }
+  }
+
   /**
    * Update onboarding progress for a staff member
    */
@@ -179,6 +212,7 @@ export class StaffOnboardingService {
         .single()
 
       if (error) throw error
+      await this.syncCandidateProgress(supabase, staffId, progress, status)
       return data
     } catch (error) {
       console.error('[Staff Onboarding Service] Error updating onboarding progress:', error)
@@ -203,6 +237,16 @@ export class StaffOnboardingService {
         .single()
 
       if (staffError) throw staffError
+
+      // VEN-135: canonical roster activation alongside the legacy adapter.
+      try {
+        await supabase
+          .from('staff_members')
+          .update({ status: 'active', updated_at: new Date().toISOString() })
+          .eq('id', staffId)
+      } catch (err) {
+        console.warn('[Staff Onboarding] canonical staff activation skipped:', err)
+      }
 
       await this.updateOnboardingProgress(staffId, 100, 'completed')
 
