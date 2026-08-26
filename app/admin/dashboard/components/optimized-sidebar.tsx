@@ -612,7 +612,8 @@ export function OptimizedSidebar() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   const SidebarContent = () => (
-    <div
+    <nav
+      aria-label="Admin"
       data-education-anchor="admin-sidebar"
       className={`flex flex-col h-[calc(100vh-4rem)] bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
         isCollapsed ? "w-16" : "w-64"
@@ -684,6 +685,7 @@ export function OptimizedSidebar() {
                     <Link
                       href={item.href}
                       prefetch={false}
+                      aria-current={isActive ? "page" : undefined}
                       className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
                         isActive
                           ? "bg-purple-600/10 text-white border-l-2 border-l-purple-500"
@@ -977,7 +979,7 @@ export function OptimizedSidebar() {
           </div>
         </div>
       )}
-    </div>
+    </nav>
   )
 
   // Mobile overlay
@@ -989,6 +991,8 @@ export function OptimizedSidebar() {
           size="sm"
           onClick={() => setShowMobileMenu(!showMobileMenu)}
           className="fixed top-20 left-4 z-[100] ml-2 mt-2 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
+          aria-label={showMobileMenu ? "Close admin menu" : "Open admin menu"}
+          aria-expanded={showMobileMenu}
         >
           <Menu className="h-5 w-5 text-white" />
         </Button>

@@ -44,6 +44,25 @@ export async function GET(request: NextRequest) {
       if (row.participant_2) ids.add(row.participant_2 as string)
     }
 
+    // P2-15: real unread counts — messages in the thread authored by someone
+    // else with no read_at timestamp for the acting admin.
+    const adminId = auth.user.id
+    let unreadByConversation: Record<string, number> = {}
+    const conversationIds = (rows || []).map((r: any) => r.id as string)
+    if (conversationIds.length > 0) {
+      const { data: unreadRows } = await svc
+        .from('messages')
+        .select('conversation_id, id')
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', adminId)
+        .is('read_at', null)
+        .limit(1000)
+      for (const m of unreadRows || []) {
+        const cid = m.conversation_id as string
+        unreadByConversation[cid] = (unreadByConversation[cid] ?? 0) + 1
+      }
+    }
+
     const idList = [...ids]
     let nameById: Record<string, string> = {}
     if (idList.length > 0) {
@@ -69,7 +88,7 @@ export async function GET(request: NextRequest) {
         id: row.id as string,
         groupName: `${labelA} · ${labelB}`,
         lastMessage: preview || 'No messages yet',
-        unreadCount: 0,
+        unreadCount: unreadByConversation[row.id as string] ?? 0,
         updatedAt: row.updated_at as string,
       }
     })

@@ -390,7 +390,7 @@ const ACCOUNT_FAQ: AccountFAQSection[] = [
         id: "user-management",
         title: "User Management",
         description: "Invite members, assign roles, and manage access.",
-        href: "/admin/dashboard/users",
+        href: "/admin/dashboard/rbac",
         location: "Organization dashboard → Users"
       },
       {
