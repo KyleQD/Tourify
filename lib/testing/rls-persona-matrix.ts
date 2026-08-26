@@ -110,6 +110,85 @@ export function fixtureIdsForOrg(org: "a" | "b") {
       }
 }
 
+/** Tables brought under org/ownership scoping by migration 20260825120000 (ADM-M-002). */
+export const RLS_ORG_SCOPED_DOMAIN_TABLES = [
+  "financial_transactions",
+  "budgets",
+  "travel_groups",
+  "travel_group_members",
+  "lodging_bookings",
+  "lodging_guest_assignments",
+  "lodging_payments",
+  "equipment_catalog",
+  "equipment_instances",
+  "workflow_templates",
+] as const
+
+/**
+ * Cross-tenant negative + positive cases for the Phase 1 org-scoped domains.
+ * Mirrors buildCoreTourIsolationCases semantics so the same executor can run
+ * them against a live RLS test database when configured.
+ */
+export function buildOrgScopedDomainCases(): RlsMatrixCase[] {
+  const cases: RlsMatrixCase[] = []
+  for (const table of RLS_ORG_SCOPED_DOMAIN_TABLES) {
+    cases.push(
+      {
+        id: `${table}-a-owner-select-a`,
+        table,
+        action: "select",
+        persona: "org_a_owner",
+        targetOrg: "a",
+        expect: "allow",
+      },
+      {
+        id: `${table}-a-worker-select-a`,
+        table,
+        action: "select",
+        persona: "org_a_worker",
+        targetOrg: "a",
+        expect: "allow",
+        notes: "Own-org member read remains permitted after scoping",
+      },
+      {
+        id: `${table}-a-owner-select-b`,
+        table,
+        action: "select",
+        persona: "org_a_owner",
+        targetOrg: "b",
+        expect: "deny",
+        notes: "Cross-org denial (ADM-M-002)",
+      },
+      {
+        id: `${table}-b-owner-select-a`,
+        table,
+        action: "select",
+        persona: "org_b_owner",
+        targetOrg: "a",
+        expect: "deny",
+      },
+      {
+        id: `${table}-anon-select-a`,
+        table,
+        action: "select",
+        persona: "anonymous",
+        targetOrg: "a",
+        expect: "deny",
+      },
+      {
+        id: `${table}-b-owner-insert-a`,
+        table,
+        action: "insert",
+        persona: "org_b_owner",
+        targetOrg: "a",
+        expect: "deny",
+        notes: "Cross-org write denial (ADM-M-002)",
+      },
+    )
+  }
+  return cases
+}
+
 /** True when CI/local has configured a dedicated RLS test database. */
 export function isRlsDatabaseConfigured(): boolean {
   return Boolean(

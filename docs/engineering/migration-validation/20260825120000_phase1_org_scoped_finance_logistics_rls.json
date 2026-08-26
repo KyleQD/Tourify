@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260825120000_phase1_org_scoped_finance_logistics_rls.sql",
+  "taskId": "ADM-M-002",
+  "status": "planned",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "financial_transactions",
+    "budgets",
+    "equipment",
+    "workflow",
+    "travel",
+    "lodging",
+    "rls"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "to_regclass probes for all 16 touched tables; policy name inventory via pg_policies",
+      "count of rows per table with NULL event_id AND NULL tour_id (become service-role-only visible)"
+    ],
+    "expectedAffectedRows": "DDL only — zero persisted rows changed by this file itself",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional DDL: drop named wide policies, create scoped policies + SECURITY DEFINER scope helper; retry-safe (drop-if-exists before every create)",
+    "resumeCursor": "supabase migration version 20260825120000",
+    "idempotency": "Every DROP POLICY IF EXISTS / CREATE POLICY pair converges on re-run; helper functions are CREATE OR REPLACE"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill; orphaned no-scope rows intentionally become invisible to user principals (fail closed)"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "pg_policies shows scoped policies replacing *_all policies; can_access_org_scope is SECURITY DEFINER with pinned search_path"
+  },
+  "recovery": {
+    "rollback": "Re-issue prior wide policies by documented names (fin_tx_all, budgets_all, <table>_all) pending review; do not disable RLS",
+    "forwardFix": "Later migration adjusting scope without disabling RLS"
+  },
+  "postflight": {
+    "queries": [
+      "pg_policies: financial_transactions/budgets policies reference is_org_member(auth.uid(), org_id)",
+      "travel/lodging tables report org_scope policies and no authenticated-wide FOR ALL policies remain",
+      "REL-101 persona matrix extended domains pass negative cross-tenant cases"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}
