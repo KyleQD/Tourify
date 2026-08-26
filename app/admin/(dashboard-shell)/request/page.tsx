@@ -19,7 +19,6 @@ import {
   Clock
 } from "lucide-react"
 import { useProfile } from "@/hooks/use-profile"
-import { supabase } from "@/lib/supabase"
 
 export default function AdminRequestPage() {
   const router = useRouter()
@@ -43,21 +42,24 @@ export default function AdminRequestPage() {
     setLoading(true)
 
     try {
-      // Create admin request record
-      const { error } = await supabase
-        .from('admin_requests')
-        .insert([{
-          user_id: user?.id,
+      // Create admin request record via the authenticated API (P3-07:
+      // browser writes to the table directly are no longer permitted).
+      const response = await fetch('/api/admin/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           reason: request.reason,
           experience: request.experience,
           references: request.references,
           organization: request.organization,
           role: request.role,
-          status: 'pending',
-          created_at: new Date().toISOString()
-        }])
+        }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || 'Failed to submit request')
+      }
 
       setSubmitted(true)
     } catch (error) {
