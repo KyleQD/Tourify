@@ -54,15 +54,17 @@ export async function POST(request: NextRequest) {
   const { workflow_id: workflowId, new_stage: newStage } = parsed.data
 
   const supabase = await createClient()
-  const { data: workflow, error: fetchError } = await supabase
+  const { data: workflowRaw, error: fetchError } = await supabase
     .from('onboarding_workflows')
-    .select('id, current_stage, status')
+    .select('*')
     .eq('id', workflowId)
     .maybeSingle()
 
-  if (fetchError || !workflow) {
+  if (fetchError || !workflowRaw) {
     return NextResponse.json({ success: false, error: 'Workflow not found' }, { status: 404 })
   }
+  // Generated DB types lag the onboarding_workflows DDL (current_stage/status).
+  const workflow = workflowRaw as { id: string; current_stage?: string | null; status?: string | null }
 
   const currentStage = String(workflow.current_stage ?? '')
   const currentIndex = STAGE_ORDER.indexOf(currentStage as (typeof STAGE_ORDER)[number])

@@ -88,12 +88,17 @@ export async function POST(request: NextRequest) {
   if (body.email) {
     const { data: orgRow } = await supabase
       .from('organizations')
-      .select('slug, settings')
+      .select('*')
       .eq('id', admin.orgId)
       .maybeSingle()
+    // Generated DB types lag the organizations DDL (slug/settings); read defensively.
+    const orgMeta = (orgRow ?? {}) as {
+      slug?: string | null
+      settings?: { organization_name?: string | null } | null
+    }
     const orgName =
-      (orgRow?.settings as { organization_name?: string } | null)?.organization_name ||
-      (orgRow?.slug ? orgRow.slug.replace(/[-_]/g, ' ') : '') ||
+      orgMeta.settings?.organization_name ||
+      (orgMeta.slug ? orgMeta.slug.replace(/[-_]/g, ' ') : '') ||
       'your organization'
     const origin =
       process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||

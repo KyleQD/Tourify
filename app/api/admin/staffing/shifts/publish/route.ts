@@ -35,9 +35,9 @@ export async function POST(req: Request) {
     // and every such shift's event must belong to the acting org.
     const orgShifts = shifts.filter((s) => !s.venue_id)
     if (orgShifts.length > 0) {
-      const auth = await authenticateApiRequest(req as unknown as Request)
+      const auth = await authenticateApiRequest(req)
       if (!auth) return NextResponse.json({ error: "Authentication required." }, { status: 401 })
-      const admin = await resolveActingAdminContext(req as unknown as Request, auth)
+      const admin = await resolveActingAdminContext(req, auth)
       if (admin instanceof NextResponse) return admin
       if (!hasAdminCapability(admin.capabilities, "workforce.manage")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
