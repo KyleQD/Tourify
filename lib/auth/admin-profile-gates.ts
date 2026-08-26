@@ -1,27 +1,25 @@
 /**
  * Pure helpers for admin / organizer access from a profiles row.
  * Keeps middleware, client admin check, and API auth aligned.
+ *
+ * SEC (ADM-M-003): ONLY privilege-bearing profile signals belong here.
+ * account_type, account_settings.organizer_data and organizer_accounts arrays
+ * are self-serviceable profile shapes and must never grant admin surface
+ * access. Platform-admin trust is limited to is_admin / role='admin', both of
+ * which are protected against self-elevation by the DB guard trigger in
+ * migration 20260825122000 (profiles elevation guard).
  */
 
 export interface ProfileAdminGateInput {
   role?: string | null
-  account_type?: string | null
   is_admin?: boolean | null
-  account_settings?: {
-    organizer_data?: { organization_name?: string | null } | null
-    organizer_accounts?: unknown[] | null
-  } | null
 }
 
-export function profileIndicatesAdminAccess(profile: ProfileAdminGateInput | null | undefined): boolean {
+export function profileIndicatesAdminAccess(
+  profile: ProfileAdminGateInput | null | undefined,
+): boolean {
   if (!profile) return false
-  if (profile.is_admin) return true
+  if (profile.is_admin === true) return true
   if (profile.role === 'admin') return true
-  const t = profile.account_type
-  if (t === 'admin' || t === 'organizer' || t === 'organization') return true
-  const settings = profile.account_settings
-  const orgName = settings?.organizer_data?.organization_name
-  if (orgName && String(orgName).trim().length > 0) return true
-  if (Array.isArray(settings?.organizer_accounts) && settings.organizer_accounts.length > 0) return true
   return false
 }

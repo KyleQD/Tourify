@@ -20,8 +20,16 @@ interface AdminSurfaceMatch {
 
 /**
  * Shared surface gate used by middleware and API admin checks.
- * Profile OR organizer_accounts OR org_members OR account_relationships
- * (owner_user_id/account_type, with legacy user_id/type dual-compat).
+ *
+ * SEC (ADM-M-003): access derives exclusively from verifiable grants —
+ *   1. org_members row with an admin-capable role (owner/admin/tour_manager/production) → super
+ *   2. direct organization creator (owner invariant, mirrors resolveActingAdminContext) → super
+ *   3. confirmed tour_team_members collaborator → support
+ *   4. platform-admin flag on profiles (is_admin / role='admin'), DB-guarded
+ *      against self-elevation by migration 20260825122000 → super
+ *
+ * Self-serviceable profile shapes (account_type, organizer_data,
+ * organizer_accounts rows, account_relationships owner rows) are NOT grants.
  */
 export async function resolveAdminSurfaceAccess(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,44 +39,26 @@ export async function resolveAdminSurfaceAccess(
   try {
     const [
       profileResult,
-      organizerResult,
-      ownerRelResult,
-      legacyRelResult,
       orgMemberResult,
+      orgCreatorResult,
       tourCollaboratorResult,
     ] = await Promise.all([
       supabaseClient
         .from('profiles')
-        .select('role, account_type, account_settings, is_admin, admin_level, profile_type')
+        .select('role, is_admin, admin_level')
         .eq('id', userId)
-        .maybeSingle(),
-      supabaseClient
-        .from('organizer_accounts')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle(),
-      supabaseClient
-        .from('account_relationships')
-        .select('id')
-        .eq('owner_user_id', userId)
-        .in('account_type', ['admin', 'organization', 'organizer'])
-        .limit(1)
-        .maybeSingle(),
-      // Legacy dual-compat shape used by older API auth paths
-      supabaseClient
-        .from('account_relationships')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('type', 'admin')
-        .limit(1)
         .maybeSingle(),
       supabaseClient
         .from('org_members')
         .select('org_id, role')
         .eq('user_id', userId)
         .in('role', ['owner', 'admin', 'tour_manager', 'production'])
+        .limit(1)
+        .maybeSingle(),
+      supabaseClient
+        .from('organizations')
+        .select('id')
+        .eq('created_by', userId)
         .limit(1)
         .maybeSingle(),
       supabaseClient
@@ -87,19 +77,24 @@ export async function resolveAdminSurfaceAccess(
       return {
         hasAccess: true,
         role: profile?.role || 'admin',
-        profileType: profile?.profile_type || profile?.account_type || 'admin',
+        profileType: 'platform_admin',
         adminLevel: (profile?.admin_level as AdminUser['adminLevel']) || 'super',
       }
-    }
-
-    if (organizerResult?.data?.id && !organizerResult?.error) {
-      return { hasAccess: true, role: 'admin', profileType: 'organizer', adminLevel: 'super' }
     }
 
     if (orgMemberResult?.data?.org_id && !orgMemberResult?.error) {
       return {
         hasAccess: true,
         role: String(orgMemberResult.data.role || 'admin'),
+        profileType: 'organization',
+        adminLevel: 'super',
+      }
+    }
+
+    if (orgCreatorResult?.data?.id && !orgCreatorResult?.error) {
+      return {
+        hasAccess: true,
+        role: 'owner',
         profileType: 'organization',
         adminLevel: 'super',
       }
@@ -112,13 +107,6 @@ export async function resolveAdminSurfaceAccess(
         profileType: 'tour_collaborator',
         adminLevel: 'support',
       }
-    }
-
-    const hasOwnerRel = Boolean(ownerRelResult?.data?.id && !ownerRelResult?.error)
-    const hasLegacyRel = Boolean(legacyRelResult?.data?.id && !legacyRelResult?.error)
-    // Ignore missing-column errors on the legacy query; treat as no match
-    if (hasOwnerRel || hasLegacyRel) {
-      return { hasAccess: true, role: 'admin', profileType: 'organization', adminLevel: 'super' }
     }
 
     return { hasAccess: false }

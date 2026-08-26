@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260825122000_phase2_profiles_elevation_guard.sql",
+  "taskId": "ADM-M-003",
+  "status": "planned",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "profiles",
+    "identity",
+    "triggers",
+    "rls"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "count of profiles where is_admin = true or role = 'admin' (existing platform admins unaffected — trigger guards writes only)",
+      "to_regclass probe for profiles"
+    ],
+    "expectedAffectedRows": "DDL only — zero rows changed by this file itself",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Single BEFORE trigger re-issue; retry-safe (drop trigger if exists first)",
+    "resumeCursor": "supabase migration version 20260825122000",
+    "idempotency": "drop-if-exists + create converges on re-run"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "pg_trigger shows profiles_privilege_guard active; authenticated UPDATE setting is_admin raises 42501 self_elevation_blocked"
+  },
+  "recovery": {
+    "rollback": "Drop trigger + function (documented in file footer); restores pre-Phase-2 behavior",
+    "forwardFix": "None required"
+  },
+  "postflight": {
+    "queries": [
+      "authenticated client cannot set is_admin/admin_level/role='admin' on own profile (42501)",
+      "service_role can still manage privilege columns",
+      "onboarding INSERT with non-privileged account_type still succeeds"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

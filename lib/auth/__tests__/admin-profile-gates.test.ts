@@ -6,12 +6,13 @@ describe('profileIndicatesAdminAccess', () => {
     ['empty profile', {}, false],
     ['is_admin', { is_admin: true }, true],
     ['role admin', { role: 'admin' }, true],
-    ['account_type admin', { account_type: 'admin' }, true],
-    ['account_type organizer', { account_type: 'organizer' }, true],
-    ['account_type organization', { account_type: 'organization' }, true],
-    ['legacy organizer_data', { account_settings: { organizer_data: { organization_name: 'Acme' } } }, true],
-    ['organizer_accounts array', { account_settings: { organizer_accounts: [{}] } }, true],
-    ['non-admin role', { role: 'viewer', account_type: 'general' }, false],
+    // ADM-M-003: self-serviceable shapes are no longer grants
+    ['account_type admin (not a grant)', { account_type: 'admin' } as any, false],
+    ['account_type organizer (not a grant)', { account_type: 'organizer' } as any, false],
+    ['account_type organization (not a grant)', { account_type: 'organization' } as any, false],
+    ['legacy organizer_data (not a grant)', { account_settings: { organizer_data: { organization_name: 'Acme' } } } as any, false],
+    ['organizer_accounts array (not a grant)', { account_settings: { organizer_accounts: [{}] } } as any, false],
+    ['non-admin role', { role: 'viewer', account_type: 'general' } as any, false],
   ])('%s', (_label, profile, expected) => {
     expect(profileIndicatesAdminAccess(profile as any)).toBe(expected)
   })
