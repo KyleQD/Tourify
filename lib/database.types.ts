@@ -5266,61 +5266,79 @@ export type Database = {
       }
       employment_assignments: {
         Row: {
+          assignment_kind: string
           created_at: string
           department: string | null
           employer_entity_id: string | null
           employer_entity_type: string | null
           ends_at: string | null
           event_id: string | null
+          event_v2_id: string | null
           id: string
+          job_application_id: string | null
+          job_posting_id: string | null
           organizer_id: string | null
           permissions: Json
+          position: string | null
           role_title: string
           source: string | null
           staff_member_id: string | null
           staff_shift_id: string | null
           starts_at: string | null
           status: string
+          tour_id: string | null
           updated_at: string
           user_id: string
           venue_id: string | null
         }
         Insert: {
+          assignment_kind?: string
           created_at?: string
           department?: string | null
           employer_entity_id?: string | null
           employer_entity_type?: string | null
           ends_at?: string | null
           event_id?: string | null
+          event_v2_id?: string | null
           id?: string
+          job_application_id?: string | null
+          job_posting_id?: string | null
           organizer_id?: string | null
           permissions?: Json
+          position?: string | null
           role_title: string
           source?: string | null
           staff_member_id?: string | null
           staff_shift_id?: string | null
           starts_at?: string | null
           status?: string
+          tour_id?: string | null
           updated_at?: string
           user_id: string
           venue_id?: string | null
         }
         Update: {
+          assignment_kind?: string
           created_at?: string
           department?: string | null
           employer_entity_id?: string | null
           employer_entity_type?: string | null
           ends_at?: string | null
           event_id?: string | null
+          event_v2_id?: string | null
           id?: string
+          job_application_id?: string | null
+          job_posting_id?: string | null
           organizer_id?: string | null
           permissions?: Json
+          position?: string | null
           role_title?: string
           source?: string | null
           staff_member_id?: string | null
           staff_shift_id?: string | null
           starts_at?: string | null
           status?: string
+          tour_id?: string | null
           updated_at?: string
           user_id?: string
           venue_id?: string | null
@@ -5331,6 +5349,27 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_assignments_event_v2_id_fkey"
+            columns: ["event_v2_id"]
+            isOneToOne: false
+            referencedRelation: "events_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_assignments_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_assignments_job_posting_id_fkey"
+            columns: ["job_posting_id"]
+            isOneToOne: false
+            referencedRelation: "job_posting_templates"
             referencedColumns: ["id"]
           },
           {
@@ -5352,6 +5391,13 @@ export type Database = {
             columns: ["staff_shift_id"]
             isOneToOne: false
             referencedRelation: "staff_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_assignments_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
             referencedColumns: ["id"]
           },
           {
@@ -11382,6 +11428,7 @@ export type Database = {
         Row: {
           age_requirement: number | null
           allow_applicant_messages: boolean
+          assignment_scope: string
           application_form_template: Json | null
           applications_count: number | null
           background_check_required: boolean | null
@@ -11409,6 +11456,8 @@ export type Database = {
           responsibilities: string[] | null
           role_type: string | null
           salary_range: Json | null
+          seat_permissions: string[]
+          seat_role: string | null
           shift_duration: number | null
           skills: string[] | null
           status: string | null
@@ -11424,6 +11473,7 @@ export type Database = {
         Insert: {
           age_requirement?: number | null
           allow_applicant_messages?: boolean
+          assignment_scope?: string
           application_form_template?: Json | null
           applications_count?: number | null
           background_check_required?: boolean | null
@@ -11451,6 +11501,8 @@ export type Database = {
           responsibilities?: string[] | null
           role_type?: string | null
           salary_range?: Json | null
+          seat_permissions?: string[]
+          seat_role?: string | null
           shift_duration?: number | null
           skills?: string[] | null
           status?: string | null
@@ -11466,6 +11518,7 @@ export type Database = {
         Update: {
           age_requirement?: number | null
           allow_applicant_messages?: boolean
+          assignment_scope?: string
           application_form_template?: Json | null
           applications_count?: number | null
           background_check_required?: boolean | null
@@ -11493,6 +11546,8 @@ export type Database = {
           responsibilities?: string[] | null
           role_type?: string | null
           salary_range?: Json | null
+          seat_permissions?: string[]
+          seat_role?: string | null
           shift_duration?: number | null
           skills?: string[] | null
           status?: string | null
@@ -11507,10 +11562,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "job_posting_templates_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_v2"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "job_posting_templates_onboarding_template_id_fkey"
             columns: ["onboarding_template_id"]
             isOneToOne: false
             referencedRelation: "staff_onboarding_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_posting_templates_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
             referencedColumns: ["id"]
           },
         ]
@@ -18734,27 +18803,68 @@ export type Database = {
       }
       org_members: {
         Row: {
+          activated_at: string | null
           created_at: string
           invited_by: string | null
+          invited_at: string | null
+          job_application_id: string | null
+          job_posting_id: string | null
           org_id: string
+          permissions: string[]
+          revoked_at: string | null
           role: string
+          seat_source: string
+          status: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          activated_at?: string | null
           created_at?: string
           invited_by?: string | null
+          invited_at?: string | null
+          job_application_id?: string | null
+          job_posting_id?: string | null
           org_id: string
+          permissions?: string[]
+          revoked_at?: string | null
           role: string
+          seat_source?: string
+          status?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          activated_at?: string | null
           created_at?: string
           invited_by?: string | null
+          invited_at?: string | null
+          job_application_id?: string | null
+          job_posting_id?: string | null
           org_id?: string
+          permissions?: string[]
+          revoked_at?: string | null
           role?: string
+          seat_source?: string
+          status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "org_members_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_members_job_posting_id_fkey"
+            columns: ["job_posting_id"]
+            isOneToOne: false
+            referencedRelation: "job_posting_templates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "org_members_org_id_fkey"
             columns: ["org_id"]
@@ -23928,6 +24038,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           email: string | null
+          event_id: string | null
           employer_entity_id: string | null
           employer_entity_type: string | null
           id: string
@@ -23948,6 +24059,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           email?: string | null
+          event_id?: string | null
           employer_entity_id?: string | null
           employer_entity_type?: string | null
           id?: string
@@ -23968,6 +24080,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           email?: string | null
+          event_id?: string | null
           employer_entity_id?: string | null
           employer_entity_type?: string | null
           id?: string
@@ -24278,7 +24391,7 @@ export type Database = {
           subject: string
           type: string
           updated_at: string
-          venue_id: string
+          venue_id: string | null
         }
         Insert: {
           attachments?: Json | null
@@ -24296,7 +24409,7 @@ export type Database = {
           subject: string
           type?: string
           updated_at?: string
-          venue_id: string
+          venue_id?: string | null
         }
         Update: {
           attachments?: Json | null
@@ -24314,7 +24427,7 @@ export type Database = {
           subject?: string
           type?: string
           updated_at?: string
-          venue_id?: string
+          venue_id?: string | null
         }
         Relationships: []
       }

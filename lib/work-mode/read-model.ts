@@ -8,6 +8,7 @@ import type {
   WorkModeAssignmentListItem,
   WorkModeAssignmentsPayload,
   WorkModePublication,
+  WorkModeTaskItem,
 } from "@/types/hiring-roster-work-mode"
 
 const ACTIVE_ASSIGNMENT_STATUSES: EmploymentAssignmentStatus[] = [
@@ -58,7 +59,7 @@ export async function getWorkModeAssignments(
   const { data: assignmentRows, error: assignmentError } = await supabase
     .from("employment_assignments")
     .select(
-      "id, role_title, department, event_id, venue_id, organizer_id, starts_at, ends_at, status, permissions",
+      "id, role_title, department, event_id, tour_id, staff_shift_id, venue_id, organizer_id, starts_at, ends_at, status, permissions",
     )
     .eq("user_id", userId)
     .in("status", ACTIVE_ASSIGNMENT_STATUSES)
@@ -69,22 +70,50 @@ export async function getWorkModeAssignments(
     throw new WorkModeReadError()
   }
 
-  const assignments: WorkModeAssignmentListItem[] = (assignmentRows ?? []).map((row) => ({
-    id: row.id,
-    roleTitle: row.role_title,
-    department: row.department,
-    eventId: row.event_id,
-    venueId: row.venue_id,
-    organizerId: row.organizer_id,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    status: row.status as EmploymentAssignmentStatus,
-    permissions: asPermissions(row.permissions),
-    source: "assignment",
-    publicationType: null,
-    href: null,
-    siteMapId: null,
-  }))
+  const shiftIds = Array.from(new Set((assignmentRows ?? [])
+    .map((row) => row.staff_shift_id)
+    .filter((id): id is string => Boolean(id))))
+  const shiftById = new Map<string, {
+    event_id: string | null
+    shift_date: string
+    start_time: string
+    end_time: string
+  }>()
+  if (shiftIds.length > 0) {
+    const { data: shiftRows, error: shiftError } = await supabase
+      .from("staff_shifts")
+      .select("id, event_id, shift_date, start_time, end_time")
+      .in("id", shiftIds)
+    if (shiftError) {
+      console.warn("[work-mode] shift context read failed", shiftError.message)
+    } else {
+      for (const shift of shiftRows ?? []) shiftById.set(shift.id, shift)
+    }
+  }
+
+  const assignments: WorkModeAssignmentListItem[] = (assignmentRows ?? []).map((row) => {
+    const shift = row.staff_shift_id ? shiftById.get(row.staff_shift_id) : undefined
+    const derivedEventId = row.event_id || shift?.event_id || null
+    return {
+      id: row.id,
+      roleTitle: row.role_title,
+      department: row.department,
+      eventId: derivedEventId,
+      tourId: row.tour_id,
+      staffShiftId: row.staff_shift_id,
+      eventContextSource: row.event_id ? "assignment" : shift?.event_id ? "shift" : null,
+      venueId: row.venue_id,
+      organizerId: row.organizer_id,
+      startsAt: row.starts_at || (shift ? `${shift.shift_date}T${shift.start_time}` : null),
+      endsAt: row.ends_at || (shift ? `${shift.shift_date}T${shift.end_time}` : null),
+      status: row.status as EmploymentAssignmentStatus,
+      permissions: asPermissions(row.permissions),
+      source: "assignment",
+      publicationType: null,
+      href: null,
+      siteMapId: null,
+    }
+  })
 
   const publicationEventIds = Array.from(
     new Set(
@@ -94,16 +123,29 @@ export async function getWorkModeAssignments(
         .filter((eventId): eventId is string => Boolean(eventId)),
     ),
   )
+  const publicationTourIds = Array.from(
+    new Set(
+      assignments
+        .filter((assignment) => assignment.status === "confirmed" || assignment.status === "active")
+        .map((assignment) => assignment.tourId)
+        .filter((tourId): tourId is string => Boolean(tourId)),
+    ),
+  )
 
   let publications: WorkModePublication[] = []
-  if (publicationEventIds.length > 0) {
-    const { data: publicationRows, error: publicationError } = await supabase
+  if (publicationEventIds.length > 0 || publicationTourIds.length > 0) {
+    const scopeFilters = [
+      publicationEventIds.length ? `event_id.in.(${publicationEventIds.join(",")})` : null,
+      publicationTourIds.length ? `tour_id.in.(${publicationTourIds.join(",")})` : null,
+    ].filter((value): value is string => Boolean(value))
+    const publicationQuery = supabase
       .from("work_mode_publications")
       .select("id, event_id, tour_id, site_map_id, publication_type, title, payload, published_at")
-      .in("event_id", publicationEventIds)
+      .or(scopeFilters.join(","))
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .limit(100)
+    const { data: publicationRows, error: publicationError } = await publicationQuery
 
     if (publicationError) {
       console.error("[work-mode] publication read failed", publicationError.message)
@@ -126,9 +168,72 @@ export async function getWorkModeAssignments(
     })
   }
 
+  const [{ data: taskRows, error: taskError }, { data: notificationRows, error: notificationError }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id, event_id, title, status, due_date, priority")
+      .eq("assigned_to", userId)
+      .limit(100),
+    supabase
+      .from("notifications")
+      .select("id, title, type, metadata, is_read, created_at")
+      .eq("user_id", userId)
+      .eq("type", "hiring_onboarding_invite")
+      .eq("is_archived", false)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ])
+  if (taskError) console.warn("[work-mode] operational task read failed", taskError.message)
+  if (notificationError) console.warn("[work-mode] onboarding task read failed", notificationError.message)
+
+  const candidateIds = Array.from(new Set((notificationRows ?? []).map((row) => {
+    const candidateId = asRecord(row.metadata).candidate_id
+    return typeof candidateId === "string" ? candidateId : null
+  }).filter((id): id is string => Boolean(id))))
+  const completedCandidateIds = new Set<string>()
+  if (candidateIds.length > 0) {
+    const { data: candidates } = await supabase
+      .from("staff_onboarding_candidates")
+      .select("id, status, stage, onboarding_progress")
+      .in("id", candidateIds)
+    for (const candidate of candidates ?? []) {
+      if (["submitted", "completed", "approved"].includes(candidate.status || "")
+        || candidate.stage === "approved"
+        || Number(candidate.onboarding_progress || 0) >= 100) {
+        completedCandidateIds.add(candidate.id)
+      }
+    }
+  }
+  const onboardingTasks: WorkModeTaskItem[] = (notificationRows ?? []).flatMap((row) => {
+    const metadata = asRecord(row.metadata)
+    const candidateId = typeof metadata.candidate_id === "string" ? metadata.candidate_id : null
+    if (candidateId && completedCandidateIds.has(candidateId)) return []
+    return [{
+      id: `onboarding:${row.id}`,
+      eventId: null,
+      title: row.title || "Complete onboarding",
+      status: row.is_read ? "viewed" : "action_required",
+      dueDate: null,
+      priority: "high",
+      actionUrl: typeof metadata.onboarding_url === "string" ? metadata.onboarding_url : null,
+      kind: "onboarding",
+    }]
+  })
+  const operationalTasks: WorkModeTaskItem[] = (taskRows ?? []).map((row) => ({
+    id: row.id,
+    eventId: row.event_id,
+    title: row.title || "Task",
+    status: row.status,
+    dueDate: row.due_date,
+    priority: row.priority,
+    actionUrl: null,
+    kind: "operational",
+  }))
+
   return {
     assignments,
     publications,
+    tasks: [...onboardingTasks, ...operationalTasks],
     generatedAt: new Date().toISOString(),
     workerActionsAvailable: process.env.FEATURE_WORK_MODE_WORKER_ACTIONS === "1",
   }

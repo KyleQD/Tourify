@@ -109,11 +109,15 @@ async function verifyOwnership(
       if (data.ops_org_id) {
         const { data: member } = await supabase
           .from('org_members')
-          .select('role')
+          .select('role, status, permissions')
           .eq('org_id', data.ops_org_id)
           .eq('user_id', userId)
           .maybeSingle()
-        if (member && ['owner', 'admin', 'tour_manager', 'production'].includes(String(member.role)))
+        if (
+          member?.status === 'active' &&
+          (['owner', 'admin', 'tour_manager', 'production'].includes(String(member.role)) ||
+            (Array.isArray(member.permissions) && member.permissions.length > 0))
+        )
           return { owned: true }
       }
 

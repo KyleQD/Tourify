@@ -15,6 +15,7 @@ interface WalletTicket {
   status: string
   is_complimentary: boolean
   qr_token: string | null
+  metadata?: { admission_source?: string; non_transferable?: boolean } | null
   ticket_types?: { name?: string; category?: string } | null
   events_v2?: { id?: string; title?: string; start_at?: string } | null
 }
@@ -173,7 +174,17 @@ export default function MyTicketsPage() {
       )}
 
       <div className="space-y-4">
-        {tickets.map((ticket) => (
+        {tickets.map((ticket) => {
+          const admissionLabel = ticket.metadata?.admission_source === 'artist_guest'
+            ? 'Artist guest list'
+            : ticket.metadata?.admission_source === 'guest'
+              ? 'Guest list'
+              : ticket.metadata?.admission_source === 'staff'
+                ? 'Staff'
+                : ticket.metadata?.admission_source === 'crew'
+                  ? 'Crew'
+                  : null
+          return (
           <Card key={ticket.id} className="overflow-hidden">
             <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
               <div>
@@ -197,13 +208,16 @@ export default function MyTicketsPage() {
                 {ticket.is_complimentary && (
                   <Badge variant="outline" className="ml-2">Comp</Badge>
                 )}
+                {admissionLabel && (
+                  <Badge variant="outline" className="ml-2">{admissionLabel}</Badge>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setTransferTicketId(ticket.id)}
-                  disabled={ticket.status === 'checked_in' || ticket.status === 'refunded'}
+                  disabled={Boolean(ticket.metadata?.non_transferable) || ticket.status === 'checked_in' || ticket.status === 'refunded'}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   Transfer
@@ -219,7 +233,8 @@ export default function MyTicketsPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       {transferTicketId && (

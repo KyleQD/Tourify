@@ -26,6 +26,7 @@ Status of work lives in [PROGRESS.md](PROGRESS.md). This file is the ordered sur
 | `ops-tours-planner` | `/admin/dashboard/tours/planner` (redirect) | `app/admin/dashboard/tours/planner/page.tsx` |
 | `ops-events` | `/admin/dashboard/events` | `app/admin/dashboard/events/page.tsx` |
 | `ops-events-create` | `/admin/dashboard/events/create` | `app/admin/dashboard/events/create/page.tsx` |
+| `ops-events-create-ux-reorg` | Event Producer focused create UX | `app/admin/dashboard/events/create/page.tsx` |
 | `ops-events-planner` | `/admin/dashboard/events/planner` (redirect) | `app/admin/dashboard/events/planner/page.tsx` |
 | `ops-events-id` | `/admin/dashboard/events/[id]` | `app/admin/dashboard/events/[id]/page.tsx` |
 | `ops-events-hq` | `/admin/dashboard/events/[id]/hq` | `app/admin/dashboard/events/[id]/hq/page.tsx` |
@@ -57,6 +58,7 @@ Status of work lives in [PROGRESS.md](PROGRESS.md). This file is the ordered sur
 | `wf-jobs-legacy` | `/admin/dashboard/jobs` | `app/admin/dashboard/jobs/page.tsx` |
 | `wf-jobs-new` | `/admin/dashboard/jobs/new` | `app/admin/dashboard/jobs/new/page.tsx` |
 | `wf-jobs-id` | `/admin/dashboard/jobs/[id]` | `app/admin/dashboard/jobs/[id]/page.tsx` |
+| `wf-hiring-overview-v2` | `/admin/dashboard/hiring?tab=overview` | `components/hiring/hiring-overview-panel.tsx` |
 
 ## 4. Commerce
 

@@ -25,6 +25,7 @@ import { canAssignWorkMode, canManageHiring } from "@/lib/auth/hiring-permission
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
 import { resolveSchedulingOrgId } from "@/lib/hiring/resolve-scheduling-org-id"
 import { syncEmploymentAssignmentForShift } from "@/lib/services/staff-shift-assignment-sync"
+import { reconcileJobPostingFillStatus } from "@/lib/hiring/job-posting-lifecycle"
 
 interface HiringRosterServiceArgs {
   supabase: SupabaseClient
@@ -798,7 +799,7 @@ export class HiringRosterService {
 
     const { data: existing, error: existingError } = await this.supabase
       .from("staff_members")
-      .select("id, user_id, position, role, department, permissions")
+      .select("id, user_id, position, role, department, permissions, onboarding_candidate_id")
       .eq("id", args.memberId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
@@ -861,6 +862,29 @@ export class HiringRosterService {
         fields: Object.keys(payload).filter((key) => key !== "updated_at"),
       },
     })
+
+    if (args.status && existing.onboarding_candidate_id) {
+      const { data: candidate } = await this.supabase
+        .from("staff_onboarding_candidates")
+        .select("job_posting_id")
+        .eq("id", existing.onboarding_candidate_id)
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId)
+        .maybeSingle()
+
+      if (candidate?.job_posting_id) {
+        try {
+          await reconcileJobPostingFillStatus({
+            supabase: this.supabase,
+            employer: args.employer,
+            jobPostingId: candidate.job_posting_id,
+            actorUserId: args.actorUserId,
+          })
+        } catch (fillError) {
+          console.error("[HiringRosterService] job fill reconciliation failed", fillError)
+        }
+      }
+    }
 
     return this.getRosterMember({ employer: args.employer, memberId: args.memberId })
   }
@@ -1091,6 +1115,9 @@ export class HiringRosterService {
       .eq("user_id", args.userId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
+      .in("assignment_kind", ["legacy_engagement", "organization"])
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle()
 
     const eventId = args.eventId ?? existingAssignment?.event_id ?? null

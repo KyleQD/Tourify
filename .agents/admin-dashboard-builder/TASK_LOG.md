@@ -157,3 +157,22 @@ Append-only. Newest entries at the bottom.
 - **Integration:** Added reusable owned-account eligibility and presentation helpers plus combined multi-account notification scopes; successful opening now acknowledges unread rows across all eligible accounts, clears the bell immediately, preserves viewed accents until close, and coalesces realtime refreshes while ignoring self-generated read acknowledgements
 - **Verification:** Focused ESLint clean; notification Vitest 20/20; focused TypeScript graph reports only pre-existing account-management and venue-service schema mismatches; the protected route rendered its authentication boundary without a framework error overlay or browser console errors, while authenticated dropdown inspection remained unavailable in the browser session
 - **Constraints:** No database reset, no migration/RLS change, no mock live data, no commit, no unrelated cleanup
+
+### 2026-08-20 — `ops-events-create-ux-reorg`
+
+- **Surface:** `/admin/dashboard/events/create`, Event Producer form state/navigation, and the admin event settings contract
+- **Purpose:** Remove duplicate navigation and readiness chrome so event setup has a wider, focused data-entry canvas with one authoritative editing surface per domain
+- **Change:** Removed the right rail and post-save destination strip; established the canonical Basics → Schedule → Venue → Advance packet → Team → Vendors → Ticketing → Finance → Day sheet → Review setup order; removed create-time logistics and expected-expense controls; separated Venue/Advance, Team/Vendors, and Ticketing/Finance; added a 0–100 Guest list spots selector; made vendor editing exclusive to Vendors with read-only Team references; and associated visible labels with every form control
+- **Integration:** Creation now redirects to the saved event Overview; `guest_list_spots` is validated and stored in existing settings JSON; the partial settings merge preserves legacy guest-list budget, expense, and logistics values while the new producer payload omits them
+- **Verification:** Focused Vitest 25/25; focused ESLint clean; repository TypeScript completed clean before the final pure settings-merge extraction, which is covered by the focused suite; local route compiled and reached the expected auth boundary, while authenticated responsive visual inspection was unavailable because the verification browser had no reusable signed-in localhost session
+- **Constraints:** No database reset, no migration, no mock data, no commit, no unrelated cleanup
+
+### 2026-08-21 — `wf-hiring-overview-v2`
+
+- **Surface:** `/admin/dashboard/hiring?tab=overview`, scoped job detail/history, onboarding and roster drawers, and staff-operations summary
+- **Purpose:** Turn the Hiring Hub overview into an actionable command center for hiring attention, open roles, ready workers, and upcoming staffed work
+- **Change:** Removed Onboarding health; added four queue cards, keyboard-accessible targeted activity, current/archived job summaries, preserved archived applicant/activity history, confirmed archive/restore/repost actions, filled-role vacancy recovery, five-event/three-tour staffing cards, 30-second/focus/manual refresh, and distinct approval-gated shift/task assignment flows without placeholder shifts
+- **Integration:** Added employer-scoped overview data, authoritative application/onboarding/job audit producers, canonical job lifecycle states/timestamps, automatic active-hire fill reconciliation without automatic republishing, batched per-event shift coverage, event workflow-task assignment, and deep links that open candidate/member drawers
+- **Files:** Hiring dashboard types/presenters/services/routes and panels; job lifecycle routes/UI/helper; roster assignment UI; staff-operations summary; additive migration plus validation manifest; focused hiring tests
+- **Verification:** Focused ESLint clean; Vitest 41/41 across audit, lifecycle, onboarding/roster, job standardization/scope, and staff operations; lifecycle migration scanner clean; local dev server started and the authentication boundary rendered with no browser console errors. Protected Hiring Hub walkthrough was unavailable because the isolated browser had no signed-in admin session. Repository TypeScript emitted no diagnostics but did not complete within the extended verification window and was stopped.
+- **Constraints:** No database reset, migration apply, mock live data, commit, or unrelated cleanup; existing uncommitted event/staffing/roster work was preserved

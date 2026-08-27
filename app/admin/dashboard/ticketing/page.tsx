@@ -29,6 +29,7 @@ import { TicketingSetupPanel } from "@/components/admin/ticketing/ticketing-setu
 import { AllocationMatrixPanel } from "@/components/admin/ticketing/allocation-matrix-panel"
 import { GuestApprovalsPanel } from "@/components/admin/ticketing/guest-approvals-panel"
 import { AdmissionsDevicesPanel } from "@/components/admin/ticketing/admissions-devices-panel"
+import { EventTicketingWorkspace } from "@/components/ticketing/event-ticketing-workspace"
 
 /** API aggregates use `clicks`, `conversions`, `revenue`; UI uses ticketing types. */
 function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] {
@@ -303,6 +304,27 @@ export default function TicketingPage() {
           {loadError}
         </div>
       ) : null}
+
+      <Card className="rounded-sm border-slate-700/50 bg-slate-900/60">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">Ticketing scope</p>
+            <p className="text-xs text-slate-400">Select an event to open its unified sales, guest-list, crew, attendee, and admissions workspace.</p>
+          </div>
+          <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+            <SelectTrigger className="w-full bg-slate-800/70 sm:w-[300px]"><SelectValue placeholder="Select event" /></SelectTrigger>
+            <SelectContent className="bg-slate-900 text-white">
+              <SelectItem value="all">All events overview</SelectItem>
+              {events.map((event) => <SelectItem key={event.id} value={event.id}>{event.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {selectedEvent !== 'all' ? (
+        <EventTicketingWorkspace eventId={selectedEvent} />
+      ) : (
+        <>
 
       <TicketingReadModelPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
 
@@ -819,6 +841,8 @@ export default function TicketingPage() {
           <AdmissionsDevicesPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   )
 }

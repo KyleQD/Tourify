@@ -60,7 +60,12 @@ const HIRING_DASHBOARD_TABS: TabConfig[] = [
   { value: "audit", label: "Audit", icon: ScrollText },
 ]
 
-export function HiringDashboardShell({ employer, initialTab = "overview" }: HiringDashboardProps) {
+export function HiringDashboardShell({
+  employer,
+  initialTab = "overview",
+  initialCandidateId,
+  initialMemberId,
+}: HiringDashboardProps) {
   return (
     <section className="space-y-4">
       {/* WORK-603 — Workforce SLO health banner */}
@@ -95,10 +100,10 @@ export function HiringDashboardShell({ employer, initialTab = "overview" }: Hiri
           <HiringApplicationsPanel employer={employer} />
         </TabsContent>
         <TabsContent value="onboarding">
-          <HiringOnboardingPanel employer={employer} />
+          <HiringOnboardingPanel employer={employer} initialCandidateId={initialCandidateId} />
         </TabsContent>
         <TabsContent value="roster">
-          <HiringRosterPanel employer={employer} />
+          <HiringRosterPanel employer={employer} initialMemberId={initialMemberId} />
         </TabsContent>
         <TabsContent value="templates">
           <TemplateLibrary employer={employer} />

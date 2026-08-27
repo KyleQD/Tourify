@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { hasTicketingPermission } from '@/lib/ticketing/permissions'
-import { createPendingOrder } from '@/lib/ticketing/orders'
-import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
-import { finalizeInventory } from '@/lib/ticketing/inventory'
-import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
-import { notifyCompIssued } from '@/lib/ticketing/notifications'
+import { createAllocation, createInvite } from '@/lib/ticketing/guest-list.server'
 
 const allocationSchema = z.object({
   event_id: z.string().uuid(),
@@ -19,6 +14,7 @@ const allocationSchema = z.object({
   label: z.string().min(1),
   quantity_total: z.number().int().min(0),
   notes: z.string().optional().nullable(),
+  release_at: z.string().datetime().optional().nullable(),
 })
 
 const issueSchema = z.object({
@@ -74,7 +70,6 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const action = body.action || 'create'
   const supabase = await createClient()
-  const service = createServiceRoleClient()
 
   if (action === 'create') {
     const parsed = allocationSchema.parse(body)
@@ -86,17 +81,23 @@ export async function POST(request: NextRequest) {
     })
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const { data, error } = await supabase
-      .from('ticket_allocations')
-      .insert({
-        ...parsed,
-        created_by: auth.user.id,
-      })
-      .select('*')
-      .single()
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ allocation: data }, { status: 201 })
+    if (!parsed.ticket_type_id)
+      return NextResponse.json({ error: 'ticket_type_id is required for reserved allocations' }, { status: 400 })
+    const purpose = parsed.allocation_type === 'artist'
+      ? 'artist_guest'
+      : parsed.allocation_type === 'staff' ? 'staff' : 'guest'
+    const allocation = await createAllocation({
+      eventId: parsed.event_id,
+      ticketTypeId: parsed.ticket_type_id,
+      managerUserId: parsed.account_id || auth.user.id,
+      label: parsed.label,
+      quantity: parsed.quantity_total,
+      releaseAt: parsed.release_at,
+      purpose,
+      notes: parsed.notes,
+      actorUserId: auth.user.id,
+    })
+    return NextResponse.json({ allocation, deprecated: true }, { status: 201 })
   }
 
   if (action === 'issue') {
@@ -109,10 +110,10 @@ export async function POST(request: NextRequest) {
 
     if (!allocation)
       return NextResponse.json({ error: 'Allocation not found' }, { status: 404 })
+    const allocationRow = allocation as any
 
-    const remaining = allocation.quantity_total - allocation.quantity_issued
-    if (parsed.quantity > remaining)
-      return NextResponse.json({ error: `Only ${remaining} remaining in allocation` }, { status: 400 })
+    if (parsed.quantity !== 1)
+      return NextResponse.json({ error: 'Each admission now requires one invitation and one Tourify account' }, { status: 400 })
 
     const allowed = await hasTicketingPermission({
       supabase,
@@ -122,79 +123,19 @@ export async function POST(request: NextRequest) {
     })
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const { data: ticketType } = await supabase
-      .from('ticket_types')
-      .select('*')
-      .eq('id', parsed.ticket_type_id)
-      .maybeSingle()
-
-    if (!ticketType)
-      return NextResponse.json({ error: 'Ticket type not found' }, { status: 404 })
-
-    const pending = await createPendingOrder({
-      supabase: service as any,
-      ticketTypeId: parsed.ticket_type_id,
-      eventId: allocation.event_id,
-      quantity: parsed.quantity,
-      unitPrice: 0,
-      buyerUserId: parsed.recipient_user_id ?? null,
-      buyerName: parsed.recipient_name || 'Guest',
-      buyerEmail: parsed.recipient_email || auth.user.email || 'guest@tourify.app',
-      discountAmount: 0,
-      metadata: { complimentary: true, allocation_id: allocation.id },
-    })
-
-    await service
-      .from('ticket_sales')
-      .update({
-        payment_status: 'completed',
-        payment_method: 'complimentary',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', pending.orderId)
-
-    if (pending.reservationId) {
-      try {
-        await finalizeInventory({ supabase: service as any, reservationId: pending.reservationId })
-      } catch {
-        // comps may use zero-price types with dedicated inventory
-      }
-    }
-
-    const issued = await issueTicketsForOrder({
-      supabase: service as any,
-      orderId: pending.orderId,
-      eventId: allocation.event_id,
-      ticketTypeId: parsed.ticket_type_id,
-      quantity: parsed.quantity,
-      unitPrice: 0,
-      ownerUserId: parsed.recipient_user_id ?? null,
-      ownerEmail: parsed.recipient_email ?? null,
-      ownerName: parsed.recipient_name ?? null,
-      isComplimentary: true,
-      allocationId: allocation.id,
+    if (!parsed.recipient_user_id && !parsed.recipient_email)
+      return NextResponse.json({ error: 'recipient_user_id or recipient_email is required' }, { status: 400 })
+    const result = await createInvite({
+      eventId: allocationRow.event_id,
+      allocationId: allocationRow.id,
+      recipientUserId: parsed.recipient_user_id,
+      recipientEmail: parsed.recipient_email,
+      recipientName: parsed.recipient_name,
+      purpose: allocationRow.purpose || (allocationRow.allocation_type === 'artist' ? 'artist_guest' : 'guest'),
+      expiresAt: allocationRow.release_at,
       actorUserId: auth.user.id,
     })
-
-    await emitTicketAnalyticsEvent({
-      supabase: service as any,
-      eventName: 'complimentary_ticket_issued',
-      eventId: allocation.event_id,
-      ticketTypeId: parsed.ticket_type_id,
-      orderId: pending.orderId,
-      actorUserId: auth.user.id,
-      amounts: { quantity: parsed.quantity },
-      attribution: { allocation_id: allocation.id, allocation_type: allocation.allocation_type },
-    })
-
-    if (parsed.recipient_user_id) {
-      await notifyCompIssued({
-        userId: parsed.recipient_user_id,
-        ticketId: issued[0]?.ticketId,
-      })
-    }
-
-    return NextResponse.json({ order_id: pending.orderId, tickets: issued }, { status: 201 })
+    return NextResponse.json({ invitation: result, deprecated: true }, { status: 202 })
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

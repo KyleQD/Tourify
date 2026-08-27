@@ -1,145 +1,218 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { withAuth } from '@/lib/auth/api-auth'
-import { hasEventPermission } from '../../_lib/event-permissions'
-import { resolveEventReference } from '../../_lib/event-reference'
-import { syncEmploymentAssignmentForShift } from '@/lib/services/staff-shift-assignment-sync'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { withAdminCapability } from "@/lib/auth/api-auth"
+import { listWorkforcePeople } from "@/lib/services/admin-workforce-people.service"
+import {
+  createEventStaffAssignment,
+  ensureOrgStaffMember,
+  StaffingFlowError,
+  staffingErrorStatus,
+} from "@/lib/services/staffing-assignment.service"
+import { hasEventPermission } from "../../_lib/event-permissions"
+import { resolveEventReference } from "../../_lib/event-reference"
 
 const assignStaffSchema = z.object({
-  staff_member_id: z.string().uuid(),
-  shift_date: z.string().min(1),
-  start_time: z.string().min(1),
-  end_time: z.string().min(1),
-  role_assignment: z.string().optional(),
-  zone_assignment: z.string().optional(),
-  notes: z.string().optional(),
+  staff_member_id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  shift_date: z.string().date(),
+  start_time: z.string().regex(/^\d{2}:\d{2}(?::\d{2})?$/),
+  end_time: z.string().regex(/^\d{2}:\d{2}(?::\d{2})?$/),
+  role_assignment: z.string().trim().max(160).optional(),
+  zone_assignment: z.string().trim().max(160).optional(),
+  notes: z.string().trim().max(4000).optional(),
+}).refine((input) => Boolean(input.staff_member_id || input.user_id), {
+  message: "Select an organization person.",
 })
+
+function routeError(error: unknown, fallback: string) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: "Review the highlighted assignment fields.", code: "validation", details: error.flatten() },
+      { status: 400 },
+    )
+  }
+  if (error instanceof StaffingFlowError) {
+    return NextResponse.json(
+      { error: error.message, code: error.code, details: error.details },
+      { status: staffingErrorStatus(error) },
+    )
+  }
+  console.error("[event staff]", error)
+  return NextResponse.json({ error: fallback, code: "database" }, { status: 500 })
+}
+
+async function requireEventStaffAccess(args: {
+  supabase: any
+  eventParam: string
+  userId: string
+  orgId: string
+}) {
+  const reference = await resolveEventReference(args.supabase, args.eventParam)
+  if (!reference) throw new StaffingFlowError("not_found", "Event not found.")
+  if (!reference.orgId || reference.orgId !== args.orgId) {
+    throw new StaffingFlowError("forbidden", "This event does not belong to the active organization.")
+  }
+  const allowed = await hasEventPermission({
+    supabase: args.supabase,
+    eventId: reference.id,
+    userId: args.userId,
+    ownerUserId: reference.ownerUserId,
+    permissionName: "ASSIGN_EVENT_ROLES",
+  })
+  if (!allowed) throw new StaffingFlowError("forbidden", "You do not have permission to manage event staff.")
+  return reference
+}
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { id: eventParam } = await context.params
-  return withAuth(async (_req, { supabase, user }) => {
+  return withAdminCapability("workforce.view", async (_request, { supabase, user, admin }) => {
     try {
-      const reference = await resolveEventReference(supabase as any, eventParam)
-      if (!reference) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      }
-      const canViewStaff = await hasEventPermission({
+      const reference = await requireEventStaffAccess({
         supabase,
-        eventId: reference.id,
+        eventParam,
         userId: user.id,
-        ownerUserId: reference.ownerUserId,
-        permissionName: 'ASSIGN_EVENT_ROLES',
+        orgId: admin.orgId,
       })
-      if (!canViewStaff) {
-        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+
+      const [{ data: shiftRows, error: shiftsError }, availablePeople] =
+        await Promise.all([
+          supabase
+            .from("staff_shifts")
+            .select("*")
+            .eq("event_id", reference.id)
+            .eq("org_id", admin.orgId)
+            .is("deleted_at", null)
+            .order("shift_date", { ascending: true }),
+          listWorkforcePeople({
+            supabase,
+            employerEntityType: "organization",
+            employerEntityId: admin.orgId,
+            includePending: true,
+            limit: 300,
+          }),
+        ])
+      if (shiftsError) throw new StaffingFlowError("database", "Unable to load event shifts.", shiftsError)
+
+      const memberIds = Array.from(
+        new Set((shiftRows ?? []).map((shift: any) => shift.staff_member_id).filter(Boolean)),
+      )
+      const memberResult = memberIds.length
+        ? await supabase
+            .from("staff_members")
+            .select("id, user_id, name, email, phone, role, department, status")
+            .in("id", memberIds)
+        : { data: [], error: null }
+      if (memberResult.error) {
+        throw new StaffingFlowError("database", "Unable to resolve assigned staff profiles.", memberResult.error)
       }
-
-      const [shiftsResult, membersResult] = await Promise.allSettled([
-        supabase
-          .from('staff_shifts')
-          .select('*')
-          .eq('event_id', reference.id)
-          .is('deleted_at', null)
-          .order('shift_date', { ascending: true }),
-        supabase
-          .from('staff_members')
-          .select('id, name, email, phone, role, status, hourly_rate')
-          .eq('status', 'active')
-          .limit(200),
-      ])
-
-      const shiftRows = shiftsResult.status === 'fulfilled' ? (shiftsResult.value.data || []) : []
-      const availableMembers = membersResult.status === 'fulfilled' ? (membersResult.value.data || []) : []
-      const memberIds = Array.from(new Set(shiftRows.map((shift: any) => shift.staff_member_id).filter(Boolean)))
-      const memberRowsResult = memberIds.length
-        ? await supabase.from('staff_members').select('id, name, email, role, status').in('id', memberIds)
-        : { data: [] }
-      const membersById = new Map((memberRowsResult.data || []).map((member: any) => [member.id, member]))
-      const shifts = shiftRows.map((shift: any) => ({
+      const membersById = new Map((memberResult.data ?? []).map((member: any) => [member.id, member]))
+      const shifts = (shiftRows ?? []).map((shift: any) => ({
         ...shift,
-        staff_members: shift.staff_member_id ? membersById.get(shift.staff_member_id) ?? null : null,
+        staff_members: membersById.get(shift.staff_member_id) ?? null,
       }))
 
       return NextResponse.json({
         success: true,
         shifts,
-        availableMembers,
+        availableMembers: availablePeople.map((person) => ({
+          id: person.userId,
+          user_id: person.userId,
+          staff_member_id: person.staffMemberId,
+          name: person.name,
+          email: person.email,
+          phone: person.phone,
+          role: person.role,
+          department: person.department,
+          status: person.status,
+          connection_state: person.connectionState,
+          onboarding_status: person.onboardingStatus,
+        })),
         totalAssigned: shifts.length,
+        defaults: {
+          shiftDate: reference.eventDate,
+          startTime: reference.eventTime?.slice(0, 5) || "09:00",
+          endTime: "17:00",
+        },
       })
-    } catch (err) {
-      console.error('[event staff GET]', err)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    } catch (error) {
+      return routeError(error, "Unable to load event staff.")
     }
   })(request)
 }
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { id: eventParam } = await context.params
-  return withAuth(async (_req, { supabase, user }) => {
+  return withAdminCapability("workforce.manage", async (_request, { supabase, user, admin }) => {
     try {
-      const reference = await resolveEventReference(supabase as any, eventParam)
-      if (!reference) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      }
-      const canAssignStaff = await hasEventPermission({
+      const reference = await requireEventStaffAccess({
         supabase,
-        eventId: reference.id,
+        eventParam,
         userId: user.id,
-        ownerUserId: reference.ownerUserId,
-        permissionName: 'ASSIGN_EVENT_ROLES',
+        orgId: admin.orgId,
       })
-      if (!canAssignStaff) {
-        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-      }
-
-      const body = await request.json()
-      const validated = assignStaffSchema.parse(body)
-
-      const { data, error } = await supabase
-        .from('staff_shifts')
-        .insert({
-          ...validated,
-          event_id: reference.id,
-          created_by: user.id,
-          status: 'scheduled',
-          // Pass org_id so scheduling queries filtering by org_id can find this shift
-          ...(reference.orgId ? { org_id: reference.orgId } : {}),
+      const input = assignStaffSchema.parse(await request.json())
+      let staffMemberId = input.staff_member_id
+      if (!staffMemberId && input.user_id) {
+        const people = await listWorkforcePeople({
+          supabase,
+          employerEntityType: "organization",
+          employerEntityId: admin.orgId,
+          includePending: true,
+          limit: 500,
         })
-        .select('*')
-        .single()
-
-      if (error) {
-        console.error('[event staff POST]', error)
-        return NextResponse.json({ error: 'Failed to assign staff' }, { status: 500 })
+        const person = people.find((candidate) => candidate.userId === input.user_id)
+        if (!person) throw new StaffingFlowError("forbidden", "That person is not connected to the active organization.")
+        const member = await ensureOrgStaffMember(supabase, {
+          orgId: admin.orgId,
+          userId: person.userId,
+          name: person.name,
+          email: person.email || `${person.userId}@member.tourify.invalid`,
+          phone: person.phone,
+          role: input.role_assignment || person.role || "Staff",
+          department: person.department || "General",
+          status: "active",
+        })
+        staffMemberId = member.id
       }
-
-      const memberResult = await supabase
-        .from('staff_members')
-        .select('id, name, email, role')
-        .eq('id', data.staff_member_id)
-        .maybeSingle()
-
-      const sync = await syncEmploymentAssignmentForShift({
+      if (!staffMemberId) throw new StaffingFlowError("validation", "Select an organization person.")
+      const assignment = await createEventStaffAssignment({
         supabase,
-        shift: data,
-        notify: false,
         actorUserId: user.id,
-        assignmentStatus: 'invited',
+        orgId: admin.orgId,
+        eventId: reference.id,
+        venueId: reference.venueId,
+        staffMemberId,
+        shiftDate: input.shift_date,
+        startTime: input.start_time,
+        endTime: input.end_time,
+        role: input.role_assignment,
+        zone: input.zone_assignment,
+        notes: input.notes,
+        assignmentStatus: "invited",
+        notify: true,
       })
 
-      return NextResponse.json({ success: true, shift: { ...data, staff_members: memberResult.data ?? null }, sync })
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Validation error', details: err.errors }, { status: 400 })
-      }
-      console.error('[event staff POST]', err)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      return NextResponse.json(
+        {
+          success: true,
+          shift: { ...assignment.shift, staff_members: assignment.staffMember },
+          staffMember: assignment.staffMember,
+          workModeAssignment: assignment.workMode,
+          syncWarnings: assignment.workMode.assignmentId
+            ? []
+            : ["The shift was saved, but Work Mode could not be synchronized yet."],
+        },
+        { status: 201 },
+      )
+    } catch (error) {
+      return routeError(error, "Unable to assign this staff member.")
     }
   })(request)
 }

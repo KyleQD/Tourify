@@ -77,9 +77,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface Props {
   eventId: string
+  showLegacyOps?: boolean
+  eventScopedApi?: boolean
+  allowRefunds?: boolean
 }
 
-export function EventTicketManager({ eventId }: Props) {
+export function EventTicketManager({ eventId, showLegacyOps = true, eventScopedApi = false, allowRefunds = true }: Props) {
   const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const requestScopeKey = `${actingContextKey}:${eventId}`
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
@@ -105,11 +108,26 @@ export function EventTicketManager({ eventId }: Props) {
   const [savingType, setSavingType] = useState(false)
 
   const fetchData = useCallback(async () => {
-    if (!isActingReady) return
+    if (!isActingReady && !eventScopedApi) return
     setLoading(true)
     setTicketTypes([])
     setSales([])
     try {
+      if (eventScopedApi) {
+        const [workspaceRes, configRes, reportRes] = await Promise.all([
+          fetch(`/api/ticketing/events/${eventId}/sales-orders`, { credentials: 'include', cache: 'no-store' }),
+          fetch(`/api/ticketing/config?event_id=${eventId}`, { credentials: 'include' }),
+          fetch(`/api/ticketing/reports?event_id=${eventId}`, { credentials: 'include' }),
+        ])
+        if (workspaceRes.ok) {
+          const data = await workspaceRes.json()
+          setTicketTypes(data.ticket_types || [])
+          setSales(data.sales || [])
+        }
+        if (configRes.ok) setTicketingEnabled(Boolean((await configRes.json()).config?.ticketing_enabled))
+        if (reportRes.ok) setReport(await reportRes.json())
+        return
+      }
       const [typesRes, salesRes, configRes, reportRes] = await Promise.allSettled([
         fetch(`/api/admin/ticketing/enhanced?type=ticket_types&event_id=${eventId}`, { credentials: 'include', headers: actingHeaders }),
         fetch(`/api/admin/ticketing/enhanced?type=sales&event_id=${eventId}`, { credentials: 'include', headers: actingHeaders }),
@@ -136,7 +154,7 @@ export function EventTicketManager({ eventId }: Props) {
       setLoadedScopeKey(requestScopeKey)
       setLoading(false)
     }
-  }, [actingHeaders, eventId, isActingReady, requestScopeKey])
+  }, [actingHeaders, eventId, eventScopedApi, isActingReady, requestScopeKey])
 
   useEffect(() => { void fetchData() }, [fetchData])
 
@@ -185,7 +203,7 @@ export function EventTicketManager({ eventId }: Props) {
   }
 
   async function saveType() {
-    if (!isActingReady) { toast.error('Organization account is still loading'); return }
+    if (!eventScopedApi && !isActingReady) { toast.error('Organization account is still loading'); return }
     if (!typeForm.name.trim()) { toast.error('Name is required'); return }
     if (!Number.isInteger(Number(typeForm.quantity_available)) || Number(typeForm.quantity_available) < 1) {
       toast.error('Quantity must be an explicit positive number (no default capacity)')
@@ -200,11 +218,11 @@ export function EventTicketManager({ eventId }: Props) {
         price: Number(typeForm.price),
         quantity_available: Number(typeForm.quantity_available),
       }
-      const res = await fetch('/api/admin/ticketing/enhanced', {
+      const res = await fetch(eventScopedApi ? `/api/ticketing/events/${eventId}/sales-orders` : '/api/admin/ticketing/enhanced', {
         method: editingType ? 'PATCH' : 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...actingHeaders },
-        body: JSON.stringify(body),
+        body: JSON.stringify(eventScopedApi ? { ...typeForm, ...(editingType ? { id: editingType.id } : {}) } : body),
       })
       if (!res.ok) throw new Error(await res.text())
       toast.success(editingType ? 'Ticket type updated' : 'Ticket type created')
@@ -218,13 +236,13 @@ export function EventTicketManager({ eventId }: Props) {
   }
 
   async function toggleTypeActive(t: TicketType) {
-    if (!isActingReady) { toast.error('Organization account is still loading'); return }
+    if (!eventScopedApi && !isActingReady) { toast.error('Organization account is still loading'); return }
     try {
-      const res = await fetch('/api/admin/ticketing/enhanced', {
+      const res = await fetch(eventScopedApi ? `/api/ticketing/events/${eventId}/sales-orders` : '/api/admin/ticketing/enhanced', {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...actingHeaders },
-        body: JSON.stringify({ action: 'update_ticket_type', id: t.id, is_active: !t.is_active }),
+        body: JSON.stringify(eventScopedApi ? { id: t.id, is_active: !t.is_active } : { action: 'update_ticket_type', id: t.id, is_active: !t.is_active }),
       })
       if (!res.ok) throw new Error(await res.text())
       toast.success(t.is_active ? 'Ticket type paused' : 'Ticket type activated')
@@ -242,7 +260,7 @@ export function EventTicketManager({ eventId }: Props) {
       return
     }
     try {
-      const res = await fetch(`/api/admin/ticketing/enhanced?id=${deleteType.id}`, {
+      const res = await fetch(eventScopedApi ? `/api/ticketing/events/${eventId}/sales-orders?id=${deleteType.id}` : `/api/admin/ticketing/enhanced?id=${deleteType.id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: actingHeaders,
@@ -293,7 +311,7 @@ export function EventTicketManager({ eventId }: Props) {
     .filter((s) => s.payment_status === 'completed')
     .reduce((s, sale) => s + (Number(sale.total_amount) || 0), 0)
 
-  if (loading || !isActingReady || loadedScopeKey !== requestScopeKey) {
+  if (loading || (!isActingReady && !eventScopedApi) || loadedScopeKey !== requestScopeKey) {
     return (
       <div className="flex items-center justify-center py-12">
         <RefreshCw className="h-5 w-5 animate-spin text-purple-400" />
@@ -335,10 +353,12 @@ export function EventTicketManager({ eventId }: Props) {
         </CardContent>
       </Card>
 
-      <EventTicketingOpsPanels
-        eventId={eventId}
-        ticketTypes={ticketTypes.map((t) => ({ id: t.id, name: t.name, price: t.price }))}
-      />
+      {showLegacyOps ? (
+        <EventTicketingOpsPanels
+          eventId={eventId}
+          ticketTypes={ticketTypes.map((t) => ({ id: t.id, name: t.name, price: t.price }))}
+        />
+      ) : null}
 
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-4">
@@ -491,7 +511,7 @@ export function EventTicketManager({ eventId }: Props) {
                       <Badge className={STATUS_COLORS[s.payment_status] || 'bg-slate-700 text-slate-300'}>
                         {s.payment_status}
                       </Badge>
-                      {s.payment_status === 'completed' && (
+                      {s.payment_status === 'completed' && allowRefunds ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -500,7 +520,7 @@ export function EventTicketManager({ eventId }: Props) {
                         >
                           Refund
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
@@ -563,7 +583,7 @@ export function EventTicketManager({ eventId }: Props) {
       </Dialog>
 
       {/* Refund dialog */}
-      <AlertDialog open={!!refundSale} onOpenChange={() => setRefundSale(null)}>
+      <AlertDialog open={allowRefunds && !!refundSale} onOpenChange={() => setRefundSale(null)}>
         <AlertDialogContent className="bg-slate-900 border-slate-700">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Process Refund?</AlertDialogTitle>

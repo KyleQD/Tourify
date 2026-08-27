@@ -51,6 +51,8 @@ interface OrganizationProfileRow {
 interface MembershipRow {
   org_id: string
   role: string
+  status: string
+  permissions: string[]
 }
 
 const TOUR_COLLABORATOR_CAPABILITIES: AdminCapability[] = [
@@ -150,7 +152,7 @@ async function loadMembership(
 ): Promise<MembershipRow | NextResponse | null> {
   const { data, error } = await supabase
     .from('org_members')
-    .select('org_id, role')
+    .select('org_id, role, status, permissions')
     .eq('user_id', userId)
     .eq('org_id', orgId)
     .maybeSingle()
@@ -158,7 +160,7 @@ async function loadMembership(
   if (error) {
     return errorResponse(503, 'membership_unavailable', 'Unable to verify organization membership.')
   }
-  if (!data?.org_id || !data.role) return null
+  if (!data?.org_id || !data.role || data.status !== 'active') return null
 
   return data as MembershipRow
 }
@@ -204,6 +206,7 @@ async function loadTourCollaboratorScope(
 async function loadCapabilities(
   supabase: AuthenticatedAdminRequest['supabase'],
   membershipRole: string,
+  membershipPermissions: string[],
 ): Promise<AdminCapability[] | NextResponse> {
   const { data, error } = await supabase
     .from('org_role_permissions')
@@ -218,6 +221,7 @@ async function loadCapabilities(
   return resolveEffectiveAdminCapabilities({
     role: membershipRole,
     configuredPermissions: data?.perms,
+    customRoleCapabilities: membershipPermissions,
     membershipStatus: 'active',
   })
 }
@@ -280,7 +284,7 @@ async function buildContextForProfile(
     }
   }
 
-  const capabilities = await loadCapabilities(auth.supabase, membership.role)
+  const capabilities = await loadCapabilities(auth.supabase, membership.role, membership.permissions)
   if (capabilities instanceof NextResponse) return capabilities
 
   return {

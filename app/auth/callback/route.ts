@@ -79,15 +79,16 @@ export async function GET(request: NextRequest) {
         const confirmedUserEmail =
           data.session?.user?.email ?? data.user?.email ?? ""
 
-        if (data.session?.user) {
-          return NextResponse.redirect(`${publicOrigin}/dashboard?welcome=true`)
-        }
+        if (data.session?.user)
+          return NextResponse.redirect(
+            `${publicOrigin}${redirectTo === '/dashboard' ? '/dashboard?welcome=true' : redirectTo}`
+          )
 
         const emailQuery = confirmedUserEmail
           ? `&email=${encodeURIComponent(confirmedUserEmail)}`
           : ""
         return NextResponse.redirect(
-          `${publicOrigin}/login?message=email_confirmed${emailQuery}`
+          `${publicOrigin}/login?message=email_confirmed${emailQuery}&redirectTo=${encodeURIComponent(redirectTo)}`
         )
       }
     } catch (err) {

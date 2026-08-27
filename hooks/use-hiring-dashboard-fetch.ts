@@ -7,6 +7,8 @@ interface UseHiringDashboardFetchArgs<TData> {
   url: string
   enabled?: boolean
   initialData: TData
+  refreshIntervalMs?: number
+  refreshOnFocus?: boolean
 }
 
 interface UseHiringDashboardFetchResult<TData> {
@@ -20,6 +22,8 @@ export function useHiringDashboardFetch<TData>({
   url,
   enabled = true,
   initialData,
+  refreshIntervalMs,
+  refreshOnFocus = false,
 }: UseHiringDashboardFetchArgs<TData>): UseHiringDashboardFetchResult<TData> {
   const isMountedRef = useRef(false)
   const [data, setData] = useState<TData>(initialData)
@@ -76,6 +80,32 @@ export function useHiringDashboardFetch<TData>({
       controller.abort()
     }
   }, [refetch])
+
+  useEffect(() => {
+    if (!enabled || !refreshIntervalMs || refreshIntervalMs < 1) return
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refetch()
+    }, refreshIntervalMs)
+
+    return () => window.clearInterval(interval)
+  }, [enabled, refreshIntervalMs, refetch])
+
+  useEffect(() => {
+    if (!enabled || !refreshOnFocus) return
+
+    const handleFocus = () => void refetch()
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void refetch()
+    }
+
+    window.addEventListener("focus", handleFocus)
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
+  }, [enabled, refreshOnFocus, refetch])
 
   return {
     data,

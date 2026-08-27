@@ -57,6 +57,9 @@ export async function POST(request: NextRequest) {
     if ((ticket.ticket_types as any)?.is_transferable === false)
       return NextResponse.json({ error: 'This ticket type is not transferable' }, { status: 400 })
 
+    if ((ticket.metadata as Record<string, unknown> | null)?.non_transferable === true)
+      return NextResponse.json({ error: 'Guest list and crew admissions cannot be transferred' }, { status: 400 })
+
     const { data: transfer, error } = await supabase
       .from('ticket_transfers')
       .insert({

@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RosterAssignmentDialog } from "@/components/hiring/roster-assignment-dialog"
 import { RosterMemberDetailDrawer } from "@/components/hiring/roster-member-detail-drawer"
+import { RosterTaskAssignmentDialog } from "@/components/hiring/roster-task-assignment-dialog"
 import type { HiringEntity } from "@/types/hiring-entity"
 import type { HiringRosterMemberListItem } from "@/types/hiring-dashboard"
 import type { ListRosterMembersResult, RosterMember, RosterMemberStatus } from "@/types/hiring-roster-work-mode"
@@ -16,6 +17,7 @@ import { WorkforceEmptyState, WorkforcePanel } from "./workforce-ui"
 
 interface HiringRosterPanelProps {
   employer: HiringEntity
+  initialMemberId?: string | null
 }
 
 function toListItems(payload: ListRosterMembersResult | HiringRosterMemberListItem[] | null | undefined): HiringRosterMemberListItem[] {
@@ -40,7 +42,7 @@ function toRosterMembers(payload: ListRosterMembersResult | HiringRosterMemberLi
   return payload.members
 }
 
-export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
+export function HiringRosterPanel({ employer, initialMemberId }: HiringRosterPanelProps) {
   const queryString = getEmployerQueryString(employer)
   const { data, isLoading, error, refetch } = useHiringDashboardFetch<ListRosterMembersResult | HiringRosterMemberListItem[]>({
     url: `/api/hiring/roster?${queryString}`,
@@ -52,7 +54,18 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
   const [selectedMember, setSelectedMember] = useState<RosterMember | null>(null)
   const [assignmentMember, setAssignmentMember] = useState<RosterMember | null>(null)
   const [isAssignmentOpen, setIsAssignmentOpen] = useState(false)
+  const [taskMember, setTaskMember] = useState<RosterMember | null>(null)
+  const [isTaskOpen, setIsTaskOpen] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const openedInitialMemberRef = useRef(false)
+
+  useEffect(() => {
+    if (!initialMemberId || isLoading || openedInitialMemberRef.current) return
+    const member = members.find((item) => item.id === initialMemberId)
+    if (!member) return
+    openedInitialMemberRef.current = true
+    setSelectedMember(member)
+  }, [initialMemberId, isLoading, members])
 
   function openMember(memberId: string) {
     const member = members.find((item) => item.id === memberId) ?? null
@@ -67,6 +80,11 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
   function handleAssigned(member: RosterMember) {
     setSelectedMember(member)
     void refetch()
+  }
+
+  function handleAssignTask(member: RosterMember) {
+    setTaskMember(member)
+    setIsTaskOpen(true)
   }
 
   async function handleStatusChange(member: RosterMember, nextStatus: RosterMemberStatus) {
@@ -158,6 +176,7 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
           if (!open) setSelectedMember(null)
         }}
         onAssign={handleAssign}
+        onAssignTask={handleAssignTask}
         onStatusChange={handleStatusChange}
       />
 
@@ -167,6 +186,12 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
         open={isAssignmentOpen}
         onOpenChange={setIsAssignmentOpen}
         onAssigned={handleAssigned}
+      />
+
+      <RosterTaskAssignmentDialog
+        member={taskMember}
+        open={isTaskOpen}
+        onOpenChange={setIsTaskOpen}
       />
     </>
   )

@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   CalendarClock,
   Check,
+  ClipboardCheck,
   ExternalLink,
   Loader2,
   RefreshCw,
@@ -25,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type {
   WorkModeAssignmentListItem,
   WorkModePublication,
+  WorkModeTaskItem,
 } from "@/types/hiring-roster-work-mode"
 
 interface WorkModeWorkspaceProps {
@@ -131,6 +133,37 @@ function PublicationList({
   )
 }
 
+function TaskList({ tasks }: { tasks: WorkModeTaskItem[] }) {
+  if (tasks.length === 0) {
+    return <UnavailablePanel title="No tasks yet" description="Onboarding and assigned operational tasks will appear here." />
+  }
+  return (
+    <div className="grid gap-3">
+      {tasks.map((task) => (
+        <Card key={task.id} className={task.kind === "onboarding" ? "border-violet-400/30 bg-violet-500/10" : "border-slate-800 bg-slate-900/70"}>
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {task.kind === "onboarding" ? <ClipboardCheck className="h-4 w-4 text-violet-300" aria-hidden="true" /> : null}
+                <p className="font-medium text-slate-100">{task.title}</p>
+                <Badge variant="outline" className="border-slate-700 text-slate-300">{task.status || "assigned"}</Badge>
+              </div>
+              <p className="mt-1 text-sm text-slate-400">
+                {task.kind === "onboarding" ? "Required onboarding packet" : task.dueDate ? `Due ${formatDateTime(task.dueDate)}` : "Operational task"}
+              </p>
+            </div>
+            {task.actionUrl ? (
+              <Button asChild size="sm">
+                <Link href={task.actionUrl}>Complete onboarding<ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" /></Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 export function WorkModeWorkspace({
   view,
   initialAssignmentId,
@@ -138,6 +171,7 @@ export function WorkModeWorkspace({
   const {
     assignments,
     publications,
+    tasks,
     activeAssignment,
     isLoading,
     error,
@@ -174,11 +208,15 @@ export function WorkModeWorkspace({
 
   const scopedPublications = useMemo(
     () =>
-      activeAssignment?.eventId
-        ? publications.filter((publication) => publication.eventId === activeAssignment.eventId)
+      activeAssignment
+        ? publications.filter((publication) =>
+            (activeAssignment.eventId && publication.eventId === activeAssignment.eventId)
+            || (activeAssignment.tourId && publication.tourId === activeAssignment.tourId))
         : [],
-    [activeAssignment?.eventId, publications],
+    [activeAssignment, publications],
   )
+  const scopedTasks = useMemo(() => tasks.filter((task) =>
+    task.kind === "onboarding" || !task.eventId || task.eventId === activeAssignment?.eventId), [activeAssignment?.eventId, tasks])
 
   async function respond(assignmentId: string, action: "accept" | "decline") {
     const startedAt = performance.now()
@@ -382,6 +420,10 @@ export function WorkModeWorkspace({
                           <CardDescription className="text-slate-400">
                             {assignment.department || "Crew"} · {formatDateTime(assignment.startsAt)}
                           </CardDescription>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {assignment.tourId ? <Badge variant="secondary">Tour assignment</Badge> : null}
+                            {assignment.eventId ? <Badge variant="secondary">Event shift</Badge> : null}
+                          </div>
                         </div>
                         <Badge variant="outline" className={statusClass(assignment.status)}>
                           {assignment.status}
@@ -535,10 +577,15 @@ export function WorkModeWorkspace({
             ) : null}
 
             {view === "tasks" ? (
-              <PublicationList
-                publications={publicationsFor("task", "tasks", "task_list", "run_of_show")}
-                emptyMessage="No assignment-scoped task list has been published."
-              />
+              <div className="space-y-5">
+                <TaskList tasks={scopedTasks} />
+                {publicationsFor("task", "tasks", "task_list", "run_of_show").length ? (
+                  <div>
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Published task packets</h2>
+                    <PublicationList publications={publicationsFor("task", "tasks", "task_list", "run_of_show")} emptyMessage="No assignment-scoped task list has been published." />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {view === "documents" ? (
               <PublicationList

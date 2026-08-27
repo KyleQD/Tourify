@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821031214_repair_event_tour_staffing_flow.sql",
+  "taskId": "STAFFING-EVENT-TOUR-REPAIR",
+  "status": "isolated_validated",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["staffing", "events", "tours", "work-mode", "onboarding", "rbac"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "linked production Supabase project with organization-only events and current workforce data",
+    "evidenceArtifact": "Supabase migration 20260821031214 and transaction-rolled-back RLS persona checks"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count staff_shifts with both org_id and venue_id null",
+      "Count duplicate organization staff identities and invitation candidate tokens",
+      "Count duplicate active user/tour assignments and exact active event shifts"
+    ],
+    "expectedAffectedRows": "No row backfill; venue_id nullability, event invitation scope, assignment kind, uniqueness keys, and staff_shifts policies only",
+    "artifact": "Supabase execute_sql preflight: all invalid and duplicate counts were zero"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "DDL is additive or guarded; policy replacements and constraints converge on rerun",
+    "resumeCursor": "Supabase migration version 20260821031214",
+    "idempotency": "Columns and indexes use IF NOT EXISTS, named constraints/policies are dropped before recreation, and uniqueness preflight was clean"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No org_id or venue_id is inferred; unscoped shifts would fail preflight and the validated scope constraint"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "staff_shifts_requires_scope validated after NOT VALID creation",
+      "staff_invitations_event_id_fkey validated after NOT VALID creation",
+      "employment_assignments_assignment_kind_check includes tour"
+    ],
+    "indexes": [
+      "staff_invitations_event_idx",
+      "staff_members_org_user_key",
+      "staff_onboarding_candidates_invitation_token_key",
+      "employment_assignments_active_tour_key",
+      "staff_shifts_exact_active_key"
+    ],
+    "validationPlan": "Validate organization-only insert, manager update/delete, worker own read, unrelated-user denial, uniqueness, and advisor output"
+  },
+  "recovery": {
+    "rollback": "Restore prior policies and constraint definition only through a reviewed forward migration; do not make venue_id required again while organization-only shifts exist",
+    "forwardFix": "Apply an additive scoped migration for any policy, index, or provisioning correction and preserve existing assignment rows"
+  },
+  "postflight": {
+    "queries": [
+      "Verify staff_shifts venue_id is nullable and scope/FK constraints are validated",
+      "Verify scoped policy inventory and effective manager/worker behavior in a rolled-back transaction",
+      "Verify the remote migration history contains version 20260821031214",
+      "Run Supabase security and performance advisors filtered to affected staffing tables"
+    ],
+    "artifact": "RLS checks passed for manager_create_update, manager_delete, worker_read_own, and unconnected_user_cannot_read",
+    "securityAdvisorArtifact": "No security advisor findings for staff_shifts or this migration",
+    "performanceAdvisorArtifact": "No staff_shifts policy performance findings; remaining affected-domain notices predate this migration"
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": "Vitest staffing regression suite and transaction-rolled-back RLS persona test",
+    "staging": null,
+    "production": "Supabase project migration 20260821031214 plus post-migration advisors"
+  },
+  "exceptions": []
+}

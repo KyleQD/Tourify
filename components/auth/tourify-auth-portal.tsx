@@ -220,7 +220,7 @@ export function TourifyAuthPortal({
     if (!pendingConfirmationEmail || resendCooldownSec > 0 || isResendingConfirmation) return false
     setIsResendingConfirmation(true)
     setError(null)
-    const { error: resendError } = await resendSignupConfirmation(pendingConfirmationEmail)
+    const { error: resendError } = await resendSignupConfirmation(pendingConfirmationEmail, redirectTo)
     setIsResendingConfirmation(false)
     if (resendError) {
       setError(mapAuthError(resendError))
@@ -234,6 +234,7 @@ export function TourifyAuthPortal({
     resendCooldownSec,
     isResendingConfirmation,
     resendSignupConfirmation,
+    redirectTo,
   ])
 
   useEffect(() => {
@@ -381,7 +382,7 @@ export function TourifyAuthPortal({
         full_name: signUpData.name,
         username: normalizedUsernameToUse,
         account_type: signUpData.accountType,
-      })
+      }, redirectTo)
 
       if (result.error) {
         setPendingConfirmationEmail(null)

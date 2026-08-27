@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821183357_job_seat_foreign_key_indexes.sql",
+  "taskId": "HIRING-SEAT-FK-INDEXES",
+  "status": "isolated_validated",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["hiring", "organizations", "performance"],
+  "riskLevel": "low",
+  "representativeSnapshot": { "kind": "linked production Supabase project", "evidenceArtifact": "Supabase performance advisor" },
+  "preflight": { "rowCountQueries": ["Count org_members rows with a non-null job_posting_id or job_application_id"], "expectedAffectedRows": "No data changes", "artifact": "Advisor identified the two uncovered seat lineage foreign keys" },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 60000, "batchSize": 0, "resumeStrategy": "Both indexes use IF NOT EXISTS", "resumeCursor": "Supabase migration version 20260821183357", "idempotency": "Index creation is guarded" },
+  "quarantine": { "required": false, "table": null, "strategy": "No data mutation" },
+  "constraintsAndIndexes": { "constraints": [], "indexes": ["org_members_job_posting_idx", "org_members_job_application_idx"], "validationPlan": "Re-run the performance advisor and verify both foreign-key notices are absent" },
+  "recovery": { "rollback": "Drop the indexes in a reviewed forward migration", "forwardFix": "Recreate missing indexes concurrently if table size requires it" },
+  "postflight": { "queries": ["Run Supabase performance advisors filtered to org_members"], "artifact": "Both indexes exist in the linked project", "securityAdvisorArtifact": "No security objects changed", "performanceAdvisorArtifact": "Seat lineage foreign keys now have covering indexes" },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": "Migration validation manifest check", "staging": null, "production": "Supabase project migration 20260821183357" },
+  "exceptions": []
+}

@@ -15,6 +15,7 @@ import type {
   WorkModeAssignmentListItem,
   WorkModeAssignmentsPayload,
   WorkModePublication,
+  WorkModeTaskItem,
 } from '@/types/hiring-roster-work-mode'
 
 const WORK_MODE_KEY = 'tourify.work-mode-assignment'
@@ -22,6 +23,7 @@ const WORK_MODE_KEY = 'tourify.work-mode-assignment'
 export function useWorkMode() {
   const [assignments, setAssignments] = useState<WorkModeAssignmentListItem[]>([])
   const [publications, setPublications] = useState<WorkModePublication[]>([])
+  const [tasks, setTasks] = useState<WorkModeTaskItem[]>([])
   const [workerActionsAvailable, setWorkerActionsAvailable] = useState(false)
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -59,6 +61,7 @@ export function useWorkMode() {
         throw new Error(payload.error || 'Unable to load Work Mode.')
       }
       setPublications(payload.data.publications)
+      setTasks(payload.data.tasks || [])
       setAssignments(payload.data.assignments)
       setWorkerActionsAvailable(payload.data.workerActionsAvailable)
       setActiveAssignmentId((current) => {
@@ -70,6 +73,7 @@ export function useWorkMode() {
     } catch (requestError) {
       setAssignments([])
       setPublications([])
+      setTasks([])
       setWorkerActionsAvailable(false)
       setError(requestError instanceof Error ? requestError.message : 'Unable to load Work Mode.')
     } finally {
@@ -166,6 +170,7 @@ export function useWorkMode() {
   return {
     assignments,
     publications,
+    tasks,
     workerActionsAvailable,
     activeAssignment,
     isInWorkMode: activeAssignmentId !== null,

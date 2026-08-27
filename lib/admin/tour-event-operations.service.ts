@@ -167,6 +167,7 @@ export const adminEventInputBaseSchema = z.object({
     supply_list: z.string().optional().nullable(),
     documents: z.string().optional().nullable(),
     comps: z.union([z.number(), z.string()]).optional().nullable(),
+    guest_list_spots: z.number().int().min(0).max(100).optional(),
     guest_list_budget: z.union([z.number(), z.string()]).optional().nullable(),
     day_sheet_notes: z.string().optional().nullable(),
     creation_source: z.string().optional().nullable(),
@@ -633,6 +634,7 @@ function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBas
   copy("supply_list")
   copy("documents")
   if (input.comps !== undefined) settings.comps = input.comps
+  if (input.guest_list_spots !== undefined) settings.guest_list_spots = input.guest_list_spots
   if (input.guest_list_budget !== undefined) settings.guest_list_budget = input.guest_list_budget
   copy("day_sheet_notes")
   copy("creation_source")
@@ -645,6 +647,18 @@ function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBas
   copy("quick_start_completed_at")
   copy("schedule_details")
   return settings
+}
+
+export function mergeAdminEventSettingsForUpdate(
+  existing: Record<string, unknown> | null | undefined,
+  input: Partial<z.infer<typeof adminEventInputBaseSchema>>,
+  additionalPatch: Record<string, unknown> = {},
+) {
+  return {
+    ...(existing ?? {}),
+    ...eventSettingsFromInput(input),
+    ...additionalPatch,
+  }
 }
 
 function normalizeAssignments(input: {
@@ -960,6 +974,7 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     vip_price: settings.vip_price ?? 0,
     expected_revenue: settings.expected_revenue ?? 0,
     expected_expenses: settings.expected_expenses ?? 0,
+    guest_list_spots: settings.guest_list_spots ?? 0,
     sound_requirements: settings.sound_requirements ?? null,
     lighting_requirements: settings.lighting_requirements ?? null,
     stage_requirements: settings.stage_requirements ?? null,
@@ -1576,7 +1591,6 @@ export class AdminTourEventOperationsService {
       "production_windows",
     ] as const
     const hasSetupField = setupKeys.some((key) => Object.prototype.hasOwnProperty.call(input, key))
-    const settingsFromInput = eventSettingsFromInput(input)
 
     if (hasSetupField) {
       const setup = normalizeEventSetupFields({
@@ -1589,14 +1603,10 @@ export class AdminTourEventOperationsService {
       if ("age_restriction" in input || "age_restrictions" in input) {
         patch.age_restrictions = setup.columns.age_restrictions
       }
-      patch.settings = {
-        ...(existing.settings ?? {}),
-        ...settingsFromInput,
-        ...setup.settingsPatch,
-      }
+      patch.settings = mergeAdminEventSettingsForUpdate(existing.settings, input, setup.settingsPatch)
     } else {
       if ("capacity" in input) patch.capacity = parseCapacity(input.capacity)
-      patch.settings = { ...(existing.settings ?? {}), ...settingsFromInput }
+      patch.settings = mergeAdminEventSettingsForUpdate(existing.settings, input)
     }
 
     if (input.tour_id !== undefined || input.tour_ids !== undefined || input.tour_assignments !== undefined || input.primary_tour_id !== undefined) {

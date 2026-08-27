@@ -22,11 +22,6 @@ export type EmploymentAssignmentStatus =
   | "completed"
   | "cancelled"
   | "declined"
-  | "invited"
-  | "confirmed"
-  | "active"
-  | "completed"
-  | "cancelled"
 
 export type AccessStaffDocsScope = "own" | "team" | "none"
 export type RunSheetAccess = boolean | "limited"
@@ -78,6 +73,9 @@ export interface WorkModeAssignmentListItem {
   roleTitle: string
   department: string | null
   eventId: string | null
+  tourId: string | null
+  staffShiftId: string | null
+  eventContextSource: "assignment" | "shift" | null
   venueId: string | null
   organizerId: string | null
   startsAt: string | null
@@ -90,9 +88,21 @@ export interface WorkModeAssignmentListItem {
   siteMapId: string | null
 }
 
+export interface WorkModeTaskItem {
+  id: string
+  eventId: string | null
+  title: string
+  status: string | null
+  dueDate: string | null
+  priority: string | null
+  actionUrl: string | null
+  kind: "onboarding" | "operational"
+}
+
 export interface WorkModeAssignmentsPayload {
   assignments: WorkModeAssignmentListItem[]
   publications: WorkModePublication[]
+  tasks: WorkModeTaskItem[]
   generatedAt: string
   workerActionsAvailable: boolean
 }

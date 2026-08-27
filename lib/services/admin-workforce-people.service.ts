@@ -8,15 +8,20 @@ export type WorkforcePersonSource =
   | "tour_team_members"
   | "event_participants"
   | "venue_team_members"
+  | "org_members"
 
 export interface WorkforcePerson {
   id: string
   userId: string
   name: string
   email: string | null
+  phone: string | null
   role: string | null
+  department: string | null
   status: string | null
   staffMemberId: string | null
+  connectionState: "connected" | "pending"
+  onboardingStatus: string | null
   sources: WorkforcePersonSource[]
 }
 
@@ -46,9 +51,13 @@ function mergePerson(
       userId: person.userId,
       name: person.name,
       email: person.email,
+      phone: person.phone,
       role: person.role,
+      department: person.department,
       status: person.status,
       staffMemberId: person.staffMemberId,
+      connectionState: person.connectionState,
+      onboardingStatus: person.onboardingStatus,
       sources: [person.source],
     })
     return
@@ -56,8 +65,12 @@ function mergePerson(
 
   if (!existing.sources.includes(person.source)) existing.sources.push(person.source)
   if (!existing.email && person.email) existing.email = person.email
+  if (!existing.phone && person.phone) existing.phone = person.phone
   if ((!existing.role || existing.role === "Staff") && person.role) existing.role = person.role
   if (!existing.staffMemberId && person.staffMemberId) existing.staffMemberId = person.staffMemberId
+  if (!existing.department && person.department) existing.department = person.department
+  if (person.connectionState === "connected") existing.connectionState = "connected"
+  if (!existing.onboardingStatus && person.onboardingStatus) existing.onboardingStatus = person.onboardingStatus
   if (person.name && (existing.name === "Staff member" || existing.name.length < person.name.length)) {
     existing.name = person.name
   }
@@ -74,9 +87,35 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
     : ["confirmed", "active"]
 
   if (args.employerEntityType && args.employerEntityId) {
+    if (args.employerEntityType === "organization") {
+      const { data: orgMembers, error: orgMemberError } = await args.supabase
+        .from("org_members")
+        .select("user_id, role")
+        .eq("org_id", args.employerEntityId)
+        .limit(limit)
+      if (orgMemberError) throw new Error(`Unable to load organization people: ${orgMemberError.message}`)
+      for (const row of orgMembers ?? []) {
+        if (!row.user_id) continue
+        mergePerson(peopleByUserId, {
+          id: row.user_id,
+          userId: row.user_id,
+          name: "Organization member",
+          email: null,
+          phone: null,
+          role: row.role ?? "Member",
+          department: null,
+          status: "active",
+          staffMemberId: null,
+          connectionState: "connected",
+          onboardingStatus: null,
+          source: "org_members",
+        })
+      }
+    }
+
     const { data: staffRows } = await args.supabase
       .from("staff_members")
-      .select("id, user_id, name, email, role, position, status")
+      .select("id, user_id, name, email, phone, role, position, department, status")
       .eq("employer_entity_type", args.employerEntityType)
       .eq("employer_entity_id", args.employerEntityId)
       .in("status", staffStatuses)
@@ -89,9 +128,13 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
         userId: row.user_id,
         name: row.name || row.email || "Staff member",
         email: row.email ?? null,
+        phone: row.phone ?? null,
         role: row.position || row.role || "Staff",
+        department: row.department ?? null,
         status: row.status ?? null,
         staffMemberId: row.id,
+        connectionState: row.status === "pending" ? "pending" : "connected",
+        onboardingStatus: null,
         source: "staff_members",
       })
     }
@@ -115,9 +158,13 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
         userId: row.user_id,
         name: row.role_title || "Staff member",
         email: null,
+        phone: null,
         role: row.position || row.role_title || "Staff",
+        department: null,
         status: row.status ?? null,
         staffMemberId: row.staff_member_id ?? null,
+        connectionState: row.status === "invited" ? "pending" : "connected",
+        onboardingStatus: null,
         source: "employment_assignments",
       })
     }
@@ -138,9 +185,13 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
         userId: row.user_id,
         name: row.name || row.email || row.contact_email || "Tour member",
         email: row.email || row.contact_email || null,
+        phone: null,
         role: row.role ?? "Crew",
+        department: "Tour",
         status: row.status ?? null,
         staffMemberId: null,
+        connectionState: row.status === "pending" ? "pending" : "connected",
+        onboardingStatus: null,
         source: "tour_team_members",
       })
     }
@@ -161,9 +212,13 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
         userId: row.participant_id,
         name: "Event participant",
         email: null,
+        phone: null,
         role: row.role ?? "Team member",
+        department: null,
         status: row.status ?? null,
         staffMemberId: null,
+        connectionState: "connected",
+        onboardingStatus: null,
         source: "event_participants",
       })
     }
@@ -185,9 +240,13 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
           userId: row.user_id,
           name: row.name || row.email || "Venue member",
           email: row.email ?? null,
+          phone: null,
           role: row.role ?? "Member",
+          department: null,
           status: row.status ?? null,
           staffMemberId: null,
+          connectionState: row.status === "pending" ? "pending" : "connected",
+          onboardingStatus: null,
           source: "venue_team_members",
         })
       }
@@ -198,7 +257,7 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
   if (userIds.length > 0) {
     const { data: profiles } = await args.supabase
       .from("profiles")
-      .select("id, user_id, full_name, email, username")
+      .select("id, user_id, full_name, email, phone, username")
       .or(`id.in.(${userIds.join(",")}),user_id.in.(${userIds.join(",")})`)
 
     for (const profile of profiles ?? []) {
@@ -212,6 +271,26 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
       if (profile.full_name) existing.name = profile.full_name as string
       else if (profile.username && existing.name === "Staff member") existing.name = profile.username as string
       if (!existing.email && profile.email) existing.email = profile.email as string
+      if (!existing.phone && profile.phone) existing.phone = profile.phone as string
+    }
+
+    if (args.employerEntityType && args.employerEntityId) {
+      const { data: candidates } = await args.supabase
+        .from("staff_onboarding_candidates")
+        .select("user_id, status, onboarding_progress, updated_at")
+        .eq("employer_entity_type", args.employerEntityType)
+        .eq("employer_entity_id", args.employerEntityId)
+        .in("user_id", userIds)
+        .order("updated_at", { ascending: false })
+      for (const candidate of candidates ?? []) {
+        if (!candidate.user_id) continue
+        const existing = peopleByUserId.get(candidate.user_id)
+        if (existing && !existing.onboardingStatus) {
+          existing.onboardingStatus = Number(candidate.onboarding_progress || 0) >= 100
+            ? "completed"
+            : candidate.status || "not_started"
+        }
+      }
     }
   }
 

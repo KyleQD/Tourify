@@ -1,4 +1,5 @@
 import type { HiringActor, HiringEntity, HiringEntityType } from "@/types/hiring-entity"
+import type { JobAssignmentScope } from "@/lib/hiring/job-seat-permissions"
 
 export type HiringServiceErrorCode =
   | "BAD_REQUEST"
@@ -60,10 +61,13 @@ export interface CreateJobPostingInput {
   required_certifications?: string[]
   application_form_template?: Record<string, unknown>
   onboarding_template_id?: string | null
+  assignment_scope?: JobAssignmentScope
+  seat_role?: string | null
+  seat_permissions?: string[]
   event_id?: string | null
   tour_id?: string | null
   event_date?: string | null
-  status?: "draft" | "published" | "closed" | "archived"
+  status?: "draft" | "published" | "paused" | "closed" | "filled" | "archived"
 }
 
 export interface ApplicationDecisionInput {

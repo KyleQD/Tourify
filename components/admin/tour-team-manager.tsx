@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Users, Mail, Phone, Calendar, User, UserPlus, Building, Copy } from "lucide-react"
 import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
@@ -16,6 +18,8 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useActingContext } from "@/hooks/use-acting-context"
+import { AdminFilterBar } from "@/app/admin/dashboard/components/admin-filter-bar"
+import { WorkforceEmptyState, WorkforceMetricCard, WorkforcePanel } from "@/components/hiring/workforce-ui"
 
 interface TourMember {
   id: string
@@ -63,13 +67,39 @@ interface WorkflowMessage {
   created_at: string
 }
 
+interface OrganizationPerson {
+  id: string
+  userId: string
+  name: string
+  email: string | null
+  role: string | null
+  status: string | null
+  staffMemberId: string | null
+}
+
+interface OnboardingTemplate {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
+async function responseError(response: Response, fallback: string) {
+  const body = await response.json().catch(() => ({}))
+  const message = typeof body.error === "string"
+    ? body.error
+    : typeof body.error?.message === "string"
+      ? body.error.message
+      : fallback
+  return new Error(message)
+}
+
 export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamManagerProps) {
-  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const { actingAccount, actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const orgId = actingAccount?.profile_data?.ops_org_id
   const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
     ...input,
     headers: { ...actingHeaders, ...(input?.headers || {}) },
   }), [actingHeaders])
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
@@ -84,7 +114,10 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const [filterStatus, setFilterStatus] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [userQuery, setUserQuery] = useState('')
-  const [userResults, setUserResults] = useState<Array<{ id: string; email: string; display_name?: string; full_name?: string }>>([])
+  const [userResults, setUserResults] = useState<OrganizationPerson[]>([])
+  const [onboardingTemplates, setOnboardingTemplates] = useState<OnboardingTemplate[]>([])
+  const [assignmentMode, setAssignmentMode] = useState<"person" | "invite">("person")
+  const [assignmentError, setAssignmentError] = useState("")
   const [teams, setTeams] = useState<TourTeam[]>([])
   const [workflowThreadId, setWorkflowThreadId] = useState<string | null>(null)
   const [workflowTasks, setWorkflowTasks] = useState<WorkflowTask[]>([])
@@ -110,7 +143,9 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     arrival_date: '',
     departure_date: '',
     responsibilities: '',
-    team_id: ''
+    team_id: '',
+    department: 'General',
+    template_id: ''
   })
 
   const syncWorkflow = useCallback(async () => {
@@ -165,6 +200,29 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       setTeams(payload.data || [])
     })()
   }, [actingContextKey, adminRequest, isActingReady, syncWorkflow, tourId])
+
+  useEffect(() => {
+    if (!isActingReady || !orgId) return
+    let cancelled = false
+    void (async () => {
+      const [peopleResponse, templatesResponse] = await Promise.all([
+        fetch(`/api/admin/workforce/people?tour_id=${encodeURIComponent(tourId)}&include_pending=true`, adminRequest({ cache: 'no-store' })),
+        fetch(`/api/admin/onboarding/templates?entity_type=organization&entity_id=${encodeURIComponent(orgId)}`, adminRequest({ cache: 'no-store' })),
+      ])
+      const peoplePayload = await peopleResponse.json().catch(() => ({}))
+      const templatesPayload = await templatesResponse.json().catch(() => ({}))
+      if (cancelled) return
+      if (peopleResponse.ok) setUserResults(peoplePayload.people || peoplePayload.members || [])
+      if (templatesResponse.ok) {
+        setOnboardingTemplates((templatesPayload.data || []).map((template: any) => ({
+          id: template.id,
+          name: template.name,
+          isDefault: Boolean(template.is_default ?? template.isDefault),
+        })))
+      }
+    })()
+    return () => { cancelled = true }
+  }, [adminRequest, isActingReady, orgId, tourId])
 
   useEffect(() => {
     setTeams(current => current.map(team => ({
@@ -255,13 +313,17 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       arrival_date: '',
       departure_date: '',
       responsibilities: '',
-      team_id: ''
+      team_id: '',
+      department: 'General',
+      template_id: onboardingTemplates.find((template) => template.isDefault)?.id || onboardingTemplates[0]?.id || ''
     })
   }
 
   const handleAddMember = () => {
     resetForm()
-    setIsAddDialogOpen(true)
+    setAssignmentMode("person")
+    setAssignmentError("")
+    setIsInviteDialogOpen(true)
   }
 
   const openInviteDialog = () => {
@@ -269,6 +331,8 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     setUserQuery('')
     setUserResults([])
     setInviteLink('')
+    setAssignmentMode("invite")
+    setAssignmentError("")
     setIsInviteDialogOpen(true)
   }
 
@@ -283,7 +347,9 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       arrival_date: member.arrival_date || '',
       departure_date: member.departure_date || '',
       responsibilities: member.responsibilities || '',
-      team_id: member.team_id || ''
+      team_id: member.team_id || '',
+      department: 'General',
+      template_id: ''
     })
     setIsEditDialogOpen(true)
   }
@@ -370,7 +436,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       const res = await fetch('/api/admin/tours/team-members', adminRequest({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tour_id: tourId, user_id: userId, team_id: teamId, role: 'member', status: 'confirmed' })
+        body: JSON.stringify({ tour_id: tourId, user_id: userId, team_id: teamId, role: 'member', status: 'pending' })
       }))
       if (!res.ok) throw new Error('Failed to assign user to team')
       const payload = await res.json()
@@ -401,12 +467,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     }
     try {
       setIsSearchLoading(true)
-      // Lightweight email search via public profiles view if available; fallback to admin API
-      const params = new URLSearchParams({ q: userQuery })
-      const res = await fetch(`/api/admin/users/search?${params.toString()}`, adminRequest())
+      const params = new URLSearchParams({ tour_id: tourId, include_pending: 'true', query: userQuery })
+      const res = await fetch(`/api/admin/workforce/people?${params.toString()}`, adminRequest())
       if (res.ok) {
         const data = await res.json()
-        setUserResults(data.users || [])
+        setUserResults(data.people || data.members || [])
       } else setUserResults([])
     } catch {
       setUserResults([])
@@ -421,21 +486,23 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       const res = await fetch('/api/admin/tours/team-members', adminRequest({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tour_id: tourId, user_id: userId, role, status: 'confirmed' })
+        body: JSON.stringify({ tour_id: tourId, user_id: userId, team_id: formData.team_id || undefined, role, status: 'pending', arrival_date: formData.arrival_date || undefined, departure_date: formData.departure_date || undefined, responsibilities: formData.responsibilities || undefined })
       }))
-      if (!res.ok) throw new Error('Failed to assign user')
+      if (!res.ok) throw await responseError(res, 'Failed to assign user')
       const data = await res.json()
       onMembersUpdate([...members, data.data])
       toast.success('User assigned to tour')
       setIsInviteDialogOpen(false)
-    } catch {
-      toast.error('Failed to assign user')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to assign user'
+      setAssignmentError(message)
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const inviteMember = async (payload: { email?: string; phone?: string; role: string }) => {
+  const inviteMember = async (payload: { name: string; email?: string; phone?: string; role: string }) => {
     setIsSubmitting(true)
     try {
       const res = await fetch(`/api/tours/${tourId}/invites`, adminRequest({
@@ -444,17 +511,24 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
         body: JSON.stringify({
           email: payload.email,
           phone: payload.phone,
+          name: payload.name,
           role: payload.role,
+          department: formData.department,
+          template_id: formData.template_id,
+          team_id: formData.team_id || undefined,
+          arrival_date: formData.arrival_date || undefined,
+          departure_date: formData.departure_date || undefined,
+          responsibilities: formData.responsibilities || undefined,
           positionDetails: {
             title: payload.role,
             description: `Tour team invitation for ${payload.role}`
           }
         })
       }))
-      if (!res.ok) throw new Error('Failed to send invite')
+      if (!res.ok) throw await responseError(res, 'Failed to send invite')
       const result = await res.json()
-      const link = result.onboardingUrl
-        ? new URL(result.onboardingUrl, window.location.origin).toString()
+      const link = result.acceptUrl
+        ? new URL(result.acceptUrl, window.location.origin).toString()
         : ''
       setInviteLink(link)
       if (result.delivery?.delivered) {
@@ -463,8 +537,10 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       } else {
         toast.warning('Invitation created, but automatic delivery is unavailable. Share the link below.')
       }
-    } catch (e) {
-      toast.error('Failed to send invitation')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send invitation'
+      setAssignmentError(message)
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -488,7 +564,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       }))
 
       if (!response.ok) {
-        throw new Error('Failed to save team member')
+        throw await responseError(response, 'Failed to save team member')
       }
 
       const result = await response.json()
@@ -505,12 +581,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
         toast.success('Team member added successfully')
       }
 
-      setIsAddDialogOpen(false)
       setIsEditDialogOpen(false)
       resetForm()
     } catch (error) {
       console.error('Error saving team member:', error)
-      toast.error('Failed to save team member')
+      toast.error(error instanceof Error ? error.message : 'Failed to save team member')
     } finally {
       setIsSubmitting(false)
     }
@@ -567,16 +642,22 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                          member.email.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesStatus && matchesSearch
   })
+  const visibleOrganizationPeople = useMemo(() => {
+    const query = userQuery.trim().toLowerCase()
+    if (!query) return userResults
+    return userResults.filter((person) => [person.name, person.email, person.role]
+      .some((value) => value?.toLowerCase().includes(query)))
+  }, [userQuery, userResults])
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="order-1 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Tour Team</h2>
           <p className="text-slate-400">Manage team members for this tour</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={openCreateTeam} variant="outline" className="border-slate-600 text-slate-300">
             <Building className="mr-2 h-4 w-4" />
             Create Team
@@ -591,7 +672,13 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
         </div>
       </div>
 
-      <Card className="bg-slate-900/50 border-slate-700/50">
+      <div className="order-2 grid gap-3 sm:grid-cols-3">
+        <WorkforceMetricCard label="Confirmed" value={members.filter((member) => member.status === "confirmed").length} icon={CheckCircle} accent="green" />
+        <WorkforceMetricCard label="Pending" value={members.filter((member) => member.status === "pending").length} icon={Clock} accent="amber" />
+        <WorkforceMetricCard label="Teams" value={teams.length} icon={Building} accent="purple" />
+      </div>
+
+      <Card className="order-6 bg-slate-900/50 border-slate-700/50">
         <CardHeader>
           <CardTitle className="text-white flex items-center justify-between">
             <span>Unified Tour Workflow</span>
@@ -713,13 +800,13 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Teams Section */}
       {teams.length > 0 && (
-        <div className="space-y-4">
+        <div className="order-3 space-y-4">
           <h3 className="text-lg font-semibold text-white">Teams</h3>
           <div className="grid gap-4">
             {teams.map((team) => (
               <Card key={team.id} className="bg-slate-900/50 border-slate-700/50">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <Building className="h-5 w-5 text-blue-400" />
@@ -735,7 +822,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                         <p className="text-sm text-slate-400">{team.description}</p>
                       )}
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -789,42 +876,38 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       )}
 
       {/* Filters */}
-      <div className="flex items-center space-x-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search team members..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-800/50 border-slate-700 text-white"
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40 bg-slate-800/50 border-slate-700 text-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="declined">Declined</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="order-4">
+        <AdminFilterBar
+          searchPlaceholder="Search tour team…"
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusValue={filterStatus}
+          onStatusChange={setFilterStatus}
+          statusOptions={[
+            { value: "all", label: "All statuses" },
+            { value: "confirmed", label: "Confirmed" },
+            { value: "pending", label: "Pending" },
+            { value: "declined", label: "Declined" },
+          ]}
+        />
       </div>
 
       {/* Team Members Grid */}
+      {filteredMembers.length > 0 ? (
+      <WorkforcePanel className="order-5 p-3 sm:p-4">
       <div className="grid gap-4">
         {filteredMembers.map((member) => (
           <Card key={member.id} className="bg-slate-900/50 border-slate-700/50 hover:bg-slate-900/70 transition-colors">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                     <User className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1">
                     <h4 className="font-medium text-white">{member.name}</h4>
                     <p className="text-sm text-slate-400">{member.role}</p>
-                    <div className="flex items-center space-x-4 mt-1">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                       <div className="flex items-center space-x-1">
                         <Mail className="h-3 w-3 text-slate-500" />
                         <span className="text-xs text-slate-500">{member.email}</span>
@@ -856,7 +939,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                     )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   <Badge className={getStatusColor(member.status)}>
                     {getStatusIcon(member.status)}
                     <span className="ml-1 capitalize">{member.status}</span>
@@ -883,150 +966,18 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           </Card>
         ))}
       </div>
+      </WorkforcePanel>
+      ) : null}
 
       {filteredMembers.length === 0 && (
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-12 text-center">
-            <Users className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Team Members Found</h3>
-            <p className="text-slate-400 mb-6">
-              {searchTerm || filterStatus !== 'all' 
-                ? 'No team members match your current filters'
-                : 'Get started by adding your first team member to this tour'
-              }
-            </p>
-            <Button onClick={handleAddMember} className="bg-purple-600 hover:bg-purple-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Add First Member
-            </Button>
-          </CardContent>
-        </Card>
+        <WorkforceEmptyState
+          className="order-5"
+          icon={Users}
+          title={members.length ? "No matching team members" : "No tour team yet"}
+          description={members.length ? "Adjust the search or status filter." : "Add an organization person or send a staffing invitation."}
+          action={!members.length ? <Button onClick={handleAddMember}><Plus className="mr-2 h-4 w-4" />Add first member</Button> : undefined}
+        />
       )}
-
-      {/* Add Member Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
-          <div className={detailSurfacePattern.topAccent} />
-          <DialogHeader>
-            <DialogTitle className={detailSurfacePattern.title}>Add Team Member</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className={detailSurfacePattern.label}>Name</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className={detailSurfacePattern.input}
-                />
-              </div>
-              <div>
-                <Label className={detailSurfacePattern.label}>Role</Label>
-                <Input
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className={detailSurfacePattern.input}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label className={detailSurfacePattern.label}>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className={detailSurfacePattern.input}
-              />
-            </div>
-
-            <div>
-              <Label className={detailSurfacePattern.label}>Phone (Optional)</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className={detailSurfacePattern.input}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className={detailSurfacePattern.label}>Arrival Date</Label>
-                <Input
-                  type="date"
-                  value={formData.arrival_date}
-                  onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
-                  className={detailSurfacePattern.input}
-                />
-              </div>
-              <div>
-                <Label className={detailSurfacePattern.label}>Departure Date</Label>
-                <Input
-                  type="date"
-                  value={formData.departure_date}
-                  onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })}
-                  className={detailSurfacePattern.input}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className={detailSurfacePattern.label}>Status</Label>
-              <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="declined">Declined</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className={detailSurfacePattern.label}>Team (Optional)</Label>
-              <Select value={formData.team_id} onValueChange={(value: any) => setFormData({ ...formData, team_id: value })}>
-                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
-                  <SelectValue placeholder="Select team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>{team.name} - {team.role}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className={detailSurfacePattern.label}>Responsibilities (Optional)</Label>
-              <Textarea
-                value={formData.responsibilities}
-                onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })}
-                className={detailSurfacePattern.textarea}
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-                className={detailSurfacePattern.btnOutline}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleSubmit(false)}
-                disabled={isSubmitting}
-                className={detailSurfacePattern.btnPrimary}
-              >
-                {isSubmitting ? 'Adding...' : 'Add Member'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Member Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1277,14 +1228,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
               {userResults.length > 0 && (
                 <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-slate-600">
                   {userResults.map(u => (
-                    <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm text-slate-200">
+                    <div key={u.userId} className="flex items-center justify-between px-3 py-2 text-sm text-slate-200">
                       <div>
-                        <div className="font-medium">{u.display_name || u.full_name || u.email}</div>
+                        <div className="font-medium">{u.name || u.email}</div>
                         <div className="text-xs text-slate-400">{u.email}</div>
                       </div>
                       <Button 
                         size="sm" 
-                        onClick={() => handleAssignUserToTeam(u.id, selectedTeam!.id)} 
+                        onClick={() => handleAssignUserToTeam(u.userId, selectedTeam!.id)}
                         className={detailSurfacePattern.btnPrimary}
                       >
                         Add to Team
@@ -1306,49 +1257,119 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
       {/* Invite Dialog */}
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-md")}>
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-h-[90vh] max-w-2xl overflow-y-auto")}>
           <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className={detailSurfacePattern.title}>Invite Team Member</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Add a tour team member</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className={detailSurfacePattern.label}>Search existing users (email)</Label>
-              <div className="flex gap-2">
-                <Input value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="jane@company.com" className={detailSurfacePattern.input} />
-                <Button variant="outline" onClick={searchExistingUsers} className={detailSurfacePattern.btnOutline}>
-                  {isSearchLoading ? '...' : 'Search'}
-                </Button>
-              </div>
-              {userResults.length > 0 && (
-                <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-slate-600">
-                  {userResults.map(u => (
-                    <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm text-slate-200">
-                      <div>
-                        <div className="font-medium">{u.display_name || u.full_name || u.email}</div>
-                        <div className="text-xs text-slate-400">{u.email}</div>
+          <div className="space-y-5">
+            {assignmentError ? (
+              <Alert variant="destructive" aria-live="polite">
+                <AlertDescription>{assignmentError}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <Tabs value={assignmentMode} onValueChange={(value) => { setAssignmentMode(value as "person" | "invite"); setAssignmentError("") }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="person">Organization people</TabsTrigger>
+                <TabsTrigger value="invite">Invite someone</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="person" className="space-y-3 pt-3">
+                <div>
+                  <Label htmlFor="tour-person-search" className={detailSurfacePattern.label}>Search people</Label>
+                  <div className="flex gap-2">
+                    <Input id="tour-person-search" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="Name, email, or role" className={detailSurfacePattern.input} />
+                    <Button type="button" variant="outline" onClick={searchExistingUsers} className={detailSurfacePattern.btnOutline} disabled={isSearchLoading}>
+                      {isSearchLoading ? 'Searching…' : 'Search'}
+                    </Button>
+                  </div>
+                </div>
+                <div className="max-h-64 space-y-2 overflow-y-auto" role="list">
+                  {visibleOrganizationPeople.map((person) => (
+                    <div key={person.userId} className="flex flex-col gap-3 rounded-lg border border-border/70 bg-card/50 p-3 sm:flex-row sm:items-center sm:justify-between" role="listitem">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-foreground">{person.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">{person.email || person.role || 'Organization member'}</div>
                       </div>
-                      <Button size="sm" onClick={() => assignExistingUser(u.id, formData.role || 'Member')} className={detailSurfacePattern.btnPrimary}>Assign</Button>
+                      <Button type="button" size="sm" onClick={() => assignExistingUser(person.userId, formData.role || person.role || 'Crew')} disabled={isSubmitting} className={detailSurfacePattern.btnPrimary}>
+                        {isSubmitting ? 'Adding…' : 'Add to tour'}
+                      </Button>
                     </div>
                   ))}
+                  {visibleOrganizationPeople.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No connected organization people match this search.</div>
+                  ) : null}
                 </div>
-              )}
-            </div>
+              </TabsContent>
 
-            <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="invite" className="space-y-4 pt-3">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="tour-invite-name" className={detailSurfacePattern.label}>Name</Label>
+                    <Input id="tour-invite-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={detailSurfacePattern.input} />
+                  </div>
+                  <div>
+                    <Label htmlFor="tour-invite-role" className={detailSurfacePattern.label}>Role</Label>
+                    <Input id="tour-invite-role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={detailSurfacePattern.input} />
+                  </div>
+                  <div>
+                    <Label htmlFor="tour-invite-email" className={detailSurfacePattern.label}>Email</Label>
+                    <Input id="tour-invite-email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={detailSurfacePattern.input} />
+                  </div>
+                  <div>
+                    <Label htmlFor="tour-invite-phone" className={detailSurfacePattern.label}>Verified phone</Label>
+                    <Input id="tour-invite-phone" type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={detailSurfacePattern.input} />
+                  </div>
+                  <div>
+                    <Label htmlFor="tour-invite-department" className={detailSurfacePattern.label}>Department</Label>
+                    <Input id="tour-invite-department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className={detailSurfacePattern.input} />
+                  </div>
+                  <div>
+                    <Label className={detailSurfacePattern.label}>Onboarding packet</Label>
+                    <Select value={formData.template_id} onValueChange={(value) => setFormData({ ...formData, template_id: value })}>
+                      <SelectTrigger className={detailSurfacePattern.selectTrigger}><SelectValue placeholder="Select a packet" /></SelectTrigger>
+                      <SelectContent>
+                        {onboardingTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}{template.isDefault ? ' · Default' : ''}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label className={detailSurfacePattern.label}>Invite Email</Label>
-                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={detailSurfacePattern.input} />
+                <Label className={detailSurfacePattern.label}>Team</Label>
+                <Select value={formData.team_id || "unassigned"} onValueChange={(value) => setFormData({ ...formData, team_id: value === "unassigned" ? "" : value })}>
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Default Crew team</SelectItem>
+                    {teams.map((team) => <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
-                <Label className={detailSurfacePattern.label}>Role</Label>
-                <Input value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className={detailSurfacePattern.input} />
+                <Label className={detailSurfacePattern.label}>Role override</Label>
+                <Input value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} placeholder="Crew" className={detailSurfacePattern.input} />
               </div>
+              <div>
+                <Label className={detailSurfacePattern.label}>Arrival</Label>
+                <Input type="date" value={formData.arrival_date} onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })} className={detailSurfacePattern.input} />
+              </div>
+              <div>
+                <Label className={detailSurfacePattern.label}>Departure</Label>
+                <Input type="date" value={formData.departure_date} onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })} className={detailSurfacePattern.input} />
+              </div>
+            </div>
+            <div>
+              <Label className={detailSurfacePattern.label}>Responsibilities</Label>
+              <Textarea value={formData.responsibilities} onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })} className={detailSurfacePattern.textarea} rows={3} />
             </div>
 
             {inviteLink ? (
               <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
-                <Label className="text-amber-200">Shareable onboarding link</Label>
+                <Label className="text-amber-200">Shareable acceptance link</Label>
                 <div className="flex gap-2">
                   <Input value={inviteLink} readOnly className={detailSurfacePattern.input} />
                   <Button
@@ -1369,13 +1390,15 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className={detailSurfacePattern.btnOutline}>Cancel</Button>
-              <Button
-                onClick={() => inviteMember({ email: formData.email, role: formData.role })}
-                disabled={isSubmitting || !formData.role.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)}
-                className={detailSurfacePattern.btnPrimary}
-              >
-                {isSubmitting ? 'Creating...' : 'Send Invite'}
-              </Button>
+              {assignmentMode === "invite" ? (
+                <Button
+                  onClick={() => inviteMember({ name: formData.name, email: formData.email || undefined, phone: formData.phone || undefined, role: formData.role })}
+                  disabled={isSubmitting || !formData.name.trim() || !formData.role.trim() || !(formData.email.trim() || formData.phone.trim()) || !formData.template_id}
+                  className={detailSurfacePattern.btnPrimary}
+                >
+                  {isSubmitting ? 'Creating…' : 'Send invitation'}
+                </Button>
+              ) : null}
             </div>
           </div>
         </DialogContent>

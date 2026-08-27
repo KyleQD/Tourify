@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { ArtistEventOpsPanel } from "@/app/artist/events/components/artist-event-ops-panel"
+import { EventTicketingWorkspace } from "@/components/ticketing/event-ticketing-workspace"
 import { 
   ArrowLeft,
   Calendar, 
@@ -998,6 +999,7 @@ export default function EventDetailPage() {
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
           <TabsList className={artistEventUI.tabsList}>
           <TabsTrigger value="overview" className={artistEventUI.tabsTrigger}>Overview</TabsTrigger>
+          <TabsTrigger value="ticketing" className={artistEventUI.tabsTrigger}>Ticketing</TabsTrigger>
           <TabsTrigger value="public-page" className={artistEventUI.tabsTrigger}>Public Page</TabsTrigger>
           <TabsTrigger value="crew" className={artistEventUI.tabsTrigger}>Crew</TabsTrigger>
           <TabsTrigger value="venues" className={artistEventUI.tabsTrigger}>Venues</TabsTrigger>
@@ -1009,13 +1011,15 @@ export default function EventDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <ArtistEventOpsPanel
-            eventId={eventId}
-            promotedEventV2Id={event?.promoted_event_v2_id}
-            onPromoted={(id) => {
-              setEvent((prev) => (prev ? { ...prev, promoted_event_v2_id: id } : prev))
-            }}
-          />
+          {!event?.promoted_event_v2_id ? (
+            <ArtistEventOpsPanel
+              eventId={eventId}
+              promotedEventV2Id={event?.promoted_event_v2_id}
+              onPromoted={(id) => {
+                setEvent((prev) => (prev ? { ...prev, promoted_event_v2_id: id } : prev))
+              }}
+            />
+          ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Event Details */}
             <Card className={artistEventUI.panel}>
@@ -1126,6 +1130,22 @@ export default function EventDetailPage() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ticketing" className="space-y-6">
+          {event.promoted_event_v2_id ? (
+            <EventTicketingWorkspace eventId={event.promoted_event_v2_id} surface="artist" />
+          ) : (
+            <Card className={artistEventUI.panel}>
+              <CardHeader>
+                <CardTitle className="text-white">Finish event setup first</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-slate-300">Ticketing, guest-list allocations, and crew credentials use the event operations record created from Overview.</p>
+                <Button onClick={() => setSelectedTab('overview')} className={artistEventUI.buttonPrimary}>Open event setup</Button>
               </CardContent>
             </Card>
           )}

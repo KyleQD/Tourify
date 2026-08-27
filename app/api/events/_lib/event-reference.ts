@@ -7,6 +7,9 @@ export interface EventReference {
   ownerUserId: string | null
   isPublic: boolean | null
   orgId?: string | null
+  venueId?: string | null
+  eventDate?: string | null
+  eventTime?: string | null
 }
 
 function isUuid(value: string) {
@@ -52,7 +55,7 @@ export async function resolveEventReference(
 
     const { data: eventV2 } = await supabase
       .from('events_v2')
-      .select('id, status, created_by, org_id')
+      .select('id, status, created_by, org_id, venue_id, event_date, event_time')
       .eq('id', eventIdOrSlug)
       .maybeSingle()
 
@@ -64,6 +67,9 @@ export async function resolveEventReference(
         ownerUserId: eventV2.created_by,
         isPublic: null,
         orgId: eventV2.org_id ?? null,
+        venueId: eventV2.venue_id ?? null,
+        eventDate: eventV2.event_date ?? null,
+        eventTime: eventV2.event_time ?? null,
       }
     }
 
@@ -104,7 +110,7 @@ export async function resolveEventReference(
 
   const { data: eventV2BySlug } = await supabase
     .from('events_v2')
-    .select('id, status, created_by, org_id')
+    .select('id, status, created_by, org_id, venue_id, event_date, event_time')
     .eq('slug', eventIdOrSlug)
     .maybeSingle()
 
@@ -116,6 +122,9 @@ export async function resolveEventReference(
       ownerUserId: eventV2BySlug.created_by,
       isPublic: null,
       orgId: eventV2BySlug.org_id ?? null,
+      venueId: eventV2BySlug.venue_id ?? null,
+      eventDate: eventV2BySlug.event_date ?? null,
+      eventTime: eventV2BySlug.event_time ?? null,
     }
   }
 

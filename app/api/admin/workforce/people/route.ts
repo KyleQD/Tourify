@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import { listWorkforcePeople } from "@/lib/services/admin-workforce-people.service"
 
 const querySchema = z.object({
@@ -10,6 +10,7 @@ const querySchema = z.object({
   event_id: z.string().uuid().optional(),
   tour_id: z.string().uuid().optional(),
   venue_id: z.string().uuid().optional(),
+  query: z.string().trim().max(160).optional(),
   include_pending: z
     .enum(["true", "false"])
     .optional()
@@ -17,7 +18,7 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
 })
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminCapability("workforce.view", async (request: NextRequest, { supabase, admin }) => {
   try {
     const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams.entries()))
     if (!parsed.success) {
@@ -35,6 +36,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
       venue_id,
       include_pending,
       limit,
+      query,
     } = parsed.data
 
     if (!employer_entity_id && !event_id && !tour_id && !venue_id) {
@@ -44,10 +46,17 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
       )
     }
 
+    if (employer_entity_type && employer_entity_type !== "organization") {
+      return NextResponse.json({ error: "Organization people search is required for this surface.", code: "forbidden" }, { status: 403 })
+    }
+    if (employer_entity_id && employer_entity_id !== admin.orgId) {
+      return NextResponse.json({ error: "The requested people directory is outside the active organization.", code: "forbidden" }, { status: 403 })
+    }
+
     const people = await listWorkforcePeople({
       supabase,
-      employerEntityType: employer_entity_type ?? (venue_id ? "venue" : null),
-      employerEntityId: employer_entity_id ?? venue_id ?? null,
+      employerEntityType: "organization",
+      employerEntityId: admin.orgId,
       eventId: event_id ?? null,
       tourId: tour_id ?? null,
       venueId: venue_id ?? null,
@@ -55,10 +64,14 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
       limit,
     })
 
+    const normalizedQuery = query?.toLowerCase()
+    const filtered = normalizedQuery
+      ? people.filter((person) => [person.name, person.email, person.role].some((value) => value?.toLowerCase().includes(normalizedQuery)))
+      : people
     return NextResponse.json({
-      members: people,
-      people,
-      total: people.length,
+      members: filtered,
+      people: filtered,
+      total: filtered.length,
     })
   } catch (error) {
     console.error("[Workforce People] GET error:", error)

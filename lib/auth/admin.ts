@@ -66,9 +66,9 @@ export async function resolveAdminSurfaceAccess(
         .maybeSingle(),
       supabaseClient
         .from('org_members')
-        .select('org_id, role')
+        .select('org_id, role, status, permissions')
         .eq('user_id', userId)
-        .in('role', ['owner', 'admin', 'tour_manager', 'production'])
+        .eq('status', 'active')
         .limit(1)
         .maybeSingle(),
       supabaseClient
@@ -96,7 +96,12 @@ export async function resolveAdminSurfaceAccess(
       return { hasAccess: true, role: 'admin', profileType: 'organizer', adminLevel: 'super' }
     }
 
-    if (orgMemberResult?.data?.org_id && !orgMemberResult?.error) {
+    if (
+      orgMemberResult?.data?.org_id &&
+      !orgMemberResult?.error &&
+      (['owner', 'admin', 'tour_manager', 'production'].includes(String(orgMemberResult.data.role)) ||
+        (Array.isArray(orgMemberResult.data.permissions) && orgMemberResult.data.permissions.length > 0))
+    ) {
       return {
         hasAccess: true,
         role: String(orgMemberResult.data.role || 'admin'),

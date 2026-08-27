@@ -23,6 +23,7 @@ import type { EmploymentAssignmentStatus } from "@/types/hiring-roster-work-mode
 
 export interface StaffShiftRow {
   id: string
+  org_id?: string | null
   venue_id?: string | null
   event_id?: string | null
   staff_member_id?: string | null
@@ -137,12 +138,20 @@ export async function syncEmploymentAssignmentForShift(
     ends_at: endsAt,
     status,
     source: "staff_shift",
+    assignment_kind: "shift",
     updated_at: now,
   }
 
-  // Only attach event_id when it looks like a classic events row; events_v2 IDs
-  // can violate the employment_assignments_event_id_fkey. Prefer staff_shift_id link.
-  if (shift.event_id) payload.event_id = shift.event_id
+  // employment_assignments.event_id still targets the legacy `events` table.
+  // Current admin events live in events_v2, so only attach a verified legacy id.
+  if (shift.event_id) {
+    const { data: legacyEvent } = await db
+      .from("events")
+      .select("id")
+      .eq("id", shift.event_id)
+      .maybeSingle()
+    if (legacyEvent?.id) payload.event_id = legacyEvent.id
+  }
 
   const { data: existing } = await db
     .from("employment_assignments")
@@ -164,6 +173,7 @@ export async function syncEmploymentAssignmentForShift(
     updated_at: now,
     employer_entity_type: staffMember.employer_entity_type ?? null,
     employer_entity_id: staffMember.employer_entity_id ?? null,
+    assignment_kind: "shift",
   }
 
   if (existing?.id) {
@@ -307,7 +317,7 @@ export async function respondToShiftAssignment(
 
   const { data: assignment, error: fetchError } = await db
     .from("employment_assignments")
-    .select("id, user_id, status, staff_shift_id, staff_member_id, role_title, starts_at")
+    .select("id, user_id, status, staff_shift_id, staff_member_id, role_title, starts_at, tour_id")
     .eq("id", args.assignmentId)
     .eq("user_id", args.userId)
     .maybeSingle()
@@ -367,6 +377,18 @@ export async function respondToShiftAssignment(
         .update({ status: mapAssignmentStatusToShift(nextAssignmentStatus), updated_at: now })
         .eq("id", shiftId)
     }
+  }
+
+  if (assignment.tour_id) {
+    await db
+      .from("tour_team_members")
+      .update({
+        status: args.action === "accept" ? "confirmed" : "declined",
+        is_active: args.action === "accept",
+        updated_at: now,
+      })
+      .eq("tour_id", assignment.tour_id)
+      .eq("user_id", args.userId)
   }
 
   // Resolve worker display name for admin notification

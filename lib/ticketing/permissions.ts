@@ -26,7 +26,6 @@ const ORG_ADMIN_ROLES = new Set(['owner', 'admin', 'production', 'tour_manager']
 
 export interface TicketingPermissionClient {
   from: (table: string) => any
-  rpc?: (fn: string, args?: Record<string, unknown>) => any
 }
 
 export async function hasTicketingPermission(params: {
@@ -94,7 +93,7 @@ export async function hasTicketingPermission(params: {
     const { data: assignment } = await supabase
       .from('employment_assignments')
       .select('id, permissions')
-      .eq('event_id', eventId)
+      .eq('event_v2_id', eventId)
       .eq('user_id', userId)
       .in('status', ['confirmed', 'active'])
       .limit(1)
