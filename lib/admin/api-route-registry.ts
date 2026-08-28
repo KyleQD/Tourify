@@ -23,6 +23,7 @@ export interface AdminRouteContract {
   capability?: AdminCapability;
   idempotency?: boolean;
   audit?: boolean;
+  auditMethods?: AdminRouteMethod[];
   owner: string;
 }
 
@@ -1024,10 +1025,11 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/activity",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "ops-logistics",
   },
   {
@@ -2867,8 +2869,10 @@ function auditContract(
   contract: AdminRouteContract,
   method: AdminRouteMethod,
 ): AdminAuditContract {
-  if (method === "GET" && contract.audit !== true) return "not_applicable";
-  return contract.audit === true ? "required" : "legacy_missing";
+  const audited =
+    contract.auditMethods?.includes(method) || contract.audit === true;
+  if (method === "GET" && !audited) return "not_applicable";
+  return audited ? "required" : "legacy_missing";
 }
 
 const APPROVED_SERVICE_ROLE_ROUTES = new Set([

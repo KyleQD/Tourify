@@ -4,7 +4,7 @@ import { getSiteMapAccess, requireSiteMapAccess } from "@/lib/site-map/access";
 
 export const GET = withAdminCapability(
   "logistics.view",
-  async (request: NextRequest, { supabase, user }) => {
+  async (request: NextRequest, { supabase, user, admin }) => {
     const segments = new URL(request.url).pathname.split("/");
     const siteMapId = segments[segments.indexOf("site-maps") + 1];
     if (!siteMapId)
@@ -13,7 +13,9 @@ export const GET = withAdminCapability(
         { status: 400 },
       );
 
-    const access = await getSiteMapAccess(supabase, siteMapId, user.id);
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id, {
+      requiredOrgId: admin.orgId,
+    });
     const accessCheck = requireSiteMapAccess(access, "read");
     if (!accessCheck.ok) {
       return NextResponse.json(

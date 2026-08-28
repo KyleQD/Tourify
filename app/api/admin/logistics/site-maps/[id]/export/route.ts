@@ -10,9 +10,11 @@ export async function GET(
   const { id: siteMapId } = await params;
   return withAdminCapability(
     "logistics.view",
-    async (_request, { supabase, user }) => {
+    async (_request, { supabase, user, admin }) => {
       try {
-        const access = await getSiteMapAccess(supabase, siteMapId, user.id);
+        const access = await getSiteMapAccess(supabase, siteMapId, user.id, {
+          requiredOrgId: admin.orgId,
+        });
         const accessCheck = requireSiteMapAccess(access, "export");
         if (!accessCheck.ok) {
           return NextResponse.json(

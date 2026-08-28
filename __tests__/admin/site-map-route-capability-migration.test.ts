@@ -7,6 +7,7 @@ const migratedRoutes = [
   "app/api/admin/logistics/site-map-templates/route.ts",
   "app/api/admin/logistics/site-maps/[id]/export/route.ts",
   "app/api/admin/logistics/site-maps/[id]/versions/route.ts",
+  "app/api/admin/logistics/site-maps/[id]/activity/route.ts",
 ] as const;
 
 describe("SEC-104 site-map route capability migration", () => {
@@ -16,5 +17,14 @@ describe("SEC-104 site-map route capability migration", () => {
     expect(source).toMatch(/withAdminCapability\(\s*["']logistics\.view["']/);
     expect(source).not.toContain("withAdminAuth(");
     expect(source).not.toContain("supabase.auth.getUser()");
+
+    if (relativePath.includes("/[id]/")) {
+      expect(source).toContain("requiredOrgId: admin.orgId");
+    }
+    if (relativePath.endsWith("/activity/route.ts")) {
+      expect(source).toMatch(
+        /withAdminCapability\(\s*["']logistics\.manage["']/,
+      );
+    }
   });
 });

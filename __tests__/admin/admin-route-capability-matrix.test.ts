@@ -105,6 +105,7 @@ describe("SEC-003 Admin command capability matrix", () => {
       "/api/admin/logistics/site-map-templates",
       "/api/admin/logistics/site-maps/[id]/export",
       "/api/admin/logistics/site-maps/[id]/versions",
+      "/api/admin/logistics/site-maps/[id]/activity",
     ]) {
       expect(
         ADMIN_API_ROUTE_REGISTRY.find((entry) => entry.route === route)
@@ -128,6 +129,25 @@ describe("SEC-003 Admin command capability matrix", () => {
     )!;
     expect(adminCommandCapabilities(events, "GET")).toEqual(["event.view"]);
     expect(adminCommandCapabilities(events, "PATCH")).toEqual(["event.manage"]);
+
+    const siteMapActivity = ADMIN_API_ROUTE_REGISTRY.find(
+      (entry) => entry.route === "/api/admin/logistics/site-maps/[id]/activity",
+    )!;
+    expect(adminCommandCapabilities(siteMapActivity, "GET")).toEqual([
+      "logistics.view",
+    ]);
+    expect(adminCommandCapabilities(siteMapActivity, "POST")).toEqual([
+      "logistics.manage",
+    ]);
+    const activityContracts = adminCommandCapabilityMatrix().filter(
+      (entry) => entry.route === siteMapActivity.route,
+    );
+    expect(
+      activityContracts.find((entry) => entry.method === "GET")?.audit,
+    ).toBe("not_applicable");
+    expect(
+      activityContracts.find((entry) => entry.method === "POST")?.audit,
+    ).toBe("required");
   });
 
   it("records stronger publish, settlement, refund, export, and delivery overlays", () => {
