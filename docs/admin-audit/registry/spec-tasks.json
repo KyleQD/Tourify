@@ -1482,7 +1482,10 @@
     "findingIds": [],
     "status": "in_progress",
     "blockers": [],
-    "evidenceIds": [],
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-ROUTE-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Historical feature-spec progress ledger",

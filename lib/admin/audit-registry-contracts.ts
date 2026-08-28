@@ -242,6 +242,10 @@ export const LaunchGateSchema = z
     command: z.string().min(1).nullable(),
     acceptance: z.string().min(1),
     requiredEvidenceKinds: z.array(AdminEvidenceSchema.shape.kind).default([]),
+    requiredEvidenceEnvironments: z
+      .array(z.enum(["ci", "staging", "production"]))
+      .min(1),
+    requiresImmutableCommit: z.boolean(),
     dependsOn: z.array(z.string().regex(/^LG-\d{2}$/)).default([]),
     ownerRole: z.string().min(1),
   })

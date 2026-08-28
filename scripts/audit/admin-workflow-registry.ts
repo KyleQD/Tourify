@@ -198,13 +198,37 @@ function registrySourceHash() {
 }
 
 function gateStatus(gate: LaunchGate, evidence: AdminEvidence[]) {
-  const attached = evidence.filter((item) => item.launchGateIds.includes(gate.gateId))
-  const passingKinds = new Set(
-    attached.filter((item) => item.result === "pass").map((item) => item.kind),
+  const eligible = evidence.filter(
+    (item) =>
+      item.launchGateIds.includes(gate.gateId) &&
+      item.result === "pass" &&
+      gate.requiredEvidenceEnvironments.includes(
+        item.environment as (typeof gate.requiredEvidenceEnvironments)[number],
+      ),
   )
-  return gate.requiredEvidenceKinds.every((kind) => passingKinds.has(kind))
-    ? "evidence_complete"
-    : "not_verified"
+
+  if (!gate.requiresImmutableCommit) {
+    const passingKinds = new Set(eligible.map((item) => item.kind))
+    return gate.requiredEvidenceKinds.every((kind) => passingKinds.has(kind))
+      ? "evidence_complete"
+      : "not_verified"
+  }
+
+  const commits = new Set(
+    eligible.flatMap((item) => (item.commitSha ? [item.commitSha] : [])),
+  )
+  for (const commit of commits) {
+    const passingKinds = new Set(
+      eligible
+        .filter((item) => item.commitSha === commit)
+        .map((item) => item.kind),
+    )
+    if (gate.requiredEvidenceKinds.every((kind) => passingKinds.has(kind))) {
+      return "evidence_complete"
+    }
+  }
+
+  return "not_verified"
 }
 
 function validateDoneEvidence(

@@ -10,6 +10,10 @@
     "requiredEvidenceKinds": [
       "ci_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "ci"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [],
     "ownerRole": "Engineering"
   },
@@ -24,6 +28,10 @@
     "requiredEvidenceKinds": [
       "ci_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "ci"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-01"
     ],
@@ -40,6 +48,10 @@
     "requiredEvidenceKinds": [
       "test_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "ci"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-01"
     ],
@@ -56,6 +68,10 @@
     "requiredEvidenceKinds": [
       "ci_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "ci"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [],
     "ownerRole": "Security engineering"
   },
@@ -70,6 +86,10 @@
     "requiredEvidenceKinds": [
       "ci_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "ci"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [],
     "ownerRole": "Security engineering"
   },
@@ -84,6 +104,10 @@
     "requiredEvidenceKinds": [
       "ci_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "ci"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [],
     "ownerRole": "Database engineering"
   },
@@ -99,6 +123,10 @@
       "independent_verification",
       "security_signoff"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-04",
       "LG-05",
@@ -118,6 +146,10 @@
       "independent_verification",
       "security_signoff"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-07"
     ],
@@ -136,6 +168,10 @@
       "rls_matrix",
       "security_signoff"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-06"
     ],
@@ -153,6 +189,10 @@
       "migration_apply",
       "schema_diff"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-06"
     ],
@@ -169,6 +209,10 @@
     "requiredEvidenceKinds": [
       "rls_matrix"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-09",
       "LG-10"
@@ -187,6 +231,10 @@
       "test_run",
       "api_capture"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-11"
     ],
@@ -204,6 +252,10 @@
       "test_run",
       "api_capture"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-11"
     ],
@@ -221,6 +273,10 @@
       "test_run",
       "schema_diff"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-10",
       "LG-11"
@@ -239,6 +295,10 @@
       "test_run",
       "rls_matrix"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-11"
     ],
@@ -256,6 +316,10 @@
       "accessibility",
       "test_run"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-12",
       "LG-13",
@@ -276,6 +340,10 @@
       "retry_recovery",
       "rollback"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-12",
       "LG-13",
@@ -296,6 +364,10 @@
       "product_signoff",
       "security_signoff"
     ],
+    "requiredEvidenceEnvironments": [
+      "staging"
+    ],
+    "requiresImmutableCommit": true,
     "dependsOn": [
       "LG-02",
       "LG-03",

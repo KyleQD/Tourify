@@ -28,12 +28,14 @@
       "LG-07"
     ],
     "riskIds": [],
-    "status": "observed",
+    "status": "reproduced",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering",
     "independentVerifier": null,
     "implementationCommit": null,
-    "evidenceIds": [],
+    "evidenceIds": [
+      "EVD-WAVE0-TYPECHECK-LOCAL-FAIL"
+    ],
     "priorClaims": [
       {
         "source": "August 25 master handoff register",
@@ -572,12 +574,16 @@
       "LG-08"
     ],
     "riskIds": [],
-    "status": "observed",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Security engineering",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
+      "EVD-WAVE0-SERVICE-ROLE-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "August 25 master handoff register",
@@ -2809,12 +2815,15 @@
       "LG-01"
     ],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -2853,12 +2862,15 @@
       "LG-01"
     ],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-BASELINE-CHECKPOINT",
+      "EVD-WAVE0-CONTROLS-COMMIT"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -2897,12 +2909,14 @@
       "LG-01"
     ],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-TYPECHECK-LOCAL-FAIL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -2939,12 +2953,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -2981,12 +2998,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3023,12 +3043,14 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3107,12 +3129,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3149,12 +3174,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3191,12 +3219,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3233,12 +3264,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3275,12 +3309,14 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Quality engineering",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-ADMIN-TESTS-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3317,12 +3353,14 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Database security",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-MIGRATIONS-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3359,12 +3397,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "reproduced",
+    "status": "implemented",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-AUDIT-REGISTRY-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",
@@ -3403,12 +3444,16 @@
     "riskIds": [
       "RISK-001"
     ],
-    "status": "reproduced",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "evidenceIds": [
+      "EVD-BASELINE-CHECKPOINT",
+      "EVD-WAVE0-CONTROLS-COMMIT",
+      "EVD-WAVE0-MIGRATIONS-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "Current audit of the August 25 handoff",

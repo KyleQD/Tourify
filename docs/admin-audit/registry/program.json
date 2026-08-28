@@ -1,7 +1,7 @@
 {
   "programId": "TOURIFY-ADMIN-COMPLETION",
   "title": "Tourify Admin Workflow Completion",
-  "registryVersion": 1,
+  "registryVersion": 2,
   "baseline": {
     "branch": "codex/admin-workflow-completion",
     "commit": "a043d35d4304cc8181078a17e2138c1f47baf199",
