@@ -578,13 +578,15 @@
     "blockers": [],
     "owner": "Security engineering",
     "independentVerifier": null,
-    "implementationCommit": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
+    "implementationCommit": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
     "evidenceIds": [
       "EVD-WAVE0-CONTROLS-COMMIT",
       "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
       "EVD-WAVE0-SERVICE-ROLE-LOCAL",
       "EVD-SEC104-SITEMAP-COMMIT",
-      "EVD-SEC104-SITEMAP-LOCAL"
+      "EVD-SEC104-SITEMAP-LOCAL",
+      "EVD-SEC104-SITEMAP-ACTING-COMMIT",
+      "EVD-SEC104-SITEMAP-ACTING-LOCAL"
     ],
     "priorClaims": [
       {
@@ -841,12 +843,15 @@
     "specTaskIds": [],
     "launchGateIds": [],
     "riskIds": [],
-    "status": "observed",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Security engineering",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": [],
+    "implementationCommit": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
+    "evidenceIds": [
+      "EVD-SEC104-SITEMAP-ACTING-COMMIT",
+      "EVD-SEC104-SITEMAP-ACTING-LOCAL"
+    ],
     "priorClaims": [
       {
         "source": "August 25 master handoff register",

@@ -1113,10 +1113,12 @@
     "blockers": [],
     "owner": "Operations engineering",
     "independentVerifier": null,
-    "implementationCommit": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
+    "implementationCommit": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
     "evidenceIds": [
       "EVD-SEC104-SITEMAP-COMMIT",
-      "EVD-SEC104-SITEMAP-LOCAL"
+      "EVD-SEC104-SITEMAP-LOCAL",
+      "EVD-SEC104-SITEMAP-ACTING-COMMIT",
+      "EVD-SEC104-SITEMAP-ACTING-LOCAL"
     ]
   },
   {
@@ -1458,7 +1460,7 @@
     "blockers": [],
     "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
+    "implementationCommit": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
     "evidenceIds": [
       "EVD-BASELINE-CHECKPOINT",
       "EVD-WAVE0-CONTROLS-COMMIT",
@@ -1469,7 +1471,9 @@
       "EVD-WAVE0-MIGRATIONS-LOCAL",
       "EVD-WAVE0-TYPECHECK-LOCAL-FAIL",
       "EVD-SEC104-SITEMAP-COMMIT",
-      "EVD-SEC104-SITEMAP-LOCAL"
+      "EVD-SEC104-SITEMAP-LOCAL",
+      "EVD-SEC104-SITEMAP-ACTING-COMMIT",
+      "EVD-SEC104-SITEMAP-ACTING-LOCAL"
     ]
   },
   {
