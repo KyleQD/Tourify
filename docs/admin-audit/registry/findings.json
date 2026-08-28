@@ -578,11 +578,13 @@
     "blockers": [],
     "owner": "Security engineering",
     "independentVerifier": null,
-    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "implementationCommit": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
     "evidenceIds": [
       "EVD-WAVE0-CONTROLS-COMMIT",
       "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
-      "EVD-WAVE0-SERVICE-ROLE-LOCAL"
+      "EVD-WAVE0-SERVICE-ROLE-LOCAL",
+      "EVD-SEC104-SITEMAP-COMMIT",
+      "EVD-SEC104-SITEMAP-LOCAL"
     ],
     "priorClaims": [
       {

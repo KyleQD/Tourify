@@ -1104,16 +1104,20 @@
       "ADM-M-002",
       "ADM-M-010",
       "ADM-M-011",
+      "ADM-M-013",
       "ADM-M-038",
       "ADM-M-061"
     ],
     "specTaskIds": [],
-    "status": "observed",
+    "status": "in_progress",
     "blockers": [],
-    "owner": null,
+    "owner": "Operations engineering",
     "independentVerifier": null,
-    "implementationCommit": null,
-    "evidenceIds": []
+    "implementationCommit": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
+    "evidenceIds": [
+      "EVD-SEC104-SITEMAP-COMMIT",
+      "EVD-SEC104-SITEMAP-LOCAL"
+    ]
   },
   {
     "workflowId": "ADM-WF-014",
@@ -1454,7 +1458,7 @@
     "blockers": [],
     "owner": "Engineering assurance",
     "independentVerifier": null,
-    "implementationCommit": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+    "implementationCommit": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
     "evidenceIds": [
       "EVD-BASELINE-CHECKPOINT",
       "EVD-WAVE0-CONTROLS-COMMIT",
@@ -1463,7 +1467,9 @@
       "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
       "EVD-WAVE0-SERVICE-ROLE-LOCAL",
       "EVD-WAVE0-MIGRATIONS-LOCAL",
-      "EVD-WAVE0-TYPECHECK-LOCAL-FAIL"
+      "EVD-WAVE0-TYPECHECK-LOCAL-FAIL",
+      "EVD-SEC104-SITEMAP-COMMIT",
+      "EVD-SEC104-SITEMAP-LOCAL"
     ]
   },
   {

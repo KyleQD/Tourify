@@ -1484,7 +1484,9 @@
     "blockers": [],
     "evidenceIds": [
       "EVD-WAVE0-CONTROLS-COMMIT",
-      "EVD-WAVE0-ROUTE-REGISTRY-LOCAL"
+      "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
+      "EVD-SEC104-SITEMAP-COMMIT",
+      "EVD-SEC104-SITEMAP-LOCAL"
     ],
     "priorClaims": [
       {
