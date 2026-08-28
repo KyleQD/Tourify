@@ -107,6 +107,9 @@ jobs:
       - name: Service-role allowlist (SEC-109)
         run: npm run check:service-role-allowlist
 
+      - name: Admin workflow registry and generated evidence views
+        run: npm run check:admin-audit
+
       - name: Dependency audit (critical)
         run: npm audit --audit-level=critical
 

@@ -1,15 +1,11 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
+import { readQuarantinedMigration } from "./quarantined-migration-history";
 
-const migrationPath = path.join(
-  process.cwd(),
-  "supabase/migrations/20260722002848_admin_signed_acting_context_sec101.sql",
-);
-const sql = readFileSync(migrationPath, "utf8").toLowerCase();
+const sql = readQuarantinedMigration(
+  "20260722002848_admin_signed_acting_context_sec101.sql",
+).toLowerCase();
 
-describe("SEC-101 signed acting-context migration contract", () => {
+describe("SEC-101 quarantined signed acting-context migration history", () => {
   it("is expand-only and leaves compatibility sessions untouched", () => {
     expect(sql).not.toMatch(/\b(delete from|truncate|drop table|drop column|drop database)\b/);
     expect(sql).not.toMatch(/update\s+(?:public\.)?user_sessions\b/);

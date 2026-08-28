@@ -10,12 +10,14 @@
  */
 
 import { execFileSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 
 const ROOT = process.cwd()
 const TEMPLATE = "docs/engineering/migration-validation-template.md"
 const MANIFEST_DIR = "docs/engineering/migration-validation"
+const HISTORY_BASELINE = "docs/engineering/migration-validation/history-baseline.json"
 const MANIFEST_SCHEMA_VERSION = 1
 // REL-102 starts manifest enforcement prospectively. Older migration history is
 // preserved and reviewed by the existing SQL rules instead of being rewritten.
@@ -183,7 +185,7 @@ function validatePolicyReplacement(sql, sourceSql) {
   return null
 }
 
-function scanFile(file, sql, manifest = null) {
+function scanFile(file, sql, manifest = null, options = {}) {
   const failures = []
   const executableSql = stripComments(sql)
   if (
@@ -206,10 +208,10 @@ function scanFile(file, sql, manifest = null) {
   if (unsafeInsertSelectStatements(executableSql, sql, manifest).length > 0)
     failures.push("INSERT ... SELECT backfill without a WHERE clause or scoped review marker")
 
-  if (unsafeConstraintStatements(executableSql, sql, manifest).length > 0)
+  if (!options.immutableHistory && unsafeConstraintStatements(executableSql, sql, manifest).length > 0)
     failures.push("existing-table FK/CHECK constraint missing NOT VALID or reviewed lock-budget marker")
 
-  if (unsafeNotNullStatements(executableSql, sql, manifest).length > 0)
+  if (!options.immutableHistory && unsafeNotNullStatements(executableSql, sql, manifest).length > 0)
     failures.push("SET NOT NULL missing validated precheck or reviewed lock-budget marker")
 
   const policyFailure = validatePolicyReplacement(executableSql, sql)
@@ -237,6 +239,44 @@ function nonEmptyString(value) {
 
 function validArtifact(value) {
   return nonEmptyString(value) && !/^(pending|todo|tbd|none|null|n\/a)$/i.test(value.trim())
+}
+
+function loadHistoryBaseline() {
+  const absolutePath = path.join(ROOT, HISTORY_BASELINE)
+  if (!existsSync(absolutePath)) {
+    return { entries: new Map(), failures: [`✗ ${HISTORY_BASELINE}: required immutable history baseline is missing`] }
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(absolutePath, "utf8"))
+    const failures = []
+    if (parsed?.schemaVersion !== 1) failures.push(`✗ ${HISTORY_BASELINE}: schemaVersion must be 1`)
+    if (!/^[0-9a-f]{40}$/.test(parsed?.baselineCommit ?? ""))
+      failures.push(`✗ ${HISTORY_BASELINE}: baselineCommit must be a full Git SHA`)
+    if (!Array.isArray(parsed?.migrations) || parsed.migrations.length === 0)
+      failures.push(`✗ ${HISTORY_BASELINE}: migrations must be a non-empty array`)
+
+    const entries = new Map()
+    for (const entry of parsed?.migrations ?? []) {
+      if (!entry?.file?.startsWith("supabase/migrations/") || !entry.file.endsWith(".sql"))
+        failures.push(`✗ ${HISTORY_BASELINE}: invalid migration path ${entry?.file ?? "<missing>"}`)
+      if (!/^[0-9a-f]{64}$/.test(entry?.sha256 ?? ""))
+        failures.push(`✗ ${HISTORY_BASELINE}: invalid SHA-256 for ${entry?.file ?? "<missing>"}`)
+      if (entries.has(entry?.file)) failures.push(`✗ ${HISTORY_BASELINE}: duplicate ${entry.file}`)
+      entries.set(entry?.file, entry?.sha256)
+
+      const migrationPath = path.join(ROOT, entry?.file ?? "")
+      if (!existsSync(migrationPath)) {
+        failures.push(`✗ ${HISTORY_BASELINE}: missing pinned migration ${entry?.file ?? "<missing>"}`)
+        continue
+      }
+      const actual = createHash("sha256").update(readFileSync(migrationPath)).digest("hex")
+      if (actual !== entry.sha256)
+        failures.push(`✗ ${HISTORY_BASELINE}: checksum drift for ${entry.file}`)
+    }
+    return { entries, failures }
+  } catch (error) {
+    return { entries: new Map(), failures: [`✗ ${HISTORY_BASELINE}: invalid JSON (${error.message})`] }
+  }
 }
 
 export function validateManifest(manifest, file, options = {}) {
@@ -343,6 +383,12 @@ export function main() {
     process.exit(1)
   }
 
+  const history = loadHistoryBaseline()
+  if (history.failures.length > 0) {
+    history.failures.forEach((failure) => console.error(failure))
+    process.exit(1)
+  }
+
   const args = process.argv.slice(2).filter((a) => a.endsWith(".sql"))
   const files = args.length > 0 ? args : gitChangedMigrations()
 
@@ -363,13 +409,17 @@ export function main() {
     const failures = [
       ...loaded.failures,
       ...(loaded.manifest ? validateManifest(loaded.manifest, file, { requiredStage }) : []),
-      ...scanFile(file, readFileSync(abs, "utf8"), loaded.manifest),
+      ...scanFile(file, readFileSync(abs, "utf8"), loaded.manifest, {
+        immutableHistory: history.entries.has(file),
+      }),
     ]
     if (failures.length > 0) {
       failures.forEach((failure) => console.error(failure))
       failed = true
     } else {
-      console.log(`✓ scanned ${file}${loaded.manifest ? ` with ${loaded.manifest.status} manifest` : ""}`)
+      console.log(
+        `✓ scanned ${file}${loaded.manifest ? ` with ${loaded.manifest.status} manifest` : ""}${history.entries.has(file) ? " against immutable history checksum" : ""}`,
+      )
     }
   }
 
@@ -378,6 +428,6 @@ export function main() {
   process.exit(0)
 }
 
-export { gitChangedMigrations, manifestPathForMigration, manifestRequired, scanFile, stripComments }
+export { gitChangedMigrations, loadHistoryBaseline, manifestPathForMigration, manifestRequired, scanFile, stripComments }
 
 if (import.meta.url === `file://${process.argv[1]}`) main()

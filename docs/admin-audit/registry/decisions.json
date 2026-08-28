@@ -1,0 +1,83 @@
+[
+  {
+    "decisionId": "ADM-DEC-001",
+    "sourceAlias": "ADR-001",
+    "topic": "Canonical event model",
+    "decision": "events_v2 is canonical; legacy events receive a bounded one-way migration bridge and retirement plan.",
+    "rationale": "One event identity must serve provider, tour, calendar, Artist, and discovery consumers.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-002",
+    "sourceAlias": "ADR-004",
+    "topic": "Finance launch scope",
+    "decision": "Organization Admin finance is read-only at launch; mutation APIs are hidden and denied.",
+    "rationale": "The existing ledger is not a provider-backed money-movement system.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-003",
+    "sourceAlias": "ADR-005",
+    "topic": "Contract launch scope",
+    "decision": "Contracts support tracking, obligations, documents, and renewals only; no signing or unverified executed transition.",
+    "rationale": "Electronic execution requires a verified provider and legal/security acceptance.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-004",
+    "sourceAlias": "ADR-007",
+    "topic": "Mobile launch scope",
+    "decision": "Launch scope is responsive web at phone, tablet, and desktop sizes.",
+    "rationale": "Native Admin and Worker applications are deferred.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-005",
+    "sourceAlias": "ADR-008",
+    "topic": "Provider tool scope",
+    "decision": "Provider-administration tools are platform-internal only.",
+    "rationale": "Organization Admin roles must not inherit global provider authority.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-006",
+    "sourceAlias": null,
+    "topic": "Implementation baseline",
+    "decision": "The checkpoint a043d35d on codex/admin-workflow-completion is the immutable baseline.",
+    "rationale": "It preserves the reviewed August 21 workspace without crediting unavailable remediation commits.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-007",
+    "sourceAlias": null,
+    "topic": "Verification environment",
+    "decision": "Database and runtime verification use a dedicated non-production Supabase project or branch.",
+    "rationale": "Production and Tourify Demo must not be mutated for development verification.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-008",
+    "sourceAlias": null,
+    "topic": "Progress authority",
+    "decision": "The repo-native JSON registry is authoritative; Markdown, CSV, dashboard, and workbook are generated views.",
+    "rationale": "This removes contradictory hand-edited ledgers.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-009",
+    "sourceAlias": null,
+    "topic": "Release approval",
+    "decision": "Independent clean-context verification and human product/security sign-off are mandatory.",
+    "rationale": "Implementation-session claims alone cannot close a workflow or launch gate.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  }
+]

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260819205907_connected_worker_work_hub.sql",
+  "taskId": "CONNECTED-WORKER-WORK-HUB",
+  "status": "planned",
+  "owner": "workforce-platform",
+  "reviewer": "security-data",
+  "domains": ["workforce", "hiring", "messaging", "publication", "rls"],
+  "riskLevel": "critical",
+  "representativeSnapshot": {
+    "kind": "checkpoint-pinned legacy snapshot with employment assignments, shifts, staff members, channels, and publications",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Reconcile employment assignments to applications, postings, tours, shifts, staff members, and worker user identifiers by organization"
+    ],
+    "expectedAffectedRows": "Scoped assignment backfills populate existing derivable links; unresolved identities remain visible as integrity issues",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 300000,
+    "batchSize": 1000,
+    "resumeStrategy": "Confirm the checkpoint checksum, resume scoped backfills by assignment identifier, and replay guarded channel/publication setup",
+    "resumeCursor": "Supabase migration version 20260819205907 plus last reconciled employment_assignment id",
+    "idempotency": "Columns, tables, indexes, policies, triggers, and functions are guarded or deterministic; backfills update only unresolved scoped rows"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "public.work_hub_integrity_issues",
+    "strategy": "Expose unresolved or conflicting worker, employer, job, shift, channel, and publication relationships without guessing ownership"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "employment assignment kind and lifecycle constraints",
+      "workforce channel and publication audience relationship constraints"
+    ],
+    "indexes": [
+      "assignment lineage and schedule conflict indexes",
+      "workforce channel and publication audience indexes"
+    ],
+    "validationPlan": "Apply to fresh and legacy snapshots, reconcile every relationship count, test worker and manager RLS, and verify duplicate/retry behavior"
+  },
+  "recovery": {
+    "rollback": "Disable connected work-hub surfaces, preserve lineage and integrity issue rows, and apply reviewed forward policy or function corrections",
+    "forwardFix": "Repair unresolved relationships additively, validate constraints, and replay channel/publication synchronization"
+  },
+  "postflight": {
+    "queries": [
+      "Reconcile work_hub_integrity_issues, assignment lineage, channel membership, publication audience, RLS policies, grants, and direct cross-org attempts"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -19,14 +19,14 @@ import {
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20260731184645_streamlined_tour_builder_quick_start.sql",
+    "supabase/migrations/20260731193454_streamlined_tour_builder_quick_start.sql",
   ),
   "utf8",
 )
 const rlsRepairMigration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20260731194500_quick_start_event_rpc_rls_repair.sql",
+    "supabase/migrations/20260731194002_quick_start_event_rpc_rls_repair.sql",
   ),
   "utf8",
 )

@@ -1,0 +1,310 @@
+[
+  {
+    "gateId": "LG-01",
+    "title": "TypeScript typecheck passes",
+    "required": true,
+    "deliveryWave": 0,
+    "checkKind": "command",
+    "command": "npm run typecheck",
+    "acceptance": "Exit code 0 under the pinned Node 20 toolchain.",
+    "requiredEvidenceKinds": [
+      "ci_run"
+    ],
+    "dependsOn": [],
+    "ownerRole": "Engineering"
+  },
+  {
+    "gateId": "LG-02",
+    "title": "Production build passes",
+    "required": true,
+    "deliveryWave": 0,
+    "checkKind": "command",
+    "command": "npm run build",
+    "acceptance": "Production build exits 0 with the governed environment fixture.",
+    "requiredEvidenceKinds": [
+      "ci_run"
+    ],
+    "dependsOn": [
+      "LG-01"
+    ],
+    "ownerRole": "Engineering"
+  },
+  {
+    "gateId": "LG-03",
+    "title": "Admin automated tests pass",
+    "required": true,
+    "deliveryWave": 0,
+    "checkKind": "command",
+    "command": "npx vitest run __tests__/admin",
+    "acceptance": "All Admin suites pass with no unexplained skips.",
+    "requiredEvidenceKinds": [
+      "test_run"
+    ],
+    "dependsOn": [
+      "LG-01"
+    ],
+    "ownerRole": "Engineering"
+  },
+  {
+    "gateId": "LG-04",
+    "title": "Admin route registry passes",
+    "required": true,
+    "deliveryWave": 0,
+    "checkKind": "command",
+    "command": "npm run check:admin-route-registry",
+    "acceptance": "Every Admin route/method is classified and legacy debt does not grow.",
+    "requiredEvidenceKinds": [
+      "ci_run"
+    ],
+    "dependsOn": [],
+    "ownerRole": "Security engineering"
+  },
+  {
+    "gateId": "LG-05",
+    "title": "Service-role allowlist passes",
+    "required": true,
+    "deliveryWave": 1,
+    "checkKind": "command",
+    "command": "npm run check:service-role-allowlist",
+    "acceptance": "No unreviewed bare service-role import remains.",
+    "requiredEvidenceKinds": [
+      "ci_run"
+    ],
+    "dependsOn": [],
+    "ownerRole": "Security engineering"
+  },
+  {
+    "gateId": "LG-06",
+    "title": "Migration validation passes",
+    "required": true,
+    "deliveryWave": 0,
+    "checkKind": "command",
+    "command": "npm run check:migration-validation",
+    "acceptance": "Every governed migration has safe SQL and matching evidence manifest.",
+    "requiredEvidenceKinds": [
+      "ci_run"
+    ],
+    "dependsOn": [],
+    "ownerRole": "Database engineering"
+  },
+  {
+    "gateId": "LG-07",
+    "title": "Zero open P0 findings",
+    "required": true,
+    "deliveryWave": 1,
+    "checkKind": "finding_query",
+    "command": null,
+    "acceptance": "All P0 findings are Done with required evidence.",
+    "requiredEvidenceKinds": [
+      "independent_verification",
+      "security_signoff"
+    ],
+    "dependsOn": [
+      "LG-04",
+      "LG-05",
+      "LG-06"
+    ],
+    "ownerRole": "Security"
+  },
+  {
+    "gateId": "LG-08",
+    "title": "Zero launch-blocking P1 findings",
+    "required": true,
+    "deliveryWave": 4,
+    "checkKind": "finding_query",
+    "command": null,
+    "acceptance": "All P1 security, isolation, migration, and delivery findings are Done.",
+    "requiredEvidenceKinds": [
+      "independent_verification",
+      "security_signoff"
+    ],
+    "dependsOn": [
+      "LG-07"
+    ],
+    "ownerRole": "Security"
+  },
+  {
+    "gateId": "LG-09",
+    "title": "SECURITY DEFINER inventory complete",
+    "required": true,
+    "deliveryWave": 1,
+    "checkKind": "evidence_query",
+    "command": null,
+    "acceptance": "Every privileged function has actor binding, pinned search path, restricted grants, tests, or an approved removal record.",
+    "requiredEvidenceKinds": [
+      "schema_diff",
+      "rls_matrix",
+      "security_signoff"
+    ],
+    "dependsOn": [
+      "LG-06"
+    ],
+    "ownerRole": "Database security"
+  },
+  {
+    "gateId": "LG-10",
+    "title": "Repository and staging migration parity",
+    "required": true,
+    "deliveryWave": 1,
+    "checkKind": "evidence_query",
+    "command": null,
+    "acceptance": "Named staging schema, policies, grants, buckets, functions, and migration versions match the immutable commit.",
+    "requiredEvidenceKinds": [
+      "migration_apply",
+      "schema_diff"
+    ],
+    "dependsOn": [
+      "LG-06"
+    ],
+    "ownerRole": "Database engineering"
+  },
+  {
+    "gateId": "LG-11",
+    "title": "Two-organization RLS matrix passes",
+    "required": true,
+    "deliveryWave": 1,
+    "checkKind": "command",
+    "command": "npm run test:rls-matrix",
+    "acceptance": "Positive and cross-organization negative cases pass for every exposed domain.",
+    "requiredEvidenceKinds": [
+      "rls_matrix"
+    ],
+    "dependsOn": [
+      "LG-09",
+      "LG-10"
+    ],
+    "ownerRole": "Security QA"
+  },
+  {
+    "gateId": "LG-12",
+    "title": "Admin to Worker journey passes",
+    "required": true,
+    "deliveryWave": 3,
+    "checkKind": "workflow_query",
+    "command": null,
+    "acceptance": "Posting through check-in and recipient acknowledgement passes without soft assertions.",
+    "requiredEvidenceKinds": [
+      "test_run",
+      "api_capture"
+    ],
+    "dependsOn": [
+      "LG-11"
+    ],
+    "ownerRole": "Product QA"
+  },
+  {
+    "gateId": "LG-13",
+    "title": "Admin to Artist journey passes",
+    "required": true,
+    "deliveryWave": 2,
+    "checkKind": "workflow_query",
+    "command": null,
+    "acceptance": "Assignment and publication reach the intended Artist surface with tenant isolation.",
+    "requiredEvidenceKinds": [
+      "test_run",
+      "api_capture"
+    ],
+    "dependsOn": [
+      "LG-11"
+    ],
+    "ownerRole": "Product QA"
+  },
+  {
+    "gateId": "LG-14",
+    "title": "Canonical event lifecycle passes",
+    "required": true,
+    "deliveryWave": 2,
+    "checkKind": "workflow_query",
+    "command": null,
+    "acceptance": "Provider ingestion, events_v2, tour assignment, publication, calendar, and Artist delivery reconcile with zero unexplained delta.",
+    "requiredEvidenceKinds": [
+      "test_run",
+      "schema_diff"
+    ],
+    "dependsOn": [
+      "LG-10",
+      "LG-11"
+    ],
+    "ownerRole": "Product and data"
+  },
+  {
+    "gateId": "LG-15",
+    "title": "Multi-organization switching and revocation pass",
+    "required": true,
+    "deliveryWave": 1,
+    "checkKind": "workflow_query",
+    "command": null,
+    "acceptance": "Switch, stale-tab, revocation, and cache invalidation behave consistently in UI, API, and database.",
+    "requiredEvidenceKinds": [
+      "test_run",
+      "rls_matrix"
+    ],
+    "dependsOn": [
+      "LG-11"
+    ],
+    "ownerRole": "Security QA"
+  },
+  {
+    "gateId": "LG-16",
+    "title": "Navigation, accessibility, and responsive acceptance",
+    "required": true,
+    "deliveryWave": 5,
+    "checkKind": "evidence_query",
+    "command": null,
+    "acceptance": "Canonical navigation, keyboard, screen-reader, phone, tablet, and desktop journeys pass.",
+    "requiredEvidenceKinds": [
+      "accessibility",
+      "test_run"
+    ],
+    "dependsOn": [
+      "LG-12",
+      "LG-13",
+      "LG-14"
+    ],
+    "ownerRole": "Product QA"
+  },
+  {
+    "gateId": "LG-17",
+    "title": "Performance and reliability acceptance",
+    "required": true,
+    "deliveryWave": 5,
+    "checkKind": "evidence_query",
+    "command": null,
+    "acceptance": "Query budgets, retries, idempotency, observability, and failure recovery meet approved thresholds.",
+    "requiredEvidenceKinds": [
+      "performance",
+      "retry_recovery",
+      "rollback"
+    ],
+    "dependsOn": [
+      "LG-12",
+      "LG-13",
+      "LG-14"
+    ],
+    "ownerRole": "Reliability"
+  },
+  {
+    "gateId": "LG-18",
+    "title": "Final release decision recorded",
+    "required": true,
+    "deliveryWave": 6,
+    "checkKind": "human_signoff",
+    "command": null,
+    "acceptance": "Independent verification plus named product and security approvers record GO; otherwise release remains NO-GO.",
+    "requiredEvidenceKinds": [
+      "independent_verification",
+      "product_signoff",
+      "security_signoff"
+    ],
+    "dependsOn": [
+      "LG-02",
+      "LG-03",
+      "LG-07",
+      "LG-08",
+      "LG-11",
+      "LG-16",
+      "LG-17"
+    ],
+    "ownerRole": "Release authority"
+  }
+]

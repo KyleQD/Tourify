@@ -1,0 +1,3421 @@
+[
+  {
+    "findingId": "ADM-M-001",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P0-01"
+    ],
+    "priority": "P0",
+    "state": "broken",
+    "domain": "Build / CI",
+    "deliveryWave": 0,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Typecheck fails; next build impossible (app/venue/equipment/page.tsx syntax error :557/:1138)",
+    "problem": "Typecheck fails; next build impossible (app/venue/equipment/page.tsx syntax error :557/:1138) Evidence: tsc --noEmit output; file 1137 lines",
+    "solution": "Fix file; make typecheck a CI merge gate",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-002",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P0-02"
+    ],
+    "priority": "P0",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Authenticated-wide RLS on financial_transactions, budgets, equipment_*, workflow_*, travel/lodging family = cross-org read/write",
+    "problem": "Authenticated-wide RLS on financial_transactions, budgets, equipment_*, workflow_*, travel/lodging family = cross-org read/write Evidence: 20260328140000_financial_tables.sql:60-71; 20260328160000:122-158; 20260413200100:640-703",
+    "solution": "Org-scoped policies (pattern: work_mode_publications); extend REL-101 matrix",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-013",
+      "ADM-WF-014",
+      "ADM-WF-019"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-003",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P0-03"
+    ],
+    "priority": "P0",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Self-service admin escalation: surface gate accepts profiles.account_type/is_admin/organizer_data; owner-update RLS unguarded",
+    "problem": "Self-service admin escalation: surface gate accepts profiles.account_type/is_admin/organizer_data; owner-update RLS unguarded Evidence: lib/auth/admin.ts resolveAdminSurfaceAccess; 20240415000000_create_profiles.sql:50-61",
+    "solution": "Gate admin on org_members+grants only; DB trigger blocking self-elevation; runtime repro NEEDS_VERIFICATION",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-001",
+      "ADM-WF-002",
+      "ADM-WF-018"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-004",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-01"
+    ],
+    "priority": "P1",
+    "state": "data_integrity",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Two disjoint event universes: legacy events (sync/claims/artist flows) vs canonical events_v2 (tours/calendar) with no bridge",
+    "problem": "Two disjoint event universes: legacy events (sync/claims/artist flows) vs canonical events_v2 (tours/calendar) with no bridge Evidence: canonical-event-service.ts:125,147,189; artist-event-operations.service.ts:97-196",
+    "solution": "Pick canonical table or build documented sync bridge",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-003",
+      "ADM-WF-004",
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [
+      "RISK-002"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-005",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-02"
+    ],
+    "priority": "P1",
+    "state": "missing",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Artist assignment propagation absent: 3 rosters (organization_artist_members, tour_artists, event_participants) never linked",
+    "problem": "Artist assignment propagation absent: 3 rosters (organization_artist_members, tour_artists, event_participants) never linked Evidence: tour-event-operations.service.ts:464-501; tours_core.sql:41-48",
+    "solution": "Wire assignment to surfaces artist dashboard reads",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-006"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-006",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-03"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Workforce / Hiring",
+    "deliveryWave": 3,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Shift publish skips permission checks for org shifts (null venue_id bypasses loop)",
+    "problem": "Shift publish skips permission checks for org shifts (null venue_id bypasses loop) Evidence: staffing/shifts/publish/route.ts:29-38",
+    "solution": "Check org authority when venue_id null",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-008"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-007",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-04"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Admin Platform",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Artists API globally unscoped; POST upsert clobbers existing profiles by email; DELETE callable w/o UI",
+    "problem": "Artists API globally unscoped; POST upsert clobbers existing profiles by email; DELETE callable w/o UI Evidence: api/admin/artists/route.ts:19-27,113-153; [id]/route.ts",
+    "solution": "Scope by acting org; replace upsert; remove/guard delete",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-009"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-008",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-05"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Navigation / IA",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Venues admin API cross-org leak via venue_name joins; no org linkage; grid uses public search API",
+    "problem": "Venues admin API cross-org leak via venue_name joins; no org linkage; grid uses public search API Evidence: api/admin/venues/route.ts:31-58; venues/page.tsx:216",
+    "solution": "Structural FK to org/event; scope queries",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-010"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-009",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-06"
+    ],
+    "priority": "P1",
+    "state": "missing",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Event publish/provision/tour-assignments endpoints have zero UI callers; status dropdown may shortcut readiness",
+    "problem": "Event publish/provision/tour-assignments endpoints have zero UI callers; status dropdown may shortcut readiness Evidence: grep of app/admin/dashboard/events/**",
+    "solution": "Build UI wiring or remove endpoints",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-004",
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-010",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-07"
+    ],
+    "priority": "P1",
+    "state": "data_integrity",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Core DDL only in migration-archive (admin_publication_outbox, message-attachments bucket, tour_versions/tour_stops); phantom tables queried: contracts, vendor_contracts, tour_plan_quarantine, admin_requests, catering",
+    "problem": "Core DDL only in migration-archive (admin_publication_outbox, message-attachments bucket, tour_versions/tour_stops); phantom tables queried: contracts, vendor_contracts, tour_plan_quarantine, admin_requests, catering Evidence: migration-archive/pre-reconciliation-local-only-2026-08-20/*; api/admin/contracts/route.ts:18",
+    "solution": "Promote DDL to active migrations; create or stop querying phantom tables",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005",
+      "ADM-WF-013",
+      "ADM-WF-015",
+      "ADM-WF-019"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-011",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-08"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Operations / Communications",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "message-attachments bucket world-readable + getPublicUrl in inbox; site-map images public; zero org-scoped storage policies",
+    "problem": "message-attachments bucket world-readable + getPublicUrl in inbox; site-map images public; zero org-scoped storage policies Evidence: archive migration :39-42; admin-unified-inbox.tsx:360; setup-storage-buckets.sql",
+    "solution": "Private buckets + signed URLs for chat/docs",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-011",
+      "ADM-WF-013"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [
+      "RISK-005"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-012",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-09"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "tour_events RLS insert/update/delete accept is_tour_owner alone - cross-org event attach possible via direct API",
+    "problem": "tour_events RLS insert/update/delete accept is_tour_owner alone - cross-org event attach possible via direct API Evidence: 20260710032640_harden_tour_events_org_rls.sql:139-204",
+    "solution": "Require event org match in WITH CHECK even for tour owners",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-013",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-10"
+    ],
+    "priority": "P1",
+    "state": "broken",
+    "domain": "Build / CI",
+    "deliveryWave": 0,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Both security CI gates red: route registry 11+ unclassified (legacy ceiling 122/122); service-role allowlist 38 new bare imports",
+    "problem": "Both security CI gates red: route registry 11+ unclassified (legacy ceiling 122/122); service-role allowlist 38 new bare imports Evidence: check:admin-route-registry output; check:service-role-allowlist exit 1",
+    "solution": "Classify routes; migrate to executeServiceRoleJob or justify inventory",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017",
+      "ADM-WF-019"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-014",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-11"
+    ],
+    "priority": "P1",
+    "state": "missing",
+    "domain": "Workforce / Hiring",
+    "deliveryWave": 3,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Hiring/onboarding invites never send email (token returned to admin UI only); Resend wired only for contracts",
+    "problem": "Hiring/onboarding invites never send email (token returned to admin UI only); Resend wired only for contracts Evidence: invite-new-user/route.ts:22-53; enhanced-invite (GET only)",
+    "solution": "Integrate Resend delivery into invite paths",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-007",
+      "ADM-WF-012"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-015",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P1-12"
+    ],
+    "priority": "P1",
+    "state": "broken",
+    "domain": "Workforce / Hiring",
+    "deliveryWave": 3,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Onboarding workflows/advance accepts arbitrary new_stage without ordering guard or employer scoping",
+    "problem": "Onboarding workflows/advance accepts arbitrary new_stage without ordering guard or employer scoping Evidence: workflows/advance/route.ts:5-33",
+    "solution": "Validate stage transitions; requireAdminCapability per employer",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-007"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-016",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-01"
+    ],
+    "priority": "P2",
+    "state": "inconsistent",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "org_members.role unconstrained free text; 6 parallel role taxonomies drift",
+    "problem": "org_members.role unconstrained free text; 6 parallel role taxonomies drift Evidence: 20250816132000_org_rbac.sql; types/rbac.ts; lib/auth/role-based-auth.tsx",
+    "solution": "Constrain role enum; single taxonomy",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-002",
+      "ADM-WF-018"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [
+      "RISK-004"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-017",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-02"
+    ],
+    "priority": "P2",
+    "state": "inconsistent",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Two divergent capability services (/api/admin/capabilities vs effective-capabilities); DB perm vocabulary disjoint from ADMIN_CAPABILITIES",
+    "problem": "Two divergent capability services (/api/admin/capabilities vs effective-capabilities); DB perm vocabulary disjoint from ADMIN_CAPABILITIES Evidence: app/api/admin/capabilities/route.ts; lib/auth/admin-capabilities.ts",
+    "solution": "Consolidate on SEC-102 model",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-002",
+      "ADM-WF-018"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-018",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-03"
+    ],
+    "priority": "P2",
+    "state": "data_integrity",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Idempotency-Key enforcement is in-memory Map only; duplicates across serverless instances",
+    "problem": "Idempotency-Key enforcement is in-memory Map only; duplicates across serverless instances Evidence: lib/auth/org-command.ts:196",
+    "solution": "Land SEC-111 durable store",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-019",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-04"
+    ],
+    "priority": "P2",
+    "state": "design_debt",
+    "domain": "Navigation / IA",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Audit logging: ~6/288 admin route files write audit rows despite central helpers",
+    "problem": "Audit logging: ~6/288 admin route files write audit rows despite central helpers Evidence: rg audit writers app/api/admin = 6 files",
+    "solution": "Adopt helper in command pipeline / registry contract",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-020",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-05"
+    ],
+    "priority": "P2",
+    "state": "security",
+    "domain": "Operations / Communications",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Client-side Supabase writes bypassing API auth/audit: organizer_accounts settings update; inbox message inserts",
+    "problem": "Client-side Supabase writes bypassing API auth/audit: organizer_accounts settings update; inbox message inserts Evidence: components/settings/organization-account-settings.tsx:102-113; admin-unified-inbox.tsx:287",
+    "solution": "Route through API layer",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-011",
+      "ADM-WF-018"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-021",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-06"
+    ],
+    "priority": "P2",
+    "state": "data_integrity",
+    "domain": "Design System",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "user_sessions table not in active migration chain; acting-context persistence silently degrades",
+    "problem": "user_sessions table not in active migration chain; acting-context persistence silently degrades Evidence: supabase/migrations (absent); resolvers tolerate 42P01",
+    "solution": "Add migration or document header-only mode",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-001"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-022",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-07"
+    ],
+    "priority": "P2",
+    "state": "broken",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Tours autosave failure near-silent; 800ms skipAutosave race window can drop edits",
+    "problem": "Tours autosave failure near-silent; 800ms skipAutosave race window can drop edits Evidence: tours/builder/page.tsx:551-558,258-261",
+    "solution": "Retry queue + beforeunload guard",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-023",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-08"
+    ],
+    "priority": "P2",
+    "state": "partial",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Event duplicate copies ~6 shallow fields (riders/contacts/team/finance dropped); generic error toasts discard server messages",
+    "problem": "Event duplicate copies ~6 shallow fields (riders/contacts/team/finance dropped); generic error toasts discard server messages Evidence: events/[id]/page.tsx:710-750,825-831",
+    "solution": "Deep copy service",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-024",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-09"
+    ],
+    "priority": "P2",
+    "state": "missing",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Plan quarantine list-only: no resolve/retry/dismiss endpoint",
+    "problem": "Plan quarantine list-only: no resolve/retry/dismiss endpoint Evidence: tour-plan-normalize.service.ts:88-97",
+    "solution": "Add remediation endpoint",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-025",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-10"
+    ],
+    "priority": "P2",
+    "state": "data_integrity",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Ghost stops: event delete SET-NULLs tour_stops.event_id leaving active stops that block readiness; deleteEvent non-transactional",
+    "problem": "Ghost stops: event delete SET-NULLs tour_stops.event_id leaving active stops that block readiness; deleteEvent non-transactional Evidence: archive PLAN-201 :55; service.ts:1730-1731",
+    "solution": "Sweep orphans; transactional delete",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-026",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-11"
+    ],
+    "priority": "P2",
+    "state": "broken",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Timezone-naive datetimes parsed as UTC; events_v2.timezone never applied; ICS wrong wall-clock",
+    "problem": "Timezone-naive datetimes parsed as UTC; events_v2.timezone never applied; ICS wrong wall-clock Evidence: service.ts:319-328; calendar/tours/route.ts:74",
+    "solution": "Adopt tz-aware composition (date-fns-tz)",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-027",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-12"
+    ],
+    "priority": "P2",
+    "state": "partial",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Holds: cancel from any state; no sweeper expires past-due holds",
+    "problem": "Holds: cancel from any state; no sweeper expires past-due holds Evidence: tour-stop-holds.service.ts:172-174",
+    "solution": "State guards + cron sweeper",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-028",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-13"
+    ],
+    "priority": "P2",
+    "state": "inconsistent",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 2,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Calendar fragmentation: admin UI bypasses aggregate API; third hand-rolled ICS path",
+    "problem": "Calendar fragmentation: admin UI bypasses aggregate API; third hand-rolled ICS path Evidence: admin-calendar-view.tsx:271-272",
+    "solution": "Point at /api/admin/calendar",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-005"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-029",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-14"
+    ],
+    "priority": "P2",
+    "state": "broken",
+    "domain": "Workforce / Hiring",
+    "deliveryWave": 3,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Conflict detection blind to venue-employed staff; derived-only unpersisted",
+    "problem": "Conflict detection blind to venue-employed staff; derived-only unpersisted Evidence: workforce/conflicts/route.ts:37-44",
+    "solution": "Key off employer entity correctly",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-008"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-030",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-15"
+    ],
+    "priority": "P2",
+    "state": "broken",
+    "domain": "Operations / Communications",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Threads API hardcodes unreadCount:0 and ignores group threads; replies client-side",
+    "problem": "Threads API hardcodes unreadCount:0 and ignores group threads; replies client-side Evidence: messages/threads/route.ts:72",
+    "solution": "Use list-route unread logic",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-011"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-031",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-16"
+    ],
+    "priority": "P2",
+    "state": "needs_verification",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Broadcast = notification rows only; email depends on external DB webhook (503 if secret unset); event-reminders cron is a stub",
+    "problem": "Broadcast = notification rows only; email depends on external DB webhook (503 if secret unset); event-reminders cron is a stub Evidence: webhooks/supabase/notifications/route.ts:11-18; cron/event-reminders:57-58",
+    "solution": "Verify prod webhook config; implement reminders",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-004",
+      "ADM-WF-012"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-032",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-17"
+    ],
+    "priority": "P2",
+    "state": "design_debt",
+    "domain": "Operations / Communications",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Finances ledger-only: no double-entry, USD hardcoded, payouts retry = status flip (no Stripe movement)",
+    "problem": "Finances ledger-only: no double-entry, USD hardcoded, payouts retry = status flip (no Stripe movement) Evidence: finance-command.service.ts:145-387; marketplace/payouts/[id]/retry:34-37",
+    "solution": "Scope decision + journal design",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-014"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-033",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-18"
+    ],
+    "priority": "P2",
+    "state": "partial",
+    "domain": "Security / Authorization",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Contracts: typed-name e-signature; contract.sign capability enforced nowhere; obligations GET-only; admin UI read-only",
+    "problem": "Contracts: typed-name e-signature; contract.sign capability enforced nowhere; obligations GET-only; admin UI read-only Evidence: contract-workflow.actions.ts:86-116; contracts/obligations/route.ts",
+    "solution": "Decide e-sig posture; enforce capability",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-015"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-034",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-19"
+    ],
+    "priority": "P2",
+    "state": "broken",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Live-broken nav targets: cmd+N pushes nonexistent /tours/new,/events/new; dead quick-action links",
+    "problem": "Live-broken nav targets: cmd+N pushes nonexistent /tours/new,/events/new; dead quick-action links Evidence: use-keyboard-shortcuts.ts:174-180; quick-actions.tsx",
+    "solution": "Fix targets or shortcuts",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-035",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-20"
+    ],
+    "priority": "P2",
+    "state": "broken",
+    "domain": "Operations / Communications",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Domain Health Grid ?tab= params ignored (logistics?tab=vendors -> Overview; finances tabs not URL-synced; vendor-master nonexistent)",
+    "problem": "Domain Health Grid ?tab= params ignored (logistics?tab=vendors -> Overview; finances tabs not URL-synced; vendor-master nonexistent) Evidence: dashboard-command-center.ts:49-50",
+    "solution": "URL-sync tabs or fix hrefs",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-036",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-21"
+    ],
+    "priority": "P2",
+    "state": "partial",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Orphaned/dormant surfaces: events claims/duplicates/providers/sync unreachable + flag-gated global-admin trust model",
+    "problem": "Orphaned/dormant surfaces: events claims/duplicates/providers/sync unreachable + flag-gated global-admin trust model Evidence: EVENT_PROVIDER_ADMIN_TOOLS flags.ts:20-26",
+    "solution": "Nav entry or archive decision",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-003",
+      "ADM-WF-020"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [
+      "RISK-006"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-037",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-22"
+    ],
+    "priority": "P2",
+    "state": "design_debt",
+    "domain": "Design System",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Design system fragmentation: 3 table impls; silent toast loss (unmounted radix hook in 8 files); dead admin-tokens; 2 visual dialects; 4 date pickers; 0 RHF adoption; loader sprawl",
+    "problem": "Design system fragmentation: 3 table impls; silent toast loss (unmounted radix hook in 8 files); dead admin-tokens; 2 visual dialects; 4 date pickers; 0 RHF adoption; loader sprawl Evidence: See phase 07 report",
+    "solution": "Consolidation program (8 items listed)",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-038",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-23"
+    ],
+    "priority": "P2",
+    "state": "performance",
+    "domain": "Operations / Communications",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "18 client components >1000 lines; ~180/288 admin selects unbounded; N+1 loops (bulk approve, publish, grant-admins, task-messages); react-query unused in admin",
+    "problem": "18 client components >1000 lines; ~180/288 admin selects unbounded; N+1 loops (bulk approve, publish, grant-admins, task-messages); react-query unused in admin Evidence: Phase 09 F7-F11",
+    "solution": "Pagination + batching + data layer",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-013",
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-039",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P2-24"
+    ],
+    "priority": "P2",
+    "state": "accessibility",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Sidebar lacks nav semantics/aria-current; unlabeled icon buttons; forms placeholder-only (~79 inputs/6 labels); custom modals without focus trap; mobile drawer no trap/Esc",
+    "problem": "Sidebar lacks nav semantics/aria-current; unlabeled icon buttons; forms placeholder-only (~79 inputs/6 labels); custom modals without focus trap; mobile drawer no trap/Esc Evidence: optimized-sidebar.tsx:615; events/create form; keyboard-shortcuts-help.tsx:148",
+    "solution": "A11y pass on shell + big pages",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-040",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-01"
+    ],
+    "priority": "P3",
+    "state": "design_debt",
+    "domain": "Tours / Events / Artists",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Payroll nav item is disabled design preview; analytics placeholder charts; organization placeholder tabs",
+    "problem": "Payroll nav item is disabled design preview; analytics placeholder charts; organization placeholder tabs Evidence: payroll/page.tsx:15-89",
+    "solution": "Label as preview or hide",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-041",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-02"
+    ],
+    "priority": "P3",
+    "state": "design_debt",
+    "domain": "Build / CI",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Duplicate creation paths (builder/create/planner + broken /new); Staff Ops duplicated in sidebar; Settings x3",
+    "problem": "Duplicate creation paths (builder/create/planner + broken /new); Staff Ops duplicated in sidebar; Settings x3 Evidence: optimized-sidebar.tsx:244,251",
+    "solution": "Single canonical path each",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-042",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-03"
+    ],
+    "priority": "P3",
+    "state": "partial",
+    "domain": "Hardening / Quality",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "apps/mobile has no worker/work-mode or admin surface",
+    "problem": "apps/mobile has no worker/work-mode or admin surface Evidence: apps/mobile/app/(tabs)/_layout.tsx",
+    "solution": "Product scope decision",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [
+      "RISK-006"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-043",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-04"
+    ],
+    "priority": "P3",
+    "state": "broken",
+    "domain": "Workforce / Hiring",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Keyboard shortcut conflicts: cmd+f hijacks find; cmd+shift+f double-registered; dead Enter/Esc/Delete handlers; overlapping sidebar handler",
+    "problem": "Keyboard shortcut conflicts: cmd+f hijacks find; cmd+shift+f double-registered; dead Enter/Esc/Delete handlers; overlapping sidebar handler Evidence: use-keyboard-shortcuts.ts:155-230; optimized-sidebar.tsx:551-572",
+    "solution": "Prune registry",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-044",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-05"
+    ],
+    "priority": "P3",
+    "state": "design_debt",
+    "domain": "Security / Authorization",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Mock-data global search links to nonexistent detail URLs",
+    "problem": "Mock-data global search links to nonexistent detail URLs Evidence: enhanced-global-search.tsx",
+    "solution": "Remove mock entries",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-045",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-06"
+    ],
+    "priority": "P3",
+    "state": "partial",
+    "domain": "Design System",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "CSV import sequential POSTs discarding error detail; metrics via unscoped tables",
+    "problem": "CSV import sequential POSTs discarding error detail; metrics via unscoped tables Evidence: artists/page.tsx:232-239",
+    "solution": "Batch endpoint with row errors",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-009"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-046",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-07"
+    ],
+    "priority": "P3",
+    "state": "security",
+    "domain": "Admin Platform",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "/admin/request writes to nonexistent admin_requests via browser anon client",
+    "problem": "/admin/request writes to nonexistent admin_requests via browser anon client Evidence: (dashboard-shell)/request/page.tsx:47-58",
+    "solution": "Remove or implement server-side",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-018"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-047",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-08"
+    ],
+    "priority": "P3",
+    "state": "partial",
+    "domain": "Admin Platform",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Stale acting-context silently demoted server-side with no client signal",
+    "problem": "Stale acting-context silently demoted server-side with no client signal Evidence: lib/auth/acting-context.ts:163-192",
+    "solution": "Return demotion flag",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-001"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-048",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-09"
+    ],
+    "priority": "P3",
+    "state": "performance",
+    "domain": "Hardening / Quality",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Sentry init no-op without DSN; error boundary lacks captureException/digest surfacing",
+    "problem": "Sentry init no-op without DSN; error boundary lacks captureException/digest surfacing Evidence: sentry.shared.ts; admin/dashboard/error.tsx:17-19",
+    "solution": "Wire capture + config alerting",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-049",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-10"
+    ],
+    "priority": "P3",
+    "state": "partial",
+    "domain": "Security / Authorization",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "No offline/network-state handling in web admin; Idempotency-Key headers in only 3 client call sites",
+    "problem": "No offline/network-state handling in web admin; Idempotency-Key headers in only 3 client call sites Evidence: Phase 09 F15",
+    "solution": "Add keys to critical mutations",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-050",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "P3-11"
+    ],
+    "priority": "P3",
+    "state": "design_debt",
+    "domain": "Navigation / IA",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 11 — QA / Launch Readiness",
+    "title": "Dead components: DashboardQuickHub, VirtualScroll, ContextualNavigation, AdminDetailTabs; PayrollExportPanel contradicts progress logs",
+    "problem": "Dead components: DashboardQuickHub, VirtualScroll, ContextualNavigation, AdminDetailTabs; PayrollExportPanel contradicts progress logs Evidence: grep importers = 0",
+    "solution": "Delete or wire",
+    "acceptanceCriteria": [
+      "Polish/debt item resolved or explicitly accepted with rationale."
+    ],
+    "verificationRequirements": [
+      "QA/code review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-051",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P0-01"
+    ],
+    "priority": "P0",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 1 — Emergency DB / RPC Isolation",
+    "title": "switch_active_account SECURITY DEFINER RPC trusts caller-supplied user/profile identity",
+    "problem": "switch_active_account SECURITY DEFINER RPC trusts caller-supplied user/profile identity Evidence: Live Supabase inspection: caller supplies user_id/profile_id/account_type; actor is not safely bound to auth.uid().",
+    "solution": "Derive actor from auth.uid(); validate profile/account membership; restrict EXECUTE; add cross-user negative tests.",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-001"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-052",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P0-02"
+    ],
+    "priority": "P0",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 1 — Emergency DB / RPC Isolation",
+    "title": "get_user_accounts_adaptive allows arbitrary target-user account discovery",
+    "problem": "get_user_accounts_adaptive allows arbitrary target-user account discovery Evidence: Live Supabase inspection: target user id is caller-supplied and returns account/profile metadata.",
+    "solution": "Bind ordinary lookup to auth.uid(); isolate privileged cross-user lookup behind explicit grant/service principal.",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-001"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-053",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P0-03"
+    ],
+    "priority": "P0",
+    "state": "data_integrity",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 1 — Emergency DB / RPC Isolation",
+    "title": "create_artist_account trusts caller identity and contains WHERE user_id = user_id mass-update defect",
+    "problem": "create_artist_account trusts caller identity and contains WHERE user_id = user_id mass-update defect Evidence: Live function inspection identified caller-supplied user_id and a tautological onboarding update condition.",
+    "solution": "Use auth.uid(); rename parameters; scope update correctly; wrap mutation transactionally; add multi-user regression tests.",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-009"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-054",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P0-04"
+    ],
+    "priority": "P0",
+    "state": "security",
+    "domain": "Operations / Communications",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 1 — Emergency DB / RPC Isolation",
+    "title": "send_dm_request permits caller-controlled sender identity",
+    "problem": "send_dm_request permits caller-controlled sender identity Evidence: Live SECURITY DEFINER function accepts p_sender without enforcing p_sender = auth.uid().",
+    "solution": "Derive sender from auth.uid(); remove actor arg; validate recipient/block state; restrict EXECUTE; test impersonation.",
+    "acceptanceCriteria": [
+      "Blocker removed; regression test passes; negative/staging verification passes; equivalent bypass absent."
+    ],
+    "verificationRequirements": [
+      "Static + automated negative test + seeded staging verification + explicit sign-off."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-011"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-07"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-055",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P1-01"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Operations / Communications",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 2 — Identity & Authorization",
+    "title": "get_or_create_conversation accepts arbitrary user pairs without strong actor binding",
+    "problem": "get_or_create_conversation accepts arbitrary user pairs without strong actor binding Evidence: Live function inspection found both users supplied by caller.",
+    "solution": "Bind one participant to auth.uid(); privileged override only via explicit service/admin path.",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-011"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-056",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P1-02"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 2 — Identity & Authorization",
+    "title": "Organizer-account discovery RPC accepts arbitrary user target",
+    "problem": "Organizer-account discovery RPC accepts arbitrary user target Evidence: Live Supabase inspection found caller-supplied target identity in account lookup.",
+    "solution": "Bind standard calls to auth.uid(); privileged directory lookup only via capability/service principal.",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-001"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-057",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P1-03"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Security / Authorization",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 2 — Identity & Authorization",
+    "title": "Legacy hiring/permission SECURITY DEFINER RPCs still accept caller-supplied identity",
+    "problem": "Legacy hiring/permission SECURITY DEFINER RPCs still accept caller-supplied identity Evidence: Live DB review found older permission/hiring functions taking actor ids while newer /api/hiring authenticates actor first.",
+    "solution": "Migrate to authenticated acting-context pattern; reduce SECURITY DEFINER surface; standardize permission service.",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-002"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-058",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P1-04"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Build / CI",
+    "deliveryWave": 0,
+    "sourcePhase": "Phase 3 — Branch / Migration / Environment Reconciliation",
+    "title": "Production main is materially behind the reconciliation branch",
+    "problem": "Production main is materially behind the reconciliation branch Evidence: Live GitHub/Vercel comparison found production on main while reconciliation branch contains additional Admin hardening/features.",
+    "solution": "Create controlled reconciliation PR; classify each delta MERGE/SUPERSEDED/MIGRATION/SECURITY_REVIEW/DROP; stage first.",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [
+      "RISK-001",
+      "RISK-003"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-059",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P1-05"
+    ],
+    "priority": "P1",
+    "state": "inconsistent",
+    "domain": "Navigation / IA",
+    "deliveryWave": 5,
+    "sourcePhase": "Phase 8 — Navigation & IA",
+    "title": "Duplicate legacy Admin route implementations remain beside canonical dashboard routes",
+    "problem": "Duplicate legacy Admin route implementations remain beside canonical dashboard routes Evidence: Live branch review found legacy /admin/applications and other shell routes beside canonical /admin/dashboard/* surfaces.",
+    "solution": "Choose one canonical route per concept; redirect aliases; delete duplicate logic; add route-map tests.",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-060",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P1-06"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Navigation / IA",
+    "deliveryWave": 4,
+    "sourcePhase": "Phase 3 — Branch / Migration / Environment Reconciliation",
+    "title": "Production still exposes obsolete internal utility/setup routes",
+    "problem": "Production still exposes obsolete internal utility/setup routes Evidence: Live main review found /admin/debug, /admin/create-tables, /admin/setup, /admin/reset-onboarding while reconciliation branch neutralizes them.",
+    "solution": "Disable/remove in production; keep internal tooling behind explicit development/internal controls.",
+    "acceptanceCriteria": [
+      "Launch-critical workflow/security boundary works end-to-end with correct tenant scoping."
+    ],
+    "verificationRequirements": [
+      "Unit/integration + seeded two-org persona test + API/DB evidence."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-016",
+      "ADM-WF-020"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-061",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "LIVE-P2-01"
+    ],
+    "priority": "P2",
+    "state": "needs_verification",
+    "domain": "Data / Migrations",
+    "deliveryWave": 1,
+    "sourcePhase": "Phase 3 — Branch / Migration / Environment Reconciliation",
+    "title": "RLS-enabled tables with zero policies require explicit service-only vs client-access decision",
+    "problem": "RLS-enabled tables with zero policies require explicit service-only vs client-access decision Evidence: Live Supabase review identified application_form_templates and onboarding_steps with RLS enabled and zero policies.",
+    "solution": "Document access intent; add least-privilege policies if client-facing or guarantee service-only access with tests.",
+    "acceptanceCriteria": [
+      "Behavior is consistent, documented, tested and free of material integrity/usability/scale defect."
+    ],
+    "verificationRequirements": [
+      "Targeted automated test + UI/static review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-013",
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 master handoff register",
+        "claimedStatus": "Not Started",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+        "note": "Imported for identity and source context only; status and phase were not trusted."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-062",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "AUDIT-P1-JOB-STATUS"
+    ],
+    "priority": "P1",
+    "state": "security",
+    "domain": "Workforce / Hiring",
+    "deliveryWave": 3,
+    "sourcePhase": null,
+    "title": "Job-posting lifecycle status is client-controlled",
+    "problem": "The canonical hiring create/update path accepts a caller-supplied lifecycle status instead of enforcing server-owned transitions.",
+    "solution": "Remove arbitrary lifecycle status from create/update payloads; expose validated server transition commands with capability, tenant, idempotency, and audit enforcement.",
+    "acceptanceCriteria": [
+      "Forged lifecycle status is rejected; valid transitions follow the state graph and are visible to Admin and candidates."
+    ],
+    "verificationRequirements": [
+      "Unit, API, tamper, cross-organization, replay, and recipient tests."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-007"
+    ],
+    "specTaskIds": [
+      "HIRE-401"
+    ],
+    "launchGateIds": [
+      "LG-08"
+    ],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 source audit narrative",
+        "claimedStatus": "uncrosswalked",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/SOURCE_INPUTS/AUDIT_REPORT.md",
+        "note": "Narrative finding omitted from the 61-row register."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-063",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "AUDIT-P2-DELIVERY-GAPS"
+    ],
+    "priority": "P2",
+    "state": "missing",
+    "domain": "Finance / Contracts / Vendors",
+    "deliveryWave": 4,
+    "sourcePhase": null,
+    "title": "Finance, contract, and vendor tracking notifications are incomplete",
+    "problem": "Recipient and operator notification contracts are absent or incomplete for the approved read-only finance and contract/vendor tracking scope.",
+    "solution": "Define scoped notification triggers, durable delivery records, recipient preferences, retry visibility, and explicit disabled states for deferred mutations/signatures.",
+    "acceptanceCriteria": [
+      "Approved tracking and export events notify intended recipients once; deferred finance mutations and signatures remain inaccessible."
+    ],
+    "verificationRequirements": [
+      "Producer, recipient, retry, cross-organization, and disabled-scope tests."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-012",
+      "ADM-WF-014",
+      "ADM-WF-015"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [
+      "RISK-006"
+    ],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 source audit narrative",
+        "claimedStatus": "uncrosswalked",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/SOURCE_INPUTS/AUDIT_REPORT.md",
+        "note": "Narrative finding omitted from the 61-row register."
+      }
+    ]
+  },
+  {
+    "findingId": "ADM-M-064",
+    "findingKind": "product_or_technical",
+    "sourceIds": [
+      "AUDIT-P2-MUSIC-OUTBOX"
+    ],
+    "priority": "P2",
+    "state": "missing",
+    "domain": "Provider / Outbox Operations",
+    "deliveryWave": 4,
+    "sourcePhase": null,
+    "title": "Six music outbox workers are not scheduled or monitored",
+    "problem": "Worker entry points exist without a governed schedule, claim/retry/dead-letter evidence, or operational visibility.",
+    "solution": "Register platform-internal schedules, bind service principals, make claims idempotent, add bounded retry/dead-letter handling, and expose internal health evidence.",
+    "acceptanceCriteria": [
+      "Every retained worker is scheduled or explicitly disabled; duplicate claims do not duplicate effects; failures become visible and recoverable."
+    ],
+    "verificationRequirements": [
+      "Schedule inventory, service-principal authorization, duplicate-claim, retry, dead-letter, and monitoring tests."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-012",
+      "ADM-WF-020"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "August 25 source audit narrative",
+        "claimedStatus": "uncrosswalked",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/SOURCE_INPUTS/AUDIT_REPORT.md",
+        "note": "Narrative finding omitted from the 61-row register."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-001",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-001"
+    ],
+    "priority": "P0",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Audit status ledger is unusable",
+    "problem": "Audit status ledger is unusable",
+    "solution": "Replace conflicting hand-edited ledgers with the validated repo registry and generated views.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-01"
+    ],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-002",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-002"
+    ],
+    "priority": "P0",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Claimed remediation commits are unavailable",
+    "problem": "Claimed remediation commits are unavailable",
+    "solution": "Require every completion claim to resolve to an immutable commit in the authoritative repository.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-01"
+    ],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-003",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-003"
+    ],
+    "priority": "P0",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Typecheck and build evidence conflicts",
+    "problem": "Typecheck and build evidence conflicts",
+    "solution": "Record raw command evidence from the pinned toolchain and reject narrative-only pass claims.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [
+      "LG-01"
+    ],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-004",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-004"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Finding phases and dependencies are corrupted",
+    "problem": "Finding phases and dependencies are corrupted",
+    "solution": "Separate source phase, spec phase, and delivery wave; allow exact ID dependencies only and reject cycles.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-005",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-005"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Mandatory phase exits were not earned",
+    "problem": "Mandatory phase exits were not earned",
+    "solution": "Compute wave exits from launch gates and evidence instead of narrative phase summaries.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-006",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-006"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Canonical event split was mislabeled non-blocking",
+    "problem": "Canonical event split was mislabeled non-blocking",
+    "solution": "Keep event convergence launch-blocking through LG-14.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-007",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-007"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Runtime persona kit is stale and incomplete",
+    "problem": "Runtime persona kit is stale and incomplete",
+    "solution": "Replace it with strict current-route producer/recipient and negative tests on named staging.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-008",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-008"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Three narrative findings were lost in the crosswalk",
+    "problem": "Three narrative findings were lost in the crosswalk",
+    "solution": "Preserve ADM-M-062 through ADM-M-064 and enforce stable finding-count invariants.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-009",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-009"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Acceptance criteria are templated rather than functional",
+    "problem": "Acceptance criteria are templated rather than functional",
+    "solution": "Require producer, database/API, side-effect, recipient, isolation, retry, and rollback criteria.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-010",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-010"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Duplicate task and finding systems invite double counting",
+    "problem": "Duplicate task and finding systems invite double counting",
+    "solution": "Link spec tasks, findings, workflows, gates, and evidence by stable IDs in one registry.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-011",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-011"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Source finding IDs were renamed inconsistently",
+    "problem": "Source finding IDs were renamed inconsistently",
+    "solution": "Preserve canonical and source IDs separately and reject duplicate or unstable canonical IDs.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-012",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-012"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Test failure summaries are internally inconsistent",
+    "problem": "Test failure summaries are internally inconsistent",
+    "solution": "Store raw test evidence and derive counts; never type narrative counts by hand.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-013",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-013"
+    ],
+    "priority": "P1",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Live-audit provenance is missing",
+    "problem": "Live-audit provenance is missing",
+    "solution": "Require source manifests and immutable evidence receipts for live database and platform claims.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-014",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-014"
+    ],
+    "priority": "P2",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Finding domain classifications are unreliable",
+    "problem": "Finding domain classifications are unreliable",
+    "solution": "Use workflow linkage and a separately governed domain field without changing stable IDs.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  },
+  {
+    "findingId": "AOA-015",
+    "findingKind": "audit_governance",
+    "sourceIds": [
+      "AUDIT-OF-AUDIT-015"
+    ],
+    "priority": "P2",
+    "state": "process",
+    "domain": "Audit governance",
+    "deliveryWave": 0,
+    "sourcePhase": null,
+    "title": "Audit reproduction used divergent paths and dirty workspaces",
+    "problem": "Audit reproduction used divergent paths and dirty workspaces",
+    "solution": "Pin the checkpoint, branch, staging environment, and evidence commit for every verification run.",
+    "acceptanceCriteria": [
+      "The registry validator and generated views enforce this control and an evidence receipt proves it."
+    ],
+    "verificationRequirements": [
+      "Registry contract test, drift test, and independent audit review."
+    ],
+    "dependsOn": [],
+    "workflowIds": [
+      "ADM-WF-017"
+    ],
+    "specTaskIds": [],
+    "launchGateIds": [],
+    "riskIds": [
+      "RISK-001"
+    ],
+    "status": "reproduced",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": [],
+    "priorClaims": [
+      {
+        "source": "Current audit of the August 25 handoff",
+        "claimedStatus": "open",
+        "sourcePath": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF",
+        "note": "Reproduced while creating the canonical control system."
+      }
+    ]
+  }
+]

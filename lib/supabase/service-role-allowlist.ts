@@ -16,6 +16,8 @@ export const SERVICE_ROLE_MODULES = [
   "admin.workforce.identity-merge",
   "security.audit",
   "admin.logistics.site-map-public-link",
+  "admin.logistics.comms-thread",
+  "admin.staff.channels",
   "admin.events.advancing",
   "admin.events.day-sheet",
   "admin.applications",

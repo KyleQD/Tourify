@@ -26,7 +26,8 @@ describe("WORK-103 canonical assignment status", () => {
 
     expect(mapTourTeamStatusToAssignment("pending")).toBe("invited")
     expect(mapTourTeamStatusToAssignment("confirmed")).toBe("confirmed")
-    expect(mapTourTeamStatusToAssignment("declined")).toBe("cancelled")
+    expect(mapTourTeamStatusToAssignment("declined")).toBe("declined")
+    expect(mapTourTeamStatusToAssignment("cancelled")).toBe("cancelled")
   })
 
   it("maps assignment status back to shift and tour team surfaces", () => {
@@ -36,7 +37,17 @@ describe("WORK-103 canonical assignment status", () => {
 
     expect(mapAssignmentStatusToTourTeam("invited")).toBe("pending")
     expect(mapAssignmentStatusToTourTeam("active")).toBe("confirmed")
-    expect(mapAssignmentStatusToTourTeam("cancelled")).toBe("declined")
+    expect(mapAssignmentStatusToTourTeam("declined")).toBe("declined")
+    expect(mapAssignmentStatusToTourTeam("cancelled")).toBe("cancelled")
+  })
+
+  it("round-trips user declines separately from system cancellations", () => {
+    expect(
+      mapTourTeamStatusToAssignment(mapAssignmentStatusToTourTeam("declined")),
+    ).toBe("declined")
+    expect(
+      mapTourTeamStatusToAssignment(mapAssignmentStatusToTourTeam("cancelled")),
+    ).toBe("cancelled")
   })
 
   it("enforces the employment lifecycle graph", () => {

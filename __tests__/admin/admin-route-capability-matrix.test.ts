@@ -36,12 +36,77 @@ describe("SEC-003 Admin command capability matrix", () => {
         `admin:${command.method.toLowerCase()}:${command.route}:response`,
       );
       expect(command.owner.trim()).not.toBe("");
+      expect(command.workflowIds.length).toBeGreaterThan(0);
+      expect(command.testIds.length).toBeGreaterThan(0);
+      expect([
+        "acting_organization",
+        "organization_entity",
+        "platform",
+        "public_share",
+        "service_scope",
+      ]).toContain(command.tenantTarget);
+      expect(["none", "approved_job", "legacy_bare"]).toContain(
+        command.serviceRole,
+      );
+      expect([
+        "organization_admin",
+        "platform_internal",
+        "public_share",
+        "service_internal",
+      ]).toContain(command.visibility);
+      expect([
+        "active",
+        "migrate",
+        "redirect",
+        "retire",
+        "internal_only",
+      ]).toContain(command.disposition);
       expect(["not_applicable", "required", "legacy_missing"]).toContain(
         command.idempotency,
       );
       expect(["not_applicable", "required", "legacy_missing"]).toContain(
         command.audit,
       );
+      if (command.audit === "not_applicable")
+        expect(command.auditEvent).toBeNull();
+      else expect(command.auditEvent).toMatch(/^admin\./);
+    }
+  });
+
+  it("records provider visibility and reviewed service-role use", () => {
+    const matrix = adminCommandCapabilityMatrix();
+    const provider = matrix.find(
+      (command) => command.route === "/api/admin/event-providers",
+    )!;
+    expect(provider.visibility).toBe("platform_internal");
+    expect(provider.disposition).toBe("internal_only");
+    expect(provider.workflowIds).toEqual(["ADM-WF-003", "ADM-WF-020"]);
+
+    const staffChannel = matrix.find(
+      (command) =>
+        command.route === "/api/admin/staff-operations/channels" &&
+        command.method === "GET",
+    )!;
+    expect(staffChannel.serviceRole).toBe("approved_job");
+
+    const testRoute = matrix.find(
+      (command) => command.route === "/api/admin/test",
+    )!;
+    expect(testRoute.disposition).toBe("retire");
+  });
+
+  it("keeps the first logistics convergence wave capability-gated", () => {
+    for (const route of [
+      "/api/admin/logistics/backline",
+      "/api/admin/logistics/catering",
+      "/api/admin/logistics/comms-plans",
+      "/api/admin/logistics/equipment/reservations",
+      "/api/admin/logistics/site-maps",
+    ]) {
+      expect(
+        ADMIN_API_ROUTE_REGISTRY.find((entry) => entry.route === route)?.authClass,
+        route,
+      ).toBe("capability_gated");
     }
   });
 

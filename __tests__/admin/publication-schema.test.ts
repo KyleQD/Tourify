@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { readQuarantinedMigration } from "./quarantined-migration-history"
 
 import {
   isPublicationAudienceClass,
@@ -57,13 +56,9 @@ describe("PUB-102 publication schema contract", () => {
     expect(resolveSnapshotAccessClassification([])).toBe("worker")
   })
 
-  it("enforces ADR-005 committed immutability in the manual migration", () => {
-    const sql = readFileSync(
-      join(
-        process.cwd(),
-        "supabase/migrations/20260721215705_admin_publication_snapshot_immutability_adr005.sql",
-      ),
-      "utf8",
+  it("preserves the quarantined ADR-005 immutability contract as history", () => {
+    const sql = readQuarantinedMigration(
+      "20260721215705_admin_publication_snapshot_immutability_adr005.sql",
     )
 
     expect(sql).toContain("guard_admin_publication_snapshot_update")
@@ -76,13 +71,9 @@ describe("PUB-102 publication schema contract", () => {
     expect(sql).not.toMatch(/\btruncate\b|\bdrop\s+table\b/i)
   })
 
-  it("derives publication ownership from parents and restricts sensitive direct reads", () => {
-    const sql = readFileSync(
-      join(
-        process.cwd(),
-        "supabase/migrations/20260721221811_admin_publication_parent_scope_rls_pub102.sql",
-      ),
-      "utf8",
+  it("preserves the quarantined parent-scope and sensitive-read contract as history", () => {
+    const sql = readQuarantinedMigration(
+      "20260721221811_admin_publication_parent_scope_rls_pub102.sql",
     )
 
     expect(sql).toContain("admin_publication_ownership_quarantine")

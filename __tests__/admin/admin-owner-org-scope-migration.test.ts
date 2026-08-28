@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readQuarantinedMigration } from './quarantined-migration-history'
 
-const migration = readFileSync(
-  join(process.cwd(), 'supabase/migrations/20260811182035_admin_owner_org_scope_repair.sql'),
-  'utf8',
+const migration = readQuarantinedMigration(
+  '20260811182035_admin_owner_org_scope_repair.sql',
 )
 
-describe('admin owner org scope repair migration', () => {
+describe('quarantined admin owner org scope repair history', () => {
   it('links legacy organizer accounts to operations organizations', () => {
     expect(migration).toContain('ops_org_id is null')
     expect(migration).toContain('insert into public.organizations')

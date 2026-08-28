@@ -88,8 +88,8 @@ export function mapAssignmentStatusToShift(
 
 export function mapAssignmentStatusToTourTeam(
   status: EmploymentAssignmentStatus,
-): "confirmed" | "pending" | "declined" {
-  if (status === "cancelled") return "declined"
+): "confirmed" | "pending" | "declined" | "cancelled" {
+  if (status === "cancelled") return "cancelled"
   if (status === "declined") return "declined"
   if (status === "confirmed" || status === "active" || status === "completed") return "confirmed"
   return "pending"
@@ -99,6 +99,7 @@ export function mapTourTeamStatusToAssignment(
   status: TourTeamSurfaceStatus | null | undefined,
 ): EmploymentAssignmentStatus {
   const normalized = String(status || "").toLowerCase()
+  if (normalized === "cancelled") return "cancelled"
   if (normalized === "declined") return "declined"
   if (normalized === "confirmed" || normalized === "active") return "confirmed"
   return "invited"

@@ -1,0 +1,1687 @@
+[
+  {
+    "workflowId": "ADM-WF-001",
+    "title": "Admin Identity and Acting Organization",
+    "domain": "Identity and access",
+    "deliveryWave": 1,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Authenticates and explicitly selects an authorized organization."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-002",
+        "organizationRelation": "same_organization",
+        "outcome": "Sees a shell and data bound to the selected organization."
+      },
+      {
+        "personaId": "PER-010",
+        "organizationRelation": "same_organization",
+        "outcome": "Is denied immediately after revocation."
+      }
+    ],
+    "entryPoints": [
+      "/auth",
+      "account switcher",
+      "/admin/dashboard"
+    ],
+    "routePatterns": [
+      "/api/admin/acting-context/**",
+      "/api/auth/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "admin.access",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "profiles",
+        "org_members",
+        "account_relationships",
+        "admin_acting_sessions"
+      ],
+      "rpcs": [
+        "switch_active_account",
+        "get_user_accounts_adaptive"
+      ],
+      "storageBuckets": [],
+      "rlsExpectation": "The authenticated subject can resolve and switch only to active memberships owned by that subject; stale or revoked context fails closed."
+    },
+    "sideEffects": [
+      "signed acting-context cookie",
+      "organization-scoped cache key",
+      "revocation audit"
+    ],
+    "recipientVisibleResult": "The visible organization, server context, API scope, and database scope agree.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.acting_context.changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-003",
+      "ADM-M-021",
+      "ADM-M-047",
+      "ADM-M-051",
+      "ADM-M-052",
+      "ADM-M-056"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-002",
+    "title": "Roles, Capabilities, Grants, and Revocation",
+    "domain": "Authorization",
+    "deliveryWave": 1,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-001",
+      "organizationRelation": "same_organization",
+      "outcome": "Grants or revokes a role or scoped capability."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-003",
+        "organizationRelation": "same_organization",
+        "outcome": "Receives only the intended capability and loses it immediately when revoked."
+      }
+    ],
+    "entryPoints": [
+      "/admin/dashboard/settings/roles",
+      "member access review"
+    ],
+    "routePatterns": [
+      "/api/admin/capabilities",
+      "/api/admin/**/grants/**"
+    ],
+    "pagePatterns": [],
+    "jobPatterns": [],
+    "command": {
+      "capability": "org.roles.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "org_members",
+        "admin_roles",
+        "admin_role_capabilities",
+        "entity_grants"
+      ],
+      "rpcs": [
+        "resolve_effective_admin_capabilities"
+      ],
+      "storageBuckets": [],
+      "rlsExpectation": "Only active owners or explicitly granted role administrators may change organization-scoped grants; entity grants cannot escape their target."
+    },
+    "sideEffects": [
+      "capability cache invalidation",
+      "recipient access change"
+    ],
+    "recipientVisibleResult": "Recipient navigation and server authorization update from the same effective-capability decision.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.authorization.grant_changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-003",
+      "ADM-M-016",
+      "ADM-M-017",
+      "ADM-M-057"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-003",
+    "title": "Provider Event Ingestion and Reconciliation",
+    "domain": "Events",
+    "deliveryWave": 2,
+    "disposition": "platform_internal",
+    "producer": {
+      "personaId": "PER-016",
+      "organizationRelation": "technical_principal",
+      "outcome": "Imports or reconciles provider event data."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-014",
+        "organizationRelation": "platform",
+        "outcome": "Reviews conflicts, claims, and provider health before organization exposure."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/event-sync",
+      "/api/admin/event-providers",
+      "/api/admin/event-claims",
+      "/api/admin/event-merges"
+    ],
+    "pagePatterns": [],
+    "jobPatterns": [
+      "provider event sync"
+    ],
+    "command": {
+      "capability": "platform.provider.manage",
+      "actingContext": "service_principal",
+      "tenantTarget": "provider record plus resolved organization",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "events_v2",
+        "event_provider_records",
+        "event_claims",
+        "event_merge_records"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Provider principals can write only through reviewed internal jobs; organization users receive only resolved events linked to their organization."
+    },
+    "sideEffects": [
+      "reconciliation report",
+      "quarantine record"
+    ],
+    "recipientVisibleResult": "A reviewed events_v2 record or an explicit unresolved/quarantined conflict is produced.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "provider.event.reconciled",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-004",
+      "ADM-M-036"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-004",
+    "title": "Event Lifecycle, Provisioning, and Publication",
+    "domain": "Events",
+    "deliveryWave": 2,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Creates, provisions, validates, and publishes an event."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-007",
+        "organizationRelation": "same_organization",
+        "outcome": "Receives the published event and current itinerary."
+      },
+      {
+        "personaId": "PER-009",
+        "organizationRelation": "public_or_external",
+        "outcome": "Receives only the evaluated publication projection."
+      }
+    ],
+    "entryPoints": [
+      "/admin/dashboard/events",
+      "/admin/dashboard/events/[id]"
+    ],
+    "routePatterns": [
+      "/api/admin/events/**",
+      "/api/admin/publication/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/events/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "event.publish",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "events_v2",
+        "event_participants",
+        "admin_publication_snapshots",
+        "admin_publication_outbox"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Only authorized organization actors may mutate or publish; recipient projections cannot expose Admin data."
+    },
+    "sideEffects": [
+      "immutable snapshot",
+      "delivery outbox",
+      "recipient notification"
+    ],
+    "recipientVisibleResult": "Recipients see the exact published version and Admin sees delivery state.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.event.published",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-004",
+      "ADM-M-009",
+      "ADM-M-031"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-005",
+    "title": "Tour Planning, Stops, Assignment, and Publication",
+    "domain": "Tours",
+    "deliveryWave": 2,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Builds a tour, attaches canonical events, resolves readiness, and publishes."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-007",
+        "organizationRelation": "same_organization",
+        "outcome": "Receives the assigned tour itinerary and changes."
+      }
+    ],
+    "entryPoints": [
+      "/admin/dashboard/tours",
+      "/admin/dashboard/tours/[id]"
+    ],
+    "routePatterns": [
+      "/api/admin/tours/**",
+      "/api/tours/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/tours/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "tour.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "tours",
+        "tour_stops",
+        "tour_events",
+        "tour_versions",
+        "tour_stop_holds"
+      ],
+      "rpcs": [
+        "create_tour_quick_start_events"
+      ],
+      "storageBuckets": [],
+      "rlsExpectation": "Tour and event organization must match for every relationship; direct child-ID writes validate the parent chain."
+    },
+    "sideEffects": [
+      "autosave version",
+      "readiness evidence",
+      "publication snapshot",
+      "calendar feed"
+    ],
+    "recipientVisibleResult": "The Artist/crew itinerary matches the persisted canonical tour and event relationships.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.tour.changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-004",
+      "ADM-M-009",
+      "ADM-M-010",
+      "ADM-M-012",
+      "ADM-M-022",
+      "ADM-M-023",
+      "ADM-M-024",
+      "ADM-M-025",
+      "ADM-M-026",
+      "ADM-M-027",
+      "ADM-M-028"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-006",
+    "title": "Artist Assignment and Artist-Surface Delivery",
+    "domain": "Artists and tours",
+    "deliveryWave": 2,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Assigns an organization Artist to a tour or event."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-007",
+        "organizationRelation": "same_organization",
+        "outcome": "Sees the assignment, event, and tour on Artist surfaces."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/tours/**/artists/**",
+      "/api/admin/events/**/artists/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/tours/**",
+      "/artist/events/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "tour.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "organization_artist_members",
+        "tour_artists",
+        "event_participants"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Roster relationships share one organization boundary and removal cannot delete the global Artist identity."
+    },
+    "sideEffects": [
+      "Artist notification",
+      "roster projection"
+    ],
+    "recipientVisibleResult": "Assignment and removal round-trip across Admin and Artist surfaces.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.artist.assignment_changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-005"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-007",
+    "title": "Hiring, Candidate Invitation, and Onboarding",
+    "domain": "Hiring",
+    "deliveryWave": 3,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Publishes a posting, reviews an application, and issues an offer or onboarding invite."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-008",
+        "organizationRelation": "public_or_external",
+        "outcome": "Receives, redeems, and completes the employer-scoped invitation."
+      }
+    ],
+    "entryPoints": [
+      "/admin/dashboard/hiring",
+      "public jobs"
+    ],
+    "routePatterns": [
+      "/api/hiring/**",
+      "/api/admin/onboarding/**",
+      "/api/staffing/invitations/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/hiring",
+      "/staffing/invite/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "hiring.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "job_postings",
+        "job_applications",
+        "staff_onboarding_candidates",
+        "staffing_invitations"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "The server owns lifecycle transitions and employer scope; tokens are hashed, expiring, single-use, and replay safe."
+    },
+    "sideEffects": [
+      "candidate email",
+      "onboarding record",
+      "roster reservation"
+    ],
+    "recipientVisibleResult": "The candidate receives a usable invitation and the Admin sees delivery and onboarding state.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.hiring.transitioned",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-014",
+      "ADM-M-015",
+      "ADM-M-062"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-008",
+    "title": "Workforce Scheduling, Roster, and Check-In",
+    "domain": "Workforce",
+    "deliveryWave": 3,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Assigns, publishes, and updates organization workforce shifts."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-006",
+        "organizationRelation": "same_organization",
+        "outcome": "Receives the assignment, responds, and checks in/out."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/staffing/**",
+      "/api/admin/workforce/**",
+      "/api/events/**/staff/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/hiring",
+      "/admin/dashboard/staff-operations",
+      "/staffing/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "workforce.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "staff_members",
+        "staff_shifts",
+        "employment_assignments",
+        "workforce_conflicts"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Organization-owned shifts remain protected even without a venue; conflicts and assignments use the employer entity and target event."
+    },
+    "sideEffects": [
+      "worker notification",
+      "schedule publication",
+      "attendance record"
+    ],
+    "recipientVisibleResult": "Admin and Worker see the same assignment state, including decline, cancel, replacement, and check-in.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.workforce.assignment_changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-006",
+      "ADM-M-029"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-009",
+    "title": "Artist Administration and Relationship Management",
+    "domain": "Artist administration",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Searches, invites, imports, edits, or removes an organization Artist relationship."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-007",
+        "organizationRelation": "same_organization",
+        "outcome": "Retains the global profile while organization membership changes safely."
+      }
+    ],
+    "entryPoints": [
+      "/admin/dashboard/artists"
+    ],
+    "routePatterns": [
+      "/api/admin/artists/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/artists/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "artist.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "artist_profiles",
+        "organization_artist_members"
+      ],
+      "rpcs": [
+        "create_artist_account"
+      ],
+      "storageBuckets": [],
+      "rlsExpectation": "Organization Admins may access only their roster relationships; global profiles cannot be clobbered or hard-deleted through roster operations."
+    },
+    "sideEffects": [
+      "invite",
+      "row-level import result",
+      "relationship audit"
+    ],
+    "recipientVisibleResult": "Roster state changes without cross-organization enumeration or global-profile loss.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.artist.relationship_changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-007",
+      "ADM-M-045",
+      "ADM-M-053"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-010",
+    "title": "Venue Administration and Relationship Management",
+    "domain": "Venue administration",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Creates or maintains a structurally linked Venue relationship."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-002",
+        "organizationRelation": "same_organization",
+        "outcome": "Sees only authorized venues and correctly scoped event metrics."
+      }
+    ],
+    "entryPoints": [
+      "/admin/dashboard/venues"
+    ],
+    "routePatterns": [
+      "/api/admin/venues/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/venues/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "venue.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "venues",
+        "organization_venues",
+        "events_v2"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Venue reads and writes require an organization or event relationship; names are never authorization joins."
+    },
+    "sideEffects": [
+      "venue relationship",
+      "scoped metric refresh"
+    ],
+    "recipientVisibleResult": "The venue list and counts contain only structurally authorized records.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.venue.relationship_changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-008"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-011",
+    "title": "Messaging, Conversations, and Private Files",
+    "domain": "Communications",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Starts an authorized conversation, sends a message, or uploads an attachment."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-009",
+        "organizationRelation": "public_or_external",
+        "outcome": "Receives the message, unread state, reply context, and time-limited file access."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/messages/**",
+      "/api/admin/staff-operations/channels/**",
+      "/api/groups/threads/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/communications/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "communications.send",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "message_threads",
+        "thread_members",
+        "group_messages",
+        "message_attachments"
+      ],
+      "rpcs": [
+        "send_dm_request",
+        "get_or_create_conversation"
+      ],
+      "storageBuckets": [
+        "message-attachments"
+      ],
+      "rlsExpectation": "The authenticated sender is bound to auth.uid(); both participants and the object path are authorized; private files require scoped signed access."
+    },
+    "sideEffects": [
+      "unread increment",
+      "recipient notification",
+      "signed URL"
+    ],
+    "recipientVisibleResult": "Recipient receives one authorized message and can access attachments only until expiry.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.message.sent",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-011",
+      "ADM-M-020",
+      "ADM-M-030",
+      "ADM-M-054",
+      "ADM-M-055"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-012",
+    "title": "Broadcasts, Reminders, Notifications, and Outbox Delivery",
+    "domain": "Delivery operations",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Targets and sends an organization-scoped broadcast or reminder."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-009",
+        "organizationRelation": "public_or_external",
+        "outcome": "Receives the evaluated message once through the selected channel."
+      },
+      {
+        "personaId": "PER-018",
+        "organizationRelation": "technical_principal",
+        "outcome": "Claims, retries, or dead-letters delivery work."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/communications/**",
+      "/api/admin/publication/deliveries/**",
+      "/api/cron/**"
+    ],
+    "pagePatterns": [],
+    "jobPatterns": [
+      "publication outbox",
+      "event reminders",
+      "music outbox workers"
+    ],
+    "command": {
+      "capability": "communications.send",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "notifications",
+        "notification_deliveries",
+        "admin_publication_outbox"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Audience rows and worker claims retain organization scope; workers cannot accept caller-supplied actors."
+    },
+    "sideEffects": [
+      "email/SMS/push/in-app delivery",
+      "provider receipt",
+      "dead-letter record"
+    ],
+    "recipientVisibleResult": "Admin sees per-recipient delivery/retry state and recipients receive at most one logical message.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.delivery.requested",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-014",
+      "ADM-M-031",
+      "ADM-M-063",
+      "ADM-M-064"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-013",
+    "title": "Logistics, Travel, Lodging, Catering, and Site Maps",
+    "domain": "Operations",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Plans and communicates organization logistics."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-006",
+        "organizationRelation": "same_organization",
+        "outcome": "Receives only assigned operational details and acknowledgement requests."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/logistics/**",
+      "/api/admin/travel/**",
+      "/api/admin/lodging/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/logistics/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "logistics.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "logistics_tasks",
+        "travel_segments",
+        "lodging_blocks",
+        "catering_requirements",
+        "site_maps"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Every parent and child row carries validated organization ownership and direct child-ID operations recheck the parent chain."
+    },
+    "sideEffects": [
+      "worker projection",
+      "operational notification",
+      "private site-map link"
+    ],
+    "recipientVisibleResult": "Recipients see current scoped logistics without cross-organization or protected-data leakage.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.logistics.changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-002",
+      "ADM-M-010",
+      "ADM-M-011",
+      "ADM-M-038",
+      "ADM-M-061"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-014",
+    "title": "Finance Read-Only Reporting and Export",
+    "domain": "Finance",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-004",
+      "organizationRelation": "same_organization",
+      "outcome": "Reads scoped budgets, ledger records, and exports."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-004",
+        "organizationRelation": "same_organization",
+        "outcome": "Receives an organization-scoped read-only report."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/finances/**",
+      "/api/admin/analytics/export"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/finances/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "finance.view",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "not_applicable"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "financial_transactions",
+        "budgets",
+        "finance_ledger_entries"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Organization users receive SELECT only when membership and finance capability match; all mutation paths are hidden and server-denied."
+    },
+    "sideEffects": [
+      "audited export"
+    ],
+    "recipientVisibleResult": "Finance viewers obtain correct scoped reports and cannot mutate or simulate money movement.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.finance.read_or_exported",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-002",
+      "ADM-M-032",
+      "ADM-M-063"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-015",
+    "title": "Vendor and Contract Tracking",
+    "domain": "Vendors and contracts",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Tracks a vendor, contract document, obligation, or renewal."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-009",
+        "organizationRelation": "public_or_external",
+        "outcome": "Receives an authorized tracking notification without an execution claim."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/vendors/**",
+      "/api/admin/contracts/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/vendors/**",
+      "/admin/dashboard/contracts/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "contract.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "vendors",
+        "contracts",
+        "contract_obligations",
+        "vendor_documents"
+      ],
+      "rpcs": [],
+      "storageBuckets": [
+        "contract-documents"
+      ],
+      "rlsExpectation": "Contracts and documents are organization-scoped; no organization user can sign or assert executed without a verified execution source."
+    },
+    "sideEffects": [
+      "obligation reminder",
+      "private document link"
+    ],
+    "recipientVisibleResult": "Authorized users see tracking state while signing and unverified execution remain unavailable.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.contract.tracking_changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-010",
+      "ADM-M-033",
+      "ADM-M-063"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-016",
+    "title": "Navigation, Search, Accessibility, and Responsive Web",
+    "domain": "Admin experience",
+    "deliveryWave": 5,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Navigates, searches, deep-links, and completes Admin work using supported input and viewport modes."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-002",
+        "organizationRelation": "same_organization",
+        "outcome": "Reaches one canonical authorized surface with preserved context."
+      }
+    ],
+    "entryPoints": [
+      "Admin sidebar",
+      "global search",
+      "keyboard shortcuts",
+      "deep links"
+    ],
+    "routePatterns": [
+      "/admin/**"
+    ],
+    "pagePatterns": [
+      "/admin/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "admin.access",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "not_applicable"
+    },
+    "dataBoundaries": {
+      "tables": [],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "UI capability awareness never substitutes for server authorization and never exposes unauthorized search results."
+    },
+    "sideEffects": [
+      "route redirect",
+      "focus announcement"
+    ],
+    "recipientVisibleResult": "Phone, tablet, desktop, keyboard, and screen-reader users reach the same canonical workflow state.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.navigation.opened",
+    "requiredTestKinds": [
+      "positive",
+      "cross_org",
+      "revoked",
+      "unauthenticated",
+      "accessibility",
+      "responsive"
+    ],
+    "findingIds": [
+      "ADM-M-034",
+      "ADM-M-035",
+      "ADM-M-037",
+      "ADM-M-039",
+      "ADM-M-040",
+      "ADM-M-041",
+      "ADM-M-042",
+      "ADM-M-043",
+      "ADM-M-044",
+      "ADM-M-050",
+      "ADM-M-059",
+      "ADM-M-060"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-017",
+    "title": "Reliability, Observability, Migration, and Release Evidence",
+    "domain": "Engineering assurance",
+    "deliveryWave": 6,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-017",
+      "organizationRelation": "technical_principal",
+      "outcome": "Runs build, migration, security, reliability, and evidence gates on an immutable commit."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-014",
+        "organizationRelation": "platform",
+        "outcome": "Reviews reproducible evidence and records a release decision."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "CI workflows",
+      "staging deployment"
+    ],
+    "pagePatterns": [],
+    "jobPatterns": [
+      "migration validation",
+      "RLS matrix",
+      "independent verification"
+    ],
+    "command": {
+      "capability": "release.verify",
+      "actingContext": "service_principal",
+      "tenantTarget": "immutable commit and named staging environment",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "schema_migrations",
+        "security_audit_events"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Verification uses isolated non-production data and cannot silently skip live cases or expose secrets."
+    },
+    "sideEffects": [
+      "evidence receipt",
+      "status dashboard",
+      "release decision"
+    ],
+    "recipientVisibleResult": "Every gate resolves from immutable evidence and contradictory claims cause NO-GO.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.release.evidence_recorded",
+    "requiredTestKinds": [
+      "positive",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-001",
+      "ADM-M-013",
+      "ADM-M-018",
+      "ADM-M-019",
+      "ADM-M-038",
+      "ADM-M-048",
+      "ADM-M-049",
+      "ADM-M-058",
+      "ADM-M-061"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-018",
+    "title": "Organization Settings, Membership, and Administration",
+    "domain": "Organization administration",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-001",
+      "organizationRelation": "same_organization",
+      "outcome": "Updates an organization setting or membership through a governed server command."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-003",
+        "organizationRelation": "same_organization",
+        "outcome": "Sees the authorized setting or membership result."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/organizations/**",
+      "/api/admin/settings/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/settings/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "org.settings.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "organizer_accounts",
+        "org_members",
+        "organization_settings"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Settings and memberships are organization-scoped, audited server writes; browser clients cannot perform privileged direct updates."
+    },
+    "sideEffects": [
+      "cache invalidation",
+      "membership notification"
+    ],
+    "recipientVisibleResult": "The setting or membership change is visible only inside the target organization.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.organization.changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-003",
+      "ADM-M-016",
+      "ADM-M-017",
+      "ADM-M-020",
+      "ADM-M-046"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-019",
+    "title": "Ticketing, Guest Lists, Credentials, and Admissions",
+    "domain": "Ticketing",
+    "deliveryWave": 4,
+    "disposition": "in_scope",
+    "producer": {
+      "personaId": "PER-002",
+      "organizationRelation": "same_organization",
+      "outcome": "Allocates, invites, transfers, or admits an event guest."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-009",
+        "organizationRelation": "public_or_external",
+        "outcome": "Receives and redeems a scoped, expiring ticket or guest-list credential."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/ticketing/**",
+      "/api/ticketing/**"
+    ],
+    "pagePatterns": [
+      "/admin/dashboard/ticketing",
+      "/tickets/**"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "ticketing.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "acting organization and target entity",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "ticket_allocations",
+        "ticket_invitations",
+        "ticket_transfers",
+        "admissions"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Event and organization scope are revalidated for every allocation and token; credentials are hashed, expiring, and replay safe."
+    },
+    "sideEffects": [
+      "invite delivery",
+      "wallet update",
+      "admission record"
+    ],
+    "recipientVisibleResult": "The intended recipient can accept and use the credential once while outsiders are denied.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "admin.ticketing.changed",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-002",
+      "ADM-M-010",
+      "ADM-M-013"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  },
+  {
+    "workflowId": "ADM-WF-020",
+    "title": "Platform-Internal Provider and Governance Tools",
+    "domain": "Platform administration",
+    "deliveryWave": 4,
+    "disposition": "platform_internal",
+    "producer": {
+      "personaId": "PER-014",
+      "organizationRelation": "platform",
+      "outcome": "Uses provider, governance, reconciliation, or internal setup tools."
+    },
+    "recipients": [
+      {
+        "personaId": "PER-014",
+        "organizationRelation": "platform",
+        "outcome": "Receives platform-scoped operational results."
+      }
+    ],
+    "entryPoints": [],
+    "routePatterns": [
+      "/api/admin/event-providers",
+      "/api/admin/event-sync",
+      "/api/admin/internal/**"
+    ],
+    "pagePatterns": [
+      "internal platform tools"
+    ],
+    "jobPatterns": [],
+    "command": {
+      "capability": "platform.provider.manage",
+      "actingContext": "signed_server_session",
+      "tenantTarget": "platform principal plus explicitly resolved organization when data is tenant-owned",
+      "idempotency": "required"
+    },
+    "dataBoundaries": {
+      "tables": [
+        "provider_connections",
+        "provider_sync_runs"
+      ],
+      "rpcs": [],
+      "storageBuckets": [],
+      "rlsExpectation": "Organization Admins cannot discover, navigate to, or invoke platform-internal tools; production utility routes are absent or denied."
+    },
+    "sideEffects": [
+      "provider job",
+      "governance evidence"
+    ],
+    "recipientVisibleResult": "Only platform principals can perform provider/governance operations, with complete audit evidence.",
+    "recovery": {
+      "retry": "Retry is bounded, idempotent, and exposes the last failure.",
+      "reversal": "A reviewed compensating or revocation command restores the prior safe state.",
+      "partialFailure": "Partial effects remain visible and resumable; no silent success is returned."
+    },
+    "auditEvent": "platform.internal.command",
+    "requiredTestKinds": [
+      "positive",
+      "recipient",
+      "cross_org",
+      "tamper",
+      "revoked",
+      "unauthenticated",
+      "direct_data_access",
+      "idempotency",
+      "retry",
+      "rollback"
+    ],
+    "findingIds": [
+      "ADM-M-036",
+      "ADM-M-060",
+      "ADM-M-064"
+    ],
+    "specTaskIds": [],
+    "status": "observed",
+    "blockers": [],
+    "owner": null,
+    "independentVerifier": null,
+    "implementationCommit": null,
+    "evidenceIds": []
+  }
+]

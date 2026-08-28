@@ -74,6 +74,12 @@ test("rejects unscoped data movement and blocking constraints", () => {
   assert.ok(scanFile(fixture, "alter table public.rows alter column org_id set not null;").length > 0)
 })
 
+test("permits byte-pinned historical constraints without weakening prospective scans", () => {
+  const sql = "alter table public.rows add constraint rows_org_fk foreign key (org_id) references public.orgs(id);"
+  assert.ok(scanFile(fixture, sql).some((failure) => failure.includes("NOT VALID")))
+  assert.deepEqual(scanFile(fixture, sql, null, { immutableHistory: true }), [])
+})
+
 test("requires policy replacement on each affected table", () => {
   const unsafe = scanFile(fixture, `
     drop policy if exists old_rows_select on public.rows;

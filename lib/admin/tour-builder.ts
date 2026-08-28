@@ -440,6 +440,14 @@ export function buildTourBuilderPayload(
   options: { publish?: boolean; readinessScore?: number } = {},
 ) {
   const plan = buildTourPlanPayload(form, options)
+  const eventIds = Array.from(
+    new Set([
+      ...form.attachedEventIds,
+      ...plan.stops
+        .map((stop) => stop.event_id)
+        .filter((eventId): eventId is string => Boolean(eventId)),
+    ]),
+  )
   return {
     name: plan.name,
     main_artist: plan.main_artist,
@@ -451,7 +459,7 @@ export function buildTourBuilderPayload(
     markets: plan.markets,
     cover_image_url: plan.cover_image_url,
     budget: plan.budget,
-    event_ids: plan.stops.map((stop) => stop.event_id).filter(Boolean),
+    event_ids: eventIds,
     events: plan.stops.map((stop) => ({
       ...(stop.event_id ? { id: stop.event_id } : {}),
       name: stop.name,

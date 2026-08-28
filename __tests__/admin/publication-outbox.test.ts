@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { readQuarantinedMigration } from "./quarantined-migration-history"
 
 import {
   buildPublicationOutboxIdempotencyKey,
@@ -62,13 +63,9 @@ describe("PUB-101 publication outbox infrastructure", () => {
     expect(classifyPublicationOutboxError(new Error("unauthorized recipient"))).toBe("fatal")
   })
 
-  it("scopes worker mutations and safely resets replay budget in manual SQL", () => {
-    const sql = readFileSync(
-      join(
-        process.cwd(),
-        "supabase/migrations/20260721221325_admin_publication_outbox_hardening_pub101.sql",
-      ),
-      "utf8",
+  it("preserves the quarantined intended worker contract without treating it as active", () => {
+    const sql = readQuarantinedMigration(
+      "20260721221325_admin_publication_outbox_hardening_pub101.sql",
     )
     const service = readFileSync(
       join(process.cwd(), "lib/admin/publication-outbox.service.ts"),
