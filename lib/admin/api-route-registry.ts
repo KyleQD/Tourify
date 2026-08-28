@@ -1035,7 +1035,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/collaborators",
     methods: ["DELETE", "GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,

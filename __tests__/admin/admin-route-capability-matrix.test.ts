@@ -106,6 +106,7 @@ describe("SEC-003 Admin command capability matrix", () => {
       "/api/admin/logistics/site-maps/[id]/export",
       "/api/admin/logistics/site-maps/[id]/versions",
       "/api/admin/logistics/site-maps/[id]/activity",
+      "/api/admin/logistics/site-maps/[id]/collaborators",
     ]) {
       expect(
         ADMIN_API_ROUTE_REGISTRY.find((entry) => entry.route === route)

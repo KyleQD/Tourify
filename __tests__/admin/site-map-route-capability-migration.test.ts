@@ -8,6 +8,7 @@ const migratedRoutes = [
   "app/api/admin/logistics/site-maps/[id]/export/route.ts",
   "app/api/admin/logistics/site-maps/[id]/versions/route.ts",
   "app/api/admin/logistics/site-maps/[id]/activity/route.ts",
+  "app/api/admin/logistics/site-maps/[id]/collaborators/route.ts",
 ] as const;
 
 describe("SEC-104 site-map route capability migration", () => {

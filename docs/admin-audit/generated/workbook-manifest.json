@@ -1,6 +1,6 @@
 {
-  "registrySourceSha256": "15811b41cc44ba9bbcd6a83134c5697c5db581ea33bbbcbd22991603dacf83ca",
-  "workbookSha256": "936a75fb1895f74bb074367cbbb46e64b5da8d97d1a04cf849d8cb8e754dc334",
+  "registrySourceSha256": "35e5ce90664f808367614defdc36690065e3a7702e8813d31d7147c46c006008",
+  "workbookSha256": "653e2c01d521b2639f6c45ae19302de4bddc5ce25775d82122de135cc31e657e",
   "workbookPath": "generated/TOURIFY_ADMIN_WORKFLOW_TRACKER.xlsx",
-  "generatedAt": "2026-08-28T08:35:10.008Z"
+  "generatedAt": "2026-08-28T08:39:09.305Z"
 }
