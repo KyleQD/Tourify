@@ -37,6 +37,11 @@ const GENERATED_ROOT = path.join(AUDIT_ROOT, "generated")
 const WORKBOOK = path.join(GENERATED_ROOT, "TOURIFY_ADMIN_WORKFLOW_TRACKER.xlsx")
 const WORKBOOK_MANIFEST = path.join(GENERATED_ROOT, "workbook-manifest.json")
 const SERVICE_ROLE_REVIEW = path.join(ROOT, "lib/supabase/service-role-import-review.json")
+const ADMIN_ROUTE_REGISTRY = path.join(ROOT, "lib/admin/api-route-registry.ts")
+const ADMIN_ROUTE_BASELINE = path.join(
+  ROOT,
+  "scripts/ci/admin-route-registry-baseline.json",
+)
 
 const ServiceRoleReviewSchema = z
   .object({
@@ -186,6 +191,8 @@ function registrySourceHash() {
     ...walkJson(REGISTRY_ROOT),
     ...walkJson(EVIDENCE_ROOT),
     SERVICE_ROLE_REVIEW,
+    ADMIN_ROUTE_REGISTRY,
+    ADMIN_ROUTE_BASELINE,
   ].filter(existsSync).sort()
   const hash = createHash("sha256")
   for (const file of files) {

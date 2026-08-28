@@ -102,9 +102,13 @@ describe("SEC-003 Admin command capability matrix", () => {
       "/api/admin/logistics/comms-plans",
       "/api/admin/logistics/equipment/reservations",
       "/api/admin/logistics/site-maps",
+      "/api/admin/logistics/site-map-templates",
+      "/api/admin/logistics/site-maps/[id]/export",
+      "/api/admin/logistics/site-maps/[id]/versions",
     ]) {
       expect(
-        ADMIN_API_ROUTE_REGISTRY.find((entry) => entry.route === route)?.authClass,
+        ADMIN_API_ROUTE_REGISTRY.find((entry) => entry.route === route)
+          ?.authClass,
         route,
       ).toBe("capability_gated");
     }

@@ -1,6 +1,6 @@
 {
   "generatedFrom": "TOURIFY-ADMIN-COMPLETION",
-  "registrySourceSha256": "44444151b78e6c212ba1a82a196ecde698dad2b01b5eb8d56d8c8342d94a88ac",
+  "registrySourceSha256": "9d396f834ff54fa9b7f53eefe370e8039a02430a01e9f5d6616a6b6b86a70e35",
   "baseline": {
     "branch": "codex/admin-workflow-completion",
     "commit": "a043d35d4304cc8181078a17e2138c1f47baf199",
@@ -51,9 +51,9 @@
   },
   "adminRouteMethods": {
     "byDisposition": {
-      "active": 254,
+      "active": 257,
       "internal_only": 48,
-      "migrate": 177,
+      "migrate": 174,
       "retire": 1
     },
     "byVisibility": {

@@ -48,10 +48,7 @@ export type AdminTenantTargetContract =
   | "public_share"
   | "service_scope";
 
-export type AdminServiceRoleContract =
-  | "none"
-  | "approved_job"
-  | "legacy_bare";
+export type AdminServiceRoleContract = "none" | "approved_job" | "legacy_bare";
 
 export type AdminRouteVisibility =
   | "organization_admin"
@@ -1018,7 +1015,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-map-templates",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1063,10 +1060,10 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/export",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
-    audit: false,
+    audit: true,
     owner: "ops-logistics",
   },
   {
@@ -1162,7 +1159,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/versions",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -2901,7 +2898,9 @@ function isPlatformInternalRoute(route: string) {
   );
 }
 
-function visibilityContract(contract: AdminRouteContract): AdminRouteVisibility {
+function visibilityContract(
+  contract: AdminRouteContract,
+): AdminRouteVisibility {
   if (contract.authClass === "public_share_token") return "public_share";
   if (contract.authClass === "service_job") return "service_internal";
   if (isPlatformInternalRoute(contract.route)) return "platform_internal";
@@ -3024,9 +3023,7 @@ function workflowIdsForRoute(route: string): readonly AdminWorkflowId[] {
   return ["ADM-WF-017"];
 }
 
-function testIdsForContract(
-  contract: AdminRouteContract,
-): readonly string[] {
+function testIdsForContract(contract: AdminRouteContract): readonly string[] {
   const ids = [
     "scripts/ci/check-admin-route-registry.mjs",
     "__tests__/admin/admin-route-capability-matrix.test.ts",

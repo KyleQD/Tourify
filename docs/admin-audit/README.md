@@ -7,6 +7,7 @@ This directory is the canonical control plane for the Admin workflow completion 
 - Hand-edited source records live in `registry/`.
 - Immutable evidence receipts live in `evidence/<year>/`.
 - Imported source provenance lives in `sources/manifest.json`.
+- The Admin route registry, its debt ceiling, and the reviewed service-role debt are hashed inputs to generated coverage.
 - Files in `generated/` are derived views and must not be edited by hand.
 - Historical ledgers and the August 25 handoff are evidence inputs only; their status claims never promote a record automatically.
 
