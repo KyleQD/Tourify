@@ -1,0 +1,24 @@
+{
+  "evidenceId": "EVD-SEC104-SITEMAP-ELEMENTS-RLS-LOCAL",
+  "kind": "rls_matrix",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-09-03T16:01:00-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "7630a37ef395e147198a169e94fa888d2f3c7b19",
+  "artifact": "Disposable PostgreSQL fixture: migration apply plus owner, replay, cross-map collision, forged tenant field, invalid geometry, expired collaborator, rollback, cross-actor read, and cross-actor write assertions",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013",
+    "ADM-M-019"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "The migration parsed and applied to a fresh disposable local PostgreSQL schema. Atomic replay and rollback plus direct actor/tamper/expiry denials passed. This is isolated local evidence, not dedicated Supabase staging or a complete Org A/Org B matrix."
+}

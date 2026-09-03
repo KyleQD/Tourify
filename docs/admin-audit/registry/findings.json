@@ -451,7 +451,9 @@
     "owner": "Database platform",
     "independentVerifier": null,
     "implementationCommit": null,
-    "evidenceIds": [],
+    "evidenceIds": [
+      "EVD-SEC104-LOGISTICS-DDL-LOCAL-FAIL"
+    ],
     "priorClaims": [
       {
         "source": "August 25 master handoff register",
@@ -586,7 +588,7 @@
     "blockers": [],
     "owner": "Security engineering",
     "independentVerifier": null,
-    "implementationCommit": "63ff56bd8a9567b6d34599d9afefa1e21780f950",
+    "implementationCommit": "7630a37ef395e147198a169e94fa888d2f3c7b19",
     "evidenceIds": [
       "EVD-WAVE0-CONTROLS-COMMIT",
       "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
@@ -596,7 +598,10 @@
       "EVD-SEC104-SITEMAP-ACTING-COMMIT",
       "EVD-SEC104-SITEMAP-ACTING-LOCAL",
       "EVD-SEC104-SITEMAP-COLLAB-COMMIT",
-      "EVD-SEC104-SITEMAP-COLLAB-LOCAL"
+      "EVD-SEC104-SITEMAP-COLLAB-LOCAL",
+      "EVD-SEC104-SITEMAP-ELEMENTS-COMMIT",
+      "EVD-SEC104-SITEMAP-ELEMENTS-LOCAL",
+      "EVD-SEC104-SITEMAP-ELEMENTS-RLS-LOCAL"
     ],
     "priorClaims": [
       {
@@ -857,10 +862,13 @@
     "blockers": [],
     "owner": "Security engineering",
     "independentVerifier": null,
-    "implementationCommit": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
+    "implementationCommit": "7630a37ef395e147198a169e94fa888d2f3c7b19",
     "evidenceIds": [
       "EVD-SEC104-SITEMAP-ACTING-COMMIT",
-      "EVD-SEC104-SITEMAP-ACTING-LOCAL"
+      "EVD-SEC104-SITEMAP-ACTING-LOCAL",
+      "EVD-SEC104-SITEMAP-ELEMENTS-COMMIT",
+      "EVD-SEC104-SITEMAP-ELEMENTS-LOCAL",
+      "EVD-SEC104-SITEMAP-ELEMENTS-RLS-LOCAL"
     ],
     "priorClaims": [
       {
