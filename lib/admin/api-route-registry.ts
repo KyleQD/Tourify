@@ -1044,19 +1044,21 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/elements/[elementId]",
     methods: ["DELETE", "GET", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
+    auditMethods: ["DELETE", "PUT"],
     owner: "ops-logistics",
   },
   {
     route: "/api/admin/logistics/site-maps/[id]/elements",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "ops-logistics",
   },
   {

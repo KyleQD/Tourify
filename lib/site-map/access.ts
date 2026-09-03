@@ -34,6 +34,7 @@ export interface SiteMapAccess {
     can_invite_users?: boolean | null;
     can_export?: boolean | null;
     is_active?: boolean | null;
+    expires_at?: string | null;
   } | null;
   canRead: boolean;
   canEdit: boolean;
@@ -144,7 +145,11 @@ async function resolveLinkedSiteMapOrgId(
   > = [];
   if (eventId) {
     lookups.push(
-      supabase.from("events").select("org_id").eq("id", eventId).maybeSingle(),
+      supabase
+        .from("events_v2")
+        .select("org_id")
+        .eq("id", eventId)
+        .maybeSingle(),
     );
   }
   if (tourId) {
@@ -208,12 +213,21 @@ export async function getSiteMapAccess(
 
   const { data: collaborator } = await supabase
     .from("site_map_collaborators")
-    .select("can_edit, can_invite_users, can_export, is_active")
+    .select("can_edit, can_invite_users, can_export, is_active, expires_at")
     .eq("site_map_id", siteMapId)
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (collaborator?.is_active) {
+  const collaboratorExpiresAt = collaborator?.expires_at
+    ? Date.parse(collaborator.expires_at)
+    : null;
+  const collaboratorIsCurrent =
+    collaborator?.is_active === true &&
+    (collaboratorExpiresAt === null ||
+      (Number.isFinite(collaboratorExpiresAt) &&
+        collaboratorExpiresAt > Date.now()));
+
+  if (collaboratorIsCurrent) {
     if (collaborator.can_invite_users)
       return accessForRole(siteMapId, userId, "admin", siteMap, collaborator);
     if (collaborator.can_edit)

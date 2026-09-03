@@ -62,6 +62,23 @@ test("rejects destructive SQL and database resets", () => {
   }
 })
 
+test("distinguishes runtime routine DML from migration-time deletion", () => {
+  const routine = `
+    create or replace function public.delete_one(p_id uuid)
+    returns void language plpgsql security invoker as $$
+    begin
+      delete from public.rows where id = p_id;
+    end;
+    $$;
+  `
+  assert.deepEqual(scanFile(fixture, routine), [])
+  assert.ok(
+    scanFile(fixture, `${routine}\ndelete from public.rows where id = gen_random_uuid();`).some(
+      (failure) => failure.includes("DELETE FROM"),
+    ),
+  )
+})
+
 test("rejects unscoped data movement and blocking constraints", () => {
   assert.ok(scanFile(fixture, "update public.rows set org_id = gen_random_uuid();").length > 0)
   assert.ok(scanFile(fixture, "insert into public.rows (id) select id from public.old_rows;").length > 0)

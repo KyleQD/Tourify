@@ -438,9 +438,17 @@
       "LG-08"
     ],
     "riskIds": [],
-    "status": "observed",
-    "blockers": [],
-    "owner": null,
+    "status": "reproduced",
+    "blockers": [
+      {
+        "blockerId": "ADM-M-010-ACTIVE-DDL",
+        "reason": "Active migration replacements are still required for archived logistics_team_communications_scope, logistics_ops_foundation, and site_map_zone_ownership DDL.",
+        "owner": "Database platform",
+        "external": false,
+        "resolvedAt": null
+      }
+    ],
+    "owner": "Database platform",
     "independentVerifier": null,
     "implementationCommit": null,
     "evidenceIds": [],

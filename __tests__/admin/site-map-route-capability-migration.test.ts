@@ -9,6 +9,8 @@ const migratedRoutes = [
   "app/api/admin/logistics/site-maps/[id]/versions/route.ts",
   "app/api/admin/logistics/site-maps/[id]/activity/route.ts",
   "app/api/admin/logistics/site-maps/[id]/collaborators/route.ts",
+  "app/api/admin/logistics/site-maps/[id]/elements/route.ts",
+  "app/api/admin/logistics/site-maps/[id]/elements/[elementId]/route.ts",
 ] as const;
 
 describe("SEC-104 site-map route capability migration", () => {
@@ -23,6 +25,11 @@ describe("SEC-104 site-map route capability migration", () => {
       expect(source).toContain("requiredOrgId: admin.orgId");
     }
     if (relativePath.endsWith("/activity/route.ts")) {
+      expect(source).toMatch(
+        /withAdminCapability\(\s*["']logistics\.manage["']/,
+      );
+    }
+    if (relativePath.includes("/elements/")) {
       expect(source).toMatch(
         /withAdminCapability\(\s*["']logistics\.manage["']/,
       );

@@ -33708,6 +33708,39 @@ export type Database = {
         Args: { account_type: string; profile_id: string; user_id: string }
         Returns: boolean
       }
+      sync_site_map_elements: {
+        Args: {
+          p_delete_missing?: boolean
+          p_elements: Json
+          p_site_map_id: string
+        }
+        Returns: {
+          color: string | null
+          created_at: string | null
+          element_type: string
+          height: number | null
+          id: string
+          name: string | null
+          opacity: number | null
+          path_data: string | null
+          properties: Json | null
+          rotation: number | null
+          shape_data: Json | null
+          site_map_id: string
+          stroke_color: string | null
+          stroke_width: number | null
+          updated_at: string | null
+          width: number | null
+          x: number
+          y: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "site_map_elements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       test_music_upload_permissions: {
         Args: { file_path: string; user_id: string }
         Returns: boolean

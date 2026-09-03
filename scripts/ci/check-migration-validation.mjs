@@ -34,6 +34,21 @@ const DANGEROUS = [
   { re: /\bsupabase\s+db\s+reset\b/i, msg: "database reset" },
 ]
 
+// Runtime DML inside a stored routine is not executed by applying the migration.
+// Keep the blanket guard for top-level DELETE/TRUNCATE while allowing reviewed,
+// RLS-enforced command functions to contain their intended DML.
+function stripRoutineDefinitions(sql) {
+  return sql
+    .replace(
+      /\bcreate\s+(?:or\s+replace\s+)?function\b[\s\S]*?\bas\s+\$\$[\s\S]*?\$\$/gi,
+      "create function routine_body_removed",
+    )
+    .replace(
+      /\bcreate\s+(?:or\s+replace\s+)?function\b[\s\S]*?\bas\s+\$([a-z_][a-z0-9_]*)\$[\s\S]*?\$\1\$/gi,
+      "create function routine_body_removed",
+    )
+}
+
 function gitChangedMigrations() {
   const files = new Set()
   const collect = (args) => {
@@ -188,13 +203,14 @@ function validatePolicyReplacement(sql, sourceSql) {
 function scanFile(file, sql, manifest = null, options = {}) {
   const failures = []
   const executableSql = stripComments(sql)
+  const topLevelSql = stripRoutineDefinitions(executableSql)
   if (
     !executableSql.trim()
     && !/migration-validation:\s*intentional-noop\b/i.test(sql)
   ) failures.push("empty/no-op migration must be explicitly documented")
 
   for (const rule of DANGEROUS) {
-    if (rule.re.test(executableSql)) failures.push(`dangerous pattern ${rule.msg}`)
+    if (rule.re.test(topLevelSql)) failures.push(`dangerous pattern ${rule.msg}`)
   }
 
   for (const table of createdPublicTables(executableSql)) {
