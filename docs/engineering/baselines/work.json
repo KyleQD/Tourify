@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "baseline_id": "work-2026-09-03-main-76d8389",
+  "domain": "work",
+  "captured_at": "2026-09-03",
+  "confidence": "partial_verified",
+  "repository": {
+    "full_name": "KyleQD/Tourify",
+    "branch": "main",
+    "commit": "76d8389ebf939cee70f7070abf74a6bacc46f5de"
+  },
+  "reference_build": {
+    "branch": "backup/pre-reconcile-local-work-2026-08-20",
+    "commit": "6039e75679050471e24655f778b2a61a5f634d63",
+    "status": "verified_available"
+  },
+  "verified_current": {
+    "hooks": {
+      "use_work_mode": {
+        "path": "hooks/use-work-mode.ts",
+        "observations": [
+          "Work Mode is implemented as a transient assignment context for the authenticated general user.",
+          "The hook reads employment_assignments for invited, confirmed, and active assignments.",
+          "It augments event scope from event_participants and staff_shifts.",
+          "It reads work_mode_publications and can expose publication-only work packages.",
+          "It persists the selected assignment in sessionStorage and attempts to persist work_mode data to user_sessions.",
+          "Assignment accept/decline is sent through /api/work-mode/assignments/[assignmentId]/respond.",
+          "The current hook does not expose the richer worker-action, cached-read-model, offline, or realtime behavior found in the reference build."
+        ]
+      }
+    },
+    "types": {
+      "hiring_roster_work_mode": {
+        "path": "types/hiring-roster-work-mode.ts",
+        "observations": [
+          "Defines roster member status, compliance status, employment assignment status, WorkModePermissions, WorkModeAssignment, roster models, and roster mutation inputs.",
+          "Current EmploymentAssignmentStatus includes invited, confirmed, active, completed, and cancelled.",
+          "The current type file does not include the reference build's WorkModePublication, shared shift plan, attendance read model, WorkModeAssignmentListItem, WorkModeAssignmentsPayload, or WorkModeApiResponse contracts."
+        ]
+      }
+    },
+    "test_and_build_scripts": [
+      "npm run build",
+      "npm run typecheck",
+      "npm run verify:ci",
+      "npm run test",
+      "npm run test:unit",
+      "npm run test:e2e",
+      "npm run test:auth",
+      "npm run test:hiring-shifts-smoke",
+      "npm run audit:worktree",
+      "npm run audit:data-loading"
+    ]
+  },
+  "verified_reference": {
+    "work_hub_dashboard": {
+      "path": "components/work-mode/work-hub-dashboard.tsx",
+      "observations": [
+        "Presents worker applications, engagements, assignments, tours and event access, coordinator chat, tasks, travel, lodging, and attention states.",
+        "Worker task actions include acknowledge, start, complete, and block with a required block reason where applicable.",
+        "Displays explicit unscheduled states such as on-roster schedule-not-assigned and on-tour schedule-not-assigned."
+      ]
+    },
+    "work_hub_types": {
+      "path": "types/work-hub.ts",
+      "observations": [
+        "Defines WorkerApplication, WorkerChannelSummary, WorkerOperationalSummary, WorkerTour, WorkerTask, WorkerEngagement, WorkHubAttentionItem, WorkHubRecommendedJob, WorkHubHistoryItem, and WorkHubPayload.",
+        "Encodes task states assigned, acknowledged, doing, blocked, done, and cancelled.",
+        "Encodes partialSources so the UI can distinguish partial-data states."
+      ]
+    },
+    "work_mode_types": {
+      "path": "types/hiring-roster-work-mode.ts",
+      "observations": [
+        "Extends EmploymentAssignmentStatus with declined.",
+        "Adds WorkModePublication, WorkerAssignmentSchedule, WorkerSharedShiftPlan, WorkerAssignmentAttendance, WorkModeAssignmentListItem, WorkModeAssignmentsPayload, and WorkModeApiResponse.",
+        "Carries semantic hiring keys including jobApplicationId and jobPostingId on assignment-related contracts."
+      ]
+    },
+    "use_work_mode": {
+      "path": "hooks/use-work-mode.ts",
+      "observations": [
+        "Uses /api/work-mode/assignments as the server-authorized read-model boundary rather than assembling the full read model in the browser.",
+        "Stores a per-user authorized snapshot in sessionStorage for resilient reads.",
+        "Revalidates on focus and visibility changes.",
+        "Optionally subscribes to employment_assignments, staff_shifts, and work_mode_publications realtime changes.",
+        "Exposes assignment accept/decline plus server-confirmed check-in, check-out, and publication acknowledgement actions.",
+        "Explicitly avoids queuing or replaying attendance writes while offline."
+      ]
+    }
+  },
+  "canonical_entities": [
+    {
+      "id": "employment_assignments",
+      "role": "post-hire worker assignment relationship",
+      "status": "canonical_for_work_reconciliation",
+      "basis": "present in current and reference Work Mode implementations"
+    },
+    {
+      "id": "work_mode_publications",
+      "role": "published worker-facing operational packages",
+      "status": "existing_reuse_candidate",
+      "basis": "read by current and reference Work Mode implementations"
+    },
+    {
+      "id": "staff_shifts",
+      "role": "worker shift linkage and schedule source",
+      "status": "existing_reuse_candidate",
+      "basis": "read by current and reference Work Mode implementations"
+    }
+  ],
+  "known_reconciliation_gaps": [
+    {
+      "id": "WORK-GAP-001",
+      "summary": "Current main does not expose the reference build's server-authorized Work Mode read-model contract and richer typed payload."
+    },
+    {
+      "id": "WORK-GAP-002",
+      "summary": "The verified reference Work Hub dashboard is not present at the same path on current main and needs targeted reconciliation before reuse."
+    },
+    {
+      "id": "WORK-GAP-003",
+      "summary": "Current Work Mode types are materially simpler than the verified reference contracts."
+    },
+    {
+      "id": "WORK-GAP-004",
+      "summary": "Current database schema and RLS have not been fully re-audited in this baseline; no new Work tables should be assumed or created from historical planning documents until that audit is complete."
+    },
+    {
+      "id": "WORK-GAP-005",
+      "summary": "Existing messaging, notification, document, tour, event, job, and staffing integrations still require a targeted Phase audit to record exact current paths and authorization boundaries."
+    }
+  ],
+  "historical_unverified_schema_proposals": [
+    "staff_shift_plans",
+    "workflow_task_assignments",
+    "tour_member_event_scopes",
+    "work_mode_worker_actions"
+  ],
+  "baseline_refresh_rules": {
+    "default": "level_3_drift_audit",
+    "full_refresh_required_when": [
+      "material Work schema or RLS changes land",
+      "the canonical assignment model changes",
+      "the Work route or service architecture is replaced",
+      "reference assumptions conflict with current tests or production behavior"
+    ]
+  }
+}
