@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "phase": "WORK-P00",
+  "baseline_id": "work-2026-09-03-main-76d8389",
+  "captured_at": "2026-09-03",
+  "tasks": {
+    "WORK-P00-T01": {
+      "status": "verified",
+      "evidence": ["docs/engineering/ENGINEERING_CONSTITUTION.md created on documentation branch"]
+    },
+    "WORK-P00-T02": {
+      "status": "verified",
+      "evidence": ["Current main Work hook and shared Work types inspected and recorded against exact main commit"]
+    },
+    "WORK-P00-T03": {
+      "status": "verified",
+      "evidence": ["Reference branch availability verified; Work Hub dashboard, Work Hub types, shared Work types, and use-work-mode reference files inspected and indexed"]
+    },
+    "WORK-P00-T04": {
+      "status": "ready",
+      "evidence": []
+    },
+    "WORK-P00-T05": {
+      "status": "ready",
+      "evidence": []
+    },
+    "WORK-P00-T06": {
+      "status": "blocked",
+      "evidence": ["Blocked by WORK-P00-T04 and WORK-P00-T05"]
+    }
+  },
+  "changed_files": [
+    "docs/engineering/README.md",
+    "docs/engineering/ENGINEERING_CONSTITUTION.md",
+    "docs/engineering/baselines/work.json",
+    "docs/engineering/reference-maps/work-reference-map.json",
+    "docs/engineering/execution/work.json",
+    "docs/engineering/decisions/DECISIONS.md",
+    "docs/engineering/phases/work/P00.md",
+    "docs/engineering/phases/work/P01.md",
+    "docs/engineering/evidence/evidence.schema.json",
+    "docs/engineering/evidence/WORK-P00.json"
+  ],
+  "tests": [
+    {
+      "name": "product test suite",
+      "result": "not_applicable",
+      "classification": "not_applicable",
+      "notes": "This bootstrap pass changes documentation/execution metadata only and does not modify product code. Product gates remain assigned to the relevant implementation tasks."
+    }
+  ],
+  "migrations": [],
+  "authorization_checks": [
+    "No authorization code or RLS policy was modified during the documentation bootstrap.",
+    "Current/reference Work authorization differences are recorded for targeted P00/P01 inspection rather than assumed resolved."
+  ],
+  "regressions": [],
+  "blockers": [
+    "A current Work database schema/RLS audit is still required before the baseline can be considered fully verified.",
+    "Exact current dependency paths for messaging, notifications, documents, tours/events, jobs, staffing, tasks, and related Work services still require targeted indexing."
+  ],
+  "decisions": [
+    "ENG-001",
+    "ENG-002",
+    "ENG-003",
+    "WORK-001",
+    "WORK-002",
+    "WORK-003",
+    "WORK-004",
+    "WORK-005",
+    "WORK-006",
+    "WORK-007"
+  ]
+}
