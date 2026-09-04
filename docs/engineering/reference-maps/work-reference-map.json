@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "domain": "work",
+  "reference_branch": "backup/pre-reconcile-local-work-2026-08-20",
+  "reference_commit": "6039e75679050471e24655f778b2a61a5f634d63",
+  "capabilities": {
+    "work_mode_assignment_context": {
+      "current_paths": ["hooks/use-work-mode.ts"],
+      "reference_paths": ["hooks/use-work-mode.ts"],
+      "strategy": "reconcile_and_adapt",
+      "canonical_data": ["employment_assignments"],
+      "do_not_duplicate": true,
+      "notes": "Keep Work Mode as a transient assignment context. Preserve current valid behavior while moving toward the reference build's server-authorized read model where current architecture and RLS support it."
+    },
+    "work_mode_read_model": {
+      "current_paths": ["hooks/use-work-mode.ts"],
+      "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
+      "strategy": "prefer_server_authorized_adapter_after_phase_audit",
+      "do_not_duplicate": true,
+      "reference_behaviors": [
+        "GET /api/work-mode/assignments read-model boundary",
+        "typed assignments and publications payload",
+        "per-user cached authorized snapshot",
+        "focus/visibility revalidation",
+        "optional targeted realtime refresh"
+      ]
+    },
+    "work_hub_dashboard": {
+      "current_paths": [],
+      "reference_paths": ["components/work-mode/work-hub-dashboard.tsx", "types/work-hub.ts"],
+      "strategy": "extract_or_compose_after_current_route_audit",
+      "do_not_duplicate": true,
+      "reference_behaviors": [
+        "applications timeline",
+        "employer engagements",
+        "onboarding/compliance progress",
+        "tour and event scope",
+        "shift and assignment details",
+        "coordinator channel",
+        "worker task lifecycle",
+        "travel and lodging summaries",
+        "attention items",
+        "partial-data handling"
+      ]
+    },
+    "worker_task_lifecycle": {
+      "current_paths": [],
+      "reference_paths": ["components/work-mode/work-hub-dashboard.tsx", "types/work-hub.ts"],
+      "strategy": "preserve_behavior_reuse_existing_task_backend_if_verified",
+      "do_not_duplicate": true,
+      "states": ["assigned", "acknowledged", "doing", "blocked", "done", "cancelled"],
+      "actions": ["acknowledge", "start", "complete", "block"],
+      "notes": "Before adding a task table or mutation API, locate the current canonical task backend and authorization boundary."
+    },
+    "assignment_response": {
+      "current_paths": ["hooks/use-work-mode.ts"],
+      "reference_paths": ["hooks/use-work-mode.ts"],
+      "strategy": "preserve_and_harden",
+      "do_not_duplicate": true,
+      "known_endpoint": "/api/work-mode/assignments/[assignmentId]/respond",
+      "actions": ["accept", "decline"]
+    },
+    "attendance_and_worker_actions": {
+      "current_paths": [],
+      "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
+      "strategy": "reconcile_after_current_api_and_schema_audit",
+      "do_not_duplicate": true,
+      "reference_behaviors": [
+        "server-confirmed check-in",
+        "server-confirmed check-out",
+        "publication acknowledgement",
+        "client request id for action idempotency",
+        "no offline queuing or replay of attendance writes"
+      ]
+    },
+    "work_mode_publications": {
+      "current_paths": ["hooks/use-work-mode.ts"],
+      "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
+      "strategy": "reuse_existing_domain",
+      "canonical_data": ["work_mode_publications"],
+      "do_not_duplicate": true
+    },
+    "shift_schedule_context": {
+      "current_paths": ["hooks/use-work-mode.ts"],
+      "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts", "components/work-mode/work-hub-dashboard.tsx"],
+      "strategy": "adapt_existing_staff_shifts_and_verified_schedule_sources",
+      "canonical_data": ["staff_shifts"],
+      "do_not_duplicate": true,
+      "notes": "Do not create staff_shift_plans solely because it appeared in historical planning. Verify live/current schema and intended ownership first."
+    },
+    "coordinator_and_team_messaging": {
+      "current_paths": [],
+      "reference_paths": ["types/work-hub.ts", "components/work-mode/work-hub-dashboard.tsx"],
+      "strategy": "adapter_to_existing_messaging_system",
+      "do_not_duplicate": true,
+      "notes": "Reference Work Hub expects coordinator/team channel summaries. Locate exact current messaging services and thread authorization before implementation."
+    },
+    "work_hub_partial_data_state": {
+      "current_paths": [],
+      "reference_paths": ["types/work-hub.ts"],
+      "strategy": "reuse_contract_pattern",
+      "do_not_duplicate": true,
+      "reference_behaviors": ["partialSources array", "retain usable data when one source fails", "distinguish partial state from total error"]
+    }
+  },
+  "schema_guardrails": {
+    "unverified_historical_proposals": [
+      "staff_shift_plans",
+      "workflow_task_assignments",
+      "tour_member_event_scopes",
+      "work_mode_worker_actions"
+    ],
+    "rule": "Treat these as proposals only. Run a current schema/RLS audit and search for existing canonical equivalents before writing a migration."
+  }
+}
