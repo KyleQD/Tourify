@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "phase": "WORK-P01",
+  "baseline_id": "work-2026-09-03-main-76d8389",
+  "captured_at": "2026-09-03",
+  "tasks": {
+    "WORK-P01-T01": { "status": "ready", "evidence": [] },
+    "WORK-P01-T02": { "status": "backlog", "evidence": [] },
+    "WORK-P01-T03": { "status": "backlog", "evidence": [] },
+    "WORK-P01-T04": { "status": "backlog", "evidence": [] },
+    "WORK-P01-T05": { "status": "backlog", "evidence": [] },
+    "WORK-P01-T06": { "status": "backlog", "evidence": [] }
+  },
+  "changed_files": [],
+  "tests": [],
+  "migrations": [],
+  "authorization_checks": [],
+  "regressions": [],
+  "blockers": ["WORK-P01 is gated by WORK-P00-T06 until the current Work schema/RLS and dependency index are verified."],
+  "decisions": []
+}
