@@ -2,7 +2,9 @@
   "schema_version": 1,
   "domain": "work",
   "reference_branch": "backup/pre-reconcile-local-work-2026-08-20",
-  "reference_commit": "6039e75679050471e24655f778b2a61a5f634d63",
+  "original_reference_commit": "6039e75679050471e24655f778b2a61a5f634d63",
+  "verified_reference_head_2026_09_05": "6dc267b8711c17c1a107921704d8ef7fcbb81ae1",
+  "reference_rule": "Pin the exact reference commit used by an implementation task; do not treat the moving backup branch as current product truth.",
   "capabilities": {
     "work_mode_assignment_context": {
       "current_paths": ["hooks/use-work-mode.ts"],
@@ -10,12 +12,21 @@
       "strategy": "reconcile_and_adapt",
       "canonical_data": ["employment_assignments"],
       "do_not_duplicate": true,
-      "notes": "Keep Work Mode as a transient assignment context. Preserve current valid behavior while moving toward the reference build's server-authorized read model where current architecture and RLS support it."
+      "notes": "Keep Work Mode as a transient assignment context. Move authorization-sensitive aggregation out of the browser without changing the account model."
     },
     "work_mode_read_model": {
-      "current_paths": ["hooks/use-work-mode.ts"],
-      "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
-      "strategy": "prefer_server_authorized_adapter_after_phase_audit",
+      "current_paths": [
+        "hooks/use-work-mode.ts",
+        "types/hiring-roster-work-mode.ts"
+      ],
+      "missing_current_paths": ["app/api/work-mode/assignments/route.ts"],
+      "reference_paths": [
+        "hooks/use-work-mode.ts",
+        "types/hiring-roster-work-mode.ts",
+        "app/api/work-mode/assignments/route.ts"
+      ],
+      "strategy": "add_server_authorized_adapter",
+      "authorization_anchor": "authenticated user -> employment_assignments.user_id",
       "do_not_duplicate": true,
       "reference_behaviors": [
         "GET /api/work-mode/assignments read-model boundary",
@@ -23,12 +34,24 @@
         "per-user cached authorized snapshot",
         "focus/visibility revalidation",
         "optional targeted realtime refresh"
-      ]
+      ],
+      "exclude": ["event_participants as a Work scope source"]
     },
     "work_hub_dashboard": {
-      "current_paths": [],
+      "current_dependency_paths": [
+        "app/api/messages",
+        "app/api/notifications",
+        "app/api/events",
+        "app/api/tours",
+        "app/api/hiring",
+        "app/api/jobs",
+        "app/api/staffing",
+        "app/api/workflows",
+        "app/api/storage",
+        "app/api/work/site-maps"
+      ],
       "reference_paths": ["components/work-mode/work-hub-dashboard.tsx", "types/work-hub.ts"],
-      "strategy": "extract_or_compose_after_current_route_audit",
+      "strategy": "compose_current_subsystems_after_read_model_contract",
       "do_not_duplicate": true,
       "reference_behaviors": [
         "applications timeline",
@@ -44,27 +67,33 @@
       ]
     },
     "worker_task_lifecycle": {
-      "current_paths": [],
+      "current_paths": ["app/api/workflows"],
+      "canonical_data": ["workflow_tasks", "workflow_task_assignments"],
       "reference_paths": ["components/work-mode/work-hub-dashboard.tsx", "types/work-hub.ts"],
-      "strategy": "preserve_behavior_reuse_existing_task_backend_if_verified",
+      "strategy": "adapter_to_existing_workflow_backend",
       "do_not_duplicate": true,
       "states": ["assigned", "acknowledged", "doing", "blocked", "done", "cancelled"],
       "actions": ["acknowledge", "start", "complete", "block"],
-      "notes": "Before adding a task table or mutation API, locate the current canonical task backend and authorization boundary."
+      "notes": "Use workflow_task_assignments as the worker-specific authorization overlay. Do not create a Work-only task table."
     },
     "assignment_response": {
-      "current_paths": ["hooks/use-work-mode.ts"],
+      "current_paths": [
+        "hooks/use-work-mode.ts",
+        "app/api/work-mode/assignments/[id]/respond/route.ts"
+      ],
       "reference_paths": ["hooks/use-work-mode.ts"],
       "strategy": "preserve_and_harden",
+      "canonical_rpc": "respond_to_work_assignment",
       "do_not_duplicate": true,
-      "known_endpoint": "/api/work-mode/assignments/[assignmentId]/respond",
+      "known_endpoint": "/api/work-mode/assignments/[id]/respond",
       "actions": ["accept", "decline"]
     },
     "attendance_and_worker_actions": {
-      "current_paths": [],
+      "current_data": ["work_mode_check_in_events", "work_mode_worker_actions"],
       "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
-      "strategy": "reconcile_after_current_api_and_schema_audit",
+      "strategy": "server_confirmed_actions_using_existing_tables",
       "do_not_duplicate": true,
+      "do_not_reuse": ["worker_shift_check_in", "worker_shift_check_out"],
       "reference_behaviors": [
         "server-confirmed check-in",
         "server-confirmed check-out",
@@ -76,40 +105,81 @@
     "work_mode_publications": {
       "current_paths": ["hooks/use-work-mode.ts"],
       "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
-      "strategy": "reuse_existing_domain",
-      "canonical_data": ["work_mode_publications"],
+      "strategy": "reuse_existing_domain_through_authorized_read_model",
+      "canonical_data": [
+        "work_mode_publications",
+        "work_mode_publication_audiences",
+        "work_mode_publication_acknowledgements"
+      ],
       "do_not_duplicate": true
     },
     "shift_schedule_context": {
-      "current_paths": ["hooks/use-work-mode.ts"],
+      "current_paths": ["hooks/use-work-mode.ts", "lib/services/staff-shift-assignment-sync.ts"],
       "reference_paths": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts", "components/work-mode/work-hub-dashboard.tsx"],
-      "strategy": "adapt_existing_staff_shifts_and_verified_schedule_sources",
-      "canonical_data": ["staff_shifts"],
+      "strategy": "adapt_existing_shift_and_plan_primitives",
+      "canonical_data": ["staff_shifts", "staff_shift_plans", "staff_shift_assignments"],
+      "do_not_duplicate": true
+    },
+    "tour_event_scope": {
+      "current_paths": ["app/api/tours", "app/api/events"],
+      "canonical_data": ["employment_assignments", "tour_member_event_scopes"],
+      "strategy": "derive_from_verified_assignment_and_tour_scope",
       "do_not_duplicate": true,
-      "notes": "Do not create staff_shift_plans solely because it appeared in historical planning. Verify live/current schema and intended ownership first."
+      "exclude": ["event_participants"]
     },
     "coordinator_and_team_messaging": {
-      "current_paths": [],
+      "current_paths": ["app/api/messages"],
       "reference_paths": ["types/work-hub.ts", "components/work-mode/work-hub-dashboard.tsx"],
       "strategy": "adapter_to_existing_messaging_system",
-      "do_not_duplicate": true,
-      "notes": "Reference Work Hub expects coordinator/team channel summaries. Locate exact current messaging services and thread authorization before implementation."
+      "do_not_duplicate": true
+    },
+    "notifications": {
+      "current_paths": ["app/api/notifications"],
+      "strategy": "reuse_existing_notifications_system",
+      "do_not_duplicate": true
+    },
+    "documents_and_files": {
+      "current_paths": ["app/api/storage"],
+      "strategy": "reuse_existing_storage_and_document_owners",
+      "do_not_duplicate": true
+    },
+    "jobs_and_hiring": {
+      "current_paths": [
+        "app/api/hiring",
+        "app/api/job-applications",
+        "app/api/job-board",
+        "app/api/job-postings",
+        "app/api/jobs"
+      ],
+      "strategy": "reuse_existing_hiring_pipeline_before_post_hire_assignment",
+      "do_not_duplicate": true
+    },
+    "staffing": {
+      "current_paths": ["app/api/staff", "app/api/staffing", "lib/services/staff-shift-assignment-sync.ts"],
+      "strategy": "reuse_existing_staffing_and_shift_sync",
+      "do_not_duplicate": true
     },
     "work_hub_partial_data_state": {
-      "current_paths": [],
       "reference_paths": ["types/work-hub.ts"],
       "strategy": "reuse_contract_pattern",
       "do_not_duplicate": true,
       "reference_behaviors": ["partialSources array", "retain usable data when one source fails", "distinguish partial state from total error"]
+    },
+    "native_mobile": {
+      "current_paths": ["apps/mobile"],
+      "strategy": "treat_apps_mobile_as_current_native_root",
+      "notes": "Older apps/admin/mobile paths are reference-only and must not be assumed deployable current paths."
     }
   },
   "schema_guardrails": {
-    "unverified_historical_proposals": [
+    "verified_existing_primitives": [
       "staff_shift_plans",
       "workflow_task_assignments",
       "tour_member_event_scopes",
       "work_mode_worker_actions"
     ],
-    "rule": "Treat these as proposals only. Run a current schema/RLS audit and search for existing canonical equivalents before writing a migration."
+    "stale_dependencies": ["event_participants"],
+    "stale_rpcs": ["worker_shift_check_in", "worker_shift_check_out"],
+    "rule": "Reuse verified live primitives. Do not recreate them, and do not revive stale schema/RPC assumptions from older code or plans."
   }
 }
