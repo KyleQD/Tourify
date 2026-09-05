@@ -85,37 +85,45 @@
         {
           "id": "WORK-P01-T01",
           "title": "Define the current-to-reference Work Mode contract reconciliation",
-          "status": "in_progress",
+          "status": "implemented",
           "targets": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts", "app/api/work-mode/assignments/route.ts", "app/api/work-mode/assignments/[id]/respond/route.ts"],
           "reference_ids": ["work_mode_assignment_context", "work_mode_read_model", "assignment_response"],
           "dependencies": ["WORK-P00-T06"],
+          "implementation": {
+            "branch": "codex/work-mode-read-model",
+            "pull_request": 8,
+            "head_commit": "b7fbbf5a7c20d6b637ec38fa592c026ffc4ca20c"
+          },
           "implementation_direction": [
-            "Add authenticated GET /api/work-mode/assignments as the server-authorized read-model boundary.",
-            "Anchor worker ownership to employment_assignments.user_id for the authenticated user.",
-            "Remove event_participants from the Work read path because it does not exist in the audited live schema.",
-            "Reuse verified staff shift, tour-member event scope, and publication primitives only within authorized assignment/event/tour scope.",
-            "Preserve the existing [id]/respond route and respond_to_work_assignment RPC.",
-            "Do not add a schema migration for already-existing Work primitives."
+            "Authenticated GET /api/work-mode/assignments is the server-authorized read-model boundary.",
+            "Worker ownership is anchored to employment_assignments.user_id for the authenticated user.",
+            "event_participants is removed from the Work read path because it does not exist in the audited live schema.",
+            "Publications are limited to assignment-authorized event scope in the first slice.",
+            "The existing [id]/respond route and respond_to_work_assignment RPC are preserved.",
+            "No schema migration is added for already-existing Work primitives."
           ],
           "acceptance": ["One server-authorized read-model boundary is selected and implemented or explicitly justified.", "Assignment ownership and error contracts are explicit.", "Current valid behavior is preserved while stale event_participants dependence is removed."],
           "tests": ["npm run typecheck", "npm run test:auth"],
+          "verification_blocked_by": ["WORK-P01-VERIFY-INSTALL"],
           "evidence": ["docs/engineering/evidence/WORK-P01.json"]
         },
         {
           "id": "WORK-P01-T02",
           "title": "Reconcile Work Mode shared types",
-          "status": "ready",
+          "status": "implemented",
           "targets": ["types/hiring-roster-work-mode.ts", "hooks/use-work-mode.ts"],
           "reference_ids": ["work_mode_read_model", "attendance_and_worker_actions", "shift_schedule_context"],
           "dependencies": ["WORK-P01-T01"],
-          "acceptance": ["Current and required reference concepts use one shared typed contract.", "No duplicate client-only Work assignment contract remains without a documented compatibility reason."],
+          "acceptance": ["Current first-slice Work assignment/publication concepts use one shared typed contract.", "No duplicate hook-local Work assignment/publication interface remains."],
           "tests": ["npm run typecheck"],
+          "verification_blocked_by": ["WORK-P01-VERIFY-INSTALL"],
           "evidence": ["docs/engineering/evidence/WORK-P01.json"]
         },
         {
           "id": "WORK-P01-T03",
           "title": "Reconcile Work Hub dashboard composition",
-          "status": "backlog",
+          "status": "blocked",
+          "blocked_by": ["WORK-P01-VERIFY-INSTALL"],
           "targets": ["current Work routes and components identified in P00", "components/work-mode/work-hub-dashboard.tsx reference"],
           "reference_ids": ["work_hub_dashboard", "work_hub_partial_data_state"],
           "dependencies": ["WORK-P01-T01", "WORK-P01-T02"],
@@ -155,6 +163,13 @@
           "acceptance": ["Targeted tests pass.", "Typecheck passes or pre-existing failures are isolated with evidence.", "Build passes at phase gate or pre-existing failures are isolated with evidence.", "Evidence file records changed files, tests, migrations, authorization checks, regressions, and blockers."],
           "tests": ["npm run typecheck", "npm run test:unit", "npm run test:auth", "npm run build"],
           "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        }
+      ],
+      "blockers": [
+        {
+          "id": "WORK-P01-VERIFY-INSTALL",
+          "summary": "GitHub Actions fails at npm ci before lint, typecheck, tests, or build. The same failure occurs on documentation-only PR #7, so it is classified as a pre-existing repository verification-infrastructure blocker rather than a Work-slice regression.",
+          "next_action": "Repair or bypass the repository dependency-install failure with evidence, rerun PR #8 verification, then advance T01/T02 to verified and unblock T03."
         }
       ]
     }
