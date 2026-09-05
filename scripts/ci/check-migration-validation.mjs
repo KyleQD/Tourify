@@ -105,9 +105,12 @@ function stripComments(sql) {
 
 function createdPublicTables(sql) {
   const tables = []
-  const pattern = /\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?(?:(?:public\.)?"?([a-z_][a-z0-9_]*)"?)/gi
+  const pattern = /\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?(?:"?([a-z_][a-z0-9_]*)"?\s*\.)?"?([a-z_][a-z0-9_]*)"?/gi
   let match
-  while ((match = pattern.exec(sql)) !== null) tables.push(match[1])
+  while ((match = pattern.exec(sql)) !== null) {
+    const schema = match[1]?.toLowerCase()
+    if (!schema || schema === "public") tables.push(match[2])
+  }
   return [...new Set(tables)]
 }
 

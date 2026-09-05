@@ -49,6 +49,15 @@ test("accepts an expand-only public table with RLS", () => {
   assert.deepEqual(failures, [])
 })
 
+test("does not classify an explicitly private table as public", () => {
+  const failures = scanFile(fixture, `
+    create table if not exists private.review_queue (id uuid primary key);
+    create table if not exists "private"."quoted_review_queue" (id uuid primary key);
+    revoke all on table private.review_queue from public, anon, authenticated;
+  `)
+  assert.deepEqual(failures, [])
+})
+
 test("rejects destructive SQL and database resets", () => {
   for (const sql of [
     "drop table public.rows;",

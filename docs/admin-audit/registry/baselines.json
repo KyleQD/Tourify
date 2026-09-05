@@ -27,7 +27,7 @@
       "__tests__/admin/rls-persona-matrix.test.ts"
     ],
     "verifiedAtCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
-    "sourceSha256": "70bfba701263e342fdb1e8f52ebf87d3861fbeeaec7f88f67b9288deeffc773f"
+    "sourceSha256": "44aac22783bfba99de7242d22e0077d3b2d3052135c31eda46ca3eff6e181d10"
   },
   {
     "sliceId": "ADM-BASE-003",
