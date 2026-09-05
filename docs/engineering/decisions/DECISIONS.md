@@ -28,7 +28,7 @@ The branch `backup/pre-reconcile-local-work-2026-08-20` is a verified Work refer
 **Date:** 2026-09-03  
 **Status:** Accepted for current reconciliation
 
-Work Mode is treated as a transient operational context on a user's general account rather than a separate account type. The current and reference `use-work-mode` implementations both support this model.
+Work Mode is treated as a transient operational context on a user's general account rather than a separate account type.
 
 ## WORK-002 — `employment_assignments` is the Work assignment anchor
 
@@ -42,32 +42,67 @@ Work Mode is treated as a transient operational context on a user's general acco
 **Date:** 2026-09-03  
 **Status:** Accepted
 
-The reference `components/work-mode/work-hub-dashboard.tsx`, `types/work-hub.ts`, `types/hiring-roster-work-mode.ts`, and `hooks/use-work-mode.ts` contain valuable mature behaviors. They must be reconciled against current routes, services, schema, RLS, and components. Prefer adapters, extraction, and composition over branch-level copying.
+The reference Work Hub contains valuable mature behaviors. Reconcile those behaviors against current routes, services, schema, RLS, and components. Prefer adapters, extraction, and composition over branch-level copying.
 
-## WORK-004 — Server-authorized Work read model is the preferred reference pattern
+## WORK-004 — Server-authorized Work read model is approved
 
-**Date:** 2026-09-03  
-**Status:** Candidate pending P00 schema/API audit
-
-The reference branch's `/api/work-mode/assignments` boundary, typed payload, authenticated snapshot, and revalidation pattern is preferable to assembling the entire Work read model client-side. It is not approved for direct implementation until the current API, schema, and RLS audit in `WORK-P00` confirms the appropriate integration path.
-
-## WORK-005 — Historical Work table proposals are not facts
-
-**Date:** 2026-09-03  
+**Date:** 2026-09-05  
 **Status:** Accepted
 
-Names such as `staff_shift_plans`, `workflow_task_assignments`, `tour_member_event_scopes`, and `work_mode_worker_actions` remain historical/unverified proposals in the current baseline. No migration should be authored for them until current schema/RLS inspection proves a capability gap and no canonical equivalent exists.
+The P00 live schema/RLS audit confirms that a server-authorized `GET /api/work-mode/assignments` boundary is the preferred reconciliation pattern. It must scope reads to the authenticated worker through `employment_assignments`; browser-side aggregation must not become the authorization boundary.
+
+## WORK-005 — Historical Work table proposal warning
+
+**Date:** 2026-09-03  
+**Status:** Superseded by WORK-008 on 2026-09-05
+
+The initial baseline treated `staff_shift_plans`, `workflow_task_assignments`, `tour_member_event_scopes`, and `work_mode_worker_actions` as historical/unverified proposals pending live inspection.
 
 ## WORK-006 — Preserve reference worker task semantics without duplicating the backend
 
 **Date:** 2026-09-03  
 **Status:** Accepted
 
-The verified reference Work Hub supports task actions `acknowledge`, `start`, `complete`, and `block` across states `assigned`, `acknowledged`, `doing`, `blocked`, `done`, and `cancelled`. Preserve these useful semantics where they match product intent, but first locate the current canonical task service/API and authorization boundary.
+Preserve useful worker task semantics where they match product intent, but use the live `workflow_task_assignments` worker authorization overlay rather than creating a parallel task backend. `workflow_tasks` alone is not Work authorization truth.
 
 ## WORK-007 — Attendance writes require live server confirmation
 
 **Date:** 2026-09-03  
 **Status:** Accepted as a safety constraint
 
-Do not represent check-in/check-out as successful based solely on local state or an offline queue. If the reference worker-action pattern is reused, attendance mutations must receive server confirmation and remain scoped to the authenticated worker and assignment.
+Do not represent check-in/check-out as successful based solely on local state or an offline queue. Attendance mutations must receive server confirmation and remain scoped to the authenticated worker and assignment.
+
+## WORK-008 — Previously proposed Work primitives already exist live
+
+**Date:** 2026-09-05  
+**Status:** Accepted
+
+The active connected Supabase project contains `staff_shift_plans`, `workflow_task_assignments`, `tour_member_event_scopes`, and `work_mode_worker_actions`, with RLS enabled. Reuse them. Do not author migrations that recreate them. This audit identifies the connected project as `Tourify Demo` (`auqddrodjezjlypkzfpi`); repository evidence did not prove that project is the production deployment, so production identity must not be inferred from the label alone.
+
+## WORK-009 — Modern attendance uses event/action tables, not legacy shift RPCs
+
+**Date:** 2026-09-05  
+**Status:** Accepted
+
+`worker_shift_check_in` and `worker_shift_check_out` are stale against the live `staff_shifts` schema: they reference removed check-in/out columns and a status outside the current constraint. Do not reuse them. Modern attendance should use `work_mode_check_in_events` and `work_mode_worker_actions` with live server authorization.
+
+## WORK-010 — Assignment response primitive remains reusable
+
+**Date:** 2026-09-05  
+**Status:** Accepted
+
+`respond_to_work_assignment` remains a valid assignment-bound primitive and is already used by `app/api/work-mode/assignments/[id]/respond/route.ts`. Preserve this route/RPC behavior while adding the read-model boundary.
+
+## WORK-011 — `event_participants` is not a Work canonical dependency
+
+**Date:** 2026-09-05  
+**Status:** Accepted
+
+No `public.event_participants` table exists in the audited live schema, and previously recorded `app/api/event-participants` paths are not present on current `main`. Event and tour visibility for Work must derive from canonical employment assignment scope plus verified event/tour tables and `tour_member_event_scopes`, not from the stale `event_participants` assumption.
+
+## WORK-012 — Shared subsystems are dependencies, not Work authorization owners
+
+**Date:** 2026-09-05  
+**Status:** Accepted
+
+Messaging, notifications, storage/files, events, tours, jobs/hiring, staffing, workflows, and site maps already have current API surfaces. Work should adapt to these systems after assignment/event/tour authorization is established; it must not introduce parallel messaging, notification, document, event, job, or staffing backends.
