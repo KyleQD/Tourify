@@ -55,6 +55,52 @@ export interface WorkModeAssignment {
   updatedAt?: string | null
 }
 
+/**
+ * Worker-facing Work Mode assignment read model.
+ *
+ * This intentionally preserves the existing hook's field names while moving the
+ * authorization-sensitive aggregation behind `/api/work-mode/assignments`.
+ * The richer operational model can be layered onto this contract incrementally
+ * without changing the roster-side WorkModeAssignment contract above.
+ */
+export interface WorkModeAssignmentListItem {
+  id: string
+  role_title: string
+  department?: string | null
+  event_id?: string | null
+  venue_id?: string | null
+  organizer_id?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  status: "invited" | "confirmed" | "active" | "completed" | "cancelled"
+  permissions: Record<string, boolean>
+  source?: "assignment" | "publication"
+  publication_type?: string | null
+  href?: string | null
+  site_map_id?: string | null
+}
+
+export interface WorkModePublication {
+  id: string
+  event_id: string | null
+  publication_type: string
+  title: string
+  payload?: Record<string, unknown> | null
+  published_at?: string | null
+}
+
+export interface WorkModeAssignmentsPayload {
+  assignments: WorkModeAssignmentListItem[]
+  publications: WorkModePublication[]
+  generatedAt: string
+}
+
+export interface WorkModeApiResponse<TData> {
+  data?: TData
+  error?: string
+  code?: "not_authenticated" | "unavailable" | "invalid_request"
+}
+
 export interface RosterMemberProfile {
   id: string
   fullName: string
