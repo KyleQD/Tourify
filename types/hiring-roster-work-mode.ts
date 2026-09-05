@@ -213,3 +213,49 @@ export interface RosterApiResponse<TData> {
   error?: string
   details?: unknown
 }
+
+/**
+ * Compatibility contract for the current Work Mode consumer surface.
+ *
+ * Keep database-shaped field names here during the server-boundary migration so
+ * existing UI consumers do not need to change in the same vertical slice. A
+ * later reconciliation can introduce richer display/read-model fields without
+ * putting authorization-sensitive aggregation back in the browser.
+ */
+export interface WorkModeAssignmentListItem {
+  id: string
+  role_title: string
+  department?: string | null
+  event_id?: string | null
+  venue_id?: string | null
+  organizer_id?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  status: Extract<EmploymentAssignmentStatus, "invited" | "confirmed" | "active">
+  permissions: Record<string, boolean>
+  source?: "assignment" | "publication"
+  publication_type?: string | null
+  href?: string | null
+  site_map_id?: string | null
+}
+
+export interface WorkModePublication {
+  id: string
+  event_id: string | null
+  publication_type: string
+  title: string
+  payload?: Record<string, unknown> | null
+  published_at?: string | null
+}
+
+export interface WorkModeAssignmentsPayload {
+  assignments: WorkModeAssignmentListItem[]
+  publications: WorkModePublication[]
+  generatedAt: string
+}
+
+export interface WorkModeApiResponse<TData> {
+  data?: TData
+  error?: string
+  code?: "not_authenticated" | "unavailable"
+}
