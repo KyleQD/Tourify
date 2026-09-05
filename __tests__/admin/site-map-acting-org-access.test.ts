@@ -42,7 +42,7 @@ describe("site-map acting organization binding", () => {
         id: "map-a",
         created_by: userId,
         is_public: false,
-        event_id: "event-a",
+        event_v2_id: "event-a",
         tour_id: null,
       },
       event: { org_id: orgA },
@@ -61,7 +61,7 @@ describe("site-map acting organization binding", () => {
         id: "map-b",
         created_by: userId,
         is_public: false,
-        event_id: "event-b",
+        event_v2_id: "event-b",
         tour_id: null,
       },
       event: { org_id: orgB },
@@ -80,7 +80,7 @@ describe("site-map acting organization binding", () => {
         id: "map-unscoped",
         created_by: userId,
         is_public: false,
-        event_id: null,
+        event_v2_id: null,
         tour_id: null,
       },
     });
@@ -98,7 +98,7 @@ describe("site-map acting organization binding", () => {
         id: "map-conflict",
         created_by: userId,
         is_public: false,
-        event_id: "event-a",
+        event_v2_id: "event-a",
         tour_id: "tour-b",
       },
       event: { org_id: orgA },
@@ -118,7 +118,7 @@ describe("site-map acting organization binding", () => {
         id: "map-expired",
         created_by: "00000000-0000-4000-8000-000000000099",
         is_public: false,
-        event_id: "event-a",
+        event_v2_id: "event-a",
         tour_id: null,
       },
       event: { org_id: orgA },
@@ -133,6 +133,26 @@ describe("site-map acting organization binding", () => {
 
     await expect(
       getSiteMapAccess(client as never, "map-expired", userId, {
+        requiredOrgId: orgA,
+      }),
+    ).resolves.toMatchObject({ role: "none", canRead: false });
+  });
+
+  it("does not treat the legacy event_id column as canonical organization scope", async () => {
+    const client = siteMapClient({
+      siteMap: {
+        id: "map-legacy-only",
+        created_by: userId,
+        is_public: false,
+        event_id: "event-a",
+        event_v2_id: null,
+        tour_id: null,
+      },
+      event: { org_id: orgA },
+    });
+
+    await expect(
+      getSiteMapAccess(client as never, "map-legacy-only", userId, {
         requiredOrgId: orgA,
       }),
     ).resolves.toMatchObject({ role: "none", canRead: false });

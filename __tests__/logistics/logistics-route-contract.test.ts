@@ -112,14 +112,17 @@ describe('Operations logistics route contracts', () => {
     expect(source).toContain('details: error.message')
   })
 
-  it('creates site maps with a minimal select and optional event scope', () => {
+  it('creates site maps with a minimal select and canonical organization scope', () => {
     const source = read('app/api/admin/logistics/site-maps/route.ts')
     const manager = read('components/admin/logistics/site-map/site-map-manager.tsx')
     const migration = read('supabase/migrations/20260710193033_site_map_rls_no_recursion.sql')
     const guard = read('components/account/account-route-guard.tsx')
 
     expect(source).toContain("const selectCreated = '*'")
-    expect(source).toContain('event_id: body.eventId || null')
+    expect(source).toContain('event_v2_id: eventId || null')
+    expect(source).toContain("code: 'site_map_scope_required'")
+    expect(source).toContain("query.eq('event_v2_id', eventId)")
+    expect(source).not.toContain('event_id: body.eventId || null')
     expect(manager).toContain('upsertSiteMap(data.data)')
     expect(manager).toContain('openSiteMap(data.data.id)')
     expect(manager).toContain("if (eventId) formData.append('eventId', eventId)")

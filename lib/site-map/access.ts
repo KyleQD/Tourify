@@ -28,6 +28,8 @@ export interface SiteMapAccess {
     id: string;
     created_by?: string | null;
     is_public?: boolean | null;
+    event_v2_id?: string | null;
+    tour_id?: string | null;
   };
   collaborator?: {
     can_edit?: boolean | null;
@@ -180,7 +182,7 @@ export async function getSiteMapAccess(
 
   const { data: siteMap, error: siteMapError } = await supabase
     .from("site_maps")
-    .select("id, created_by, is_public, event_id, tour_id")
+    .select("id, created_by, is_public, event_v2_id, tour_id")
     .eq("id", siteMapId)
     .maybeSingle();
 
@@ -192,7 +194,7 @@ export async function getSiteMapAccess(
   const linkedOrgId = requiredOrgId
     ? await resolveLinkedSiteMapOrgId(
         supabase,
-        siteMap.event_id,
+        siteMap.event_v2_id,
         siteMap.tour_id,
       )
     : null;
@@ -239,7 +241,7 @@ export async function getSiteMapAccess(
     supabase,
     userId,
     null,
-    siteMap.event_id,
+    siteMap.event_v2_id,
     siteMap.tour_id,
     linkedOrgId,
   );

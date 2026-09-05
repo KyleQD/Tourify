@@ -8639,6 +8639,101 @@ export type Database = {
           },
         ]
       }
+      event_zones: {
+        Row: {
+          adhoc_venue_id: string | null
+          assigned_staff_count: number
+          capacity: number | null
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          event_id: string | null
+          id: string
+          is_restricted: boolean
+          metadata: Json
+          name: string
+          org_id: string | null
+          required_staff_count: number
+          status: string
+          supervisor_id: string | null
+          updated_at: string
+          venue_id: string | null
+          zone_type: string | null
+        }
+        Insert: {
+          adhoc_venue_id?: string | null
+          assigned_staff_count?: number
+          capacity?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          event_id?: string | null
+          id?: string
+          is_restricted?: boolean
+          metadata?: Json
+          name: string
+          org_id?: string | null
+          required_staff_count?: number
+          status?: string
+          supervisor_id?: string | null
+          updated_at?: string
+          venue_id?: string | null
+          zone_type?: string | null
+        }
+        Update: {
+          adhoc_venue_id?: string | null
+          assigned_staff_count?: number
+          capacity?: number | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          event_id?: string | null
+          id?: string
+          is_restricted?: boolean
+          metadata?: Json
+          name?: string
+          org_id?: string | null
+          required_staff_count?: number
+          status?: string
+          supervisor_id?: string | null
+          updated_at?: string
+          venue_id?: string | null
+          zone_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_zones_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_zones_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_zones_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_zones_adhoc_venue_id_fkey"
+            columns: ["adhoc_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -23171,6 +23266,7 @@ export type Database = {
       }
       site_map_zones: {
         Row: {
+          assigned_department: string | null
           border_color: string | null
           border_width: number | null
           capacity: number | null
@@ -23178,9 +23274,11 @@ export type Database = {
           created_at: string | null
           current_occupancy: number | null
           description: string | null
+          event_zone_id: string | null
           height: number
           id: string
           internet_available: boolean | null
+          lead_user_id: string | null
           name: string
           notes: string | null
           opacity: number | null
@@ -23197,6 +23295,7 @@ export type Database = {
           zone_type: string
         }
         Insert: {
+          assigned_department?: string | null
           border_color?: string | null
           border_width?: number | null
           capacity?: number | null
@@ -23204,9 +23303,11 @@ export type Database = {
           created_at?: string | null
           current_occupancy?: number | null
           description?: string | null
+          event_zone_id?: string | null
           height: number
           id?: string
           internet_available?: boolean | null
+          lead_user_id?: string | null
           name: string
           notes?: string | null
           opacity?: number | null
@@ -23223,6 +23324,7 @@ export type Database = {
           zone_type: string
         }
         Update: {
+          assigned_department?: string | null
           border_color?: string | null
           border_width?: number | null
           capacity?: number | null
@@ -23230,9 +23332,11 @@ export type Database = {
           created_at?: string | null
           current_occupancy?: number | null
           description?: string | null
+          event_zone_id?: string | null
           height?: number
           id?: string
           internet_available?: boolean | null
+          lead_user_id?: string | null
           name?: string
           notes?: string | null
           opacity?: number | null
@@ -23250,6 +23354,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "site_map_zones_event_zone_id_fkey"
+            columns: ["event_zone_id"]
+            isOneToOne: false
+            referencedRelation: "event_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_map_zones_lead_user_id_fkey"
+            columns: ["lead_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "site_map_zones_site_map_id_fkey"
             columns: ["site_map_id"]
             isOneToOne: false
@@ -23266,11 +23384,13 @@ export type Database = {
           created_by: string | null
           description: string | null
           event_id: string | null
+          event_v2_id: string | null
           grid_enabled: boolean | null
           grid_size: number | null
           height: number
           id: string
           is_public: boolean | null
+          legacy_event_id: string | null
           name: string
           requires_auth: boolean | null
           scale: number | null
@@ -23288,11 +23408,13 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           event_id?: string | null
+          event_v2_id?: string | null
           grid_enabled?: boolean | null
           grid_size?: number | null
           height?: number
           id?: string
           is_public?: boolean | null
+          legacy_event_id?: string | null
           name: string
           requires_auth?: boolean | null
           scale?: number | null
@@ -23310,11 +23432,13 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           event_id?: string | null
+          event_v2_id?: string | null
           grid_enabled?: boolean | null
           grid_size?: number | null
           height?: number
           id?: string
           is_public?: boolean | null
+          legacy_event_id?: string | null
           name?: string
           requires_auth?: boolean | null
           scale?: number | null
@@ -23326,6 +23450,13 @@ export type Database = {
           width?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "site_maps_event_v2_id_fkey"
+            columns: ["event_v2_id"]
+            isOneToOne: false
+            referencedRelation: "events_v2"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "site_maps_created_by_fkey"
             columns: ["created_by"]
@@ -23351,7 +23482,7 @@ export type Database = {
             foreignKeyName: "site_maps_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "events_v2"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -25350,6 +25481,7 @@ export type Database = {
           status: string | null
           updated_at: string | null
           venue_id: string
+          zone_id: string | null
           zone_assignment: string | null
         }
         Insert: {
@@ -25370,6 +25502,7 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           venue_id: string
+          zone_id?: string | null
           zone_assignment?: string | null
         }
         Update: {
@@ -25390,9 +25523,17 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           venue_id?: string
+          zone_id?: string | null
           zone_assignment?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "staff_shifts_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "event_zones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "staff_shifts_org_id_fkey"
             columns: ["org_id"]
@@ -25611,6 +25752,7 @@ export type Database = {
           capacity: number | null
           created_at: string | null
           event_id: string | null
+          event_zone_id: string | null
           id: string
           required_staff_count: number | null
           status: string | null
@@ -25626,6 +25768,7 @@ export type Database = {
           capacity?: number | null
           created_at?: string | null
           event_id?: string | null
+          event_zone_id?: string | null
           id?: string
           required_staff_count?: number | null
           status?: string | null
@@ -25641,6 +25784,7 @@ export type Database = {
           capacity?: number | null
           created_at?: string | null
           event_id?: string | null
+          event_zone_id?: string | null
           id?: string
           required_staff_count?: number | null
           status?: string | null
@@ -25651,7 +25795,15 @@ export type Database = {
           zone_name?: string
           zone_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_zones_event_zone_id_fkey"
+            columns: ["event_zone_id"]
+            isOneToOne: false
+            referencedRelation: "event_zones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staffing_alert_events: {
         Row: {
