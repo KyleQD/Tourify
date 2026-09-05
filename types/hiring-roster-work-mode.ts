@@ -21,6 +21,7 @@ export type EmploymentAssignmentStatus =
   | "active"
   | "completed"
   | "cancelled"
+  | "declined"
 
 export type AccessStaffDocsScope = "own" | "team" | "none"
 export type RunSheetAccess = boolean | "limited"
@@ -53,6 +54,51 @@ export interface WorkModeAssignment {
   endsAt?: string | null
   createdAt?: string | null
   updatedAt?: string | null
+}
+
+/**
+ * Worker-facing assignment contract returned by the server-authorized Work Mode
+ * read model. Snake-case keys intentionally preserve the existing hook/UI shape
+ * while authorization-sensitive aggregation moves out of the browser.
+ */
+export interface WorkModeAssignmentListItem {
+  id: string
+  role_title: string
+  department?: string | null
+  event_id?: string | null
+  venue_id?: string | null
+  organizer_id?: string | null
+  staff_shift_id?: string | null
+  tour_id?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  status: EmploymentAssignmentStatus
+  permissions: Record<string, boolean>
+  source: "assignment"
+  publication_type?: string | null
+  href?: string | null
+  site_map_id?: string | null
+}
+
+export interface WorkModePublication {
+  id: string
+  event_id: string | null
+  publication_type: string
+  title: string
+  payload?: Record<string, unknown> | null
+  published_at?: string | null
+}
+
+export interface WorkModeAssignmentsPayload {
+  assignments: WorkModeAssignmentListItem[]
+  publications: WorkModePublication[]
+  generatedAt: string
+}
+
+export interface WorkModeApiResponse<TData> {
+  data?: TData
+  error?: string
+  code?: "not_authenticated" | "unavailable" | "invalid_request"
 }
 
 export interface RosterMemberProfile {
@@ -201,6 +247,7 @@ export interface UpsertRosterFromApprovalArgs {
   position?: string | null
   department?: string | null
   employmentType?: string | null
+  notes?: string | null
   /** When true, mark the member active/submitted after onboarding completion. */
   completed?: boolean
   /** Optional event/tour context from the source job posting. */
