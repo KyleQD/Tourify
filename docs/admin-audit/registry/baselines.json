@@ -11,7 +11,7 @@
       "lib/admin/api-route-registry.ts",
       "scripts/ci/admin-route-registry-baseline.json"
     ],
-    "verifiedAtCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "verifiedAtCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
     "sourceSha256": "1fd9ac5ca538d9bc07996f62ba7f42f8bb248057e1ed2dabf62aec854c1f074c"
   },
   {

@@ -16,7 +16,7 @@
       "Organization and actor context come from trusted server state.",
       "Every mutation declares capability, target, validation, idempotency, audit, and stable errors."
     ],
-    "lastVerifiedCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "lastVerifiedCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
     "sourceSha256": "a42fdbd6c58f3c5963b0974cd6339f390e6c19f00b53fe303a55d63275ae0a81"
   },
   {
@@ -37,7 +37,7 @@
       "events_v2 IDs are canonical.",
       "Legacy event identifiers are exposed only through the governed migration mapping."
     ],
-    "lastVerifiedCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "lastVerifiedCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
     "sourceSha256": "368304ced5c5ce7860c64ebf8d91ffd74dd278b705da02df6b27f9c5a10b3519"
   },
   {
@@ -80,7 +80,7 @@
       "No status is promoted by historical narrative claims.",
       "Generated views are reproducible and never hand-edited."
     ],
-    "lastVerifiedCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "lastVerifiedCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
     "sourceSha256": "bc4974a84c4b6d3e4fd2bb00bc9ae8e1da3d583eaefa90a43df4eec94b0a1f6a"
   }
 ]
