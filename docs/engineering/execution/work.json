@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "domain": "work",
+  "baseline_id": "work-2026-09-03-main-76d8389",
+  "canonical_status_source": true,
+  "allowed_statuses": ["backlog", "ready", "in_progress", "blocked", "implemented", "verified", "deferred"],
+  "migration_note": "This manifest is the canonical active execution state. Existing long-form Work audits and handoff documents remain reference material and should not be maintained as competing progress trackers.",
+  "phases": [
+    {
+      "id": "WORK-P00",
+      "title": "Engineering baseline and reconciliation foundation",
+      "status": "verified",
+      "brief": "docs/engineering/phases/work/P00.md",
+      "tasks": [
+        {
+          "id": "WORK-P00-T01",
+          "title": "Create Tourify engineering constitution",
+          "status": "verified",
+          "targets": ["docs/engineering/ENGINEERING_CONSTITUTION.md"],
+          "reference_ids": [],
+          "dependencies": [],
+          "acceptance": ["Invariant Tourify safety, reuse, testing, tracking, and completion rules exist in one canonical file."],
+          "evidence": ["docs/engineering/evidence/WORK-P00.json"]
+        },
+        {
+          "id": "WORK-P00-T02",
+          "title": "Capture verified Work baseline",
+          "status": "verified",
+          "targets": ["docs/engineering/baselines/work.json"],
+          "reference_ids": ["work_mode_assignment_context", "work_mode_read_model"],
+          "dependencies": ["WORK-P00-T01"],
+          "acceptance": ["Baseline is anchored to an exact main commit.", "Verified current behavior is separated from historical/unverified assumptions."],
+          "evidence": ["docs/engineering/evidence/WORK-P00.json"]
+        },
+        {
+          "id": "WORK-P00-T03",
+          "title": "Index the Work reference build",
+          "status": "verified",
+          "targets": ["docs/engineering/reference-maps/work-reference-map.json"],
+          "reference_ids": ["work_hub_dashboard", "worker_task_lifecycle", "attendance_and_worker_actions"],
+          "dependencies": ["WORK-P00-T02"],
+          "acceptance": ["Reference branch and exact reusable file paths are recorded.", "Reuse strategy and do-not-duplicate rules are explicit."],
+          "evidence": ["docs/engineering/evidence/WORK-P00.json"]
+        },
+        {
+          "id": "WORK-P00-T04",
+          "title": "Audit current Work database schema and RLS",
+          "status": "verified",
+          "targets": ["connected Supabase schema", "Work-related API and service code"],
+          "reference_ids": ["shift_schedule_context", "attendance_and_worker_actions", "worker_task_lifecycle"],
+          "dependencies": ["WORK-P00-T03"],
+          "acceptance": ["Current Work tables, columns, constraints, policies, RPCs, and ownership boundaries are recorded.", "Historical schema proposals are either mapped to an existing canonical equivalent or remain explicitly proposed."],
+          "tests": ["connected schema/RLS/function inspection"],
+          "evidence": ["docs/engineering/evidence/WORK-P00.json"]
+        },
+        {
+          "id": "WORK-P00-T05",
+          "title": "Index current Work routes, APIs, services, messaging, notifications, documents, tours, events, jobs, and staffing dependencies",
+          "status": "verified",
+          "targets": ["app", "components", "hooks", "lib", "types", "apps/mobile"],
+          "reference_ids": ["coordinator_and_team_messaging", "work_mode_publications", "work_hub_dashboard"],
+          "dependencies": ["WORK-P00-T03"],
+          "acceptance": ["Exact current paths and canonical owners are added to the Work baseline/reference map.", "No subsystem is marked missing merely because it is absent from the historical reference path."],
+          "tests": ["connected repository inspection"],
+          "evidence": ["docs/engineering/evidence/WORK-P00.json"]
+        },
+        {
+          "id": "WORK-P00-T06",
+          "title": "Close Work discovery baseline",
+          "status": "verified",
+          "targets": ["docs/engineering/baselines/work.json", "docs/engineering/reference-maps/work-reference-map.json", "docs/engineering/decisions/DECISIONS.md"],
+          "reference_ids": [],
+          "dependencies": ["WORK-P00-T04", "WORK-P00-T05"],
+          "acceptance": ["Work baseline confidence is verified for the implementation scope.", "No unresolved canonical ownership conflicts remain for WORK-P01."],
+          "evidence": ["docs/engineering/evidence/WORK-P00.json"]
+        }
+      ]
+    },
+    {
+      "id": "WORK-P01",
+      "title": "Work Mode read model and Work Hub reconciliation",
+      "status": "in_progress",
+      "brief": "docs/engineering/phases/work/P01.md",
+      "tasks": [
+        {
+          "id": "WORK-P01-T01",
+          "title": "Define the current-to-reference Work Mode contract reconciliation",
+          "status": "implemented",
+          "targets": ["hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts", "app/api/work-mode/assignments/route.ts", "app/api/work-mode/assignments/[id]/respond/route.ts"],
+          "reference_ids": ["work_mode_assignment_context", "work_mode_read_model", "assignment_response"],
+          "dependencies": ["WORK-P00-T06"],
+          "implementation": {
+            "branch": "codex/work-mode-read-model",
+            "pull_request": 8,
+            "head_commit": "b7fbbf5a7c20d6b637ec38fa592c026ffc4ca20c"
+          },
+          "implementation_direction": [
+            "Authenticated GET /api/work-mode/assignments is the server-authorized read-model boundary.",
+            "Worker ownership is anchored to employment_assignments.user_id for the authenticated user.",
+            "event_participants is removed from the Work read path because it does not exist in the audited live schema.",
+            "Publications are limited to assignment-authorized event scope in the first slice.",
+            "The existing [id]/respond route and respond_to_work_assignment RPC are preserved.",
+            "No schema migration is added for already-existing Work primitives."
+          ],
+          "acceptance": ["One server-authorized read-model boundary is selected and implemented or explicitly justified.", "Assignment ownership and error contracts are explicit.", "Current valid behavior is preserved while stale event_participants dependence is removed."],
+          "tests": ["npm run typecheck", "npm run test:auth"],
+          "verification_blocked_by": ["WORK-P01-VERIFY-INSTALL"],
+          "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        },
+        {
+          "id": "WORK-P01-T02",
+          "title": "Reconcile Work Mode shared types",
+          "status": "implemented",
+          "targets": ["types/hiring-roster-work-mode.ts", "hooks/use-work-mode.ts"],
+          "reference_ids": ["work_mode_read_model", "attendance_and_worker_actions", "shift_schedule_context"],
+          "dependencies": ["WORK-P01-T01"],
+          "acceptance": ["Current first-slice Work assignment/publication concepts use one shared typed contract.", "No duplicate hook-local Work assignment/publication interface remains."],
+          "tests": ["npm run typecheck"],
+          "verification_blocked_by": ["WORK-P01-VERIFY-INSTALL"],
+          "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        },
+        {
+          "id": "WORK-P01-T03",
+          "title": "Reconcile Work Hub dashboard composition",
+          "status": "blocked",
+          "blocked_by": ["WORK-P01-VERIFY-INSTALL"],
+          "targets": ["current Work routes and components identified in P00", "components/work-mode/work-hub-dashboard.tsx reference"],
+          "reference_ids": ["work_hub_dashboard", "work_hub_partial_data_state"],
+          "dependencies": ["WORK-P01-T01", "WORK-P01-T02"],
+          "acceptance": ["Existing current components are reused before reference UI is copied.", "Applications, engagements, assignments, tours/events, attention, and operational summaries have explicit data owners.", "Loading, empty, partial, error, and permission states are represented."],
+          "tests": ["npm run typecheck", "npm run test:unit"],
+          "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        },
+        {
+          "id": "WORK-P01-T04",
+          "title": "Preserve and integrate worker task lifecycle",
+          "status": "backlog",
+          "targets": ["app/api/workflows", "workflow_task_assignments", "Work Hub task UI"],
+          "reference_ids": ["worker_task_lifecycle"],
+          "dependencies": ["WORK-P01-T03"],
+          "acceptance": ["Assigned workers can acknowledge, start, complete, and block tasks where authorized.", "Blocked tasks require a reason where the reference behavior requires it.", "Unauthorized workers cannot mutate another worker's task.", "No duplicate task backend is introduced."],
+          "tests": ["targeted task lifecycle tests", "npm run typecheck"],
+          "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        },
+        {
+          "id": "WORK-P01-T05",
+          "title": "Reconcile attendance, acknowledgement, cache, offline, and realtime behavior",
+          "status": "backlog",
+          "targets": ["hooks/use-work-mode.ts", "work_mode_check_in_events", "work_mode_worker_actions", "work_mode_publication_acknowledgements"],
+          "reference_ids": ["attendance_and_worker_actions", "work_mode_publications", "work_mode_read_model"],
+          "dependencies": ["WORK-P01-T01", "WORK-P01-T02"],
+          "acceptance": ["Worker mutations receive live server confirmation.", "Offline behavior cannot fabricate attendance state.", "Cached reads are scoped to the authenticated worker if retained.", "Realtime is optional/resilient and has a deterministic refresh fallback.", "Legacy worker_shift_check_in/out RPCs are not reused."],
+          "tests": ["targeted worker-action tests", "npm run typecheck"],
+          "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        },
+        {
+          "id": "WORK-P01-T06",
+          "title": "Verify Work Mode and Work Hub reconciliation",
+          "status": "backlog",
+          "targets": ["all WORK-P01 changed files"],
+          "reference_ids": [],
+          "dependencies": ["WORK-P01-T03", "WORK-P01-T04", "WORK-P01-T05"],
+          "acceptance": ["Targeted tests pass.", "Typecheck passes or pre-existing failures are isolated with evidence.", "Build passes at phase gate or pre-existing failures are isolated with evidence.", "Evidence file records changed files, tests, migrations, authorization checks, regressions, and blockers."],
+          "tests": ["npm run typecheck", "npm run test:unit", "npm run test:auth", "npm run build"],
+          "evidence": ["docs/engineering/evidence/WORK-P01.json"]
+        }
+      ],
+      "blockers": [
+        {
+          "id": "WORK-P01-VERIFY-INSTALL",
+          "summary": "GitHub Actions fails at npm ci before lint, typecheck, tests, or build. The same failure occurs on documentation-only PR #7, so it is classified as a pre-existing repository verification-infrastructure blocker rather than a Work-slice regression.",
+          "next_action": "Repair or bypass the repository dependency-install failure with evidence, rerun PR #8 verification, then advance T01/T02 to verified and unblock T03."
+        }
+      ]
+    }
+  ]
+}

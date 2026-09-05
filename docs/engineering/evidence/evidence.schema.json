@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tourify-engineering-evidence.schema.json",
+  "title": "Tourify Engineering Evidence",
+  "type": "object",
+  "required": ["schema_version", "phase", "baseline_id", "captured_at", "tasks", "changed_files", "tests", "migrations", "authorization_checks", "regressions", "blockers", "decisions"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "phase": { "type": "string" },
+    "baseline_id": { "type": "string" },
+    "captured_at": { "type": "string" },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "enum": ["backlog", "ready", "in_progress", "blocked", "implemented", "verified", "deferred"] },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "result"],
+        "properties": {
+          "name": { "type": "string" },
+          "result": { "enum": ["passed", "failed", "not_run", "not_applicable"] },
+          "classification": { "enum": ["phase_change", "pre_existing", "environment", "not_applicable"] },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "migrations": { "type": "array", "items": { "type": "string" } },
+    "authorization_checks": { "type": "array", "items": { "type": "string" } },
+    "regressions": { "type": "array", "items": { "type": "string" } },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "decisions": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

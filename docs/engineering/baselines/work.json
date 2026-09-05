@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "baseline_id": "work-2026-09-03-main-76d8389",
+  "domain": "work",
+  "captured_at": "2026-09-03",
+  "last_drift_audit_at": "2026-09-05",
+  "confidence": "verified",
+  "repository": {
+    "full_name": "KyleQD/Tourify",
+    "branch": "main",
+    "commit": "76d8389ebf939cee70f7070abf74a6bacc46f5de",
+    "note": "This remains the pinned discovery baseline. 2026-09-05 findings are an incremental drift audit against current main and the connected Supabase project, not a silent baseline reset."
+  },
+  "reference_build": {
+    "branch": "backup/pre-reconcile-local-work-2026-08-20",
+    "original_recorded_commit": "6039e75679050471e24655f778b2a61a5f634d63",
+    "branch_head_at_2026_09_05_audit": "6dc267b8711c17c1a107921704d8ef7fcbb81ae1",
+    "status": "verified_available_with_drift",
+    "rule": "Reference behavior must be read from an explicitly pinned commit. Do not assume the moving branch head equals the original recorded snapshot."
+  },
+  "connected_database_audit": {
+    "project_id": "auqddrodjezjlypkzfpi",
+    "project_label": "Tourify Demo",
+    "production_identity": "not_proven_from_repository_evidence",
+    "audited_at": "2026-09-05",
+    "summary": [
+      "employment_assignments exists and remains the canonical post-hire Work assignment anchor.",
+      "work_mode_publications, work_mode_publication_audiences, and work_mode_publication_acknowledgements exist with RLS enabled.",
+      "work_mode_check_in_events and work_mode_worker_actions exist with RLS enabled.",
+      "staff_shifts, staff_shift_plans, and staff_shift_assignments exist with RLS enabled.",
+      "tour_member_event_scopes exists with RLS enabled.",
+      "workflow_tasks and workflow_task_assignments exist with RLS enabled.",
+      "event_participants does not exist in the audited public schema.",
+      "worker_shift_check_in and worker_shift_check_out are stale against the current staff_shifts schema and status constraint.",
+      "respond_to_work_assignment remains a reusable assignment-bound RPC."
+    ]
+  },
+  "verified_current": {
+    "hooks": {
+      "use_work_mode": {
+        "path": "hooks/use-work-mode.ts",
+        "observations": [
+          "Work Mode is a transient assignment context on the authenticated general account.",
+          "The current hook directly reads employment_assignments in the browser for invited, confirmed, and active assignments.",
+          "The current hook tries to augment event scope through event_participants and staff_shifts.",
+          "The event_participants query is stale against the audited live schema because public.event_participants does not exist.",
+          "The current hook directly reads work_mode_publications and can synthesize publication-only pseudo assignments.",
+          "The selected assignment is persisted in sessionStorage and the hook attempts to persist work_mode data to user_sessions.",
+          "Assignment accept/decline is sent through /api/work-mode/assignments/[id]/respond.",
+          "There is no top-level GET /api/work-mode/assignments server-authorized read-model boundary on current main.",
+          "Authorization-sensitive aggregation currently occurs client-side and should be reconciled to the verified reference server-boundary pattern."
+        ]
+      }
+    },
+    "api": {
+      "assignment_response": {
+        "path": "app/api/work-mode/assignments/[id]/respond/route.ts",
+        "owner": "Work assignment response",
+        "observations": [
+          "Uses authenticated server context and respond_to_work_assignment.",
+          "This is the current reusable mutation edge for accept/decline."
+        ]
+      },
+      "work_mode_assignments_collection": {
+        "path": "app/api/work-mode/assignments/route.ts",
+        "status": "missing_on_current_main",
+        "required_reconciliation": "add a server-authorized GET read model rather than expanding browser aggregation"
+      }
+    },
+    "types": {
+      "hiring_roster_work_mode": {
+        "path": "types/hiring-roster-work-mode.ts",
+        "observations": [
+          "Defines the current shared hiring/roster/Work concepts but is materially simpler than the verified reference read-model contract.",
+          "Shared types should become the sole reusable Work contract rather than keeping parallel hook-local assignment/publication interfaces."
+        ]
+      }
+    },
+    "dependency_index": {
+      "messaging": ["app/api/messages"],
+      "notifications": ["app/api/notifications"],
+      "events": ["app/api/events"],
+      "tours": ["app/api/tours"],
+      "jobs_and_hiring": ["app/api/hiring", "app/api/job-applications", "app/api/job-board", "app/api/job-postings", "app/api/jobs"],
+      "staffing": ["app/api/staff", "app/api/staffing", "lib/services/staff-shift-assignment-sync.ts"],
+      "workflows": ["app/api/workflows"],
+      "storage_files": ["app/api/storage"],
+      "work_site_maps": ["app/api/work/site-maps"],
+      "work_mode": ["app/api/work-mode", "hooks/use-work-mode.ts", "types/hiring-roster-work-mode.ts"],
+      "native_mobile_root": ["apps/mobile"]
+    },
+    "test_and_build_scripts": [
+      "npm run build",
+      "npm run typecheck",
+      "npm run verify:ci",
+      "npm run test",
+      "npm run test:unit",
+      "npm run test:e2e",
+      "npm run test:auth",
+      "npm run test:hiring-shifts-smoke",
+      "npm run audit:worktree",
+      "npm run audit:data-loading"
+    ]
+  },
+  "verified_reference": {
+    "work_hub_dashboard": {
+      "paths": ["components/work-mode/work-hub-dashboard.tsx", "types/work-hub.ts"],
+      "strategy": "reconcile_behavior_not_wholesale_copy",
+      "observations": [
+        "Presents worker applications, engagements, assignments, tours/event access, coordinator chat, tasks, travel, lodging, and attention states.",
+        "Worker task actions include acknowledge, start, complete, and block.",
+        "Explicitly represents unscheduled and partial-data states."
+      ]
+    },
+    "use_work_mode": {
+      "path": "hooks/use-work-mode.ts",
+      "verified_commit": "6dc267b8711c17c1a107921704d8ef7fcbb81ae1",
+      "observations": [
+        "Uses GET /api/work-mode/assignments as the server-authorized read-model boundary.",
+        "Stores a per-user authorized snapshot in sessionStorage for resilient reads.",
+        "Revalidates on focus and visibility changes.",
+        "Optionally subscribes to targeted employment_assignments, staff_shifts, and work_mode_publications changes.",
+        "Supports assignment response and server-confirmed worker actions.",
+        "Explicitly avoids offline attendance write replay."
+      ]
+    }
+  },
+  "canonical_entities": [
+    {
+      "id": "employment_assignments",
+      "role": "post-hire worker assignment relationship",
+      "status": "canonical_for_work_reconciliation"
+    },
+    {
+      "id": "work_mode_publications",
+      "role": "published worker-facing operational packages",
+      "status": "existing_reuse_candidate"
+    },
+    {
+      "id": "staff_shifts",
+      "role": "worker shift linkage and schedule source",
+      "status": "existing_reuse_candidate"
+    },
+    {
+      "id": "staff_shift_plans",
+      "role": "shared shift-plan primitive",
+      "status": "verified_existing_live"
+    },
+    {
+      "id": "workflow_task_assignments",
+      "role": "worker-specific task authorization/assignment overlay",
+      "status": "verified_existing_live"
+    },
+    {
+      "id": "tour_member_event_scopes",
+      "role": "explicit tour-member event scope",
+      "status": "verified_existing_live"
+    },
+    {
+      "id": "work_mode_worker_actions",
+      "role": "idempotent worker operational actions",
+      "status": "verified_existing_live"
+    },
+    {
+      "id": "work_mode_check_in_events",
+      "role": "attendance/check-in event log",
+      "status": "verified_existing_live"
+    }
+  ],
+  "known_reconciliation_gaps": [
+    {
+      "id": "WORK-GAP-001",
+      "summary": "Current main lacks the server-authorized Work Mode assignments collection/read-model endpoint."
+    },
+    {
+      "id": "WORK-GAP-002",
+      "summary": "Current Work Mode browser aggregation depends on nonexistent event_participants and must be removed or replaced with verified assignment/tour/event scope."
+    },
+    {
+      "id": "WORK-GAP-003",
+      "summary": "Current shared Work types are materially simpler than the verified reference read-model contracts and the hook duplicates local interfaces."
+    },
+    {
+      "id": "WORK-GAP-004",
+      "summary": "Legacy worker_shift_check_in/out RPCs are incompatible with current staff_shifts and must not be used for attendance reconciliation."
+    },
+    {
+      "id": "WORK-GAP-005",
+      "summary": "Work Hub composition and worker task/attendance integration remain P01 execution tasks, but their backend primitives are now verified rather than assumed missing."
+    }
+  ],
+  "verified_existing_schema_primitives": [
+    "staff_shift_plans",
+    "workflow_task_assignments",
+    "tour_member_event_scopes",
+    "work_mode_worker_actions"
+  ],
+  "baseline_refresh_rules": {
+    "default": "level_3_drift_audit",
+    "full_refresh_required_when": [
+      "material Work schema or RLS changes land",
+      "the canonical assignment model changes",
+      "the Work route or service architecture is replaced",
+      "reference assumptions conflict with current tests or production behavior"
+    ]
+  }
+}

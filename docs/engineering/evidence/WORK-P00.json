@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "phase": "WORK-P00",
+  "baseline_id": "work-2026-09-03-main-76d8389",
+  "captured_at": "2026-09-03",
+  "closed_at": "2026-09-05",
+  "tasks": {
+    "WORK-P00-T01": {
+      "status": "verified",
+      "evidence": ["docs/engineering/ENGINEERING_CONSTITUTION.md created on documentation branch"]
+    },
+    "WORK-P00-T02": {
+      "status": "verified",
+      "evidence": ["Current main Work hook and shared Work types inspected and recorded against the pinned baseline plus 2026-09-05 drift audit"]
+    },
+    "WORK-P00-T03": {
+      "status": "verified",
+      "evidence": ["Reference branch and reusable Work behavior indexed; moving reference head recorded as 6dc267b8711c17c1a107921704d8ef7fcbb81ae1"]
+    },
+    "WORK-P00-T04": {
+      "status": "verified",
+      "evidence": [
+        "Connected Supabase project auqddrodjezjlypkzfpi inspected for Work tables, constraints, RLS, grants, and relevant functions.",
+        "Verified existing primitives include employment_assignments, work_mode_publications, work_mode_publication_audiences, work_mode_publication_acknowledgements, work_mode_check_in_events, work_mode_worker_actions, staff_shifts, staff_shift_plans, staff_shift_assignments, tour_member_event_scopes, workflow_tasks, workflow_task_assignments, and user_sessions.",
+        "event_participants is absent from the audited public schema and is excluded from the Work canonical scope model.",
+        "worker_shift_check_in and worker_shift_check_out are stale against current staff_shifts and are marked do-not-reuse.",
+        "respond_to_work_assignment remains a verified reusable assignment-bound primitive."
+      ]
+    },
+    "WORK-P00-T05": {
+      "status": "verified",
+      "evidence": [
+        "Current dependency roots indexed for messaging, notifications, storage/files, events, tours, hiring/jobs, staff/staffing, workflows, Work site maps, Work Mode, and native mobile.",
+        "Current Work assignment response route verified at app/api/work-mode/assignments/[id]/respond/route.ts.",
+        "Current top-level GET app/api/work-mode/assignments/route.ts is absent and is the bounded P01 read-model gap.",
+        "Current native app root is apps/mobile; older apps/admin/mobile paths are reference-only."
+      ]
+    },
+    "WORK-P00-T06": {
+      "status": "verified",
+      "evidence": [
+        "docs/engineering/baselines/work.json confidence advanced to verified after targeted drift audit.",
+        "docs/engineering/reference-maps/work-reference-map.json reconciled with verified schema and current subsystem ownership.",
+        "docs/engineering/decisions/DECISIONS.md records canonical ownership and stale dependency/RPC exclusions.",
+        "No unresolved canonical ownership conflict blocks WORK-P01."
+      ]
+    }
+  },
+  "changed_files": [
+    "docs/engineering/README.md",
+    "docs/engineering/ENGINEERING_CONSTITUTION.md",
+    "docs/engineering/baselines/work.json",
+    "docs/engineering/reference-maps/work-reference-map.json",
+    "docs/engineering/execution/work.json",
+    "docs/engineering/decisions/DECISIONS.md",
+    "docs/engineering/phases/work/P00.md",
+    "docs/engineering/phases/work/P01.md",
+    "docs/engineering/evidence/evidence.schema.json",
+    "docs/engineering/evidence/WORK-P00.json"
+  ],
+  "tests": [
+    {
+      "name": "product test suite",
+      "result": "not_applicable",
+      "classification": "not_applicable",
+      "notes": "P00 closes discovery/evidence only and does not modify product code. Product verification gates remain assigned to P01 implementation tasks."
+    },
+    {
+      "name": "repository and schema verification",
+      "result": "verified_by_connected_read_inspection",
+      "classification": "evidence_gate",
+      "notes": "GitHub current/reference files and connected Supabase schema/RLS/functions were inspected directly. Local npm commands were not executed by the connector environment and are not represented as passing."
+    }
+  ],
+  "migrations": [],
+  "authorization_checks": [
+    "employment_assignments remains the authenticated worker relationship anchor.",
+    "Work-related live primitives inspected have RLS enabled; application APIs must still validate relationship ownership explicitly.",
+    "event_participants is removed from the canonical Work authorization model because it is absent live.",
+    "Attendance must use server-confirmed current primitives rather than legacy shift RPCs.",
+    "Shared messaging, notification, storage, event, tour, hiring, staffing, and workflow systems remain integration dependencies rather than duplicate Work backends."
+  ],
+  "regressions": [],
+  "blockers": [],
+  "non_blocking_caveats": [
+    "The connected Supabase project is labeled Tourify Demo; repository evidence did not prove it is the production deployment, so deployment identity must be verified separately before production-only operations."
+  ],
+  "decisions": [
+    "ENG-001",
+    "ENG-002",
+    "ENG-003",
+    "WORK-001",
+    "WORK-002",
+    "WORK-003",
+    "WORK-004",
+    "WORK-005",
+    "WORK-006",
+    "WORK-007",
+    "WORK-008",
+    "WORK-009",
+    "WORK-010",
+    "WORK-011",
+    "WORK-012"
+  ]
+}
