@@ -67,6 +67,7 @@ const STATUS_RULES = [
 ];
 
 const DATA_SHEETS = [
+  "Execution Batches",
   "Findings",
   "Workflows",
   "Spec Tasks",
@@ -486,6 +487,7 @@ async function loadInputs() {
     evidence,
     serviceRoleReviews,
     coverage,
+    executionBatches,
   ] = await Promise.all([
     readJson(path.join(REGISTRY_ROOT, "program.json")),
     readJson(path.join(REGISTRY_ROOT, "findings.json")),
@@ -497,6 +499,7 @@ async function loadInputs() {
     Promise.all(evidenceFiles.map(readJson)),
     readJson(SERVICE_ROLE_REVIEW),
     readJson(COVERAGE),
+    readJson(path.join(REGISTRY_ROOT, "execution-batches.json")),
   ]);
   if (coverage.registrySourceSha256 !== sourceHash) {
     throw new Error(
@@ -514,6 +517,16 @@ async function loadInputs() {
     evidence: evidence.sort((a, b) => a.evidenceId.localeCompare(b.evidenceId)),
     serviceRoleReviews,
     coverage,
+    executionBatches: await Promise.all(
+      executionBatches.map(async (batch) => ({
+        ...batch,
+        derivedStatus: (
+          await readJson(
+            path.join(GENERATED_ROOT, "context", `${batch.batchId}.json`),
+          )
+        ).derivedStatus,
+      })),
+    ),
     sourceHash,
   };
 }
@@ -530,10 +543,32 @@ function buildWorkbook(inputs) {
     evidence,
     serviceRoleReviews,
     coverage,
+    executionBatches,
     sourceHash,
   } = inputs;
   const workbook = Workbook.create();
   const dashboard = workbook.worksheets.add("Dashboard");
+
+  const batchesSheet = addDataSheet(workbook, {
+    name: "Execution Batches",
+    tableName: "AdminExecutionBatches",
+    headers: [
+      "Batch ID", "Order", "Title", "Derived status", "Exit status",
+      "Dependencies", "Completion workflows", "Primary findings",
+      "Task selectors", "Target paths", "Launch gates", "Exit criteria",
+    ],
+    rows: executionBatches.map((item) => [
+      item.batchId, item.order, item.title, item.derivedStatus, item.exitStatus,
+      list(item.dependsOn), list(item.completionWorkflowIds),
+      list(item.primaryFindingIds),
+      list([...(item.specTaskPatterns ?? []), ...(item.specTaskIds ?? [])]),
+      list(item.targetPaths), list(item.gateIds), list(item.exitCriteria),
+    ]),
+    widths: [14, 9, 36, 30, 30, 24, 27, 40, 44, 54, 24, 68],
+    rowHeight: 52,
+  });
+  batchesSheet.sheet.getRange(`B2:B${batchesSheet.lastRow}`).format.numberFormat = "0";
+  addStatusRules(batchesSheet.sheet.getRange(`D2:E${batchesSheet.lastRow}`));
 
   const findingsSheet = addDataSheet(workbook, {
     name: "Findings",
@@ -811,7 +846,7 @@ async function main() {
     `${JSON.stringify({
       workbook: path.relative(ROOT, OUTPUT),
       manifest: path.relative(ROOT, MANIFEST),
-      sheets: 9,
+      sheets: 10,
       registrySourceSha256: inputs.sourceHash,
       workbookSha256,
       renderedTo: renderDirectory ? path.relative(ROOT, renderDirectory) : null,

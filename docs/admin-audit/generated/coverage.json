@@ -1,18 +1,19 @@
 {
   "generatedFrom": "TOURIFY-ADMIN-COMPLETION",
-  "registrySourceSha256": "e1cccbdab5c7a19505626fe30f8f182c7bed64895f4600a8ffa0bb4f9c035ec0",
+  "registrySourceSha256": "90d02de949e7c3cd58a2710fc5b3232307d57b9b45f60287a60009ab416b22e3",
   "baseline": {
     "branch": "codex/admin-workflow-completion",
     "commit": "a043d35d4304cc8181078a17e2138c1f47baf199",
     "parentCommit": "14842ad3dc65b5c9a70e8abff9d12475a1782d63",
     "capturedPaths": 138,
     "capturedAt": "2026-08-27T02:25:00-07:00",
-    "humanInventorySignoff": null
+    "humanInventorySignoff": "User approved preservation of the 12-file site-map WIP inventory on 2026-09-05; checkpoint 0916235bb440b9e3187d79ec76ba9d6ab3d9ab69 carries no completion credit."
   },
   "counts": {
     "findings": 79,
     "specTasks": 362,
     "workflows": 20,
+    "executionBatches": 15,
     "launchGates": 18,
     "evidence": 18,
     "adminRouteMethods": 480,
@@ -40,6 +41,83 @@
     "in_progress": 2,
     "observed": 18
   },
+  "executionBatches": [
+    {
+      "batchId": "ADM-B00",
+      "status": "implemented",
+      "exitStatus": "implemented"
+    },
+    {
+      "batchId": "ADM-B01",
+      "status": "blocked",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B02",
+      "status": "blocked",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B03",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B04",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B05",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B06",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B07",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B08",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B09",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B10",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B11",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B12",
+      "status": "blocked",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B13",
+      "status": "observed",
+      "exitStatus": "ready_for_independent_verification"
+    },
+    {
+      "batchId": "ADM-B14",
+      "status": "observed",
+      "exitStatus": "done"
+    }
+  ],
   "blockers": {
     "findings": 1,
     "specTasks": 12,

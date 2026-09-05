@@ -294,6 +294,90 @@ export const AdminDecisionSchema = z
   })
   .strict()
 
+const AdminRegistrySourcePathSchema = z
+  .string()
+  .min(1)
+  .refine((value) => !value.startsWith("/") && !value.includes(".."), {
+    message: "Registry source paths must be repository-relative",
+  })
+
+export const AdminExecutionBatchSchema = z
+  .object({
+    batchId: z.string().regex(/^ADM-B(?:0\d|1[0-4])$/),
+    order: z.number().int().min(0).max(14),
+    title: z.string().min(1),
+    goal: z.string().min(1),
+    dependsOn: z
+      .array(z.string().regex(/^ADM-B(?:0\d|1[0-4])$/))
+      .default([]),
+    exitStatus: AdminAuditStatusSchema,
+    completionWorkflowIds: z
+      .array(z.string().regex(/^ADM-WF-\d{3}$/))
+      .default([]),
+    primaryFindingIds: z
+      .array(z.string().regex(/^(ADM-M-\d{3}|AOA-\d{3})$/))
+      .default([]),
+    specTaskPatterns: z.array(z.string().min(1)).default([]),
+    specTaskIds: z.array(z.string().regex(/^[A-Z]+-\d{3}$/)).default([]),
+    targetPaths: z.array(AdminRegistrySourcePathSchema).min(1),
+    referenceIds: z
+      .array(z.string().regex(/^ADM-REF-\d{3}$/))
+      .default([]),
+    baselineSliceIds: z
+      .array(z.string().regex(/^ADM-BASE-\d{3}$/))
+      .default([]),
+    gateIds: z.array(z.string().regex(/^LG-\d{2}$/)).default([]),
+    focusedCommands: z.array(z.string().min(1)).min(1),
+    exitCriteria: z.array(z.string().min(1)).min(1),
+  })
+  .strict()
+
+export const AdminReferenceRecordSchema = z
+  .object({
+    referenceId: z.string().regex(/^ADM-REF-\d{3}$/),
+    domain: z.string().min(1),
+    strategy: z.enum(["reuse", "extend", "replace", "retire"]),
+    canonicalSource: z.string().min(1),
+    sourcePaths: z.array(AdminRegistrySourcePathSchema).min(1),
+    reusePaths: z.array(AdminRegistrySourcePathSchema).default([]),
+    invariants: z.array(z.string().min(1)).min(1),
+    lastVerifiedCommit: z.string().regex(/^[0-9a-f]{40}$/),
+    sourceSha256: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .strict()
+
+export const AdminBaselineSliceSchema = z
+  .object({
+    sliceId: z.string().regex(/^ADM-BASE-\d{3}$/),
+    domain: z.string().min(1),
+    routePatterns: z.array(z.string().min(1)).default([]),
+    tables: z.array(z.string().min(1)).default([]),
+    migrationPatterns: z.array(z.string().min(1)).default([]),
+    testPatterns: z.array(z.string().min(1)).default([]),
+    sourcePaths: z.array(AdminRegistrySourcePathSchema).min(1),
+    verifiedAtCommit: z.string().regex(/^[0-9a-f]{40}$/),
+    sourceSha256: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .strict()
+
+export const AdminContextPackSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    registrySourceSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    batchId: z.string().regex(/^ADM-B(?:0\d|1[0-4])$/),
+    derivedStatus: z.union([AdminAuditStatusSchema, z.literal("blocked")]),
+    exitStatus: AdminAuditStatusSchema,
+    contextBytes: z.number().int().positive().max(32 * 1024),
+    batch: z.record(z.string(), z.unknown()),
+    findings: z.array(z.record(z.string(), z.unknown())),
+    specTasks: z.array(z.record(z.string(), z.unknown())),
+    workflows: z.array(z.record(z.string(), z.unknown())),
+    references: z.array(AdminReferenceRecordSchema),
+    baselines: z.array(AdminBaselineSliceSchema),
+    launchGates: z.array(z.record(z.string(), z.unknown())),
+  })
+  .strict()
+
 export type AdminAuditStatus = z.infer<typeof AdminAuditStatusSchema>
 export type AdminFinding = z.infer<typeof AdminFindingSchema>
 export type AdminSpecTask = z.infer<typeof AdminSpecTaskSchema>
@@ -303,3 +387,7 @@ export type LaunchGate = z.infer<typeof LaunchGateSchema>
 export type RiskRecord = z.infer<typeof RiskRecordSchema>
 export type AdminPersona = z.infer<typeof AdminPersonaSchema>
 export type AdminDecision = z.infer<typeof AdminDecisionSchema>
+export type AdminExecutionBatch = z.infer<typeof AdminExecutionBatchSchema>
+export type AdminReferenceRecord = z.infer<typeof AdminReferenceRecordSchema>
+export type AdminBaselineSlice = z.infer<typeof AdminBaselineSliceSchema>
+export type AdminContextPack = z.infer<typeof AdminContextPackSchema>
