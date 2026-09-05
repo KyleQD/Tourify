@@ -21,6 +21,7 @@ export type EmploymentAssignmentStatus =
   | "active"
   | "completed"
   | "cancelled"
+  | "declined"
 
 export type AccessStaffDocsScope = "own" | "team" | "none"
 export type RunSheetAccess = boolean | "limited"
@@ -53,6 +54,74 @@ export interface WorkModeAssignment {
   endsAt?: string | null
   createdAt?: string | null
   updatedAt?: string | null
+}
+
+/**
+ * Server-authorized Work Mode read-model contracts.
+ *
+ * The field names intentionally preserve the existing hook-facing shape so the
+ * authorization boundary can move server-side without forcing unrelated UI
+ * consumers to migrate in the same change.
+ */
+export interface WorkerAssignmentSchedule {
+  shiftId: string
+  eventId: string | null
+  date: string | null
+  startTime: string | null
+  endTime: string | null
+  breakDurationMinutes: number
+  zone: string | null
+  role: string | null
+  notes: string | null
+  status: string | null
+}
+
+export interface WorkModeAssignmentListItem {
+  id: string
+  role_title: string
+  department: string | null
+  event_id: string | null
+  venue_id: string | null
+  organizer_id: string | null
+  staff_shift_id?: string | null
+  starts_at: string | null
+  ends_at: string | null
+  status: EmploymentAssignmentStatus
+  permissions: Record<string, boolean>
+  source: "assignment" | "publication"
+  publication_type: string | null
+  href: string | null
+  site_map_id: string | null
+  schedule?: WorkerAssignmentSchedule | null
+}
+
+export interface WorkModePublication {
+  id: string
+  event_id: string | null
+  publication_type: string
+  title: string
+  payload: Record<string, unknown>
+  published_at: string | null
+  href: string | null
+  site_map_id: string | null
+}
+
+export interface WorkModeAssignmentsPayload {
+  assignments: WorkModeAssignmentListItem[]
+  publications: WorkModePublication[]
+  generatedAt: string
+}
+
+export interface WorkModeApiResponse<TData> {
+  data?: TData
+  error?: string
+  code?:
+    | "not_authenticated"
+    | "not_found"
+    | "forbidden"
+    | "validation"
+    | "unavailable"
+    | "conflict"
 }
 
 export interface RosterMemberProfile {
