@@ -5,22 +5,25 @@
   "captured_at": "2026-09-03",
   "updated_at": "2026-09-05",
   "implementation": {
-    "branch": "codex/work-mode-read-model",
-    "pull_request": 8,
+    "canonical_branch": "codex/work-mode-read-model",
+    "canonical_pull_request": 8,
     "base_commit": "76d8389ebf939cee70f7070abf74a6bacc46f5de",
     "head_commit": "b7fbbf5a7c20d6b637ec38fa592c026ffc4ca20c",
-    "draft": true
+    "draft": true,
+    "duplicate_closed_pull_request": 11,
+    "duplicate_resolution": "PR #11 was closed after reconciliation because PR #8 is the smaller coherent first slice. Shift enrichment from the duplicate branch is deferred to a later P01 task."
   },
   "tasks": {
     "WORK-P01-T01": {
       "status": "implemented",
       "evidence": [
-        "Added authenticated GET app/api/work-mode/assignments/route.ts.",
+        "Added authenticated GET app/api/work-mode/assignments/route.ts in PR #8.",
         "The endpoint explicitly scopes base reads to employment_assignments.user_id = authenticated user id.",
         "Publication reads are limited to event ids present in the authenticated worker's assignment rows.",
         "Existing app/api/work-mode/assignments/[id]/respond/route.ts remains unchanged and continues to own accept/decline.",
         "hooks/use-work-mode.ts now consumes the server read model instead of directly aggregating authorization-sensitive Work tables in the browser.",
-        "The stale event_participants dependency is removed from the Work hook."
+        "The stale event_participants dependency is removed from the Work hook.",
+        "A second implementation PR (#11) was compared and closed as duplicate to preserve one canonical implementation path."
       ]
     },
     "WORK-P01-T02": {
@@ -30,7 +33,11 @@
         "Removed duplicate hook-local Work assignment/publication interfaces and preserved the existing external field shape through shared compatibility types."
       ]
     },
-    "WORK-P01-T03": { "status": "backlog", "evidence": [] },
+    "WORK-P01-T03": {
+      "status": "blocked",
+      "blocked_by": ["WORK-P01-VERIFY-INSTALL"],
+      "evidence": ["The engineering constitution requires tests/evidence before expanding to the next coherent slice."]
+    },
     "WORK-P01-T04": { "status": "backlog", "evidence": [] },
     "WORK-P01-T05": { "status": "backlog", "evidence": [] },
     "WORK-P01-T06": { "status": "backlog", "evidence": [] }
@@ -42,20 +49,41 @@
   ],
   "tests": [
     {
-      "name": "GitHub/Vercel deployment status",
-      "result": "pending",
-      "classification": "external_check",
-      "notes": "Vercel status is pending for head b7fbbf5a7c20d6b637ec38fa592c026ffc4ca20c at the time this evidence was updated."
+      "name": "CI / Lint And Build",
+      "workflow_run": 33990350998,
+      "result": "blocked_before_test_execution",
+      "classification": "dependency_install_failure",
+      "notes": "Checkout and Node setup passed. The Install dependencies step failed; lint, typecheck, contract tests, unit tests, and build were skipped. This is not evidence of a Work code test failure."
+    },
+    {
+      "name": "E2E Tests / Playwright",
+      "workflow_run": 33990350915,
+      "result": "blocked_before_test_execution",
+      "classification": "dependency_install_failure",
+      "notes": "npm ci failed before Playwright installation, application build, server start, or E2E execution."
+    },
+    {
+      "name": "E2E Tests / Unit Tests (Vitest)",
+      "workflow_run": 33990350915,
+      "result": "blocked_before_test_execution",
+      "classification": "dependency_install_failure",
+      "notes": "npm ci failed and npm run test:unit was skipped."
+    },
+    {
+      "name": "Mobile CI",
+      "result": "blocked_before_test_execution",
+      "classification": "dependency_install_failure",
+      "notes": "The workflow reported failure in the same PR verification cycle; the Work slice does not modify apps/mobile."
     },
     {
       "name": "npm run typecheck",
-      "result": "not_run",
+      "result": "not_executed",
       "classification": "verification_required",
-      "notes": "The GitHub connector does not execute repository commands. Do not infer a pass from static inspection."
+      "notes": "GitHub CI did not reach typecheck because dependency installation failed. Do not infer a pass or Work-specific failure."
     },
     {
       "name": "npm run test:auth",
-      "result": "not_run",
+      "result": "not_executed",
       "classification": "verification_required",
       "notes": "Required before WORK-P01-T01/T02 can advance from implemented to verified."
     }
@@ -64,7 +92,7 @@
   "authorization_checks": [
     "Authenticated user is required at GET /api/work-mode/assignments.",
     "Base assignment query is explicitly filtered by user_id before any Work context is assembled.",
-    "Publication event ids originate only from authorized assignment rows in this slice.",
+    "Publication event ids originate only from authorized assignment rows in this first slice.",
     "Client sessionStorage/user_sessions selection remains a navigation/context hint and is not an authorization source.",
     "No event_participants authorization assumption remains in hooks/use-work-mode.ts.",
     "No legacy worker_shift_check_in/out RPC is introduced."
@@ -76,7 +104,12 @@
     }
   ],
   "blockers": [
-    "Typecheck/auth tests and deployment check must pass before T01/T02 are marked verified."
+    {
+      "id": "WORK-P01-VERIFY-INSTALL",
+      "summary": "Repository dependency installation fails in GitHub Actions before Work typecheck/tests/build can execute.",
+      "impact": "T01/T02 remain implemented rather than verified; T03 should not begin until verification can execute.",
+      "next_action": "Diagnose the npm ci/package-lock or registry/install failure as repository CI infrastructure, then rerun PR #8 checks."
+    }
   ],
   "decisions": [
     "WORK-004",
