@@ -3,19 +3,86 @@
   "phase": "WORK-P01",
   "baseline_id": "work-2026-09-03-main-76d8389",
   "captured_at": "2026-09-03",
+  "updated_at": "2026-09-05",
+  "implementation": {
+    "branch": "codex/work-mode-read-model",
+    "pull_request": 8,
+    "base_commit": "76d8389ebf939cee70f7070abf74a6bacc46f5de",
+    "head_commit": "b7fbbf5a7c20d6b637ec38fa592c026ffc4ca20c",
+    "draft": true
+  },
   "tasks": {
-    "WORK-P01-T01": { "status": "ready", "evidence": [] },
-    "WORK-P01-T02": { "status": "backlog", "evidence": [] },
+    "WORK-P01-T01": {
+      "status": "implemented",
+      "evidence": [
+        "Added authenticated GET app/api/work-mode/assignments/route.ts.",
+        "The endpoint explicitly scopes base reads to employment_assignments.user_id = authenticated user id.",
+        "Publication reads are limited to event ids present in the authenticated worker's assignment rows.",
+        "Existing app/api/work-mode/assignments/[id]/respond/route.ts remains unchanged and continues to own accept/decline.",
+        "hooks/use-work-mode.ts now consumes the server read model instead of directly aggregating authorization-sensitive Work tables in the browser.",
+        "The stale event_participants dependency is removed from the Work hook."
+      ]
+    },
+    "WORK-P01-T02": {
+      "status": "implemented",
+      "evidence": [
+        "Added WorkModeAssignmentListItem, WorkModePublication, WorkModeAssignmentsPayload, and WorkModeApiResponse to types/hiring-roster-work-mode.ts.",
+        "Removed duplicate hook-local Work assignment/publication interfaces and preserved the existing external field shape through shared compatibility types."
+      ]
+    },
     "WORK-P01-T03": { "status": "backlog", "evidence": [] },
     "WORK-P01-T04": { "status": "backlog", "evidence": [] },
     "WORK-P01-T05": { "status": "backlog", "evidence": [] },
     "WORK-P01-T06": { "status": "backlog", "evidence": [] }
   },
-  "changed_files": [],
-  "tests": [],
+  "changed_files": [
+    "app/api/work-mode/assignments/route.ts",
+    "hooks/use-work-mode.ts",
+    "types/hiring-roster-work-mode.ts"
+  ],
+  "tests": [
+    {
+      "name": "GitHub/Vercel deployment status",
+      "result": "pending",
+      "classification": "external_check",
+      "notes": "Vercel status is pending for head b7fbbf5a7c20d6b637ec38fa592c026ffc4ca20c at the time this evidence was updated."
+    },
+    {
+      "name": "npm run typecheck",
+      "result": "not_run",
+      "classification": "verification_required",
+      "notes": "The GitHub connector does not execute repository commands. Do not infer a pass from static inspection."
+    },
+    {
+      "name": "npm run test:auth",
+      "result": "not_run",
+      "classification": "verification_required",
+      "notes": "Required before WORK-P01-T01/T02 can advance from implemented to verified."
+    }
+  ],
   "migrations": [],
-  "authorization_checks": [],
-  "regressions": [],
-  "blockers": ["WORK-P01 is gated by WORK-P00-T06 until the current Work schema/RLS and dependency index are verified."],
-  "decisions": []
+  "authorization_checks": [
+    "Authenticated user is required at GET /api/work-mode/assignments.",
+    "Base assignment query is explicitly filtered by user_id before any Work context is assembled.",
+    "Publication event ids originate only from authorized assignment rows in this slice.",
+    "Client sessionStorage/user_sessions selection remains a navigation/context hint and is not an authorization source.",
+    "No event_participants authorization assumption remains in hooks/use-work-mode.ts.",
+    "No legacy worker_shift_check_in/out RPC is introduced."
+  ],
+  "regressions": [
+    {
+      "status": "watch",
+      "summary": "The previous hook could synthesize publication-only pseudo assignments from participant/shift-derived event ids. The audited canonical model now requires employment assignment ownership, so this behavior is intentionally not preserved unless a later verified scope rule justifies it."
+    }
+  ],
+  "blockers": [
+    "Typecheck/auth tests and deployment check must pass before T01/T02 are marked verified."
+  ],
+  "decisions": [
+    "WORK-004",
+    "WORK-008",
+    "WORK-010",
+    "WORK-011",
+    "WORK-012"
+  ]
 }
