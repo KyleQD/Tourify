@@ -27,7 +27,7 @@
     "build": "NODE_OPTIONS='--max-old-space-size=6144' next build",
     "build:vercel": "NODE_OPTIONS='--max-old-space-size=6144' next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
     "audit:worktree": "node scripts/audit-worktree.mjs",
     "audit:data-loading": "node scripts/audit-data-loading.mjs",
