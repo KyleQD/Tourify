@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Layout, Eye, X, CheckCircle } from "lucide-react"
+import { Layout, Eye, X, Check } from "lucide-react"
 import type { EPKData } from "@/lib/services/epk.service"
 import EPKPreview from "@/components/epk/epk-preview"
 import { epkSurface } from "@/components/epk/epk-ui-styles"
@@ -16,99 +16,59 @@ interface EpkTemplateSelectorProps {
   epkData: EPKData
 }
 
-const BASE_TEMPLATES = [
-  {
-    id: 'modern',
-    name: 'Modern',
-    description: 'Sleek gradients with premium aesthetics',
-    colors: ['from-indigo-600', 'via-purple-600', 'to-pink-600'],
-    accent: 'bg-purple-400',
-  },
-  {
-    id: 'classic',
-    name: 'Classic',
-    description: 'Warm editorial layout for press and bookers',
-    colors: ['from-orange-500', 'via-pink-500', 'to-purple-600'],
-    accent: 'bg-orange-400',
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    description: 'Clean monochrome with subtle depth',
-    colors: ['from-gray-50', 'via-white', 'to-gray-100'],
-    accent: 'bg-gray-600',
-  },
-  {
-    id: 'bold',
-    name: 'Bold',
-    description: 'Electric highlights and strong contrast',
-    colors: ['from-blue-900', 'via-cyan-800', 'to-teal-700'],
-    accent: 'bg-cyan-400',
-  },
-  {
-    id: 'black',
-    name: 'Black',
-    description: 'Pure black with neon accents (maps to Minimal)',
-    colors: ['from-black', 'via-gray-900', 'to-black'],
-    accent: 'bg-green-400',
-  },
-  {
-    id: 'neon',
-    name: 'Neon',
-    description: 'Electric blue highlights (maps to Bold)',
-    colors: ['from-blue-950', 'via-cyan-900', 'to-teal-900'],
-    accent: 'bg-cyan-400',
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset',
-    description: 'Warm orange to pink (maps to Classic)',
-    colors: ['from-orange-900', 'via-pink-900', 'to-purple-900'],
-    accent: 'bg-orange-400',
-  },
-  {
-    id: 'cinema',
-    name: 'Cinema',
-    description: 'Letterbox charcoal with silver platinum type',
-    colors: ['from-zinc-950', 'via-zinc-900', 'to-black'],
-    accent: 'bg-zinc-300',
-  },
-  {
-    id: 'gallery',
-    name: 'Gallery',
-    description: 'Museum white with airy editorial space',
-    colors: ['from-neutral-100', 'via-white', 'to-neutral-50'],
-    accent: 'bg-neutral-800',
-  },
-  {
-    id: 'luxe',
-    name: 'Luxe',
-    description: 'Deep navy with champagne gold accents',
-    colors: ['from-[#0a1628]', 'via-[#0d1c32]', 'to-[#081220]'],
-    accent: 'bg-[#c9a962]',
-  },
-  {
-    id: 'poster',
-    name: 'Poster',
-    description: 'Concert ink with coral stamp energy',
-    colors: ['from-[#140808]', 'via-[#1a0c0c]', 'to-[#5c1a1a]'],
-    accent: 'bg-[#f07167]',
-  },
-  {
-    id: 'coastal',
-    name: 'Coastal',
-    description: 'Soft sage sand with calm teal accents',
-    colors: ['from-[#e8efe9]', 'via-[#dff0e8]', 'to-[#c5e0d6]'],
-    accent: 'bg-[#2d6a5a]',
-  },
-] as const
+interface TemplateOption {
+  id: string
+  name: string
+  description: string
+}
 
-const REFERENCE_TEMPLATES = EPK_REFERENCE_TEMPLATE_OPTIONS.map((template) => ({
-  ...template,
-  accent: "bg-white/70",
+const SIGNATURE_TEMPLATES: TemplateOption[] = [
+  { id: "modern", name: "Modern", description: "Sleek indigo gradients, premium glass surfaces" },
+  { id: "classic", name: "Classic", description: "Warm editorial serif for press and bookers" },
+  { id: "minimal", name: "Minimal", description: "Monochrome, uppercase micro-type, sharp edges" },
+  { id: "bold", name: "Bold", description: "Electric yellow blocks and heavy contrast" },
+  { id: "cinema", name: "Cinema", description: "Letterbox charcoal with silver mono type" },
+  { id: "gallery", name: "Gallery", description: "Museum white with airy editorial space" },
+  { id: "luxe", name: "Luxe", description: "Deep wine with champagne gold accents" },
+  { id: "poster", name: "Poster", description: "Concert ink with coral stamp energy" },
+  { id: "coastal", name: "Coastal", description: "Soft sage sand with calm teal accents" },
+]
+
+const EDITORIAL_TEMPLATES: TemplateOption[] = EPK_REFERENCE_TEMPLATE_OPTIONS.map((t) => ({
+  id: t.id,
+  name: t.name,
+  description: t.description,
 }))
 
-const TEMPLATES = [...BASE_TEMPLATES, ...REFERENCE_TEMPLATES] as const
+const ALL_TEMPLATES: TemplateOption[] = [...SIGNATURE_TEMPLATES, ...EDITORIAL_TEMPLATES]
+
+/**
+ * Real, scaled-down render of the actual EPK for a given template so the
+ * picker shows exactly what the user will get instead of a fake mockup.
+ */
+function MiniEpkPreview({
+  epkData,
+  templateId,
+}: {
+  epkData: EPKData
+  templateId: string
+}) {
+  const data = useMemo(
+    () => ({ ...epkData, template: templateId }),
+    [epkData, templateId]
+  )
+  return (
+    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+      {/* Render at full design width, then scale to fit the card thumbnail */}
+      <div
+        className="absolute left-0 top-0 origin-top-left"
+        style={{ width: "400%", transform: "scale(0.25)" }}
+      >
+        <EPKPreview data={data} template={templateId} />
+      </div>
+    </div>
+  )
+}
 
 export function EpkTemplateSelector({
   selectedTemplate,
@@ -116,11 +76,78 @@ export function EpkTemplateSelector({
   epkData,
 }: EpkTemplateSelectorProps) {
   const [showPreviewModal, setShowPreviewModal] = useState(false)
-  const [previewTemplate, setPreviewTemplate] = useState('')
+  const [previewTemplate, setPreviewTemplate] = useState("")
 
   function handlePreviewClick(templateId: string) {
     setPreviewTemplate(templateId)
     setShowPreviewModal(true)
+  }
+
+  function renderTemplateCard(template: TemplateOption) {
+    const isSelected = selectedTemplate === template.id
+    return (
+      <div
+        key={template.id}
+        role="button"
+        tabIndex={0}
+        aria-pressed={isSelected}
+        className={cn(
+          "group relative cursor-pointer overflow-hidden rounded-2xl border text-left transition-all duration-200",
+          isSelected
+            ? "border-purple-500 ring-2 ring-purple-500/40"
+            : "border-white/10 hover:border-white/25"
+        )}
+        onClick={() => onTemplateChange(template.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onTemplateChange(template.id)
+          }
+        }}
+      >
+        {/* Thumbnail */}
+        <div className="relative h-32 w-full overflow-hidden bg-black/40">
+          <MiniEpkPreview epkData={epkData} templateId={template.id} />
+          {/* readability + hover scrim */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
+
+          {isSelected && (
+            <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-purple-500 shadow-lg shadow-purple-500/40">
+              <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation()
+              handlePreviewClick(template.id)
+            }}
+            className="absolute bottom-2 right-2 h-7 gap-1.5 rounded-lg border border-white/15 bg-black/55 px-2 text-[11px] text-white opacity-0 backdrop-blur-md transition-opacity duration-200 hover:bg-black/75 group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Eye className="h-3 w-3" />
+            Preview
+          </Button>
+        </div>
+
+        {/* Meta */}
+        <div className="bg-[#0d0f18] px-3 py-2.5">
+          <h4
+            className={cn(
+              "text-sm font-semibold tracking-tight",
+              isSelected ? "text-purple-200" : "text-white"
+            )}
+          >
+            {template.name}
+          </h4>
+          <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-gray-400">
+            {template.description}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -132,91 +159,62 @@ export function EpkTemplateSelector({
             EPK Template
           </CardTitle>
           <CardDescription className="text-xs text-gray-400">
-            Choose your EPK&apos;s visual style
+            Live previews of your EPK in every style
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 p-4 pt-0">
-          {TEMPLATES.map((template) => (
-            <div
-              key={template.id}
-              className={`relative cursor-pointer rounded-xl border-2 p-2.5 transition-all ${
-                selectedTemplate === template.id
-                  ? 'border-purple-500 bg-purple-500/10'
-                  : 'border-gray-800 hover:border-gray-600'
-              }`}
-              onClick={() => onTemplateChange(template.id)}
-            >
-              <div
-                className={cn(
-                  "relative mb-2 h-20 overflow-hidden rounded-xl p-2.5 shadow-lg",
-                  "colors" in template
-                    ? `bg-gradient-to-br ${template.colors.join(" ")}`
-                    : template.previewClassName,
-                )}
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-full border-2 border-white/40 bg-white/20 shadow-md" />
-                  <div className="h-2 w-20 rounded-full bg-white/40 shadow-sm" />
-                </div>
-                <div className="space-y-1">
-                  <div className="h-1.5 w-24 rounded-full bg-white/30 shadow-sm" />
-                  <div className="h-1 w-16 rounded-full bg-white/25" />
-                </div>
-                <div className={`absolute bottom-2 right-2 h-2 w-2 rounded-full shadow-lg ${template.accent}`} />
-                {selectedTemplate === template.id && (
-                  <div className="absolute right-2 top-2">
-                    <CheckCircle className="h-5 w-5 text-purple-400 drop-shadow-lg" />
-                  </div>
-                )}
-              </div>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-medium text-white">{template.name}</h4>
-                  <p className="text-xs text-gray-400">{template.description}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handlePreviewClick(template.id)
-                  }}
-                  className="h-auto p-1 text-gray-400 hover:text-white"
-                >
-                  <Eye className="h-3 w-3" />
-                </Button>
-              </div>
+        <CardContent className="space-y-5 p-4 pt-1">
+          <div className="space-y-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+              Signature
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {SIGNATURE_TEMPLATES.map(renderTemplateCard)}
             </div>
-          ))}
+          </div>
 
-          <div className="border-t border-gray-800/80 pt-3">
+          <div className="space-y-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+              Editorial
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {EDITORIAL_TEMPLATES.map(renderTemplateCard)}
+            </div>
+          </div>
+
+          <div className="border-t border-white/10 pt-3">
             <Button
               size="sm"
               variant="outline"
-              className="w-full rounded-xl border-gray-700/80 bg-transparent text-xs text-white hover:bg-white/5"
+              className="w-full rounded-xl border-white/15 bg-transparent text-xs text-white hover:bg-white/5"
               onClick={() => handlePreviewClick(selectedTemplate)}
             >
               <Eye className="mr-2 h-3 w-3" />
-              Preview Current Template
+              Preview current template full-size
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {showPreviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <Card className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-gray-800/80 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onClick={() => setShowPreviewModal(false)}
+        >
+          <Card
+            className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader className="bg-gradient-to-br from-[#191c24] to-[#23263a] text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>
-                    Template Preview: {TEMPLATES.find((t) => t.id === previewTemplate)?.name}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="truncate">
+                    {ALL_TEMPLATES.find((t) => t.id === previewTemplate)?.name ?? "Template"} preview
                   </CardTitle>
                   <CardDescription className="text-gray-400">
-                    See how your EPK will look with this template
+                    See how your EPK looks in this style
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex shrink-0 gap-2">
                   <Button
                     size="sm"
                     onClick={() => {
@@ -225,20 +223,20 @@ export function EpkTemplateSelector({
                     }}
                     className="bg-purple-600 text-white hover:bg-purple-700"
                   >
-                    Select Template
+                    Use this template
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setShowPreviewModal(false)}
-                    className="rounded-xl border-gray-700/80 text-white hover:bg-white/5"
+                    className="rounded-xl border-white/15 text-white hover:bg-white/5"
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="overflow-hidden p-0">
+            <CardContent className="max-h-[calc(90vh-88px)] overflow-y-auto p-0">
               <EPKPreview
                 data={{ ...epkData, template: previewTemplate }}
                 template={previewTemplate}

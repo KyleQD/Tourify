@@ -425,7 +425,30 @@ export function EpkBuilderView({
             <span className={epkStatusPill}>{hasSavedEpk ? "Canonical link" : "Private draft"}</span>
             <span className={cn(epkStatusPill, "max-w-full truncate font-mono")}>{urlLabel}</span>
             <span className={epkStatusPill}>{templateLabel}</span>
-            <span className={epkStatusPill}>Quality {qualityScore}%</span>
+            <span className={cn(epkStatusPill, "gap-2 pr-3")}>
+              <span className="text-slate-400">Quality</span>
+              <span
+                className="h-1.5 w-16 overflow-hidden rounded-full bg-white/12"
+                role="progressbar"
+                aria-valuenow={qualityScore}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`EPK quality ${qualityScore} percent`}
+              >
+                <span
+                  className={cn(
+                    "block h-full rounded-full transition-[width] duration-500",
+                    qualityScore >= 80
+                      ? "bg-emerald-400"
+                      : qualityScore >= 50
+                        ? "bg-amber-400"
+                        : "bg-rose-400"
+                  )}
+                  style={{ width: `${Math.min(100, Math.max(0, qualityScore))}%` }}
+                />
+              </span>
+              <span className="tabular-nums font-semibold text-white">{qualityScore}%</span>
+            </span>
           </div>
         </div>
         <EpkBuilderToolbar
