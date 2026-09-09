@@ -18,7 +18,12 @@ COMMENT ON TABLE public.venue_team_members IS
 -- Identity-link column so legacy rows map deterministically to canonical rows
 -- across re-runs (email is NOT a stable identity — VEN-106).
 ALTER TABLE public.venue_team_members
-  ADD COLUMN IF NOT EXISTS canonical_staff_member_id UUID REFERENCES public.staff_members(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS canonical_staff_member_id UUID REFERENCES public.staff_members(id) ON DELETE SET NULL,
+  -- These attributes existed in a retired Venue bootstrap but not in the active
+  -- venue_core baseline. Keep them nullable so absent source data remains absent;
+  -- canonical defaults are applied only when a new canonical row is created.
+  ADD COLUMN IF NOT EXISTS department TEXT,
+  ADD COLUMN IF NOT EXISTS employment_type TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_venue_team_members_canonical
   ON public.venue_team_members (canonical_staff_member_id)
@@ -53,6 +58,7 @@ BEGIN
     SELECT sm.id INTO v_staff_id
     FROM public.staff_members sm
     WHERE sm.employer_entity_type = 'venue'
+      AND sm.employer_entity_id = rec.venue_id
       AND (
         (rec.user_id IS NOT NULL AND sm.user_id = rec.user_id)
         OR (
@@ -75,7 +81,11 @@ BEGIN
       VALUES (
         rec.user_id, rec.name, rec.email,
         COALESCE(rec.role, 'member'),
-        CASE rec.status WHEN 'active' THEN 'active' ELSE 'inactive' END,
+        CASE rec.status
+          WHEN 'active' THEN 'active'
+          WHEN 'terminated' THEN 'terminated'
+          ELSE 'on_leave'
+        END,
         COALESCE(rec.department, 'operations'),
         COALESCE(rec.employment_type, 'full_time'),
         'venue',

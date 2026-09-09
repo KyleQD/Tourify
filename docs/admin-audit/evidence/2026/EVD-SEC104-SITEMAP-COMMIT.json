@@ -1,0 +1,23 @@
+{
+  "evidenceId": "EVD-SEC104-SITEMAP-COMMIT",
+  "kind": "commit",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:22:39-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "c50c597d0c24e745d3601b085a7a1daf1d32ad67",
+  "artifact": "git:codex/admin-workflow-completion@c50c597d0c24e745d3601b085a7a1daf1d32ad67",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Immutable SEC-104 checkpoint migrating site-map template, export, and version routes to the trusted logistics.view acting-context boundary and reducing the enforced legacy ceiling to 114."
+}

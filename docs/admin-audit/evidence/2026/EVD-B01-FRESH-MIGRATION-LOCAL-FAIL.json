@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-FRESH-MIGRATION-LOCAL-FAIL",
+  "kind": "migration_apply",
+  "result": "fail",
+  "environment": "local",
+  "capturedAt": "2026-09-07T22:34:50-07:00",
+  "capturedBy": "Codex implementation session",
+  "commitSha": null,
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-FRESH-MIGRATION-LOCAL-FAIL.md",
+  "sha256": "855514a44475c8d3a7a33b9f09cd629a1af0fae2f67de71a972bb1cad2cc15d1",
+  "findingIds": ["ADM-M-010", "AOA-003"],
+  "workflowIds": ["ADM-WF-019"],
+  "specTaskIds": ["REL-101", "REL-102"],
+  "launchGateIds": [],
+  "notes": "A disposable fresh database using the CI-pinned Supabase CLI 2.22.6 failed at 20260821025543 because ticket_allocations is absent from the active chain. The only creation is in an archived local_only_unapplied migration. No historical SQL or persistent database was changed."
+}

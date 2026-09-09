@@ -1,0 +1,24 @@
+{
+  "evidenceId": "EVD-SEC104-SITEMAP-ACTING-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:34:15-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
+  "artifact": "Node 20 route registry, focused active-org/tamper/actor-binding tests, complete Admin Vitest, touched ESLint, scoped TypeScript, and audit-registry checks recorded in TASK_LOG.md",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013",
+    "ADM-M-019"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Local verification passed: 288 routes at 113/113 legacy; linked Org A/Org B mismatch and unscoped-map denial; forged activity action/actor/status rejection; child-map ownership; 230 active Admin files and 3,218 active tests. Live RLS and staging remain unverified."
+}

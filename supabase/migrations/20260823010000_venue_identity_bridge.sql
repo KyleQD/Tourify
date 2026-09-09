@@ -8,6 +8,31 @@
 -- venue_profiles.settings JSON. No destructive operations; safe to re-run.
 -- =============================================================================
 
+-- The original active venue_profiles migration predates the account-switching
+-- contract and does not create main_profile_id. Production-shaped databases may
+-- already have it from the retired bootstrap scripts, so reconcile the active
+-- chain additively before any RLS policy or later Venue migration references it.
+alter table public.venue_profiles
+  add column if not exists main_profile_id uuid
+  references public.profiles(id) on delete cascade,
+  add column if not exists settings jsonb default '{}'::jsonb;
+
+-- user_id and profiles.id share the auth user identifier in the active baseline.
+-- Only backfill a relationship that can be proven by the profiles foreign key;
+-- unresolved rows remain null rather than receiving inferred ownership.
+update public.venue_profiles vp
+set main_profile_id = vp.user_id
+where vp.main_profile_id is null
+  and exists (
+    select 1
+    from public.profiles p
+    where p.id = vp.user_id
+  );
+
+create index if not exists venue_profiles_main_profile_id_idx
+  on public.venue_profiles (main_profile_id)
+  where main_profile_id is not null;
+
 create table if not exists public.venue_identity_bridges (
   venue_profile_id   uuid primary key references public.venue_profiles(id) on delete cascade,
   venues_v2_id       uuid unique references public.venues_v2(id) on delete set null,

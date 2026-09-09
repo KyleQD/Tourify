@@ -1,0 +1,24 @@
+{
+  "evidenceId": "EVD-SEC104-SITEMAP-ELEMENTS-COMMIT",
+  "kind": "commit",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-09-03T16:01:00-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "7630a37ef395e147198a169e94fa888d2f3c7b19",
+  "artifact": "git:codex/admin-workflow-completion@7630a37ef395e147198a169e94fa888d2f3c7b19",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013",
+    "ADM-M-019"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Immutable SEC-104 checkpoint for selected-organization-bound site-map element commands, actor-bound RLS, atomic canvas synchronization, database-side tamper constraints, canonical events_v2 parent resolution, and collaborator expiration."
+}

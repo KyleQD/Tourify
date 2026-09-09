@@ -11,6 +11,30 @@
 -- ownership transfer changes user_id only.
 -- ═══════════════════════════════════════════════════════════════
 
+-- The lifecycle contract uses the canonical timestamp carried by the live
+-- events schema, while the oldest active baseline still exposes `date` and a
+-- later additive migration exposes `event_date`. Capture start_at and backfill
+-- only from source columns that actually exist on the target database.
+ALTER TABLE public.events
+  ADD COLUMN IF NOT EXISTS start_at timestamptz;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'events' AND column_name = 'date'
+  ) THEN
+    EXECUTE 'UPDATE public.events SET start_at = date WHERE start_at IS NULL AND date IS NOT NULL';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'events' AND column_name = 'event_date'
+  ) THEN
+    EXECUTE 'UPDATE public.events SET start_at = event_date::timestamptz WHERE start_at IS NULL AND event_date IS NOT NULL';
+  END IF;
+END $$;
+
 -- ── 1. Archived state ────────────────────────────────────────────────────────
 ALTER TABLE public.venue_profiles
   ADD COLUMN IF NOT EXISTS archived_at timestamptz;
@@ -80,10 +104,13 @@ LANGUAGE sql STABLE SET search_path = 'public' AS $$
   SELECT * FROM (
     -- Upcoming public events on the canonical events relation
     SELECT 'upcoming_event'::text,
-           e.title || ' (' || COALESCE(e.start_at::date::text, e.event_date::text) || ')'
+           e.title || ' (' || COALESCE(e.start_at::date::text, e.event_date::text, 'date unavailable') || ')'
     FROM public.events e
     WHERE e.venue_id = p_venue_id
-      AND COALESCE(e.start_at, e.event_date::timestamptz) >= now()
+      AND (
+        COALESCE(e.start_at, e.event_date::timestamptz) >= now()
+        OR (e.start_at IS NULL AND e.event_date IS NULL)
+      )
       AND COALESCE(e.status, '') NOT IN ('cancelled','completed')
 
     UNION ALL

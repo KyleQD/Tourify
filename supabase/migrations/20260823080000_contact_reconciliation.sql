@@ -9,6 +9,41 @@
 -- (governed by settings.show_contact_info / future VEN-026 role flags).
 -- =============================================================================
 
+-- The relational table and contact_info column existed on the live reference
+-- schema but were never captured by the active migration chain. Capture the
+-- smallest canonical shape here. venue_id deliberately references
+-- venue_profiles.id per ADR-0001; operational venue mirrors are not identity.
+ALTER TABLE public.venue_profiles
+  ADD COLUMN IF NOT EXISTS contact_info JSONB DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS public.venue_contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  venue_id UUID REFERENCES public.venue_profiles(id) ON DELETE CASCADE,
+  first_name TEXT,
+  last_name TEXT,
+  email TEXT,
+  phone TEXT,
+  department TEXT,
+  position TEXT,
+  is_primary BOOLEAN DEFAULT false,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_venue_contacts_venue
+  ON public.venue_contacts (venue_id);
+
+ALTER TABLE public.venue_contacts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS venue_contacts_operator_access ON public.venue_contacts;
+CREATE POLICY venue_contacts_operator_access
+  ON public.venue_contacts
+  FOR ALL
+  TO authenticated
+  USING (public.venue_has_operator_access(venue_id))
+  WITH CHECK (public.venue_has_operator_access(venue_id));
+
 -- Deterministic natural key for idempotency: one booking contact per venue.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_venue_contacts_primary_booking
   ON public.venue_contacts (venue_id)
@@ -25,10 +60,7 @@ DECLARE
 BEGIN
   FOR rec IN
     SELECT vp.id AS venue_profile_id,
-           -- venue_contacts FKs to the OPS mirror (venues), not profiles —
-           -- resolve canonical→mirror via the ADR-0001 bridge first, then the
-           -- legacy settings JSON key; profile-only venues are counted/skipped.
-           vv.id AS target_venue_id,
+           vp.id AS target_venue_id,
            vp.contact_info,
            COALESCE(
              NULLIF(vp.contact_info ->> 'manager_name', ''),
@@ -39,16 +71,6 @@ BEGIN
            NULLIF(vp.contact_info ->> 'email', '')         AS fallback_email,
            NULLIF(vp.contact_info ->> 'phone', '')         AS phone
     FROM public.venue_profiles vp
-    LEFT JOIN public.venue_identity_bridges b ON b.venue_profile_id = vp.id
-    -- Only accept targets that REALLY exist in venues (stale settings ids
-    -- would violate the FK); join filters them to NULL -> skipped below.
-    LEFT JOIN public.venues vv ON vv.id = COALESCE(
-      b.venues_v2_id,
-      CASE
-        WHEN vp.settings ->> 'venues_v2_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-          THEN (vp.settings ->> 'venues_v2_id')::uuid
-      END
-    )
     WHERE vp.contact_info IS NOT NULL
       AND jsonb_strip_nulls(vp.contact_info) <> '{}'::jsonb
       AND (
@@ -58,12 +80,6 @@ BEGIN
       )
   LOOP
     scanned := scanned + 1;
-
-    -- No operational mirror for this profile-only venue → nothing to attach.
-    IF rec.target_venue_id IS NULL THEN
-      skipped := skipped + 1;
-      CONTINUE;
-    END IF;
 
     -- Skip venues that already have a primary booking contact (idempotency).
     IF EXISTS (

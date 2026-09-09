@@ -2,7 +2,10 @@
 -- code queries but which had no DDL in the active chain. Shipped org-scoped
 -- and RLS-enabled from day one so they never become the next isolation debt.
 --
--- Tables: contracts, vendor_contracts, tour_plan_quarantine, admin_requests.
+-- Tables: contracts, vendor_contracts, admin_requests.
+-- `tour_plan_quarantine` was already promoted by PLAN-201; this migration
+-- deliberately reuses that canonical resolved_at-based contract instead of
+-- introducing a second status model.
 -- (`catering` is only referenced as an enum value in a CHECK constraint — no
 -- table is created; code referencing a catering table uses logistics_tasks.)
 
@@ -69,31 +72,10 @@ create policy vendor_contracts_org_member_all on public.vendor_contracts
   with check (public.is_org_member(auth.uid(), org_id));
 
 -- ============================================================================
--- tour_plan_quarantine — PLAN-201 backfill conflict rows (currently list-only;
--- resolve endpoint lands with Phase 4 quarantine workflow)
+-- tour_plan_quarantine is not phantom in the active chain. PLAN-201 owns its
+-- schema, open-state definition (`resolved_at is null`), indexes, and RLS.
+-- Keeping one owner prevents incompatible status/open-state representations.
 -- ============================================================================
-create table if not exists public.tour_plan_quarantine (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references public.organizations(id) on delete cascade,
-  tour_id uuid not null references public.tours(id) on delete cascade,
-  stop_ref text,
-  reason text not null,
-  payload jsonb not null default '{}',
-  status text not null default 'open' check (status in ('open','resolved','dismissed')),
-  resolved_by uuid references auth.users(id) on delete set null,
-  resolved_at timestamptz,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists idx_tour_plan_quarantine_tour on public.tour_plan_quarantine(tour_id);
-create index if not exists idx_tour_plan_quarantine_status on public.tour_plan_quarantine(status);
-
-alter table public.tour_plan_quarantine enable row level security;
-drop policy if exists tour_plan_quarantine_org_member_all on public.tour_plan_quarantine;
-create policy tour_plan_quarantine_org_member_all on public.tour_plan_quarantine
-  for all
-  using (public.is_org_member(auth.uid(), org_id))
-  with check (public.is_org_member(auth.uid(), org_id));
 
 -- ============================================================================
 -- admin_requests — legacy self-service admin access request form
@@ -125,5 +107,5 @@ create policy admin_requests_owner_select on public.admin_requests
 
 -- ROLLBACK NOTE
 -- ------------
--- drop table admin_requests, tour_plan_quarantine, vendor_contracts, contracts cascade;
+-- drop table admin_requests, vendor_contracts, contracts cascade;
 -- (tables are new; no pre-existing data can be lost)

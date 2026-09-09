@@ -17,6 +17,12 @@
 -- app code to legacy reads is safe without a down-migration.
 -- ═══════════════════════════════════════════════════════════════
 
+-- The original active venue_profiles baseline captured address/city/state/
+-- country but omitted postal_code even though runtime DTOs and the live schema
+-- use it. Add the missing canonical field before reconciling legacy JSON.
+ALTER TABLE public.venue_profiles
+  ADD COLUMN IF NOT EXISTS postal_code TEXT;
+
 -- ─────────────────────────────────────────────────────────────
 -- 1. VEN-246 — location backfill from contact_info JSON
 -- ─────────────────────────────────────────────────────────────

@@ -20,6 +20,15 @@
 -- rollback: drop function + indexes.
 -- ═══════════════════════════════════════════════════════════════
 
+-- These public-card fields exist in the runtime contract and live reference
+-- schema but came only from retired bootstrap scripts. Capture them additively
+-- before the SQL function is parsed; defaults describe absence without
+-- fabricating a venue category or verification claim.
+alter table public.venue_profiles
+  add column if not exists venue_types text[] default '{}'::text[],
+  add column if not exists avatar_url text,
+  add column if not exists verification_status text default 'unverified';
+
 create index if not exists idx_venue_profiles_public_created
   on public.venue_profiles (created_at desc)
   where is_public = true;

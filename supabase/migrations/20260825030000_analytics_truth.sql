@@ -16,12 +16,49 @@
 --     without waiting a day; pg_cron schedules it nightly when available.
 -- =============================================================================
 
+-- ── 0. Canonical recorded-money source ──────────────────────────────────────
+-- The application and generated database contract already use this ledger,
+-- but its DDL was missing from the active chain. It is service-owned: Venue
+-- finance routes enforce view/manage/approve/export capabilities before using
+-- the service role, while RLS denies direct client access by default.
+CREATE TABLE IF NOT EXISTS public.venue_manual_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  venue_id UUID NOT NULL REFERENCES public.venue_profiles(id) ON DELETE CASCADE,
+  event_id UUID,
+  type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+  category TEXT NOT NULL DEFAULT 'other',
+  description TEXT NOT NULL DEFAULT '',
+  amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+  date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'completed'
+    CHECK (status IN ('completed', 'pending', 'cancelled')),
+  reference TEXT,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_venue_manual_transactions_venue_date
+  ON public.venue_manual_transactions(venue_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_venue_manual_transactions_event
+  ON public.venue_manual_transactions(event_id)
+  WHERE event_id IS NOT NULL;
+
+ALTER TABLE public.venue_manual_transactions ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.venue_manual_transactions IS
+  'Recorded Venue income and expense ledger. Direct client access is denied; permission-checked server routes own reads and mutations.';
+
 -- ── 1. Dashboard stats from canonical sources ────────────────────────────────
 CREATE OR REPLACE FUNCTION public.get_venue_dashboard_stats(p_venue_id UUID)
 RETURNS JSONB AS $$
 DECLARE
   result JSONB;
 BEGIN
+  IF NOT public.venue_has_operator_access(p_venue_id) THEN
+    RAISE EXCEPTION 'forbidden: caller has no access to venue %', p_venue_id
+      USING ERRCODE = '42501';
+  END IF;
+
   SELECT jsonb_build_object(
     'totalBookings', COALESCE((
       SELECT COUNT(*) FROM venue_booking_requests
@@ -71,6 +108,7 @@ SET search_path = public
 AS $$
 DECLARE
   affected INT := 0;
+  batch_affected INT := 0;
   target_day DATE;
 BEGIN
   IF p_days IS NULL OR p_days < 1 OR p_days > 400 THEN
@@ -135,15 +173,16 @@ BEGIN
       average_rating = EXCLUDED.average_rating,
       revenue = EXCLUDED.revenue;
 
-    GET DIAGNOSTICS affected = affected + ROW_COUNT;
+    GET DIAGNOSTICS batch_affected = ROW_COUNT;
+    affected := affected + batch_affected;
   END LOOP;
 
   RETURN affected;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.refresh_venue_analytics_daily(INT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.refresh_venue_analytics_daily(INT) TO service_role, authenticated;
+REVOKE ALL ON FUNCTION public.refresh_venue_analytics_daily(INT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.refresh_venue_analytics_daily(INT) TO service_role;
 
 COMMENT ON FUNCTION public.refresh_venue_analytics_daily(INT) IS
   'VEN-183: idempotent daily rollup of booking/event/rating/revenue facts into venue_analytics from canonical sources.';
@@ -152,8 +191,6 @@ COMMENT ON FUNCTION public.refresh_venue_analytics_daily(INT) IS
 DO $$
 BEGIN
   PERFORM public.refresh_venue_analytics_daily(30);
-EXCEPTION WHEN OTHERS THEN
-  RAISE WARNING 'VEN-183 backfill skipped: %', SQLERRM;
 END $$;
 
 -- ── 4. Nightly schedule when pg_cron is available ─────────────────────────────

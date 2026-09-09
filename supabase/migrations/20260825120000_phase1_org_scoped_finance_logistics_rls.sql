@@ -83,24 +83,42 @@ create policy budgets_org_member on budgets
 -- These are vendor inventory rows keyed by vendor_id, not org tenant data:
 -- correct boundary is ownership.
 -- ============================================================================
-do $$
-declare
-  t text;
-begin
-  foreach t in array array[
-    'equipment_catalog', 'equipment_locations',
-    'equipment_setup_workflows', 'workflow_templates'
-  ] loop
-    execute format('drop policy if exists %I on %I', t || '_all', t);
-    execute format('drop policy if exists %I on %I', t || '_owner_all', t);
-    execute format(
-      'create policy %I on %I for all using (vendor_id = auth.uid()) with check (vendor_id = auth.uid())',
-      t || '_owner_all', t
-    );
-  end loop;
-end $$;
+drop policy if exists equip_catalog_all on equipment_catalog;
+drop policy if exists equipment_catalog_all on equipment_catalog;
+drop policy if exists equipment_catalog_owner_all on equipment_catalog;
+create policy equipment_catalog_owner_all on equipment_catalog
+  for all to authenticated
+  using (vendor_id = auth.uid())
+  with check (vendor_id = auth.uid());
+
+drop policy if exists equip_locations_all on equipment_locations;
+drop policy if exists equipment_locations_all on equipment_locations;
+drop policy if exists equipment_locations_owner_all on equipment_locations;
+create policy equipment_locations_owner_all on equipment_locations
+  for all to authenticated
+  using (vendor_id = auth.uid())
+  with check (vendor_id = auth.uid());
+
+drop policy if exists wf_templates_all on workflow_templates;
+drop policy if exists workflow_templates_all on workflow_templates;
+drop policy if exists workflow_templates_owner_all on workflow_templates;
+create policy workflow_templates_owner_all on workflow_templates
+  for all to authenticated
+  using (vendor_id = auth.uid())
+  with check (vendor_id = auth.uid());
+
+-- equipment_setup_workflows predates the vendor migration and is owned through
+-- its site-map creator contract, not a vendor_id column.
+drop policy if exists equipment_setup_workflows_all on equipment_setup_workflows;
+drop policy if exists setup_workflows_all on equipment_setup_workflows;
+drop policy if exists equipment_setup_workflows_owner_all on equipment_setup_workflows;
+create policy equipment_setup_workflows_owner_all on equipment_setup_workflows
+  for all to authenticated
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
 
 -- equipment_instances inherit access through their catalog's vendor.
+drop policy if exists equip_instances_all on equipment_instances;
 drop policy if exists equipment_instances_all on equipment_instances;
 drop policy if exists equipment_instances_owner_all on equipment_instances;
 create policy equipment_instances_owner_all on equipment_instances
@@ -117,6 +135,7 @@ create policy equipment_instances_owner_all on equipment_instances
   ));
 
 -- Setup tasks hang off setup workflows (site-map scoped); access via parent.
+drop policy if exists setup_tasks_all on equipment_setup_tasks;
 drop policy if exists equipment_setup_tasks_all on equipment_setup_tasks;
 drop policy if exists equipment_setup_tasks_owner_all on equipment_setup_tasks;
 create policy equipment_setup_tasks_owner_all on equipment_setup_tasks
@@ -124,15 +143,16 @@ create policy equipment_setup_tasks_owner_all on equipment_setup_tasks
   using (exists (
     select 1 from equipment_setup_workflows w
     where w.id = equipment_setup_tasks.workflow_id
-      and w.vendor_id = auth.uid()
+      and w.created_by = auth.uid()
   ))
   with check (exists (
     select 1 from equipment_setup_workflows w
     where w.id = equipment_setup_tasks.workflow_id
-      and w.vendor_id = auth.uid()
+      and w.created_by = auth.uid()
   ));
 
 -- Workflow executions reference templates owned by vendors.
+drop policy if exists wf_executions_all on workflow_executions;
 drop policy if exists workflow_executions_all on workflow_executions;
 drop policy if exists workflow_executions_owner_all on workflow_executions;
 create policy workflow_executions_owner_all on workflow_executions
@@ -153,16 +173,54 @@ create policy workflow_executions_owner_all on workflow_executions
 -- `auth.uid() IS NOT NULL` = any signed-in user). Scope through event/tour
 -- membership with creator fallback where the column exists.
 -- ============================================================================
+
+create or replace function public.can_access_lodging_booking(p_booking_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.lodging_bookings b
+    where b.id = p_booking_id
+      and public.can_access_org_scope(b.event_id, b.tour_id, coalesce(b.assigned_by, b.managed_by))
+  );
+$$;
+
+create or replace function public.can_access_travel_group(p_group_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.travel_groups g
+    where g.id = p_group_id
+      and public.can_access_org_scope(g.event_id, g.tour_id, g.created_by)
+  );
+$$;
+
+create or replace function public.can_access_flight(p_flight_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.flight_coordination f
+    where f.id = p_flight_id
+      and public.can_access_org_scope(f.event_id, f.tour_id, f.assigned_by)
+  );
+$$;
+
+create or replace function public.can_access_ground_transport(p_transport_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.ground_transportation_coordination g
+    where g.id = p_transport_id
+      and public.can_access_org_scope(g.event_id, g.tour_id, g.assigned_by)
+  );
+$$;
+
 do $$
 declare
   tables text[] := array[
     'travel_groups', 'travel_group_members',
-    'flight_coordination', 'ground_transportation_coordination',
-    'hotel_room_assignments', 'travel_coordination_timeline',
-    'lodging_bookings', 'lodging_room_types', 'lodging_guest_assignments',
-    'lodging_payments', 'lodging_calendar_events', 'lodging_availability'
+    'flight_coordination', 'flight_passenger_assignments',
+    'hotel_room_assignments',
+    'lodging_bookings', 'lodging_guest_assignments',
+    'lodging_payments', 'lodging_calendar_events'
   ];
   t text;
+  predicate text;
 begin
   foreach t in array tables loop
     if not exists (select 1 from information_schema.tables where table_name = t) then
@@ -177,12 +235,71 @@ begin
     execute format('drop policy if exists %I on %I', t || '_select_authenticated', t);
     execute format('drop policy if exists %I on %I', 'auth_any_select_' || t, t);
     execute format('drop policy if exists %I on %I', 'auth_any_modify_' || t, t);
+    execute format('drop policy if exists %I on %I', t || '_select', t);
+    execute format('drop policy if exists %I on %I', t || '_manage', t);
+
+    predicate := case t
+      when 'travel_groups' then 'public.can_access_org_scope(event_id, tour_id, created_by)'
+      when 'travel_group_members' then 'public.can_access_travel_group(group_id)'
+      when 'flight_coordination' then 'public.can_access_org_scope(event_id, tour_id, assigned_by)'
+      when 'flight_passenger_assignments' then 'public.can_access_flight(flight_id)'
+      when 'hotel_room_assignments' then 'public.can_access_lodging_booking(lodging_booking_id)'
+      when 'lodging_bookings' then 'public.can_access_org_scope(event_id, tour_id, coalesce(assigned_by, managed_by))'
+      when 'lodging_guest_assignments' then 'public.can_access_lodging_booking(booking_id)'
+      when 'lodging_payments' then 'public.can_access_lodging_booking(booking_id)'
+      when 'lodging_calendar_events' then 'public.can_access_lodging_booking(booking_id)'
+    end;
 
     execute format($p$
-      create policy %I on %I for all
-        using (public.can_access_org_scope(event_id, tour_id, created_by))
-        with check (public.can_access_org_scope(event_id, tour_id, created_by))
-    $p$, t || '_org_scope_all', t);
+      create policy %I on %I for all to authenticated
+        using (%s)
+        with check (%s)
+    $p$, t || '_org_scope_all', t, predicate, predicate);
+  end loop;
+end $$;
+
+-- These historical policy names do not match their table names, so keep the
+-- replacements explicit for both human review and static migration validation.
+drop policy if exists ground_transportation_select on ground_transportation_coordination;
+drop policy if exists ground_transportation_manage on ground_transportation_coordination;
+drop policy if exists ground_transportation_coordination_org_scope_all on ground_transportation_coordination;
+create policy ground_transportation_coordination_org_scope_all on ground_transportation_coordination
+  for all to authenticated
+  using (public.can_access_org_scope(event_id, tour_id, assigned_by))
+  with check (public.can_access_org_scope(event_id, tour_id, assigned_by));
+
+drop policy if exists transport_passenger_select on transportation_passenger_assignments;
+drop policy if exists transport_passenger_manage on transportation_passenger_assignments;
+drop policy if exists transportation_passenger_assignments_org_scope_all on transportation_passenger_assignments;
+create policy transportation_passenger_assignments_org_scope_all on transportation_passenger_assignments
+  for all to authenticated
+  using (public.can_access_ground_transport(transportation_id))
+  with check (public.can_access_ground_transport(transportation_id));
+
+drop policy if exists travel_timeline_select on travel_coordination_timeline;
+drop policy if exists travel_timeline_manage on travel_coordination_timeline;
+drop policy if exists travel_coordination_timeline_org_scope_all on travel_coordination_timeline;
+create policy travel_coordination_timeline_org_scope_all on travel_coordination_timeline
+  for all to authenticated
+  using (public.can_access_org_scope(event_id, tour_id, created_by))
+  with check (public.can_access_org_scope(event_id, tour_id, created_by));
+
+-- Provider room types and availability are shared reference data. Authenticated
+-- users may read them; mutation remains service-role-only through implicit deny.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['lodging_room_types', 'lodging_availability'] loop
+    execute format('alter table %I enable row level security', t);
+    execute format('drop policy if exists %I on %I', t || '_all', t);
+    execute format('drop policy if exists %I on %I', t || '_authenticated_all', t);
+    execute format('drop policy if exists %I on %I', t || '_select', t);
+    execute format('drop policy if exists %I on %I', t || '_manage', t);
+    execute format(
+      'create policy %I on %I for select to authenticated using (true)',
+      t || '_select_authenticated', t
+    );
   end loop;
 end $$;
 
@@ -191,6 +308,8 @@ end $$;
 -- insert/update/delete policies (implicit deny under RLS).
 drop policy if exists lodging_providers_all on lodging_providers;
 drop policy if exists lodging_providers_authenticated_all on lodging_providers;
+drop policy if exists lodging_providers_select on lodging_providers;
+drop policy if exists lodging_providers_manage on lodging_providers;
 alter table lodging_providers enable row level security;
 create policy lodging_providers_select_authenticated on lodging_providers
   for select to authenticated

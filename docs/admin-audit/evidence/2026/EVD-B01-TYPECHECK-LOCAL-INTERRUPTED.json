@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-TYPECHECK-LOCAL-INTERRUPTED",
+  "kind": "test_run",
+  "result": "fail",
+  "environment": "local",
+  "capturedAt": "2026-09-07T22:43:45-07:00",
+  "capturedBy": "Codex implementation session",
+  "commitSha": null,
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-TYPECHECK-LOCAL-INTERRUPTED.md",
+  "sha256": "e38b0c9a7cff8964269ab76152288d995477344f16e129f5fcfda10d12575ac5",
+  "findingIds": ["ADM-M-001", "AOA-003"],
+  "workflowIds": ["ADM-WF-017"],
+  "specTaskIds": ["REL-001"],
+  "launchGateIds": ["LG-01"],
+  "notes": "The current-worktree type-check command produced no output or exit result after approximately two minutes and was interrupted with exit code 130. No pass is claimed."
+}

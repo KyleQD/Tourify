@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-FRESH-MIGRATION-TICKET-SYNTAX-FAIL",
+  "kind": "migration_apply",
+  "result": "fail",
+  "environment": "local",
+  "capturedAt": "2026-09-08T00:30:28-07:00",
+  "capturedBy": "User-provided pinned Supabase CLI transcript",
+  "commitSha": null,
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-FRESH-MIGRATION-TICKET-SYNTAX-FAIL.md",
+  "sha256": "14c8ddd077a0850054afcd43305434b34fd1b8c5f3374f81a0598327099d15c9",
+  "findingIds": ["ADM-M-010", "AOA-003"],
+  "workflowIds": ["ADM-WF-019"],
+  "specTaskIds": ["REL-101", "REL-102"],
+  "launchGateIds": [],
+  "notes": "The fresh chain reached the new ticketing foundation and failed only on invalid NOT VALID placement in the financial_transactions CHECK constraint. The migration source has been corrected; rerun the pinned fresh apply before closure."
+}

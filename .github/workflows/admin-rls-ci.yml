@@ -48,7 +48,7 @@ jobs:
           version: 2.22.6
 
       - name: Start ephemeral Supabase
-        run: supabase start -x realtime,storage,imgproxy,studio,edge-runtime,logflare,vector,supavisor
+        run: supabase start -x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Apply unapplied migrations to fresh ephemeral database
         run: supabase migration up --local

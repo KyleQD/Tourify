@@ -1,0 +1,33 @@
+{
+  "evidenceId": "EVD-WAVE0-CONTROLS-COMMIT",
+  "kind": "commit",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:09:03-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "git:codex/admin-workflow-completion@8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013",
+    "AOA-001",
+    "AOA-002",
+    "AOA-004",
+    "AOA-005",
+    "AOA-006",
+    "AOA-008",
+    "AOA-009",
+    "AOA-010",
+    "AOA-011",
+    "AOA-014",
+    "AOA-015"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Immutable implementation checkpoint for the Wave 0 registry, route contracts, service-role classification, migration validation, and baseline test repairs. This is implementation evidence, not CI, staging, or independent-verification evidence."
+}

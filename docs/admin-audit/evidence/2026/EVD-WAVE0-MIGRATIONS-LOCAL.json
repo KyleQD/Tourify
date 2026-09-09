@@ -1,0 +1,21 @@
+{
+  "evidenceId": "EVD-WAVE0-MIGRATIONS-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:09:27-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "/Users/kyledaley/.nvm/versions/node/v20.20.2/bin/node scripts/ci/check-migration-validation.mjs",
+  "sha256": null,
+  "findingIds": [
+    "AOA-013",
+    "AOA-015"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Repository migration scanner passed against immutable historical checksums and declared planned/isolated manifests. No migration was applied to a fresh or staging Supabase project, so parity and live provenance remain open."
+}

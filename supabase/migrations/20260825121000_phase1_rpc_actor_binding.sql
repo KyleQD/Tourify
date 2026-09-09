@@ -104,19 +104,19 @@ $$;
 
 -- Legacy signature: identity-bound shim. Cross-user calls now fail closed.
 create or replace function public.switch_active_account(
-  p_user_id uuid,
-  p_target_profile_id uuid,
-  p_target_account_type text
+  user_id uuid,
+  profile_id uuid,
+  account_type text
 ) returns boolean
 language plpgsql
 security definer
 set search_path = public
 as $$
 begin
-  if p_user_id is distinct from auth.uid() then
+  if user_id is distinct from auth.uid() then
     raise exception 'cannot_switch_account_for_other_user';
   end if;
-  return public.switch_active_account(p_target_profile_id, p_target_account_type);
+  return public.switch_active_account(profile_id, account_type);
 end;
 $$;
 
@@ -382,8 +382,8 @@ $$;
 -- longer bypasses conversations RLS at all.
 -- ============================================================================
 create or replace function public.get_or_create_conversation(
-  p_user1_id uuid,
-  p_user2_id uuid
+  user1_id uuid,
+  user2_id uuid
 ) returns uuid
 language plpgsql
 security invoker
@@ -392,29 +392,31 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_conversation_id uuid;
+  v_user1_id uuid := user1_id;
+  v_user2_id uuid := user2_id;
 begin
   if v_uid is null then
     raise exception 'not_authenticated';
   end if;
-  if v_uid not in (p_user1_id, p_user2_id) then
+  if v_uid not in (v_user1_id, v_user2_id) then
     raise exception 'caller_must_be_participant';
   end if;
-  if p_user1_id is null or p_user2_id is null or p_user1_id = p_user2_id then
+  if v_user1_id is null or v_user2_id is null or v_user1_id = v_user2_id then
     raise exception 'invalid_participants';
   end if;
 
-  if p_user1_id > p_user2_id then
-    select p_user1_id, p_user2_id into p_user2_id, p_user1_id;
+  if v_user1_id > v_user2_id then
+    select v_user1_id, v_user2_id into v_user2_id, v_user1_id;
   end if;
 
   select id into v_conversation_id
   from conversations
-  where (participant_1 = p_user1_id and participant_2 = p_user2_id)
-     or (participant_1 = p_user2_id and participant_2 = p_user1_id);
+  where (participant_1 = v_user1_id and participant_2 = v_user2_id)
+     or (participant_1 = v_user2_id and participant_2 = v_user1_id);
 
   if v_conversation_id is null then
     insert into conversations (participant_1, participant_2)
-    values (p_user1_id, p_user2_id)
+    values (v_user1_id, v_user2_id)
     returning id into v_conversation_id;
   end if;
 
@@ -425,15 +427,15 @@ $$;
 -- ============================================================================
 -- EXECUTE surface: anon never needs any of these.
 -- ============================================================================
-revoke execute on function public.switch_active_account(uuid, uuid) from public, anon;
-revoke execute on function public.switch_active_account(uuid, uuid, uuid, text) from public, anon;
+revoke execute on function public.switch_active_account(uuid, text) from public, anon;
+revoke execute on function public.switch_active_account(uuid, uuid, text) from public, anon;
 revoke execute on function public.get_user_accounts_adaptive(uuid) from public, anon;
 revoke execute on function public.create_artist_account(uuid, text, text, text[], jsonb) from public, anon;
 revoke execute on function public.send_dm_request(uuid, uuid, text, uuid, text, uuid, text) from public, anon;
 revoke execute on function public.get_or_create_conversation(uuid, uuid) from public, anon;
 
-grant execute on function public.switch_active_account(uuid, uuid) to authenticated;
-grant execute on function public.switch_active_account(uuid, uuid, uuid, text) to authenticated;
+grant execute on function public.switch_active_account(uuid, text) to authenticated;
+grant execute on function public.switch_active_account(uuid, uuid, text) to authenticated;
 grant execute on function public.get_user_accounts_adaptive(uuid) to authenticated;
 grant execute on function public.create_artist_account(uuid, text, text, text[], jsonb) to authenticated;
 grant execute on function public.send_dm_request(uuid, uuid, text, uuid, text, uuid, text) to authenticated;
