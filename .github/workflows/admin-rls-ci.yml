@@ -54,7 +54,7 @@ jobs:
         run: supabase migration up --local
 
       - name: Export ephemeral direct-client credentials
-        run: supabase status -o env >> "$GITHUB_ENV"
+        run: supabase status -o env | sed 's/^\([^=]*\)="\(.*\)"$/\1=\2/' >> "$GITHUB_ENV"
 
       - name: Structural and live direct-client RLS matrix tests
         run: npm run test:rls-matrix
