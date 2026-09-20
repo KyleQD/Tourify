@@ -48,10 +48,10 @@ const ACCENT_CLASSES = {
 
 export function WorkforcePageShell({ children, className }: WorkforcePageShellProps) {
   return (
-    <main className={cn("relative min-h-screen overflow-hidden px-4 py-6 text-white sm:px-6 lg:px-8", className)}>
+    <div role="main" className={cn("relative min-h-screen overflow-hidden px-4 py-6 text-white sm:px-6 lg:px-8", className)}>
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_32%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.98))]" />
       <div className="mx-auto max-w-7xl space-y-6">{children}</div>
-    </main>
+    </div>
   )
 }
 

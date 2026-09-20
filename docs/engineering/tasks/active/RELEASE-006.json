@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-006",
+  "title": "Reproducible runtime and dependency baseline",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-16T19:20:37.421Z",
+  "updated_at": "2026-09-19T23:45:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (836 entries)",
+  "goal": "Make clean installation, dependency security, type checking, and production builds deterministic on the supported production runtime",
+  "scope": {
+    "in": [
+      "Node and npm runtime contracts across local, CI, Docker, and Vercel",
+      "Dependency graph, patched Next.js release, clean installation, type checking, and production build"
+    ],
+    "out": [
+      "Feature implementation unrelated to build or dependency readiness"
+    ]
+  },
+  "working_set": [
+    "package.json",
+    "package-lock.json",
+    ".github/workflows",
+    "Dockerfile",
+    "next.config.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "Node 24.x and the pinned npm version are consistent across local, CI, Docker, and Vercel",
+    "npm ci succeeds without legacy peer-dependency bypasses",
+    "Next.js is on a patched supported release and no unaccepted critical/high production vulnerability remains",
+    "Type checking and production build complete deterministically from a fresh checkout"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run check:toolchain",
+      "npm ci",
+      "npm run check:peer-deps",
+      "npm run typecheck",
+      "npm run build:vercel",
+      "npm audit --audit-level=high",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Audit baseline: local Node 24 conflicts with the repository Node 20 contract; Vercel warned Node 20 support ends for new deployments after 2026-10-01.",
+      "Audit baseline: npm ci peer resolution fails, installed Next.js 15.5.15 has reported security advisories, and the production build compiled but did not complete type validation in the bounded run.",
+      "check:toolchain passed on Node v24.19.0 with npm 11.17.0 and lockfile v3.",
+      "An isolated manifest fixture using Node v24.19.0 and npm 11.17.0 completed unflagged npm ci, including the repository preinstall toolchain check and Prisma postinstall, without a legacy peer-dependency bypass.",
+      "npm run check:peer-deps passed, and npm audit --audit-level=high exited 0 with 0 high and 0 critical findings; a fresh fixture reported 34 remaining low/moderate findings.",
+      "Next.js 15.5.24 is the current patched Maintenance LTS release in the official August 2026 security release.",
+      "npm run typecheck was interrupted after approximately six minutes with no diagnostics or completion; no pass or compiler failure is claimed.",
+      "npm run build:vercel stopped at the production environment guard because the configured NEXT_PUBLIC_SITE_URL is not an absolute HTTPS URL; compilation did not begin and the guard was not bypassed.",
+      "2026-09-19: The production build environment contract passes when run with an approved HTTPS origin (NEXT_PUBLIC_SITE_URL=https://tourify.live); the guard is a configuration gate, not a code defect, and the approved deployment env files (deployment/demo.env, deployment/production.env) already carry HTTPS origins.",
+      "2026-09-19: npm run build:vercel with the approved HTTPS origin began compilation on Next.js 15.5.24 and reached the type-checking build stage, but did not complete within a bounded 30-minute run in the dirty shared worktree; consistent with the known slow full-typecheck constraint.",
+      "2026-09-19: npm run check:migration-validation passed for the full migration chain including the newest MFA verification-code store migration; migration checksums and supabase-target checks remain hosted/credential-gated because they require MIGRATION_CHECKSUM_BASE_SHA, SUPABASE_PROJECT_ID, and SUPABASE_TARGET_CONFIRMATION inputs that are not present in this workspace.",
+      "npm run agents:validate passed with 17 agents, 109 tasks, 0 warnings, and 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-19T23:45:00Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Runtime alignment, clean install, peer resolution, patched Next.js, and the high/critical audit gate are evidenced, and the production build environment contract now passes with an approved HTTPS origin. RELEASE-006 remains active because full typecheck/compile did not complete in a bounded dirty-tree run and the hosted deployment still needs credentials.",
+    "completed": [
+      "Aligned .nvmrc, package engines, toolchain checks, GitHub Node setup points, and Docker runtime targets to Node 24.x with npm 11.17.0.",
+      "Pinned Next.js and eslint-config-next to the patched 15.5.24 Maintenance LTS release and refreshed the lockfile; added the launch QA accessibility dependency.",
+      "Proved unflagged npm ci in an isolated clean fixture under Node v24.19.0/npm 11.17.0, including preinstall and Prisma postinstall hooks.",
+      "Proved the focused peer graph and npm high/critical audit gates pass; no high or critical finding remains in the current lockfile.",
+      "Proved the production build environment contract passes with the approved HTTPS origin (https://tourify.live), closing the previously blocking environment-guard failure; deployment/demo.env and deployment/production.env already carry HTTPS origins.",
+      "Ran the full production build with the approved origin on Next.js 15.5.24: compilation started and reached the type-checking stage; full completion remains bound by the repository's slow typecheck in the shared dirty tree."
+    ],
+    "next_steps": [
+      "Run the full repository typecheck/build to completion on the curated release checkout with no concurrent dirty-tree lanes (the exact-SHA CI/Vercel build is the authoritative completion gate).",
+      "Provision the hosted release build environment variables and deploy an exact reviewed SHA; run npm run build:vercel in CI/Vercel where HTTPS origins and required secrets are present."
+    ],
+    "blockers": [
+      "The full repository typecheck emits no diagnostics but exceeds a bounded 30-minute run in the shared dirty worktree; completion must occur on the curated release checkout or CI.",
+      "Hosted Vercel/Supabase credentials and the exact-SHA deployment run remain outside this workspace; migration checksums and supabase-target checks require their documented hosted inputs."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T01:29:01.097Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: Node 24/npm 11.17.0 alignment, CI/workflow/Docker runtime updates, patched Next.js 15.5.24 lockfile, and toolchain validation are present. The security/build gate is not complete.",
+        "completed": [
+          "Aligned .nvmrc, package engines, toolchain checks, GitHub Node setup points, and Docker runtime targets to Node 24.x with npm 11.17.0.",
+          "Pinned Next.js and eslint-config-next to 15.5.24 and refreshed the lockfile; added the launch QA accessibility dependency."
+        ],
+        "next_steps": [
+          "Resolve or formally approve the remaining 17 high dependency findings and verify npm ci from a clean checkout.",
+          "Complete deterministic repository typecheck and production build on the curated release branch."
+        ],
+        "blockers": [
+          "npm audit --audit-level=high still reports 17 high findings, so the dependency security gate is not green.",
+          "A full clean-install, repository typecheck, and production build result is not recorded for this partial batch."
+        ]
+      },
+      {
+        "at": "2026-09-17T01:29:01.467Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: Node 24/npm 11.17.0 alignment, CI/workflow/Docker runtime updates, patched Next.js 15.5.24 lockfile, and toolchain validation are present. The security/build gate is not complete.",
+        "completed": [],
+        "next_steps": [
+          "Resolve or formally approve the remaining 17 high dependency findings and verify npm ci from a clean checkout.",
+          "Complete deterministic repository typecheck and production build on the curated release branch."
+        ],
+        "blockers": [
+          "npm audit --audit-level=high still reports 17 high findings, so the dependency security gate is not green.",
+          "A full clean-install, repository typecheck, and production build result is not recorded for this partial batch."
+        ]
+      },
+      {
+        "at": "2026-09-18T21:51:55Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Runtime, clean-install, peer-resolution, patched Next.js, and high/critical audit criteria now pass. Typecheck and production-build completion remain unproven, so the task stays active.",
+        "completed": [
+          "npm run check:toolchain passed on Node v24.19.0/npm 11.17.0 with lockfile v3.",
+          "An isolated clean fixture completed unflagged npm ci with lifecycle hooks; the temporary fixture was removed after verification.",
+          "npm run check:peer-deps and npm audit --audit-level=high passed; the audit reported 0 high and 0 critical findings.",
+          "Official Next.js release and support documentation confirm 15.5.24 is the patched Maintenance LTS security release.",
+          "npm run agents:validate passed with 17 agents, 109 tasks, 0 warnings, and 0 errors."
+        ],
+        "next_steps": [
+          "Complete full typecheck on the curated release checkout.",
+          "Correct the approved release environment's NEXT_PUBLIC_SITE_URL to an absolute HTTPS URL and complete npm run build:vercel."
+        ],
+        "blockers": [
+          "Full typecheck was interrupted after approximately six minutes without diagnostics or completion.",
+          "Production build validation rejects the currently configured NEXT_PUBLIC_SITE_URL before compilation."
+        ]
+      },
+      {
+        "at": "2026-09-19T23:45:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Closed the build environment-guard blocker with an approved HTTPS origin and recorded bounded build/migration evidence; full compile completion and hosted deployment remain credential/hosted-gated.",
+        "completed": [
+          "Proved the production build environment contract passes with NEXT_PUBLIC_SITE_URL=https://tourify.live and confirmed deployment/demo.env and deployment/production.env already carry the approved HTTPS origins.",
+          "Ran npm run build:vercel with the approved origin on Next.js 15.5.24: compilation started and reached the type-checking stage, but no completion is claimed from the shared dirty worktree.",
+          "Recorded that npm run check:migration-validation passes across the full migration chain including the MFA verification-code store migration; migration checksums and supabase-target gates remain hosted-input-gated (MIGRATION_CHECKSUM_BASE_SHA, SUPABASE_PROJECT_ID, SUPABASE_TARGET_CONFIRMATION)."
+        ],
+        "next_steps": [
+          "Run the full typecheck/build to completion on the curated release checkout or the exact-SHA CI/Vercel build.",
+          "Provision hosted build/migration credentials and deploy an exact reviewed SHA to isolated staging for QA-003 certification."
+        ],
+        "blockers": [
+          "Full compile exceeds a bounded run in the shared dirty worktree; authoritative completion is the curated/CI build.",
+          "Hosted Vercel/Supabase credentials and an exact-SHA deployment are not available in this workspace."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Hand the reproducible clean-install, dependency, typecheck, and build evidence to RELEASE-005 as required-check prerequisites."
+  ]
+}

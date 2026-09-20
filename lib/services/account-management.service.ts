@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Database } from '@/lib/database.types'
+import type { Database, Json } from '@/lib/database.types'
 
 // Import for local use; re-export so existing consumers continue to work.
 import type { ProfileType } from '@/lib/accounts/account-types'
@@ -39,7 +39,16 @@ export interface AccountPermissions {
 interface AccountRelationshipRow {
   owned_profile_id: string
   account_type: string
-  permissions: AccountPermissions | null
+  permissions: Json | null
+}
+
+function asAccountPermissions(value: Json | null | undefined): AccountPermissions | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as AccountPermissions
+}
+
+function asJson(value: AccountPermissions | Partial<AccountPermissions>): Json {
+  return value as unknown as Json
 }
 
 function slugifyOrganizerName(name: string): string {
@@ -556,7 +565,7 @@ export class AccountManagementService {
                   (entityRow.venue_name as string | undefined) ??
                   (entityRow.organization_name as string | undefined),
               },
-              permissions: permissions ?? {
+              permissions: asAccountPermissions(permissions) ?? {
                 can_post: true,
                 can_manage_settings: false,
                 can_view_analytics: false,
@@ -616,47 +625,25 @@ export class AccountManagementService {
   static async switchAccount(
     userId: string,
     profileId: string,
-    accountType: ProfileType
+    accountType: ProfileType,
+    authenticatedSupabase?: any,
   ): Promise<boolean> {
-    const persistSessionDirect = async (): Promise<void> => {
-      // Always store the entity UUID in active_profile_id (post-migration schema).
-      // Pre-migration rows stored userId here for non-general types; the migration
-      // back-fills those. New rows always use the real entity profileId.
-      const { error } = await supabase.from('user_sessions').upsert(
-        {
-          user_id: userId,
-          active_profile_id: profileId,
-          active_account_type: accountType,
-          session_data: {},
-          last_activity: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      )
+    const clientToUse = authenticatedSupabase || supabase
+    try {
+      const { error } = await clientToUse.rpc('switch_active_account', {
+        p_target_profile_id: profileId,
+        p_target_account_type: accountType,
+      })
 
       if (error) {
-        console.warn('[Account Management] Direct session upsert failed:', error.message)
+        console.warn('[Account Management] Verified account switch failed:', error.message)
+        return false
       }
-    }
-
-    try {
-      try {
-        const { error } = await supabase.rpc('switch_active_account', {
-          user_id: userId,
-          profile_id: profileId,
-          account_type: accountType,
-        })
-
-        if (error) throw error
-      } catch (rpcError: unknown) {
-        console.log('[Account Management] RPC switch failed, trying direct session upsert:', rpcError)
-        await persistSessionDirect()
-      }
+      return true
     } catch (error) {
-      console.warn('[Account Management] Session persist failed (non-fatal):', error)
+      console.warn('[Account Management] Verified account switch failed:', error)
+      return false
     }
-
-    // Client-side account mode is authoritative; session persistence is best-effort.
-    return true
   }
 
   // Create artist account
@@ -921,15 +908,27 @@ const { data: venueProfile, error: venueError } = await clientToUse
       references: string
       organization: string
       role: string
+      contact_email?: string
     }
   ): Promise<void> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const contactEmail = requestData.contact_email ?? user?.email
+      if (!contactEmail) throw new Error('A contact email is required to request admin access')
+
       const { error } = await supabase
         .from('admin_requests')
         .insert([
           {
             user_id: userId,
-            ...requestData
+            organization_name: requestData.organization,
+            contact_email: contactEmail,
+            justification: [
+              requestData.reason,
+              requestData.experience,
+              requestData.references,
+              requestData.role,
+            ].filter(Boolean).join('\n\n'),
           }
         ])
 
@@ -967,7 +966,7 @@ const { data: venueProfile, error: venueError } = await clientToUse
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-      return data?.permissions || null
+      return asAccountPermissions(data?.permissions)
     } catch (error) {
       console.error('Error getting account permissions:', error)
       return null
@@ -985,7 +984,7 @@ const { data: venueProfile, error: venueError } = await clientToUse
       const { error } = await supabase
         .from('account_relationships')
         .update({ 
-          permissions: permissions,
+          permissions: asJson(permissions),
           updated_at: new Date().toISOString()
         })
         .eq('owner_user_id', userId)
@@ -1015,13 +1014,11 @@ const { data: venueProfile, error: venueError } = await clientToUse
     try {
       const { data, error } = await supabase.rpc('create_post_with_context', {
         user_id: userId,
-        posting_as_profile_id: postingAsProfileId,
-        posting_as_account_type: postingAsAccountType,
+        profile_id: postingAsProfileId,
+        account_type: postingAsAccountType,
         content: postData.content,
-        post_type: postData.post_type || 'text',
-        visibility: postData.visibility || 'public',
-        media_urls: postData.media_urls || [],
-        hashtags: postData.hashtags || []
+        images: postData.media_urls || [],
+        tags: postData.hashtags || []
       })
 
       if (error) throw error
@@ -1078,9 +1075,10 @@ const { data: venueProfile, error: venueError } = await clientToUse
         .insert([
           {
             owner_user_id: userId,
+            owner_profile_id: userId,
             owned_profile_id: profileId,
             account_type: accountType,
-            permissions: permissions
+            permissions: asJson(permissions)
           }
         ])
 

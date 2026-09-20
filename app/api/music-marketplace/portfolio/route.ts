@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { LIQUIDITY_DISCLAIMER } from "@/lib/music/marketplace/marketplace-domain"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireMarketplaceAccount(request)
   if (!authResult.success) return authResult.response
-  const { user, supabase } = authResult.auth
-  const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+  const { userId, supabase } = authResult.account
+  const flags = await resolveMusicMarketplaceFlags(supabase, userId)
   if (!flags.music_marketplace_investor_portal_enabled)
     return jsonError({
       status: 404,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const { data: positions, error: positionsError } = await supabase
     .from("music_marketplace_positions")
     .select("id, security_class_id, official_position_id, quantity_minor, restriction_status, reconciliation_status, observed_at")
-    .eq("investor_user_id", user.id)
+    .eq("investor_user_id", userId)
     .order("observed_at", { ascending: false })
     .limit(200)
 
@@ -31,14 +32,14 @@ export async function GET(request: NextRequest) {
   const { data: distributions } = await supabase
     .from("music_marketplace_distribution_lots")
     .select("id, distribution_id, amount_minor, status, created_at")
-    .eq("investor_user_id", user.id)
+    .eq("investor_user_id", userId)
     .order("created_at", { ascending: false })
     .limit(100)
 
   const { data: taxDocs } = await supabase
     .from("music_marketplace_tax_document_links")
     .select("id, tax_year, document_type, partner_id, partner_document_ref, access_url_expires_at, created_at")
-    .eq("investor_user_id", user.id)
+    .eq("investor_user_id", userId)
     .order("tax_year", { ascending: false })
     .limit(50)
 

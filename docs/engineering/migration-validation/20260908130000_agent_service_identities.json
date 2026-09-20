@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260908130000_agent_service_identities.sql",
+  "taskId": "AUTH-AGENT-001",
+  "status": "planned",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["auth", "agent-control-plane", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated Supabase environment with no provisioned agent credentials",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count existing auth.users and verify no agent identity rows exist before apply",
+      "Inventory public grants and RLS state for agent_identities, agent_credentials, and agent_audit_events"
+    ],
+    "expectedAffectedRows": "Three additive tables and 17 pending directory rows; no auth users or credentials are created",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply the idempotent migration in an isolated environment; use a later additive migration for corrections",
+    "resumeCursor": "Supabase migration version 20260908130000",
+    "idempotency": "CREATE TABLE/INDEX/EXTENSION and seed INSERT use IF NOT EXISTS or ON CONFLICT guards"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No user or tenant data is backfilled; all identities remain pending until explicitly provisioned"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Unique agent slug and optional auth user link",
+      "Status, JSON shape, secret hash length, and credential lifecycle checks"
+    ],
+    "indexes": [
+      "Identity status",
+      "Active credential lookup by agent and lifecycle",
+      "Agent audit events by principal/time and resource"
+    ],
+    "validationPlan": "Apply to an isolated database; verify RLS, grants, seed count, no raw secret columns, and service-role-only access"
+  },
+  "recovery": {
+    "rollback": "Disable the provisioning utility and retain the additive directory; do not delete auth users or reset a persistent database",
+    "forwardFix": "Add corrected constraints or policies in a later migration"
+  },
+  "postflight": {
+    "queries": [
+      "Verify all three tables exist with expected columns, indexes, and RLS enabled",
+      "Verify anon/authenticated have no table privileges",
+      "Verify exactly 17 pending identities and zero agent credentials",
+      "Verify provisioned identities are explicitly linked and active before accepting agent requests"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

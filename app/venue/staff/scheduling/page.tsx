@@ -13,11 +13,11 @@ import {
   BarChart3, 
   RefreshCw,
 } from 'lucide-react'
-import { VenueStaffSchedulerShell } from '@/components/venue/staff/venue-staff-scheduler-shell'
+import { VenueStaffSchedulerShell } from '@/app/venue/components/staff/venue-staff-scheduler-shell'
 import { ScheduleExportButton } from './schedule-export-button'
 import { resolveShiftWindow } from '@/lib/venue/shift-time'
-import { ShiftTemplates } from '@/components/venue/staff/shift-templates'
-import { ShiftRequests } from '@/components/venue/staff/shift-requests'
+import { ShiftTemplates } from '@/app/venue/components/staff/shift-templates'
+import { ShiftRequests } from '@/app/venue/components/staff/shift-requests'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { ensureVenueOperationalContext, getCurrentVenueContext } from '@/lib/venue/venue-access'

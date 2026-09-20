@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-024",
+  "title": "Retire venue table primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:54.792Z",
+  "updated_at": "2026-09-11T20:27:33.050Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/table.tsx to components/ui/table.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/table.tsx",
+      "components/ui/table.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/table.tsx",
+    "components/ui/table.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical collection / operational view preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/table|@/components/venue/ui/table\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/table.tsx components/ui/table.tsx",
+      "git diff --check -- components/venue/ui/table.tsx components/ui/table.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use audit passed: rg for 'components/venue/ui/table|@/components/venue/ui/table' returned 0 matches (exit 1) across app, components, hooks, lib, apps, __tests__, and scripts; no file in the audited tree references the venue twin by absolute path or package alias, and no barrel or relative re-export of the twin exists under components/venue. The venue twin has no source consumers.",
+      "Canonical import inventory passed: 11 files import @/components/ui/table across the audited scope. Venue-surface consumers are already migrated to the canonical path: 7 files under app/venue/** and components/venue/** (app/venue/components/equipment-management.tsx, app/venue/components/teams/team-roles-permissions.tsx, app/venue/components/event-details/attendees-tab.tsx, app/venue/components/attendance/attendance-tracker.tsx, components/venue/venue/equipment-management.tsx, components/venue/venue/attendance/attendance-tracker.tsx, components/venue/teams/team-roles-permissions.tsx). The other 4 canonical consumers are outside the venue surface (components/hiring/team-roster-panel.tsx, app/business/payments/page.tsx, app/business/tickets/page.tsx, app/business/customers/page.tsx). No consumer references the venue twin.",
+      "Twin characterization passed: components/venue/ui/table.tsx is byte-identical to components/ui/table.tsx (diff -u exit 0 / no output; SHA-256 1da243956282c040db49d5718d2f0093a705fbbdfa3a25f51c1a31a069c45093 on both files). Public contract parity is complete: both export Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption (8 forwardRef components, each with displayName set). Contract parity confirmed; the twin is not a divergent/stale copy.",
+      "Register disposition confirmed: CANONICAL_COMPONENT_REGISTER.csv line 1309 marks components/venue/ui/table.tsx 'retire later' (DUP-089, 0 continues, exact duplicate, target components/ui/table.tsx); line 1142 keeps the canonical under the same DUP-089 row. Line 335's app/venue/components/ui/table.tsx row is a stale DUP-089 entry: that route-local copy no longer exists on disk (checked). Disposition is canonical keep, consumers already migrated, twin retained as retire-later compatibility debt.",
+      "Focused ESLint passed for components/venue/ui/table.tsx and components/ui/table.tsx (exit 0).",
+      "Focused git diff check passed for the two table paths and docs/engineering (exit 0).",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:27:33.050Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded table audit complete. The venue table twin has zero consumers; 11 files (incl. 7 venue-surface) import the canonical. Files are byte-identical with 8-export parity and remain registered retire-later (DUP-089). Twin retained.",
+    "completed": [
+      "Audited all source references and confirmed zero live consumers of components/venue/ui/table.tsx in app, components, hooks, lib, apps, __tests__, and scripts (0 rg matches, exit 1); no barrel or relative re-export of the twin under components/venue.",
+      "Inventoried canonical imports: 11 files import @/components/ui/table; venue-surface consumers already migrated (7 files under app/venue/** and components/venue/**).",
+      "Characterized the twin as byte-identical to the canonical (matching SHA-256 1da24395..., clean diff -u) with full public-export parity (Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption) and exact forwardRef/displayName contract.",
+      "Confirmed the register disposition (DUP-089): canonical keep (line 1142), venue twin retire-later (line 1309); noted the stale app/venue/components/ui/table.tsx register row (line 335) whose file no longer exists on disk.",
+      "Recorded an audit-only result without deleting files, changing callers, or editing the canonical component register or any venue behavior."
+    ],
+    "next_steps": [
+      "Audit live consumers and identify the owning surface for components/venue/ui/table.tsx.",
+      "Confirm public/export parity with the canonical target before retirement. Coordinate any migration and deletion only after focused verification and register evidence."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:09:05.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed an audit-only review of the venue table twin against components/ui/table.tsx. The twin is a byte-identical duplicate with full 8-export parity; zero-use evidence recorded (0 rg matches, exit 1, no barrel/relative re-exports, no venue-surface consumer of the twin path). Canonical import inventory: 11 files on @/components/ui/table, with 7 app/venue/** and components/venue/** consumers already migrated to canonical. Register DUP-089 disposition confirmed (canonical keep at line 1142, twin retire-later at line 1309); line 335's app/venue/components/ui/table.tsx row is stale (file not on disk). No source, caller, register, or venue behavior changes were made; twin retained.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-024.json"
+        ],
+        "verification": [
+          "Zero-use rg audit: 0 matches (exit 1); no barrel/relative re-exports of the twin",
+          "Canonical import inventory: 11 files on @/components/ui/table; 7 app/venue/** + components/venue/** consumers already migrated",
+          "Byte-identical twin: matching SHA-256 1da24395...; full export parity (Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption)",
+          "Focused ESLint passed (exit 0)",
+          "Focused git diff --check passed (exit 0)",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No approved migration/deletion scope for the audit-only pass"
+        ],
+        "next_steps": [
+          "Retain the twin as registered retire-later compatibility debt until an explicitly approved deletion decision is recorded.",
+          "Register row 335 (app/venue/components/ui/table.tsx, DUP-089) is stale and should be corrected in the separately scoped retirement/register step."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:27:33.050Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded table audit complete. The venue table twin has zero consumers; 11 files (incl. 7 venue-surface) import the canonical. Files are byte-identical with 8-export parity and remain registered retire-later (DUP-089). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

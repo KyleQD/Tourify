@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260914090000_revoke_public_execute_db002.sql",
+  "taskId": "DB-002",
+  "status": "planned",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["security", "rls", "finance", "hiring"],
+  "riskLevel": "critical",
+  "representativeSnapshot": {
+    "kind": "production catalog evidence identified PUBLIC/anon EXECUTE on four SECURITY DEFINER helpers",
+    "evidenceArtifact": "DB-002 production verification checkpoint 2026-09-13"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Inspect pg_proc signatures and has_function_privilege for anon, authenticated, and service_role",
+      "Confirm the four target functions exist before applying the forward fix"
+    ],
+    "expectedAffectedRows": "No data changes; function ACLs only",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Re-run the additive migration after an interrupted transaction; each REVOKE and GRANT is idempotent",
+    "resumeCursor": "Supabase migration version 20260914090000",
+    "idempotency": "REVOKE/GRANT ACL statements are deterministic and do not alter function bodies or data"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data migration"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["SECURITY DEFINER functions retain their existing pinned search_path"],
+    "indexes": [],
+    "validationPlan": "Verify effective function privileges for anon, authenticated, and service_role, then rerun the Supabase security advisor"
+  },
+  "recovery": {
+    "rollback": "Restore only the intended authenticated/service_role grants through a reviewed forward migration if a verified server caller requires correction",
+    "forwardFix": "Adjust a specific function ACL through a later reviewed additive migration; never restore PUBLIC execution"
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/db002_security_grants.sql",
+      "Verify anon cannot execute all four functions and authenticated/service_role can execute as designed",
+      "Rerun production RLS probes and Supabase Security Advisor"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": "static-review:DB-002-ACL-FIX-2026-09-14",
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

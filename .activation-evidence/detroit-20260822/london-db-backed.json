@@ -1,0 +1,3148 @@
+{
+  "schemaVersion": "world-place-v0.1",
+  "fixtureVersion": "world-seed-fixture-v0.3",
+  "publicationState": "draft_needs_review_not_deployed",
+  "place": {
+    "id": "223d6990-c7e0-4566-93d0-d4691d6ea064",
+    "canonicalPath": "gb/eng/london",
+    "name": "London",
+    "displayName": "London",
+    "placeType": "city",
+    "parent": {
+      "id": "430235ed-39f7-4969-8a4e-00bf0b5bc4a8",
+      "canonicalPath": "gb/eng",
+      "name": "England"
+    },
+    "breadcrumb": [
+      {
+        "id": "7228a3b3-384a-4390-b188-979b73acdf08",
+        "canonicalPath": "gb",
+        "name": "United Kingdom",
+        "placeType": "country"
+      },
+      {
+        "id": "430235ed-39f7-4969-8a4e-00bf0b5bc4a8",
+        "canonicalPath": "gb/eng",
+        "name": "England",
+        "placeType": "region"
+      },
+      {
+        "id": "223d6990-c7e0-4566-93d0-d4691d6ea064",
+        "canonicalPath": "gb/eng/london",
+        "name": "London",
+        "placeType": "city"
+      }
+    ],
+    "countryCode": "GB",
+    "admin1Code": "ENG",
+    "timezone": null,
+    "languages": [],
+    "center": {
+      "latitude": 51.5072222,
+      "longitude": -0.1275
+    },
+    "aliases": [
+      "London, England",
+      "London, UK"
+    ],
+    "externalRefs": [
+      {
+        "provider": "wikidata",
+        "external_type": "place",
+        "external_id": "Q84",
+        "canonical_url": "https://www.wikidata.org/wiki/Q84",
+        "attribution_text": null,
+        "source_key": "wikidata_geo"
+      },
+      {
+        "provider": "musicbrainz",
+        "external_type": "area",
+        "external_id": "f03d09b3-39dc-4083-afd6-159e3f0d462f",
+        "canonical_url": "https://musicbrainz.org/area/f03d09b3-39dc-4083-afd6-159e3f0d462f",
+        "attribution_text": null,
+        "source_key": "musicbrainz_geo"
+      }
+    ]
+  },
+  "overview": {
+    "shortDescription": null,
+    "musicalIdentity": "London’s pilot seed focuses on migration and infrastructure: Jamaican dub’s London production ecosystem, pirate radio, and east London grime rather than treating the city as a single genre.",
+    "hero": null,
+    "listenHere": null,
+    "listenHereStatus": {
+      "status": "unavailable",
+      "reason": "Pilot recordings and sound guides are metadata/description-only until playback rights are independently resolved."
+    },
+    "stats": {
+      "publishedClaims": 0,
+      "artists": 5,
+      "tracks": 0,
+      "radioStations": 0,
+      "eventsUpcoming": 0,
+      "culturalEntities": 21
+    },
+    "quality": {
+      "modelVersion": "world-quality-model-v0.1",
+      "averageEntityQuality": 0.892,
+      "averageRelationshipQuality": 0.8836,
+      "corroboratedEntityRate": 0.4762,
+      "stableArtistIdentityRate": 0.8,
+      "recordingYearCoverage": 1,
+      "landmarkIdentityCoverage": 1,
+      "sourceDomainCount": 6,
+      "sourceTypeCount": 4,
+      "publicationEligible": false,
+      "gaps": [
+        "1 artist identities still lack a stable external id",
+        "current popularity signals not seeded",
+        "live event/venue signals not seeded",
+        "radio/playback rights not seeded"
+      ]
+    },
+    "explore": {
+      "basis": "draft_quality_heuristic_not_editorial",
+      "suggestedPath": [
+        {
+          "role": "start_with_history",
+          "id": "london_dub_to_grime_lineage",
+          "kind": "educational_topic",
+          "name": "Bass-culture lineage: dub to later London genres"
+        },
+        {
+          "role": "hear_the_signature",
+          "id": "london_dub_sound_signature",
+          "kind": "sound_signature",
+          "name": "Dub production sound signature",
+          "qualityScore": 0.865
+        },
+        {
+          "role": "meet_a_key_artist",
+          "id": "london_artist_mad_professor",
+          "kind": "artist_reference",
+          "name": "Mad Professor",
+          "qualityScore": 0.9415
+        },
+        {
+          "role": "study_a_recording",
+          "id": "london_commandments_of_dub",
+          "kind": "recording_reference",
+          "name": "The Commandments of Dub",
+          "qualityScore": 0.937
+        },
+        {
+          "role": "visit_a_landmark",
+          "id": "london_ariwa_sounds",
+          "kind": "studio_landmark",
+          "name": "Ariwa Sounds",
+          "qualityScore": 0.9675
+        }
+      ]
+    }
+  },
+  "sections": {
+    "fromHere": {
+      "status": "draft_seed_data",
+      "items": [
+        {
+          "id": "london_dub_scene",
+          "kind": "scene",
+          "data": {
+            "slug": "london-dub-scene",
+            "name": "Dub London",
+            "summary": "A London dub ecosystem grew from the 1970s around Caribbean communities, sound systems, record shops, labels, radio, clubs, and producers.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub",
+              "london_museum_dub_records"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.868,
+            "band": "solid_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "london_dub_scene"
+            }
+          ]
+        },
+        {
+          "id": "london_dub",
+          "kind": "genre",
+          "data": {
+            "slug": "london-dub",
+            "name": "Dub in London",
+            "summary": "Jamaican dub became a major London production and listening culture and helped shape later British electronic and bass music.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.865,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "london_dub"
+            }
+          ]
+        },
+        {
+          "id": "london_pirate_radio",
+          "kind": "scene",
+          "data": {
+            "slug": "london-pirate-radio",
+            "name": "Pirate radio as scene infrastructure",
+            "summary": "Unlicensed radio stations provided vital platforms for London Black music and later grime artists, DJs, and MCs.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub",
+              "london_museum_grime"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.856,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "london_pirate_radio"
+            }
+          ]
+        },
+        {
+          "id": "london_grime",
+          "kind": "genre",
+          "data": {
+            "slug": "london-grime",
+            "name": "Grime",
+            "summary": "A Black-British music scene that emerged in east London around the beginning of the 2000s, with Bow and neighboring areas central to its early development.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.98,
+          "timeScope": {
+            "start": "2000",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime",
+              "london_museum_grime_history"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.874,
+            "band": "solid_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "london_grime"
+            }
+          ]
+        },
+        {
+          "id": "london_bow_grime",
+          "kind": "scene",
+          "data": {
+            "slug": "london-bow-grime",
+            "name": "Bow early grime network",
+            "summary": "Bow in east London is a key geographic node in grime’s early history, associated with Wiley and other pioneers.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "2000",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "kcl_grime_and_gaming",
+              "london_museum_grime"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.968,
+            "band": "strong_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "kcl.ac.uk",
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "academic",
+              "museum"
+            ],
+            "authorities": [
+              "academic_research",
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "london_bow_grime"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_dizzee_rascal",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "dizzee-rascal",
+            "name": "Dizzee Rascal",
+            "summary": "External knowledge-graph identity for Dizzee Rascal; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "1a99cc88-aea3-4fe3-96b9-20791667f65f",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "1a99cc88-aea3-4fe3-96b9-20791667f65f",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9153,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata"
+            ],
+            "authorityScore": 0.82,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_dizzee_rascal"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_jah_shaka",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "jah-shaka",
+            "name": "Jah Shaka",
+            "summary": "External knowledge-graph identity for Jah Shaka; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q726991",
+                "musicbrainz_artist_mbid": "47b2253e-034f-4806-b65c-7cee187f34d8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q726991",
+                "musicbrainz_artist_mbid": "47b2253e-034f-4806-b65c-7cee187f34d8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub_records",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.939,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata",
+              "community_structured_data"
+            ],
+            "authorityScore": 0.78,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_jah_shaka"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_lkj",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "linton-kwesi-johnson",
+            "name": "Linton Kwesi Johnson",
+            "summary": "External knowledge-graph identity for Linton Kwesi Johnson; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q557775",
+                "musicbrainz_artist_mbid": "f27042c2-3a42-4529-876c-3aa0b4fd53fe",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q557775",
+                "musicbrainz_artist_mbid": "f27042c2-3a42-4529-876c-3aa0b4fd53fe",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub_records",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.939,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata",
+              "community_structured_data"
+            ],
+            "authorityScore": 0.78,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_lkj"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_mad_professor",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "mad-professor",
+            "name": "Mad Professor",
+            "summary": "External knowledge-graph identity for Mad Professor; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q918458",
+                "musicbrainz_artist_mbid": "ea3b97e8-8a76-4ea7-8e6f-3ebf40acaeb8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q918458",
+                "musicbrainz_artist_mbid": "ea3b97e8-8a76-4ea7-8e6f-3ebf40acaeb8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "ariwa_official_story",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9415,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "ariwa.com",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.79,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_mad_professor"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_robotiks",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-robotiks",
+            "name": "The Robotiks",
+            "summary": "External knowledge-graph identity for The Robotiks; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": null,
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": null,
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "ariwa_official_catalogue",
+              "ariwa_official_story"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.79,
+            "band": "developing",
+            "confidence": 0.9,
+            "metadataCompleteness": 0.55,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "ariwa.com"
+            ],
+            "sourceTypes": [
+              "partner"
+            ],
+            "authorities": [
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.95,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "stable_external_identity_missing"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_robotiks"
+            }
+          ]
+        }
+      ]
+    },
+    "popularHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No current popularity signal is seeded. Historical prominence must never be represented as current popularity.",
+      "items": []
+    },
+    "happeningHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Live events and venue activity must come from current Tourify operational sources, not historical seed data.",
+      "items": []
+    },
+    "historyHere": {
+      "status": "draft_seed_data",
+      "timeline": [
+        {
+          "id": "london_dub_to_grime_lineage",
+          "year": null,
+          "startYear": 1970,
+          "endYear": null,
+          "precision": "period",
+          "title": "Bass-culture lineage: dub to later London genres",
+          "summary": "London Museum explicitly links dub’s studio-built bass culture to later British genres including jungle, UK garage, and grime.",
+          "entityRefs": [
+            {
+              "id": "london_dub_to_grime_lineage",
+              "kind": "educational_topic",
+              "name": "Bass-culture lineage: dub to later London genres"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "london_museum_dub"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "london_dub",
+          "year": null,
+          "startYear": 1970,
+          "endYear": null,
+          "precision": "period",
+          "title": "Dub in London",
+          "summary": "Jamaican dub became a major London production and listening culture and helped shape later British electronic and bass music.",
+          "entityRefs": [
+            {
+              "id": "london_dub",
+              "kind": "genre",
+              "name": "Dub in London"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "london_museum_dub"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "london_dub_scene",
+          "year": null,
+          "startYear": 1970,
+          "endYear": null,
+          "precision": "period",
+          "title": "Dub London",
+          "summary": "A London dub ecosystem grew from the 1970s around Caribbean communities, sound systems, record shops, labels, radio, clubs, and producers.",
+          "entityRefs": [
+            {
+              "id": "london_dub_scene",
+              "kind": "scene",
+              "name": "Dub London"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "london_museum_dub",
+            "london_museum_dub_records"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "london_dub_mixing_console",
+          "year": null,
+          "startYear": 1970,
+          "endYear": null,
+          "precision": "period",
+          "title": "Dub mixing console and effects as performance tools",
+          "summary": "London dub practice treats the studio as an instrument, reshaping drums and bass with faders, echo, reverb, dropouts and other effects.",
+          "entityRefs": [
+            {
+              "id": "london_dub_mixing_console",
+              "kind": "educational_topic",
+              "name": "Dub mixing console and effects as performance tools"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "london_museum_dub",
+            "london_museum_dub_project"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "london_pirate_radio",
+          "year": null,
+          "startYear": 1980,
+          "endYear": null,
+          "precision": "period",
+          "title": "Pirate radio as scene infrastructure",
+          "summary": "Unlicensed radio stations provided vital platforms for London Black music and later grime artists, DJs, and MCs.",
+          "entityRefs": [
+            {
+              "id": "london_pirate_radio",
+              "kind": "scene",
+              "name": "Pirate radio as scene infrastructure"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "london_museum_dub",
+            "london_museum_grime"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "london_bow_grime",
+          "year": null,
+          "startYear": 2000,
+          "endYear": null,
+          "precision": "period",
+          "title": "Bow early grime network",
+          "summary": "Bow in east London is a key geographic node in grime’s early history, associated with Wiley and other pioneers.",
+          "entityRefs": [
+            {
+              "id": "london_bow_grime",
+              "kind": "scene",
+              "name": "Bow early grime network"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "kcl_grime_and_gaming",
+            "london_museum_grime"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "london_grime",
+          "year": null,
+          "startYear": 2000,
+          "endYear": null,
+          "precision": "period",
+          "title": "Grime",
+          "summary": "A Black-British music scene that emerged in east London around the beginning of the 2000s, with Bow and neighboring areas central to its early development.",
+          "entityRefs": [
+            {
+              "id": "london_grime",
+              "kind": "genre",
+              "name": "Grime"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "london_museum_grime",
+            "london_museum_grime_history"
+          ],
+          "reviewed": false
+        }
+      ],
+      "genresAndScenes": [
+        {
+          "id": "london_dub_scene",
+          "kind": "scene",
+          "data": {
+            "slug": "london-dub-scene",
+            "name": "Dub London",
+            "summary": "A London dub ecosystem grew from the 1970s around Caribbean communities, sound systems, record shops, labels, radio, clubs, and producers.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub",
+              "london_museum_dub_records"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.868,
+            "band": "solid_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "london_dub_scene"
+            }
+          ]
+        },
+        {
+          "id": "london_dub",
+          "kind": "genre",
+          "data": {
+            "slug": "london-dub",
+            "name": "Dub in London",
+            "summary": "Jamaican dub became a major London production and listening culture and helped shape later British electronic and bass music.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.865,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "london_dub"
+            }
+          ]
+        },
+        {
+          "id": "london_pirate_radio",
+          "kind": "scene",
+          "data": {
+            "slug": "london-pirate-radio",
+            "name": "Pirate radio as scene infrastructure",
+            "summary": "Unlicensed radio stations provided vital platforms for London Black music and later grime artists, DJs, and MCs.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub",
+              "london_museum_grime"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.856,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "london_pirate_radio"
+            }
+          ]
+        },
+        {
+          "id": "london_grime",
+          "kind": "genre",
+          "data": {
+            "slug": "london-grime",
+            "name": "Grime",
+            "summary": "A Black-British music scene that emerged in east London around the beginning of the 2000s, with Bow and neighboring areas central to its early development.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.98,
+          "timeScope": {
+            "start": "2000",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime",
+              "london_museum_grime_history"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.874,
+            "band": "solid_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "london_grime"
+            }
+          ]
+        },
+        {
+          "id": "london_bow_grime",
+          "kind": "scene",
+          "data": {
+            "slug": "london-bow-grime",
+            "name": "Bow early grime network",
+            "summary": "Bow in east London is a key geographic node in grime’s early history, associated with Wiley and other pioneers.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "2000",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "kcl_grime_and_gaming",
+              "london_museum_grime"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.968,
+            "band": "strong_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "kcl.ac.uk",
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "academic",
+              "museum"
+            ],
+            "authorities": [
+              "academic_research",
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "london_bow_grime"
+            }
+          ]
+        },
+        {
+          "id": "london_dub_to_grime_lineage",
+          "kind": "educational_topic",
+          "data": {
+            "slug": "london-dub-to-grime-lineage",
+            "name": "Bass-culture lineage: dub to later London genres",
+            "summary": "London Museum explicitly links dub’s studio-built bass culture to later British genres including jungle, UK garage, and grime.",
+            "entityType": "educational_topic",
+            "metadata": {}
+          },
+          "placeRelation": "historically_significant_in",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.856,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "educational_topic",
+              "entityId": "london_dub_to_grime_lineage"
+            }
+          ]
+        },
+        {
+          "id": "london_dub_mixing_console",
+          "kind": "educational_topic",
+          "data": {
+            "slug": "dub-mixing-console-effects",
+            "name": "Dub mixing console and effects as performance tools",
+            "summary": "London dub practice treats the studio as an instrument, reshaping drums and bass with faders, echo, reverb, dropouts and other effects.",
+            "entityType": "educational_topic",
+            "metadata": {
+              "listen_for": [
+                "echo and reverb trails",
+                "sudden dropouts",
+                "bass-and-drum emphasis",
+                "live-feeling mix changes"
+              ],
+              "topic_type": "production_technology",
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub",
+              "london_museum_dub_project"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.868,
+            "band": "solid_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "educational_topic",
+              "entityId": "london_dub_mixing_console"
+            }
+          ]
+        }
+      ],
+      "instruments": [
+        {
+          "id": "london_sound_system",
+          "kind": "instrument",
+          "data": {
+            "slug": "sound-system-london-dub",
+            "name": "Sound system — London dub culture",
+            "summary": "Large-format sound systems were central to how dub and reggae were heard collectively in London clubs, parties and carnival culture.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "physical low-frequency emphasis",
+                "selector-led sequencing of records and versions"
+              ],
+              "sound_role": "high-impact communal reproduction of bass-heavy recordings",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "amplified_playback_system"
+            }
+          },
+          "placeRelation": "practiced_in",
+          "confidence": 0.9,
+          "timeScope": {
+            "start": "1970",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.85,
+            "band": "solid_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "london_sound_system"
+            }
+          ]
+        }
+      ],
+      "soundSignatures": [
+        {
+          "id": "london_dub_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "london-dub-sound-signature",
+            "name": "Dub production sound signature",
+            "summary": "A listening guide to dub production practices documented by London Museum.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "Dub originated in Jamaica; this seed describes its London development rather than relocating its origin."
+              ],
+              "listen_for": [
+                "heavy drum-and-bass foundation",
+                "echo",
+                "reverb",
+                "dropouts and spatial manipulation",
+                "instrumental/version-based arrangement"
+              ],
+              "techniques": [
+                "studio-as-instrument production",
+                "mixing-console performance"
+              ],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.865,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "london_dub_sound_signature"
+            }
+          ]
+        },
+        {
+          "id": "london_grime_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "london-grime-sound-signature",
+            "name": "Early grime sound signature",
+            "summary": "A listening guide to characteristics London Museum associates with early grime.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "Wiley’s “eskimo sound” is one influential strand, not the entirety of grime."
+              ],
+              "listen_for": [
+                "hard-edged electronic instrumentals",
+                "jittery rhythmic programming",
+                "MC-led vocal performance",
+                "sparse/fierce production"
+              ],
+              "techniques": [
+                "pirate-radio performance culture",
+                "producer-led instrumental ecosystems"
+              ],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.85,
+            "band": "solid_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "london_grime_sound_signature"
+            }
+          ]
+        },
+        {
+          "id": "london_wiley_eskimo_sound",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "london-wiley-eskimo-sound",
+            "name": "Wiley’s eskimo sound",
+            "summary": "A cold, sparse production aesthetic developed by Wiley and closely associated with early grime.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "listen_for": [
+                "icy/sparse synth textures",
+                "jittery electronic rhythm",
+                "space for MC vocals"
+              ],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.91,
+          "timeScope": {
+            "start": "2000",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.803,
+            "band": "solid_basis",
+            "confidence": 0.91,
+            "metadataCompleteness": 0.6667,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "city_museum"
+            ],
+            "authorityScore": 0.92,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "london_wiley_eskimo_sound"
+            }
+          ]
+        }
+      ],
+      "notableArtists": [
+        {
+          "id": "london_artist_dizzee_rascal",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "dizzee-rascal",
+            "name": "Dizzee Rascal",
+            "summary": "External knowledge-graph identity for Dizzee Rascal; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "1a99cc88-aea3-4fe3-96b9-20791667f65f",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "1a99cc88-aea3-4fe3-96b9-20791667f65f",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9153,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata"
+            ],
+            "authorityScore": 0.82,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_dizzee_rascal"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_jah_shaka",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "jah-shaka",
+            "name": "Jah Shaka",
+            "summary": "External knowledge-graph identity for Jah Shaka; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q726991",
+                "musicbrainz_artist_mbid": "47b2253e-034f-4806-b65c-7cee187f34d8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q726991",
+                "musicbrainz_artist_mbid": "47b2253e-034f-4806-b65c-7cee187f34d8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub_records",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.939,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata",
+              "community_structured_data"
+            ],
+            "authorityScore": 0.78,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_jah_shaka"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_lkj",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "linton-kwesi-johnson",
+            "name": "Linton Kwesi Johnson",
+            "summary": "External knowledge-graph identity for Linton Kwesi Johnson; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q557775",
+                "musicbrainz_artist_mbid": "f27042c2-3a42-4529-876c-3aa0b4fd53fe",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q557775",
+                "musicbrainz_artist_mbid": "f27042c2-3a42-4529-876c-3aa0b4fd53fe",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub_records",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.939,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata",
+              "community_structured_data"
+            ],
+            "authorityScore": 0.78,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_lkj"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_mad_professor",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "mad-professor",
+            "name": "Mad Professor",
+            "summary": "External knowledge-graph identity for Mad Professor; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q918458",
+                "musicbrainz_artist_mbid": "ea3b97e8-8a76-4ea7-8e6f-3ebf40acaeb8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q918458",
+                "musicbrainz_artist_mbid": "ea3b97e8-8a76-4ea7-8e6f-3ebf40acaeb8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "ariwa_official_story",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9415,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "ariwa.com",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.79,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_mad_professor"
+            }
+          ]
+        },
+        {
+          "id": "london_artist_robotiks",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-robotiks",
+            "name": "The Robotiks",
+            "summary": "External knowledge-graph identity for The Robotiks; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": null,
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": null,
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "ariwa_official_catalogue",
+              "ariwa_official_story"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.79,
+            "band": "developing",
+            "confidence": 0.9,
+            "metadataCompleteness": 0.55,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "ariwa.com"
+            ],
+            "sourceTypes": [
+              "partner"
+            ],
+            "authorities": [
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.95,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "stable_external_identity_missing"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "london_artist_robotiks"
+            }
+          ]
+        }
+      ],
+      "notableRecordings": [
+        {
+          "id": "london_i_luv_you_dizzee",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "london-i-luv-you-dizzee",
+            "name": "I Luv You",
+            "summary": "A formative grime recording made by Dizzee Rascal as a teenager in Poplar, east London, cited by London Museum in its grime history.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "I Luv You",
+              "artist_name": "Dizzee Rascal",
+              "release_year": 2002,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "london_artist_dizzee_rascal"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Dizzee Rascal I Luv You"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.92,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_grime",
+              "musicbrainz_recording_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.931,
+            "band": "strong_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata"
+            ],
+            "authorityScore": 0.82,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "london_i_luv_you_dizzee"
+            }
+          ]
+        },
+        {
+          "id": "london_commandments_of_dub",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "london-commandments-of-dub",
+            "name": "The Commandments of Dub",
+            "summary": "A 1982 Jah Shaka dub record mixed at Ariwa Studio by Mad Professor and selected by London Museum as part of its Dub London record history.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "The Commandments of Dub",
+              "artist_name": "Jah Shaka",
+              "release_year": 1982,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "london_artist_jah_shaka"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Jah Shaka The Commandments of Dub"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1982",
+            "end": "1982"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub_records",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.937,
+            "band": "strong_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata"
+            ],
+            "authorityScore": 0.82,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "london_commandments_of_dub"
+            }
+          ]
+        },
+        {
+          "id": "london_bass_culture_lkj",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "london-bass-culture-lkj",
+            "name": "Bass Culture",
+            "summary": "A Linton Kwesi Johnson recording/album highlighted by London Museum in its Dub London history and produced with Dennis Bovell.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Bass Culture",
+              "artist_name": "Linton Kwesi Johnson",
+              "release_year": 1980,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "london_artist_lkj"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Linton Kwesi Johnson Bass Culture"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "london_museum_dub_records",
+              "musicbrainz_recording_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.925,
+            "band": "strong_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "londonmuseum.org.uk",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata"
+            ],
+            "authorityScore": 0.82,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "london_bass_culture_lkj"
+            }
+          ]
+        },
+        {
+          "id": "london_robotiks_mad_professor",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "london-robotiks-my-computers-acting-strange",
+            "name": "My Computers Acting Strange",
+            "summary": "London Museum highlights Robotiks’ “My Computers Acting Strange” as a Mad Professor/Ariwa example of analogue, retro-futurist dub production.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "My Computers Acting Strange",
+              "artist_name": "The Robotiks",
+              "release_year": 1986,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "london_artist_robotiks"
+                },
+                {
+                  "role": "production_context",
+                  "artist_seed_id": "london_artist_mad_professor"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "The Robotiks My Computers Acting Strange"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.86,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "ariwa_official_catalogue",
+              "london_museum_dub_records",
+              "musicbrainz_recording_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9238,
+            "band": "strong_basis",
+            "confidence": 0.86,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "ariwa.com",
+              "londonmuseum.org.uk",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "city_museum",
+              "community_music_metadata",
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.8633,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "london_robotiks_mad_professor"
+            }
+          ]
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "london_ariwa_sounds",
+          "kind": "studio_landmark",
+          "data": {
+            "slug": "london-ariwa-sounds",
+            "name": "Ariwa Sounds",
+            "summary": "Mad Professor’s Ariwa Sounds is a major London dub studio; London Museum used it to document dub mixing practice.",
+            "entityType": "studio_landmark",
+            "metadata": {
+              "address_text": "34 Whitehorse Lane, London SE25 6RE, United Kingdom",
+              "media_policy": "link_only_until_cleared",
+              "landmark_type": "recording_studio",
+              "location_history": [
+                {
+                  "address": "19 Bruce Road, Thornton Heath",
+                  "to_year": 1982,
+                  "from_year": 1979
+                },
+                {
+                  "address": "42 Gautrey Road, Peckham",
+                  "to_year": 1986,
+                  "from_year": 1982
+                },
+                {
+                  "address": "34 Whitehorse Lane, London SE25 6RE",
+                  "to_year": null,
+                  "from_year": 1986
+                }
+              ]
+            }
+          },
+          "placeRelation": "historically_significant_in",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1979",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "ariwa_official_story",
+              "london_museum_dub",
+              "london_museum_dub_project"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9675,
+            "band": "strong_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 2,
+            "domains": [
+              "ariwa.com",
+              "londonmuseum.org.uk"
+            ],
+            "sourceTypes": [
+              "museum",
+              "partner"
+            ],
+            "authorities": [
+              "city_museum",
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "studio_landmark",
+              "entityId": "london_ariwa_sounds"
+            }
+          ]
+        }
+      ]
+    },
+    "tourifyHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No exact pilot historical artist identities currently match Tourify Demo artist profiles; fake profiles are forbidden.",
+      "items": []
+    },
+    "radio": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Radio station ingestion and stream-rights review are not part of this static history fixture.",
+      "items": []
+    }
+  },
+  "relationships": {
+    "count": 10,
+    "items": [
+      {
+        "subject": {
+          "id": "london_grime",
+          "name": "Grime",
+          "kind": "genre"
+        },
+        "relationKey": "influenced_by",
+        "object": {
+          "id": "london_dub",
+          "name": "Dub in London",
+          "kind": "genre"
+        },
+        "confidence": 0.84,
+        "sourceKeys": [
+          "london_museum_dub",
+          "westminster_bass_culture"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.924,
+          "band": "strong_basis",
+          "confidence": 0.84,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "londonmuseum.org.uk",
+            "westminster.ac.uk"
+          ],
+          "sourceTypes": [
+            "academic",
+            "museum"
+          ],
+          "authorities": [
+            "academic_research",
+            "city_museum"
+          ],
+          "authorityScore": 0.92,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_bow_grime",
+          "name": "Bow early grime network",
+          "kind": "scene"
+        },
+        "relationKey": "part_of",
+        "object": {
+          "id": "london_grime",
+          "name": "Grime",
+          "kind": "genre"
+        },
+        "confidence": 0.96,
+        "sourceKeys": [
+          "london_museum_grime"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.841,
+          "band": "solid_basis",
+          "confidence": 0.96,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "londonmuseum.org.uk"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "city_museum"
+          ],
+          "authorityScore": 0.92,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_dub",
+          "name": "Dub in London",
+          "kind": "genre"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "london_sound_system",
+          "name": "Sound system — London dub culture",
+          "kind": "instrument"
+        },
+        "confidence": 0.9,
+        "sourceKeys": [
+          "london_museum_dub"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.82,
+          "band": "solid_basis",
+          "confidence": 0.9,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "londonmuseum.org.uk"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "city_museum"
+          ],
+          "authorityScore": 0.92,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_dub",
+          "name": "Dub in London",
+          "kind": "genre"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "london_dub_mixing_console",
+          "name": "Dub mixing console and effects as performance tools",
+          "kind": "educational_topic"
+        },
+        "confidence": 0.96,
+        "sourceKeys": [
+          "london_museum_dub",
+          "london_museum_dub_project"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.841,
+          "band": "solid_basis",
+          "confidence": 0.96,
+          "sourceCount": 2,
+          "distinctDomains": 1,
+          "domains": [
+            "londonmuseum.org.uk"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "city_museum"
+          ],
+          "authorityScore": 0.92,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_dub_scene",
+          "name": "Dub London",
+          "kind": "scene"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "london_ariwa_sounds",
+          "name": "Ariwa Sounds",
+          "kind": "studio_landmark"
+        },
+        "confidence": 0.93,
+        "sourceKeys": [
+          "london_museum_dub_project"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8305,
+          "band": "solid_basis",
+          "confidence": 0.93,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "londonmuseum.org.uk"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "city_museum"
+          ],
+          "authorityScore": 0.92,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_i_luv_you_dizzee",
+          "name": "I Luv You",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "london_artist_dizzee_rascal",
+          "name": "Dizzee Rascal",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.92,
+        "sourceKeys": [
+          "london_museum_grime",
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9187,
+          "band": "strong_basis",
+          "confidence": 0.92,
+          "sourceCount": 3,
+          "distinctDomains": 2,
+          "domains": [
+            "londonmuseum.org.uk",
+            "musicbrainz.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "city_museum",
+            "community_music_metadata"
+          ],
+          "authorityScore": 0.7867,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_commandments_of_dub",
+          "name": "The Commandments of Dub",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "london_artist_jah_shaka",
+          "name": "Jah Shaka",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.94,
+        "sourceKeys": [
+          "london_museum_dub_records",
+          "musicbrainz_artist_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.924,
+          "band": "strong_basis",
+          "confidence": 0.94,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "londonmuseum.org.uk",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "city_museum",
+            "community_music_metadata",
+            "community_structured_data"
+          ],
+          "authorityScore": 0.78,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_bass_culture_lkj",
+          "name": "Bass Culture",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "london_artist_lkj",
+          "name": "Linton Kwesi Johnson",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.9,
+        "sourceKeys": [
+          "london_museum_dub_records",
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9063,
+          "band": "strong_basis",
+          "confidence": 0.9,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "londonmuseum.org.uk",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "city_museum",
+            "community_music_metadata",
+            "community_structured_data"
+          ],
+          "authorityScore": 0.765,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_robotiks_mad_professor",
+          "name": "My Computers Acting Strange",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "london_artist_robotiks",
+          "name": "The Robotiks",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.86,
+        "sourceKeys": [
+          "ariwa_official_catalogue",
+          "ariwa_official_story",
+          "london_museum_dub_records",
+          "musicbrainz_recording_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9223,
+          "band": "strong_basis",
+          "confidence": 0.86,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "ariwa.com",
+            "londonmuseum.org.uk",
+            "musicbrainz.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "city_museum",
+            "community_music_metadata",
+            "first_party_music_institution"
+          ],
+          "authorityScore": 0.885,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "london_robotiks_mad_professor",
+          "name": "My Computers Acting Strange",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "london_artist_mad_professor",
+          "name": "Mad Professor",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.86,
+        "sourceKeys": [
+          "ariwa_official_catalogue",
+          "ariwa_official_story",
+          "london_museum_dub_records",
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "production_context"
+        },
+        "quality": {
+          "score": 0.9077,
+          "band": "strong_basis",
+          "confidence": 0.86,
+          "sourceCount": 6,
+          "distinctDomains": 4,
+          "domains": [
+            "ariwa.com",
+            "londonmuseum.org.uk",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "city_museum",
+            "community_music_metadata",
+            "community_structured_data",
+            "first_party_music_institution"
+          ],
+          "authorityScore": 0.8267,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "reviewed": false,
+    "sourceCount": 12,
+    "sourceTypes": [
+      "academic",
+      "museum",
+      "music_metadata",
+      "partner"
+    ],
+    "sourceRefs": [
+      {
+        "key": "ariwa_official_catalogue",
+        "name": "Ariwa Sounds — Catalogue",
+        "canonicalUrl": "https://www.ariwa.com/catalogue",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_music_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "ariwa_official_story",
+        "name": "Ariwa Sounds — Ariwa Story",
+        "canonicalUrl": "https://www.ariwa.com/ariwa-story",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_music_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "kcl_grime_and_gaming",
+        "name": "King’s College London — Grime and Gaming",
+        "canonicalUrl": "https://www.kcl.ac.uk/research/grime-and-gaming",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "academic_research",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "london_museum_dub",
+        "name": "London Museum — Dub in London",
+        "canonicalUrl": "https://www.londonmuseum.org.uk/collections/london-stories/dub-london-shops-sound-systems-legends/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "city_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "london_museum_dub_project",
+        "name": "London Museum — Dub London project / Ariwa Sounds masterclass",
+        "canonicalUrl": "https://www.londonmuseum.org.uk/collections/projects/curating-london/dub-london-bassline-of-a-city/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "city_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "london_museum_dub_records",
+        "name": "London Museum — 10 records that tell the story of Dub London",
+        "canonicalUrl": "https://www.londonmuseum.org.uk/blog/10-records-that-tell-the-story-of-dub-london/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "city_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "london_museum_grime",
+        "name": "London Museum — London’s grime stars",
+        "canonicalUrl": "https://www.londonmuseum.org.uk/collections/london-stories/londons-grime-stars/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "city_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "london_museum_grime_history",
+        "name": "London Museum — Grime from the corner to the mainstream",
+        "canonicalUrl": "https://www.londonmuseum.org.uk/blog/grime-music-from-the-corner-to-the-mainstream/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "city_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "musicbrainz_artist_identity",
+        "name": "MusicBrainz — core artist identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "musicbrainz_recording_identity",
+        "name": "MusicBrainz — core recording and release identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "westminster_bass_culture",
+        "name": "University of Westminster — Bass Culture / Black Music Research Unit",
+        "canonicalUrl": "https://www.westminster.ac.uk/news/mykaell-riley-demonstrates-the-importance-of-reggae-in-bafta-winning-documentary",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "academic_research",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "wikidata_identity",
+        "name": "Wikidata — structured artist and cultural identity data",
+        "canonicalUrl": "https://www.wikidata.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_structured_data",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      }
+    ],
+    "missingSourceKeys": [],
+    "lastReviewedAt": null
+  },
+  "freshness": {
+    "knowledgeSeedRetrievedAt": "2026-08-22T17:25:11.555404+00:00",
+    "historicalDataClass": "long_lived_reviewed_on_publish",
+    "currentSignalDataPresent": false
+  },
+  "permissions": {
+    "previewOnly": true,
+    "publicEligible": false,
+    "playbackEligible": false,
+    "containsPrivateStreamLocators": false,
+    "containsRawIngestionPayloads": false
+  },
+  "generatedAt": "2026-08-22T17:26:10.232Z"
+}

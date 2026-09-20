@@ -53,4 +53,17 @@ describe("TOUR-103 legacy tour route inventory", () => {
       expect(entry.writeClass).toMatch(/legacy_write_compat|delegates_to_canonical|orphan_write/)
     }
   })
+
+  it("classifies the collaboration invitation token route as a canonical delegation", () => {
+    expect(
+      LEGACY_TOUR_ROUTE_INVENTORY.find(
+        (entry) => entry.route === "/api/tours/invitations/[token]",
+      ),
+    ).toMatchObject({
+      methods: ["GET", "POST"],
+      owner: "tour-collaboration",
+      writeClass: "delegates_to_canonical",
+      retirementMilestone: "TOUR-604",
+    })
+  })
 })

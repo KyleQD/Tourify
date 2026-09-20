@@ -31,6 +31,18 @@ function scopedEventIds(eventIds: string[]) {
   return eventIds.length > 0 ? eventIds : [EMPTY_UUID]
 }
 
+function requiredMetric(totals: Record<string, unknown>, key: string): number {
+  const value = totals[key]
+  if (value === null || value === undefined || value === '') {
+    throw new TicketingQueryError('Ticketing overview is temporarily unavailable.')
+  }
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) {
+    throw new TicketingQueryError('Ticketing overview is temporarily unavailable.')
+  }
+  return numeric
+}
+
 function routeError(scope: string, error: unknown) {
   if (error instanceof z.ZodError) {
     return NextResponse.json(
@@ -125,20 +137,20 @@ async function getOverview(supabase: any, orgId: string, eventId?: string) {
   const totals = Array.isArray(data) ? data[0] : data
   if (!totals) throw new TicketingQueryError('Ticketing overview is temporarily unavailable.')
 
-  const totalRevenue = Number(totals.total_revenue) || 0
-  const totalTicketsSold = Number(totals.total_tickets_sold) || 0
-  const socialClicks = Number(totals.social_clicks) || 0
-  const socialConversions = Number(totals.social_conversions) || 0
+  const totalRevenue = requiredMetric(totals, 'total_revenue')
+  const totalTicketsSold = requiredMetric(totals, 'total_tickets_sold')
+  const socialClicks = requiredMetric(totals, 'social_clicks')
+  const socialConversions = requiredMetric(totals, 'social_conversions')
 
   return {
     metrics: {
       total_revenue: totalRevenue,
       total_tickets_sold: totalTicketsSold,
-      total_tickets_available: Number(totals.total_tickets_available) || 0,
-      total_tickets_sold_overall: Number(totals.total_tickets_sold_overall) || 0,
+      total_tickets_available: requiredMetric(totals, 'total_tickets_available'),
+      total_tickets_sold_overall: requiredMetric(totals, 'total_tickets_sold_overall'),
       average_ticket_price: totalTicketsSold > 0 ? totalRevenue / totalTicketsSold : 0,
-      active_campaigns: Number(totals.active_campaigns) || 0,
-      campaign_usage_percentage: Number(totals.campaign_usage_percentage) || 0,
+      active_campaigns: requiredMetric(totals, 'active_campaigns'),
+      campaign_usage_percentage: requiredMetric(totals, 'campaign_usage_percentage'),
       social_clicks: socialClicks,
       social_conversions: socialConversions,
       social_conversion_rate: socialClicks > 0 ? (socialConversions / socialClicks) * 100 : 0,
@@ -146,7 +158,7 @@ async function getOverview(supabase: any, orgId: string, eventId?: string) {
       revenue_trend: 0,
       conversion_rate: socialClicks > 0 ? (socialConversions / socialClicks) * 100 : 0,
       social_shares: socialClicks,
-      referral_revenue: Number(totals.referral_revenue) || 0,
+      referral_revenue: requiredMetric(totals, 'referral_revenue'),
     },
   }
 }

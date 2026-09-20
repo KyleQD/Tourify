@@ -7,6 +7,56 @@ import {
 import { withAdminCapability } from '@/lib/auth/api-auth'
 import type { CreateSiteMapRequest } from '@/types/site-map'
 
+const FORBIDDEN_SCOPE_FIELDS = [
+  'event_id',
+  'event_v2_id',
+  'tour_id',
+  'org_id',
+  'created_by',
+] as const
+
+function formText(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key)
+  return typeof value === 'string' ? value : undefined
+}
+
+function forbiddenScopeField(input: FormData | Record<string, unknown>): string | null {
+  for (const field of FORBIDDEN_SCOPE_FIELDS) {
+    if (input instanceof FormData ? input.has(field) : Object.prototype.hasOwnProperty.call(input, field)) {
+      return field
+    }
+  }
+  return null
+}
+
+function scopeDeniedResponse(error: unknown): NextResponse | null {
+  const explicitContextResponse = authorizedOrgScopeErrorResponse(error)
+  if (explicitContextResponse) return explicitContextResponse
+
+  const message = error instanceof Error ? error.message : 'Organization scope denied'
+  if (/^(Event|Tour) is not available/i.test(message)) {
+    return NextResponse.json(
+      { success: false, error: message, code: 'entity_scope_denied' },
+      { status: 403 },
+    )
+  }
+  return null
+}
+
+function isWithinAuthorizedScope(
+  row: Record<string, unknown>,
+  eventIds: ReadonlySet<string>,
+  tourIds: ReadonlySet<string>,
+): boolean {
+  const eventId = typeof row.event_v2_id === 'string' ? row.event_v2_id : null
+  const tourId = typeof row.tour_id === 'string' ? row.tour_id : null
+
+  if (!eventId && !tourId) return false
+  if (eventId && !eventIds.has(eventId)) return false
+  if (tourId && !tourIds.has(tourId)) return false
+  return true
+}
+
 export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { user, admin, supabase }) => {
   try {
     const { searchParams } = new URL(request.url)
@@ -16,26 +66,18 @@ export const GET = withAdminCapability('logistics.view', async (request: NextReq
     const requestedOrgId = admin.orgId
     const includeData = searchParams.get('includeData') === 'true'
 
-    // MAP-101: resolve acting org scope (capability inheritance via RLS + optional org filter)
-    // RLS on site_maps already scopes results to created_by / collaborators — scopeOrgId is
-    // only used for the response metadata, so a resolution failure is non-fatal.
-    let scopeOrgId: string | null = requestedOrgId ?? null
+    let scope: Awaited<ReturnType<typeof resolveAuthorizedOrgLogisticsScope>>
     try {
-      const scope = await resolveAuthorizedOrgLogisticsScope({
+      scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
         requestedOrgId,
         eventId,
         tourId,
       })
-      scopeOrgId = scope.orgId
     } catch (scopeError) {
-      const scopeResponse = authorizedOrgScopeErrorResponse(scopeError)
+      const scopeResponse = scopeDeniedResponse(scopeError)
       if (scopeResponse) return scopeResponse
-      const message = scopeError instanceof Error ? scopeError.message : 'Organization scope denied'
-      if (/not available/i.test(message))
-        return NextResponse.json({ error: message }, { status: 403 })
-      // Non-fatal: log the scope error but continue — RLS on site_maps handles access control.
-      console.warn('[Site Maps API] Scope resolution failed (non-fatal, RLS still applies):', message)
+      throw scopeError
     }
 
     const listSelect = '*'
@@ -50,17 +92,29 @@ export const GET = withAdminCapability('logistics.view', async (request: NextReq
       )
     `
 
-    // Discovery relies on MAP-101 RLS (owner | collaborator | can_logistics).
-    // Do not restrict to created_by — that blocked tour/event capability users.
+    // RLS remains the database boundary. These filters additionally bind discovery
+    // to the selected Admin organization so ownership/collaboration in another org
+    // cannot leak a map into the current acting context.
     let query = supabase
       .from('site_maps')
       .select(includeData ? detailSelect : listSelect)
       .order('updated_at', { ascending: false })
 
-    if (eventId) query = query.eq('event_id', eventId)
+    if (eventId) query = query.eq('event_v2_id', eventId)
     if (tourId) query = query.eq('tour_id', tourId)
     if (status) query = query.eq('status', status)
-    // org_id column does not exist on site_maps — RLS (created_by / collaborator) handles scoping
+
+    if (!eventId && !tourId) {
+      const scopeFilters: string[] = []
+      if (scope.eventIds.length > 0)
+        scopeFilters.push(`event_v2_id.in.(${scope.eventIds.join(',')})`)
+      if (scope.tourIds.length > 0)
+        scopeFilters.push(`tour_id.in.(${scope.tourIds.join(',')})`)
+
+      query = scopeFilters.length > 0
+        ? query.or(scopeFilters.join(','))
+        : query.eq('id', '00000000-0000-0000-0000-000000000000')
+    }
 
     const { data, error } = await query
 
@@ -72,11 +126,17 @@ export const GET = withAdminCapability('logistics.view', async (request: NextReq
       }, { status: 500 })
     }
 
+    const authorizedEventIds = new Set(scope.eventIds)
+    const authorizedTourIds = new Set(scope.tourIds)
+    const scopedData = ((data ?? []) as Array<Record<string, unknown>>).filter((row) =>
+      isWithinAuthorizedScope(row, authorizedEventIds, authorizedTourIds),
+    )
+
     return NextResponse.json({
       success: true,
-      data: data || [],
-      count: data?.length || 0,
-      orgId: scopeOrgId,
+      data: scopedData,
+      count: scopedData.length,
+      orgId: scope.orgId,
       discovery: 'org_capability_owner_collaborator',
     })
   } catch (error) {
@@ -88,63 +148,73 @@ export const GET = withAdminCapability('logistics.view', async (request: NextReq
   }
 })
 
-export const POST = withAdminCapability('logistics.manage', async (request: NextRequest, { user, supabase }) => {
+export const POST = withAdminCapability('logistics.manage', async (request: NextRequest, { user, admin, supabase }) => {
   try {
     // Handle both FormData and JSON requests
     let body: CreateSiteMapRequest
     const contentType = request.headers.get('content-type')
-    
+    let backgroundImage: File | null = null
     let uploadedBackgroundImageUrl: string | undefined
 
     if (contentType?.includes('multipart/form-data')) {
       // Handle FormData
       const formData = await request.formData()
-      const backgroundImage = formData.get('backgroundImage')
-
-      if (backgroundImage instanceof File && backgroundImage.size > 0) {
-        const fileExtension = backgroundImage.name.split('.').pop() || 'png'
-        const storagePath = `site-maps/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExtension}`
-        const imageBuffer = Buffer.from(await backgroundImage.arrayBuffer())
-
-        const { error: uploadError } = await supabase.storage
-          .from('event-media')
-          .upload(storagePath, imageBuffer, {
-            upsert: false,
-            contentType: backgroundImage.type || 'image/png',
-            cacheControl: '3600',
-          })
-
-        if (uploadError) {
-          console.error('[Site Maps API] Background upload failed:', uploadError)
-          return NextResponse.json({ error: 'Failed to upload background image' }, { status: 500 })
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('event-media')
-          .getPublicUrl(storagePath)
-
-        uploadedBackgroundImageUrl = publicUrlData.publicUrl
+      const forbiddenField = forbiddenScopeField(formData)
+      if (forbiddenField) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Unsupported scope field: ${forbiddenField}`,
+            code: 'legacy_scope_field_rejected',
+          },
+          { status: 400 },
+        )
       }
 
+      if (formData.getAll('eventId').length > 1 || formData.getAll('tourId').length > 1) {
+        return NextResponse.json(
+          { success: false, error: 'Ambiguous site-map scope.', code: 'ambiguous_scope' },
+          { status: 400 },
+        )
+      }
+
+      const backgroundImageEntry = formData.get('backgroundImage')
+      backgroundImage = backgroundImageEntry instanceof File ? backgroundImageEntry : null
+
       body = {
-        name: formData.get('name') as string,
-        description: formData.get('description') as string || formData.get('environment') as string || '',
-        width: parseInt(formData.get('width') as string) || 1000,
-        height: parseInt(formData.get('height') as string) || 1000,
-        scale: parseFloat(formData.get('scale') as string) || 1.0,
-        scaleUnit: (formData.get('scaleUnit') as 'feet' | 'meters' | null) || 'meters',
-        templateId: formData.get('templateId') as string || undefined,
-        backgroundColor: formData.get('backgroundColor') as string || '#f8f9fa',
+        name: formText(formData, 'name') || '',
+        description: formText(formData, 'description') || formText(formData, 'environment') || '',
+        width: parseInt(formText(formData, 'width') || '', 10) || 1000,
+        height: parseInt(formText(formData, 'height') || '', 10) || 1000,
+        scale: parseFloat(formText(formData, 'scale') || '') || 1.0,
+        scaleUnit: (formText(formData, 'scaleUnit') as 'feet' | 'meters' | undefined) || 'meters',
+        templateId: formText(formData, 'templateId'),
+        backgroundColor: formText(formData, 'backgroundColor') || '#f8f9fa',
         gridEnabled: formData.get('gridEnabled') === 'true',
-        gridSize: parseInt(formData.get('gridSize') as string) || 20,
+        gridSize: parseInt(formText(formData, 'gridSize') || '', 10) || 20,
         isPublic: formData.get('isPublic') === 'true',
-        backgroundImageUrl: uploadedBackgroundImageUrl,
-        eventId: formData.get('eventId') as string || undefined,
-        tourId: formData.get('tourId') as string || undefined
+        eventId: formText(formData, 'eventId'),
+        tourId: formText(formData, 'tourId'),
       }
     } else {
       // Handle JSON
-      body = await request.json()
+      const input: unknown = await request.json()
+      if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 })
+      }
+
+      const forbiddenField = forbiddenScopeField(input as Record<string, unknown>)
+      if (forbiddenField) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Unsupported scope field: ${forbiddenField}`,
+            code: 'legacy_scope_field_rejected',
+          },
+          { status: 400 },
+        )
+      }
+      body = input as CreateSiteMapRequest
     }
 
     // Validate required fields
@@ -162,13 +232,69 @@ export const POST = withAdminCapability('logistics.manage', async (request: Next
       return NextResponse.json({ error: groundCheck.error }, { status: 400 })
     }
 
-    // withAdminCapability('logistics.manage') already verified org membership + capability.
-    // Fine-grained entity RBAC (rbac_user_entity_roles) is not populated for org-level owners
-    // and would incorrectly deny them. Org capability is sufficient authorization here.
+    const eventId = typeof body.eventId === 'string' ? body.eventId.trim() : ''
+    const tourId = typeof body.tourId === 'string' ? body.tourId.trim() : ''
+    if ((body.eventId !== undefined && !eventId) || (body.tourId !== undefined && !tourId)) {
+      return NextResponse.json(
+        { success: false, error: 'Event and tour IDs must be non-empty strings.', code: 'invalid_scope' },
+        { status: 400 },
+      )
+    }
+    if (!eventId && !tourId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Select an event or tour before creating an Admin site map.',
+          code: 'site_map_scope_required',
+        },
+        { status: 400 },
+      )
+    }
+
+    let scope: Awaited<ReturnType<typeof resolveAuthorizedOrgLogisticsScope>>
+    try {
+      scope = await resolveAuthorizedOrgLogisticsScope({
+        userId: user.id,
+        requestedOrgId: admin.orgId,
+        eventId: eventId || null,
+        tourId: tourId || null,
+      })
+    } catch (scopeError) {
+      const scopeResponse = scopeDeniedResponse(scopeError)
+      if (scopeResponse) return scopeResponse
+      throw scopeError
+    }
+
+    // Scope validation intentionally happens before the upload so a forged event,
+    // tour, or acting organization cannot leave an orphaned storage object behind.
+    if (backgroundImage && backgroundImage.size > 0) {
+      const fileExtension = backgroundImage.name.split('.').pop() || 'png'
+      const storagePath = `site-maps/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExtension}`
+      const imageBuffer = Buffer.from(await backgroundImage.arrayBuffer())
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-media')
+        .upload(storagePath, imageBuffer, {
+          upsert: false,
+          contentType: backgroundImage.type || 'image/png',
+          cacheControl: '3600',
+        })
+
+      if (uploadError) {
+        console.error('[Site Maps API] Background upload failed:', uploadError)
+        return NextResponse.json({ error: 'Failed to upload background image' }, { status: 500 })
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('event-media')
+        .getPublicUrl(storagePath)
+
+      uploadedBackgroundImageUrl = publicUrlData.publicUrl
+    }
 
     const basePayload = {
-      event_id: body.eventId || null,
-      tour_id: body.tourId || null,
+      event_v2_id: eventId || null,
+      tour_id: tourId || null,
       name: body.name,
       description: body.description || null,
       width: body.width || 1000,
@@ -261,7 +387,12 @@ export const POST = withAdminCapability('logistics.manage', async (request: Next
           action: 'CREATE',
           entity_type: 'site_map',
           entity_id: data.id,
-          new_values: { name: data.name, event_id: data.event_id, tour_id: data.tour_id }
+          new_values: {
+            name: data.name,
+            event_v2_id: data.event_v2_id,
+            tour_id: data.tour_id,
+            org_id: scope.orgId,
+          }
         })
     } catch (activityError) {
       console.warn('[Site Maps API] Failed to log activity:', activityError)

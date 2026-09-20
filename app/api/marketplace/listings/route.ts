@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
-import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import {
+  requireMarketplaceEnabled,
+  requireMarketplaceEnabledForAccount,
+  requireMarketplaceListingKindEnabled,
+} from "@/lib/marketplace/require-marketplace-enabled"
 import { resolveActingContext } from "@/lib/auth/acting-context"
 import { resolveMarketplaceEntitlements } from "@/lib/marketplace/entitlement-resolver"
 import { isValidMarketplaceProductType } from "@/lib/marketplace/catalog"
@@ -127,6 +131,9 @@ export async function POST(request: NextRequest) {
     const { user: { id: userId }, accountType, supabase } = ctx
     const user = { id: userId }
 
+    const accountGuard = requireMarketplaceEnabledForAccount(accountType)
+    if (accountGuard) return accountGuard
+
     // Account-type entitlement check
     const entitlements = resolveMarketplaceEntitlements(accountType)
 
@@ -143,6 +150,8 @@ export async function POST(request: NextRequest) {
 
     // listing_kind entitlement checks
     const listingKind = payload.listingKind ?? "physical"
+    const listingKindGuard = requireMarketplaceListingKindEnabled(listingKind)
+    if (listingKindGuard) return listingKindGuard
     if (listingKind === "service" && !entitlements.canSellServices) {
       return jsonError({ status: 403, code: "service_listing_not_permitted", message: "Service listings are not permitted for this account type." })
     }

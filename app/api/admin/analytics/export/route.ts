@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 
-export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
+export const GET = withAdminCapability('audit.view', async (request: NextRequest, { supabase, admin }) => {
   const { searchParams } = new URL(request.url)
   const from = searchParams.get('from')
   const to = searchParams.get('to')
 
-  // Resolve org to scope the export to the calling user's data only
-  const { data: orgMember } = await supabase
-    .from('org_members')
-    .select('org_id')
-    .eq('user_id', user.id)
-    .limit(1)
-    .maybeSingle()
-  const orgId = orgMember?.org_id
+  // The wrapper resolves and authorizes the explicit acting organization.
+  const orgId = admin.orgId
 
   // Fetch financial transactions for CSV export
   let txQuery = supabase

@@ -11,10 +11,14 @@ import {
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
 
 const stripe = getStripeOrNull()
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+function getWebhookSecret() {
+  return process.env.STRIPE_WEBHOOK_SECRET_TICKETING
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const endpointSecret = getWebhookSecret()
     if (!stripe || !endpointSecret) {
       console.error('[Ticketing Webhook] Stripe not configured')
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 })
@@ -28,23 +32,21 @@ export async function POST(request: NextRequest) {
 
     let event: Stripe.Event
     try {
-      event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
-    } catch (err) {
-      console.error('[Ticketing Webhook] Signature verification failed:', err)
+      event = stripe.webhooks.constructEvent(body, signature, getWebhookSecret())
+    } catch {
+      console.error('[Ticketing Webhook] Signature verification failed', { kind: 'invalid_signature' })
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
     const supabase = createServiceRoleClient()
 
-    if (isTicketingV2Enabled()) {
-      const claimed = await claimWebhookEvent({
-        supabase,
-        stripeEventId: event.id,
-        eventType: event.type,
-      })
-      if (!claimed)
-        return NextResponse.json({ received: true, duplicate: true })
-    }
+    const claimed = await claimWebhookEvent({
+      supabase,
+      stripeEventId: event.id,
+      eventType: event.type,
+    })
+    if (!claimed)
+      return NextResponse.json({ received: true, duplicate: true })
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -165,8 +167,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true })
-  } catch (error) {
-    console.error('[Ticketing Webhook] Error processing webhook:', error)
+  } catch {
+    console.error('[Ticketing Webhook] Error processing webhook', { kind: 'internal_error' })
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
   }
 }

@@ -7,9 +7,11 @@ module.exports = {
     '^@tourify/api-contracts$': '<rootDir>/packages/api-contracts/src/index.ts',
     '^server-only$': '<rootDir>/scripts/test/server-only.ts',
   },
-  // This suite imports Vitest directly and is owned by the Vitest runner.
+  // These suites import Vitest directly and are owned by the Vitest runner.
   testPathIgnorePatterns: [
     '<rootDir>/lib/appearance/__tests__/appearance.test.ts',
+    '<rootDir>/lib/music/providers/audius/__tests__/audius-mappers.test.ts',
+    '<rootDir>/lib/music/providers/audius/__tests__/audius-errors.test.ts',
   ],
   testMatch: [
     '<rootDir>/lib/**/__tests__/**/*.test.ts',

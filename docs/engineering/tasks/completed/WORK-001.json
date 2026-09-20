@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "id": "WORK-001",
+  "title": "Audit Work workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-09T06:17:40.829Z",
+  "updated_at": "2026-09-10T20:35:45.844Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Work area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: jobs, hiring, workforce, staffing, shifts, onboarding, and work mode",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/work/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The work default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/work/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/work/BASELINE.md: what the work area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/work/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task WORK-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/work/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/work/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/work/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "npm run agents:validate passes with 0 errors",
+      "npm run agents:validate passed: 0 errors (1 pre-existing RELEASE-001 warning)"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T20:35:45.844Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "WORK-001 audit complete. BASELINE.md, GAPS.md, and QUESTIONS.md are produced; STATE.md and BACKLOG.md reflect findings; generated maps refreshed to current SHA. Gap tally: 8 missing, 9 incomplete, 6 improve. Owner questions surfaced: Q1 gated PII/check-in SQL apply and postflight sign-off; Q2 canonical hiring surface; Q3 staffing persona matrix; Q4 data-model truth table; Q5 worker API working-set boundary; Q6 publication-type contract; Q7 hiring audit-panel consumer; Q8 legacy onboarding disposition; Q9 TA-PH0 packet closure. No production code or migrations changed.",
+    "completed": [
+      "Read domain working set + named references (INDEX, CHARTER, STATE, DEVELOPMENT_WORKFLOW, PROJECT_STATE, SYSTEM_MAP, DEPENDENCY_MAP, DECISIONS, registry, DEVELOPMENT_BACKLOG)",
+      "Enumerated working set: app/work, app/jobs, app/staffing, app/api/hiring (22 routes), app/api/job-applications, components/hiring (~56), components/job-posting, components/work-mode, lib/hiring (~30), lib/work-mode, tests (32 hiring / 2 jobs / 2 work-mode)",
+      "Read key sources: work-mode-workspace, work-mode read-model/navigation, hiring states/application-transitions, sensitive-field-utils, PII migration manifest, WS-1.1 backlog section, organization-personas",
+      "Collected DB evidence: employment_assignments, job_applications, staff_* family, onboarding family, work_mode_publications, unified_staff_roster view, work RPCs (can_manage_hiring, can_view_hiring_pii, worker_shift_check_in/out, canonical_application_status, hire_venue_candidate, has_perm/is_org_member)",
+      "Produced BASELINE.md (routes, components, services, API routes, DB objects, tests, intended direction cited to DEVELOPMENT_BACKLOG WS-1.1/WS-1.7/WS-0.9, TA-PH0, migration manifests)",
+      "Produced GAPS.md (8 missing / 9 incomplete / 6 improve, each with evidence + location)",
+      "Produced QUESTIONS.md (9 prioritized owner questions with build/fix/drop stance + sequencing + follow-up task mapping)",
+      "Updated STATE.md (working; durable facts incl. staged-PII/check-in dependency and working-set boundary note) and BACKLOG.md (candidate follow-ups from gaps)",
+      "Checked .agents/ legacy ledgers: none exist for this area (glob returned 0 files) - recorded as GAPS M4",
+      "Baseline produced with real path references and intended direction citations.",
+      "Gaps triaged as missing, incomplete, or improve with evidence and locations.",
+      "Prioritized owner questions map each gap to build, fix, or drop follow-up work.",
+      "Domain state and backlog updated with durable findings.",
+      "Generated topology maps refreshed to the current source SHA.",
+      "Validation passed with 0 errors."
+    ],
+    "next_steps": [
+      "Owner answers to QUESTIONS.md become bounded follow-up task records owned by work.",
+      "Coordinate Q1 with the database agent through the gated WS-1.1 pipeline.",
+      "Resolve Q2-Q4 before consolidating hiring, roster, onboarding, and assignment surfaces."
+    ],
+    "blockers": [
+      "M1/M2 (staged PII + worker check-in SQL) depend on the WS-1.1 gated DB pipeline owned by the database agent - coordination handoff required, not a work-agent task"
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T08:08:24.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Audit deliverables complete. BASELINE.md documents area contents with real path refs; GAPS.md triages 23 items; QUESTIONS.md prioritizes 9 owner questions. No production code or migrations changed. Expansion beyond working set: app/api/work-mode/*, hooks/use-work-mode.ts, types/hiring-roster-work-mode.ts read as evidence because app/work/* and components/work-mode/* consume them (recorded as GAPS R1); app/api/admin/{workforce,staffing,onboarding,job-postings,applications} and app/api/venue/hiring listed as overlap evidence only (other agents' working sets).",
+        "next": "Owner answers -> follow-up tasks; then npm run agents:validate gate (0 errors) before any further work task completion."
+      },
+      {
+        "at": "2026-09-10T20:35:45.844Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "WORK-001 audit complete. BASELINE.md, GAPS.md, and QUESTIONS.md are produced; STATE.md and BACKLOG.md reflect findings; generated maps refreshed to current SHA. Gap tally: 8 missing, 9 incomplete, 6 improve. Owner questions surfaced: Q1 gated PII/check-in SQL apply and postflight sign-off; Q2 canonical hiring surface; Q3 staffing persona matrix; Q4 data-model truth table; Q5 worker API working-set boundary; Q6 publication-type contract; Q7 hiring audit-panel consumer; Q8 legacy onboarding disposition; Q9 TA-PH0 packet closure. No production code or migrations changed.",
+        "completed": [
+          "Baseline produced with real path references and intended direction citations.",
+          "Gaps triaged as missing, incomplete, or improve with evidence and locations.",
+          "Prioritized owner questions map each gap to build, fix, or drop follow-up work.",
+          "Domain state and backlog updated with durable findings.",
+          "Generated topology maps refreshed to the current source SHA.",
+          "Validation passed with 0 errors."
+        ],
+        "next_steps": [
+          "Owner answers to QUESTIONS.md become bounded follow-up task records owned by work.",
+          "Coordinate Q1 with the database agent through the gated WS-1.1 pipeline.",
+          "Resolve Q2-Q4 before consolidating hiring, roster, onboarding, and assignment surfaces."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

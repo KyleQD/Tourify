@@ -480,7 +480,7 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       case "shift_assignment_invite":
       case "shift_assignment_updated":
       case "shift_assignment_cancelled":
-        return "/messages?tab=work"
+        return getMetadataString(notification, "link") || "/work/overview"
       case "shift_assignment_response":
         return "/admin/dashboard/staff?tab=scheduling"
       case "booking_request":

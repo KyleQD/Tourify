@@ -53,20 +53,19 @@ describe('account-scoped author feed contracts', () => {
 
     expect(profileRoute).toContain('author_profile_id: authorProfileId')
     expect(profileRoute).toContain('owner_user_id: ownerUserId')
-    expect(profileRoute).toContain("from('organizer_accounts')")
-    expect(profileRoute).toContain('authorProfileId = artist.id')
-    expect(profileRoute).toContain('authorProfileId = venue.id')
+    expect(profileRoute).toContain('buildGeneralPublicIdentity')
+    expect(profileRoute).toContain('const accountType = publicIdentity.accountType')
     expect(artistRoute).toContain('author_profile_id: artistProfile.id')
     expect(artistRoute).toContain('owner_user_id: mainProfile.id')
   })
 
   it('adds venue profile posts using the venue account id', () => {
-    const source = read('app/venues/[slug]/page.tsx')
+    const source = read('app/venues/[slug]/venue-profile-client.tsx')
 
     expect(source).toContain('ProfilePosts')
     expect(source).toContain('profileId={venue.id}')
     expect(source).toContain('ownerUserId={venue.user_id || undefined}')
-    expect(source).toContain('<TabsTrigger value="posts">Posts</TabsTrigger>')
+    expect(source).toContain('<TabsTrigger value="posts"')
   })
 
   it('keeps organization posts styled and attributed on the public page', () => {

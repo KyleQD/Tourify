@@ -48,7 +48,10 @@ import {
   Ticket,
   Activity,
   BarChart3,
+  ChevronDown,
 } from 'lucide-react'
+import { ORGANIZATION_WORKSPACE_GROUPS, type OrganizationTabId } from '@/lib/admin/organization-workspace-tabs'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // ─── Tab definitions ────────────────────────────────────────────────────────
 
@@ -161,24 +164,91 @@ export default function OrganizationProfilePage() {
         noOrgContent
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          {/* ── Tab navigation ── */}
-          <TabsList className="flex w-full flex-wrap gap-y-1 overflow-x-auto bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30 h-auto">
-            {TABS.map((tab) => {
-              const allowed = isTabAllowed(tab)
+          {/* ── Grouped workspace navigation — replaces 16 flat tabs with 6 primary groups ── */}
+          <div className="flex items-center gap-1 overflow-x-auto px-1 py-2 border-b border-slate-700/30" role="tablist" aria-label="Organization workspace sections">
+            {ORGANIZATION_WORKSPACE_GROUPS.map((group) => {
+              const hasSecondary = group.secondary.length > 0;
+              const isGroupActive = group.primaryTab === activeTab || group.secondary.some((s) => s.id === activeTab);
+              const activeSecondary = group.secondary.find((s) => s.id === activeTab);
+              const displayLabel = activeSecondary?.label ?? group.label;
+
+              // Check if any tab in the group is allowed
+              const primaryAllowed = isTabAllowed(TABS.find(t => t.id === group.primaryTab)!)
+              const secondaryAllowed = group.secondary.some(s => {
+                const tabDef = TABS.find(t => t.id === s.id)
+                return tabDef ? isTabAllowed(tabDef) : false
+              })
+              const groupAllowed = primaryAllowed || secondaryAllowed
+
+              if (hasSecondary) {
+                return (
+                  <DropdownMenu key={group.id}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        disabled={!groupAllowed}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
+                          isGroupActive
+                            ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
+                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                        } ${!groupAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
+                        role="tab"
+                        aria-selected={isGroupActive}
+                      >
+                        <group.icon className="h-3.5 w-3.5 shrink-0" />
+                        {displayLabel}
+                        {activeSecondary && (
+                          <span className="text-xs text-slate-400 ml-1">
+                            — {activeSecondary.label}
+                          </span>
+                        )}
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="bg-slate-800 border-slate-700 min-w-[180px]">
+                      <DropdownMenuItem
+                        onClick={() => handleTabChange(group.primaryTab)}
+                        className={`text-slate-200 ${activeTab === group.primaryTab ? "bg-slate-700" : ""}`}
+                      >
+                        {group.label}
+                      </DropdownMenuItem>
+                      {group.secondary.map((secondary) => {
+                        const tabDef = TABS.find(t => t.id === secondary.id)
+                        const allowed = tabDef ? isTabAllowed(tabDef) : true
+                        return (
+                          <DropdownMenuItem
+                            key={secondary.id}
+                            disabled={!allowed}
+                            onClick={() => handleTabChange(secondary.id)}
+                            className={`text-slate-200 ${activeTab === secondary.id ? "bg-slate-700" : ""} ${!allowed ? "opacity-50" : ""}`}
+                          >
+                            {secondary.label}
+                          </DropdownMenuItem>
+                        )
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+
               return (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  disabled={!allowed}
-                  className={TRIGGER_CLASS}
-                  aria-label={tab.label}
+                <button
+                  key={group.id}
+                  disabled={!groupAllowed}
+                  onClick={() => handleTabChange(group.primaryTab)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
+                    activeTab === group.primaryTab
+                      ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  } ${!groupAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
+                  role="tab"
+                  aria-selected={activeTab === group.primaryTab}
                 >
-                  <tab.icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-                  {tab.label}
-                </TabsTrigger>
-              )
+                  <group.icon className="h-3.5 w-3.5 shrink-0" />
+                  {group.label}
+                </button>
+              );
             })}
-          </TabsList>
+          </div>
 
           {/* ── Overview ── */}
           <TabsContent value="overview" className="space-y-4">

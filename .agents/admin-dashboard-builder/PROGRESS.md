@@ -1,8 +1,8 @@
 # Admin Dashboard Builder — Progress Ledger
 
-**Current pointer:** `COMPLETE`  
-**Last updated:** 2026-08-01  
-**Session note:** Multi-account notification dropdown polish is complete. The shared dropdown now provides a compact owned-account feed with persistent viewed-state acknowledgement, responsive presentation, and focused coverage. No DB reset. No commits.
+**Current pointer:** `COMPLETE`
+**Last updated:** 2026-09-10
+**Session note:** Legacy inventory remains complete. Active bounded UX task `ADMUX-0102` hardened the Admin mobile drawer and collapsed navigation; local verification passes, while governed ADM-B13 promotion remains pending immutable/external evidence. No DB reset. No commits.
 
 Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 
@@ -28,6 +28,7 @@ Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 | `ops-events` | done | Filter-aware empty state |
 | `ops-events-create` | done | Prefill tour from tourId query |
 | `ops-events-producer-console-reorg` | done | Persistent left topic rail; readiness relocated into statuses and Review |
+| `ops-events-create-ux-reorg` | done | Remove duplicate right rail; regroup create-only event setup |
 | `ops-events-planner` | done | Forward params; draft aliases |
 | `ops-events-id` | done | Open tour when tour_id present |
 | `ops-events-hq` | done | Persist tab in URL on change |
@@ -59,6 +60,7 @@ Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 | `wf-jobs-legacy` | done | Redirect to hiring?tab=jobs |
 | `wf-jobs-new` | done | Back to Hiring Hub action |
 | `wf-jobs-id` | done | View applications action |
+| `wf-hiring-overview-v2` | done | Action center, interactive activity, job lifecycle/history, staffing needs, and approval-gated assignments |
 
 ## 4. Commerce
 
@@ -160,7 +162,7 @@ Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 |--------|-------|
 | pending | 0 |
 | in_progress | 0 |
-| done | 71 |
+| done | 73 |
 | wont-fix | 22 |
 | blocked | 0 |
-| **total** | **93** |
+| **total** | **95** |

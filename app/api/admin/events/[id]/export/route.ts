@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   assertAdminEventAccess,
 } from "@/lib/admin/admin-tour-event-access"
 import { resolveDoorsOpenTime } from '@/lib/admin/calendar/ics'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability('event.view', async (request: NextRequest, { supabase, user }) => {
   // Extract event ID from URL path
   const url = new URL(request.url)
   const segments = url.pathname.split('/')

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Mail, Phone, ShieldCheck, UserRound } from "lucide-react"
+import { CalendarPlus, ClipboardPlus, Mail, Phone, ShieldCheck, UserRound } from "lucide-react"
 
 import {
   detailSurfacePattern,
@@ -30,6 +30,7 @@ interface RosterMemberDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onAssign: (member: RosterMember) => void
+  onAssignTask?: (member: RosterMember) => void
   onUpdate?: (
     member: RosterMember,
     updates: {
@@ -60,6 +61,7 @@ export function RosterMemberDetailDrawer({
   open,
   onOpenChange,
   onAssign,
+  onAssignTask,
   onUpdate,
   onStatusChange,
 }: RosterMemberDetailDrawerProps) {
@@ -157,8 +159,11 @@ export function RosterMemberDetailDrawer({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button className={detailSurfacePattern.btnPrimary} onClick={() => onAssign(member)}>
-                Assign shift / zone
+              <Button className={detailSurfacePattern.btnPrimary} onClick={() => onAssign(member)} disabled={member.status !== "active"}>
+                <CalendarPlus className="mr-2 h-4 w-4" />Assign shift
+              </Button>
+              <Button variant="outline" className={detailSurfacePattern.btnOutline} onClick={() => onAssignTask?.(member)} disabled={member.status !== "active" || !onAssignTask}>
+                <ClipboardPlus className="mr-2 h-4 w-4" />Assign task
               </Button>
               <Button
                 variant="outline"
@@ -195,6 +200,7 @@ export function RosterMemberDetailDrawer({
                 </Button>
               ) : null}
             </div>
+            {member.status !== "active" ? <p className="text-sm text-amber-200">Shift and task assignments unlock after onboarding is approved and the roster member is active.</p> : null}
 
             {isEditing ? (
               <Card className={cn(detailSurfacePattern.panel, "border-white/10 bg-transparent shadow-none")}>

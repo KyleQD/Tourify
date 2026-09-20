@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822021738_world_shared_geography_foundation.sql",
   "taskId": "WOM-G1-A",
-  "status": "isolated_validated",
+  "status": "planned",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [

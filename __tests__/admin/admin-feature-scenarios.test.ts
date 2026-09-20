@@ -17,12 +17,22 @@ describe("REL-006 deterministic Admin feature scenarios", () => {
     expect(first.apiPayloads).toHaveLength(ADMIN_FEATURE_FIXTURE.domains.length)
   })
 
-  it("provides realistic volume, DST ambiguity, currency exponents, and protected projections", () => {
+  it("provides audit-scale collections, DST ambiguity, currency exponents, and protected projections", () => {
     const scenario = buildAdminFeatureScenario({ kind: "realistic", org: "a" })
     const events = scenario.domains.find((domain) => domain.domain === "events")
+    const tours = scenario.domains.find((domain) => domain.domain === "tours")
+    const ticketing = scenario.domains.find((domain) => domain.domain === "ticketing")
+    const finance = scenario.domains.find((domain) => domain.domain === "finance")
 
-    expect(events?.parents).toHaveLength(18)
-    expect(events?.children).toHaveLength(144)
+    expect(events?.parents.length).toBeGreaterThan(120)
+    expect(tours?.parents.length).toBeGreaterThan(120)
+    expect(ticketing?.children.length).toBeGreaterThanOrEqual(40)
+    expect(finance?.children.length).toBeGreaterThanOrEqual(200)
+    expect(scenario.communications).toHaveLength(32)
+    expect(scenario.communications.filter((conversation) => conversation.unread)).toHaveLength(9)
+    expect(scenario.uxRuntime.personas).toHaveLength(15)
+    expect(scenario.uxRuntime.failureScenarios).toHaveLength(7)
+    expect(scenario.uxRuntime.viewports.some((viewport) => viewport.zoom === 2)).toBe(true)
     expect(scenario.clock.dstFallbackBefore).not.toEqual(scenario.clock.dstFallbackAfter)
     expect(scenario.currencies).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "USD", exponent: 2 }),

@@ -1,11 +1,19 @@
 import type { MetadataRoute } from 'next'
+import { getPublicSitemapOrigin } from '@/lib/config/public-surface'
 
 export default function robots(): MetadataRoute.Robots {
-  const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live'
+  const host = getPublicSitemapOrigin()
+
+  if (!host) {
+    return {
+      rules: [{ userAgent: '*', disallow: '/' }],
+    }
+  }
+
   return {
     rules: [{ userAgent: '*', allow: '/' }],
-    sitemap: `${host}/sitemap.xml`
+    host,
+    sitemap: `${host}/sitemap.xml`,
   }
 }
-
 

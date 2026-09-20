@@ -6,12 +6,17 @@ import path from "node:path"
 export function validateToolchain(input) {
   const failures = []
   const nodeMatch = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(input.nodeVersion || "")
-  if (!nodeMatch || Number(nodeMatch[1]) !== 20) {
-    failures.push(`Node 20.x is required; received ${input.nodeVersion || "unknown"}`)
+  if (!nodeMatch || Number(nodeMatch[1]) !== 24) {
+    failures.push(`Node 24.x is required; received ${input.nodeVersion || "unknown"}`)
   }
 
-  if (!/^npm\/\d+\.\d+\.\d+\s/i.test(input.userAgent || "")) {
+  const npmMatch = /^npm\/(\d+\.\d+\.\d+)\s/i.exec(input.userAgent || "")
+  if (!npmMatch) {
     failures.push("Commands must run through npm; npm_config_user_agent is missing or not npm")
+  } else if (`npm@${npmMatch[1]}` !== input.packageManager) {
+    failures.push(
+      `npm ${input.packageManager?.replace(/^npm@/, "") || "unknown"} is required; received ${npmMatch[1]}`,
+    )
   }
 
   if (String(input.legacyPeerDeps || "").toLowerCase() === "true") {
@@ -23,11 +28,14 @@ export function validateToolchain(input) {
     failures.push(`package-lock.json lockfileVersion 3 is required; received ${input.lockfileVersion}`)
   }
 
-  if (input.packageManager !== "npm@11.5.2") {
-    failures.push(`packageManager must be npm@11.5.2; received ${input.packageManager || "missing"}`)
+  if (input.packageManager !== "npm@11.17.0") {
+    failures.push(`packageManager must be npm@11.17.0; received ${input.packageManager || "missing"}`)
   }
-  if (input.nodeEngine !== "20.x") {
-    failures.push(`engines.node must be 20.x; received ${input.nodeEngine || "missing"}`)
+  if (input.nodeEngine !== "24.x") {
+    failures.push(`engines.node must be 24.x; received ${input.nodeEngine || "missing"}`)
+  }
+  if (input.npmEngine !== "11.17.0") {
+    failures.push(`engines.npm must be 11.17.0; received ${input.npmEngine || "missing"}`)
   }
 
   return failures
@@ -47,6 +55,7 @@ function main() {
     lockfileVersion: lockfile?.lockfileVersion,
     packageManager: packageJson.packageManager,
     nodeEngine: packageJson.engines?.node,
+    npmEngine: packageJson.engines?.npm,
   })
 
   if (failures.length > 0) {

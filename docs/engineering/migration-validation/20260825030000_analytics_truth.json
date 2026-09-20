@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260825030000_analytics_truth.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "analytics"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.venue_profiles",
+      "select venue_id, count(*) from public.venue_booking_requests group by venue_id order by venue_id",
+      "select venue_id, count(*) from public.venue_manual_transactions group by venue_id order by venue_id",
+      "select min(date), max(date), count(*) from public.venue_analytics"
+    ],
+    "expectedAffectedRows": "Creates the recorded-money ledger only when absent, replaces two analytics routines, upserts at most one venue_analytics row per Venue/day with real-source activity in the trailing 30 days, and preserves traffic columns not owned by this rollup",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal; the required immediate backfill fails the transaction instead of being reduced to a warning",
+    "resumeCursor": "Supabase migration version 20260825030000",
+    "idempotency": "The ledger uses CREATE TABLE/INDEX IF NOT EXISTS; functions use CREATE OR REPLACE; the rollup upserts the existing venue/date key; the affected-row accumulator uses a separate ROW_COUNT target; the cron job is replaced by exact name when available"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "venue_manual_transactions enforces positive recorded amounts plus income/expense and completed/pending/cancelled vocabularies; RLS is enabled with direct client access denied by the absence of client policies",
+      "get_venue_dashboard_stats rejects callers without verified Venue operator access",
+      "refresh_venue_analytics_daily is executable only by service_role",
+      "rollup window is restricted to 1 through 400 days and writes one row per venue/date conflict key"
+    ],
+    "indexes": [
+      "idx_venue_manual_transactions_venue_date",
+      "idx_venue_manual_transactions_event"
+    ],
+    "validationPlan": "Fresh-chain rehearsal, operator/non-operator dashboard negatives, authenticated rollup denial, source-versus-rollup count and total parity, 30-day backfill proof, and second-run convergence"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260918213707_mfa_verification_code_store.sql",
+  "taskId": "INTG-003",
+  "status": "planned",
+  "owner": "integrations",
+  "reviewer": "database-auth-security",
+  "domains": ["integrations", "auth", "security", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated Supabase target with an auth user and deterministic MFA issue, attempt, replay, expiry, revocation, and cleanup fixtures",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm public.mfa_verification_codes does not already exist or record its schema before apply",
+      "Inspect existing function signatures named issue_mfa_verification_code, begin_mfa_verification_attempt, finish_mfa_verification_attempt, revoke_mfa_verification_code, and cleanup_expired_mfa_verification_codes",
+      "Record anon, authenticated, and service_role table/function privileges before apply"
+    ],
+    "expectedAffectedRows": "No existing rows; the migration creates an additive table, indexes, and service-only atomic functions",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply only in an isolated target when the migration history entry is absent; use a later additive forward fix after any recorded hosted apply",
+    "resumeCursor": "Supabase migration version 20260918213707",
+    "idempotency": "Table and indexes use IF NOT EXISTS; functions use CREATE OR REPLACE; ACL statements are deterministic"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No legacy verification-code rows exist because the previous implementation used process memory"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Verification codes reference auth.users with cascade deletion and accept only sms_setup or sms_login kinds",
+      "Only bcrypt cost-12 hashes are accepted and expiry must follow issuance",
+      "Consumed and revoked terminal states cannot both be set"
+    ],
+    "indexes": [
+      "Challenge/user/latest-issued lookup for verification",
+      "User/kind/latest-issued lookup for resend and issue-window limits"
+    ],
+    "validationPlan": "Run supabase/tests/intg003_mfa_verification_code_security.sql, then prove deterministic issue cooldown/window limits, user scoping, three-attempt lockout, one-time consumption, replay rejection, expiry, revocation, and cleanup retention in isolated staging"
+  },
+  "recovery": {
+    "rollback": "Disable SMS MFA issue and verification paths and retain the table for forensic/replay evidence; do not restore the process-memory fallback",
+    "forwardFix": "Correct schema, ACLs, or functions through a later reviewed additive migration and rerun the focused repository plus isolated database fixtures"
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/intg003_mfa_verification_code_security.sql",
+      "Verify pg_class.relrowsecurity is true and pg_policies has no client-access policy for public.mfa_verification_codes",
+      "Verify only service_role has table DML and function EXECUTE privileges",
+      "Exercise parallel issue and consume calls to prove advisory/row locks preserve rate limits and one-time consumption"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

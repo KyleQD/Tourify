@@ -32,7 +32,6 @@ interface AdminSurfaceMatch {
  * organizer_accounts rows, account_relationships owner rows) are NOT grants.
  */
 export async function resolveAdminSurfaceAccess(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseClient: any,
   userId: string
 ): Promise<AdminSurfaceMatch> {
@@ -45,13 +44,14 @@ export async function resolveAdminSurfaceAccess(
     ] = await Promise.all([
       supabaseClient
         .from('profiles')
-        .select('role, is_admin, admin_level')
+        .select('is_admin, admin_level')
         .eq('id', userId)
         .maybeSingle(),
       supabaseClient
         .from('org_members')
         .select('org_id, role')
         .eq('user_id', userId)
+        .eq('status', 'active')
         .in('role', ['owner', 'admin', 'tour_manager', 'production'])
         .limit(1)
         .maybeSingle(),
@@ -76,7 +76,7 @@ export async function resolveAdminSurfaceAccess(
     if (!profileError && profileIndicatesAdminAccess(profile as Parameters<typeof profileIndicatesAdminAccess>[0])) {
       return {
         hasAccess: true,
-        role: profile?.role || 'admin',
+        role: 'platform_admin',
         profileType: 'platform_admin',
         adminLevel: (profile?.admin_level as AdminUser['adminLevel']) || 'super',
       }
@@ -116,11 +116,9 @@ export async function resolveAdminSurfaceAccess(
 }
 
 /**
- * Server/middleware check: profile row OR organizer_accounts / account_relationships.
- * Aligns with checkIsAdmin() — middleware must not only inspect profiles.account_settings.
+ * Server/middleware check against the same verified grants used by API checks.
  */
 export async function userHasAdminSurfaceAccess(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseClient: any,
   userId: string
 ): Promise<boolean> {
@@ -129,8 +127,7 @@ export async function userHasAdminSurfaceAccess(
 }
 
 /**
- * Check if the current user has admin access through multi-account system or organizer data
- * This is the main function that determines admin access
+ * Check whether the current user can enter an admin surface.
  */
 export async function checkIsAdmin(): Promise<AdminUser | null> {
   try {
@@ -184,7 +181,6 @@ function createServiceAdminClient() {
 }
 
 async function resolveAdminEmail(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseAdmin: any,
   userId: string
 ): Promise<string> {

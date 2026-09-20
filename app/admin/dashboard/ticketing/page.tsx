@@ -2,7 +2,10 @@
 
 import { useCallback, useState, useEffect, useMemo } from 'react'
 import Link from "next/link"
-import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings, Tag, RotateCcw, Plus, Edit, Trash2 } from "lucide-react"
+import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings, Tag, RotateCcw, Plus, Edit, Trash2, ChevronDown } from "lucide-react"
+import { TICKETING_WORKSPACE_GROUPS, type TicketingTabId } from "@/lib/admin/ticketing-workspace-tabs"
+import { Button as UIButton } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -29,6 +32,7 @@ import { TicketingSetupPanel } from "@/components/admin/ticketing/ticketing-setu
 import { AllocationMatrixPanel } from "@/components/admin/ticketing/allocation-matrix-panel"
 import { GuestApprovalsPanel } from "@/components/admin/ticketing/guest-approvals-panel"
 import { AdmissionsDevicesPanel } from "@/components/admin/ticketing/admissions-devices-panel"
+import { EventTicketingWorkspace } from "@/components/ticketing/event-ticketing-workspace"
 
 /** API aggregates use `clicks`, `conversions`, `revenue`; UI uses ticketing types. */
 function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] {
@@ -194,14 +198,14 @@ export default function TicketingPage() {
       ])
 
       setMetrics({
-        total_tickets_sold: overviewData.metrics?.total_tickets_sold || 0,
-        revenue_generated: overviewData.metrics?.total_revenue || 0,
-        average_ticket_price: overviewData.metrics?.average_ticket_price || 0,
-        weekly_trend: overviewData.metrics?.weekly_trend || 0,
-        revenue_trend: overviewData.metrics?.revenue_trend || 0,
-        conversion_rate: overviewData.metrics?.conversion_rate || 0,
-        social_shares: overviewData.metrics?.social_shares || 0,
-        referral_revenue: overviewData.metrics?.referral_revenue || 0
+        total_tickets_sold: overviewData.metrics.total_tickets_sold,
+        revenue_generated: overviewData.metrics.total_revenue,
+        average_ticket_price: overviewData.metrics.average_ticket_price,
+        weekly_trend: overviewData.metrics.weekly_trend,
+        revenue_trend: overviewData.metrics.revenue_trend,
+        conversion_rate: overviewData.metrics.conversion_rate,
+        social_shares: overviewData.metrics.social_shares,
+        referral_revenue: overviewData.metrics.referral_revenue
       })
 
       setTicketTypes(ticketTypesResponse.ok ? (ticketTypesData.ticket_types || []) : [])
@@ -304,59 +308,110 @@ export default function TicketingPage() {
         </div>
       ) : null}
 
+      <Card className="rounded-sm border-slate-700/50 bg-slate-900/60">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">Ticketing scope</p>
+            <p className="text-xs text-slate-400">Select an event to open its unified sales, guest-list, crew, attendee, and admissions workspace.</p>
+          </div>
+          <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+            <SelectTrigger className="w-full bg-slate-800/70 sm:w-[300px]"><SelectValue placeholder="Select event" /></SelectTrigger>
+            <SelectContent className="bg-slate-900 text-white">
+              <SelectItem value="all">All events overview</SelectItem>
+              {events.map((event) => <SelectItem key={event.id} value={event.id}>{event.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {selectedEvent !== 'all' ? (
+        <EventTicketingWorkspace eventId={selectedEvent} />
+      ) : (
+        <>
+
       <TicketingReadModelPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
 
       {/* TIX-502 — Canonical inventory ledger */}
       <InventoryLedgerTable eventId={selectedEvent !== "all" ? selectedEvent : null} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm flex flex-wrap gap-0.5">
-          <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <BarChart3 className="h-4 w-4" />Overview
-          </TabsTrigger>
-          <TabsTrigger value="setup" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Settings className="h-4 w-4" />Setup
-          </TabsTrigger>
-          <TabsTrigger value="allocations" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Download className="h-4 w-4" />Allocations
-          </TabsTrigger>
-          <TabsTrigger value="guests" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <DollarSign className="h-4 w-4" />Guests
-          </TabsTrigger>
-          <TabsTrigger value="admissions" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Ticket className="h-4 w-4" />Admissions
-          </TabsTrigger>
-          <TabsTrigger value="ticket-types" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Ticket className="h-4 w-4" />Ticket Types
-          </TabsTrigger>
-          <TabsTrigger value="promo-codes" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Tag className="h-4 w-4" />Promo Codes
-          </TabsTrigger>
-          <TabsTrigger value="refunds" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <RotateCcw className="h-4 w-4" />Refunds
-          </TabsTrigger>
-          <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Target className="h-4 w-4" />Campaigns
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <TrendingUp className="h-4 w-4" />Analytics
-          </TabsTrigger>
-          <TabsTrigger value="sharing" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Share2 className="h-4 w-4" />Sharing
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Settings className="h-4 w-4" />Settings
-          </TabsTrigger>
-        </TabsList>
+        {/* Grouped workspace navigation — replaces 12 flat tabs with 5 primary groups */}
+        <div className="flex items-center gap-1 overflow-x-auto px-1 py-2 border-b border-slate-700/30" role="tablist" aria-label="Ticketing workspace sections">
+          {TICKETING_WORKSPACE_GROUPS.map((group) => {
+            const hasSecondary = group.secondary.length > 0;
+            const isGroupActive = group.primaryTab === activeTab || group.secondary.some((s) => s.id === activeTab);
+            const activeSecondary = group.secondary.find((s) => s.id === activeTab);
+            const displayLabel = activeSecondary?.label ?? group.label;
+
+            if (hasSecondary) {
+              return (
+                <DropdownMenu key={group.id}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
+                        isGroupActive
+                          ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      }`}
+                      role="tab"
+                      aria-selected={isGroupActive}
+                    >
+                      {displayLabel}
+                      {activeSecondary && (
+                        <span className="text-xs text-slate-400 ml-1">
+                          — {activeSecondary.label}
+                        </span>
+                      )}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="bg-slate-800 border-slate-700 min-w-[180px]">
+                    <DropdownMenuItem
+                      onClick={() => setActiveTab(group.primaryTab)}
+                      className={`text-slate-200 ${activeTab === group.primaryTab ? "bg-slate-700" : ""}`}
+                    >
+                      {group.label}
+                    </DropdownMenuItem>
+                    {group.secondary.map((secondary) => (
+                      <DropdownMenuItem
+                        key={secondary.id}
+                        onClick={() => setActiveTab(secondary.id)}
+                        className={`text-slate-200 ${activeTab === secondary.id ? "bg-slate-700" : ""}`}
+                      >
+                        {secondary.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <button
+                key={group.id}
+                onClick={() => setActiveTab(group.primaryTab)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
+                  activeTab === group.primaryTab
+                    ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+                role="tab"
+                aria-selected={activeTab === group.primaryTab}
+              >
+                {group.label}
+              </button>
+            );
+          })}
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Enhanced Metrics Cards — never show zero KPIs for a failed org-scoped load */}
           {!loadError && metrics ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics.total_tickets_sold || 0)} icon={Ticket} color="purple" size="lg" change={metrics.weekly_trend || undefined} trend={(metrics.weekly_trend ?? 0) > 0 ? 'up' : (metrics.weekly_trend ?? 0) < 0 ? 'down' : 'neutral'} />
-            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics.revenue_generated || 0)} icon={DollarSign} color="green" size="lg" change={metrics.revenue_trend || undefined} trend={(metrics.revenue_trend ?? 0) > 0 ? 'up' : (metrics.revenue_trend ?? 0) < 0 ? 'down' : 'neutral'} />
-            <AdminStatCard title="Conversion Rate" value={`${metrics.conversion_rate || 0}%`} icon={TrendingUp} color="blue" size="lg" />
-            <AdminStatCard title="Social Shares" value={formatNumber(metrics.social_shares || 0)} icon={Share2} color="cyan" size="lg" />
+            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics.total_tickets_sold)} icon={Ticket} color="purple" size="lg" change={metrics.weekly_trend || undefined} trend={metrics.weekly_trend > 0 ? 'up' : metrics.weekly_trend < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics.revenue_generated)} icon={DollarSign} color="green" size="lg" change={metrics.revenue_trend || undefined} trend={metrics.revenue_trend > 0 ? 'up' : metrics.revenue_trend < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Conversion Rate" value={`${metrics.conversion_rate}%`} icon={TrendingUp} color="blue" size="lg" />
+            <AdminStatCard title="Social Shares" value={formatNumber(metrics.social_shares)} icon={Share2} color="cyan" size="lg" />
           </div>
           ) : null}
 
@@ -819,6 +874,8 @@ export default function TicketingPage() {
           <AdmissionsDevicesPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   )
 }

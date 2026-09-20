@@ -16,7 +16,6 @@ export class OrgScopedMutationError extends Error {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any
 
 export interface OrgScopedMutationResult<T = Record<string, unknown>> {

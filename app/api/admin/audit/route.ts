@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { withAdminAuth } from "@/lib/auth/api-auth"
-import { createClient } from "@supabase/supabase-js"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
-function createServiceClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
-
-export const GET = withAdminAuth(async (request: NextRequest, { user }: { user: any }) => {
+export const GET = withAdminCapability('audit.view', async (request: NextRequest, { supabase, admin }) => {
   try {
-    const supabase = createServiceClient()
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100)
@@ -23,16 +13,6 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }: { user: 
     const from = searchParams.get("from")
     const to = searchParams.get("to")
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("org_id")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    if (!profile?.org_id) {
-      return NextResponse.json({ error: "No org found for user" }, { status: 403 })
-    }
-
     let query = supabase
       .from("admin_audit_log")
       .select(`
@@ -40,7 +20,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { user }: { user: 
         old_values, new_values, ip_address, user_agent, created_at,
         actor:profiles!actor_id(id, full_name, username, avatar_url)
       `, { count: "exact" })
-      .eq("org_id", profile.org_id)
+      .eq("org_id", admin.orgId)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1)
 

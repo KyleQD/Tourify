@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import test from "node:test"
 
 import { manifestRequired, scanFile, validateManifest } from "./check-migration-validation.mjs"
@@ -49,6 +50,15 @@ test("accepts an expand-only public table with RLS", () => {
   assert.deepEqual(failures, [])
 })
 
+test("does not classify an explicitly private table as public", () => {
+  const failures = scanFile(fixture, `
+    create table if not exists private.review_queue (id uuid primary key);
+    create table if not exists "private"."quoted_review_queue" (id uuid primary key);
+    revoke all on table private.review_queue from public, anon, authenticated;
+  `)
+  assert.deepEqual(failures, [])
+})
+
 test("rejects destructive SQL and database resets", () => {
   for (const sql of [
     "drop table public.rows;",
@@ -62,6 +72,34 @@ test("rejects destructive SQL and database resets", () => {
   }
 })
 
+test("distinguishes runtime routine DML from migration-time deletion", () => {
+  const routine = `
+    create or replace function public.delete_one(p_id uuid)
+    returns void language plpgsql security invoker as $$
+    begin
+      delete from public.rows where id = p_id;
+    end;
+    $$;
+  `
+  assert.deepEqual(scanFile(fixture, routine), [])
+  assert.ok(
+    scanFile(fixture, `${routine}\ndelete from public.rows where id = gen_random_uuid();`).some(
+      (failure) => failure.includes("DELETE FROM"),
+    ),
+  )
+
+  const routineBackfill = `
+    create or replace function public.reconcile_rows()
+    returns void language plpgsql as $$
+    begin
+      update public.rows set org_id = gen_random_uuid();
+      insert into public.rows (id) select id from public.old_rows;
+    end;
+    $$;
+  `
+  assert.deepEqual(scanFile(fixture, routineBackfill), [])
+})
+
 test("rejects unscoped data movement and blocking constraints", () => {
   assert.ok(scanFile(fixture, "update public.rows set org_id = gen_random_uuid();").length > 0)
   assert.ok(scanFile(fixture, "insert into public.rows (id) select id from public.old_rows;").length > 0)
@@ -72,6 +110,12 @@ test("rejects unscoped data movement and blocking constraints", () => {
     ).length > 0,
   )
   assert.ok(scanFile(fixture, "alter table public.rows alter column org_id set not null;").length > 0)
+})
+
+test("permits byte-pinned historical constraints without weakening prospective scans", () => {
+  const sql = "alter table public.rows add constraint rows_org_fk foreign key (org_id) references public.orgs(id);"
+  assert.ok(scanFile(fixture, sql).some((failure) => failure.includes("NOT VALID")))
+  assert.deepEqual(scanFile(fixture, sql, null, { immutableHistory: true }), [])
 })
 
 test("requires policy replacement on each affected table", () => {
@@ -144,4 +188,25 @@ test("free-form exception markers do not bypass the scanner", () => {
 
   const expired = { ...approved, exceptions: [{ ...approved.exceptions[0], expiresOn: "2000-01-01" }] }
   assert.ok(validateManifest(expired, fixture).some((failure) => failure.includes("expired")))
+})
+
+test("permits a sidecar-only review for immutable migration text", () => {
+  const sql = "update public.rows set normalized = true;"
+  const sourceSha256 = createHash("sha256").update(sql).digest("hex")
+  const approved = validManifest({
+    exceptions: [{
+      id: "REL102-LEGACY-001",
+      type: "unscoped-update-reviewed",
+      owner: "database-owner",
+      rationale: "All rows require deterministic normalization",
+      issue: "REL-102",
+      expiresOn: "2099-01-01",
+      evidence: "manifest:static-review",
+      sourceSha256,
+    }],
+  })
+
+  assert.deepEqual(validateManifest(approved, fixture), [])
+  assert.deepEqual(scanFile(fixture, sql, approved), [])
+  assert.ok(scanFile(fixture, `${sql}\n-- drift`, approved).length > 0)
 })

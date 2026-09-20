@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
+import { CANONICAL_SEARCH_RATE_LIMIT } from '@/lib/search/canonical-search'
+import { createRateLimiter, clientKeyFromRequest } from '@/lib/utils/rate-limit'
 
 interface EnhancedSearchResult {
   id: string
@@ -131,6 +133,10 @@ function matchesQuery(text: string, tokens: string[]): boolean {
 
 export async function GET(request: NextRequest) {
   try {
+    const rl = createRateLimiter(CANONICAL_SEARCH_RATE_LIMIT)
+    if (!(await rl.check(clientKeyFromRequest(request))).success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
 

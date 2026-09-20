@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "agent": "general-user",
+  "description": "Own authentication, onboarding, user profiles, settings, accounts, and the general dashboard.",
+  "paths": [
+    "app/auth/**",
+    "app/login/**",
+    "app/signup/**",
+    "app/onboarding/**",
+    "app/profile/**",
+    "app/settings/**",
+    "app/dashboard/**",
+    "components/auth/**",
+    "components/onboarding/**",
+    "components/profile/**",
+    "lib/auth/**",
+    "__tests__/auth/**",
+    "__tests__/onboarding/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "agent": "release",
+  "description": "Own CI, deployment, environment validation, observability, cron, and release readiness.",
+  "paths": [
+    ".github/workflows/**",
+    "vercel.json",
+    "docker/**",
+    "instrumentation.ts",
+    "sentry.*.config.ts",
+    "scripts/ci/**",
+    "scripts/deploy.sh",
+    "docs/PRODUCTION_DEPLOYMENT_GUIDE.md"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

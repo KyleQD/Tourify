@@ -19,6 +19,7 @@ type SetupType = {
   description?: string | null
   price: number
   quantity_available: number
+  quantity_sold?: number
   max_per_customer?: number | null
   category?: string
   is_complimentary?: boolean

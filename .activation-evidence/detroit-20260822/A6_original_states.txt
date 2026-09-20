@@ -1,0 +1,6 @@
+PLACE|32784f98-b28b-4efe-9b16-a62914966273|draft
+PLACE|37db9ea3-4d17-4e27-ba38-19b4cbd142e2|draft
+PLACE|4febfb31-3fb8-4221-b9ea-13d0ec039f08|draft
+ENT|95c392c0-eca3-4eb2-9ad4-2f36d976b85b|draft|needs_review
+EDGE|caa4160c-a1a5-4098-9fd8-59a65c1ea333|draft|needs_review
+CLAIM|6cd80428-3716-4dd5-a5a9-3521de3166de|draft|needs_review

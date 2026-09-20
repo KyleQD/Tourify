@@ -120,7 +120,7 @@ export function BuilderShell({
     : sections.filter((section) => section.mode === activeMode)
 
   return (
-    <div className="relative min-h-[calc(100vh-96px)] pb-28 text-slate-100">
+    <div className="relative min-h-[calc(100vh-96px)] pb-48 text-slate-100 sm:pb-28">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.14),transparent_34%),radial-gradient(circle_at_top_right,rgba(6,182,212,0.1),transparent_32%)]" />
 
       <div className="mb-5 overflow-hidden rounded-[1.75rem] border border-slate-700/60 bg-slate-950/70 p-5 shadow-2xl shadow-purple-950/20 backdrop-blur-xl sm:p-6">
@@ -181,9 +181,11 @@ export function BuilderShell({
           />
         </div>
         <main className="min-w-0 space-y-4">
-          <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-4 shadow-xl shadow-slate-950/30 backdrop-blur-xl sm:p-5">
-            {children}
-          </div>
+          {showAside ? (
+            <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-4 shadow-xl shadow-slate-950/30 backdrop-blur-xl sm:p-5">
+              {children}
+            </div>
+          ) : children}
         </main>
         {showAside ? (
           <aside className="space-y-4">
@@ -218,7 +220,7 @@ export function BuilderSectionNav({
   return (
     <nav aria-label={label} className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/65 p-2 shadow-xl shadow-slate-950/30 backdrop-blur-xl">
       <div className="mb-2 px-2 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{label}</div>
-      <div className="grid gap-1 sm:grid-cols-2 xl:block xl:space-y-1">
+      <div className="grid grid-cols-2 gap-1 xl:block xl:space-y-1">
         {sections.map((section) => {
           const Icon = section.icon
           const active = activeSection === section.id

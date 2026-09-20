@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-CI-FRESH-APPLY-GREEN",
+  "kind": "ci_run",
+  "result": "pass",
+  "environment": "ci",
+  "capturedAt": "2026-09-09T01:45:00-07:00",
+  "capturedBy": "GitHub Actions admin-rls-ci",
+  "commitSha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-CI-FRESH-APPLY-GREEN.md",
+  "sha256": "da307f5e7aa2814b9d12d6e71d9c89824896b947cd53f96b54f3fc3a51df2423",
+  "findingIds": ["ADM-M-001", "ADM-M-010", "AOA-003"],
+  "workflowIds": ["ADM-WF-017"],
+  "specTaskIds": ["SEC-005", "REL-004", "REL-007", "REL-102", "REL-103"],
+  "launchGateIds": [],
+  "notes": "Independent CI run 34315208538 of admin-rls-ci.yml passed: fresh ephemeral Supabase applied the complete active migration chain (including the previously blocking 20260821025543_unified_guest_list_admissions.sql) and the structural + live RLS matrix passed. Prepared by commits 885505af (migration reconciliations + storage-api flag), 0a9d12ce (package-lock sync), 7cf660ad (env quote stripping). Fresh-database + RLS portion of ADM-B01 exit criteria; legacy-upgrade apply and local typecheck/build remain outstanding."
+}

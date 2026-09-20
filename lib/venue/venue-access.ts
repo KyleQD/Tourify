@@ -32,6 +32,8 @@ export type VenuePermission =
   | "timekeeping_manage"
   | "hr_sensitive_view"
   | "door_check_in"
+  // VEN-269 — provider integrations authority (connect/refresh/revoke)
+  | "manage_integrations"
 
 export interface VenueAccessResult {
   allowed: boolean
@@ -76,6 +78,7 @@ const DEFAULT_OWNER_PERMISSIONS: Record<string, boolean> = {
   pay_finances: true,
   export_finances: true,
   door_check_in: true,
+  manage_integrations: true,
 }
 
 /**
@@ -138,6 +141,9 @@ function canSatisfyPermission(permissions: Record<string, boolean>, permission?:
   if (permissions[permission]) return true
   if (permission === "manage_ticketing" && permissions.manage_events) return true
   if (permission === "door_check_in" && permissions.manage_ticketing) return true
+  // VEN-269 — integrations authority follows team/document management when a
+  // delegated manager holds both; owners hold it by default.
+  if (permission === "manage_integrations" && permissions.manage_team && permissions.manage_documents) return true
   return false
 }
 

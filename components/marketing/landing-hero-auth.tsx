@@ -1,10 +1,7 @@
 "use client"
 
 import { Suspense } from "react"
-import { ExternalLink } from "lucide-react"
 import { TourifyAuthPortal } from "@/components/auth/tourify-auth-portal"
-
-const BETA_URL = "https://demo.tourify.live"
 
 function AuthPortalFallback() {
   return (
@@ -36,22 +33,12 @@ export function LandingHeroWithAuth() {
         <TourifyAuthPortal
           defaultTab="signup"
           showSecurityFooter={false}
+          shardShape={false}
+          className="rounded-2xl border-white/15 bg-slate-950/55 shadow-[0_28px_90px_-32px_rgba(0,0,0,0.75)]"
           cardTitle="Create your free account"
-          cardDescription="Discover hundreds of helpful features for artist and event management."
+          cardDescription="Start free. Choose your account type after signup."
         />
       </Suspense>
-      <p className="mt-4 text-center text-sm text-slate-400">
-        Want to look around first?{" "}
-        <a
-          href={BETA_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-medium text-purple-300 underline-offset-4 hover:text-white hover:underline"
-        >
-          Try the beta today
-          <ExternalLink className="h-3 w-3" aria-hidden />
-        </a>
-      </p>
     </div>
   )
 }

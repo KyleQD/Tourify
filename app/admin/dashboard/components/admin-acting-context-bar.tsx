@@ -29,22 +29,22 @@ export function AdminActingContextBar() {
       key={actingContextKey || "no-acting-context"}
       aria-label="Active administration context"
       aria-live="polite"
-      className="mb-4 flex min-w-0 flex-col gap-3 rounded-sm border border-slate-700/50 bg-slate-900/60 px-3 py-2.5 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+      className="mb-3 flex min-w-0 flex-wrap items-center gap-2 rounded-sm border border-slate-700/50 bg-slate-900/60 px-3 py-2 backdrop-blur-sm"
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-gradient-to-br from-purple-600/20 to-blue-600/20">
+      <div className="flex min-w-[12rem] flex-1 items-center gap-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-gradient-to-br from-purple-600/20 to-blue-600/20">
           <Building2 className="h-4 w-4 text-purple-300" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Acting organization</p>
+          <p className="sr-only">Acting organization</p>
           <p className="truncate text-sm font-semibold text-white">{label}</p>
           {!actingAccount && (
-            <p className="mt-0.5 text-xs text-slate-400">Use the account switcher in the top navigation to select an organization.</p>
+            <p className="truncate text-xs text-slate-400">Select an organization from the account switcher.</p>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
         {!isActingReady || isLoading ? (
           <Badge className="border border-amber-500/30 bg-amber-500/10 text-amber-200" aria-busy="true">
             <LockKeyhole className="mr-1 h-3 w-3" aria-hidden="true" />
@@ -60,7 +60,7 @@ export function AdminActingContextBar() {
               <ShieldCheck className="mr-1 h-3 w-3" aria-hidden="true" />
               {membershipRole || "Member"}
             </Badge>
-            <Badge className="border border-slate-600 bg-slate-800/80 text-slate-300">
+            <Badge className="hidden border border-slate-600 bg-slate-800/80 text-slate-300 sm:inline-flex">
               {capabilities?.length ?? 0} capabilities
             </Badge>
           </>

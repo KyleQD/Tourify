@@ -1,25 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { withAdminAuth, withAdminCapability } from "@/lib/auth/api-auth"
-import { resolveActingAdminContext } from "@/lib/auth/admin-context"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import { hasAdminCapability } from "@/lib/auth/admin-capabilities"
 
 /**
  * B1 — Org Display Config (settings tab).
  *
- * GET  — withAdminAuth  → returns org identity + settings (timeZone, baseCurrency)
+ * GET  — withAdminCapability("org.settings.manage") → returns org identity + settings (timeZone, baseCurrency)
  *        with canEdit: boolean computed from org.settings.manage capability.
  * PATCH — withAdminCapability("org.settings.manage") → upsert admin_org_settings with version check.
  */
 
 // ─── GET ─────────────────────────────────────────────────────────────────────
 
-export const GET = withAdminAuth(async (request: NextRequest, auth) => {
+export const GET = withAdminCapability("org.settings.manage", async (_request: NextRequest, { supabase, admin }) => {
   try {
-    const { supabase } = auth
-    const admin = await resolveActingAdminContext(request, auth)
-    if (admin instanceof NextResponse) return admin
-
     const { orgId, profileId, capabilities } = admin
     const canEdit = hasAdminCapability(capabilities, "org.settings.manage")
 

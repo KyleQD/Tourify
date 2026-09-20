@@ -8,7 +8,7 @@ import {
   startOfWeek,
   endOfWeek
 } from 'date-fns'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 function isLogisticsTasksUnavailableError(error: { code?: string; message?: string } | null): boolean {
@@ -41,7 +41,7 @@ function dueDateRangeFilter(range: string | null): { from: string; to: string } 
   return null
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, auth) => {
+export const GET = withAdminCapability('logistics.view', async (request: NextRequest, auth) => {
   const { searchParams } = new URL(request.url)
   const range = searchParams.get('range')
   const scope = await resolveAdminWorkspaceScope(request, auth)
@@ -86,7 +86,7 @@ export const GET = withAdminAuth(async (request: NextRequest, auth) => {
   return NextResponse.json({ success: true, tasks })
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, auth) => {
+export const PATCH = withAdminCapability('logistics.manage', async (request: NextRequest, auth) => {
   const scope = await resolveAdminWorkspaceScope(request, auth)
   if (scope instanceof NextResponse) return scope
   const orgId = requireOpsOrgId(scope)

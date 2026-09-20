@@ -559,7 +559,7 @@ export function GlobalSearchResults({ initialResponse }: { initialResponse: Glob
         cursor: response.nextCursor,
         limit: "20",
       })
-      const result = await fetch(`/api/search/global?${params}`, { credentials: "include", cache: "no-store" })
+      const result = await fetch(`/api/search?${params}`, { credentials: "include", cache: "no-store" })
       if (!result.ok) throw new Error("Unable to load more")
       const next = await result.json() as GlobalSearchResponse
       setResponse(current => ({ ...next, items: [...current.items, ...next.items] }))

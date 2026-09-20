@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822021740_world_music_knowledge_media_foundation.sql",
   "taskId": "WOM-G1-B",
-  "status": "isolated_validated",
+  "status": "planned",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [

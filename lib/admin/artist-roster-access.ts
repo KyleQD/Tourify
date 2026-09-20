@@ -21,7 +21,6 @@ export interface RosterScope {
 }
 
 export async function resolveOrgArtistRosterScope(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   admin: Pick<ActingAdminContext, "orgId">,
 ): Promise<RosterScope> {

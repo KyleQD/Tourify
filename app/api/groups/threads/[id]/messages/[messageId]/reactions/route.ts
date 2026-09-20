@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 const emojiSchema = z.object({
   emoji: z.string().trim().min(1).max(8),
@@ -17,7 +17,8 @@ function getIdsFromPath(request: NextRequest): { threadId: string; messageId: st
 // POST /api/groups/threads/[id]/messages/[messageId]/reactions
 // Toggles an emoji reaction on a message (add if absent, remove if present).
 export async function POST(request: NextRequest) {
-  const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+  const auth = await authenticateRequestWithBearerFallback(request)
+  const user = auth?.user
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { threadId, messageId } = getIdsFromPath(request)

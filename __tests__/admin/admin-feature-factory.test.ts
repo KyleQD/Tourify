@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   ADMIN_FEATURE_FIXTURE,
+  ADMIN_UX_FIXTURE_CONTRACT,
   actingHeadersForOrg,
   fixtureOrg,
   unpersistedFixtureDomains,
@@ -56,5 +57,30 @@ describe("SEC-004 admin feature factory", () => {
     const ids = serialized.match(/[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}/gi) || []
     expect(ids.length).toBeGreaterThan(20)
     for (const id of ids) expect(id).toMatch(uuid)
+  })
+
+  it("covers every audit runtime persona, failure family, and viewport", () => {
+    expect(ADMIN_UX_FIXTURE_CONTRACT.personas.map((persona) => persona.id)).toEqual(
+      expect.arrayContaining([
+        "org_a_owner",
+        "org_a_operations_manager",
+        "org_a_workforce_manager",
+        "org_a_finance_manager",
+        "org_a_member",
+        "org_a_worker",
+        "org_a_artist",
+        "org_b_owner",
+        "unauthenticated",
+      ]),
+    )
+    expect(ADMIN_UX_FIXTURE_CONTRACT.failureScenarios).toHaveLength(7)
+    expect(ADMIN_UX_FIXTURE_CONTRACT.viewports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ width: 320 }),
+        expect.objectContaining({ width: 375 }),
+        expect.objectContaining({ width: 768 }),
+        expect.objectContaining({ zoom: 2 }),
+      ]),
+    )
   })
 })

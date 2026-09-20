@@ -59,24 +59,16 @@ export interface EventProducerFormState {
   promoterEmail: string
   promoterPhone: string
   settlementTerms: string
-  travel: string
-  lodging: string
-  equipment: string
-  siteMap: string
-  supplyList: string
-  documents: string
   ticketPrice: string
   vipPrice: string
   /** TIX-105: incomplete | not_ticketed | explicit_setup — no silent GA/VIP inventory. */
   ticketingSetup: "incomplete" | "not_ticketed" | "explicit_setup"
   expectedRevenue: string
-  expectedExpenses: string
   comps: string
-  guestListBudget: string
+  guestListSpots: string
   daySheetNotes: string
   producerIntent: string
   templateKey: string
-  setupChecklist: Record<string, boolean>
 }
 
 export interface ScheduleExtraItem {
@@ -141,31 +133,15 @@ export const initialEventProducerForm: EventProducerFormState = {
   promoterEmail: "",
   promoterPhone: "",
   settlementTerms: "",
-  travel: "",
-  lodging: "",
-  equipment: "",
-  siteMap: "",
-  supplyList: "",
-  documents: "",
   ticketPrice: "",
   vipPrice: "",
   ticketingSetup: "incomplete",
   expectedRevenue: "",
-  expectedExpenses: "",
   comps: "",
-  guestListBudget: "",
+  guestListSpots: "0",
   daySheetNotes: "",
   producerIntent: "single_event",
   templateKey: "producer_standard",
-  setupChecklist: {
-    logistics: true,
-    site_map: true,
-    staffing: true,
-    vendors: true,
-    ticketing: true,
-    communications: true,
-    day_sheet: true,
-  },
 }
 
 export function parseList(value: string) {
@@ -237,6 +213,11 @@ function asScheduleExtras(value: unknown): ScheduleExtraItem[] {
   })).filter((item) => item.label)
 }
 
+function normalizeGuestListSpots(value: unknown): string {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 100 ? String(parsed) : "0"
+}
+
 /** Hydrate producer form state from GET /api/admin/events/[id] payload. */
 export function hydrateEventProducerForm(event: any): EventProducerFormState {
   const start = isoToDateAndTime(event?.start_at || event?.event_date)
@@ -246,7 +227,6 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
   const selectedTourIds = tours.map((tour: any) => String(tour.id)).filter(Boolean)
   const primaryTour = tours.find((tour: any) => tour.is_primary) || tours[0]
   const setup = event?.setup_context || event?.settings?.setup_context || {}
-  const checklist = event?.setup_checklist || event?.settings?.setup_checklist || initialEventProducerForm.setupChecklist
   const isQuickStartPlaceholder = settings.quick_start_placeholder === true
   const schedule = settings.schedule_details || event?.schedule_details || {}
 
@@ -308,12 +288,6 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
     promoterEmail: event?.promoter_contact?.email || "",
     promoterPhone: event?.promoter_contact?.phone || "",
     settlementTerms: event?.settlement_terms || "",
-    travel: event?.travel || "",
-    lodging: event?.lodging || "",
-    equipment: event?.equipment || "",
-    siteMap: event?.site_map || "",
-    supplyList: event?.supply_list || "",
-    documents: event?.documents || "",
     ticketPrice: event?.ticket_price != null ? String(event.ticket_price) : "",
     vipPrice: event?.vip_price != null ? String(event.vip_price) : "",
     ticketingSetup:
@@ -323,13 +297,11 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
         ? event.ticketing_setup
         : "incomplete",
     expectedRevenue: event?.expected_revenue != null ? String(event.expected_revenue) : "",
-    expectedExpenses: event?.expected_expenses != null ? String(event.expected_expenses) : "",
     comps: event?.comps || "",
-    guestListBudget: event?.guest_list_budget || "",
+    guestListSpots: normalizeGuestListSpots(event?.guest_list_spots ?? settings.guest_list_spots),
     daySheetNotes: event?.day_sheet_notes || "",
     producerIntent: event?.producer_intent || "single_event",
     templateKey: event?.template_key || "producer_standard",
-    setupChecklist: { ...initialEventProducerForm.setupChecklist, ...checklist },
   }
 }
 
@@ -385,7 +357,6 @@ export function buildEventProducerPayload(
     vip_price: numberOrUndefined(form.vipPrice),
     ticketing_setup: form.ticketingSetup,
     expected_revenue: numberOrUndefined(form.expectedRevenue),
-    expected_expenses: numberOrUndefined(form.expectedExpenses),
     artist_ids: form.selectedArtists.map((artist) => artist.id),
     staff_ids: form.selectedCrew.map((crew) => crew.id),
     vendor_ids: form.selectedVendors.map((vendor) => vendor.id),
@@ -397,19 +368,12 @@ export function buildEventProducerPayload(
     promoter_contact: form.promoterName || form.promoterEmail || form.promoterPhone
       ? { name: form.promoterName, email: form.promoterEmail, phone: form.promoterPhone }
       : null,
-    travel: form.travel,
-    lodging: form.lodging,
-    equipment: form.equipment,
-    site_map: form.siteMap,
-    supply_list: form.supplyList,
-    documents: form.documents,
     comps: form.comps,
-    guest_list_budget: form.guestListBudget,
+    guest_list_spots: numberOrUndefined(form.guestListSpots),
     day_sheet_notes: form.daySheetNotes,
     creation_source: "admin_event_producer_builder",
     producer_intent: form.producerIntent,
     template_key: form.templateKey,
-    setup_checklist: form.setupChecklist,
     setup_context: {
       artists: form.selectedArtists,
       crew: form.selectedCrew,
@@ -420,9 +384,6 @@ export function buildEventProducerPayload(
       venue_postal_code: form.venuePostalCode,
       venue_country: form.venueCountry,
       venue_website: form.venueWebsite,
-      handoff_sections: Object.entries(form.setupChecklist)
-        .filter(([, enabled]) => enabled)
-        .map(([key]) => key),
     },
     schedule_details: {
       venue_access: form.venueAccess || null,

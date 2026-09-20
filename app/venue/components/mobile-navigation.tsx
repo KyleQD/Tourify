@@ -25,7 +25,7 @@ const MobileNavigation = () => {
         <Button variant="ghost" size="icon" onClick={() => handleNavigation("/")}>
           <Home className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => handleNavigation("/documents/new")}>
+        <Button variant="ghost" size="icon" onClick={() => handleNavigation("/documents")}>
           <Plus className="h-5 w-5" />
         </Button>
         <Button variant="ghost" size="icon" onClick={() => handleNavigation("/venue/staff")}>

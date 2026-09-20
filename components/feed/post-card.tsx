@@ -169,11 +169,21 @@ export function PostCard({ post, onCommentClick, onShareClick, onDelete, enableP
   }
 
   const formatContent = (content: string) => {
+    // SECURITY: escape all HTML first so user text can never inject markup.
+    // Only the three replacement patterns below are permitted to create
+    // elements, and they operate on already-escaped text.
+    const escaped = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+
     const urlRegex = /(https?:\/\/[^\s]+)/g
     const hashtagRegex = /#(\w+)/g
     const mentionRegex = /@(\w+)/g
 
-    return content
+    return escaped
       .replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>')
       .replace(hashtagRegex, '<span class="text-blue-400 hover:text-blue-300 cursor-pointer">#$1</span>')
       .replace(mentionRegex, '<span class="text-purple-400 hover:text-purple-300 cursor-pointer">@$1</span>')

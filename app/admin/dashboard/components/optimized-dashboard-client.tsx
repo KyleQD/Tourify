@@ -73,6 +73,9 @@ import { hiringEntityFromAccount } from "@/lib/hiring/hiring-entity-from-account
 import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { WidgetsRow } from "./apple-widgets"
 import { AdminStatCard } from "./admin-stat-card"
+import { AdminDashboardMetrics } from "@/components/admin/ui/admin-dashboard-metrics"
+import { AttentionPanel } from "@/components/admin/attention/admin-attention-panel"
+import { useAdminAttention } from "@/components/admin/attention/use-admin-attention"
 import { statusBadgeClass } from "./admin-badge-utils"
 import type { AdminDashboardStats } from "@/types/admin"
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
@@ -88,6 +91,20 @@ import {
 import { AdminDomainHealthGrid } from "./admin-domain-health-grid"
 
 type DashboardStats = AdminDashboardStats
+
+function AttentionPanelWrapper() {
+  const { state, markAsRead, markAllAsRead, handleAction } = useAdminAttention()
+
+  return (
+    <AttentionPanel
+      state={state}
+      onMarkAsRead={markAsRead}
+      onMarkAllAsRead={markAllAsRead}
+      onAction={handleAction}
+      className="rounded-sm bg-slate-900/60 border-slate-700/50"
+    />
+  )
+}
 
 export default function OptimizedDashboardClient() {
   const router = useRouter()
@@ -664,13 +681,13 @@ export default function OptimizedDashboardClient() {
           )}
         </AnimatePresence>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <AdminStatCard title="Total Tours" value={statsError ? "Unavailable" : (stats?.totalTours ?? 0)} icon={Globe} color="purple" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Total Events" value={statsError ? "Unavailable" : (stats?.totalEvents ?? 0)} icon={Calendar} color="blue" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Total Revenue" value={statsError ? "Unavailable" : formatSafeCurrency(stats?.totalRevenue ?? 0)} icon={DollarSign} color="green" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Tickets Sold" value={statsError ? "Unavailable" : (stats?.ticketsSold ?? 0)} icon={Users} color="cyan" size="lg" isLoading={statsLoading} />
-        </div>
+        {/* Stats Grid — using AdminMetricStateRenderer */}
+        <AdminDashboardMetrics
+          stats={stats}
+          isLoading={statsLoading}
+          error={statsError}
+          onRetry={() => window.location.reload()}
+        />
 
         {/* Quick Integration Row — ops + workforce + messaging */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
@@ -893,7 +910,7 @@ export default function OptimizedDashboardClient() {
                           return task.dueDate.toDateString() === date.toDateString()
                         })
                         
-                        return (
+  return (
                           <div
                             key={i}
                             className={`
@@ -1129,47 +1146,8 @@ export default function OptimizedDashboardClient() {
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-6">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-white flex items-center justify-between">
-                  <span>Recent Activity</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-green-400" />
-                    <span className="text-xs text-slate-400">Live</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <VirtualList
-                  items={recentNotifications}
-                  height={400}
-                  itemHeight={60}
-                  loading={notificationsLoading}
-                  renderItem={(notification, index) => (
-                    <div className="flex items-center space-x-3 p-3 hover:bg-slate-800/60 rounded-sm transition-all duration-200">
-                      <div className={`h-8 w-8 rounded-sm flex items-center justify-center ${
-                        notification.type === 'success' ? 'bg-green-500/20' :
-                        notification.type === 'warning' ? 'bg-yellow-500/20' :
-                        notification.type === 'error' ? 'bg-red-500/20' :
-                        'bg-blue-500/20'
-                      }`}>
-                        {notification.type === 'success' ? <CheckCircle className="h-4 w-4 text-green-400" /> :
-                         notification.type === 'warning' ? <AlertCircle className="h-4 w-4 text-yellow-400" /> :
-                         notification.type === 'error' ? <AlertCircle className="h-4 w-4 text-red-400" /> :
-                         <Bell className="h-4 w-4 text-blue-400" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-white">{notification.title}</p>
-                        <p className="text-xs text-slate-400">{notification.message}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-slate-500">{notification.timestamp}</p>
-                      </div>
-                    </div>
-                  )}
-                />
-              </CardContent>
-            </Card>
+            {/* Attention Panel — replacing Notifications with prioritized attention items */}
+            <AttentionPanelWrapper />
           </TabsContent>
         </Tabs>
 

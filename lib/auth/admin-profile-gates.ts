@@ -11,8 +11,8 @@
  */
 
 export interface ProfileAdminGateInput {
-  role?: string | null
   is_admin?: boolean | null
+  admin_level?: string | null
 }
 
 export function profileIndicatesAdminAccess(
@@ -20,6 +20,8 @@ export function profileIndicatesAdminAccess(
 ): boolean {
   if (!profile) return false
   if (profile.is_admin === true) return true
-  if (profile.role === 'admin') return true
-  return false
+  const level = String(profile.admin_level || '').trim().toLowerCase()
+  if (['support', 'moderator', 'super'].includes(level)) return true
+  const numericLevel = Number(level)
+  return Number.isFinite(numericLevel) && numericLevel >= 1
 }

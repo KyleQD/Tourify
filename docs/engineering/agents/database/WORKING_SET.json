@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "agent": "database",
+  "description": "Own Supabase migrations, schema evolution, RLS, RPCs, generated types, and data integrity.",
+  "paths": [
+    "supabase/**",
+    "lib/supabase/**",
+    "lib/database.types.ts",
+    "docs/engineering/migration-validation/**",
+    "__tests__/**/*migration*",
+    "__tests__/security/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

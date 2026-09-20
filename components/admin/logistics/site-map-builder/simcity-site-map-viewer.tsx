@@ -90,7 +90,6 @@ interface SiteMap {
   gridEnabled?: boolean
   gridSize?: number
 }
-
 interface SiteMapElement {
   id: string
   type: string
@@ -646,7 +645,12 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const createElementId = useCallback(() => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-    return `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    if (typeof crypto === 'undefined') throw new Error('Secure element IDs are unavailable in this browser')
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
   }, [])
 
 
@@ -942,7 +946,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
             width: el.width ?? 60,
             height: el.height ?? 60,
             rotation: el.rotation ?? 0,
-            fill: el.color || 'rgba(147, 51, 234, 0.3)',
+            fill: el.color || '#9333ea',
             stroke: el.stroke_color || el.strokeColor || '#9333ea',
             strokeWidth: el.stroke_width || el.strokeWidth || 2,
             label: el.name || 'Element',
@@ -1758,7 +1762,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       width: aligned.width,
       height: aligned.height,
       rotation: 0,
-      fill: 'rgba(15, 23, 42, 0.7)',
+      fill: '#0f172a',
       stroke: '#94a3b8',
       strokeWidth: 1,
       label: textDraft.label.trim(),

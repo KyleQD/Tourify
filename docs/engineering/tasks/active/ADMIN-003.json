@@ -1,0 +1,638 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-003",
+  "title": "Codify one standard admin guard wrapper",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "created_at": "2026-09-09T09:35:09.553Z",
+  "updated_at": "2026-09-19T02:49:19.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Require every production admin API to use the canonical server-side guard with explicit role, tenant, and resource scope",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/api/admin/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Every production admin API is classified and uses the canonical server-side guard appropriate to its platform or organization scope",
+    "Cross-role, cross-tenant, and cross-resource denial tests cover every guard family and pass",
+    "The production exception registry contains zero undocumented or unscoped admin routes",
+    "The admin route registry, focused authorization suites, release verification, and repository typecheck pass"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npx vitest run __tests__/admin/tour-transition.test.ts __tests__/admin/admin-route-capability-matrix.test.ts __tests__/admin/admin-context.test.ts",
+      "npx eslint app/api/admin/tours/[id]/transitions/[command]/route.ts lib/admin/api-route-registry.ts",
+      "node scripts/ci/check-admin-route-registry.mjs",
+      "npx tsc --noEmit --pretty false --incremental false",
+      "npm exec vitest run __tests__/admin/admin-platform-guard.test.ts __tests__/admin/admin-route-capability-matrix.test.ts",
+      "npm exec eslint app/api/admin/marketplace/orders/route.ts app/api/admin/marketplace/orders/[id]/route.ts __tests__/admin/admin-platform-guard.test.ts",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "withAdminCapability is the organization-scope standard; withPlatformAdmin is the platform-only standard.",
+      "The tour lifecycle transition POST route now uses withAdminCapability with a command-derived capability; explicit tour resource scope is enforced by the wrapper and command-specific lifecycle authorization remains in executeTourTransition.",
+      "Focused tests passed: 3 files / 18 tests.",
+      "Changed-route ESLint passed.",
+      "Admin route registry passed: 289 route files; legacy classifications 110/110; route-method contracts exact.",
+      "Repository TypeScript validation ran for approximately 65 seconds with no diagnostics and was interrupted (exit 130); not claimed as passed.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors.",
+      "Targeted git diff --check passed.",
+      "Migrated the logistics task mutation family: PUT/DELETE /api/admin/logistics/items/[id], POST /api/admin/logistics/items/[id]/status, and PUT /api/admin/logistics/items/bulk now use withAdminCapability('logistics.manage'); executeLogisticsCommand and its existing task/tour/event access, lifecycle, idempotency, and bulk revalidation behavior are unchanged.",
+      "Focused Vitest passed: 4 files / 26 tests, including logistics route contract, logistics task access, command schemas, and admin capability matrix tests.",
+      "Focused ESLint passed for the three changed routes, the logistics route contract, and the admin capability matrix.",
+      "Admin route registry passed: 289 route files; legacy classifications 110/110; route-method contracts exact after classifying the three handlers as capability_gated.",
+      "Scoped TypeScript project completed with no diagnostics in the three changed route files; four diagnostics remain in imported pre-existing dependencies: lib/admin/tour-event-operations.service.ts:1197, 1203, 1204 (implicit-any parameters) and lib/auth/admin-context.ts:154 (OrganizationProfileRow/OrganizerAccountIdentityRow incompatibility).",
+      "Changed-path git diff --check passed.",
+      "Assigned candidate batch reviewed: workforce/people (workforce.view), tours/team-members, tours/[id]/grant-admins (tour.manage), notifications GET/PATCH (communications.send), and audit (audit.view) are already migrated; staffing/shifts, events/[id]/communications, notifications POST, staffing/zones|performance, messages/list|threads, and lodging are deferred as mixed-purpose, unscoped, or missing entity-to-org linkage.",
+      "Migrated the logistics site-map resource batch: GET /api/admin/logistics/site-maps/[id] uses logistics.view; PUT/DELETE /api/admin/logistics/site-maps/[id], GET/POST/PATCH /api/admin/logistics/site-maps/[id]/notes, and POST /api/admin/logistics/site-maps/[id]/public-link|save-template|share use logistics.manage; every getSiteMapAccess/requireSiteMapAccess access-level check, owner-only delete, can_edit_site_map RPC, can_invite_users share gate, created_by template gate, and activity/notification-logging behavior is preserved.",
+      "Focused Vitest passed: 7 files / 48 tests, including admin capability matrix, admin context, site-map route capability migration (9 migrated routes), logistics site-map route contract, site-map collection tests, and work-mode API tests.",
+      "Focused ESLint passed for the five changed routes, the admin route registry, and the site-map capability migration test.",
+      "Admin route registry passed: 289 route files; legacy classifications 103/110 (down from the prior recorded 110/110, including this batch); route-method contracts exact; publish-work-mode registry drift (code gated, registry still legacy) left as a recorded observation.",
+      "Scoped TypeScript project completed with zero diagnostics in the five changed route files; only pre-existing imported dependency diagnostics remain in lib/auth/admin-context.ts:154 and lib/services/optimized-notification-service.ts (imported via the share route).",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors.",
+      "Changed-path git diff --check passed after stripping trailing whitespace carried over from the original site-maps/[id] handler.",
+      "Migrated the logistics site-map tent resource batch: GET /api/admin/logistics/site-maps/[id]/tents uses logistics.view and POST uses logistics.manage; GET /api/admin/logistics/site-maps/[id]/tents/[tentId] uses logistics.view and PUT/DELETE use logistics.manage; every handler passes requiredOrgId: admin.orgId into getSiteMapAccess and preserves requireSiteMapAccess read/edit checks, duplicate-tent-number and zone-existence validation, and site_map_activity_log CREATE/UPDATE/DELETE recording.",
+      "Assigned-candidate review recorded: events/[id]/vendor-requests GET, events/[id]/day-sheet/distribute POST, events/[id]/work-mode GET/POST, staff-operations/summary GET, and tours/[id]/transitions/[command] POST were already canonical in code; events/[id]/communications (participant-facing GET/PATCH plus event-owner POST) and communications PATCH (mark_read/acknowledge without an org data boundary on the target message) remain deferred as mixed-purpose/unscoped; staff-operations/channels and channels/[id] stay on the manual disjunctive gate because the registry records their anyOf (communications.broadcast OR workforce.manage) policy, which the single-capability withAdminCapability wrapper cannot express without altering authorization; the batch was therefore re-sourced to the next explicit resource-scoped site-map family (tents).",
+      "Resolved the known registry drift: app/api/admin/logistics/site-maps/[id]/publish-work-mode (code already gated with site_map.edit) is now capability_gated with capability site_map.edit, and both tents routes are classified capability_gated in lib/admin/api-route-registry.ts; scripts/ci/admin-route-registry-baseline.json legacyRouteLimit lowered to the exact count so the registry is exact.",
+      "Focused Vitest passed: 9 files / 60 tests, including admin capability matrix, admin context, site-map route capability migration (15 tests, now covering the tents routes and the publish-work-mode registry sync), logistics route contract, site-map collection/scope/acting-org access, work-mode API, and site-map versions. One unrelated pre-existing failure remains in site-map-ops-upgrade.test.ts because components/venue/site-map-viewer.tsx was modified by concurrent venue-domain worktree changes (the file passes at HEAD); no assertion in that file reads a changed path of this batch.",
+      "Focused ESLint passed for the two changed routes and the admin route registry.",
+      "Admin route registry passed: 289 route files; legacy classifications 100/100 (down from the prior recorded 103/110, including this batch and the publish-work-mode drift resolution); route-method contracts exact.",
+      "Scoped TypeScript project completed with zero diagnostics in the two changed route files; the only diagnostic is the pre-recorded imported dependency incompatibility at lib/auth/admin-context.ts:154.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors.",
+      "Changed-path git diff --check passed after stripping trailing whitespace carried over from the original tents handlers.",
+      "Assigned-candidate review recorded: zones (GET/POST), zones/[zoneId] (GET/PUT/DELETE), elements (GET/POST), elements/[elementId] (GET/PUT/DELETE), activity (GET/POST), collaborators (GET/DELETE), versions (GET), and export (GET) are each already on withAdminCapability in the working tree, following the getSiteMapAccess org-boundary pattern with requiredOrgId: admin.orgId and requireSiteMapAccess read/edit gates. The zone route files were migrated by the concurrent site-map zone-security/canonical-bridge workstream (untracked lib/admin/site-map-zones.ts, __tests__/admin/site-map-zone-command.test.ts, migration validation 20260903120000_site_map_zone_security_and_canonical_bridge.json), not by ADMIN-003; that migration also carries behavior changes beyond a guard swap (dropped tents:glamping_tents(*) join and no fresh site_map_activity_log CREATE on zone writes), which are left to that lane. This batch therefore confined itself to registry classification sync and did not alter any route handler.",
+      "Classified the two zone routes capability_gated in lib/admin/api-route-registry.ts (zones GET/POST and zones/[zoneId] DELETE/GET/PUT under capability logistics.view, matching the rest of the site-map family) and lowered scripts/ci/admin-route-registry-baseline.json legacyRouteLimit to the exact count so the registry is exact.",
+      "Extended the site-map capability-migration contract test with the two zone routes and registry-sync assertions for both entries, and added the two zone routes to the capability-matrix convergence list.",
+      "Focused Vitest passed: 11 files / 96 tests across two runs (admin capability matrix, admin context, site-map route capability migration now covering the zones routes and their registry sync, logistics route contract, site-map zone/element/collaborator/activity command suites, site-map collection scope/acting-org access, and site-map versions). The one unrelated pre-existing failure remains in site-map-ops-upgrade.test.ts (venue-component worktree drift; passes at HEAD; no assertion reads a changed path of this batch).",
+      "Focused ESLint passed for the registry, both extended tests, and the two zone routes.",
+      "Admin route registry passed: 289 route files; legacy classifications 98/98 (down from the prior recorded 100/100); route-method contracts exact.",
+      "Scoped TypeScript project completed with zero diagnostics in all changed files; the only diagnostic is the pre-recorded imported dependency incompatibility at lib/auth/admin-context.ts:154.",
+      "npm run agents:validate passed: 17 agents, 94 tasks (one task added by another lane since the prior 93), 0 warnings, 0 errors.",
+      "Changed-path git diff --check passed.",
+      "Migrated the logistics site-map task/layer/measurement/issue family (8 routes, 15 handlers) onto withAdminCapability: tasks GET uses logistics.view and POST uses logistics.manage (preserving the action discriminator: ASSIGN_TASK uses requireSiteMapAccess edit, other actions use completeTask); tasks/[taskId] PATCH/DELETE use logistics.manage; layers, measurements, and issues collections GET use logistics.view and POST uses logistics.manage; layers/[id] GET uses logistics.view with PUT/PATCH/DELETE under logistics.manage (item routes resolve the site map id from the joined row); measurements/[id] GET uses logistics.view with PUT/PATCH/DELETE under logistics.manage via the shared updateMeasurement helper; issues/[id] GET uses logistics.view with PUT/PATCH/DELETE under logistics.manage. Every handler passes requiredOrgId: admin.orgId into getSiteMapAccess and preserves all requireSiteMapAccess read/edit/completeTask gates, assignment-ownership checks, event-task fan-out, collaborator upserts, notification sends, activity-log recording, and issue resolved_at status transitions.",
+      "Assigned-candidate slice review recorded: tours/team-members, tours/teams, tours/[id]/grant-admins, tours/[id]/collaboration-invites are already capability_gated with code on withAdminCapability; entity-grants is already gated org.roles.manage; the finances family is already gated finance.view/finance.manage (commands uses withOrgCommand); there is no grants/ or promotions/ family and no financial/ route. events/[id]/communications and communication-settings remain deferred (code uses withAuth as a participant/event-owner-facing surface while the registry records capability_gated event.view — a pre-existing registry/code drift on a deferred route); staffing/* remains deferred (venue-scoped hasEntityPermission with no org boundary, shifts multi-surface, mutations embed scheduling policy); app/api/admin/team-members remains deferred (GET already gated workforce.view with tour/event assertions, but PATCH is bare authenticateApiRequest and POST/DELETE use checkAdminPermissions without an org/venue boundary). Observations recorded without changes: registry records tour.manage for tours/team-members and tours/teams while the code uses workforce.view/workforce.manage; rbac/roles and rbac/roles/[id] are still registry legacy_pending_migration (capability org.roles.manage) while an earlier batch's STATE note claims migration — code verification needed before any change.",
+      "Classified the eight site-map sub-resource routes (tasks, tasks/[taskId], layers, layers/[id], measurements, measurements/[id], issues, issues/[id]) capability_gated in lib/admin/api-route-registry.ts under capability logistics.view and lowered scripts/ci/admin-route-registry-baseline.json legacyRouteLimit to the exact 90 count so the registry stays exact.",
+      "Focused Vitest passed: 3 files / 40 tests in run one (admin capability matrix, admin context, site-map route capability migration now covering the 8 task/layer/measurement/issue routes), plus 10 files / 109 tests in run two covering site-map collection/scope/element/zone/activity/collaborator/version/acting-org contract suites; all passed. The one pre-existing unrelated failure remains in site-map-ops-upgrade.test.ts (venue-component worktree drift; passes at HEAD; no assertion reads a changed path of this batch).",
+      "Focused ESLint passed for the 8 changed routes and lib/admin/api-route-registry.ts.",
+      "Admin route registry passed: 289 route files; legacy classifications 90/90 (down from the prior recorded 98/98); REL-103 route-method contracts exact and legacy debt did not grow.",
+      "Scoped TypeScript project completed with zero diagnostics in all 8 changed route files; the only surfaced diagnostics are pre-existing imported dependency issues in untouched files (lib/auth/admin-context.ts:154, lib/services/optimized-notification-service.ts), consistent with prior batches.",
+      "npm run agents:validate passed: 17 agents, 96 tasks, 0 warnings, 0 errors.",
+      "Changed-path git diff --check passed for the 8 routes, the registry, the baseline, and the extended matrix test; the two files the repo-wide check flags (app/admin/dashboard/venues/page.tsx, app/venue/staff/roles-permissions/page.tsx) are unrelated concurrent worktree changes and were left untouched.",
+      "RBAC verify outcome (PRIORITY 1): app/api/admin/rbac/roles/route.ts (GET/POST) and rbac/roles/[id]/route.ts (DELETE) are confirmed on withAdminCapability('org.roles.manage'); the same evidence holds for rbac/assign-role POST and rbac/entity/[entityType]/[entityId]/assignments + /audit GET, which all keep their has_entity_permission(..., 'MANAGE_MEMBERS') entity boundary. All five registry entries flipped from legacy_pending_migration to capability_gated (org.roles.manage). STATE.md's RBAC-migration claim is corroborated by code.",
+      "Team-routes registry reconciliation: tours/team-members and tours/teams registry entries changed from capability tour.manage to workforce.view, matching the code truth on every method (GET binds workforce.view, POST/PATCH/DELETE bind workforce.manage; validateWorkforceAssignmentParents + assertAdminTourAccess remain the tour/org boundary checks). Derived per-method capabilities are now exact for all four methods on both routes.",
+      "Additional code-corroborated registry syncs (same drift class, handler evidence verified): tasks (GET logistics.view / PATCH logistics.manage in code with requireOpsOrgId boundary) and workforce/people (workforce.view in code with admin.orgId directory bound) flipped from legacy to capability_gated with corrected capabilities; logistics/items/[id]/equipment (POST/DELETE both on withAdminCapability('logistics.manage') with withLogisticsParentOrgId parent-org stamping) flipped to capability_gated; vendor-requests POST and vendor-requests/[id] PATCH (both on withAdminCapability('vendor.manage') with assertAdminEventAccess/requireEventChildAccess) flipped to capability_gated with capability vendor.view (mutations derive vendor.manage), also fixing the recorded tour.view capability.",
+      "Migrated the final legacy site-map sub-resource handler: app/api/admin/logistics/site-maps/[id]/zones/bulk-assign POST now uses withAdminCapability('logistics.manage') with getSiteMapAccess(supabase, siteMapId, user.id, { requiredOrgId: admin.orgId }) and preserves the requireSiteMapAccess(access, 'edit') gate; bulkAssignTeamToZone keeps its .eq('site_map_id', siteMapId) zone-write scope and the event-zone/staffing-count sync (refreshEventZoneStaffingCounts) is unchanged. Registry entry flipped to capability_gated (logistics.view).",
+      "site-maps/import re-decided and DEFERRED with evidence: the handler authorizes via the has_entity_permission RPC (EDIT_EVENT_LOGISTICS / EDIT_TOUR_LOGISTICS) with no acting-org resolution; the site map it creates binds event_id to the legacy events table while the canonical getSiteMapAccess org boundary resolves org via event_v2_id/tour_id (migration 20250131000000_site_map_system.sql: event_id UUID REFERENCES events(id)) — imported resources are org-unresolvable by the wrapper model; it is also a multi-object bulk import with partial-failure continuation on zone/tent/element inserts. venue_profiles/venues family re-confirmed deferred: shared directory with no venue→org linkage; venues/[id] GET queries events_v2 cross-org by ilike venue_name and PATCH is a bare withAdminAuth unscoped mutation. No events/[eventId]/attendees/* or check-in sub-resource routes exist (glob-verified).",
+      "Focused Vitest passed: 4 files / 52 tests (admin-route-capability-matrix now covering the reconciled RBAC/workforce/tasks/vendor/bulk-assign registry entries plus derived per-method capabilities; admin-context; site-map-route-capability-migration now covering the bulk-assign handler and its registry sync; logistics-route-contract). No regressions. The one unrelated pre-existing test-level failure (site-map-ops-upgrade.test.ts reading venue-component worktree drift) is outside the changed paths and was not executed in this run.",
+      "Focused ESLint passed for the changed bulk-assign route, lib/admin/api-route-registry.ts, both extended tests, and the registry CI check script.",
+      "Admin route registry passed: 289 route files; legacy classifications 79/79 (down from the prior recorded 90/90; 11 entries flipped this batch); route-method contracts exact; legacy debt did not grow.",
+      "Scoped TypeScript project completed with zero diagnostics in all changed files; the only surfaced diagnostic is the pre-recorded imported dependency incompatibility in the untouched lib/auth/admin-context.ts:154 (OrganizationProfileRow/OrganizerAccountIdentityRow), consistent with prior batches. Repository-wide tsc was not run (resource-constrained); not claimed.",
+      "npm run agents:validate passed: 17 agents, 96 tasks, 0 warnings, 0 errors.",
+      "Changed-path git diff --check passed for the bulk-assign route, the registry, the baseline, and the two extended tests.",
+      "Exhaustive legacy-sweep review of the entire remaining legacy dataset (75/75 entries, the full legacy_pending_migration set in lib/admin/api-route-registry.ts) with routed-code evidence, completing the assigned slice: (1) events/[eventId] sub-resources — no attendance/check-in routes exist (glob-verified again); house-guest surfaces live under lodging (see deferral). (2) logistics — transport is already on withAdminCapability('logistics.view'/'logistics.manage') matching the registry; no handoffs/briefings/stage-plans routes exist; the only remaining logistics legacy entries are equipment/catalog (global catalog — GET has no org filter, POST comment 'Equipment catalog is global'), site-maps/import (established deferral), and vendor/dashboard|inventory|workflows (all vendorId-query-param scoped with no vendor→org linkage; dashboard POST has no auth at all). (3) vendor-requests — POST and [id] PATCH are fully canonical on withAdminCapability('vendor.manage') with assertAdminEventAccess/requireEventChildAccess event-org boundaries; no other handler exists in the family. (4) Every other registry-legacy admin route was classified with code evidence: venue-scoped hiring/staffing (applications GET/PATCH/POST, applications/[id] PATCH, applications/[id]/audit GET, job-postings GET/POST, job-postings/[id] GET/PATCH, staff/dashboard GET, staffing/job-postings POST and the staffing family — canReviewStaffingApplications/canManageVenueStaffing resolve to hasEntityPermission('Venue','ASSIGN_EVENT_ROLES')/canManageHiring with no org boundary); platform/global ops kill-switches (creator-* ×11, institutional, licensing, rights-admin, rights-intelligence — requireApiUser + platform assertAdmin + music feature-flag writes); marketplace platform (moderation, orders, orders/[id], payouts/[id]/retry — profile.role === 'admin' gate, global queues/ledgers); messaging participant/user surfaces (messages/list user-scoped, messages/threads unscoped service-role conversation fetch, messages/broadcast platform-wide); multi-capability anyOf gates (calendar GET/POST + calendar/export GET — CALENDAR_ENTRY_CAPABILITIES is a 5-capability disjunction that the single-capability withAdminCapability wrapper cannot express, same documented class as staff-operations/channels); mixed org-mutation + cross-org-read (travel-coordination writes assertOrgMatch/.eq org_id but GET helpers have no org_id predicate; lodging bookings/children are org-scoped via orgScopedUpdate/Delete/Child* but GET reads, create_provider/room_type/availability, and update/delete for providers/room-types/availability are unscoped, and create accepts a client-supplied org_id; rentals reads and mutations have no org_id at all); global/unscoped aggregates and helpers (analytics/top-performers, dashboard/stats mixed aggregator with user fallback and platform-wide artist/venue counts, capabilities POST introspection, error-reporting logger, test internal route, travel/flight-lookup external stateless lookup); documented deferred families confirmed unchanged (communications, notifications GET/PATCH gated but POST unscoped user-targeting, onboarding ×17, team-members GET gated but mutators bare authenticateApiRequest/checkAdminPermissions, store user-scoped seller listings, venues/venues/[id]). ZERO handlers met the withAdminCapability + ownership-check migration bar, so no routes were migrated this batch and no registry flips or baseline changes were warranted; the legacy classification is exact and drift-free (no legacy entry is secretly already gated).",
+      "Verification for the exhaustive-review batch: admin route registry CI check passed unchanged — 289 route files, legacy classifications 75/75, REL-103 route-method contracts exact, legacy debt did not grow. Focused Vitest passed: 3 files / 43 tests (admin-route-capability-matrix, admin-context, site-map-route-capability-migration). Focused ESLint passed for lib/admin/api-route-registry.ts. npm run agents:validate passed: 17 agents, 97 tasks, 0 warnings, 0 errors. Scoped TypeScript: no route/service files changed this batch, so there is no new scoped tsc work; repository-wide tsc was not run (resource-constrained) and is not claimed. Changed-path git diff --check passed for the two documentation files updated (docs/engineering/tasks/active/ADMIN-003.json, docs/engineering/agents/admin/STATE.md).",
+      "Review-only verification (2026-09-13), Observation 1 — events communications drift confirmed and recorded: lib/admin/api-route-registry.ts:570-586 records events/[id]/communication-settings (GET/PATCH) and events/[id]/communications (GET/PATCH/POST) as capability_gated with capability event.view, while the routed code uses withAuth on every handler (communications/route.ts:21 GET, :105 POST, :213 PATCH; communication-settings/route.ts:36 GET, :76 PATCH) with participant/event-owner-facing checks (event_participants membership, events_v2.created_by owner, employment_assignments worker, participant-role read/acknowledge actions, event-owner-only pin/unpin/delete/moderate and settings PATCH). Exact drift: registry says capability_gated (event.view); code is a withAuth participant-facing surface, not a withAdminCapability guard. Documented as a tracked observation on a deferred route with the recommended owner-side resolution (align the registry to the participant-facing auth class, or gate the route with capability grants for participants); left untouched per review-only mandate.",
+      "Review-only verification (2026-09-13), Observation 2 — RBAC five-entry flip re-verified against routed code: rbac/roles GET (route.ts:7) and POST (route.ts:65), rbac/roles/[id] DELETE ([id]/route.ts:9), rbac/assign-role POST (route.ts:6), rbac/entity/[entityType]/[entityId]/assignments GET (route.ts:6), and rbac/entity/[entityType]/[entityId]/audit GET (route.ts:6) all on withAdminCapability('org.roles.manage'); all five registry entries remain capability_gated with org.roles.manage (api-route-registry.ts:1599-1642). Baseline consistent: scripts/ci/admin-route-registry-baseline.json legacyRouteLimit 75; registry CI check passed (289 route files, legacy classifications 75/75, REL-103 route-method contracts exact, legacy debt did not grow).",
+      "Handshake notes recorded (docs-only; no app-code changes; no new tasks — orchestrator decides formal task/handoff creation): the five enabling preconditions traced to owning lanes in STATE.md 'Precondition handoffs' and in this task's next_steps — (1) venue→org linkage for the hiring/staffing families (venue + database lanes), (2) vendor→org linkage for logistics/vendor/* and equipment/catalog (venue/logistics owner + database), (3) an expressible calendar capability policy for the 5-capability anyOf gate (admin capability-policy owner/database), (4) org predicates on travel/lodging/rentals reads and mutation actions (database), (5) org resolution for site-maps/import (v1 events linkage) and the venues directory (database + venue).",
+      "Verification for the review-only + handshake batch: node scripts/ci/check-admin-route-registry.mjs passed — 289 route files, legacy classifications 75/75, REL-103 route-method contracts exact, legacy debt did not grow. npm run agents:validate passed — 17 agents, 97 tasks, 0 warnings, 0 errors. git diff --check passed on the two changed documentation paths (docs/engineering/agents/admin/STATE.md, docs/engineering/tasks/active/ADMIN-003.json); no app code, registry, or baseline files were changed this batch.",
+      "Handoff-resolution appendix (2026-09-13, HF-DESIGN-030-ADMIN — admin-owned decision, unrelated to the guard-migration gate): Cross-domain decision from the design-system lane on the 13 latent `--admin-*` color tokens in app/admin/globals.css. Disposition: OPTION B — RETIRE, with fresh evidence: (a) repo-wide rg (all file types, 2026-09-13) for `var(--admin-` / `rgb(var(--admin-`) shows ZERO consumers outside the defining file — only app/admin/globals.css:24,34 (both `--admin-transition-normal`, self-consumed by .admin-metric-card/.admin-btn-futuristic); all other matches are documentation mentions (TOKEN_REGISTRY.md, HF record, design-system STATE.md, DESIGN-030 task). (b) rg for `--admin-(primary|secondary|accent|success|warning|error|info)` in app/components/lib/hooks/tailwind.config.ts: definitions only at globals.css:3-7; the AdminErrorCard hits are component-file names, not token refs; tailwind.config.ts has zero `admin` aliases (rg-exit 1). (c) In-flight work scan: ADMIN-003 (guard migration), ADMUX-0102 (navigation hardening), admin STATE.md, admin BACKLOG.md, admin-dashboard-builder + admin-feature-spec-builder progress ledgers — zero `--admin-*` token mentions (rg-exit 1 each); no near-term admin surface adopts them. /dashboard carries its own `--dashboard-*` palette and the app theme defaults serve the rest. (d) The retained `--admin-transition-normal` remains exercised: .admin-btn-futuristic used at app/admin/admin-layout-client.tsx:50,64 and app/admin/utils/theme-utils.ts:133,156; .admin-metric-card at theme-utils.ts:118,154,160. Decision grounded in Design Q2 (CSS vars = runtime truth, avoid latent token debt, preserve intentional surface differences): 13 defined-but-unreferenced custom properties are latent debt with zero boundary-contract evidence — retired.",
+      "Implementation summary (Option B, executed): removed the 13 `--admin-*` color declarations from app/admin/globals.css `:root` (lines 3-7 collapsed to a single `--admin-transition-normal: 0.3s;`); recorded retirement in TOKEN_REGISTRY.md Table D (13 rows flipped dead with struck-through provenance, 1 live row retained), header amendment, §4a row annotated SUPERSEDED, §4e item 5 and §5f/§5g marked RESOLVED; resolved and moved handoff HF-DESIGN-030-ADMIN.json to docs/engineering/handoffs/completed/ (status completed with verification list).",
+      "Verification (handoff resolution): (1) rg consumer audit before/after — BEFORE: var(--admin- matches only app/admin/globals.css:24,34; AFTER: app/admin/globals.css:22,32 (same two self-consumptions, shifted by the 5 removed lines); point-in-time negative rg proves zero code references to any removed token. (2) npx eslint app/admin/globals.css — passed. (3) git diff --check on changed paths — passed. (4) npm run agents:validate — 17 agents, 97 tasks, 0 warnings, 0 errors. (5) No .ts/.tsx changed, so no new scoped tsc work (repo tsc resource-constrained, not claimed). Zero rendered delta: removed tokens had zero var()/rgb(var()) consumers; the file's scrollbar/metric/button rules use literal rgb() values untouched by this change.",
+      "OWNER DECISION executed (2026-09-13): migrated the events communications route family onto the canonical admin guard — app/api/admin/events/[id]/communications (GET route.ts:21, POST :105, PATCH :213) and app/api/admin/events/[id]/communication-settings (GET route.ts:36, PATCH :76) are now wrapped with withAdminCapability('event.view') imported from @/lib/auth/api-auth (the canonical guard source used by all sibling event routes: work-mode, export, analytics, day-sheet, tour-assignments, setup-completeness, readiness). The registry/code drift recorded as a tracked observation in prior batches (registry capability_gated event.view vs code withAuth on every handler) is now a registry/code ALIGNMENT, not a new flip: both registry entries were already capability_gated (event.view) at api-route-registry.ts:570-586 and remain byte-identical; the legacy baseline stays exact at 75/75. Only the guard wrapper was swapped — the import line (dropping the dead withAdminAuth import in communications/route.ts) and the five handler wrapper expressions; no handler body, validation schema, query, or response was changed. Pre-existing uncommitted worktree content in these handlers (GET employment_assignments worker membership query, POST assignedWorkers notification fan-out, notification URL /work/events/<id>?section=updates) was present before this batch (recorded in the 2026-09-13 review-only observation) and was preserved untouched.",
+      "Preserved authorization surface (verified handler-by-handler): GET communications keeps the event_participants Individual membership query, events_v2.created_by owner check, employment_assignments worker membership query, and the combined 403 'Not a member of this event' gate plus visible_to role filtering; POST keeps the events_v2.created_by owner check, participant role admin/manager isAdmin gate ('Only admins can create bulletins'), bulletin schema validation, and the notification fan-out to participants + assigned workers; PATCH keeps the mark_read/acknowledge participant actions (user.id push into read_by/acknowledged_by), the pin/unpin/delete/moderate event-owner-only gates (events_v2.created_by, 403 'Only event admin can...'), and the 400 'Missing bulletin id'/'Invalid action' responses. communication-settings GET keeps the event_participants membership + events_v2.created_by owner check with 403 'Not a member of this event'; PATCH keeps the events_v2.created_by owner-only gate ('Only event admin can update communication settings'), settingsSchema validation, and the settings merge behavior. No org boundary was added or removed: neither route had an admin.orgId binding before this batch and none was introduced — the access shape is preserved except for the guard wrapper, per the owner decision.",
+      "PARTICIPANT-ACCESS RISK (owner-accepted, recorded per instructions): withAdminCapability('event.view') gates these routes on the acting-organization capability resolver BEFORE the handler's membership checks run, so event_participants users / employment_assignments workers who are NOT granted an admin capability (event.view or a role that derives it) in an acting org are now locked out of the participant-facing GET/mark_read/acknowledge surface at the wrapper boundary — they never reach the event_participants/event_owner/worker membership logic. This is an accepted owner decision for this batch. RECOMMENDATION (for QA and future work): if non-admin participant access to event bulletins must remain (participant read/acknowledge flows), a participant-specific API surface or an RBAC-aware read guard (not a plain admin capability guard) is required; QA must verify this during review.",
+      "Assigned verification (all commands run, evidence recorded): (1) Focused Vitest — 5 files / 83 tests passed: __tests__/admin/admin-route-capability-matrix.test.ts (the capability matrix does not assert these two routes directly, confirmed by inspection; passes unchanged), __tests__/admin/admin-context.test.ts, __tests__/admin/comms-domain.test.ts, __tests__/admin/comms-path-inventory.test.ts, __tests__/admin/comms-sec-phase6.test.ts. No dedicated communications route suite exists in __tests__/admin (glob-verified: no communications/communication-settings/bulletin route tests), so there are no non-admin-fixture failures to record — the owner-expected failure class is therefore N/A for the focused suites executed. (2) npx eslint on the two changed routes — passed (no output). (3) node scripts/ci/check-admin-route-registry.mjs — passed: 289 route files, legacy classifications 75/75 (exact, unchanged), REL-103 route-method contracts exact, legacy debt did not grow. (4) Scoped TypeScript via the untracked local tsconfig.admin003-slice.json project — ZERO diagnostics in the two changed route files; the only surfaced diagnostic is the pre-recorded imported dependency incompatibility at lib/auth/admin-context.ts:154 (OrganizerAccountIdentityRow/OrganizationProfileRow), consistent with every prior batch. Repository-wide tsc remains resource-constrained and is NOT claimed (honest report). (5) npm run agents:validate — passed: 17 agents, 99 tasks, 0 warnings, 0 errors. (6) git diff --check on the two changed route paths — passed.",
+      "Checkpoint note: the communications family migration closes the last explicitly owner-assigned drift from the deferred set. The remaining ADMIN-003 deferrals are unchanged: staffing/*, top-level team-members mutators, venues, site-maps/import, logistics/vendor/*, equipment/catalog, calendar anyOf, travel/lodging/rentals, messaging, marketplace, platform-ops, and onboarding remain deferred with the recorded reasons ('Precondition handoffs' in STATE.md).",
+      "Marketplace order read-family verification (2026-09-18): collection and detail GET use withPlatformAdmin; focused Vitest passed 2 files / 26 tests including role-only profile denial, platform method contracts, and preservation of the detail route's dynamic id predicate; focused ESLint passed; registry CI passed at 289 routes and exact legacy 72/72; npm run agents:validate passed with 17 agents / 109 tasks / 0 warnings / 0 errors; changed-path git diff --check passed. Repository-wide typecheck was intentionally not run for this compute-bounded batch and is not claimed."
+    ],
+    "last_run_sha": "working-tree",
+    "last_run_at": "2026-09-18T21:59:39Z",
+    "result": "partial"
+  },
+  "progress": {
+    "summary": "Read-only classification of the applications family, the next three legacy entries after the deferred analytics/top-performers route. No canonical migration is safe as-is. Direct code evidence proves heterogeneous venue/employer resource scope rather than platform ownership: collection GET requires venue_id or resolves it from job_posting_id; collection reject/request_evidence, bulk PATCH, and item PATCH load each application and check its venue; approval resolves the application employer and calls assertCanManageHiring; audit GET resolves a venue/organization/artist employer before canManageHiring. Legitimate grants include direct entity ownership, can_manage_hiring, organization hiring.manage, and legacy Venue/Organizer/Artist entity permissions, and bulk requests may span venues. withPlatformAdmin would revoke valid resource managers; withAdminCapability cannot preserve direct venue/entity grants or bind multi-venue operations because no complete venue/employer-to-acting-org contract exists. No application route, registry, baseline, or test file changed. Required precondition: durable employer/venue-to-org resolution plus a policy for mapping direct entity grants and multi-venue bulk behavior to acting organizations, while retaining all per-resource checks.",
+    "completed": [
+      "Added withPlatformAdmin for global privileged operations.",
+      "Documented and exercised withAdminCapability for acting-organization capability checks.",
+      "Converted the event analytics and event export handlers to the canonical event.view wrapper.",
+      "Converted event tour-assignment handlers to canonical event.view/event.manage wrappers.",
+      "Converted event vendor-request reads to vendor.view and day-sheet distribution to event.live_ops.",
+      "Converted event advancing export to the canonical advance.manage wrapper.",
+      "Converted work-mode publication reads to event.view and writes to workforce.publish.",
+      "Converted RBAC role collection GET/POST and role DELETE to the canonical org.roles.manage wrapper; role deletion and system-role protections remain unchanged.",
+      "Converted logistics task update/delete, single status transition, and bulk status transition handlers to the canonical logistics.manage wrapper; command-service resource, lifecycle, idempotency, and bulk authorization checks remain unchanged.",
+      "Migrated the logistics site-map tent resource family: GET /api/admin/logistics/site-maps/[id]/tents uses logistics.view and POST uses logistics.manage; GET /api/admin/logistics/site-maps/[id]/tents/[tentId] uses logistics.view and PUT/DELETE use logistics.manage; requiredOrgId org boundary and all tent access checks, validation, and activity-log behavior preserved.",
+      "Resolved the publish-work-mode registry drift (capability_gated with site_map.edit) and classified the two tents routes capability_gated; lowered the baseline legacyRouteLimit to the exact 100/100 count.",
+      "Resolved the zone-family registry drift: zones and zones/[zoneId] were already on withAdminCapability in the working tree (concurrent zone-security lane), so this batch classified both entries capability_gated (logistics.view), lowered the baseline legacyRouteLimit to the exact 98/98 count, and extended the site-map capability-migration test and capability-matrix convergence list with the zone routes.",
+      "Migrated the site-map task/layer/measurement/issue family (8 routes, 15 handlers) onto withAdminCapability: collection GET routes bind logistics.view, all mutations bind logistics.manage, every handler passes requiredOrgId: admin.orgId into getSiteMapAccess, and all requireSiteMapAccess read/edit/completeTask gates, action discriminators, assignment-ownership checks, event-task fan-out, notifications, activity logging, and resolved_at transitions are preserved.",
+      "Classified the eight site-map sub-resource routes capability_gated (logistics.view) in lib/admin/api-route-registry.ts, lowered the baseline legacyRouteLimit to the exact 90/90 count, and extended the site-map capability-migration contract test and the capability-matrix convergence list with the eight routes.",
+      "Recorded the assigned-candidate slice review: tours team family and finances/entity-grants are already gated; events communications, staffing, and top-level team-members mutations remain deferred (mixed-purpose or unscoped); no grants/promotions/financial families exist.",
+      "Resolved the RBAC registry discrepancy (PRIORITY 1) with code evidence: all five rbac routes (roles GET/POST, roles/[id] DELETE, assign-role POST, entity assignments/audit GET) are on withAdminCapability('org.roles.manage'); flipped all five registry entries to capability_gated and confirmed STATE.md's RBAC-migration claim.",
+      "Reconciled the tour-team registry capabilities to code truth: tours/team-members and tours/teams now record workforce.view (GET workforce.view; POST/PATCH/DELETE derive workforce.manage), matching the routed handlers exactly.",
+      "Synced additional code-corroborated registry/code drifts to capability_gated with corrected capabilities: tasks (logistics.view), workforce/people (workforce.view), logistics/items/[id]/equipment (logistics.view base), vendor-requests POST and vendor-requests/[id] PATCH (vendor.view base → vendor.manage on mutation).",
+      "Migrated the final site-map legacy handler: zones/bulk-assign POST now uses withAdminCapability('logistics.manage') with getSiteMapAccess(..., { requiredOrgId: admin.orgId }) and preserves the requireSiteMapAccess edit gate; zone-write scope and roster/staffing sync behavior unchanged; registry entry flipped to capability_gated.",
+      "Lowered the baseline legacyRouteLimit to the exact 79/79 count (11 entries flipped this batch) and extended the capability-matrix and site-map capability-migration tests with the reconciled entries, derived per-method capabilities, and the bulk-assign handler/registry sync.",
+      "Re-confirmed deferrals with evidence: site-maps/import (has_entity_permission RPC auth, no acting-org resolution, legacy events.id binding makes created maps org-unresolvable), venues family (shared directory, no venue→org linkage, cross-org ilike on [id] GET, bare withAdminAuth PATCH), and recorded that no events/[eventId]/attendees or check-ins routes exist.",
+      "Completed the exhaustive legacy-sweep review of the entire remaining legacy dataset: all 75 registry-legacy admin routes classified against routed code (events sub-resources absent, logistics remaining family, vendor-requests canonical, and the 70 other legacy entries mapped to deferral classes), with zero handlers meeting the withAdminCapability + ownership-check migration bar this batch; registry and baseline unchanged at exact 75/75.",
+      "Migrated the events communications route family (2 routes, 5 handlers) onto withAdminCapability('event.view'): app/api/admin/events/[id]/communications (GET route.ts:21, POST :105, PATCH :213) and communication-settings (GET route.ts:36, PATCH :76); import swapped from withAuth/withAdminAuth to withAdminCapability from @/lib/auth/api-auth (dead withAdminAuth import removed). All participant/owner membership checks preserved (event_participants, events_v2.created_by, employment_assignments, mark_read/acknowledge, pin/unpin/delete/moderate, settings owner gate). Registry already capability_gated event.view — alignment only, baseline exact 75/75.",
+      "Migrated Marketplace moderation GET/PATCH from a role-string profile gate to withPlatformAdmin; preserved query validation, the PATCH queue-item id predicate, and assigned_admin_id attribution. Classified the route platform_admin, lowered the exact legacy baseline to 74/74, and added platform-role denial plus registry/method-contract coverage.",
+      "Migrated the platform-global Marketplace order collection/detail GET family to withPlatformAdmin. Preserved list filtering/pagination and the detail route's awaited dynamic id, .eq('id', id) resource predicate, joins, and 404 behavior; classified both registry entries platform_admin and lowered the exact legacy baseline to 72/72."
+    ],
+    "next_steps": [
+      "Keep ADMIN-003 active. Resolve the applications venue/employer-to-org precondition before migration, then continue registry order without revisiting analytics/top-performers. Hosted denial and release verification remain outstanding."
+    ],
+    "blockers": [
+      "No hosted cross-role/cross-tenant evidence; repository-wide typecheck/release verification remains outstanding; 72 legacy routes remain deferred or await explicit platform classification under the recorded preconditions."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T20:02:49Z",
+        "summary": "Focused auth tests, lint, and full TypeScript check passed.",
+        "next": "Continue route migration in a dedicated task."
+      },
+      {
+        "at": "2026-09-10T08:25:00.000Z",
+        "summary": "Completed the first bounded legacy-route migration batch: event analytics and event export now use event.view and retain explicit event ownership checks. ESLint and admin capability/auth tests pass (13/13).",
+        "next": "Continue route migration in small capability-reviewed batches."
+      },
+      {
+        "at": "2026-09-10T08:27:00.000Z",
+        "summary": "Completed a second bounded batch: event tour-assignment GET uses event.view and mutations use event.manage. ESLint and focused event/capability tests pass (20/20).",
+        "next": "Continue route migration in small capability-reviewed batches."
+      },
+      {
+        "at": "2026-09-10T08:29:00.000Z",
+        "summary": "Completed a third bounded batch: event vendor-request GET uses vendor.view and day-sheet distribution POST uses event.live_ops. ESLint and focused admin/event/logistics tests pass (23/23).",
+        "next": "Review remaining event routes with mixed participant or publication semantics before continuing."
+      },
+      {
+        "at": "2026-09-10T09:05:00.000Z",
+        "summary": "Migrated the bounded RBAC role-management batch: role collection GET/POST and role DELETE now use withAdminCapability('org.roles.manage'); role deletion and system-role protections are unchanged.",
+        "next": "Run focused RBAC/admin capability tests, lint the changed routes, then validate the control plane before selecting another non-overlapping batch."
+      },
+      {
+        "at": "2026-09-10T09:40:00.000Z",
+        "summary": "Bounded work completed. Changed paths: app/api/admin/rbac/roles/route.ts and app/api/admin/rbac/roles/[id]/route.ts migrated from withAdminAuth to withAdminCapability('org.roles.manage'), preserving role deletion and system-role checks; docs/engineering/tasks/active/ADMIN-003.json updated with this evidence.",
+        "next": "Keep ADMIN-003 active. Re-run or complete the TypeScript check, then select another non-overlapping legacy guard batch only after reviewing its capability and resource scope.",
+        "verification": [
+          "npx vitest run __tests__/admin/admin-route-capability-matrix.test.ts __tests__/admin/admin-context.test.ts __tests__/auth/admin-surface-access.test.ts — passed, 3 files / 20 tests.",
+          "npx eslint app/api/admin/rbac/roles/route.ts app/api/admin/rbac/roles/[id]/route.ts — passed.",
+          "npx tsc --noEmit --pretty false --incremental false — still running with no output at checkpoint; not claimed as passed.",
+          "npm run agents:validate — passed, 17 agents / 69 tasks / 0 errors; one unrelated RELEASE-001 warning.",
+          "git diff --check on the three changed paths — passed."
+        ],
+        "blockers": [
+          "TypeScript verification had not completed after extended wait; result is unknown and must be resolved before handoff."
+        ]
+      },
+      {
+        "at": "2026-09-11T18:38:08.132Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the next explicit-scope logistics task mutation batch: PUT/DELETE /api/admin/logistics/items/[id], POST /api/admin/logistics/items/[id]/status, and PUT /api/admin/logistics/items/bulk now use withAdminCapability('logistics.manage'). Existing logistics command-service authorization preserves organization/tour/event ownership, collaborator access, lifecycle transitions, idempotent same-status behavior, and bulk target revalidation; no mixed-purpose routes were changed.",
+        "completed": [
+          "Converted logistics task update/delete, single status transition, and bulk status transition handlers to the canonical logistics.manage wrapper; command-service resource, lifecycle, idempotency, and bulk authorization checks remain unchanged.",
+          "Converted the logistics site-map resource family to the canonical wrapper: site-maps/[id] GET reads under logistics.view and PUT/DELETE under logistics.manage; notes GET under logistics.view and POST/PATCH under logistics.manage; public-link, save-template, and share POST under logistics.manage; all five preserve getSiteMapAccess with the requiredOrgId org boundary and their existing owner, collaborator, RPC, template, and logging behavior."
+        ],
+        "next_steps": [
+          "Continue ADMIN-003 only with another explicitly organization/resource-scoped handler batch; leave mixed-purpose, global, onboarding, and unscoped routes deferred."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved because the global compiler was silent for approximately two minutes and was interrupted; the scoped project has only four imported dependency diagnostics recorded in the verification evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:02:55.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the assigned-batch candidates: five of seven are already migrated and two (staffing/shifts, events/[id]/communications) are mixed-purpose and deferred, so the batch was re-sourced to the next explicit resource-scoped legacy family. Since the prior checkpoint, five site-map handlers now use withAdminCapability: site-maps/[id] GET under logistics.view and PUT/DELETE under logistics.manage; notes GET under logistics.view and POST/PATCH under logistics.manage; public-link, save-template, and share POST under logistics.manage. All preserve getSiteMapAccess with requiredOrgId org linkage, their access-level checks, owner-only delete, can_edit_site_map RPC, created_by template gate, can_invite_users share gate, and logging behavior.",
+        "completed": [
+          "Migrated five logistics site-map resource handlers; registry flips them to capability_gated (legacy 103/110); added an additive capability-migration contract test for the five routes.",
+          "Verification: focused Vitest 7 files / 48 tests passed; ESLint on all five routes + registry + test passed; registry CI check passed with exact contracts; scoped tsc showed zero diagnostics in the changed files (only pre-existing imported dependency diagnostics remain); agents:validate passed (17 agents / 93 tasks / 0 errors); git diff --check passed.",
+          "Recorded publish-work-mode registry drift (code already gated with site_map.edit, registry still legacy_pending_migration) as a pre-existing observation, unchanged."
+        ],
+        "next_steps": [
+          "Continue ADMIN-003 only with another explicitly organization/resource-scoped handler batch; zone/perf and staffing venue-RBAC routes remain candidate families once entity-to-org linkage is added; leave mixed-purpose, global, onboarding, and unscoped routes deferred."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved (global compiler interrupted after ~2 minutes of silence); scoped check covered the five changed files only. Pre-existing imported dependency diagnostics at lib/auth/admin-context.ts:154 and lib/services/optimized-notification-service.ts are unrelated to this batch."
+        ]
+      },
+      {
+        "at": "2026-09-11T21:10:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the logistics site-map tent resource family (5 handlers, 2 routes) onto withAdminCapability: site-maps/[id]/tents GET uses logistics.view and POST uses logistics.manage; tents/[tentId] GET uses logistics.view with PUT/DELETE under logistics.manage. Every handler keeps requiredOrgId: admin.orgId on getSiteMapAccess plus requireSiteMapAccess read/edit gates, duplicate-tent-number and zone-existence validation, and site_map_activity_log recording. Resolved the publish-work-mode registry drift by classifying it capability_gated with site_map.edit, classified both tents routes capability_gated, and lowered the baseline legacyRouteLimit to the exact count (legacy 100/100).",
+        "completed": [
+          "Migrated the tents resource family onto withAdminCapability and flipped the two tents registry entries to capability_gated.",
+          "Resolved the publish-work-mode registry drift and set scripts/ci/admin-route-registry-baseline.json to the exact 100/100 legacy count.",
+          "Extended the site-map capability-migration contract test with the tents routes and a publish-work-mode registry-sync assertion; extended the capability-matrix convergence list with the tents routes and publish-work-mode.",
+          "Verification: focused Vitest 9 files / 60 tests passed (one pre-existing unrelated failure in site-map-ops-upgrade.test.ts from concurrent venue-component worktree drift, present at HEAD); ESLint on both routes + registry passed; registry CI check passed with exact contracts (100/100); scoped tsc zero diagnostics in changed files with only the pre-recorded lib/auth/admin-context.ts:154 dependency diagnostic; agents:validate passed (17 agents / 93 tasks / 0 errors); git diff --check passed."
+        ],
+        "next_steps": [
+          "Continue ADMIN-003 with another explicit resource-scoped batch; the remaining site-map sub-resource families (tasks, zones, layers, measurements, issues) use the same getSiteMapAccess org-boundary pattern and are the next natural candidates; staff-operations channels stay on the manual anyOf gate; leave mixed-purpose, global, onboarding, and unscoped routes deferred."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved (global compiler interrupted after ~2 minutes of silence); the scoped project for this batch reported zero diagnostics in the changed files with only the pre-recorded lib/auth/admin-context.ts:154 dependency diagnostic.",
+          "site-map-ops-upgrade.test.ts: one pre-existing unrelated failure from concurrent venue-domain worktree changes to components/venue/site-map-viewer.tsx (passes at HEAD; outside this batch's changed paths)."
+        ]
+      },
+      {
+        "at": "2026-09-11T21:10:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Reviewed the assigned site-map sub-resource slice (zones, zones/[zoneId], elements, elements/[elementId], activity, collaborators, versions, export): every candidate is already on withAdminCapability with requiredOrgId: admin.orgId and requireSiteMapAccess read/edit gates, so no handler changes were needed. The zone routes' code migration came from the concurrent site-map zone-security/canonical-bridge workstream (untracked lib/admin/site-map-zones.ts and site-map-zone-command.test.ts), which also carries behavior changes beyond the guard swap (dropped tents join; no fresh zone activity-log CREATE) that belong to that lane. This batch performed the ADMIN-003 registry classification sync: zones and zones/[zoneId] flipped to capability_gated (logistics.view), baseline legacyRouteLimit lowered to the exact 98/98 count, the site-map capability-migration contract test extended with the zone routes plus registry-sync assertions, and the capability-matrix convergence list extended with the two zone routes.",
+        "completed": [
+          "Classified both zone routes capability_gated in lib/admin/api-route-registry.ts (zones GET/POST and zones/[zoneId] DELETE/GET/PUT under capability logistics.view) and lowered scripts/ci/admin-route-registry-baseline.json to the exact 98/98 legacy count so the registry is exact.",
+          "Extended the site-map capability-migration contract test with the zones routes and registry-sync assertions, and added the two zone routes to the capability-matrix convergence list.",
+          "Verification: focused Vitest 11 files / 96 tests passed (two runs; one unrelated pre-existing failure in site-map-ops-upgrade.test.ts from venue-component worktree drift, present at HEAD); ESLint on the registry, both extended tests, and both zone routes passed; registry CI check passed with exact contracts (98/98); scoped tsc zero diagnostics in changed files with only the pre-recorded lib/auth/admin-context.ts:154 dependency diagnostic; agents:validate passed (17 agents / 94 tasks / 0 errors); git diff --check passed.",
+          "Recorded that the zone handler behavior changes beyond the guard swap (dropped tents:glamping_tents(*) join, no fresh site_map_activity_log CREATE on zone writes, event_v2_id bridge signature) originate from the concurrent zone-security/canonical-bridge workstream and were left untouched."
+        ],
+        "next_steps": [
+          "Continue ADMIN-003 with the remaining explicit site-map sub-resource legacy families: tasks (GET/POST + tasks/[taskId] PATCH/DELETE), layers, measurements, issues, and site-maps/import remain legacy_pending_migration and follow the same getSiteMapAccess org-boundary pattern once their code is gated; zones/bulk-assign is a distinct bulk command handler and stays deferred with the mixed-purpose/unscoped set; staff-operations channels remain on the manual anyOf gate; leave mixed-purpose, global, onboarding, and unscoped routes deferred."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved (global compiler interrupted after ~2 minutes of silence in earlier batches); the scoped project for this batch reported zero diagnostics in the changed files with only the pre-recorded lib/auth/admin-context.ts:154 dependency diagnostic.",
+          "site-map-ops-upgrade.test.ts: one pre-existing unrelated failure from concurrent venue-domain worktree changes to components/venue/site-map-viewer.tsx (passes at HEAD; outside this batch's changed paths).",
+          "The concurrent site-map zone-security/canonical-bridge workstream migrated the zone routes in the working tree with behavior changes beyond a guard swap (dropped tents join; no fresh zone activity-log CREATE); those changes are owned by that lane and were not altered here, but they must be reviewed by the owning lane before handoff."
+        ]
+      },
+      {
+        "at": "2026-09-11T22:20:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the final explicit site-map sub-resource legacy families (tasks, layers, measurements, issues; 8 routes, 15 handlers) onto withAdminCapability: collection GET handlers bind logistics.view, all mutation handlers bind logistics.manage; every handler passes requiredOrgId: admin.orgId into getSiteMapAccess with the preserved requireSiteMapAccess gates (read/edit/completeTask) and task-action discriminator (ASSIGN_TASK edit, others completeTask), assignment-ownership checks, event-task fan-out, collaborator upserts, notification sends, activity-log recording, and issue resolved_at status transitions. Classified all 8 registry entries capability_gated (logistics.view) and lowered the baseline legacyRouteLimit to the exact 90/90 count. Recorded the assigned-candidate slice review (tours team/events communications/grants-promotions/staffing/financial): all candidates already gated in code or deferred as mixed-purpose/unscoped; observations logged for rbac/roles registry-vs-STATE drift, tours team capability mismatch, and events communications registry/code drift.",
+        "completed": [
+          "Migrated 8 route files (tasks, tasks/[taskId], layers, layers/[id], measurements, measurements/[id], issues, issues/[id]) from createClient/supabase.auth.getUser() to withAdminCapability with getSiteMapAccess(..., { requiredOrgId: admin.orgId }).",
+          "Flipped the 8 registry entries to capability_gated (logistics.view; idempotency/audit false, owner ops-logistics) and set scripts/ci/admin-route-registry-baseline.json legacyRouteLimit to 90 so the registry stays exact.",
+          "Extended the site-map capability-migration contract test (taskLayerMeasurementIssueRoutes) and the capability-matrix convergence list with the 8 routes.",
+          "Verification: focused Vitest 3 files / 40 tests (matrix, admin context, site-map migration) plus site-map contract suites 10 files / 109 tests passed; ESLint on the 8 routes + registry passed; registry CI check passed (289 files, legacy 90/90, contracts exact); scoped tsc zero diagnostics in the changed files (only pre-recorded imported dependency diagnostics at lib/auth/admin-context.ts:154 and lib/services/optimized-notification-service.ts); agents:validate passed (17 agents / 96 tasks / 0 errors); changed-path git diff --check passed.",
+          "Recorded the assigned-candidate slice review with deferral reasons and the three registry/code observations (rbac/roles, tours team capabilities, events communications drift) without changing them."
+        ],
+        "next_steps": [
+          "Remaining deferred site-map routes are zones/bulk-assign (distinct bulk command) and site-maps/import (bulk import); continue ADMIN-003 with other explicit organization/resource-scoped legacy families next (e.g., events/[id]/communication-settings after separating the participant-facing withAuth surface; staffing/* after entity-to-org linkage; re-verify rbac/roles registry entries against the routed code). Leave mixed-purpose, global, onboarding, and unscoped routes deferred."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved (global compiler interrupted after ~2 minutes of silence in earlier batches); the scoped project for this batch reported zero diagnostics in the changed files with only the pre-recorded imported dependency diagnostics.",
+          "site-map-ops-upgrade.test.ts: one pre-existing unrelated failure from concurrent venue-domain worktree changes to components/venue/site-map-viewer.tsx (passes at HEAD; outside this batch's changed paths).",
+          "Follow-up observations for the domain: rbac/roles registry-vs-STATE drift, tours/team-members and tours/teams registry tour.manage vs code workforce capabilities, and events communications registry capability_gated vs code withAuth must be verified/changed by the owning lane before claiming those families migrated."
+        ]
+      },
+      {
+        "at": "2026-09-11T22:50:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "PRIORITY 1 RBAC verify completed and all discrepancies resolved with code evidence. (1) rbac/roles (GET/POST), rbac/roles/[id] (DELETE), plus rbac/assign-role and the entity assignments/audit GETs are all on withAdminCapability('org.roles.manage') with has_entity_permission(..., 'MANAGE_MEMBERS') boundaries preserved; all five registry entries flipped legacy → capability_gated, corroborating STATE.md's RBAC claim. (2) tours/team-members and tours/teams registry capability reconciled tour.manage → workforce.view, so derived per-method capabilities match code on all methods (GET workforce.view; POST/PATCH/DELETE workforce.manage). (3) Same-class drifts synced with handler evidence: tasks (logistics.view/manage), workforce/people (workforce.view), logistics/items/[id]/equipment (logistics.manage), vendor-requests POST + vendor-requests/[id] PATCH (vendor.manage). Migrated the last legacy site-map handler: zones/bulk-assign POST → withAdminCapability('logistics.manage') with getSiteMapAccess requiredOrgId and preserved edit gate. Deferred with evidence: site-maps/import (has_entity_permission RPC auth, creates org-unresolvable maps bound to legacy events.id) and venues family (shared directory, no venue→org linkage; [id] GET cross-org ilike; [id] PATCH bare withAdminAuth); verified no events/[eventId]/attendees or check-ins routes exist. Baseline lowered to exact 79/79.",
+        "completed": [
+          "Flipped the five rbac registry entries to capability_gated (org.roles.manage) and re-verified the routed code; STATE's RBAC-migration claim now corroborated.",
+          "Reconciled tours/team-members and tours/teams registry capability to workforce.view (code truth on all four methods).",
+          "Synced tasks, workforce/people, logistics/items/[id]/equipment, vendor-requests, and vendor-requests/[id] registry entries to capability_gated with code-exact capabilities.",
+          "Migrated zones/bulk-assign POST onto withAdminCapability('logistics.manage') with the getSiteMapAccess org boundary (requiredOrgId: admin.orgId) and preserved requireSiteMapAccess(access, 'edit') plus unchanged bulkAssignTeamToZone zone-write scope and roster/staffing sync.",
+          "Lowered scripts/ci/admin-route-registry-baseline.json legacyRouteLimit to 79 (11 flips) so the registry stays exact, and extended the capability-matrix and site-map capability-migration tests.",
+          "Verification: focused Vitest 4 files / 52 tests passed; ESLint on the changed route + registry + tests passed; registry CI check passed (289 files, legacy 79/79, contracts exact); scoped tsc zero diagnostics in changed files (only pre-recorded lib/auth/admin-context.ts:154 dependency diagnostic); agents:validate passed (17 agents / 96 tasks / 0 errors); changed-path git diff --check passed."
+        ],
+        "next_steps": [
+          "Continue ADMIN-003 with the next explicit organization/resource-scoped legacy family (e.g., logistics/vendor/*, applications, job-postings, calendar, store) after verifying each handler's org boundary; keep site-maps/import, venues, staffing, communications-with-mixed-actions, onboarding, and global/unscoped routes deferred with recorded reasons."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved (global compiler interrupted/silent in earlier batches); the scoped project for this batch reported zero diagnostics in the changed files with only the pre-recorded imported dependency diagnostics.",
+          "site-map-ops-upgrade.test.ts: one pre-existing unrelated failure from concurrent venue-domain worktree changes to components/venue/site-map-viewer.tsx (passes at HEAD; outside this batch's changed paths).",
+          "Remaining registry/code observations for later batches (unchanged): events/[id]/communications and communication-settings (registry capability_gated event.view vs code withAuth on a deferred route), staffing/* (venue-scoped hasEntityPermission, no org boundary), top-level team-members mutators (bare auth), venues index (manual authenticateApiRequest + hasAdminCapability idiom while [id] routes are unscoped)."
+        ]
+      },
+      {
+        "at": "2026-09-13T18:05:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the exhaustive legacy-sweep review assigned by the prior checkpoint. All 75 remaining registry-legacy admin routes were verified against routed code. Assigned-slice findings: (1) events/[eventId] sub-resources — no attendance/check-in/house-guest routes exist in the tree (glob-verified); house-guest surfaces live under lodging (deferred). (2) logistics remaining — transport already on withAdminCapability('logistics.view'/'logistics.manage') matching the registry; no handoffs/briefings/stage-plans routes exist; the three remaining logistics legacy entries are equipment/catalog (global catalog, GET has no org filter, POST comment 'Equipment catalog is global'), site-maps/import (established deferral), and vendor/dashboard|inventory|workflows (vendorId-query-param scoped with no vendor→org linkage; dashboard POST has no handler auth). (3) vendor-requests — POST and [id] PATCH fully canonical on withAdminCapability('vendor.manage') with assertAdminEventAccess/requireEventChildAccess; no other handlers. (4) Every other legacy entry classified with code evidence: venue-scoped hiring/staffing (applications ×3 + [id] PATCH + [id]/audit + job-postings ×2 + [id] GET/PATCH + staff/dashboard + staffing family — canReviewStaffingApplications/canManageVenueStaffing = hasEntityPermission('Venue','ASSIGN_EVENT_ROLES')/canManageHiring, no org boundary); platform/global ops kill-switch (creator-* ×11, institutional, licensing, rights-admin, rights-intelligence — requireApiUser + platform assertAdmin + music feature-flag writes); marketplace platform (moderation, orders, orders/[id], payouts/[id]/retry — profile.role='admin' gate, global queues); messaging participant/user surfaces (messages/list user-scoped, messages/threads unscoped service-role, messages/broadcast platform); multi-capability anyOf (calendar GET/POST + calendar/export — CALENDAR_ENTRY_CAPABILITIES 5-disjunction, wrapper cannot express); mixed org-mutation + cross-org-read (travel-coordination writes org-scoped reads unscoped; lodging reads/provider-mutations/room-type-availability unscoped + create accepts client org_id; rentals fully unscoped); global aggregates (analytics/top-performers, dashboard/stats, capabilities POST, error-reporting, test, travel/flight-lookup); documented deferred (communications, notifications POST, onboarding ×17, team-members, store, venues). Zero handlers met migration bar → no routes migrated, no registry flips, baseline unchanged at exact 75/75.",
+        "completed": [
+          "Exhaustive review mapping every one of the 75 legacy entries to its deferral class with routed-code evidence: events sub-resources absent (no attendance/check-in/house-guest routes), logistics remaining classified (transport canonical, equipment/catalog global, vendor/* vendorId-scoped, import established deferral), vendor-requests fully canonical, and the remaining 70 legacy entries each verified and classified (venue-scoped hiring/staffing, platform ops, marketplace, messaging, calendar anyOf gate, travel/lodging/rentals mixed org+unscoped, global aggregates/helpers, documented deferred families).",
+          "Verification: focused Vitest 3 files / 43 tests passed (admin-route-capability-matrix, admin-context, site-map-route-capability-migration); ESLint on lib/admin/api-route-registry.ts passed; registry CI check passed unchanged (289 route files, legacy classifications 75/75, REL-103 contracts exact, legacy debt did not grow); agents:validate passed (17 agents / 97 tasks / 0 errors); scoped tsc not needed (no changed route/service files); repo-wide tsc not run (resource-constrained) and not claimed; changed-path git diff --check passed on the two updated docs."
+        ],
+        "next_steps": [
+          "Future ADMIN-003 migration batches are blocked on enabling preconditions: venue→org linkage for hiring/staffing, vendor→org/equipment linkage for logistics/vendor/* and equipment/catalog, an expressible calendar capability policy (anyOf gate), org predicates on travel/lodging/rentals reads and unscoped mutations, and org resolution for site-maps/import and venues. Re-audit when those land or evaluate newly added org-scoped feature families."
+        ],
+        "blockers": [
+          "No remaining legacy admin handler has a clean capability mapping + organization/resource data boundary; all 75 are deferred pending the enabling preconditions listed above.",
+          "Repository-wide TypeScript validation remains unresolved; this batch changed no route/service files; scoped tsc not claimed.",
+          "Pre-existing registry/code observations on deferred routes remain unchanged: events communications + communication-settings (registry capability_gated vs code withAuth), staffing venue-scoped, team-members mutators bare auth, venues index manual idiom.",
+          "site-map-ops-upgrade.test.ts: pre-existing unrelated failure from concurrent venue-component worktree drift (passes at HEAD, outside changed paths)."
+        ]
+      },
+      {
+        "at": "2026-09-13T19:20:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "REVIEW-ONLY + HANDSHAKE batch (no code edits, no registry flips, no baseline changes, no new tasks). (1) Tracked observation re-verified — events communications drift: registry (api-route-registry.ts:570-586) records events/[id]/communication-settings (GET/PATCH) and events/[id]/communications (GET/PATCH/POST) as capability_gated (event.view) while routed code uses withAuth on every handler (communications/route.ts:21/105/213; communication-settings/route.ts:36/76) with participant/event-owner-facing membership checks — exact drift documented as a tracked observation with the recommended owner-side resolution (align registry to the participant-facing auth class, or gate the route) and left untouched. (2) Tracked observation re-verified — RBAC five-entry flip still matches code: all five routes on withAdminCapability('org.roles.manage') (roles GET route.ts:7 + POST :65, roles/[id] DELETE :9, assign-role POST :6, entity assignments GET :6, entity audit GET :6); registry entries capability_gated org.roles.manage (api-route-registry.ts:1599-1642); baseline consistent (legacyRouteLimit 75). (3) HANDSHAKE NOTES recorded docs-only: the five enabling preconditions traced to owning lanes in STATE.md 'Precondition handoffs' + this task's next_steps — venue→org linkage (venue + database), vendor→org linkage (venue/logistics owner + database), calendar capability policy (admin capability-policy owner/database), travel/lodging/rentals org predicates (database), site-maps/import + venues org resolution (database + venue). Registry state confirmed exact: 289 route files, legacy 75/75, REL-103 route-method contracts exact, legacy debt did not grow; agents:validate 17 agents / 97 tasks / 0 warnings / 0 errors; changed-path git diff --check passed (docs only).",
+        "completed": [
+          "Verification appendix (review-only): events communications registry/code drift re-confirmed against routed code with rg line refs and recorded as a documented tracked observation on a deferred route (recommended owner-side resolution: align registry to participant-facing auth or gate the route); untouched.",
+          "Verification appendix (review-only): all five RBAC registry entries flipped in the prior batch re-verified against routed code — every handler is withAdminCapability('org.roles.manage') and the baseline remains consistent at legacyRouteLimit 75.",
+          "Handshake notes: five enabling-precondition lanes recorded durably in STATE.md 'Precondition handoffs' and in this task's next_steps; no formal handoff/task records created (orchestrator decides).",
+          "Verification: node scripts/ci/check-admin-route-registry.mjs passed (289 route files, legacy 75/75, REL-103 exact, debt did not grow); npm run agents:validate passed (17 agents / 97 tasks / 0 warnings / 0 errors); git diff --check passed on the two docs-only changed paths (STATE.md, ADMIN-003.json)."
+        ],
+        "next_steps": [
+          "Re-audit a legacy family only when its recorded enabling precondition lands (STATE.md 'Precondition handoffs'): hiring/staffing after venue→org; logistics/vendor/* + equipment/catalog after vendor→org; calendar after an expressible capability policy; travel/lodging/rentals after org predicates; site-maps/import + venues after org resolution.",
+          "Owner-side resolution for the events communications drift (registry capability_gated event.view vs code withAuth) is pending; decide registry-alignment vs route-gating in a later batch.",
+          "Orchestrator decides whether the five precondition handshake notes become formal handoff/task records in their owning lanes."
+        ],
+        "blockers": [
+          "No remaining legacy admin handler has a clean capability mapping + organization/resource data boundary; all 75 are deferred pending the enabling preconditions recorded in STATE.md 'Precondition handoffs'.",
+          "Repository-wide TypeScript validation remains unresolved from earlier batches; this batch changed no route/service files and scoped tsc is not claimed.",
+          "Pre-existing registry/code observations on deferred routes remain unchanged: events communications + communication-settings (registry capability_gated vs code withAuth), staffing venue-scoped, team-members mutators bare auth, venues index manual idiom.",
+          "site-map-ops-upgrade.test.ts: pre-existing unrelated failure from concurrent venue-component worktree drift (passes at HEAD, outside changed paths)."
+        ]
+      },
+      {
+        "at": "2026-09-13T23:59:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "OWNER DECISION executed: migrated events/[id]/communications (GET/POST/PATCH) and communication-settings (GET/PATCH) onto withAdminCapability('event.view') — the tracked registry/code drift is now an alignment, not a flip (registry entries were already capability_gated event.view at api-route-registry.ts:570-586; baseline exact 75/75). All participant/event-owner membership checks preserved (event_participants, events_v2.created_by, employment_assignments worker checks incl. pre-existing uncommitted worktree content, mark_read/acknowledge, pin/unpin/delete/moderate, settings owner gate, visible_to filtering, notification fan-out). No org boundary added/removed. Accepted participant-access risk recorded: admin-capability gating precedes membership checks, so non-admin participants/workers without an org admin capability are locked out of the participant-facing read/acknowledge surface; QA must verify; participant-specific surface or RBAC-aware guard recommended if access must remain.",
+        "completed": [
+          "Swapped the guard wrapper on 5 handlers (2 routes) to withAdminCapability('event.view'); removed the dead withAdminAuth import from communications/route.ts.",
+          "Verification: focused Vitest 5 files / 83 tests passed (admin-route-capability-matrix, admin-context, comms-domain, comms-path-inventory, comms-sec-phase6); ESLint clean on both changed routes; registry CI check exact (289 files, legacy 75/75, REL-103 contracts exact, debt did not grow); scoped tsc zero diagnostics in changed files (only pre-recorded lib/auth/admin-context.ts:154); agents:validate 17 agents / 99 tasks / 0 warnings / 0 errors; git diff --check passed.",
+          "Recorded the participant-access risk note with QA recommendation in the task evidence, progress summary, and blockers; recorded registry/code alignment status (not a new flip)."
+        ],
+        "next_steps": [
+          "Keep ADMIN-003 active. QA must verify the events communications participant-access behavior under the new capability gate. Future legacy batches wait on the recorded enabling preconditions (STATE.md 'Precondition handoffs')."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/admin-route-capability-matrix.test.ts __tests__/admin/admin-context.test.ts __tests__/admin/comms-domain.test.ts __tests__/admin/comms-path-inventory.test.ts __tests__/admin/comms-sec-phase6.test.ts — passed, 5 files / 83 tests.",
+          "npx eslint \"app/api/admin/events/[id]/communications/route.ts\" \"app/api/admin/events/[id]/communication-settings/route.ts\" — passed.",
+          "node scripts/ci/check-admin-route-registry.mjs — passed: 289 route files, legacy classifications 75/75 exact, REL-103 route-method contracts exact, legacy debt did not grow.",
+          "Scoped TypeScript (tsconfig.admin003-slice.json): zero diagnostics in the two changed route files; only pre-recorded imported dependency diagnostic at lib/auth/admin-context.ts:154. Repo-wide tsc not run (resource-constrained), not claimed.",
+          "npm run agents:validate — passed: 17 agents, 99 tasks, 0 warnings, 0 errors.",
+          "git diff --check on the two changed route paths — passed."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation remains unresolved from earlier batches; scoped tsc covered this batch's changed files only.",
+          "Participant-access risk is an accepted owner decision requiring QA review (see summary)."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.047Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted ADMIN-003 to P0: launch requires canonical server-side guards on every production admin route, negative role/tenant/resource tests, and zero undocumented exceptions. Existing implementation evidence is preserved; the broadened launch acceptance remains open.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T04:56:18.351Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated event-discovery admin routes (event-merges GET/POST, event-claims GET/POST, event-providers GET, event-sync GET) from duplicated checkIsAdmin auth to canonical withPlatformAdmin. Added platform-profile role denial and cross-tenant acting-context denial tests. Focused Vitest passed 3 files / 27 tests; changed-route ESLint passed. Hosted/admin staging evidence remains outstanding; remaining legacy routes are unchanged and still require their recorded enabling preconditions.",
+        "completed": [],
+        "next_steps": [
+          "Continue the production admin guard sweep only for a family with a verified platform or organization data boundary; keep mixed-purpose participant/global routes deferred and record explicit exceptions until preconditions land."
+        ],
+        "blockers": [
+          "No hosted cross-role/cross-tenant evidence; repository-wide typecheck/release verification remains outstanding; remaining legacy_pending_migration routes are not claimed complete."
+        ]
+      },
+      {
+        "at": "2026-09-18T04:57:28.096Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Registry reconciliation: added explicit platform_admin contract class for the four event-discovery routes, removed organization capability metadata, and generated platform_internal/tenantTarget=platform method contracts. Route registry remains exact at 289 files and 75 deferred legacy classifications. agents:generate produced current route maps (API 945) and agents:validate passed 17 agents / 109 tasks / 0 warnings / 0 errors.",
+        "completed": [],
+        "next_steps": [
+          "Continue with a bounded guard family only after verifying its principal and tenant boundary; keep mixed-purpose participant/global routes deferred. Add hosted negative evidence before launch sign-off."
+        ],
+        "blockers": [
+          "No hosted cross-role/cross-tenant evidence; repository-wide typecheck/release verification remains outstanding; 75 legacy routes remain deferred under recorded preconditions."
+        ]
+      },
+      {
+        "at": "2026-09-18T21:38:48.282Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the platform-global Marketplace moderation GET/PATCH route from a role-string check to withPlatformAdmin, preserving query validation, queue-item id scoping, and assigned-admin attribution. Registry classification is platform_admin and the exact legacy baseline is 74/74; focused platform denial, method-contract, capability-matrix, lint, and registry checks pass. Scoped TypeScript reports only the pre-recorded lib/auth/admin-context.ts:154 dependency mismatch.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Select another platform-global family only after confirming its route-context and resource-boundary needs; dynamic Marketplace order/payout routes need canonical wrapper context support. Organization-scoped families remain gated on the recorded tenant-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T21:59:02.552Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the platform-global Marketplace order read family: collection and detail GET now use withPlatformAdmin; collection status/range behavior and detail dynamic params, order-id predicate, joins, and 404 response are preserved. Registry entries are platform_admin and the legacy baseline is exact at 72/72. Focused Vitest passed 2 files/26 tests, ESLint passed, registry CI passed, and changed-path diff check passed.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Review Marketplace payout retry as a separate mutation-focused platform batch, preserving its dynamic id, eligibility-state check, item predicate, retry metadata attribution, and failure behavior; hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T22:16:15.031Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the platform-global Marketplace payout-retry POST route from the legacy profiles.role string check to withPlatformAdmin while preserving dynamic params, both payout-id predicates, the on_hold/failed/pending eligibility denial, scheduled transition, three-day availability, retry counter, actor/timestamp metadata attribution, and existing 404/400/500 responses. Registry classification is platform_admin with non-idempotent POST semantics and the legacy baseline is exact at 71/71. Focused Vitest passed 4 files/40 tests including direct no-write denial coverage for missing and ineligible payouts; ESLint, registry CI, agents:validate, and changed-path diff check passed. No full typecheck was run per compute constraint.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Continue only with another route family whose platform or organization boundary is supported by code evidence; hosted cross-role/resource denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T22:22:37.212Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read-only Marketplace family classification completed after payout retry. The complete app/api/admin/marketplace inventory is exactly four route files: moderation GET/PATCH, orders GET, orders/[id] GET, and payouts/[id]/retry POST. Every exported method uses withPlatformAdmin, every registry entry is platform_admin with preserved method/idempotency/audit metadata, and no legacy role-string or additional Marketplace route remains. No route, registry, baseline, or test code changed in this checkpoint. Focused Vitest passed 3 files/32 tests; ESLint passed across all four routes plus platform tests/registry; registry CI remains exact at 289 files and 71/71 legacy; agents:validate passed 17 agents/109 tasks with zero warnings/errors. No typecheck or hosted call was run.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active and select a different explicitly platform-global family or an organization-scoped family only after its recorded tenant/resource precondition lands; do not schedule another app/api/admin/marketplace migration unless the inventory changes. Hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T22:34:12.803Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated the smallest coherent non-Marketplace platform family: rights-admin/ops GET/POST now use withPlatformAdmin instead of requireApiUser plus a duplicated profiles is_admin/admin_level assertion. Preserved the music-rights-admin feature gate, open-deadline and flag reads, action schema, kill-switch map and exact feature_flags key predicate, non-idempotent mutation, response/error behavior after authorization, and actor-attributed music_rights_admin_audit_events insert. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 70/70. Added platform contract/source assertions and direct route tests proving feature-disabled requests perform no trusted write and an enabled kill-switch remains key-scoped with actor audit attribution. Focused Vitest passed 4 files/42 tests after correcting one test-only jsonError envelope expectation; ESLint, registry CI, agents:validate, and scoped diff check passed. No full typecheck, hosted call, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Review institutional/ops, licensing/ops, or rights-intelligence/ops as separate platform-global batches; each has its own feature gate, kill-switch map, and audit behavior. Organization-scoped families remain blocked on recorded resource-linkage preconditions; hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T22:40:58.364Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly one platform operations family: institutional/ops GET/POST now use withPlatformAdmin instead of requireApiUser plus a duplicated profiles is_admin/admin_level assertion. Preserved the institutional feature gate, open reconciliation-exception and flag reads, action schema and defaults, kill-switch map and exact feature_flags key predicate, non-idempotent mutation, rollout reset, 201/400/404/500 behavior after authorization, and actor-attributed music_institutional_admin_actions insert. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 69/69. Added platform authorization/registry/source assertions and direct route tests proving feature-disabled requests perform no trusted write and an enabled funds kill-switch remains key-scoped with the original action attribution. Focused Vitest passed 4 files/45 tests; ESLint, registry CI, agents:validate, and scoped diff check passed. No database change, hosted action, full typecheck, broad sweep, cleanup, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Review licensing/ops or rights-intelligence/ops only as separate bounded platform batches; creator ops require individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T22:59:52.962Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly the licensing/ops platform operations family: GET/POST now use withPlatformAdmin instead of requireApiUser plus a duplicated profiles is_admin/admin_level assertion. Preserved the licensing feature gate, open-conflict and flag reads, action schema/defaults, all ten kill-switch mappings, exact feature_flags key predicate, non-idempotent mutation, 200/400/404/500 behavior after authorization, and the full music_licensing_audit_events actor_user_id/actor_role/entity_type/entity_id/event_type/metadata attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 68/68. Added authorization/registry/source assertions and direct route tests proving feature-disabled requests perform no trusted write and an enabled DDEX kill-switch remains key-scoped with the original audit payload. Focused Vitest passed 4 files/48 tests; ESLint, exact registry CI, agents:validate, and scoped diff check passed. No other route family, database or hosted action, broad sweep, cleanup, worker script, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Review rights-intelligence/ops only as a separate bounded platform batch; creator ops require individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:04:32.046Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly the rights-intelligence/ops platform operations family: GET/POST now use withPlatformAdmin instead of requireApiUser plus a duplicated profiles is_admin/admin_level assertion. Preserved the rights-intelligence feature gate, pending/failed outbox and flag read models, action schema/defaults, all individual kill-switch mappings, the exact five-key competition_stop mapping and per-key predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and music_intelligence_audit_events actor_id/action/subject_type/metadata attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 67/67. Added authorization/registry/source assertions and direct tests proving feature-disabled POST performs no trusted write, enabled GET returns the filtered read projection, and enabled competition_stop disables exactly five keys with the original audit payload. Focused Vitest passed 4 files/52 tests; ESLint, exact registry CI, agents:validate, and scoped diff check passed. No creator/other family, worker script, database/hosted action, broad sweep, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Creator ops remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:09:18.885Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-cooperative/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_cooperative feature/capability flag, pending/failed outbox and multi-prefix feature-flag read models, action schema/defaults, every kill-switch mapping, exact six-key privacy_incident_stop predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and creator_cooperative_audit_events actor_id/action/subject_type/metadata attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 66/66. Added authorization/registry/source assertions and direct tests proving feature-disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled privacy_incident_stop disables exactly six keys with the original audit payload. Focused Vitest passed 4 files/55 tests; ESLint, exact registry CI, agents:validate, and scoped diff check passed. No other creator route, runner/worker edit, database/hosted action, broad sweep, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The ten other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:13:51.411Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-digital-commons/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_digital_commons readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, exact four-key tourify_exit_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_commons_audit_events actor_user_id/event_type/aggregate_type/aggregate_id/payload/policy_version/generated idempotency_key fields. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 65/65. Added authorization/registry/source assertions and direct tests proving feature-disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled exit freeze disables exactly four keys with the original audit payload. Focused Vitest passed 4 files/58 tests; ESLint, exact registry CI, agents:validate, and scoped diff check passed. No other route, worker edit, database/hosted action, broad sweep, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The nine other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:17:35.360Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-federation/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_federation admin-ops gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, exact eight-key federation_partition_stop predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and creator_federation_audit_events actor_id/action/subject_type/metadata attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 64/64. Added authorization/registry/source assertions and direct tests proving feature-disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled partition stop disables exactly eight keys with the original audit payload. Focused Vitest passed 4 files/61 tests; ESLint, exact registry CI, agents:validate, and scoped diff check passed. No other route, worker edit, database/hosted action, broad sweep, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The eight other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:24:25.867Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-interoperability-convention/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_interop_convention readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, exact five-key convention_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_interop_audit_events event_type/actor_type/actor_id/subject_type/subject_id/payload/event_hash attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 63/63. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled convention freeze disables exactly five keys with schema defaults and original audit fields. Focused Vitest passed 4 files/64 tests; ESLint, exact registry CI, and scoped diff check passed. No other route, worker edit, database/hosted action, broad sweep, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The seven other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:32:00.114Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-interoperability-institution/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_interop_institution readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, exact eleven-key institution_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_interop_institution_audit_events event_type/actor_type/actor_id/subject_type/subject_id/payload/event_hash attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 62/62. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled institution freeze disables exactly eleven keys with schema defaults and original audit fields. Focused Vitest passed 4 files/67 tests; ESLint, exact registry CI, and scoped diff check passed. No other route, worker edit, schema/database/hosted action, broad sweep, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The six other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:48:00.686Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-interoperability-organization/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources; despite the domain name, the route has no acting-organization or tenant selector. Preserved the creator_interop_org readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, exact nine-key organization_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_interop_org_audit_events event_type/actor_type/actor_id/subject_type/subject_id/payload/event_hash attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 61/61. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled organization freeze disables exactly nine keys with schema defaults and original audit fields. Focused Vitest passed 4 files/70 tests; ESLint, exact registry CI, and scoped diff check passed. No other route, worker edit, schema/database/hosted action, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The five other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T23:55:20.732Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-protocol-constitution/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_protocol_constitution readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, the exact fundamental_provision_freeze, succession_crisis_stop, and emergency_sunset mappings, per-key predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_protocol_audit_events event_type/actor_type/actor_id/subject_type/null subject_id/payload/event_hash attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 60/60. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled fundamental-provision freeze disables exactly three keys with schema defaults and original audit fields. Focused Vitest passed 4 files/73 tests; ESLint, exact registry CI, and scoped diff check passed. No other route, worker edit, schema/database/hosted action, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The four other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T00:08:45.900Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-public-infrastructure/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_public_infrastructure admin-ops gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every kill-switch mapping, the exact identifier_abuse_stop, trust_compromise_stop, and participation_withdrawal_broadcast mappings, per-key predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_public_audit_events actor_user_id/event_type/object_type/object_id/payload attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 59/59. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled trust compromise disables exactly five keys with schema defaults and original audit fields. Focused Vitest passed 4 files/76 tests; ESLint, exact registry CI, and scoped diff check passed. No other route, worker edit, schema/database/hosted action, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The three other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T01:18:43.370Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-multilateral-treaty-operations/ops GET/POST to withPlatformAdmin after verifying its existing requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_treaty_ops readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, every action mapping, exact eleven-key treaty_ops_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_treaty_ops_audit_events event_type/actor_type/actor_id/subject_type/subject_id/payload/event_hash attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 58/58. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled treaty-operations freeze disables exactly eleven keys with schema defaults and original audit fields. Focused Vitest passed 4 files/79 tests; ESLint, exact registry CI, and scoped diff check passed. No other route, worker edit, schema/database/hosted action, cleanup, full typecheck, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. The two other creator ops routes remain separate candidates requiring individual behavior review. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T01:21:44.264Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-treaty-system-renewal/ops GET/POST to withPlatformAdmin after registry order identified renewal as the next of two remaining creator candidates and direct code evidence confirmed its requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_treaty_renewal readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, all six action mappings, exact nine-key renewal_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_treaty_renewal_audit_events event_type/actor_type/actor_id/subject_type/subject_id/payload/event_hash attribution. Registry is platform_admin with no organization capability, idempotency false, and POST audit-required via auditMethods; exact legacy baseline is 57/57. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection, and enabled renewal freeze disables exactly nine keys with schema defaults and original audit fields. Focused Vitest passed 4 files/82 tests; ESLint, exact registry CI, and scoped diff check passed. The final creator-treaty-system-legacy/ops candidate was not edited. No other route, worker edit, schema/database/hosted action, cleanup, full typecheck, branch, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Review creator-treaty-system-legacy/ops separately as the sole remaining creator candidate; do not infer its audit or gate semantics from renewal. Organization-scoped families remain blocked on recorded resource-linkage preconditions, and hosted denial plus release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T01:25:01.746Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Migrated exactly app/api/admin/creator-treaty-system-legacy/ops GET/POST to withPlatformAdmin after direct code evidence confirmed its requireApiUser plus profiles is_admin/admin_level gate protects platform-global outbox, flag, and audit resources. Preserved the creator_treaty_legacy readiness gate, pending/failed outbox and prefix-filtered feature-flag reads, action schema/defaults, all five action mappings, exact thirteen-key legacy_freeze predicates, non-idempotent mutation, 200/400/404/500 behavior after authorization, and full creator_treaty_legacy_audit_events event_type/actor_type/actor_id/subject_type/subject_id/payload/event_hash attribution. Refined the route registry's coarse audit:true to code-exact audit:false plus auditMethods POST: GET emits no audit event and POST remains audit-required. Registry is platform_admin with no organization capability, idempotency false, and exact legacy baseline 56/56. Added authorization/registry/source assertions and direct tests proving disabled POST performs no trusted write, enabled GET preserves the read projection without audit insertion, and enabled legacy freeze disables exactly thirteen keys with schema defaults and original audit fields. Focused Vitest passed 4 files/85 tests; ESLint, exact registry CI, and scoped diff check passed. The complete eleven-route creator operations inventory is now on withPlatformAdmin with no remaining creator ops legacy entry. No other route, worker edit, schema/database/hosted action, cleanup, full typecheck, branch, or commit.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active for the remaining non-creator legacy families and hosted/release denial evidence. Do not schedule another creator ops migration unless the on-disk inventory changes; organization-scoped families remain blocked on the recorded resource-linkage preconditions."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T01:26:46.368Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read-only classification of the next non-creator legacy family in exact registry order: app/api/admin/analytics/top-performers/route.ts remains deferred. Direct code evidence is ambiguous rather than a proven platform boundary: withAdminAuth admits platform admins, organization admins/owners, and confirmed tour collaborators, while the handler aggregates event_attendance, artist_profiles, profiles, and events_v2 globally with date filters only and no acting-org, event-access, or tenant predicate. Converting to withPlatformAdmin would remove existing organization/tour access without an explicit ownership decision; converting to an organization capability would retain unsafe cross-tenant reads. No route, registry, baseline, or test file changed. Required precondition is an owner decision that this report is platform-only, or organization/event predicates plus an organization capability contract.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Resolve analytics/top-performers ownership before migration; then continue exact registry order. Do not infer platform ownership merely from missing tenant predicates. Hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T01:28:13.201Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read-only classification of the applications family, the next three legacy entries after the deferred analytics/top-performers route. No canonical migration is safe as-is. Direct code evidence proves heterogeneous venue/employer resource scope rather than platform ownership: collection GET requires venue_id or resolves it from job_posting_id; collection reject/request_evidence, bulk PATCH, and item PATCH load each application and check its venue; approval resolves the application employer and calls assertCanManageHiring; audit GET resolves a venue/organization/artist employer before canManageHiring. Legitimate grants include direct entity ownership, can_manage_hiring, organization hiring.manage, and legacy Venue/Organizer/Artist entity permissions, and bulk requests may span venues. withPlatformAdmin would revoke valid resource managers; withAdminCapability cannot preserve direct venue/entity grants or bind multi-venue operations because no complete venue/employer-to-acting-org contract exists. No application route, registry, baseline, or test file changed. Required precondition: durable employer/venue-to-org resolution plus a policy for mapping direct entity grants and multi-venue bulk behavior to acting organizations, while retaining all per-resource checks.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Resolve the applications venue/employer-to-org precondition before migration, then continue registry order without revisiting analytics/top-performers. Hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T01:30:13.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read-only review of the first five legacy families after applications in exact registry order found no route with unambiguous global platform-admin ownership, so the bounded search stopped without a product, registry, baseline, or test change. Calendar requires an acting organization, a five-capability source-access disjunction, and tour/event predicates; its precondition is an anyOf-capable canonical organization guard. Capabilities POST computes the signed-in user's permissions for a requested entity; its precondition is a canonical entity/self-service contract, not a platform guard. Communications GET/POST are organization-scoped while PATCH mutates a message by ID without a participant/org predicate; its precondition is message participant/resource scoping plus method-level canonical guards. Dashboard stats resolves an optional organization workspace and otherwise constrains operational records to the caller, but includes two global directory counts; its precondition is an owner decision or scoped replacement for those counts before an organization guard classification. Error-reporting only authenticates through the compatibility admin gate and returns an acknowledgement without persisting a platform resource; its precondition is an explicit audience/ownership decision. No access, method, parameter, response, idempotency, audit, or mutation behavior changed.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Continue exact legacy-registry order after error-reporting only when the next bounded batch is assigned; do not treat a missing resource predicate or the compatibility admin gate as proof of platform ownership. Hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T02:49:19.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read-only review of the first five legacy families after error-reporting in exact registry order found no route with unambiguous global platform-admin ownership, so the bounded search stopped without a product, registry, baseline, or test change. Job-postings is venue-keyed and its item PATCH lacks a per-posting venue predicate; it requires durable venue-to-org resolution plus preserved direct venue grants and target validation. Lodging resolves an acting organization but its reads remain unscoped and several provider, room-type, availability, and raw-ID actions lack organization predicates; all paths need a complete organization boundary before canonical method guards. The global equipment catalog currently admits every authenticated user, accepts optional vendorId, and labels only its activity row global; it needs an explicit owner/access decision and vendor attribution rather than an inferred platform restriction. Site-map import is event/tour-resource scoped, but evaluates the RPC response object instead of its boolean data and creates legacy-linked resources with partial child-import continuation; it needs correct permission evaluation plus canonical event/tour-to-org resolution. Vendor dashboard/inventory/workflows trust caller-supplied vendorId, contain raw-ID mutations without target-vendor checks, and dashboard POST has no authentication; the family needs vendor-to-org ownership and per-target predicates before a canonical guard. No method, parameter, response, idempotency, audit, or mutation behavior changed.",
+        "completed": [],
+        "next_steps": [
+          "Keep ADMIN-003 active. Continue exact legacy-registry order after the logistics vendor family only when the next bounded batch is assigned; do not infer platform ownership from a global catalog or missing tenant predicates. Hosted denial and release verification remain outstanding."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

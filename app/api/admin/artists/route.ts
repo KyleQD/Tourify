@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
-import { resolveActingAdminContext } from '@/lib/auth/admin-context'
-import { hasAdminCapability } from '@/lib/auth/admin-capabilities'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { resolveOrgArtistRosterScope } from '@/lib/admin/artist-roster-access'
 import { z } from 'zod'
 
@@ -19,21 +17,15 @@ const createArtistSchema = z.object({
  * the roster; a brand-new email creates the auth user + profile, then links.
  */
 
-export async function GET(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 })
-  const admin = await resolveActingAdminContext(request, auth)
-  if (admin instanceof NextResponse) return admin
-  if (!hasAdminCapability(admin.capabilities, 'workforce.view')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+const artistCapability = (request: NextRequest) =>
+  request.method === 'GET' ? 'workforce.view' as const : 'workforce.manage' as const
 
+export const GET = withAdminCapability(artistCapability, async (request, { supabase, admin }) => {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || searchParams.get('q') || ''
   const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 200)
   const offset = parseInt(searchParams.get('offset') || '0', 10)
 
-  const supabase = auth.supabase
   const scope = await resolveOrgArtistRosterScope(supabase, admin)
 
   if (scope.artistProfileIds.length === 0) {
@@ -130,24 +122,14 @@ export async function GET(request: NextRequest) {
   })
 
   return NextResponse.json({ artists: result, total: result.length })
-}
+})
 
-export async function POST(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 })
-  const admin = await resolveActingAdminContext(request, auth)
-  if (admin instanceof NextResponse) return admin
-  if (!hasAdminCapability(admin.capabilities, 'workforce.manage')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
+export const POST = withAdminCapability(artistCapability, async (request, { supabase, admin }) => {
   const body = await request.json()
   const parsed = createArtistSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   const { name, email, genre, bio } = parsed.data
-  const supabase = auth.supabase
-
   // Resolve organizer account for the acting org (roster anchor)
   const scope = await resolveOrgArtistRosterScope(supabase, admin)
   let organizerAccountId = scope.organizerAccountIds[0] ?? null
@@ -234,4 +216,4 @@ export async function POST(request: NextRequest) {
     { artist: { ...artistProfile, roster_status: linkRow?.status ?? 'linked' }, linked_existing_profile: Boolean(existingProfile) },
     { status: 201 },
   )
-}
+})

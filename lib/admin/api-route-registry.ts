@@ -10,7 +10,9 @@ export type AdminRouteMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
 export type AdminRouteAuthClass =
   | "acting_context_required"
+  | "authenticated_user"
   | "capability_gated"
+  | "platform_admin"
   | "public_share_token"
   | "service_job"
   | "legacy_pending_migration"
@@ -23,12 +25,15 @@ export interface AdminRouteContract {
   capability?: AdminCapability;
   idempotency?: boolean;
   audit?: boolean;
+  auditMethods?: AdminRouteMethod[];
   owner: string;
 }
 
 export type AdminActingContextContract =
   | "acting_account_required"
+  | "authenticated_user"
   | "authenticated_compatibility"
+  | "platform_admin"
   | "public_share_token"
   | "service_principal";
 
@@ -41,6 +46,51 @@ export type AdminAuditContract =
   | "not_applicable"
   | "legacy_missing";
 
+export type AdminTenantTargetContract =
+  | "acting_organization"
+  | "organization_entity"
+  | "platform"
+  | "public_share"
+  | "service_scope";
+
+export type AdminServiceRoleContract = "none" | "approved_job" | "legacy_bare";
+
+export type AdminRouteVisibility =
+  | "authenticated_user"
+  | "organization_admin"
+  | "platform_internal"
+  | "public_share"
+  | "service_internal";
+
+export type AdminRouteDisposition =
+  | "active"
+  | "migrate"
+  | "redirect"
+  | "retire"
+  | "internal_only";
+
+export type AdminWorkflowId =
+  | "ADM-WF-001"
+  | "ADM-WF-002"
+  | "ADM-WF-003"
+  | "ADM-WF-004"
+  | "ADM-WF-005"
+  | "ADM-WF-006"
+  | "ADM-WF-007"
+  | "ADM-WF-008"
+  | "ADM-WF-009"
+  | "ADM-WF-010"
+  | "ADM-WF-011"
+  | "ADM-WF-012"
+  | "ADM-WF-013"
+  | "ADM-WF-014"
+  | "ADM-WF-015"
+  | "ADM-WF-016"
+  | "ADM-WF-017"
+  | "ADM-WF-018"
+  | "ADM-WF-019"
+  | "ADM-WF-020";
+
 /**
  * Canonical REL-103 contract for one exported route handler. Schema identifiers
  * are stable inventory keys; handler/schema enforcement is migrated separately
@@ -50,12 +100,19 @@ export interface AdminApiMethodContract {
   route: string;
   method: AdminRouteMethod;
   actingContext: AdminActingContextContract;
+  tenantTarget: AdminTenantTargetContract;
   capabilities: readonly AdminCapability[];
   capabilityMode: AdminCommandCapabilityMode;
   requestSchema: string;
   responseSchema: string;
+  serviceRole: AdminServiceRoleContract;
   idempotency: AdminIdempotencyContract;
   audit: AdminAuditContract;
+  auditEvent: string | null;
+  workflowIds: readonly AdminWorkflowId[];
+  testIds: readonly string[];
+  visibility: AdminRouteVisibility;
+  disposition: AdminRouteDisposition;
   owner: string;
   legacy: boolean;
 }
@@ -64,8 +121,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/event-merges",
     methods: ["GET", "POST"],
-    authClass: "capability_gated",
-    capability: "tour.manage",
+    authClass: "platform_admin",
     idempotency: true,
     audit: true,
     owner: "event-discovery",
@@ -73,8 +129,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/event-claims",
     methods: ["GET", "POST"],
-    authClass: "capability_gated",
-    capability: "tour.manage",
+    authClass: "platform_admin",
     idempotency: true,
     audit: true,
     owner: "event-discovery",
@@ -82,8 +137,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/event-providers",
     methods: ["GET"],
-    authClass: "capability_gated",
-    capability: "event.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "event-discovery",
@@ -91,8 +145,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/event-sync",
     methods: ["GET"],
-    authClass: "capability_gated",
-    capability: "event.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "event-discovery",
@@ -100,8 +153,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/analytics/export",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "audit.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -145,8 +198,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/artists/[id]",
     methods: ["DELETE", "GET", "PATCH"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "workforce.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -154,8 +207,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/artists",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "workforce.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -172,8 +225,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/audit",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "audit.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -199,8 +252,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/calendar/token",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "org.settings.manage",
     idempotency: false,
     audit: false,
     owner: "ops-calendar",
@@ -343,100 +396,100 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/creator-cooperative/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-digital-commons/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-federation/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-interoperability-convention/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-interoperability-institution/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-interoperability-organization/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-multilateral-treaty-operations/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-protocol-constitution/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-public-infrastructure/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-treaty-system-renewal/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/creator-treaty-system-legacy/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
-    audit: true,
+    audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
@@ -757,10 +810,10 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/institutional/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
@@ -784,10 +837,10 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/licensing/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
@@ -802,7 +855,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/backline",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -811,7 +864,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/catering",
     methods: ["GET", "PATCH", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -820,7 +873,16 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/comms-plans",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
+    capability: "logistics.view",
+    idempotency: false,
+    audit: false,
+    owner: "ops-logistics",
+  },
+  {
+    route: "/api/admin/logistics/communications-command-center",
+    methods: ["GET"],
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -838,7 +900,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/equipment/reservations",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -847,7 +909,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/items/[id]/equipment",
     methods: ["DELETE", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -865,7 +927,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/items/[id]",
     methods: ["DELETE", "PUT"],
-    authClass: "acting_context_required",
+    authClass: "capability_gated",
     capability: "logistics.manage",
     idempotency: false,
     audit: true,
@@ -874,7 +936,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/items/[id]/status",
     methods: ["POST"],
-    authClass: "acting_context_required",
+    authClass: "capability_gated",
     capability: "logistics.manage",
     idempotency: false,
     audit: true,
@@ -883,7 +945,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/items/bulk",
     methods: ["PUT"],
-    authClass: "acting_context_required",
+    authClass: "capability_gated",
     capability: "logistics.manage",
     idempotency: false,
     audit: true,
@@ -900,15 +962,6 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   },
   {
     route: "/api/admin/logistics/metrics",
-    methods: ["GET"],
-    authClass: "capability_gated",
-    capability: "logistics.view",
-    idempotency: false,
-    audit: false,
-    owner: "ops-logistics",
-  },
-  {
-    route: "/api/admin/logistics/communications-command-center",
     methods: ["GET"],
     authClass: "capability_gated",
     capability: "logistics.view",
@@ -939,8 +992,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     methods: ["POST"],
     authClass: "capability_gated",
     capability: "logistics.manage",
-    idempotency: true,
-    audit: true,
+    idempotency: false,
+    audit: false,
     owner: "ops-logistics",
   },
   {
@@ -964,7 +1017,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-map-templates",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -973,16 +1026,17 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/activity",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "ops-logistics",
   },
   {
     route: "/api/admin/logistics/site-maps/[id]/collaborators",
     methods: ["DELETE", "GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -991,34 +1045,36 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/elements/[elementId]",
     methods: ["DELETE", "GET", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
+    auditMethods: ["DELETE", "PUT"],
     owner: "ops-logistics",
   },
   {
     route: "/api/admin/logistics/site-maps/[id]/elements",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "ops-logistics",
   },
   {
     route: "/api/admin/logistics/site-maps/[id]/export",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
-    audit: false,
+    audit: true,
     owner: "ops-logistics",
   },
   {
     route: "/api/admin/logistics/site-maps/[id]/notes",
     methods: ["GET", "PATCH", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1027,7 +1083,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/public-link",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1036,8 +1092,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/publish-work-mode",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
-    capability: "logistics.view",
+    authClass: "capability_gated",
+    capability: "site_map.edit",
     idempotency: false,
     audit: false,
     owner: "ops-logistics",
@@ -1045,7 +1101,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]",
     methods: ["DELETE", "GET", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1054,7 +1110,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/save-template",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1063,7 +1119,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/share",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1072,7 +1128,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/tasks/[taskId]",
     methods: ["DELETE", "PATCH"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1081,7 +1137,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/tasks",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1090,7 +1146,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/tents/[tentId]",
     methods: ["DELETE", "GET", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1099,7 +1155,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/tents",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1108,7 +1164,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/versions",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1117,7 +1173,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/zones/[zoneId]",
     methods: ["DELETE", "GET", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1126,7 +1182,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/zones/bulk-assign",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1135,7 +1191,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/[id]/zones",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1153,7 +1209,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/issues/[id]",
     methods: ["DELETE", "GET", "PATCH", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1162,7 +1218,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/issues",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1171,7 +1227,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/layers/[id]",
     methods: ["DELETE", "GET", "PATCH", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1180,7 +1236,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/layers",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1189,7 +1245,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/measurements/[id]",
     methods: ["DELETE", "GET", "PATCH", "PUT"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1198,7 +1254,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps/measurements",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1207,7 +1263,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/logistics/site-maps",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "logistics.view",
     idempotency: false,
     audit: false,
@@ -1261,8 +1317,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/marketplace/moderation",
     methods: ["GET", "PATCH"],
-    authClass: "legacy_pending_migration",
-    capability: "content.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "commerce",
@@ -1270,8 +1325,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/marketplace/orders/[id]",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
-    capability: "content.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "commerce",
@@ -1279,8 +1333,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/marketplace/orders",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
-    capability: "content.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "commerce",
@@ -1288,8 +1341,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/marketplace/payouts/[id]/retry",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
-    capability: "content.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "commerce",
@@ -1540,7 +1592,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/rbac/assign-role",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "org.roles.manage",
     idempotency: false,
     audit: false,
@@ -1549,7 +1601,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/rbac/entity/[entityType]/[entityId]/assignments",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "org.roles.manage",
     idempotency: false,
     audit: false,
@@ -1558,7 +1610,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/rbac/entity/[entityType]/[entityId]/audit",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "org.roles.manage",
     idempotency: false,
     audit: false,
@@ -1567,7 +1619,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/rbac/roles/[id]",
     methods: ["DELETE"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "org.roles.manage",
     idempotency: false,
     audit: false,
@@ -1576,11 +1628,19 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/rbac/roles",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "org.roles.manage",
     idempotency: false,
     audit: false,
     owner: "org",
+  },
+  {
+    route: "/api/admin/request",
+    methods: ["POST"],
+    authClass: "authenticated_user",
+    idempotency: false,
+    audit: false,
+    owner: "access-control",
   },
   {
     route: "/api/admin/rentals",
@@ -1594,19 +1654,19 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/rights-admin/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
     route: "/api/admin/rights-intelligence/ops",
     methods: ["GET", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
+    auditMethods: ["POST"],
     owner: "admin-misc",
   },
   {
@@ -1621,7 +1681,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/staff",
     methods: ["DELETE", "GET", "PATCH", "POST"],
-    authClass: "legacy_pending_migration",
+    authClass: "capability_gated",
     capability: "workforce.view",
     idempotency: false,
     audit: false,
@@ -1631,18 +1691,18 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     route: "/api/admin/staff-operations/channels",
     methods: ["GET", "POST"],
     authClass: "capability_gated",
-    capability: "workforce.manage",
+    capability: "workforce.view",
     idempotency: false,
-    audit: true,
+    audit: false,
     owner: "workforce",
   },
   {
     route: "/api/admin/staff-operations/channels/[id]",
     methods: ["GET", "PATCH"],
     authClass: "capability_gated",
-    capability: "workforce.manage",
+    capability: "workforce.view",
     idempotency: false,
-    audit: true,
+    audit: false,
     owner: "workforce",
   },
   {
@@ -1720,8 +1780,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/tasks",
     methods: ["GET", "PATCH"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "logistics.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -1790,26 +1850,17 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     owner: "ops-tours",
   },
   {
-    route: "/api/admin/tours/[id]/events",
-    methods: ["DELETE", "GET", "POST"],
-    authClass: "capability_gated",
-    capability: "tour.manage",
-    idempotency: true,
-    audit: true,
-    owner: "ops-tours",
-  },
-  {
     route: "/api/admin/tours/[id]/collaboration-invites",
     methods: ["DELETE", "GET", "POST"],
     authClass: "capability_gated",
-    capability: "workforce.manage",
+    capability: "workforce.view",
     idempotency: false,
-    audit: true,
+    audit: false,
     owner: "ops-tours",
   },
   {
-    route: "/api/admin/tours/[id]/quick-start-events",
-    methods: ["POST"],
+    route: "/api/admin/tours/[id]/events",
+    methods: ["DELETE", "GET", "POST"],
     authClass: "capability_gated",
     capability: "tour.manage",
     idempotency: true,
@@ -1850,6 +1901,15 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     capability: "tour.publish",
     idempotency: true,
     audit: true,
+    owner: "ops-tours",
+  },
+  {
+    route: "/api/admin/tours/[id]/quick-start-events",
+    methods: ["POST"],
+    authClass: "capability_gated",
+    capability: "tour.manage",
+    idempotency: true,
+    audit: false,
     owner: "ops-tours",
   },
   {
@@ -1918,7 +1978,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/tours/[id]/transitions/[command]",
     methods: ["POST"],
-    authClass: "acting_context_required",
+    authClass: "capability_gated",
     capability: "tour.manage",
     idempotency: true,
     audit: true,
@@ -2180,7 +2240,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     route: "/api/admin/tours/team-members",
     methods: ["DELETE", "GET", "PATCH", "POST"],
     authClass: "capability_gated",
-    capability: "tour.manage",
+    capability: "workforce.view",
     idempotency: true,
     audit: true,
     owner: "ops-tours",
@@ -2189,7 +2249,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     route: "/api/admin/tours/teams",
     methods: ["DELETE", "GET", "PATCH", "POST"],
     authClass: "capability_gated",
-    capability: "tour.manage",
+    capability: "workforce.view",
     idempotency: true,
     audit: true,
     owner: "ops-tours",
@@ -2242,8 +2302,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/vendor-requests/[id]",
     methods: ["PATCH"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "vendor.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -2251,8 +2311,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/vendor-requests",
     methods: ["POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "vendor.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -2278,8 +2338,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/workforce/people",
     methods: ["GET"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "workforce.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -2682,6 +2742,9 @@ const ADMIN_COMMAND_CAPABILITY_OVERRIDES: Readonly<
 > = {
   "/api/admin/audit#GET": ["audit.view"],
   "/api/admin/analytics/export#GET": ["audit.view"],
+  "/api/admin/artists/[id]#DELETE": ["workforce.manage"],
+  "/api/admin/artists/[id]#PATCH": ["workforce.manage"],
+  "/api/admin/artists#POST": ["workforce.manage"],
   "/api/admin/calendar/export#GET": [
     "tour.view",
     "event.view",
@@ -2723,6 +2786,28 @@ const ADMIN_COMMAND_CAPABILITY_OVERRIDES: Readonly<
   "/api/admin/publication/share-links/[id]/revoke#POST": ["tour.publish"],
   "/api/admin/publication/snapshots/[id]/retract#POST": ["tour.publish"],
   "/api/admin/publication/snapshots/[id]/supersede#POST": ["tour.publish"],
+  "/api/admin/tours/[id]/transitions/[command]#POST": [
+    "tour.manage",
+    "tour.publish",
+    "finance.approve",
+    "tour.archive",
+  ],
+  "/api/admin/staff-operations/channels#GET": [
+    "communications.broadcast",
+    "workforce.manage",
+  ],
+  "/api/admin/staff-operations/channels#POST": [
+    "communications.broadcast",
+    "workforce.manage",
+  ],
+  "/api/admin/staff-operations/channels/[id]#GET": [
+    "communications.broadcast",
+    "workforce.manage",
+  ],
+  "/api/admin/staff-operations/channels/[id]#PATCH": [
+    "communications.broadcast",
+    "workforce.manage",
+  ],
   "/api/admin/ticketing/refund#POST": ["ticketing.refund"],
   "/api/admin/tours/[id]/archive#POST": ["tour.archive"],
   "/api/admin/tours/[id]/publish#POST": ["tour.publish"],
@@ -2743,6 +2828,8 @@ export function adminCommandCapabilities(
 ): readonly AdminCapability[] {
   if (!contract.methods.includes(method)) return [];
   if (
+    contract.authClass === "authenticated_user" ||
+    contract.authClass === "platform_admin" ||
     contract.authClass === "public_share_token" ||
     contract.authClass === "service_job"
   )
@@ -2768,6 +2855,11 @@ const ADMIN_COMMAND_CAPABILITY_MODE_OVERRIDES: Readonly<
   "/api/admin/calendar/export#GET": "anyOf",
   "/api/admin/dashboard/command-center#GET": "anyOf",
   "/api/admin/finances/settlements#PATCH": "actionScoped",
+  "/api/admin/tours/[id]/transitions/[command]#POST": "actionScoped",
+  "/api/admin/staff-operations/channels#GET": "anyOf",
+  "/api/admin/staff-operations/channels#POST": "anyOf",
+  "/api/admin/staff-operations/channels/[id]#GET": "anyOf",
+  "/api/admin/staff-operations/channels/[id]#PATCH": "anyOf",
 };
 
 export function adminCommandCapabilityMode(
@@ -2775,6 +2867,7 @@ export function adminCommandCapabilityMode(
   method: AdminRouteMethod,
 ): AdminCommandCapabilityMode {
   if (
+    contract.authClass === "platform_admin" ||
     contract.authClass === "public_share_token" ||
     contract.authClass === "service_job"
   ) {
@@ -2789,6 +2882,8 @@ export function adminCommandCapabilityMode(
 function actingContextContract(
   contract: AdminRouteContract,
 ): AdminActingContextContract {
+  if (contract.authClass === "authenticated_user") return "authenticated_user";
+  if (contract.authClass === "platform_admin") return "platform_admin";
   if (contract.authClass === "public_share_token") return "public_share_token";
   if (contract.authClass === "service_job") return "service_principal";
   if (contract.authClass === "read_only_compat")
@@ -2816,8 +2911,190 @@ function auditContract(
   contract: AdminRouteContract,
   method: AdminRouteMethod,
 ): AdminAuditContract {
-  if (method === "GET" && contract.audit !== true) return "not_applicable";
-  return contract.audit === true ? "required" : "legacy_missing";
+  const audited =
+    contract.auditMethods?.includes(method) || contract.audit === true;
+  if (method === "GET" && !audited) return "not_applicable";
+  return audited ? "required" : "legacy_missing";
+}
+
+const APPROVED_SERVICE_ROLE_ROUTES = new Set([
+  "/api/admin/logistics/comms-thread",
+  "/api/admin/staff-operations/channels",
+  "/api/admin/staff-operations/channels/[id]",
+]);
+const LEGACY_BARE_SERVICE_ROLE_ROUTES = new Set<string>();
+
+function isPlatformInternalRoute(route: string) {
+  return (
+    route === "/api/admin/event-merges" ||
+    route === "/api/admin/event-claims" ||
+    route === "/api/admin/event-providers" ||
+    route === "/api/admin/event-sync" ||
+    route === "/api/admin/features" ||
+    route.startsWith("/api/admin/features/") ||
+    route.startsWith("/api/admin/creator-") ||
+    route.startsWith("/api/admin/institutional/") ||
+    route.startsWith("/api/admin/licensing/") ||
+    route.startsWith("/api/admin/marketplace/") ||
+    route.startsWith("/api/admin/music/") ||
+    route.startsWith("/api/admin/music-marketplace/") ||
+    route.startsWith("/api/admin/rights-admin/") ||
+    route.startsWith("/api/admin/rights-intelligence/") ||
+    route === "/api/admin/test"
+  );
+}
+
+function visibilityContract(
+  contract: AdminRouteContract,
+): AdminRouteVisibility {
+  if (contract.authClass === "authenticated_user") return "authenticated_user";
+  if (contract.authClass === "platform_admin") return "platform_internal";
+  if (contract.authClass === "public_share_token") return "public_share";
+  if (contract.authClass === "service_job") return "service_internal";
+  if (isPlatformInternalRoute(contract.route)) return "platform_internal";
+  return "organization_admin";
+}
+
+function tenantTargetContract(
+  contract: AdminRouteContract,
+): AdminTenantTargetContract {
+  if (contract.authClass === "authenticated_user") return "platform";
+  if (contract.authClass === "platform_admin") return "platform";
+  const visibility = visibilityContract(contract);
+  if (visibility === "public_share") return "public_share";
+  if (visibility === "service_internal") return "service_scope";
+  if (visibility === "platform_internal") return "platform";
+  return contract.route.includes("[")
+    ? "organization_entity"
+    : "acting_organization";
+}
+
+function serviceRoleContract(
+  contract: AdminRouteContract,
+): AdminServiceRoleContract {
+  if (LEGACY_BARE_SERVICE_ROLE_ROUTES.has(contract.route)) return "legacy_bare";
+  if (
+    APPROVED_SERVICE_ROLE_ROUTES.has(contract.route) ||
+    contract.authClass === "service_job"
+  )
+    return "approved_job";
+  return "none";
+}
+
+function dispositionContract(
+  contract: AdminRouteContract,
+): AdminRouteDisposition {
+  if (contract.route === "/api/admin/test") return "retire";
+  const visibility = visibilityContract(contract);
+  if (visibility === "platform_internal" || visibility === "service_internal")
+    return "internal_only";
+  if (contract.authClass === "read_only_compat") return "redirect";
+  if (contract.authClass === "legacy_pending_migration") return "migrate";
+  return "active";
+}
+
+function workflowIdsForRoute(route: string): readonly AdminWorkflowId[] {
+  if (
+    route === "/api/admin/event-merges" ||
+    route === "/api/admin/event-claims" ||
+    route === "/api/admin/event-providers" ||
+    route === "/api/admin/event-sync"
+  ) {
+    return ["ADM-WF-003", "ADM-WF-020"];
+  }
+  if (route.startsWith("/api/admin/publication/"))
+    return ["ADM-WF-004", "ADM-WF-005", "ADM-WF-006", "ADM-WF-012"];
+  if (
+    route.startsWith("/api/admin/entity-grants") ||
+    route.startsWith("/api/admin/effective-capabilities") ||
+    route.startsWith("/api/admin/capabilities") ||
+    route.startsWith("/api/admin/rbac/")
+  ) {
+    return ["ADM-WF-001", "ADM-WF-002", "ADM-WF-018"];
+  }
+  if (
+    route.startsWith("/api/admin/job-postings") ||
+    route.startsWith("/api/admin/applications") ||
+    route.startsWith("/api/admin/onboarding")
+  ) {
+    return ["ADM-WF-007"];
+  }
+  if (
+    route.startsWith("/api/admin/staff") ||
+    route.startsWith("/api/admin/staffing") ||
+    route.startsWith("/api/admin/workforce")
+  ) {
+    return ["ADM-WF-008"];
+  }
+  if (route.startsWith("/api/admin/artists")) return ["ADM-WF-009"];
+  if (route.startsWith("/api/admin/venues")) return ["ADM-WF-010"];
+  if (
+    route.startsWith("/api/admin/messages") ||
+    route.startsWith("/api/admin/communications")
+  ) {
+    return ["ADM-WF-011", "ADM-WF-012"];
+  }
+  if (route.startsWith("/api/admin/notifications")) return ["ADM-WF-012"];
+  if (
+    route.startsWith("/api/admin/logistics") ||
+    route.startsWith("/api/admin/travel") ||
+    route.startsWith("/api/admin/lodging") ||
+    route.startsWith("/api/admin/rentals")
+  ) {
+    return ["ADM-WF-013"];
+  }
+  if (route.startsWith("/api/admin/finances")) return ["ADM-WF-014"];
+  if (
+    route.startsWith("/api/admin/contracts") ||
+    route.startsWith("/api/admin/vendors") ||
+    route.startsWith("/api/admin/vendor-requests")
+  ) {
+    return ["ADM-WF-015"];
+  }
+  if (route.startsWith("/api/admin/ticketing")) return ["ADM-WF-019"];
+  if (route.startsWith("/api/admin/events")) return ["ADM-WF-004"];
+  if (route.startsWith("/api/admin/tours")) return ["ADM-WF-005"];
+  if (route.startsWith("/api/admin/organization")) return ["ADM-WF-018"];
+  if (
+    isPlatformInternalRoute(route) ||
+    route.startsWith("/api/admin/content") ||
+    route.startsWith("/api/admin/store")
+  ) {
+    return ["ADM-WF-020"];
+  }
+  if (
+    route.startsWith("/api/admin/calendar") ||
+    route.startsWith("/api/admin/dashboard") ||
+    route.startsWith("/api/admin/analytics") ||
+    route.startsWith("/api/admin/assets/search")
+  ) {
+    return ["ADM-WF-016", "ADM-WF-017"];
+  }
+  return ["ADM-WF-017"];
+}
+
+function testIdsForContract(contract: AdminRouteContract): readonly string[] {
+  const ids = [
+    "scripts/ci/check-admin-route-registry.mjs",
+    "__tests__/admin/admin-route-capability-matrix.test.ts",
+  ];
+  if (serviceRoleContract(contract) !== "none")
+    ids.push("scripts/ci/check-service-role-allowlist.mjs");
+  return ids;
+}
+
+function auditEventContract(
+  contract: AdminRouteContract,
+  method: AdminRouteMethod,
+) {
+  if (auditContract(contract, method) === "not_applicable") return null;
+  const routeName = contract.route
+    .replace(/^\/api\/admin\//, "")
+    .replace(/\[([^\]]+)\]/g, "by-$1")
+    .replace(/[^a-zA-Z0-9]+/g, ".")
+    .replace(/^\.|\.$/g, "")
+    .toLowerCase();
+  return `admin.${routeName}.${method.toLowerCase()}`;
 }
 
 export function adminCommandCapabilityMatrix(): AdminApiMethodContract[] {
@@ -2826,13 +3103,20 @@ export function adminCommandCapabilityMatrix(): AdminApiMethodContract[] {
       route: contract.route,
       method,
       actingContext: actingContextContract(contract),
+      tenantTarget: tenantTargetContract(contract),
       owner: contract.owner,
       capabilities: adminCommandCapabilities(contract, method),
       capabilityMode: adminCommandCapabilityMode(contract, method),
       requestSchema: schemaContractId(contract, method, "request"),
       responseSchema: schemaContractId(contract, method, "response"),
+      serviceRole: serviceRoleContract(contract),
       idempotency: idempotencyContract(contract, method),
       audit: auditContract(contract, method),
+      auditEvent: auditEventContract(contract, method),
+      workflowIds: workflowIdsForRoute(contract.route),
+      testIds: testIdsForContract(contract),
+      visibility: visibilityContract(contract),
+      disposition: dispositionContract(contract),
       legacy: contract.authClass === "legacy_pending_migration",
     })),
   );

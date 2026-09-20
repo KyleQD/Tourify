@@ -8,44 +8,56 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/auth-provider"
-import { apiRequest, ApiError } from "@/lib/api/client"
+import { apiRequest } from "@/lib/api/client"
 
 interface GroupMessage {
   id: string
   thread_id: string
   sender_id: string
-  content: string
+  content: string | null
+  message_type: string | null
   created_at: string
+  sender?: { id: string; username?: string; full_name?: string }
 }
 
-export default function GroupChatThreadScreen() {
+interface ThreadDetail {
+  thread: { id: string; name?: string | null; description?: string | null }
+}
+
+export default function GroupChatScreen() {
   const { id: threadId } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
   const { session } = useAuth()
-  const userId = session?.user?.id ?? null
+  const userId = session?.user?.id
+  const router = useRouter()
 
   const [messages, setMessages] = useState<GroupMessage[]>([])
-  const [threadName, setThreadName] = useState<string>("Group")
-  const [draft, setDraft] = useState("")
+  const [threadName, setThreadName] = useState("Group")
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
-  const listRef = useRef<FlatList>(null)
+  const flatListRef = useRef<FlatList>(null)
 
   const loadMessages = useCallback(async () => {
     if (!threadId) return
     try {
-      const result = await apiRequest<{ messages: GroupMessage[] }>(
-        `/api/groups/threads/${threadId}/messages?limit=50`,
+      setError(null)
+      const detail = await apiRequest<{ thread?: { name?: string | null } }>(
+        `/api/groups/threads/${threadId}`
       )
-      setMessages(result.messages || [])
-    } catch (error) {
-      console.warn("[group-chat] load failed", error)
-      setMessages([])
+      if (detail?.thread?.name) setThreadName(detail.thread.name)
+
+      const res = await apiRequest<{ messages?: GroupMessage[] }>(
+        `/api/groups/threads/${threadId}/messages?limit=50`
+      )
+      setMessages(res?.messages ?? [])
+    } catch (err) {
+      console.warn("[group-chat] load failed:", err)
+      setError("Could not load this group chat.")
     } finally {
       setIsLoading(false)
     }
@@ -55,88 +67,61 @@ export default function GroupChatThreadScreen() {
     void loadMessages()
   }, [loadMessages])
 
-  useEffect(() => {
-    if (!threadId) return
-    async function loadName() {
-      const { data } = await supabase
-        .from("group_threads")
-        .select("name")
-        .eq("id", threadId)
-        .maybeSingle()
-      if (data?.name) setThreadName(data.name)
-    }
-    void loadName()
-  }, [threadId])
+  async function handleSend() {
+    const trimmed = draft.trim()
+    if (!trimmed || !threadId || isSending) return
 
-  useEffect(() => {
-    if (!threadId || !userId) return
-    const channel = supabase
-      .channel(`group-thread-${threadId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "group_messages",
-          filter: `thread_id=eq.${threadId}`,
-        },
-        (payload) => {
-          const incoming = payload.new as GroupMessage
-          if (incoming.sender_id === userId) return
-          setMessages((prev) => [incoming, ...prev])
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(channel)
-    }
-  }, [threadId, userId])
-
-  async function sendMessage() {
-    const content = draft.trim()
-    if (!content || !userId || !threadId || isSending) return
     setIsSending(true)
     setDraft("")
+
     try {
-      const result = await apiRequest<{ success: boolean; message: GroupMessage }>(
-        `/api/groups/threads/${threadId}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify({ content }),
-        },
+      await apiRequest(`/api/groups/threads/${threadId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content: trimmed }),
+      })
+      // Refresh to include the newly sent message with server fields.
+      const res = await apiRequest<{ messages?: GroupMessage[] }>(
+        `/api/groups/threads/${threadId}/messages?limit=50`
       )
-      if (result?.message) {
-        setMessages((prev) => [result.message, ...prev])
-      }
-    } catch (error) {
-      setDraft(content)
-      if (error instanceof ApiError) {
-        console.warn("[group-chat] send failed:", error.status, error.message)
-      } else {
-        console.warn("[group-chat] send failed:", error)
-      }
+      setMessages(res?.messages ?? [])
+    } catch (err) {
+      setDraft(trimmed)
+      console.warn("[group-chat] send failed:", err)
     } finally {
       setIsSending(false)
     }
   }
 
-  function formatTime(value: string): string {
-    const date = new Date(value)
+  function formatTime(dateStr: string): string {
+    const date = new Date(dateStr)
     return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
   }
 
   function renderMessage({ item }: { item: GroupMessage }) {
     const isMine = item.sender_id === userId
+
     return (
       <View
         style={{
           alignSelf: isMine ? "flex-end" : "flex-start",
           maxWidth: "78%",
           marginVertical: 3,
-          marginHorizontal: 12,
+          marginHorizontal: 12
         }}
       >
+        {!isMine && (
+          <Text
+            style={{
+              color: "#94a3b8",
+              fontSize: 11,
+              marginLeft: 4,
+              marginBottom: 1
+            }}
+            numberOfLines={1}
+          >
+            {item.sender?.full_name || item.sender?.username || "Member"}
+          </Text>
+        )}
         <View
           style={{
             backgroundColor: isMine ? "#7c3aed" : "#1e293b",
@@ -144,10 +129,12 @@ export default function GroupChatThreadScreen() {
             borderBottomRightRadius: isMine ? 4 : 18,
             borderBottomLeftRadius: isMine ? 18 : 4,
             paddingHorizontal: 14,
-            paddingVertical: 10,
+            paddingVertical: 10
           }}
         >
-          <Text style={{ color: "#fff", fontSize: 15, lineHeight: 20 }}>{item.content}</Text>
+          <Text style={{ color: "#fff", fontSize: 15, lineHeight: 20 }}>
+            {item.content ?? ""}
+          </Text>
         </View>
         <Text
           style={{
@@ -155,7 +142,7 @@ export default function GroupChatThreadScreen() {
             fontSize: 11,
             marginTop: 2,
             alignSelf: isMine ? "flex-end" : "flex-start",
-            marginHorizontal: 4,
+            marginHorizontal: 4
           }}
         >
           {formatTime(item.created_at)}
@@ -171,6 +158,7 @@ export default function GroupChatThreadScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
+        {/* Header */}
         <View
           style={{
             flexDirection: "row",
@@ -178,7 +166,7 @@ export default function GroupChatThreadScreen() {
             padding: 14,
             borderBottomWidth: 1,
             borderBottomColor: "#1e293b",
-            gap: 12,
+            gap: 12
           }}
         >
           <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
@@ -190,12 +178,16 @@ export default function GroupChatThreadScreen() {
         </View>
 
         {isLoading ? (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator size="large" color="#c084fc" />
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <ActivityIndicator color="#c084fc" size="large" />
+          </View>
+        ) : error ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+            <Text style={{ color: "#f87171", fontSize: 15, textAlign: "center" }}>{error}</Text>
           </View>
         ) : (
           <FlatList
-            ref={listRef}
+            ref={flatListRef}
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
@@ -205,17 +197,18 @@ export default function GroupChatThreadScreen() {
               ...(messages.length === 0 && {
                 flex: 1,
                 alignItems: "center",
-                justifyContent: "center",
-              }),
+                justifyContent: "center"
+              })
             }}
             ListEmptyComponent={
               <Text style={{ color: "#64748b", fontSize: 15 }}>
-                Send a message to start the conversation
+                No messages yet — say hello
               </Text>
             }
           />
         )}
 
+        {/* Input bar */}
         <View
           style={{
             flexDirection: "row",
@@ -224,13 +217,13 @@ export default function GroupChatThreadScreen() {
             paddingBottom: Platform.OS === "ios" ? 10 : 14,
             borderTopWidth: 1,
             borderTopColor: "#1e293b",
-            gap: 8,
+            gap: 8
           }}
         >
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Type a message..."
+            placeholder="Message the group..."
             placeholderTextColor="#475569"
             multiline
             style={{
@@ -243,11 +236,11 @@ export default function GroupChatThreadScreen() {
               fontSize: 15,
               maxHeight: 100,
               borderWidth: 1,
-              borderColor: "#1e293b",
+              borderColor: "#1e293b"
             }}
           />
           <TouchableOpacity
-            onPress={() => void sendMessage()}
+            onPress={handleSend}
             disabled={!draft.trim() || isSending}
             style={{
               backgroundColor: draft.trim() ? "#7c3aed" : "#334155",
@@ -255,7 +248,7 @@ export default function GroupChatThreadScreen() {
               height: 40,
               borderRadius: 20,
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "center"
             }}
           >
             <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>↑</Text>

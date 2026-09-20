@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-006",
+  "title": "Complete canonical events_v2 launch cutover",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T09:35:07.688Z",
+  "updated_at": "2026-09-16T19:24:55.270Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Make events_v2 canonical for every core launch flow, explicitly gate incompatible legacy domains, and eliminate runtime schema probing",
+  "scope": {
+    "in": [
+      "app/api/tours/planner/route.ts",
+      "lib/services/dashboard.service.ts",
+      "__tests__/admin/events-v2-canonical-cutover.test.ts",
+      "app/api/analytics/route.ts",
+      "app/api/calendar/me/route.ts",
+      "app/api/community/stats/route.ts",
+      "app/api/cron/event-reminders/route.ts"
+    ],
+    "out": [
+      "Legacy artist/public-provider event domains whose identifiers and authorization contracts are distinct",
+      "Staging or production migration application/evidence"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "events_v2 is the documented canonical event contract for every core launch route and service",
+    "Every remaining legacy events or artist_events caller is classified as migrated, compatibility-gated, or deferred with an owner and contract rationale",
+    "No core launch hot path probes schemas or silently falls back between incompatible event tables",
+    "Focused contract tests, a repository caller inventory, staging database evidence, and TICKET-005 event lifecycle certification pass"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npx eslint app/api/tours/planner/route.ts lib/services/dashboard.service.ts __tests__/admin/events-v2-canonical-cutover.test.ts app/api/analytics/route.ts app/api/calendar/me/route.ts app/api/community/stats/route.ts app/api/cron/event-reminders/route.ts",
+      "npx vitest run __tests__/admin/events-v2-canonical-cutover.test.ts",
+      "git diff --check -- app/api/tours/planner/route.ts lib/services/dashboard.service.ts __tests__/admin/events-v2-canonical-cutover.test.ts",
+      "! rg -n \"\\.from\\(\\s*['\\\"]events['\\\"]\\s*\\)\" app/api/tours/planner/route.ts lib/services/dashboard.service.ts app/api/analytics/route.ts app/api/calendar/me/route.ts app/api/community/stats/route.ts app/api/cron/event-reminders/route.ts",
+      "node -e \"const fs=require('fs'); const files=['app/api/tours/planner/route.ts','lib/services/dashboard.service.ts','app/api/analytics/route.ts','app/api/calendar/me/route.ts','app/api/community/stats/route.ts','app/api/cron/event-reminders/route.ts']; const legacy=/\\.from\\(\\s*['\\\"]events['\\\"]\\s*\\)/; const missing=files.filter(f=>legacy.test(fs.readFileSync(f,'utf8'))); if(missing.length) throw new Error(missing.join(',')); console.log('DB-006 canonical caller scan: PASS (6 files, 0 legacy events reads)')\""
+    ],
+    "evidence": [
+      "2026-09-10T22:47:50Z: ESLint passed for all three DB-006 files.",
+      "2026-09-10T22:47:50Z: focused Vitest passed, 1 file / 2 tests.",
+      "2026-09-10T22:48:06Z: canonical caller assertion found no legacy events reads in the planner or dashboard; planner retains the events_v2 relation and dashboard reads events_v2 directly.",
+      "2026-09-10T22:52:00Z: ESLint passed for four additional active hot paths; scoped legacy-read assertion found no events relation reads and one events_v2 read per route.",
+      "2026-09-11T18:01:06Z: fixed the stale eventsResponse reference left by the calendar cutover; ESLint passed, focused Vitest passed 7 tests, and the six-caller static scan found 0 legacy events reads."
+    ],
+    "last_run_sha": "working-tree",
+    "last_run_at": "2026-09-11T18:01:06Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted DB-006 to P0 and locked events_v2 as canonical for core launch. Every remaining legacy caller must be classified, migrated or gated, and core hot paths may not probe schemas or silently fall back.",
+    "completed": [
+      "Confirmed the active events_v2 schema has org-scoped RLS and is already the admin tour event write target.",
+      "Removed the tour planner's legacy events fallback after the canonical events_v2 relation read.",
+      "Removed dashboard event count/recent-event dual reads and legacy aggregation; dashboard now reads events_v2 only.",
+      "Added a focused contract test preventing regression to legacy reads in the two cutover paths.",
+      "Removed legacy events reads from analytics, personal calendar, community stats, and operational reminders.",
+      "Expanded the regression test to all six bounded callers and fixed the calendar partial-state reference."
+    ],
+    "next_steps": [
+      "Run the manual, targeted staging migration/postflight checks when an approved environment is available; never reset or force replay.",
+      "Evaluate the remaining legacy callers individually; map identifier and authorization contracts before any cutover and do not invent events_v2 schema.",
+      "Record staging and production evidence before closing the task."
+    ],
+    "blockers": [
+      "No staging or production database evidence is available in this workspace; CP-051 forbids automatic migration application or replay.",
+      "The bounded six-caller review has no legacy events reads. An exact app/lib inventory still finds legacy events or artist_events callers in 52 other files, including artist/public-provider, venue, booking, feed, workflow, admin, and tour surfaces; these remain out of scope until their identifier and authorization contracts are mapped."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T22:40:00Z",
+        "summary": "Verified owner decision CP-053/Q5: events_v2 is canonical. Active event_core migration defines events_v2 with org_id, created_by, schedule fields, and org-scoped RLS; admin tour operations already write through events_v2. Expanded scope from migrations-only to the two bounded callers because caller evidence required it.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DB-006.json"
+        ],
+        "verification": "Read-only inspection of docs/engineering/DECISIONS.md, docs/engineering/OWNER_DECISIONS_2026-09-10.md, supabase/migrations/20250816133000_event_core.sql, and lib/admin/tour-event-operations.service.ts.",
+        "blockers": [
+          "No live staging/production evidence; no migration applied."
+        ],
+        "next": "Cut over the planner and dashboard callers without changing authorization boundaries."
+      },
+      {
+        "at": "2026-09-10T22:48:06Z",
+        "summary": "Cut over planner and dashboard reads to events_v2 only. Removed the planner's legacy fallback and dashboard's dual-table count/recent-event aggregation. Added a regression contract test.",
+        "changed_paths": [
+          "app/api/tours/planner/route.ts",
+          "lib/services/dashboard.service.ts",
+          "__tests__/admin/events-v2-canonical-cutover.test.ts",
+          "docs/engineering/tasks/active/DB-006.json"
+        ],
+        "verification": [
+          "npx eslint app/api/tours/planner/route.ts lib/services/dashboard.service.ts __tests__/admin/events-v2-canonical-cutover.test.ts: passed",
+          "npx vitest run __tests__/admin/events-v2-canonical-cutover.test.ts: 1 file, 2 tests passed",
+          "git diff --check scoped to the four DB-006 paths: passed",
+          "Legacy events read assertion for planner/dashboard: passed"
+        ],
+        "blockers": [
+          "Repository-wide git diff --check reports unrelated pre-existing whitespace in other dirty paths; not part of DB-006.",
+          "Staging/production evidence remains unavailable and broader legacy event domains remain out of this bounded cutover."
+        ],
+        "next": "Use the approved manual pipeline for environment evidence, then evaluate remaining legacy callers individually before any further cutover."
+      },
+      {
+        "at": "2026-09-10T22:52:00Z",
+        "summary": "Extended the additive events_v2 cutover to four active hot paths: analytics, personal calendar, community stats, and operational reminders. Explicit event_table compatibility and public discovery dual-read paths remain outside this bounded change.",
+        "changed_paths": [
+          "app/api/analytics/route.ts",
+          "app/api/calendar/me/route.ts",
+          "app/api/community/stats/route.ts",
+          "app/api/cron/event-reminders/route.ts",
+          "docs/engineering/tasks/active/DB-006.json"
+        ],
+        "verification": [
+          "npx eslint app/api/cron/event-reminders/route.ts app/api/calendar/me/route.ts app/api/community/stats/route.ts app/api/analytics/route.ts: passed",
+          "Scoped rg assertion found no .from('events') calls in the four changed routes and found events_v2 in all four.",
+          "No migration, reset, replay, push, or live schema mutation was run; CP-051 honored."
+        ],
+        "blockers": [
+          "Staging and production evidence remains unavailable and is required before DB-006 closure."
+        ],
+        "next": "Use the approved manual pipeline for staging/production postflight evidence, then close DB-006 if the cutover is live and authorized."
+      },
+      {
+        "at": "2026-09-11T18:01:06Z",
+        "summary": "Finalized the bounded events_v2 canonical-caller review. All six named hot paths use events_v2 and no longer probe legacy events. The calendar route's stale eventsResponse reference was corrected, and the regression test now covers all six callers. Remaining legacy events/artist_events callers were recorded as a 52-file out-of-scope inventory requiring separate contract and authorization mapping.",
+        "changed_paths": [
+          "app/api/calendar/me/route.ts",
+          "__tests__/admin/events-v2-canonical-cutover.test.ts",
+          "docs/engineering/tasks/active/DB-006.json"
+        ],
+        "verification": [
+          "PASS: ESLint for all six callers and the focused regression test.",
+          "PASS: npx vitest run __tests__/admin/events-v2-canonical-cutover.test.ts — 1 file, 7 tests passed.",
+          "PASS: git diff --check over the six callers and test.",
+          "PASS: exact six-caller scan — 0 .from('events')/.from(\"events\") reads; all six contain events_v2.",
+          "INVENTORY: exact app/lib scan found 52 remaining legacy events or artist_events caller files outside the bounded cutover."
+        ],
+        "blockers": [
+          "The remaining 52 legacy caller files have distinct domains or write/auth contracts and require separate bounded reviews.",
+          "Staging and production evidence is unavailable and remains required before task closure."
+        ],
+        "next": "Open no replacement task in this turn; use the recorded inventory to sequence separate contract reviews, then obtain approved staging and production evidence for the canonical cutover."
+      },
+      {
+        "at": "2026-09-16T19:24:55.270Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted DB-006 to P0 and locked events_v2 as canonical for core launch. Every remaining legacy caller must be classified, migrated or gated, and core hot paths may not probe schemas or silently fall back.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

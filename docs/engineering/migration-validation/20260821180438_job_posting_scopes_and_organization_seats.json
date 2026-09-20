@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821180438_job_posting_scopes_and_organization_seats.sql",
+  "taskId": "HIRING-SCOPED-JOBS-AND-SEATS",
+  "status": "isolated_validated",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["hiring", "events", "tours", "organizations", "work-mode", "rbac"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "linked production Supabase project with current job postings, events_v2, tours, and organization memberships",
+    "evidenceArtifact": "Supabase migrations 20260821180438 and 20260821183357, generated database types, and scoped advisor review"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count postings with both event_id and tour_id",
+      "Count event job links missing from events_v2 and tour job links missing from tours",
+      "Count duplicate active organization employment assignments"
+    ],
+    "expectedAffectedRows": "Existing postings are classified from their current event/tour links; existing organization memberships become active seats without changing roles",
+    "artifact": "Initial destination preflight returned zero dual-scope and orphaned postings"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Columns and indexes are additive; named checks and policies are recreated deterministically",
+    "resumeCursor": "Supabase migration version 20260821180438",
+    "idempotency": "Columns and indexes use IF NOT EXISTS, posting scope backfill only updates null values, and named checks are replaced"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Target ownership is validated in the server assignment service; invalid historical links fail migration preflight rather than being inferred"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "job_posting_templates requires exactly one organization, event, or tour destination",
+      "job event destinations reference events_v2 and tour destinations reference tours",
+      "organization seat status, source, and direct capabilities are constrained",
+      "employment assignment kind includes organization"
+    ],
+    "indexes": [
+      "job_posting_templates_assignment_scope_idx",
+      "org_members_active_seats_idx",
+      "employment_assignments_active_organization_key"
+    ],
+    "validationPlan": "Create all three posting destinations, reject cross-organization targets, approve linked users, and verify event roster, tour crew, organization seat, and Work Mode projections"
+  },
+  "recovery": {
+    "rollback": "Use a reviewed forward migration to disable new posting destinations or seat grants while preserving job and membership history",
+    "forwardFix": "Apply additive changes for capability bundles, roster projection, or policy corrections"
+  },
+  "postflight": {
+    "queries": [
+      "Verify posting checks and target foreign keys are validated",
+      "Verify active seat uniqueness and direct permission evaluation",
+      "Verify active seat permissions are included by has_perm without changing the existing membership policy inventory",
+      "Run Supabase security and performance advisors for affected tables and functions"
+    ],
+    "artifact": "All new columns are present with expected defaults; target and capability constraints are validated",
+    "securityAdvisorArtifact": "No new affected-table RLS gaps; has_perm and is_org_member remain intentional authenticated policy predicates",
+    "performanceAdvisorArtifact": "New seat lineage foreign-key notices were resolved by migration 20260821183357; remaining affected-domain notices predate this change"
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": "27 focused Vitest checks passed and targeted ESLint completed with zero errors",
+    "staging": null,
+    "production": "Supabase project migrations 20260821180438 and 20260821183357"
+  },
+  "exceptions": [
+    {
+      "id": "job-posting-scope-not-null",
+      "type": "not-null-reviewed",
+      "owner": "admin-platform",
+      "rationale": "The new scope column is backfilled before SET NOT NULL; the linked snapshot has 35 posting rows and completed within the documented 5-second lock budget.",
+      "issue": "HIRING-SCOPED-JOBS-AND-SEATS",
+      "expiresOn": "2026-09-21",
+      "evidence": "Linked-project migration 20260821180438 completed successfully and all scope constraints validate."
+    }
+  ]
+}

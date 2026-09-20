@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821181237_hiring_overview_job_lifecycle.sql",
+  "taskId": "WF-HIRING-OVERVIEW-V2",
+  "status": "planned",
+  "owner": "workforce-hiring",
+  "reviewer": "security-data",
+  "domains": ["hiring", "workforce", "audit", "tenancy"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch with organization, venue, active, filled, and archived hiring records",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count job_posting_templates by status and inspect noncanonical status values",
+      "Count hiring_audit_events with null application_id and inventory existing employer and subject columns",
+      "Record index definitions for employer-scoped jobs, applications, candidates, roster members, and audit events"
+    ],
+    "expectedAffectedRows": "No rows are rewritten or deleted; lifecycle and audit columns, one NOT VALID status constraint, and employer-scoped indexes are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the additive IF NOT EXISTS column and index statements, then confirm the named canonical status constraint exists",
+    "resumeCursor": "supabase migration version 20260821181237",
+    "idempotency": "Columns and indexes use IF NOT EXISTS; known legacy status constraints are dropped before the canonical named constraint is recreated"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant ownership or lifecycle status is inferred; legacy rows remain untouched for explicit review before constraint validation"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["job_posting_templates_status_check (NOT VALID)"],
+    "indexes": [
+      "idx_job_posting_templates_employer_status_created",
+      "idx_job_applications_employer_job_status",
+      "idx_onboarding_candidates_employer_job_status",
+      "idx_staff_members_employer_candidate_status",
+      "idx_hiring_audit_employer_created"
+    ],
+    "validationPlan": "Inspect noncanonical statuses, confirm new writers accept only the six canonical states, then validate the status constraint in a separately reviewed migration"
+  },
+  "recovery": {
+    "rollback": "Stop using filled and archived writers; leave additive nullable columns and indexes in place and restore the previous status constraint only in a forward migration",
+    "forwardFix": "Normalize any explicitly reviewed legacy status rows and validate the canonical constraint in a later additive migration"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect job_posting_templates lifecycle columns and canonical constraint validation state",
+      "Verify archived and filled status writes and employer-scoped overview query plans",
+      "Verify application-free job lifecycle audit rows are accepted and remain employer scoped"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

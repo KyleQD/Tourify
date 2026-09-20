@@ -1,0 +1,168 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-002",
+  "title": "Close hosted database permission and money-path exposure",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T09:35:06.653Z",
+  "updated_at": "2026-09-17T01:29:01.283Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Remove anonymous execution from exposed SECURITY DEFINER and money-path functions and verify the critical hosted authorization migrations in staging and production",
+  "scope": {
+    "in": [
+      "supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql",
+      "supabase/migrations/20260823210100_venues_rbac_rls_baseline.sql",
+      "supabase/migrations/20260823220001_money_path_transactional_rpcs.sql",
+      "supabase/migrations/20260823221000_event_hq_rls_tighten.sql",
+      "supabase/migrations/20260823221100_venues_add_identity_columns.sql",
+      "supabase/migrations/20260914090000_revoke_public_execute_db002.sql",
+      "docs/engineering/migration-validation/*.json"
+    ],
+    "out": [
+      "app code",
+      "non-target migration files",
+      "scripts/run-migrations.sh"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/",
+    "docs/engineering/migration-validation/",
+    "scripts/run-migrations.sh"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/DECISIONS.md#CP-006",
+    "docs/engineering/DECISIONS.md#CP-037"
+  ],
+  "acceptance_criteria": [
+    "The critical staged migrations and 20260914090000_revoke_public_execute_db002.sql are applied manually and recorded in staging and production migration history",
+    "Anonymous and PUBLIC callers cannot execute can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, or has_entity_permission",
+    "Authenticated and service-role access is limited to the documented server-side scope and all negative authorization probes pass",
+    "Staging and production postflight probes, security advisors, checksums, migration validation, and forward-repair evidence are recorded"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run check:migration-checksums",
+      "bash scripts/run-migrations.sh --dry-run",
+      "Management API apply: 20260823210000_harden_hiring_onboarding_pii.sql (HTTP 201)",
+      "Management API apply: 20260823210100_venues_rbac_rls_baseline.sql (HTTP 201 after schema reconciliation)",
+      "Management API apply: 20260823220001_money_path_transactional_rpcs.sql (HTTP 201)",
+      "Management API apply: 20260823221000_event_hq_rls_tighten.sql (HTTP 201)",
+      "Management API apply: 20260823221100_venues_add_identity_columns.sql (HTTP 201)",
+      "Postflight: pg_policies query for hiring tables (no authenticated-wide permissive)",
+      "Postflight: can_view_hiring_pii SECURITY DEFINER + search_path=public confirmed",
+      "Postflight: money-path RPCs SECURITY DEFINER + search_path=public confirmed",
+      "Postflight: event HQ tables zero anon policies confirmed",
+      "Postflight: event HQ write policies creator-scoped + platform-admin confirmed",
+      "Postflight: venues has slug/account_id/created_by with chain-original types",
+      "Postflight: venues_slug_key partial unique index present",
+      "Postflight: venues_public_read + venues_owner_write present; RLS enabled on venues + 6 rbac tables",
+      "Postflight: has_entity_permission SECURITY DEFINER + search_path=public",
+      "Postflight: profiles_privilege_guard trigger enabled",
+      "RLS behavior probes: anon reads slug-published row (1), anon INSERT rejected (42501), probe rows rolled back"
+    ],
+    "evidence": [
+      "check:migration-chain: 'active migration chain has no duplicate policy creations (278 files scanned)' — clean",
+      "check:migration-validation: exit 0, no failures — 5 manifests for the staged set record staging_validated with evidence",
+      "check:migration-checksums: 'No changed migration SQL files' — helper diffs committed baseSha...HEAD only; new migration is untracked until committed, so no checksum row is rendered pre-commit (expected; re-run after commit)",
+      "run-migrations.sh --dry-run: 25 files listed (the 4 target migrations NOT in script FILES array — pipeline apply list is owned by DB-003 per owner decision; run-migrations.sh NOT patched)",
+      "Migration 1 (hiring-PII): HTTP 201 — applied successfully. Postflight: vault has 2 policies (pii_admin + service_role), can_view_hiring_pii is SECURITY DEFINER with search_path=public, no authenticated-wide permissive policies on hiring tables, applicant self-read intact.",
+      "Migration 2 (venues/RBAC): HTTP 201 — applied successfully after additive schema reconciliation. Pre-apply probe confirmed deployed venues lacked slug/account_id/created_by and profiles lacked admin_level (has is_admin/role from bootstrap; failed baseline rolled back cleanly). Applied 20260823221100_venues_add_identity_columns (HTTP 201) first: slug text, account_id uuid FK auth.users(id) ON DELETE SET NULL, created_by uuid FK auth.users(id) ON DELETE SET NULL, all nullable; venues_slug_key = CREATE UNIQUE INDEX ... ON public.venues USING btree (slug) WHERE (slug IS NOT NULL). Then re-applied baseline (HTTP 201).",
+      "Migration 3 (money-path RPCs): HTTP 201 — applied successfully. Postflight: replace_ticket_revenue_allocations(uuid, jsonb) and delete_tour_cascade(uuid) exist, both SECURITY DEFINER with search_path=public, grants to authenticated+service_role.",
+      "Migration 4 (event-HQ): HTTP 201 — applied successfully. Postflight: zero anon policies on event_resources/event_calendar_items/event_bulletins; all INSERT/UPDATE/DELETE policies scoped to created_by/author_id = auth.uid() OR is_admin; authenticated reads unchanged.",
+      "Post-apply venues/RBAC probes: venues relrowsecurity=true; rbac_roles/rbac_permissions/rbac_role_permissions/rbac_user_entity_roles/rbac_user_permission_overrides/rbac_permission_audit_log all relrowsecurity=true. Policies present: venues_public_read (SELECT, anon+authenticated, using slug IS NOT NULL OR account_id=auth.uid() OR created_by=auth.uid()), venues_owner_write (ALL, authenticated), rbac_roles_read_authenticated, rbac_permissions_read_authenticated, rbac_role_permissions_read_authenticated, rbac_user_entity_roles_self_read + rbac_user_entity_roles_manage, rbac_overrides_admin_all, rbac_audit_insert_authenticated + rbac_audit_select_admin. has_entity_permission prosecdef=true proconfig=['search_path=public']. profiles_privilege_guard trigger tgenabled='O'.",
+      "RLS behavior probes (transactional, rolled back): anon_visible_published=1 for a slug-published row (anon CAN read via venues_public_read); anon INSERT rejected with 42501 'new row violates row-level security policy for table venues'; probe_rows_remaining=0 after rollback.",
+      "Manifests: 20260823210100_venues_rbac_rls_baseline.json advanced planned → staging_validated; 20260823221100_venues_add_identity_columns.json added staging_validated; the 3 previously-staged manifests (hiring-PII, money-path, event-HQ) had their isolated-validated artifact fields populated (validator requires them for staging_validated) — 4 of 4 staged migrations now staging_validated."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-13T20:18:00Z",
+    "result": "blocked-release-authz"
+  },
+  "progress": {
+    "summary": "Partial batch implementation landed: the DB-002 migration now revokes EXECUTE from both PUBLIC and anon for all four exposed SECURITY DEFINER functions, grants only authenticated/service_role, and has static migration/postflight contract coverage. Hosted application and probes remain outstanding.",
+    "completed": [
+      "20260823210000_harden_hiring_onboarding_pii.sql — APPLIED (hiring-PII hardening)",
+      "20260823220001_money_path_transactional_rpcs.sql — APPLIED (money-path transactional RPCs)",
+      "20260823221000_event_hq_rls_tighten.sql — APPLIED (event-HQ anon-write closure)",
+      "20260823221100_venues_add_identity_columns.sql — APPLIED (additive venues identity-column reconciliation, HTTP 201)",
+      "20260823210100_venues_rbac_rls_baseline.sql — APPLIED (venues/RBAC RLS baseline, HTTP 201) after schema reconciliation",
+      "Validation manifests: all 4 staged migrations staging_validated; new additive migration manifest added; 3 prior manifests' isolated-artifact fields populated to satisfy the staging_validated gate",
+      "RLS behavior verified: anon reads slug-published rows, anon INSERT blocked (42501), probe rows rolled back",
+      "Production verification: target objects, RLS policies, indexes, and SECURITY DEFINER search_path settings confirmed against the registered production target",
+      "Production security blocker: can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, and has_entity_permission have PUBLIC/anon EXECUTE; Supabase security advisor flags all four",
+      "Production migration-history drift: target versions are absent from supabase_migrations.schema_migrations because prior raw Management API application did not register history; DB-003 owns reconciliation",
+      "Read-only probe cleanup confirmed no residual rows; no migration was applied in this lane under CP-051",
+      "Corrected 20260914090000_revoke_public_execute_db002.sql to revoke both PUBLIC and anon direct grants.",
+      "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path."
+    ],
+    "next_steps": [
+      "Apply the additive migration manually in staging, verify anonymous denial and intended authenticated/service_role access, then repeat in production under CP-051.",
+      "Reconcile migration-history metadata and attach advisor, checksum, and forward-repair evidence."
+    ],
+    "blockers": [
+      "No staging or production database mutation/probe was performed in this batch.",
+      "Hosted migration-history drift remains unresolved from prior raw Management API applications.",
+      "The task cannot close on static contract evidence alone."
+    ],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-09T12:00:00.000Z",
+        "summary": "Applied 3/4 staged migrations via Management API. Migration 2 blocked by venues schema drift.",
+        "details": "Chain check clean (277 files). Validation scan clean. All 4 SQL files inspected for hazards: transactional, to_regclass-guarded, SECURITY DEFINER with pinned search_path. Migrations 1,3,4 applied (HTTP 201) with postflight verification. Migration 2 failed (HTTP 400: venues.slug missing). Credentials sourced from .env.supabase.local (project ref auqddrodjezjlypkzfpi). No tokens printed.",
+        "next": "Resolve venues schema drift, then apply migration 2."
+      },
+      {
+        "timestamp": "2026-09-09T15:30:00.000Z",
+        "summary": "Resolved the venues schema-drift blocker: additive migration applied, baseline re-applied, all 4 staged migrations now production-applied and verified.",
+        "details": "Created supabase/migrations/20260823221100_venues_add_identity_columns.sql (additive: slug text, account_id uuid references auth.users(id) on delete set null, created_by uuid references auth.users(id) on delete set null; venues_slug_key partial unique index WHERE slug IS NOT NULL). Verified no chain/app collisions: only 20250818120000_admin_staffing_core.sql and the baseline reference these columns; app writes to venues use name/city/capacity only. Pre-apply probe: venues 22 cols (no slug/account_id/created_by), profiles has is_admin/role but not admin_level (failed baseline rolled back cleanly), RBAC tables present. Applied additive (HTTP 201) then baseline (HTTP 201). Postflight probes: columns + index present, venues_public_read + venues_owner_write present, RLS enabled on venues + 6 rbac tables, has_entity_permission SECURITY DEFINER search_path=public, profiles_privilege_guard enabled. RLS behavior: anon_visible_published=1, anon INSERT rejected 42501, probe rows rolled back (0 residue). Checks: chain 278 files clean, validation exit 0. Manifests: baseline + new additive migration staging_validated; 3 prior staging manifests' isolated-artifact fields populated (validator requires them at staging_validated). Pre-existing validation failures on those 3 manifests were fixed in-scope (docs/engineering/migration-validation/*.json) to keep the check clean. Pipeline note recorded: run-migrations.sh FILES list excludes the staged set; per owner decision the authoritative apply list is owned by DB-003 — run-migrations.sh NOT patched.",
+        "next": "Hand off apply-list reconciliation to DB-003; QA/RELEASE behavior verification; regenerate canonical types."
+      },
+      {
+        "timestamp": "2026-09-13T20:18:00Z",
+        "summary": "Read-only QA/release verification against the registered production target found the migration object families and RLS behavior present, but identified two release blockers: target migration versions are absent from production migration history, and four SECURITY DEFINER functions have PUBLIC/anon EXECUTE, including money-mutating RPCs. DB-002 remains active and blocked for explicit authorization remediation and DB-003 history reconciliation.",
+        "details": "Production catalog and policy probes passed for target tables, RLS enablement, event-HQ anon-policy removal, hiring PII restrictions, venues identity columns/index, and anonymous venue INSERT rejection. As anon, delete_tour_cascade reached the function body and returned tour_not_found; replace_ticket_revenue_allocations reached the function body and returned event_id_required, confirming callable exposure. Supabase security advisor flags can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, and has_entity_permission as anon-executable. No migration was applied. check:migration-chain, check:migration-validation, check:migration-checksums with task SHA, target identity, and agents:validate passed; run-migrations.sh --dry-run was blocked only by managed-sandbox telemetry EPERM.",
+        "next": "Have DB-003 reconcile migration-history metadata and apply a reviewed additive/manual revoke or equivalent owner-approved authorization fix; then rerun production probes and advisor evidence."
+      },
+      {
+        "timestamp": "2026-09-14T09:00:00Z",
+        "summary": "Prepared the reviewed additive authorization forward-fix and its postflight regression check.",
+        "details": "Added 20260914090000_revoke_public_execute_db002.sql to revoke inherited PUBLIC/anon EXECUTE from can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, and has_entity_permission, then explicitly retain authenticated and service_role execution. Added db002_security_grants.sql to assert the effective ACLs. No hosted migration was applied because production migration-history reconciliation remains owned by DB-003 and CP-051 forbids an untracked raw SQL apply.",
+        "next": "DB-003 must reconcile the hosted migration history and approve/apply this forward-fix through the governed migration path; then run the DB-002 security-grant and production postflight checks."
+      },
+      {
+        "at": "2026-09-16T19:24:55.147Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted DB-002 to P0 and expanded it to the four exposed SECURITY DEFINER functions plus 20260914090000_revoke_public_execute_db002.sql. Staging and production anonymous-denial, advisor, migration-history, and forward-repair evidence are required before closure.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-17T01:29:01.283Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: the DB-002 migration now revokes EXECUTE from both PUBLIC and anon for all four exposed SECURITY DEFINER functions, grants only authenticated/service_role, and has static migration/postflight contract coverage. Hosted application and probes remain outstanding.",
+        "completed": [
+          "Corrected 20260914090000_revoke_public_execute_db002.sql to revoke both PUBLIC and anon direct grants.",
+          "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path."
+        ],
+        "next_steps": [
+          "Apply the additive migration manually in staging, verify anonymous denial and intended authenticated/service_role access, then repeat in production under CP-051.",
+          "Reconcile migration-history metadata and attach advisor, checksum, and forward-repair evidence."
+        ],
+        "blockers": [
+          "No staging or production database mutation/probe was performed in this batch.",
+          "Hosted migration-history drift remains unresolved from prior raw Management API applications.",
+          "The task cannot close on static contract evidence alone."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

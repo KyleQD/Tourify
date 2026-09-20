@@ -1,4 +1,4 @@
-import { finalizeInventory, releaseInventory } from '@/lib/ticketing/inventory'
+import { requireFinalizedInventory, releaseInventory } from '@/lib/ticketing/inventory'
 import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
 import { writeSaleLedger, writeRefundLedger } from '@/lib/ticketing/ledger'
 import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
@@ -23,8 +23,6 @@ export async function claimWebhookEvent(params: {
   orderId?: string | null
   summary?: Record<string, unknown>
 }): Promise<boolean> {
-  if (!isTicketingV2Enabled()) return true
-
   const { error } = await params.supabase.from('ticket_stripe_webhook_events').insert({
     id: params.stripeEventId,
     event_type: params.eventType,
@@ -36,7 +34,7 @@ export async function claimWebhookEvent(params: {
   if (error) {
     if (String(error.code) === '23505' || String(error.message || '').includes('duplicate'))
       return false
-    console.warn('[ticketing.webhook] claim failed', error)
+    throw new Error(`Ticketing webhook claim failed: ${error.message || 'event persistence error'}`)
   }
   return true
 }
@@ -82,16 +80,7 @@ export async function finalizePaidOrder(params: {
     console.warn('[ticketing.finalize] status update', updateError)
 
   if (isTicketingV2Enabled() && order.reservation_id) {
-    try {
-      await finalizeInventory({ supabase, reservationId: order.reservation_id })
-    } catch (err) {
-      console.warn('[ticketing.finalize] inventory finalize', err)
-      // Fallback to classic increment if reservation already consumed/missing
-      await supabase.rpc('increment_ticket_quantity_sold', {
-        p_ticket_type_id: order.ticket_type_id,
-        p_quantity: order.quantity,
-      })
-    }
+    await requireFinalizedInventory({ supabase, reservationId: order.reservation_id })
   } else {
     await supabase.rpc('increment_ticket_quantity_sold', {
       p_ticket_type_id: order.ticket_type_id,

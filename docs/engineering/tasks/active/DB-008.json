@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-008",
+  "title": "Hosted schema reconciliation and migration ledger",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-16T19:20:38.326Z",
+  "updated_at": "2026-09-17T01:29:01.343Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Make staging schema, production migration history, generated types, and the launch migration ledger agree without destructive resets",
+  "scope": {
+    "in": [
+      "Active Supabase migration chain and hosted staging/production migration history",
+      "Launch-required classification, one-at-a-time evidence, advisors, type generation, and forward repair"
+    ],
+    "out": [
+      "Destructive reset, forced replay, or automatic production migration application"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations",
+    "docs/engineering/migration-validation",
+    "lib/database.types.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "Every active migration has an explained staging and production history disposition",
+    "Launch-required migrations have one-at-a-time staging evidence, advisor output, and forward-repair instructions",
+    "Deferred migrations remain unapplied and are excluded from the launch manifest",
+    "Staging schema, generated types, migration ledger, and launch manifest have zero unexplained drift"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run check:migration-checksums",
+      "npm run check:database-types"
+    ],
+    "evidence": [
+      "Audit baseline: 294 active migrations exist, most validation manifests are still planned, zero are production-verified, and raw Management API applications created migration-history drift."
+    ],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Partial batch implementation landed: added a hosted-history ledger for all 294 active migrations, launch-required/deferred classification, normal validation, strict release validation, and all-manifest scanning. The ledger honestly reports 287 unclassified migrations and unverified staging/production history.",
+    "completed": [
+      "Added hosted-history-ledger.json and check-hosted-migration-ledger.mjs with normal and --require-reconciled modes.",
+      "Added active-chain, database-type source, and migration manifest validation tooling without resets or invented hosted evidence."
+    ],
+    "next_steps": [
+      "Populate the ledger from authorized read-only staging/production history and classify the remaining active migrations under CP-051.",
+      "Regenerate database types from the exact staged schema and make strict ledger validation part of the release gate."
+    ],
+    "blockers": [
+      "Strict release validation currently fails because 287 migrations remain unclassified and both environments default to unverified.",
+      "No authorized hosted schema/history access was available in this batch."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T01:29:01.343Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: added a hosted-history ledger for all 294 active migrations, launch-required/deferred classification, normal validation, strict release validation, and all-manifest scanning. The ledger honestly reports 287 unclassified migrations and unverified staging/production history.",
+        "completed": [
+          "Added hosted-history-ledger.json and check-hosted-migration-ledger.mjs with normal and --require-reconciled modes.",
+          "Added active-chain, database-type source, and migration manifest validation tooling without resets or invented hosted evidence."
+        ],
+        "next_steps": [
+          "Populate the ledger from authorized read-only staging/production history and classify the remaining active migrations under CP-051.",
+          "Regenerate database types from the exact staged schema and make strict ledger validation part of the release gate."
+        ],
+        "blockers": [
+          "Strict release validation currently fails because 287 migrations remain unclassified and both environments default to unverified.",
+          "No authorized hosted schema/history access was available in this batch."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide reconciled staging schema and migration-ledger evidence to DB-002, DB-005, DB-006, USER-005, TICKET-005, MKT-004, and QA-003."
+  ]
+}

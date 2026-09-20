@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { UserCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { WorkforceEmptyState, WorkforcePanel } from "./workforce-ui"
 
 interface HiringOnboardingPanelProps {
   employer: HiringEntity
+  initialCandidateId?: string | null
 }
 
 function getPayloadError(payload: unknown): string | null {
@@ -29,7 +30,7 @@ function getPayloadError(payload: unknown): string | null {
   return null
 }
 
-export function HiringOnboardingPanel({ employer }: HiringOnboardingPanelProps) {
+export function HiringOnboardingPanel({ employer, initialCandidateId }: HiringOnboardingPanelProps) {
   const queryString = getEmployerQueryString(employer)
   const { data: candidates, isLoading, error, refetch } = useHiringDashboardFetch<HiringCandidate[]>({
     url: `/api/admin/onboarding/candidates?${queryString}`,
@@ -37,6 +38,16 @@ export function HiringOnboardingPanel({ employer }: HiringOnboardingPanelProps) 
   })
   const [selectedCandidate, setSelectedCandidate] = useState<HiringCandidate | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const openedInitialCandidateRef = useRef(false)
+
+  useEffect(() => {
+    if (!initialCandidateId || isLoading || openedInitialCandidateRef.current) return
+    const candidate = candidates.find((item) => item.id === initialCandidateId)
+    if (!candidate) return
+    openedInitialCandidateRef.current = true
+    setSelectedCandidate(candidate)
+    setIsDrawerOpen(true)
+  }, [candidates, initialCandidateId, isLoading])
 
   function openCandidate(candidate: HiringCandidate) {
     setSelectedCandidate(candidate)

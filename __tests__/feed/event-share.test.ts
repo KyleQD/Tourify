@@ -165,7 +165,7 @@ describe("event share API contracts", () => {
 
     const page = read("components/events/enhanced-event-page.tsx")
     expect(page).toContain("EventShareMenu")
-    expect(page).not.toContain("isSignedIn={Boolean(user)}")
+    expect(page).toContain("isSignedIn={Boolean(user)}")
 
     const menu = read("components/events/event-share-menu.tsx")
     expect(menu).toContain("Share to Feed")

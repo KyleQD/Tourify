@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import dynamic from "next/dynamic"
-import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/hooks/use-theme"
 import { AuthProvider } from "@/contexts/auth-context"
@@ -11,12 +10,11 @@ import { NavigationPerfMarks } from "@/components/performance/navigation-perf-ma
 import { AppChrome } from "@/components/layout/app-chrome"
 import { Toaster } from "sonner"
 import { getMetadataBase } from "@/lib/seo/site"
+import { getPublicRobotsMetadata } from "@/lib/config/public-surface"
 
 const EducationRoot = dynamic(() =>
   import("@/components/product-education/education-root").then((mod) => ({ default: mod.EducationRoot }))
 )
-
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   metadataBase: getMetadataBase(),
@@ -26,6 +24,10 @@ export const metadata: Metadata = {
   },
   description:
     "The all-in-one platform for the music industry.",
+  alternates: {
+    canonical: "/",
+  },
+  robots: getPublicRobotsMetadata(),
   generator: "Tourify Platform",
   applicationName: "Tourify",
   openGraph: {
@@ -65,7 +67,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-gradient-to-br from-indigo-950 to-slate-900 text-slate-100`}>
+      <body className="font-sans min-h-screen bg-gradient-to-br from-indigo-950 to-slate-900 text-slate-100">
         <ChunkLoadRecovery />
         <ThemeProvider defaultTheme="dark">
           <AuthProvider>

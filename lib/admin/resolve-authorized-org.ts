@@ -21,7 +21,6 @@ export interface AuthorizedOrgScope {
   eventIds: string[]
   tourIds: string[]
   /** Service client — use only after withAdminAuth / membership verification */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   service: any
 }
 
@@ -146,7 +145,6 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
  * (only for tables that have created_by — pass includeCreatedBy: false otherwise).
  */
 export function applyOrgLogisticsTaskFilter(args: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   query: any
   userId: string
   eventIds: string[]
@@ -154,7 +152,6 @@ export function applyOrgLogisticsTaskFilter(args: {
   eventId?: string | null
   tourId?: string | null
   includeCreatedBy?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }): any {
   const {
     query,

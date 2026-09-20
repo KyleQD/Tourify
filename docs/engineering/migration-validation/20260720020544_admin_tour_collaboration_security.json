@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260720020544_admin_tour_collaboration_security.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "tour"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Read-only affected-relation and per-organization row counts must be captured before execution"
+    ],
+    "expectedAffectedRows": "Not yet measured; execution remains blocked until preflight evidence is attached",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260720020544",
+    "idempotency": "Must be proven by interrupted replay in an isolated environment before promotion"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Review locks and use expand/validate sequencing for existing relations"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "REL102-TOUR-COLLAB-UPDATE",
+      "type": "unscoped-update-reviewed",
+      "owner": "database-engineering",
+      "rationale": "The only unqualified update normalizes every existing tour-vendor row to the declared defaults and is idempotent.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-TOUR-COLLAB-UPDATE",
+      "sourceSha256": "b313354d1b62b8cf6f8de46ae04b8f51fffe9970e01db67f7b46b6dfb0f65da2"
+    },
+    {
+      "id": "REL102-TOUR-COLLAB-CHECKS",
+      "type": "blocking-constraint-reviewed",
+      "owner": "database-engineering",
+      "rationale": "The checks constrain normalized collaboration enums; isolated row counts and lock timing remain required before promotion.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-TOUR-COLLAB-CHECKS",
+      "sourceSha256": "b313354d1b62b8cf6f8de46ae04b8f51fffe9970e01db67f7b46b6dfb0f65da2"
+    },
+    {
+      "id": "REL102-TOUR-COLLAB-NOT-NULL",
+      "type": "not-null-reviewed",
+      "owner": "database-engineering",
+      "rationale": "Target columns are populated by preceding scoped normalization or existing defaults before NOT NULL is applied.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-TOUR-COLLAB-NOT-NULL",
+      "sourceSha256": "b313354d1b62b8cf6f8de46ae04b8f51fffe9970e01db67f7b46b6dfb0f65da2"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260910000000_fix_accept_org_invite_first_recipient_rls.sql",
+  "taskId": "ORG-004",
+  "status": "planned",
+  "owner": "organization",
+  "reviewer": "security-data",
+  "domains": ["organization", "auth", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "local Supabase target with an invited first-time recipient, an existing member re-accept, a revoked invite, a cross-user, and an anon caller",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count active org_invites by organization (pending/accepted/expired/revoked)",
+      "Verify org_members primary key (org_id, user_id) is the only unique constraint gating ON CONFLICT DO NOTHING",
+      "Inventory org_invites and org_members RLS policies before and after apply"
+    ],
+    "expectedAffectedRows": "Zero rows changed during apply: the migration only replaces the accept_org_invite function body (invoker-rights, same signature, no DML)",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply the idempotent CREATE OR REPLACE FUNCTION in a local Supabase target; use a later additive migration for any production correction",
+    "resumeCursor": "Supabase migration version 20260910000000",
+    "idempotency": "CREATE OR REPLACE FUNCTION is idempotent; REVOKE/GRANT are idempotent explicit replays of the original migration's privilege statements"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No quarantine needed: the change is a function-body replacement with identical signature and no data effect"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "org_members primary key (org_id, user_id) remains the unique constraint honored by ON CONFLICT DO NOTHING",
+      "Acceptance trigger keeps invite identity immutable and prevents acceptance after revocation or expiry (unchanged)"
+    ],
+    "indexes": [
+      "Partial unique index on org_invites.token_hash (unchanged)"
+    ],
+    "validationPlan": "Verify first-time recipient acceptance succeeds, existing-member re-accept is a no-op, replay/revoked/cross-user/anon paths are denied, and the guard trigger still rejects privileged direct writes"
+  },
+  "recovery": {
+    "rollback": "Disable invite acceptance routes; use a corrective additive migration if the function body ever needs to change again (do not rewrite this migration)",
+    "forwardFix": "Add another additive correction and replay the local RLS fixture matrix before promotion"
+  },
+  "postflight": {
+    "queries": [
+      "Verify accept_org_invite executes only for authenticated users with a grant from public/anon revoked",
+      "Verify org_members insert still passes the WITH CHECK insert policies (members_insert, org_members_accept_invite)",
+      "Verify no-overwrite semantics: an existing member row is never updated by a second acceptance"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

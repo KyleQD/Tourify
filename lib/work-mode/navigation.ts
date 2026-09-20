@@ -2,7 +2,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
-  Clock3,
+  LayoutDashboard,
   Contact,
   FileText,
   Map,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 
 export const WORK_MODE_VIEWS = [
-  { id: "today", label: "Today", icon: Clock3 },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "schedule", label: "Schedule", icon: CalendarDays },
   { id: "tasks", label: "Tasks", icon: ClipboardCheck },
   { id: "updates", label: "Updates", icon: Megaphone },

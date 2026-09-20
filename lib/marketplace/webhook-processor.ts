@@ -19,9 +19,16 @@
 
 import 'server-only'
 import type Stripe from 'stripe'
-import { getPaidLifecycleTransition, getFailedPaymentPatch, getRefundPatch } from '@/lib/marketplace/order-lifecycle'
+import {
+  getPaidLifecycleTransition,
+  getFailedPaymentPatch,
+  getRefundPatch,
+  isFullStripeChargeRefund,
+} from '@/lib/marketplace/order-lifecycle'
 import { buildInventoryDecrementPatch } from '@/lib/marketplace/inventory'
 import { ensurePrintfulFulfillmentRequests } from '@/lib/marketplace/printful-fulfillment'
+
+export const WEBHOOK_PROCESSING_FAILED = 'Webhook processing failed'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,7 +68,7 @@ export async function handleMarketplaceStripeEventIdempotent({
       return { outcome: 'duplicate', eventId: event.id }
     }
     // Other DB error — return so Stripe retries
-    return { outcome: 'error', message: `Event record insert failed: ${insertError.message}` }
+    return { outcome: 'error', message: WEBHOOK_PROCESSING_FAILED }
   }
 
   try {
@@ -82,25 +89,28 @@ export async function handleMarketplaceStripeEventIdempotent({
     }
 
     // Mark event processed
-    await supabase
+    const { error: completionError } = await supabase
       .from('marketplace_payment_events')
       .update({ processing_status: 'processed', processed_at: new Date().toISOString() })
       .eq('provider_event_id', event.id)
+    if (completionError) throw new Error(`Event completion update failed: ${completionError.message}`)
 
     return result
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err)
     // Mark event failed so ops can investigate
     await supabase
       .from('marketplace_payment_events')
       .update({
         processing_status: 'failed',
-        last_error: message.slice(0, 500),
+        // Persist only a non-sensitive failure class. Raw provider payloads
+        // and database messages must never become an externally readable
+        // webhook error or operational data field.
+        last_error: 'internal_error',
         attempts: supabase.rpc ? undefined : undefined, // increment handled separately if needed
       })
       .eq('provider_event_id', event.id)
 
-    return { outcome: 'error', message }
+    return { outcome: 'error', message: WEBHOOK_PROCESSING_FAILED }
   }
 }
 
@@ -122,7 +132,7 @@ async function handleCheckoutCompleted(
   // Load current order
   const { data: order } = await supabase
     .from('marketplace_orders')
-    .select('id, payment_status, shipping_address, metadata, seller_user_id, buyer_user_id')
+    .select('id, status, payment_status, shipping_address, metadata, seller_user_id, buyer_user_id')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -132,6 +142,7 @@ async function handleCheckoutCompleted(
 
   // Idempotency: already paid
   const transition = getPaidLifecycleTransition({
+    currentOrderStatus: order.status,
     currentPaymentStatus: order.payment_status,
     paymentReference,
   })
@@ -213,6 +224,21 @@ async function handleChargeRefunded(
   supabase: any
 ): Promise<WebhookProcessingResult> {
   const paymentReference = charge.payment_intent as string
+  if (!paymentReference) {
+    return { outcome: 'skipped', reason: 'Refunded charge has no payment intent.' }
+  }
+
+  if (!isFullStripeChargeRefund({
+    amount: charge.amount,
+    amountRefunded: charge.amount_refunded,
+    refunded: charge.refunded,
+  })) {
+    await supabase
+      .from('marketplace_payout_ledger')
+      .update({ payout_status: 'on_hold', payout_reference: paymentReference })
+      .eq('payout_reference', paymentReference)
+    return { outcome: 'skipped', reason: 'Partial refund placed payout on hold.' }
+  }
   const patch = getRefundPatch({ paymentReference })
 
   await supabase
@@ -249,6 +275,61 @@ function extractShipping(session: Stripe.Checkout.Session) {
   }
 }
 
+const MAX_INVENTORY_RETRIES = 5
+
+/**
+ * Optimistic-concurrency decrement: re-reads and conditionally writes so
+ * concurrent paid webhooks can never double-decrement (lost update) or drive
+ * stock negative. Returns false only when stock is genuinely insufficient.
+ */
+async function tryDecrementRow(
+  supabase: any,
+  table: 'marketplace_listings' | 'marketplace_listing_variants',
+  rowId: string,
+  qty: number,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < MAX_INVENTORY_RETRIES; attempt += 1) {
+    const { data: row } = await supabase
+      .from(table)
+      .select('id, inventory_count, has_unlimited_inventory')
+      .eq('id', rowId)
+      .maybeSingle()
+
+    if (!row || row.has_unlimited_inventory || row.inventory_count == null) return true
+
+    const currentCount = Number(row.inventory_count)
+    if (currentCount < qty) {
+      console.error(
+        `[Inventory] Insufficient stock on ${table}/${rowId}: have ${currentCount}, need ${qty}. ` +
+        'Order proceeds (payment captured) — restock or refund required.'
+      )
+      return false
+    }
+
+    const patch = buildInventoryDecrementPatch({ currentCount, quantity: qty })
+    if (!patch) return true
+
+    // Conditional write: only succeeds if the count is unchanged since the read.
+    const { data: updated, error } = await supabase
+      .from(table)
+      .update(patch)
+      .eq('id', rowId)
+      .eq('inventory_count', currentCount)
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      console.error(`[Inventory] Conditional decrement failed on ${table}/${rowId}:`, error)
+      return false
+    }
+    if (updated) return true
+    // Concurrent modification — loop and retry with a fresh read.
+  }
+
+  console.error(`[Inventory] Gave up decrementing ${table}/${rowId} after ${MAX_INVENTORY_RETRIES} retries`)
+  return false
+}
+
 async function decrementInventory(supabase: any, orderId: string) {
   const { data: items } = await supabase
     .from('marketplace_order_items')
@@ -260,35 +341,23 @@ async function decrementInventory(supabase: any, orderId: string) {
     if (!item.listing_id || qty <= 0) continue
 
     if (item.variant_id) {
-      const { data: variant } = await supabase
-        .from('marketplace_listing_variants')
-        .select('id, inventory_count')
-        .eq('id', item.variant_id)
-        .maybeSingle()
-      if (variant?.inventory_count != null) {
-        const patch = buildInventoryDecrementPatch({ currentCount: variant.inventory_count, quantity: qty })
-        if (patch) await supabase.from('marketplace_listing_variants').update(patch).eq('id', variant.id)
-      }
+      await tryDecrementRow(supabase, 'marketplace_listing_variants', item.variant_id, qty)
     }
+    // Listing-level inventory tracks total stock across variants.
+    await tryDecrementRow(supabase, 'marketplace_listings', item.listing_id, qty)
 
-    const { data: listing } = await supabase
+    // Auto-transition to sold_out if inventory hits 0
+    const { data: listingAfter } = await supabase
       .from('marketplace_listings')
-      .select('id, inventory_count, has_unlimited_inventory')
+      .select('id, inventory_count')
       .eq('id', item.listing_id)
       .maybeSingle()
-
-    if (!listing || listing.has_unlimited_inventory || listing.inventory_count == null) continue
-    const patch = buildInventoryDecrementPatch({ currentCount: listing.inventory_count, quantity: qty })
-    if (patch) {
-      await supabase.from('marketplace_listings').update(patch).eq('id', listing.id)
-      // Auto-transition to sold_out if inventory hits 0
-      if (patch.inventory_count === 0) {
-        await supabase
-          .from('marketplace_listings')
-          .update({ status: 'sold_out' })
-          .eq('id', listing.id)
-          .eq('status', 'published')
-      }
+    if (listingAfter && listingAfter.inventory_count === 0) {
+      await supabase
+        .from('marketplace_listings')
+        .update({ status: 'sold_out' })
+        .eq('id', listingAfter.id)
+        .eq('status', 'published')
     }
   }
 }

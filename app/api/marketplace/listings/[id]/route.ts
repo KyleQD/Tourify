@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
-import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import {
+  requireMarketplaceEnabled,
+  requireMarketplaceEnabledForAccount,
+  requireMarketplaceListingKindEnabled,
+} from "@/lib/marketplace/require-marketplace-enabled"
 import { resolveActingContext } from "@/lib/auth/acting-context"
 import { resolveMarketplaceEntitlements } from "@/lib/marketplace/entitlement-resolver"
 import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
@@ -90,6 +94,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { user: { id: userId }, accountType, supabase } = ctx
     const user = { id: userId }
 
+    const accountGuard = requireMarketplaceEnabledForAccount(accountType)
+    if (accountGuard) return accountGuard
+
     // Account-type entitlement check
     const entitlements = resolveMarketplaceEntitlements(accountType)
 
@@ -107,7 +114,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const { data: existing, error: existingError } = await supabase
       .from("marketplace_listings")
-      .select("id, seller_user_id, category, product_type, status, base_price, metadata, rights_confirmed")
+      .select("id, seller_user_id, category, product_type, listing_kind, status, base_price, metadata, rights_confirmed")
       .eq("id", id)
       .single()
 
@@ -123,6 +130,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         code: "forbidden",
         message: "Forbidden",
       })
+
+    const nextListingKind = payload.listingKind || existing.listing_kind || "physical"
+    const listingKindGuard = requireMarketplaceListingKindEnabled(nextListingKind)
+    if (listingKindGuard) return listingKindGuard
 
     // Organizations may only manage ticket collections — block update to physical/service/external listing
     const nextProductType = payload.productType || existing.product_type

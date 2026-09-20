@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { withLogisticsParentOrgId } from '@/lib/admin/logistics-tenant-keys'
 
 export async function POST(
@@ -8,7 +8,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: taskId } = await context.params
-  return withAdminAuth(async (req) => {
+  return withAdminCapability('logistics.manage', async (req) => {
     const supabase = await createClient()
     const body = await req.json()
     const equipmentAssetId: string = body.equipmentAssetId
@@ -79,7 +79,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: taskId } = await context.params
-  return withAdminAuth(async (req) => {
+  return withAdminCapability('logistics.manage', async (req) => {
     const supabase = await createClient()
     const { searchParams } = new URL(req.url)
     const equipmentAssetId = searchParams.get('equipmentAssetId')
@@ -108,5 +108,4 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   })(request)
 }
-
 

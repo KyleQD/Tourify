@@ -12,7 +12,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../database.types'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 interface AuthResult {
   user: any
@@ -68,17 +67,12 @@ export class ProductionAuthService {
         }
       }
 
-      // Prefer SSR cookie session (same path as server components / middleware refresh)
+      // Prefer SSR cookie session (same path as server components / middleware refresh).
+      // SECURITY: no unsigned-cookie fallback — every identity must be verified by
+      // Supabase (bearer token via auth.getUser(token) or SSR cookie session).
       const { createClient: createServerSupabaseClient } = await import('@/lib/supabase/server')
       const cookieSupabase = await createServerSupabaseClient()
-      const { data: { user: cookieUser } } = await cookieSupabase.auth.getUser()
-
-      let finalUser = cookieUser
-
-      // Fallback: parse sb-tourify-auth-token from the raw Cookie header
-      if (!finalUser) {
-        finalUser = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-      }
+      const { data: { user: finalUser } } = await cookieSupabase.auth.getUser()
 
       if (!finalUser) {
         return {

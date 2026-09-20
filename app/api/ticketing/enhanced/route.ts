@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getStripeOrNull } from '@/lib/stripe'
 import { createPendingOrder } from '@/lib/ticketing/orders'
 import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
-import { finalizeInventory } from '@/lib/ticketing/inventory'
+import { requireFinalizedInventory } from '@/lib/ticketing/inventory'
+import { evaluateTicketSaleGate, remainingTicketInventory } from '@/lib/ticketing/lifecycle'
 import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
@@ -110,6 +111,7 @@ export async function GET(request: NextRequest) {
           events:events_v2!event_id (
             id,
             title,
+            status,
             start_at,
             end_at,
             timezone,
@@ -159,16 +161,29 @@ export async function GET(request: NextRequest) {
         }, {}) || {}
       }
 
-      const { data: ticketingConfig } = await supabase
+      const { data: ticketingConfig, error: ticketingConfigError } = await supabase
         .from('event_ticketing_config')
-        .select('refund_policy, terms_text, transfer_policy, resale_enabled')
+        .select('ticketing_enabled, refund_policy, terms_text, transfer_policy, resale_enabled')
         .eq('event_id', event_id)
         .maybeSingle()
 
-      const ticketTypesWithAvailability = ticketTypes?.map(ticket => ({
+      if (ticketingConfigError)
+        return NextResponse.json({ error: 'Ticketing availability is temporarily unavailable', code: 'ticketing_unavailable' }, { status: 503 })
+
+      const ticketTypesWithAvailability = ticketTypes
+        ?.filter((ticket: any) => ticket.events?.status === 'published' && ticketingConfig?.ticketing_enabled === true)
+        .map(ticket => ({
         ...ticket,
-        available: ticket.quantity_available - ticket.quantity_sold,
-        is_available: (ticket.quantity_available - ticket.quantity_sold) > 0,
+        available: remainingTicketInventory({
+          quantityAvailable: ticket.quantity_available,
+          quantitySold: ticket.quantity_sold,
+          quantityReserved: ticket.quantity_reserved,
+        }),
+        is_available: remainingTicketInventory({
+          quantityAvailable: ticket.quantity_available,
+          quantitySold: ticket.quantity_sold,
+          quantityReserved: ticket.quantity_reserved,
+        }) > 0,
         percentage_sold: ticket.quantity_available > 0 
           ? Math.round((ticket.quantity_sold / ticket.quantity_available) * 100)
           : 0
@@ -203,6 +218,7 @@ export async function GET(request: NextRequest) {
           events:events_v2!event_id (
             id,
             title,
+            status,
             start_at,
             end_at,
             timezone,
@@ -217,7 +233,28 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Ticket type not found or inactive' }, { status: 404 })
       }
 
-      const available = ticketType.quantity_available - ticketType.quantity_sold
+      const { data: ticketingConfig, error: configError } = await supabase
+        .from('event_ticketing_config')
+        .select('ticketing_enabled, sale_start, sale_end')
+        .eq('event_id', ticketType.event_id)
+        .maybeSingle()
+      if (configError)
+        return NextResponse.json({ error: 'Ticketing availability is temporarily unavailable', code: 'ticketing_unavailable' }, { status: 503 })
+
+      const saleGate = evaluateTicketSaleGate({
+        eventStatus: ticketType.events?.status,
+        ticketingEnabled: ticketingConfig?.ticketing_enabled,
+        saleStart: ticketingConfig?.sale_start,
+        saleEnd: ticketingConfig?.sale_end,
+      })
+      if (!saleGate.allowed)
+        return NextResponse.json({ error: 'Ticket type not found or inactive' }, { status: 404 })
+
+      const available = remainingTicketInventory({
+        quantityAvailable: ticketType.quantity_available,
+        quantitySold: ticketType.quantity_sold,
+        quantityReserved: ticketType.quantity_reserved,
+      })
       const isAvailable = available > 0
 
       return NextResponse.json({
@@ -297,34 +334,52 @@ export async function POST(request: NextRequest) {
         data: { user },
       } = await supabase.auth.getUser()
 
-      const v2Enabled = isTicketingV2Enabled()
-      if (v2Enabled && !user) {
+      if (!user) {
         return NextResponse.json(
           { error: 'Sign in required to purchase tickets', code: 'AUTH_REQUIRED' },
           { status: 401 }
         )
       }
+      const v2Enabled = isTicketingV2Enabled()
 
       // Enforce ticketing config when present
-      const { data: ticketingConfig } = await supabase
-        .from('event_ticketing_config')
-        .select('*')
-        .eq('event_id', validatedData.event_id)
-        .maybeSingle()
+      const [configResult, eventResult] = await Promise.all([
+        supabase
+          .from('event_ticketing_config')
+          .select('*')
+          .eq('event_id', validatedData.event_id)
+          .maybeSingle(),
+        supabase
+          .from('events_v2')
+          .select('id, status')
+          .eq('id', validatedData.event_id)
+          .maybeSingle(),
+      ])
+      if (configResult.error || eventResult.error)
+        return NextResponse.json({ error: 'Ticketing is temporarily unavailable', code: 'ticketing_unavailable' }, { status: 503 })
+
+      const ticketingConfig = configResult.data
+      const saleGate = evaluateTicketSaleGate({
+        eventStatus: eventResult.data?.status,
+        ticketingEnabled: ticketingConfig?.ticketing_enabled,
+        saleStart: ticketingConfig?.sale_start,
+        saleEnd: ticketingConfig?.sale_end,
+      })
+      if (!saleGate.allowed) {
+        const messages = {
+          EVENT_NOT_PUBLISHED: 'This event is not published',
+          TICKETING_NOT_ENABLED: 'Ticketing is not enabled for this event',
+          SALE_NOT_STARTED: 'Ticket sales have not started yet',
+          SALE_ENDED: 'Ticket sales have ended',
+        } as const
+        return NextResponse.json({ error: messages[saleGate.code], code: saleGate.code }, { status: 400 })
+      }
 
       if (ticketingConfig) {
-        if (!ticketingConfig.ticketing_enabled)
-          return NextResponse.json({ error: 'Ticketing is not enabled for this event' }, { status: 400 })
-
-        const now = Date.now()
-        if (ticketingConfig.sale_start && now < new Date(ticketingConfig.sale_start).getTime())
-          return NextResponse.json({ error: 'Ticket sales have not started yet' }, { status: 400 })
-        if (ticketingConfig.sale_end && now > new Date(ticketingConfig.sale_end).getTime())
-          return NextResponse.json({ error: 'Ticket sales have ended' }, { status: 400 })
         if (ticketingConfig.max_per_order && validatedData.quantity > ticketingConfig.max_per_order)
           return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_order} tickets per order` }, { status: 400 })
 
-        if (ticketingConfig.max_per_user && user?.id) {
+        if (ticketingConfig.max_per_user) {
           const { data: prior } = await supabase
             .from('ticket_sales')
             .select('quantity')
@@ -367,7 +422,11 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const remainingTickets = ticketType.quantity_available - ticketType.quantity_sold - (ticketType.quantity_reserved || 0)
+      const remainingTickets = remainingTicketInventory({
+        quantityAvailable: ticketType.quantity_available,
+        quantitySold: ticketType.quantity_sold,
+        quantityReserved: ticketType.quantity_reserved,
+      })
       if (validatedData.quantity > remainingTickets) {
         return NextResponse.json({ error: 'Not enough tickets available' }, { status: 400 })
       }
@@ -418,11 +477,58 @@ export async function POST(request: NextRequest) {
         discountAmount += referral.discount_amount
       }
 
+      // SECURITY: total discounts can never exceed the order's base value —
+      // stored referral amounts may have been created before server-side caps.
+      const orderBaseAmount = ticketType.price * validatedData.quantity
+      discountAmount = Math.max(0, Math.min(discountAmount, orderBaseAmount))
+
       let orderId: string
       let orderNumber: string
       let fees: { buyerTotal: number; discountAmount: number; platformFeeAmount: number; processingFeeAmount: number; taxAmount: number; netAmount: number }
       let reservationId: string | null = null
       let v2 = v2Enabled
+
+      // Idempotency: a client-supplied key (header or body metadata) makes
+      // retries/double-clicks return the original order instead of creating
+      // duplicate orders and duplicate Stripe sessions.
+      const idempotencyKey =
+        request.headers.get('idempotency-key')?.trim() ||
+        String((validatedData.metadata as Record<string, unknown> | undefined)?.idempotency_key ?? '').trim() ||
+        null
+      if (idempotencyKey) {
+        const { data: existingOrder } = await supabase
+          .from('ticket_sales')
+          .select('id, order_number, payment_status, total_amount, stripe_checkout_session_id, metadata')
+          .contains('metadata', { idempotency_key: idempotencyKey })
+          .eq('buyer_user_id', user.id)
+          .eq('event_id', validatedData.event_id)
+          .in('payment_status', ['pending', 'completed', 'paid'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (existingOrder) {
+          let checkoutUrl: string | null = null
+          if (stripe && existingOrder.stripe_checkout_session_id) {
+            try {
+              const session = await stripe.checkout.sessions.retrieve(existingOrder.stripe_checkout_session_id)
+              checkoutUrl = session.url ?? null
+            } catch (sessionError) {
+              console.error('[Enhanced Ticketing API] Failed to retrieve existing checkout session:', sessionError)
+            }
+          }
+          return NextResponse.json({
+            sale: existingOrder,
+            order_number: existingOrder.order_number,
+            discount_applied: discountAmount > 0,
+            discount_amount: discountAmount,
+            fee_breakdown: null,
+            checkout_url: checkoutUrl,
+            checkout_session_id: existingOrder.stripe_checkout_session_id ?? null,
+            deduped: true,
+          })
+        }
+      }
 
       try {
         const pending = await createPendingOrder({
@@ -438,6 +544,7 @@ export async function POST(request: NextRequest) {
           discountAmount,
           metadata: {
             ...(validatedData.metadata || {}),
+            ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
             customer_phone: validatedData.customer_phone,
             referral_id: referral?.id,
             promo_code: promoCode?.code,
@@ -532,7 +639,7 @@ export async function POST(request: NextRequest) {
           },
           success_url: `${origin}/tickets/success?order=${orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin}/tickets/purchase?event_id=${validatedData.event_id}&cancelled=true`,
-        })
+        }, idempotencyKey ? { idempotencyKey: `ticket_purchase:${user.id}:${idempotencyKey}` } : undefined)
 
         if (v2) {
           await supabase
@@ -566,9 +673,14 @@ export async function POST(request: NextRequest) {
 
       if (v2 && reservationId) {
         try {
-          await finalizeInventory({ supabase: supabase as any, reservationId })
-        } catch {
-          // ignore if already finalized
+          await requireFinalizedInventory({ supabase: supabase as any, reservationId })
+        } catch (inventoryError) {
+          console.error('[Enhanced Ticketing API] Free order inventory finalize failed:', inventoryError)
+          await supabase
+            .from('ticket_sales')
+            .update({ payment_status: 'failed', issuance_status: 'failed', updated_at: new Date().toISOString() })
+            .eq('id', orderId)
+          return NextResponse.json({ error: 'Reserved inventory is no longer available' }, { status: 409 })
         }
         await issueTicketsForOrder({
           supabase: supabase as any,
@@ -651,6 +763,14 @@ export async function POST(request: NextRequest) {
 
       const referralCode = `REF-${randomUUID()}`
 
+      // SECURITY: discount is bounded by server policy — client-supplied values
+      // are clamped so referrals can never be used to mint arbitrary credits.
+      const MAX_REFERRAL_DISCOUNT = 10
+      const safeDiscountAmount = Math.max(
+        0,
+        Math.min(Number(validatedData.discount_amount) || 0, MAX_REFERRAL_DISCOUNT),
+      )
+
       const { data: referral, error: referralError } = await supabase
         .from('ticket_referrals')
         .insert({
@@ -658,7 +778,7 @@ export async function POST(request: NextRequest) {
           referred_email: validatedData.referred_email,
           event_id: validatedData.event_id,
           referral_code: referralCode,
-          discount_amount: validatedData.discount_amount
+          discount_amount: safeDiscountAmount
         })
         .select('*')
         .single()
@@ -701,7 +821,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Calculate discount
+      // Calculate discount (clamped to purchase amount)
       let discountAmount = 0
       if (promoCode.discount_type === 'percentage') {
         discountAmount = (validatedData.purchase_amount * promoCode.discount_value) / 100
@@ -711,10 +831,13 @@ export async function POST(request: NextRequest) {
       } else {
         discountAmount = promoCode.discount_value
       }
+      discountAmount = Math.max(0, Math.min(discountAmount, validatedData.purchase_amount))
 
+      // Return only public fields — never leak internal promo configuration.
       return NextResponse.json({
         valid: true,
-        promo_code: promoCode,
+        code: promoCode.code,
+        description: promoCode.description ?? null,
         discount_amount: discountAmount,
         final_amount: Math.max(0, validatedData.purchase_amount - discountAmount)
       })
@@ -724,7 +847,7 @@ export async function POST(request: NextRequest) {
 
       const { data: ticketType, error } = await supabase
         .from('ticket_types')
-        .select('*')
+        .select('*, events:events_v2!event_id(status)')
         .eq('id', validatedData.ticket_type_id)
         .eq('is_active', true)
         .single()
@@ -733,8 +856,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Ticket type not found' }, { status: 404 })
       }
 
-      const available = ticketType.quantity_available - ticketType.quantity_sold
-      const canPurchase = available >= validatedData.quantity
+      const { data: ticketingConfig, error: configError } = await supabase
+        .from('event_ticketing_config')
+        .select('ticketing_enabled, sale_start, sale_end')
+        .eq('event_id', ticketType.event_id)
+        .maybeSingle()
+      if (configError)
+        return NextResponse.json({ error: 'Ticketing availability is temporarily unavailable', code: 'ticketing_unavailable' }, { status: 503 })
+
+      const saleGate = evaluateTicketSaleGate({
+        eventStatus: ticketType.events?.status,
+        ticketingEnabled: ticketingConfig?.ticketing_enabled,
+        saleStart: ticketingConfig?.sale_start,
+        saleEnd: ticketingConfig?.sale_end,
+      })
+      const available = remainingTicketInventory({
+        quantityAvailable: ticketType.quantity_available,
+        quantitySold: ticketType.quantity_sold,
+        quantityReserved: ticketType.quantity_reserved,
+      })
+      const canPurchase = saleGate.allowed && available >= validatedData.quantity
 
       // Check promo code if provided
       let promoCodeInfo = null
@@ -769,6 +910,7 @@ export async function POST(request: NextRequest) {
         available,
         requested: validatedData.quantity,
         can_purchase: canPurchase,
+        sale_state: saleGate.allowed ? 'on_sale' : saleGate.code,
         ticket_type: {
           id: ticketType.id,
           name: ticketType.name,

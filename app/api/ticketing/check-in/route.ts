@@ -68,6 +68,13 @@ function isValidUuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
+function statsUnavailable(headers: HeadersInit) {
+  return NextResponse.json(
+    { error: 'Ticketing attendance statistics are temporarily unavailable.', code: 'ticketing_unavailable' },
+    { status: 503, headers },
+  )
+}
+
 /** Active checkpoint names for an event ([] when no registry exists yet). */
 async function loadCheckpoints(supabase: ReturnType<typeof createServiceRoleClient>, eventId: string): Promise<string[]> {
   const { data } = await supabase
@@ -341,6 +348,22 @@ export async function POST(request: NextRequest) {
         }, { status: 409 })
       }
 
+      // Claim the admission before recording the scan. This conditional
+      // transition closes same- and cross-checkpoint races for one ticket.
+      const priorTicketStatus = ticket.status
+      const { data: claimedTicket, error: claimError } = await supabase
+        .from('tickets')
+        .update({ status: 'checked_in', updated_at: new Date().toISOString() })
+        .eq('id', ticket.id)
+        .in('status', ['valid', 'assigned', 'transferred'])
+        .select('id')
+        .maybeSingle()
+
+      if (claimError)
+        return NextResponse.json({ success: false, error: 'Failed to claim ticket admission' }, { status: 500 })
+      if (!claimedTicket)
+        return NextResponse.json({ success: false, error: 'Already checked in', code: 'ALREADY_CHECKED_IN' }, { status: 409 })
+
       const { data: checkin, error: checkinError } = await supabase
         .from('ticket_checkins')
         .insert({
@@ -356,6 +379,11 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (checkinError) {
+        await supabase
+          .from('tickets')
+          .update({ status: priorTicketStatus, updated_at: new Date().toISOString() })
+          .eq('id', ticket.id)
+          .eq('status', 'checked_in')
         if (String(checkinError.code) === '23505') {
           return NextResponse.json({
             success: false,
@@ -365,11 +393,6 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ success: false, error: 'Failed to check in ticket' }, { status: 500 })
       }
-
-      await supabase
-        .from('tickets')
-        .update({ status: 'checked_in', updated_at: new Date().toISOString() })
-        .eq('id', ticket.id)
 
       // Only mark the order checked-in when ALL admissions are checked in
       const { data: siblings } = await supabase
@@ -467,7 +490,7 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
-    const { error: updateError } = await supabase
+    const { data: checkedInSale, error: updateError } = await supabase
       .from('ticket_sales')
       .update({
         checked_in: true,
@@ -476,9 +499,14 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', sale.id)
+      .eq('checked_in', false)
+      .select('id')
+      .maybeSingle()
 
     if (updateError)
       return NextResponse.json({ success: false, error: 'Failed to check in ticket' }, { status: 500 })
+    if (!checkedInSale)
+      return NextResponse.json({ success: false, error: 'Already checked in', code: 'ALREADY_CHECKED_IN' }, { status: 409 })
 
     const canViewContact = await hasTicketingPermission({
       supabase,
@@ -597,13 +625,14 @@ export async function GET(request: NextRequest) {
     // Per-checkpoint breakdown for the door dashboard (VEN-159).
     let byCheckpoint: Record<string, number> | undefined
     if (wantByCheckpoint) {
-      const { data: cpRows } = await supabase
+      const { data: cpRows, error: cpError } = await supabase
         .from('ticket_checkins')
         .select('checkpoint')
         .eq('event_id', eventId)
         .eq('result', 'valid')
         .is('reversed_at', null)
         .limit(10_000)
+      if (cpError) return statsUnavailable(headers)
       byCheckpoint = {}
       for (const row of cpRows || []) {
         const key = String(row.checkpoint || 'main')
@@ -611,11 +640,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const v2Stats = [totalRes, checkedInRes, capRes]
+    if (
+      v2Stats.some((result) => result.status !== 'fulfilled' || Boolean(result.value.error)) ||
+      totalRes.status !== 'fulfilled' ||
+      totalRes.value.count === null ||
+      checkedInRes.status !== 'fulfilled' ||
+      checkedInRes.value.count === null ||
+      capRes.status !== 'fulfilled' ||
+      !capRes.value.data ||
+      capRes.value.data.capacity === null ||
+      capRes.value.data.capacity === undefined
+    ) {
+      return statsUnavailable(headers)
+    }
+
     return NextResponse.json(
       {
-        total: totalRes.status === 'fulfilled' ? (totalRes.value.count ?? 0) : 0,
-        checked_in: checkedInRes.status === 'fulfilled' ? (checkedInRes.value.count ?? 0) : 0,
-        capacity: capRes.status === 'fulfilled' ? (capRes.value.data?.capacity ?? 0) : 0,
+        total: totalRes.value.count,
+        checked_in: checkedInRes.value.count,
+        capacity: capRes.value.data.capacity,
         checkpoints: checkpointsRes.status === 'fulfilled' ? checkpointsRes.value : [],
         ...(byCheckpoint ? { by_checkpoint: byCheckpoint } : {}),
       },
@@ -629,11 +673,25 @@ export async function GET(request: NextRequest) {
     supabase.from('events_v2').select('capacity').eq('id', eventId).maybeSingle(),
   ])
 
+  if (
+    [totalRes, checkedInRes, capRes].some((result) => result.status !== 'fulfilled' || Boolean(result.value.error)) ||
+    totalRes.status !== 'fulfilled' ||
+    totalRes.value.count === null ||
+    checkedInRes.status !== 'fulfilled' ||
+    checkedInRes.value.count === null ||
+    capRes.status !== 'fulfilled' ||
+    !capRes.value.data ||
+    capRes.value.data.capacity === null ||
+    capRes.value.data.capacity === undefined
+  ) {
+    return statsUnavailable(headers)
+  }
+
   return NextResponse.json(
     {
-      total: totalRes.status === 'fulfilled' ? (totalRes.value.count ?? 0) : 0,
-      checked_in: checkedInRes.status === 'fulfilled' ? (checkedInRes.value.count ?? 0) : 0,
-      capacity: capRes.status === 'fulfilled' ? (capRes.value.data?.capacity ?? 0) : 0,
+      total: totalRes.value.count,
+      checked_in: checkedInRes.value.count,
+      capacity: capRes.value.data.capacity,
       checkpoints: [],
     },
     { headers },

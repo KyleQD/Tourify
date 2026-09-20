@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
 import { buildSafeMobileRedirect } from "@/lib/auth/mobile-redirect"
 import { getRequestPublicOrigin } from "@/lib/auth/request-public-origin"
+import { normalizePostLoginRedirect } from "@/lib/auth/tourify-auth-helpers"
 
 function authCallbackLog(message: string, detail?: Record<string, unknown>) {
   if (process.env.NODE_ENV !== "development") return
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     requestUrl.searchParams.get("redirect") ||
     requestUrl.searchParams.get("redirectTo") ||
     "/dashboard"
-  const redirectTo = normalizeAuthCallbackRedirect(requestedRedirect)
+  const redirectTo = normalizePostLoginRedirect(requestedRedirect)
   const mobileRedirectUri = requestUrl.searchParams.get("mobile_redirect_uri")
   const type = requestUrl.searchParams.get("type") || "verification"
   const authType = requestUrl.searchParams.get("authType") || "email"
@@ -79,15 +80,16 @@ export async function GET(request: NextRequest) {
         const confirmedUserEmail =
           data.session?.user?.email ?? data.user?.email ?? ""
 
-        if (data.session?.user) {
-          return NextResponse.redirect(`${publicOrigin}/dashboard?welcome=true`)
-        }
+        if (data.session?.user)
+          return NextResponse.redirect(
+            `${publicOrigin}${redirectTo === '/dashboard' ? '/dashboard?welcome=true' : redirectTo}`
+          )
 
         const emailQuery = confirmedUserEmail
           ? `&email=${encodeURIComponent(confirmedUserEmail)}`
           : ""
         return NextResponse.redirect(
-          `${publicOrigin}/login?message=email_confirmed${emailQuery}`
+          `${publicOrigin}/login?message=email_confirmed${emailQuery}&redirectTo=${encodeURIComponent(redirectTo)}`
         )
       }
     } catch (err) {
@@ -109,14 +111,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
 
     authCallbackLog("Final session check", {
-      hasSession: Boolean(session),
-      userId: session?.user?.id,
+      hasSession: Boolean(user),
+      userId: user?.id,
     })
 
-    if (session && !code) {
+    if (user && !code) {
       return NextResponse.redirect(`${publicOrigin}/dashboard`)
     }
   } catch (err) {
@@ -133,12 +135,6 @@ export async function GET(request: NextRequest) {
     )
 
   return NextResponse.redirect(`${publicOrigin}${redirectTo}`)
-}
-
-function normalizeAuthCallbackRedirect(target: string): string {
-  if (!target.startsWith('/')) return '/dashboard'
-  if (target === '/' || target.startsWith('/login') || target.startsWith('/auth')) return '/dashboard'
-  return target
 }
 
 function needsSocialAccountSetup(user: User): boolean {

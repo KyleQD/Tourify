@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server"
 
-import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { checkIsAdmin } from "@/lib/auth/admin"
+import { withPlatformAdmin } from "@/lib/auth/api-auth"
 import { isEventFeatureEnabled } from "@/lib/events/providers/flags"
 
 /** GET /api/admin/event-sync — recent sync runs and queued job stats. */
-export async function GET() {
+export const GET = withPlatformAdmin(async () => {
   if (!isEventFeatureEnabled("EVENT_PROVIDER_ADMIN_TOOLS")) {
     return NextResponse.json({ error: { code: "FEATURE_UNAVAILABLE" } }, { status: 503 })
   }
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: { code: "UNAUTHENTICATED" } }, { status: 401 })
-  const admin = await checkIsAdmin()
-  if (!admin) return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 })
 
   const client = createServiceRoleClient()
   const [{ data: runs }, { data: jobs }] = await Promise.all([
@@ -34,4 +26,4 @@ export async function GET() {
   ])
 
   return NextResponse.json({ runs: runs ?? [], jobs: jobs ?? [] })
-}
+})

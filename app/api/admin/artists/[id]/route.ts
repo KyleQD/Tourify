@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
-import { resolveActingAdminContext } from '@/lib/auth/admin-context'
-import { hasAdminCapability } from '@/lib/auth/admin-capabilities'
+import { withAdminCapability } from '@/lib/auth/api-auth'
+import type { ActingAdminContext } from '@/lib/auth/admin-context'
 import { resolveOrgArtistRosterScope } from '@/lib/admin/artist-roster-access'
 
 const patchSchema = z.object({
@@ -23,31 +22,28 @@ function extractArtistId(url: string): string | null {
  * be linked to the acting org via organization_artist_members, otherwise 404
  * (existence not leaked across tenants).
  */
-async function requireScopedArtist(request: NextRequest, artistId: string | null) {
+async function requireScopedArtist(
+  supabase: any,
+  admin: Pick<ActingAdminContext, 'orgId'>,
+  artistId: string | null,
+) {
   if (!artistId) return { error: NextResponse.json({ error: 'Missing artist id' }, { status: 400 }) }
 
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return { error: NextResponse.json({ error: 'Authentication required.' }, { status: 401 }) }
-  const admin = await resolveActingAdminContext(request, auth)
-  if (admin instanceof NextResponse) return { error: admin }
-  if (!hasAdminCapability(admin.capabilities, 'workforce.view')) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-
-  const scope = await resolveOrgArtistRosterScope(auth.supabase, admin)
+  const scope = await resolveOrgArtistRosterScope(supabase, admin)
   if (!scope.artistProfileIds.includes(artistId)) {
     return { error: NextResponse.json({ error: 'Artist not found' }, { status: 404 }) }
   }
 
-  return { auth, admin, scope }
+  return { admin, scope }
 }
 
-export async function GET(request: NextRequest) {
+const artistCapability = (request: NextRequest) =>
+  request.method === 'GET' ? 'workforce.view' as const : 'workforce.manage' as const
+
+export const GET = withAdminCapability(artistCapability, async (request, { supabase, admin }) => {
   const id = extractArtistId(request.url)
-  const ctx = await requireScopedArtist(request, id)
+  const ctx = await requireScopedArtist(supabase, admin, id)
   if (ctx.error) return ctx.error
-  const { auth } = ctx
-  const supabase = auth!.supabase
 
   const { data: artist, error } = await supabase
     .from('artist_profiles')
@@ -97,18 +93,18 @@ export async function GET(request: NextRequest) {
       participant_status: p.status,
     })).filter((e: any) => e.id),
   })
-}
+})
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAdminCapability(artistCapability, async (request, { supabase, admin }) => {
   const id = extractArtistId(request.url)
-  const ctx = await requireScopedArtist(request, id)
+  const ctx = await requireScopedArtist(supabase, admin, id)
   if (ctx.error) return ctx.error
 
   const body = await request.json()
   const parsed = patchSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const { data, error } = await ctx.auth!.supabase
+  const { data, error } = await supabase
     .from('artist_profiles')
     .update(parsed.data)
     .eq('id', id!)
@@ -117,28 +113,20 @@ export async function PATCH(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ artist: data })
-}
+})
 
 /**
  * ADM-M-007 — DELETE now removes the org ROSTER LINK, not the platform-wide
  * artist profile. Requires workforce.manage; hard profile deletion is a
  * platform-admin operation outside this API.
  */
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAdminCapability(artistCapability, async (request, { supabase, admin }) => {
   const id = extractArtistId(request.url)
   if (!id) return NextResponse.json({ error: 'Missing artist id' }, { status: 400 })
 
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return NextResponse.json({ error: 'Authentication required.' }, { status: 401 })
-  const admin = await resolveActingAdminContext(request, auth)
-  if (admin instanceof NextResponse) return admin
-  if (!hasAdminCapability(admin.capabilities, 'workforce.manage')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const scope = await resolveOrgArtistRosterScope(supabase, admin)
 
-  const scope = await resolveOrgArtistRosterScope(auth.supabase, admin)
-
-  const { data: removedLinks, error } = await auth.supabase
+  const { data: removedLinks, error } = await supabase
     .from('organization_artist_members')
     .update({ status: 'removed', updated_at: new Date().toISOString() })
     .in('organizer_account_id', scope.organizerAccountIds.length > 0 ? scope.organizerAccountIds : ['00000000-0000-0000-0000-000000000000'])
@@ -155,4 +143,4 @@ export async function DELETE(request: NextRequest) {
     action: 'roster_removed',
     note: 'The artist remains available platform-side; the link to this organization was removed.',
   })
-}
+})

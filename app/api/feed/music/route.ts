@@ -59,16 +59,24 @@ export async function GET(request: NextRequest) {
       const trackIds = Array.from(
         new Set((tracks || []).map((t: any) => t.id).filter(Boolean))
       )
+      let artistNameByUserId: Record<string, string> = {}
       let artistSlugByUserId: Record<string, string> = {}
       let listingIdByTrackId: Record<string, string> = {}
       if (userIds.length > 0) {
         const { data: artists } = await supabase
           .from('artist_profiles')
-          .select('user_id, url_slug')
+          .select('user_id, url_slug, artist_name')
           .in('user_id', userIds)
         artistSlugByUserId = (artists || []).reduce(
           (acc: Record<string, string>, a: any) => {
             if (a.url_slug) acc[String(a.user_id)] = String(a.url_slug)
+            return acc
+          },
+          {}
+        )
+        artistNameByUserId = (artists || []).reduce(
+          (acc: Record<string, string>, a: any) => {
+            if (a.artist_name) acc[String(a.user_id)] = String(a.artist_name)
             return acc
           },
           {}
@@ -91,7 +99,7 @@ export async function GET(request: NextRequest) {
       }
 
       return (tracks || []).map((track: any) => {
-        const displayName = track.artist_name || track.artist_username || 'Unknown artist'
+        const displayName = artistNameByUserId[String(track.user_id)] || track.artist_name || track.artist_username || 'Unknown artist'
         const handle =
           artistSlugByUserId[String(track.user_id)] || track.artist_username || null
         return {
@@ -187,6 +195,7 @@ async function fallbackFromArtistMusic(
   const userIds = Array.from(new Set((rawTracks || []).map((t: any) => t.user_id)))
   const trackIds = Array.from(new Set((rawTracks || []).map((t: any) => t.id).filter(Boolean)))
   let profileMap: Record<string, { full_name: string | null; avatar_url: string | null; username: string | null }> = {}
+  let artistNameByUserId: Record<string, string> = {}
   let artistSlugByUserId: Record<string, string> = {}
   let listingIdByTrackId: Record<string, string> = {}
   if (userIds.length > 0) {
@@ -214,6 +223,13 @@ async function fallbackFromArtistMusic(
       }),
       {}
     )
+    artistNameByUserId = (artists || []).reduce(
+      (acc: Record<string, string>, a: any) => ({
+        ...acc,
+        [a.user_id]: a.artist_name || null,
+      }),
+      {}
+    )
   }
   if (trackIds.length > 0) {
     const { data: listings } = await supabase
@@ -233,7 +249,7 @@ async function fallbackFromArtistMusic(
 
   let content = (rawTracks || []).map((track: any) => {
     const profile = profileMap[track.user_id]
-    const artistName = profile?.full_name || 'Artist'
+    const artistName = artistNameByUserId[track.user_id] || 'Artist'
     const artistHandle = artistSlugByUserId[track.user_id] || profile?.username || null
     const stats = track.stats || {}
     const likes = Number(stats.likes || 0)

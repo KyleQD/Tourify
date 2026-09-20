@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-020",
+  "title": "Retire venue select primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:47.693Z",
+  "updated_at": "2026-09-11T20:07:24.441Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/select.tsx to components/ui/select.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/select.tsx",
+      "components/ui/select.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/select.tsx",
+    "components/ui/select.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical form / editor preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/select|@/components/venue/ui/select\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/select.tsx components/ui/select.tsx",
+      "git diff --check -- components/venue/ui/select.tsx components/ui/select.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use audit passed: rg for 'components/venue/ui/select|@/components/venue/ui/select' returned 0 matches (exit 1) across app, components, hooks, lib, apps, __tests__, and scripts; no barrel index exists in components/venue/ui, and no relative re-export (./select, ../ui/select, export *) of the venue twin exists under components/venue. The venue twin has no source consumers.",
+      "Canonical import inventory passed: 287 files import @/components/ui/select across the audited scope. Venue-surface consumers are already migrated to the canonical path: 40 files under app/venue/** and 27 files under components/venue/** import @/components/ui/select. No consumer references the venue twin.",
+      "Twin characterization passed: components/venue/ui/select.tsx is byte-identical to components/ui/select.tsx (diff -q exit 0; SHA-256 1aba9cfb792bfa02b0fc8764dfd524d23e2191367863545963940034f61526ee on both files). Public contract parity is complete: both export Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem, SelectSeparator, SelectScrollUpButton, SelectScrollDownButton. Radix prop/ref parity is exact: passthroughs (Root, Group, Value) plus forwardRef wrappers whose displayName is set to SelectPrimitive.*.displayName.",
+      "Register disposition confirmed: CANONICAL_COMPONENT_REGISTER.csv line 1301 marks components/venue/ui/select.tsx 'retire later' (DUP-081, 0 continues, exact duplicate, target components/ui/select.tsx); line 1134 keeps the canonical under the same DUP-081 row. Line 327's app/venue/components/ui/select.tsx row is a stale DUP-081 entry: that route-local copy no longer exists on disk. Disposition is canonical keep, consumers already migrated, twin retained as retire-later compatibility debt.",
+      "Focused ESLint passed for components/venue/ui/select.tsx and components/ui/select.tsx (exit 0).",
+      "Focused git diff check passed for the two select paths and docs/engineering (exit 0).",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:07:24.441Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded select audit complete. The venue select twin has zero consumers; 287 files (incl. 67 venue-surface) import the canonical shared primitive. Files are byte-identical with 10-export parity and remain registered retire-later (DUP-081). Twin retained.",
+    "completed": [
+      "Audited all source references and confirmed zero live consumers of components/venue/ui/select.tsx in app, components, hooks, lib, apps, __tests__, and scripts; also confirmed no barrel or relative re-export of the twin under components/venue.",
+      "Inventoried canonical imports: 287 files import @/components/ui/select; venue-surface consumers already migrated (40 files under app/venue/**, 27 files under components/venue/**).",
+      "Characterized the twin as byte-identical to the canonical (matching SHA-256 1aba9cfb..., clean diff) with full public-export parity (Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem, SelectSeparator, SelectScrollUpButton, SelectScrollDownButton) and exact Radix prop/ref parity.",
+      "Confirmed the register disposition (DUP-081): canonical keep, venue twin retire-later; noted the stale app/venue/components/ui/select.tsx register row (line 327) whose file no longer exists on disk.",
+      "Recorded an audit-only result without deleting files, changing callers, or editing the canonical component register or any venue behavior."
+    ],
+    "next_steps": [
+      "Audit live consumers and identify the owning surface for components/venue/ui/select.tsx.",
+      "Confirm public/export parity with the canonical target before retirement. Coordinate any migration and deletion only after focused verification and register evidence."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:05:51.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed an audit-only review of the venue select twin against components/ui/select.tsx. The twin is a byte-identical duplicate with full public-export and Radix prop/ref parity; zero-use evidence recorded (0 rg matches, no barrel/relative re-exports, no venue-surface consumer of the twin path). Canonical import inventory: 287 files on @/components/ui/select, with 40 app/venue/** and 27 components/venue/** consumers already migrated to canonical. Register DUP-081 disposition confirmed (canonical keep at line 1134, twin retire-later at line 1301); line 327's app/venue/components/ui/select.tsx row is stale (file not on disk). No source, caller, register, or venue behavior changes were made; twin retained.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-020.json"
+        ],
+        "verification": [
+          "Zero-use rg audit: 0 matches (exit 1); no barrel/relative re-exports",
+          "Canonical import inventory: 287 files on @/components/ui/select; 40 app/venue/** + 27 components/venue/** consumers already migrated",
+          "Byte-identical twin: matching SHA-256 1aba9cfb...; full export parity (10 exports) and exact Radix prop/ref parity",
+          "Focused ESLint passed (exit 0)",
+          "Focused git diff --check passed (exit 0)",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No approved migration/deletion scope for the audit-only pass"
+        ],
+        "next_steps": [
+          "Retain the twin as registered retire-later compatibility debt until an explicitly approved deletion decision is recorded.",
+          "Register row 327 (app/venue/components/ui/select.tsx, DUP-081) is stale and should be corrected in the separately scoped retirement/register step."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:07:24.441Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded select audit complete. The venue select twin has zero consumers; 287 files (incl. 67 venue-surface) import the canonical shared primitive. Files are byte-identical with 10-export parity and remain registered retire-later (DUP-081). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

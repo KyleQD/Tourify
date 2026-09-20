@@ -6,7 +6,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 const sendMessageSchema = z.object({
   subject: z.string().min(1),
   content: z.string().min(1),
-  message_type: z.enum(['announcement', 'update', 'alert', 'general']).default('general'),
+  message_type: z.enum(['announcement', 'update', 'alert', 'general', 'reminder']).default('general'),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   recipients: z.array(z.string().uuid()).default([]),
   requires_acknowledgment: z.boolean().default(false),
@@ -15,6 +15,11 @@ const sendMessageSchema = z.object({
   tour_id: z.string().uuid().nullable().optional(),
   site_map_id: z.string().uuid().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).default({}),
+  remind_at: z.string().datetime().nullable().optional(),
+}).superRefine((value, context) => {
+  if (value.message_type === 'reminder' && !value.remind_at) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['remind_at'], message: 'A reminder date is required.' })
+  }
 })
 
 export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { user, admin }) => {
@@ -89,12 +94,50 @@ export const GET = withAdminCapability('logistics.view', async (request: NextReq
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
+export const POST = withAdminCapability('communications.send', async (request: NextRequest, { user, admin }) => {
   try {
     const { resolveActingContext } = await import('@/lib/auth/acting-context')
     const svc = createServiceRoleClient()
     const body = await request.json()
     const validated = sendMessageSchema.parse(body)
+
+    if (validated.event_id || validated.tour_id) {
+      const { resolveAuthorizedOrgLogisticsScope } = await import('@/lib/admin/resolve-authorized-org')
+      await resolveAuthorizedOrgLogisticsScope({
+        userId: user.id,
+        requestedOrgId: admin.orgId,
+        eventId: validated.event_id || null,
+        tourId: validated.tour_id || null,
+      })
+    }
+
+    const eligibleRecipientIds = new Set<string>()
+    let assignmentRecipients = svc
+      .from('employment_assignments')
+      .select('user_id')
+      .in('status', ['confirmed', 'active'])
+    if (validated.event_id) {
+      assignmentRecipients = assignmentRecipients.or(`event_v2_id.eq.${validated.event_id},event_id.eq.${validated.event_id}`)
+    } else if (validated.tour_id) {
+      assignmentRecipients = assignmentRecipients.eq('tour_id', validated.tour_id)
+    } else {
+      assignmentRecipients = assignmentRecipients.eq('employer_entity_id', admin.orgId)
+    }
+    const [{ data: assignmentWorkers }, { data: rosterWorkers }] = await Promise.all([
+      assignmentRecipients.limit(1000),
+      validated.event_id || validated.tour_id
+        ? Promise.resolve({ data: [] as Array<{ user_id: string | null }> })
+        : svc.from('staff_members').select('user_id').eq('org_id', admin.orgId).eq('status', 'active').limit(1000),
+    ])
+    for (const row of [...(assignmentWorkers || []), ...(rosterWorkers || [])]) {
+      if (row.user_id && row.user_id !== user.id) eligibleRecipientIds.add(row.user_id)
+    }
+    const recipientIds = validated.recipients.length > 0
+      ? validated.recipients.filter((recipientId) => eligibleRecipientIds.has(recipientId))
+      : Array.from(eligibleRecipientIds)
+    if (recipientIds.length !== validated.recipients.length && validated.recipients.length > 0) {
+      return NextResponse.json({ error: 'One or more recipients are outside this organization or event.' }, { status: 403 })
+    }
 
     // Resolve acting context to stamp sender_profile_id and validate venue ownership
     const ctx = await resolveActingContext(request)
@@ -114,6 +157,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
 
     const insertPayload = {
       sender_id: user.id,
+      org_id: admin.orgId,
       venue_id: validated.venue_id ?? null,
       event_id: validated.event_id ?? null,
       tour_id: validated.tour_id ?? null,
@@ -122,8 +166,9 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
       content: validated.content,
       message_type: validated.message_type,
       priority: validated.priority,
-      recipients: validated.recipients,
+      recipients: recipientIds,
       requires_acknowledgment: validated.requires_acknowledgment,
+      remind_at: validated.message_type === 'reminder' ? validated.remind_at : null,
       metadata: {
         ...validated.metadata,
         context: 'logistics',
@@ -146,7 +191,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
     }
 
     // Fan-out to authorized recipients (idempotent per message id)
-    if (validated.recipients.length > 0) {
+    if (recipientIds.length > 0) {
       const { sendLogisticsNotifications } = await import('@/lib/logistics/notifications-adapter')
       const { buildAckInsert } = await import('@/lib/logistics/acknowledgements')
       await sendLogisticsNotifications({
@@ -163,7 +208,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
           )
         },
         actorUserId: user.id,
-        recipients: validated.recipients.map((userId) => ({ userId, isAuthorized: true })),
+        recipients: recipientIds.map((userId) => ({ userId, isAuthorized: true })),
         payload: {
           type: 'logistics_comms',
           title: validated.subject,
@@ -172,15 +217,15 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
           sourceType: 'team_communication',
           sourceId: data.id,
           link: validated.event_id
-            ? `/admin/dashboard/logistics?tab=communication&eventId=${validated.event_id}`
-            : '/admin/dashboard/logistics?tab=communication',
+            ? `/work/events/${validated.event_id}?section=updates`
+            : '/work/overview?panel=messages',
         },
         idempotencyKey: `comms-${data.id}`,
       })
 
       if (validated.requires_acknowledgment) {
         await svc.from('logistics_acknowledgements').upsert(
-          validated.recipients.map((userId) =>
+          recipientIds.map((userId) =>
             buildAckInsert({
               sourceType: 'team_communication',
               sourceId: data.id,

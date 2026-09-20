@@ -1,3 +1,5 @@
+// Hand-authored application view models. Generated Supabase schema types live
+// exclusively in lib/database.types.ts.
 export type Profile = {
   id: string;
   display_name: string | null;

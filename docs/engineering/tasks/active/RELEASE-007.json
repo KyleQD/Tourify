@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-007",
+  "title": "Isolated staging and controlled production promotion",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-16T19:20:37.723Z",
+  "updated_at": "2026-09-17T01:29:01.219Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Separate staging and production infrastructure and allow production promotion only for an approved, fully verified release SHA",
+  "scope": {
+    "in": [
+      "Separate Vercel and Supabase staging and production projects",
+      "Domain aliases, GitHub environments, scoped secrets, protected promotion, and deployment evidence"
+    ],
+    "out": [
+      "Automatic database migration application"
+    ]
+  },
+  "working_set": [
+    ".github/workflows",
+    "vercel.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "demo.tourify.live resolves only to isolated staging and tourify.live/www resolve only to production",
+    "Staging and production databases, credentials, deployment IDs, and release SHA are demonstrably isolated",
+    "Production deployment cannot bypass required CI, E2E, security, or manual approval gates",
+    "Each deployment records its Git SHA, environment, migration evidence, deployment ID, and approver"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run verify:release",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Audit baseline: tourify.live and demo.tourify.live resolve to the same Vercel production deployment and project.",
+      "Audit baseline: GitHub environments have no scoped secrets or protection and main has no branch protection; Vercel deployed the live main SHA despite failing CI."
+    ],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Partial batch implementation landed: deploy-demo was converted to an explicit exact-SHA staging workflow with environment-scoped project variables, successful CI/E2E/security checks, topology validation, prebuilt deployment, and deployment evidence artifacts. Hosted projects and credentials were not provisioned.",
+    "completed": [
+      "Removed automatic workflow_run staging deployment and made staging dispatch require release SHA, migration evidence, and approval reference.",
+      "Added exact-SHA, matching workflow-run, topology, prebuilt deployment, and evidence-artifact steps."
+    ],
+    "next_steps": [
+      "Provision separate Vercel/Supabase staging and production projects, domains, scoped secrets, and protected GitHub environments.",
+      "Run the staging workflow with real credentials and record deployment ID, release SHA, migration evidence, and approver."
+    ],
+    "blockers": [
+      "No authorized Vercel, Supabase, DNS, or GitHub environment credentials are available in this workspace; hosted isolation is unverified.",
+      "The current live production/demo domains still share the existing deployment until the workflow is run against separate projects."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T01:29:01.219Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: deploy-demo was converted to an explicit exact-SHA staging workflow with environment-scoped project variables, successful CI/E2E/security checks, topology validation, prebuilt deployment, and deployment evidence artifacts. Hosted projects and credentials were not provisioned.",
+        "completed": [
+          "Removed automatic workflow_run staging deployment and made staging dispatch require release SHA, migration evidence, and approval reference.",
+          "Added exact-SHA, matching workflow-run, topology, prebuilt deployment, and evidence-artifact steps."
+        ],
+        "next_steps": [
+          "Provision separate Vercel/Supabase staging and production projects, domains, scoped secrets, and protected GitHub environments.",
+          "Run the staging workflow with real credentials and record deployment ID, release SHA, migration evidence, and approver."
+        ],
+        "blockers": [
+          "No authorized Vercel, Supabase, DNS, or GitHub environment credentials are available in this workspace; hosted isolation is unverified.",
+          "The current live production/demo domains still share the existing deployment until the workflow is run against separate projects."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide isolated staging targets to DB-008 and QA-003, topology evidence to RELEASE-004, and protected-promotion evidence to RELEASE-005."
+  ]
+}

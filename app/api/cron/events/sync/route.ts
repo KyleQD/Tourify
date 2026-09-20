@@ -6,18 +6,14 @@ import { createTicketmasterAdapter } from "@/lib/events/providers/ticketmaster/a
 import { createBandsintownAdapter } from "@/lib/events/providers/bandsintown/adapter"
 import { ingestExternalEvent } from "@/lib/events/canonical-event-service"
 import { EventProviderError } from "@/lib/events/providers/types"
+import { isAuthorizedCronRequest, unauthorizedResponse } from "@/lib/auth/route-guards"
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
 const LOCK_STALE_AFTER_MS = 5 * 60 * 1000
 const WORKER_ID = `cron-${process.env.VERCEL_REGION ?? "local"}-${Date.now()}`
-
-function isAuthorized(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  return request.headers.get("authorization") === `Bearer ${secret}`
-}
 
 /**
  * POST /api/cron/events/sync
@@ -34,8 +30,18 @@ function isAuthorized(request: NextRequest): boolean {
  * Deliberately scoped: no uncontrolled national crawl.
  */
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: { code: "UNAUTHORIZED" } }, { status: 401 })
+  if (!isAuthorizedCronRequest(request)) return unauthorizedResponse()
+  if (!isLaunchCapabilityAvailable("external_event_providers")) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "FEATURE_UNAVAILABLE",
+          message: "External event providers are not currently available",
+          capability: "external_event_providers",
+        },
+      },
+      { status: 503, headers: { "cache-control": "no-store" } },
+    )
   }
 
   const configIssues = validateProviderConfig()

@@ -6,13 +6,13 @@ import {
   initialEventProducerForm,
 } from "@/lib/admin/event-producer-builder"
 import {
-  buildEventProducerWorkspaceHref,
   EVENT_PRODUCER_READINESS_SECTIONS,
   EVENT_PRODUCER_SECTION_IDS,
-  EVENT_PRODUCER_WORKSPACE_DESTINATIONS,
-  isEventProducerWorkspaceDisabled,
-  shouldSaveBeforeWorkspaceNavigation,
 } from "@/lib/admin/event-producer-navigation"
+import {
+  adminEventInputBaseSchema,
+  mergeAdminEventSettingsForUpdate,
+} from "@/lib/admin/tour-event-operations.service"
 import { getEventReadiness } from "@/lib/admin/operations-readiness"
 
 describe("event producer builder payload", () => {
@@ -38,6 +38,61 @@ describe("event producer builder payload", () => {
     expect(payload.tour_assignments).toEqual([])
     expect(payload.creation_source).toBe("admin_event_producer_builder")
     expect(payload.setup_context.artists).toEqual([{ id: "artist-1", label: "The Signals" }])
+  })
+
+  it.each([0, 50, 100])("serializes %i guest-list spots without legacy create fields", (guestListSpots) => {
+    const payload = buildEventProducerPayload({
+      ...initialEventProducerForm,
+      title: "Guest List Show",
+      date: "2026-08-12",
+      guestListSpots: String(guestListSpots),
+    })
+
+    expect(payload.guest_list_spots).toBe(guestListSpots)
+    expect(payload).not.toHaveProperty("guest_list_budget")
+    expect(payload).not.toHaveProperty("expected_expenses")
+    expect(payload).not.toHaveProperty("travel")
+    expect(payload).not.toHaveProperty("lodging")
+    expect(payload).not.toHaveProperty("equipment")
+    expect(payload).not.toHaveProperty("site_map")
+    expect(payload).not.toHaveProperty("supply_list")
+    expect(payload).not.toHaveProperty("documents")
+    expect(payload).not.toHaveProperty("setup_checklist")
+    expect(payload.setup_context).not.toHaveProperty("handoff_sections")
+  })
+
+  it("hydrates guest-list spots from settings without reinterpreting a legacy budget", () => {
+    expect(hydrateEventProducerForm({ settings: { guest_list_spots: 24, guest_list_budget: 500 } }).guestListSpots).toBe("24")
+    expect(hydrateEventProducerForm({ settings: { guest_list_budget: 500 } }).guestListSpots).toBe("0")
+  })
+
+  it("preserves legacy expense, budget, and logistics settings during a partial update", () => {
+    const settings = mergeAdminEventSettingsForUpdate({
+      guest_list_budget: 500,
+      expected_expenses: 1200,
+      travel: "Legacy travel details",
+      lodging: "Legacy lodging details",
+      equipment: "Legacy equipment details",
+      site_map: "Legacy site map",
+      supply_list: "Legacy supply list",
+      documents: ["legacy-rider.pdf"],
+    }, {
+      guest_list_spots: 24,
+      expected_revenue: 4000,
+    })
+
+    expect(settings).toMatchObject({
+      guest_list_spots: 24,
+      expected_revenue: 4000,
+      guest_list_budget: 500,
+      expected_expenses: 1200,
+      travel: "Legacy travel details",
+      lodging: "Legacy lodging details",
+      equipment: "Legacy equipment details",
+      site_map: "Legacy site map",
+      supply_list: "Legacy supply list",
+      documents: ["legacy-rider.pdf"],
+    })
   })
 
   it("builds a published multi-tour event payload with one primary assignment", () => {
@@ -128,37 +183,35 @@ describe("event producer readiness", () => {
 })
 
 describe("event producer navigation", () => {
-  it("maps every readiness topic to an always-visible editor section", () => {
-    const readinessIds = getEventReadiness({}).items.map((item) => item.id)
-
-    expect(Object.keys(EVENT_PRODUCER_READINESS_SECTIONS)).toEqual(readinessIds)
+  it("keeps only creation topics in the always-visible editor navigation", () => {
+    expect(EVENT_PRODUCER_SECTION_IDS).toEqual([
+      "basics",
+      "schedule",
+      "venue",
+      "advance",
+      "team",
+      "vendors",
+      "ticketing",
+      "finance",
+      "daysheet",
+      "review",
+    ])
     expect(Object.values(EVENT_PRODUCER_READINESS_SECTIONS).every((section) =>
       EVENT_PRODUCER_SECTION_IDS.includes(section)
     )).toBe(true)
+    expect(EVENT_PRODUCER_READINESS_SECTIONS).not.toHaveProperty("logistics")
+    expect(EVENT_PRODUCER_READINESS_SECTIONS).not.toHaveProperty("communications")
+  })
+})
+
+describe("event producer guest-list API contract", () => {
+  const base = { title: "Guest List Show", start_at: "2026-08-12T20:00:00.000Z" }
+
+  it.each([0, 50, 100])("accepts %i guest-list spots", (guestListSpots) => {
+    expect(adminEventInputBaseSchema.safeParse({ ...base, guest_list_spots: guestListSpots }).success).toBe(true)
   })
 
-  it("builds the canonical event workspace links", () => {
-    expect(EVENT_PRODUCER_WORKSPACE_DESTINATIONS.map((item) => item.id)).toEqual([
-      "overview",
-      "logistics",
-      "site-map",
-      "staff",
-      "vendors",
-      "tickets",
-      "communications",
-      "day-sheet",
-    ])
-    expect(buildEventProducerWorkspaceHref("event 1", "site-map")).toBe(
-      "/admin/dashboard/events/event%201?tab=site-map",
-    )
-  })
-
-  it("keeps workspace destinations disabled until save and saves dirty drafts before navigation", () => {
-    expect(isEventProducerWorkspaceDisabled(null, false)).toBe(true)
-    expect(isEventProducerWorkspaceDisabled("event-1", true)).toBe(true)
-    expect(isEventProducerWorkspaceDisabled("event-1", false)).toBe(false)
-    expect(shouldSaveBeforeWorkspaceNavigation("saved")).toBe(false)
-    expect(shouldSaveBeforeWorkspaceNavigation("unsaved")).toBe(true)
-    expect(shouldSaveBeforeWorkspaceNavigation("error")).toBe(true)
+  it.each([-1, 1.5, 101])("rejects invalid guest-list spots: %s", (guestListSpots) => {
+    expect(adminEventInputBaseSchema.safeParse({ ...base, guest_list_spots: guestListSpots }).success).toBe(false)
   })
 })

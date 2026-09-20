@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-005",
+  "title": "Ticketing schema additive migration",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T09:35:07.402Z",
+  "updated_at": "2026-09-16T19:24:55.209Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Overlay missing ticketing objects (admin overview tables RPCs reference) via additive migration within DB reconciliation",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "supabase/migrations/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "The additive ticketing schema is manually applied and verified in isolated staging before production",
+    "Admin ticketing overview RPCs and the core ticketing routes resolve against the deployed schema with the expected authorization and response contracts",
+    "Generated database types match the staged ticketing schema with zero unexplained drift",
+    "Production application is blocked until DB-002 authorization evidence and TICKET-005 deployed lifecycle certification pass"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "node scripts/ci/check-active-migration-chain.mjs",
+      "SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local",
+      "npm run agents:validate",
+      "node -e \"JSON.parse(require('fs').readFileSync('docs/engineering/tasks/active/DB-005.json','utf8')); console.log('DB-005 JSON valid')\"",
+      "node -e \"const fs=require('fs'); const s=fs.readFileSync('supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql','utf8').toLowerCase(); const required=['ticket_shares','ticket_referrals','ticket_analytics','social_media_performance','get_admin_ticketing_overview','get_admin_ticketing_social_performance','events_v2','enable row level security','security invoker','revoke all on function']; const missing=required.filter(x=>!s.includes(x)); if(missing.length) throw new Error(missing.join(',')); console.log('DB-005 static migration contract symbols: PASS')\"",
+      "shasum -a 256 supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql supabase/tests/db005_ticketing_schema_contract.sql"
+    ],
+    "evidence": [
+      "PASS: active migration chain has no duplicate policy creations (293 files scanned).",
+      "BLOCKED: SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local could not connect because local Postgres is not running at 127.0.0.1:54322; no apply/reset/replay was attempted.",
+      "PASS: npm run agents:validate — validated 17 agents, 70 tasks, 0 warnings, 0 errors.",
+      "PASS: DB-005 JSON parses successfully.",
+      "PASS: static source review verified the additive migration's four compatibility tables, events_v2 references, RLS enablement, invoker RPC definitions, and public/anon execute revocation; migration SHA-256 is 948876537adb8f04731f9ea7d40a6844a495b6660dea112687bf3f2143c62a8f and contract-test SHA-256 is 093140e21a17f14b0edb186f0e3bb602f28ec46d73d42bff885f7e77f703ebc3."
+    ],
+    "last_run_sha": "working-tree",
+    "last_run_at": "2026-09-11T18:01:06Z",
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted DB-005 to P0 because ticketing is in the core launch scope. Static migration evidence remains insufficient; staged application, runtime route exercise, generated-type parity, and TICKET-005 certification are required.",
+    "completed": [
+      "Inventoried active canonical ticketing foundation objects and the archived admin overview dependency contract.",
+      "Added additive migration 20260910230339_ticketing_admin_overview_contract.sql for ticket_shares, ticket_referrals, ticket_analytics, social_media_performance, RLS, indexes, get_admin_ticketing_overview(uuid, uuid), and get_admin_ticketing_social_performance(uuid, uuid).",
+      "Added supabase/tests/db005_ticketing_schema_contract.sql with zero-drift object, both RPC signature, RLS, policy, and grant checks.",
+      "Confirmed the admin route's second RPC dependency was absent from the active chain and added it without restoring archive SQL.",
+      "Recorded active migration-chain, control-plane, and task JSON validation as passing.",
+      "Completed a static source-contract review against the exact migration and contract-test SHA-256 values; no live schema claim is made."
+    ],
+    "next_steps": [
+      "Run the DB-005 migration and contract checks against an approved staging target through the explicit manual pipeline.",
+      "Through the approved manual staging pipeline, apply the additive migration once and run supabase/tests/db005_ticketing_schema_contract.sql; capture both RPC signatures and returned contract shape.",
+      "Capture staging and production postflight evidence that get_admin_ticketing_overview(uuid, uuid) and get_admin_ticketing_social_performance(uuid, uuid) resolve and return the contract shape.",
+      "Hand the migration and contract test to the approved staging operator for explicit manual application and execution.",
+      "Capture staging and production postflight evidence for both RPCs before closing DB-005.",
+      "Do not use reset, forced replay, or archive-only DDL as runtime proof."
+    ],
+    "blockers": [
+      "Local Supabase/Postgres target is unavailable at 127.0.0.1:54322, so SQL lint and runtime contract execution could not run.",
+      "Staging and production manual-apply/postflight evidence is not available in this bounded turn; migration remains unapplied.",
+      "CP-051 requires an explicitly approved manual staging/production apply; no automatic apply, reset, forced replay, or production mutation is authorized here."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T23:04:51.000Z",
+        "summary": "Canonical inventory found active event-ticketing foundation plus an admin RPC marker, but no active definitions for ticket_shares, ticket_referrals, ticket_analytics, or social_media_performance. Archived admin SQL was used as dependency evidence only.",
+        "changed_paths": [],
+        "verification": [
+          "Reviewed docs/engineering/INDEX.md, database charter/state, DB-005.json, database questions/decisions, active ticket migrations, archived dependency definitions, and admin route/RPC references.",
+          "CP-051 preserved: no reset, forced replay, or automatic production apply."
+        ],
+        "blockers": [],
+        "next": "Create the additive contract migration and a zero-drift SQL test without restoring archive history."
+      },
+      {
+        "at": "2026-09-11T00:31:00.000Z",
+        "summary": "Reviewed the admin route against the additive migration and found a second required RPC, get_admin_ticketing_social_performance(uuid, uuid), missing from the active chain. Added the archived-contract-compatible aggregate RPC and extended the zero-drift contract to require both RPC signatures and deny public/anon execution.",
+        "changed_paths": [
+          "supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql",
+          "supabase/tests/db005_ticketing_schema_contract.sql",
+          "docs/engineering/tasks/active/DB-005.json"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — active migration chain has no duplicate policy creations (292 files scanned).",
+          "BLOCKED: SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred.",
+          "PASS: npm run agents:validate — validated 17 agents, 69 tasks, 1 pre-existing warning, 0 errors.",
+          "PASS: DB-005 JSON parse check.",
+          "CP-051: no migration apply, reset, forced replay, or production mutation attempted."
+        ],
+        "blockers": [
+          "Runtime SQL validation requires an available approved local or staging target.",
+          "Staging and production postflight evidence remains pending."
+        ],
+        "next": "Hand off the three changed paths to the approved staging operator for explicit manual application and contract execution; record both RPC postflight results before any production claim."
+      },
+      {
+        "at": "2026-09-11T18:01:06Z",
+        "summary": "Completed the permitted static DB-005 validation. The migration and SQL contract test hashes were captured; source review confirmed the four additive compatibility tables, events_v2 foreign keys, RLS enablement, invoker RPCs, and public/anon execute revocation. No approved running database was available, so runtime apply and postflight remain blocked.",
+        "changed_paths": [
+          "docs/engineering/migration-validation/20260910230339_ticketing_admin_overview_contract.json",
+          "docs/engineering/tasks/active/DB-005.json"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — 293 active migrations, no duplicate policy creations.",
+          "PASS: npm run check:migration-validation — migration scanned with planned manifest.",
+          "PASS: npm run agents:validate — validated 17 agents, 70 tasks, 0 warnings, 0 errors.",
+          "PASS: static symbol review and SHA-256 capture for the migration and SQL contract test.",
+          "BLOCKED: SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred."
+        ],
+        "blockers": [
+          "No approved running target is available for SQL execution or RPC/RLS postflight."
+        ],
+        "next": "Run the migration once against an approved staging target, execute supabase/tests/db005_ticketing_schema_contract.sql, and attach staging then production postflight evidence."
+      },
+      {
+        "at": "2026-09-16T19:24:55.209Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted DB-005 to P0 because ticketing is in the core launch scope. Static migration evidence remains insufficient; staged application, runtime route exercise, generated-type parity, and TICKET-005 certification are required.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-005",
+  "title": "Enforce production release required checks",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T09:35:24.034Z",
+  "updated_at": "2026-09-16T19:24:55.573Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Require a clean install, green tests, deterministic build, security gates, and matching-SHA deployed E2E before main can promote to production",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    ".github/workflows/e2e.yml"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "The current three Vitest failures, two Jest configuration failures, and production build/typecheck stall are resolved",
+    "QA-003 passes against the exact staging release SHA with no accidental skips",
+    "Main branch protection requires clean install, lint, typecheck, unit/integration tests, production build, migration checks, service-role audit, security scan, and critical E2E",
+    "Pull requests and main pushes run the required checks and a failed or missing check cannot deploy production",
+    "The final go/no-go record links the release SHA, CI and E2E runs, deployment IDs, migration evidence, approver, and rollback point"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [],
+    "evidence": [
+      "Read-only source preflight at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b: full Vitest is not green (5017 passed, 8 skipped, 2 failed across 535 files).",
+      "The two failures are __tests__/integrations/mfa.service.test.ts backup-code bcrypt timeout and __tests__/logistics/site-map-ops-upgrade.test.ts expecting PublicSiteMapViewer.",
+      "Hosted E2E workflow has no run for candidate SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b; the latest 20 listed runs failed, including run 33990768961 failing both Vitest and Playwright jobs.",
+      "Candidate SHA check-runs contain no E2E result; source e2e.yml remains pull_request/manual-only and the hosted workflow cannot prove a post-merge main deployment SHA.",
+      "GET /repos/KyleQD/Tourify/branches/main/protection returned 404: main is not branch-protected and no required-check enforcement evidence exists.",
+      "npm run agents:validate passed: 17 agents, 99 tasks, 0 warnings, 0 errors; changed-path diff check passed. No workflow, deployment, or branch-protection changes were made."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-14T08:15:00Z",
+    "result": "blocked"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted RELEASE-005 to P0. The current gate is three Vitest failures, two Jest configuration failures, deterministic build/typecheck completion, QA-003 matching-SHA certification, branch protection, and release evidence; the stale 27-failure wording is retired.",
+    "completed": [],
+    "next_steps": [
+      "Resolve the MFA bcrypt timeout and PublicSiteMapViewer test failures, then rerun the full Vitest suite on a clean candidate SHA.",
+      "Obtain a successful hosted E2E run for the exact candidate SHA after the workflow's post-merge/matching-SHA contract is satisfied.",
+      "Have the repository owner provision branch protection on main and record e2e.yml as a required check; do not change this from the local task.",
+      "Re-run the preflight and close RELEASE-005 only with hosted enforcement evidence."
+    ],
+    "blockers": [
+      "Full Vitest baseline is not green: two failures remain.",
+      "No matching-SHA hosted E2E result exists; the latest listed hosted runs failed.",
+      "main is not branch-protected (GitHub API returned 404), so required-check enforcement is unverified."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T19:58:51Z",
+        "summary": "Explicitly deferred required E2E enforcement because this pass is local readiness only.",
+        "next": "Use a promotion-scoped task after test stabilization."
+      },
+      {
+        "at": "2026-09-14T08:15:00Z",
+        "summary": "Read-only preflight found RELEASE-005 is not eligible for enforcement. Full Vitest on the candidate SHA has 2 failures; hosted E2E has no matching successful result and recent listed runs failed; main is unprotected with no required-check evidence.",
+        "next": "Resolve the two test failures, obtain matching-SHA hosted E2E evidence, provision branch protection, then rerun this preflight.",
+        "blockers": [
+          "mfa.service.test.ts backup-code bcrypt timeout",
+          "site-map-ops-upgrade.test.ts expects PublicSiteMapViewer",
+          "No branch protection or required-check enforcement on main"
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.573Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted RELEASE-005 to P0. The current gate is three Vitest failures, two Jest configuration failures, deterministic build/typecheck completion, QA-003 matching-SHA certification, branch protection, and release evidence; the stale 27-failure wording is retired.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

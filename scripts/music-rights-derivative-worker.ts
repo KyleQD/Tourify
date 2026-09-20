@@ -5,12 +5,12 @@
  */
 import { createHash, randomUUID } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
 import { getC2paAdapter, buildC2paAssertions } from "../lib/music-rights/c2pa-adapter"
 import { getWatermarkAdapter } from "../lib/music-rights/watermark-adapter"
 import { buildTrainingReservationPolicy } from "../lib/music-rights/training-reservation"
 
 const MAX_ATTEMPTS = 5
-const BATCH_SIZE = Number(process.env.MUSIC_RIGHTS_DERIVATIVE_BATCH || 10)
 
 type DerivativeRow = {
   id: string
@@ -42,7 +42,11 @@ function createWorkerClient() {
   )
 }
 
-async function claimDerivatives(supabase: ReturnType<typeof createWorkerClient>, workerId: string) {
+async function claimDerivatives(
+  supabase: ReturnType<typeof createWorkerClient>,
+  workerId: string,
+  batchSize: number,
+) {
   const { data: candidates, error } = await supabase
     .from("music_rights_derivatives")
     .select("*")
@@ -50,7 +54,7 @@ async function claimDerivatives(supabase: ReturnType<typeof createWorkerClient>,
     .or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`)
     .lt("attempt_count", MAX_ATTEMPTS)
     .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE)
+    .limit(batchSize)
   if (error) throw error
 
   const claimed: DerivativeRow[] = []
@@ -211,9 +215,16 @@ async function processDerivative(
 }
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("music_protected_derivatives")) {
+    console.error("[music-rights-derivative-worker] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
+  const batchSize = Number(process.env.MUSIC_RIGHTS_DERIVATIVE_BATCH || 10)
   const workerId = `derivative-worker:${randomUUID()}`
   const supabase = createWorkerClient()
-  const claimed = await claimDerivatives(supabase, workerId)
+  const claimed = await claimDerivatives(supabase, workerId, batchSize)
   for (const row of claimed) {
     try {
       await processDerivative(supabase, row)

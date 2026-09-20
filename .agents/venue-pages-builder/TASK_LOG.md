@@ -99,3 +99,102 @@ Append-only. Newest entries at the bottom.
 - Added a read-only postflight companion and retained the feature gate until
   backfill, constraints, RLS, grants, indexes, persona isolation, and hosted
   environment evidence are recorded.
+
+### 2026-09-10 — `VENUE-002`
+
+- **Surface:** Canonical venue component tree and `VenueOperationsShell` mobile navigation
+- **Purpose:** Consolidate venue-domain implementations under `app/venue/components/` without breaking legacy imports
+- **Change:** Moved the live `MobileVenueNav` implementation to the canonical tree, updated the operations shell import, and retained `components/venue/mobile-venue-nav.tsx` as a compatibility re-export.
+- **Integration:** The canonical venue shell now consumes the canonical component tree directly while existing shared-tree consumers continue to resolve the same export.
+- **Files:** `app/venue/components/mobile-venue-nav.tsx`, `app/venue/components/operations/venue-operations-shell.tsx`, `components/venue/mobile-venue-nav.tsx`, `docs/work-packets/VENUE-002.md`
+- **Verification:** Focused ESLint passed. The repository fast wrapper remains blocked by the pre-existing missing `components/ui/use-mobile.tsx`; the repository-wide type check was stopped after no diagnostics within the bounded resource window.
+
+### 2026-09-10 — `VENUE-002` follow-up seam
+
+- **Surface:** Venue site-map workspace
+- **Purpose:** Keep the canonical venue route on the canonical component tree
+- **Change:** Moved `VenueSiteMapViewer` to `app/venue/components/site-map-viewer.tsx`, updated the venue site-maps page import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The venue site-map route now resolves its venue-domain viewer from the canonical tree while preserving existing consumers of the old path.
+- **Files:** `app/venue/components/site-map-viewer.tsx`, `app/venue/dashboard/site-maps/page.tsx`, `components/venue/site-map-viewer.tsx`
+- **Verification:** Focused ESLint passed for the new canonical file, route import, and compatibility export.
+
+### 2026-09-10 — `VENUE-002` event-details seam
+
+- **Surface:** Venue event-details delete dialog
+- **Purpose:** Remove a canonical-to-legacy implementation dependency from the venue event surface
+- **Change:** Moved `DeleteEventDialog` implementation into `app/venue/components/event-details/delete-event-dialog.tsx`; retained the legacy nested path as a compatibility re-export.
+- **Integration:** Existing canonical event headers continue importing the same local component path, while legacy consumers retain their export path.
+- **Files:** `app/venue/components/event-details/delete-event-dialog.tsx`, `components/venue/venue/delete-event-dialog.tsx`
+- **Verification:** Focused ESLint passed for the canonical implementation, compatibility export, and direct canonical caller.
+
+### 2026-09-10 — `VENUE-002` staff-scheduling seam
+
+- **Surface:** Venue staff scheduling shell
+- **Purpose:** Keep the canonical venue scheduling route on the canonical component tree
+- **Change:** Moved `VenueStaffSchedulerShell` to `app/venue/components/staff/venue-staff-scheduler-shell.tsx`, updated the scheduling page import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The scheduling page now resolves its shell from the canonical tree while the shell continues to consume the existing staff shifts panel contract.
+- **Files:** `app/venue/components/staff/venue-staff-scheduler-shell.tsx`, `app/venue/staff/scheduling/page.tsx`, `components/venue/staff/venue-staff-scheduler-shell.tsx`
+- **Verification:** Focused ESLint passed for the canonical implementation, direct caller, and compatibility export.
+
+### 2026-09-10 — `VENUE-002` import-boundary checkpoint
+
+- **Surface:** Remaining venue component-tree imports
+- **Purpose:** Confirm the safe consolidation boundary after the direct venue callers were migrated
+- **Change:** Audited remaining `@/components/venue/*` imports; none remain under `app/venue/**`. Remaining consumers are non-venue shared surfaces and were left unchanged because their interface/caller migration is outside this bounded task.
+- **Integration:** All canonical `app/venue/**` callers now resolve the migrated venue components from `app/venue/components/**` or their existing canonical paths.
+- **Files:** `docs/engineering/agents/venue/STATE.md`, `docs/engineering/tasks/active/VENUE-002.json`
+- **Verification:** Focused ESLint and `agents:validate` passed; validator retained the unrelated RELEASE-001 warning.
+
+### 2026-09-10 — `VENUE-002` user-role-assignment seam
+
+- **Surface:** Venue staff user-role assignment
+- **Purpose:** Keep the canonical venue RBAC assignment page on the canonical component tree
+- **Change:** Moved `UserRoleAssignment` to `app/venue/components/staff/user-role-assignment.tsx`, updated the roles-permissions page import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The component continues using the existing venue role/permission APIs while the canonical page now resolves it from the canonical venue tree.
+- **Files:** `app/venue/components/staff/user-role-assignment.tsx`, `app/venue/staff/roles-permissions/page.tsx`, `components/venue/staff/user-role-assignment.tsx`
+- **Verification:** Focused ESLint passed for the canonical implementation, direct caller, and compatibility export.
+
+### 2026-09-10 — `VENUE-002` staff-shifts seam
+
+- **Surface:** Venue staff scheduling shifts panel
+- **Purpose:** Remove the remaining canonical scheduler-shell dependency on the legacy component tree
+- **Change:** Moved `VenueStaffShiftsPanel` to `app/venue/components/staff/venue-staff-shifts-panel.tsx`, updated the canonical scheduler shell import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The scheduler shell and its shifts panel now resolve from the canonical venue tree while preserving existing legacy consumers.
+- **Files:** `app/venue/components/staff/venue-staff-shifts-panel.tsx`, `app/venue/components/staff/venue-staff-scheduler-shell.tsx`, `components/venue/staff/venue-staff-shifts-panel.tsx`
+- **Verification:** Focused ESLint passed for the canonical panel, scheduler-shell import, and compatibility export.
+
+### 2026-09-10 — `VENUE-002` role-management seam
+
+- **Surface:** Venue staff roles and permissions
+- **Purpose:** Keep the canonical venue RBAC page on the canonical component tree
+- **Change:** Moved `RoleManagement` to `app/venue/components/staff/role-management.tsx`, updated the roles-permissions page import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The component continues using the existing venue RBAC APIs while the canonical page now resolves it from the canonical venue tree.
+- **Files:** `app/venue/components/staff/role-management.tsx`, `app/venue/staff/roles-permissions/page.tsx`, `components/venue/staff/role-management.tsx`
+- **Verification:** Focused ESLint passed for the canonical implementation, direct caller, and compatibility export.
+
+### 2026-09-10 — `VENUE-002` shift-requests seam
+
+- **Surface:** Venue staff scheduling shift requests
+- **Purpose:** Keep the scheduling page's persisted swap/drop/pickup request UI on the canonical component tree
+- **Change:** Moved `ShiftRequests` to `app/venue/components/staff/shift-requests.tsx`, updated the scheduling page import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The component continues reading the venue-scoped shift request APIs while the scheduling route now resolves it from the canonical tree.
+- **Files:** `app/venue/components/staff/shift-requests.tsx`, `app/venue/staff/scheduling/page.tsx`, `components/venue/staff/shift-requests.tsx`
+- **Verification:** Focused ESLint passed for the canonical implementation, direct caller, and compatibility export.
+
+### 2026-09-10 — `VENUE-002` shift-templates seam
+
+- **Surface:** Venue staff scheduling shift templates
+- **Purpose:** Keep the scheduling page's persisted shift-template UI on the canonical component tree
+- **Change:** Moved `ShiftTemplates` to `app/venue/components/staff/shift-templates.tsx`, updated the scheduling page import, and retained the legacy shared path as a compatibility re-export.
+- **Integration:** The component continues reading the scoped `venue_shift_templates` source while the scheduling route now resolves it from the canonical tree.
+- **Files:** `app/venue/components/staff/shift-templates.tsx`, `app/venue/staff/scheduling/page.tsx`, `components/venue/staff/shift-templates.tsx`
+- **Verification:** Focused ESLint passed for the canonical implementation, direct caller, and compatibility export.
+
+### 2026-09-10 — `VENUE-003`
+
+- **Surface:** Venue booking-request lifecycle contract
+- **Purpose:** Give venue operators and dependent surfaces one explicit, regression-tested booking state machine.
+- **Change:** Made the six-state transition matrix and terminal-state contract explicit, hardened canonical-status detection, and documented legacy status compatibility, revision checks, idempotency, and the database RPC boundary.
+- **Integration:** The TypeScript contract mirrors the existing `transition_venue_booking_lifecycle` RPC used by the venue booking API and event confirmation path; hosted SQL/RLS acceptance remains a release gate.
+- **Files:** `lib/venue/booking-lifecycle.ts`, `__tests__/venue/booking-lifecycle.test.ts`, `docs/engineering/agents/venue/BOOKING_LIFECYCLE.md`, `docs/work-packets/VENUE-003.md`
+- **Verification:** Lifecycle tests 6/6 passed; lifecycle plus reservation tests 15/15 passed; focused ESLint passed. Repository fast wrapper remains blocked by the pre-existing missing `components/ui/use-mobile.tsx`.

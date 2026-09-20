@@ -1,9 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { parseUserFromCookieNameValueList } from '@/lib/supabase/tourify-session-cookie'
 
 export interface AuthResult {
   user: any
@@ -14,15 +12,6 @@ export interface AuthError {
   error: string
   details?: string
   status: number
-}
-
-async function parseAuthFromApiCookies() {
-  try {
-    const cookieStore = await cookies()
-    return parseUserFromCookieNameValueList(cookieStore.getAll())
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -45,34 +34,29 @@ function createServiceRoleClient() {
 }
 
 /**
- * Authenticate user in API routes with proper Next.js 15 compatibility
+ * Authenticate user in API routes with proper Next.js 15 compatibility.
+ * SECURITY: identity is only ever accepted from a Supabase-verified session
+ * (`auth.getUser()` validates the JWT server-side). Unsigned cookie JSON is
+ * never trusted as an identity source.
  * Returns either authenticated user + supabase client or error response
  */
 export async function authenticateApiRequest(): Promise<AuthResult | NextResponse> {
   try {
-    // First try the standard Supabase method
     const standardSupabase = await createClient()
     const { data: { user } } = await standardSupabase.auth.getUser()
-    
-    let finalUser = user
-    
-    // If Supabase method fails, try manual cookie parsing (like middleware does)
+
     if (!user) {
-      finalUser = await parseAuthFromApiCookies()
-    }
-    
-    if (!finalUser) {
       return NextResponse.json({
         success: false,
         error: 'Not authenticated',
         details: 'User session not found'
       }, { status: 401 })
     }
-    
+
     // Create service role client for database operations that bypass RLS
     const serviceSupabase = createServiceRoleClient()
-    
-    return { user: finalUser, supabase: serviceSupabase }
+
+    return { user, supabase: serviceSupabase }
   } catch (error) {
     console.error('[API Auth] 💥 Authentication error:', error)
     return NextResponse.json({
@@ -108,26 +92,18 @@ export function withAuth(
 
 /**
  * Check if request has valid authentication without throwing errors
- * Useful for optional authentication scenarios
+ * Useful for optional authentication scenarios.
+ * SECURITY: verified sessions only — no unsigned-cookie fallback.
  */
 export async function checkAuth(): Promise<{ user: any; supabase: any } | null> {
   try {
-    // Try manual cookie parsing first since it's more reliable
-    const userFromCookies = await parseAuthFromApiCookies()
-    
-    if (userFromCookies) {
-      const supabase = createServiceRoleClient()
-      return { user: userFromCookies, supabase }
-    }
-    
-    // Fallback to standard Supabase method
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
-    
+
     if (error || !user) {
       return null
     }
-    
+
     return { user, supabase: createServiceRoleClient() }
   } catch (error) {
     console.error('[API Auth] Auth check failed:', error)

@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "id": "SOCIAL-004",
+  "title": "Realtime messaging",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "social",
+  "created_at": "2026-09-09T09:35:18.124Z",
+  "updated_at": "2026-09-16T19:24:55.700Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Launch tenant-safe realtime messaging with membership enforcement, reconnect behavior, typing, presence, and durable read state",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "lib/",
+    "app/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/social/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Every conversation read, send, topic, presence, typing, and read-state operation enforces membership at the server or database boundary",
+    "Cross-user and cross-tenant access attempts fail without leaking conversation identifiers or metadata",
+    "Reconnect, duplicate delivery, offline recovery, unread and read-state behavior are deterministic",
+    "Two-user deployed staging validation and focused Realtime/RLS suites pass"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/messaging/realtime-channel.test.ts __tests__/messaging/account-scope.test.ts __tests__/messaging/friends-and-send-schema.test.ts",
+      "npx vitest run __tests__/messaging/realtime-channel.test.ts",
+      "git diff --check -- app/messages/messages-page-client.tsx app/api/messages/route.ts",
+      "npm run agents:validate",
+      "npm run verify:fast -- --changed",
+      "npm run typecheck",
+      "npx eslint --no-cache app/messages/messages-page-client.tsx app/api/messages/route.ts app/api/messages/[conversationId]/realtime/route.ts lib/messaging/realtime-channel.ts __tests__/messaging/realtime-channel.test.ts"
+    ],
+    "evidence": [
+      "Focused messaging suite passed: 3 files, 20 tests.",
+      "Realtime topic test passed: 1 file, 1 test.",
+      "git diff --check passed for the edited existing files.",
+      "agents:validate passed: 17 agents, 70 tasks, 0 warnings, 0 errors.",
+      "verify:fast -- --changed was blocked before task checks because the shared dirty worktree includes deleted, unrelated components/ui/use-mobile.tsx and hooks/use-mobile.tsx paths in its changed-file inventory.",
+      "Focused eslint passed for all declared realtime messaging files.",
+      "Scoped TypeScript diagnostics found and repaired three nullable profile-field errors in app/messages/messages-page-client.tsx; the remaining scoped invocation errors are outside messaging in lib/auth/admin-context.ts, lib/services/account-management.service.ts, and lib/services/venue.service.ts.",
+      "Full npm run typecheck exceeded the available run window without diagnostics and was stopped; no messaging diagnostics were emitted."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T18:02:48Z",
+    "result": "partial"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted SOCIAL-004 to a P1 core launch dependency. Closure requires server/data-boundary membership enforcement, cross-user and cross-tenant denials, reconnect/read-state behavior, and two-user staging evidence.",
+    "completed": [
+      "Added membership-authorized opaque Realtime topic handshake for each conversation.",
+      "Added membership-authorized read-receipt endpoint using existing messages.is_read/read_at columns; no schema or migration changes.",
+      "Extended the messages page with RLS-backed message inserts/updates plus typing broadcast, conversation presence, connection status, and Seen state.",
+      "Added focused coverage for opaque topic stability and conversation-id non-disclosure."
+    ],
+    "next_steps": [
+      "Resolve the shared missing-file drift and rerun the fast wrapper.",
+      "Resolve the unrelated repository type errors and rerun the full typecheck.",
+      "Validate with two authenticated conversation members that inserts, typing, presence, and read receipts are isolated to the authorized conversation."
+    ],
+    "blockers": [
+      "The shared dirty worktree makes verify:fast fail before task checks because unrelated deleted components/ui/use-mobile.tsx and hooks/use-mobile.tsx entries are passed to ESLint.",
+      "The full repository typecheck exceeded the available run window; scoped messaging diagnostics pass after the profile nullability repair, while unrelated auth/account-management/venue errors remain.",
+      "No connected Supabase two-user session was available for live Realtime/RLS verification."
+    ],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-10T22:46:07Z",
+        "summary": "Implemented SOCIAL-004 bounded realtime messaging slice with server-side membership checks and existing-schema read receipts.",
+        "changed_paths": [
+          "app/api/messages/[conversationId]/realtime/route.ts",
+          "app/api/messages/route.ts",
+          "app/messages/messages-page-client.tsx",
+          "lib/messaging/realtime-channel.ts",
+          "__tests__/messaging/realtime-channel.test.ts",
+          "docs/engineering/tasks/active/SOCIAL-004.json"
+        ],
+        "verification": [
+          "Focused messaging tests: passed (20/20).",
+          "Realtime topic test: passed (1/1).",
+          "git diff --check: passed for edited existing files.",
+          "agents:validate: passed with 0 errors and one pre-existing RELEASE-001 warning.",
+          "verify:fast: blocked by unrelated missing components/ui/use-mobile.tsx.",
+          "typecheck/eslint: incomplete due execution timeout without diagnostics."
+        ],
+        "blockers": [
+          "Full verification and live Supabase two-user validation remain outstanding."
+        ],
+        "next_steps": [
+          "Complete typecheck/lint and run a two-member Realtime isolation check before moving the task to completed."
+        ]
+      },
+      {
+        "timestamp": "2026-09-11T18:02:48Z",
+        "summary": "Completed SOCIAL-004 messaging-scope lint and TypeScript diagnostics; repaired nullable profile fields without changing auth/account behavior.",
+        "changed_paths": [
+          "app/messages/messages-page-client.tsx",
+          "docs/engineering/tasks/active/SOCIAL-004.json",
+          "docs/engineering/agents/social/STATE.md"
+        ],
+        "verification": [
+          "Focused messaging suite: passed (20/20).",
+          "Realtime topic test: passed (1/1).",
+          "Focused eslint: passed for the declared realtime messaging files.",
+          "git diff --check: passed for the declared realtime messaging files.",
+          "Scoped TypeScript diagnostics: no messaging errors after repair; remaining errors are outside the social messaging working set.",
+          "agents:validate: passed (17 agents, 70 tasks, 0 warnings, 0 errors).",
+          "verify:fast -- --changed: blocked by unrelated deleted use-mobile paths in the shared changed-file inventory.",
+          "Full npm run typecheck: exceeded the available run window without diagnostics and was stopped."
+        ],
+        "blockers": [
+          "Clean-worktree wrapper and full typecheck remain blocked by unrelated shared-worktree drift.",
+          "Live Supabase two-member Realtime/RLS validation remains unavailable."
+        ],
+        "next_steps": [
+          "Rerun the fast wrapper and full typecheck after unrelated worktree drift is reconciled.",
+          "Run the authenticated two-member Realtime isolation check before completion."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.700Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted SOCIAL-004 to a P1 core launch dependency. Closure requires server/data-boundary membership enforcement, cross-user and cross-tenant denials, reconnect/read-state behavior, and two-user staging evidence.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

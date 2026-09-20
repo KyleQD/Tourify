@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { resolveActingAdminContext } from "@/lib/auth/admin-context"
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
 /**
  * SEC-205 — Client capability reflection for UI chrome.
  * Does not authorize mutations; server routes remain the boundary.
  */
-export const GET = withAdminAuth(async (request: NextRequest, auth) => {
-  const admin = await resolveActingAdminContext(request, auth)
-  if (admin instanceof NextResponse) return admin
-
+export const GET = withAdminCapability("tour.view", async (_request: NextRequest, { admin }) => {
   return NextResponse.json({
     success: true,
     orgId: admin.orgId,

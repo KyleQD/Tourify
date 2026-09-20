@@ -74,6 +74,41 @@ export const GET = withAdminCapability(
     if (shiftsResult.error) unavailableSources.push("schedule")
     const shifts = (shiftsResult.data ?? []) as Array<Record<string, unknown>>
 
+    // Batch event coverage for Hiring Hub and event staffing cards. This includes
+    // open rows without a staff_member_id, unlike the member-centric schedule read.
+    const coverageEventsResult = await supabase
+      .from("events_v2")
+      .select("id")
+      .eq("org_id", admin.orgId)
+      .gte("start_at", now.toISOString())
+      .order("start_at", { ascending: true })
+      .limit(100)
+    if (coverageEventsResult.error) unavailableSources.push("event coverage")
+    const coverageEventIds = (coverageEventsResult.data ?? []).map((row: { id: string }) => row.id)
+    const coverageShiftsResult = coverageEventIds.length
+      ? await supabase
+          .from("staff_shifts")
+          .select("id,event_id,staff_member_id,status")
+          .in("event_id", coverageEventIds)
+          .neq("status", "cancelled")
+          .limit(2000)
+      : { data: [], error: null }
+    if (coverageShiftsResult.error) unavailableSources.push("event coverage")
+    const coverageRows = (coverageShiftsResult.data ?? []) as Array<Record<string, unknown>>
+    const eventCoverage = coverageEventIds.map((eventId) => {
+      const eventShifts = coverageRows.filter((row) => row.event_id === eventId)
+      const open = eventShifts.filter((row) => {
+        const status = String(row.status ?? "").toLowerCase()
+        return !row.staff_member_id || status === "open" || status === "offered"
+      }).length
+      return {
+        eventId,
+        totalShifts: eventShifts.length,
+        filledShifts: Math.max(0, eventShifts.length - open),
+        openShifts: open,
+      }
+    })
+
     // --- Conflicts: double-bookings derived from real staff_shifts (next 30 days) ---
     const conflictShiftsResult = staffIds.length
       ? await supabase
@@ -335,6 +370,7 @@ export const GET = withAdminCapability(
       upcomingShifts,
       coverage: { filledShifts: Math.max(0, shifts.length - openShifts), openShifts, openConflicts: conflicts.length },
       team: { active, onLeave, pending },
+      eventCoverage,
       freshAt: now.toISOString(),
       unavailableSources: Array.from(new Set(unavailableSources)),
     }

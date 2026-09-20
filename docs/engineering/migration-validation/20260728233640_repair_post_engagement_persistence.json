@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728233640_repair_post_engagement_persistence.sql",
+  "taskId": "POST-ENGAGEMENT-PERSISTENCE",
+  "status": "planned",
+  "owner": "feed",
+  "reviewer": "security-data",
+  "domains": ["posts", "feed"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database containing post rows with interaction tables and legacy counter triggers installed",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select 'post_likes' as table_name, count(*) from public.post_likes union all select 'post_comments', count(*) from public.post_comments union all select 'post_shares', count(*) from public.post_shares",
+      "select count(*) from public.posts where likes_count is not null or comments_count is not null or shares_count is not null"
+    ],
+    "expectedAffectedRows": "Counter projections on public.posts are recomputed from the canonical interaction rows; no interaction row is rewritten or deleted",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the idempotent drop-trigger / create-trigger sequence; the count backfill is a correlated UPDATE that is safe to re-run",
+    "resumeCursor": "canonical_post_likes_count / canonical_post_comments_count / canonical_post_shares_count trigger definitions on public.posts",
+    "idempotency": "All trigger, policy, and function objects use drop-if-exists or create-or-replace; the count backfill is a deterministic recompute"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant keys or user data are inferred, backfilled, or quarantined; projections are recomputed from already-stored interaction rows"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["public.post_likes.post_likes_user_id_fkey", "public.post_shares.post_shares_destination_check"],
+    "indexes": [],
+    "validationPlan": "post_likes_user_id_fkey is added NOT VALID and separately validated; post_shares_destination_check is reviewed via REL-102 exception because it is backed by the shares API allowlist set and the migration declares lock_timeout = '5s'"
+  },
+  "recovery": {
+    "rollback": "Reinstall the previous FK definition and drop the canonical triggers in a forward migration; interaction rows remain the source of truth",
+    "forwardFix": "Any future counter drift is corrected against the interaction tables; never hand-edit projection columns"
+  },
+  "postflight": {
+    "queries": [
+      "select event_object_table, trigger_name from information_schema.triggers where event_object_schema = 'public' and event_object_table in ('post_likes', 'post_comments', 'post_shares') and trigger_name in ('canonical_post_likes_count', 'canonical_post_comments_count', 'canonical_post_shares_count')",
+      "select p.id from public.posts p left join (select post_id, count(*)::integer as c from public.post_likes group by post_id) l on l.post_id = p.id left join (select post_id, count(*)::integer as c from public.post_comments group by post_id) c on c.post_id = p.id left join (select post_id, count(*)::integer as c from public.post_shares group by post_id) s on s.post_id = p.id where p.likes_count is distinct from coalesce(l.c, 0) or p.comments_count is distinct from coalesce(c.c, 0) or p.shares_count is distinct from coalesce(s.c, 0)"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "REL102-ENGAGEMENT-DEST-CHECK",
+      "type": "blocking-constraint-reviewed",
+      "owner": "database-engineering",
+      "rationale": "Archived repair migration adds post_shares_destination_check as a plain CHECK on an existing table. Promoted byte-identical from the pre-reconciliation archive; the migration declares set lock_timeout = '5s' at the top, the check allowlist matches the shares API allowlist asserted by __tests__/feed/post-engagement-persistence.test.ts, and create_post_reshare/insert paths only write shared_to values inside the set. Fresh local replay (2026-09-09) applied the chain cleanly.",
+      "issue": "REL-102",
+      "expiresOn": "2027-09-01",
+      "evidence": "static-review:REL102-ENGAGEMENT-DEST-CHECK",
+      "sourceSha256": "9d6eb601e44d472542ce7543eb60efd2867356ca5881eeb4522a5386c1c3d6f5"
+    },
+    {
+      "id": "REL102-ENGAGEMENT-NOT-NULL",
+      "type": "not-null-reviewed",
+      "owner": "database-engineering",
+      "rationale": "Archived repair migration sets post_id/user_id NOT NULL on public.post_shares without a validated precheck. Promoted byte-identical from the pre-reconciliation archive; the migration is the canonical repair that first enforces these columns non-null, the API clients and canonical create_post_reshare function always write both values, and the migration's lock_timeout = '5s' bounds the operation. Fresh local replay (2026-09-09) applied the chain cleanly.",
+      "issue": "REL-102",
+      "expiresOn": "2027-09-01",
+      "evidence": "static-review:REL102-ENGAGEMENT-NOT-NULL",
+      "sourceSha256": "9d6eb601e44d472542ce7543eb60efd2867356ca5881eeb4522a5386c1c3d6f5"
+    }
+  ]
+}

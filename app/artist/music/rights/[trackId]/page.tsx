@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { artistMusicApiFetch } from "@/lib/artist/artist-music"
 
 interface RightsProject {
   id: string
@@ -92,11 +93,10 @@ export default function MusicRightsWorkspacePage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const projectResponse = await fetch(`/api/artist/music/rights/projects?trackId=${encodeURIComponent(trackId)}`, {
-        credentials: "include",
-        cache: "no-store",
-      })
-      const projectBody = await projectResponse.json()
+      const { response: projectResponse, body: projectBody } = await artistMusicApiFetch<{
+        enabled?: boolean
+        data?: RightsProject[]
+      }>(`/api/artist/music/rights/projects?trackId=${encodeURIComponent(trackId)}`)
       if (!projectResponse.ok) throw new Error(projectBody?.error?.message || "Unable to load rights project")
       setEnabled(projectBody.enabled === true)
       const current = projectBody.data?.[0] || null
@@ -123,35 +123,20 @@ export default function MusicRightsWorkspacePage() {
         agreementsResponse,
         passportsResponse,
       ] = await Promise.all([
-        fetch(`/api/artist/music/rights/parties?projectId=${current.id}`, { credentials: "include", cache: "no-store" }),
-        fetch(`/api/artist/music/rights/claims?projectId=${current.id}`, { credentials: "include", cache: "no-store" }),
-        fetch(`/api/artist/music/rights/contributions?projectId=${current.id}`, { credentials: "include", cache: "no-store" }),
-        fetch(`/api/artist/music/rights/invitations?projectId=${current.id}`, { credentials: "include", cache: "no-store" }),
-        fetch(`/api/artist/music/rights/agreements?projectId=${current.id}`, { credentials: "include", cache: "no-store" }),
-        fetch(`/api/artist/music/rights/passports?projectId=${current.id}`, { credentials: "include", cache: "no-store" }),
+        artistMusicApiFetch<{ data?: RightsParty[] }>(`/api/artist/music/rights/parties?projectId=${current.id}`),
+        artistMusicApiFetch<{ data?: RightsClaim[] }>(`/api/artist/music/rights/claims?projectId=${current.id}`),
+        artistMusicApiFetch<{ data?: RightsContribution[] }>(`/api/artist/music/rights/contributions?projectId=${current.id}`),
+        artistMusicApiFetch<{ data?: RightsInvitation[] }>(`/api/artist/music/rights/invitations?projectId=${current.id}`),
+        artistMusicApiFetch<{ data?: RightsAgreement[] }>(`/api/artist/music/rights/agreements?projectId=${current.id}`),
+        artistMusicApiFetch<{ data?: RightsPassport[] }>(`/api/artist/music/rights/passports?projectId=${current.id}`),
       ])
-      const [
-        partiesBody,
-        claimsBody,
-        contributionsBody,
-        invitationsBody,
-        agreementsBody,
-        passportsBody,
-      ] = await Promise.all([
-        partiesResponse.json(),
-        claimsResponse.json(),
-        contributionsResponse.json(),
-        invitationsResponse.json(),
-        agreementsResponse.json(),
-        passportsResponse.json(),
-      ])
-      if (partiesResponse.ok) setParties(partiesBody.data || [])
-      if (claimsResponse.ok) setClaims(claimsBody.data || [])
-      if (contributionsResponse.ok) setContributions(contributionsBody.data || [])
-      if (invitationsResponse.ok) setInvitations(invitationsBody.data || [])
-      if (agreementsResponse.ok) setAgreements(agreementsBody.data || [])
-      if (passportsResponse.ok) {
-        const currentPassport = passportsBody.data?.[0] || null
+      if (partiesResponse.response.ok) setParties(partiesResponse.body.data || [])
+      if (claimsResponse.response.ok) setClaims(claimsResponse.body.data || [])
+      if (contributionsResponse.response.ok) setContributions(contributionsResponse.body.data || [])
+      if (invitationsResponse.response.ok) setInvitations(invitationsResponse.body.data || [])
+      if (agreementsResponse.response.ok) setAgreements(agreementsResponse.body.data || [])
+      if (passportsResponse.response.ok) {
+        const currentPassport = passportsResponse.body.data?.[0] || null
         setPassport(currentPassport)
         setVerifyPath(currentPassport ? `/music/verify/passport/${currentPassport.public_id}` : null)
       }
@@ -169,13 +154,12 @@ export default function MusicRightsWorkspacePage() {
   async function createProject() {
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/projects", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/projects", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ track_id: trackId, idempotency_key: crypto.randomUUID() }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to create rights project")
       toast.success("Rights workspace created")
       await load()
@@ -190,7 +174,7 @@ export default function MusicRightsWorkspacePage() {
     if (!project || !partyName.trim()) return
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/parties", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/parties", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -200,7 +184,6 @@ export default function MusicRightsWorkspacePage() {
           display_name: partyName.trim(),
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to add party")
       setPartyName("")
       toast.success("Party added")
@@ -216,7 +199,7 @@ export default function MusicRightsWorkspacePage() {
     if (!project || !parties[0] || !project.work) return
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/contributions", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/contributions", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -228,7 +211,6 @@ export default function MusicRightsWorkspacePage() {
           role: creditRole,
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to add credit")
       toast.success("Credit proposed")
       await load()
@@ -244,7 +226,7 @@ export default function MusicRightsWorkspacePage() {
     setBusy(true)
     try {
       const numerator = shareText.trim() || "0"
-      const response = await fetch("/api/artist/music/rights/claims", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/claims", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -266,7 +248,6 @@ export default function MusicRightsWorkspacePage() {
           perpetual: true,
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to add claim")
       toast.success(body.data?.status === "disputed" ? "Claim saved as disputed" : "Claim proposed")
       await load()
@@ -281,7 +262,7 @@ export default function MusicRightsWorkspacePage() {
     if (!project || !inviteEmail.trim()) return
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/invitations", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/invitations", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -292,7 +273,6 @@ export default function MusicRightsWorkspacePage() {
           claim_ids: claims.slice(0, 5).map((claim) => claim.id),
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to invite contributor")
       setInviteEmail("")
       toast.success("Contributor invited")
@@ -308,7 +288,7 @@ export default function MusicRightsWorkspacePage() {
     if (!project || parties.length === 0) return
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/agreements", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/agreements", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -323,7 +303,6 @@ export default function MusicRightsWorkspacePage() {
           })),
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to create agreement")
       toast.success("Agreement version frozen")
       await load()
@@ -338,7 +317,7 @@ export default function MusicRightsWorkspacePage() {
     if (!project) return
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/evidence", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/evidence", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -350,7 +329,6 @@ export default function MusicRightsWorkspacePage() {
           byte_size: 1024,
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to register evidence")
       toast.success("Evidence upload prepared")
     } catch (error) {
@@ -364,7 +342,7 @@ export default function MusicRightsWorkspacePage() {
     if (!project) return
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/rights/passports", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/rights/passports", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -374,7 +352,6 @@ export default function MusicRightsWorkspacePage() {
           public_credit_ids: contributions.map((contribution) => contribution.id),
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to issue passport")
       setVerifyPath(body.data?.verify_path || null)
       toast.success("Passport issued")

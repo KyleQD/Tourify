@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   deploy:
@@ -28,6 +28,7 @@ jobs:
     environment: production
     permissions:
       contents: read
+      actions: read
     concurrency:
       group: deploy-vercel-production
       cancel-in-progress: true
@@ -54,6 +55,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Require matching E2E run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          conclusion="$(gh run list --workflow e2e.yml --commit "$HEAD_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::A successful E2E Tests workflow is required for $HEAD_SHA (found: ${conclusion:-none})."
+            exit 1
+          fi
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest

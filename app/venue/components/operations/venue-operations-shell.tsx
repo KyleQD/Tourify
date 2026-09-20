@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
-import { MobileVenueNav } from "@/components/venue/mobile-venue-nav"
+import { MobileVenueNav } from "@/app/venue/components/mobile-venue-nav"
 import { getVenuePublicProfilePath } from "@/lib/utils/public-profile-routes"
 import {
   Activity,

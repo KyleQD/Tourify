@@ -4,6 +4,7 @@ import React, { Component, ReactNode } from 'react'
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ErrorState } from '@/components/ui/error-state'
 
 // =============================================================================
 // ERROR BOUNDARY TYPES
@@ -181,19 +182,18 @@ export function ErrorMessage({
   className?: string
 }) {
   return (
-    <div className={`rounded-2xl border border-white/20 bg-white/10 p-8 text-center shadow-xl backdrop-blur-2xl ${className}`}>
-      <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-rose-300" />
-      <h3 className="mb-2 text-lg font-semibold text-white">{title}</h3>
-      {message && (
-        <p className="mx-auto mb-4 max-w-md text-slate-300">{message}</p>
-      )}
-      {onRetry && (
+    <ErrorState
+      className={`rounded-2xl border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-2xl ${className}`}
+      title={title}
+      description={message}
+      icon={<AlertTriangle className="h-12 w-12" />}
+      action={onRetry ? (
         <Button onClick={onRetry} variant="outline" size="sm" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15">
           <RefreshCw className="w-4 h-4 mr-2" />
           Try Again
         </Button>
-      )}
-    </div>
+      ) : undefined}
+    />
   )
 }
 

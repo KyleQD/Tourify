@@ -22,11 +22,6 @@ export type EmploymentAssignmentStatus =
   | "completed"
   | "cancelled"
   | "declined"
-  | "invited"
-  | "confirmed"
-  | "active"
-  | "completed"
-  | "cancelled"
 
 export type AccessStaffDocsScope = "own" | "team" | "none"
 export type RunSheetAccess = boolean | "limited"
@@ -69,6 +64,7 @@ export interface WorkModePublication {
   publicationType: string
   title: string
   payload: Record<string, unknown>
+  visibleTo: string[]
   publishedAt: string | null
   href: string | null
 }
@@ -78,21 +74,128 @@ export interface WorkModeAssignmentListItem {
   roleTitle: string
   department: string | null
   eventId: string | null
+  tourId: string | null
+  staffShiftId: string | null
+  eventContextSource: "assignment" | "shift" | null
   venueId: string | null
   organizerId: string | null
   startsAt: string | null
   endsAt: string | null
   status: EmploymentAssignmentStatus
-  permissions: Record<string, boolean>
+  permissions: Record<string, boolean | string>
   source: "assignment" | "publication"
   publicationType: string | null
   href: string | null
   siteMapId: string | null
 }
 
+export interface WorkModeTaskItem {
+  id: string
+  eventId: string | null
+  title: string
+  status: string | null
+  dueDate: string | null
+  priority: string | null
+  actionUrl: string | null
+  kind: "onboarding" | "operational"
+}
+
+export type WorkModeSourceState = "available" | "unavailable"
+
+export interface WorkModeSourceAvailability {
+  assignments: WorkModeSourceState
+  events: WorkModeSourceState
+  publications: WorkModeSourceState
+  tasks: WorkModeSourceState
+  communications: WorkModeSourceState
+  reminders: WorkModeSourceState
+}
+
+export interface WorkModeEventSummary {
+  eventId: string
+  title: string
+  organizationId: string | null
+  organizationName: string | null
+  venueId: string | null
+  venueName: string | null
+  startsAt: string | null
+  endsAt: string | null
+  timezone: string | null
+  assignments: WorkModeAssignmentListItem[]
+  href: string | null
+}
+
+export interface WorkModeCommunication {
+  id: string
+  source: "team_communication" | "event_bulletin" | "publication"
+  kind: "message" | "update"
+  title: string
+  body: string
+  eventId: string | null
+  organizationId: string | null
+  organizationName: string | null
+  senderName: string | null
+  sentAt: string
+  priority: string
+  isRead: boolean
+  requiresAcknowledgment: boolean
+  isAcknowledged: boolean
+  href: string
+}
+
+export interface WorkModeReminder {
+  id: string
+  title: string
+  body: string
+  eventId: string | null
+  organizationId: string | null
+  organizationName: string | null
+  remindAt: string
+  priority: string
+  isRead: boolean
+  requiresAcknowledgment: boolean
+  isAcknowledged: boolean
+  href: string
+}
+
+export interface WorkModeAttentionItem {
+  id: string
+  kind: "invitation" | "task" | "update" | "reminder" | "acknowledgment"
+  title: string
+  detail: string | null
+  eventId: string | null
+  assignmentId: string | null
+  dueAt: string | null
+  priority: "normal" | "high" | "urgent"
+  href: string | null
+}
+
 export interface WorkModeAssignmentsPayload {
   assignments: WorkModeAssignmentListItem[]
   publications: WorkModePublication[]
+  tasks: WorkModeTaskItem[]
+  sourceAvailability: WorkModeSourceAvailability
+  generatedAt: string
+  workerActionsAvailable: boolean
+}
+
+export interface WorkModeOverviewPayload extends WorkModeAssignmentsPayload {
+  events: WorkModeEventSummary[]
+  communications: WorkModeCommunication[]
+  reminders: WorkModeReminder[]
+  attention: WorkModeAttentionItem[]
+  unreadCount: number
+}
+
+export interface WorkModeEventPayload {
+  event: WorkModeEventSummary
+  assignments: WorkModeAssignmentListItem[]
+  publications: WorkModePublication[]
+  tasks: WorkModeTaskItem[]
+  communications: WorkModeCommunication[]
+  reminders: WorkModeReminder[]
+  availableSections: string[]
+  sourceAvailability: WorkModeSourceAvailability
   generatedAt: string
   workerActionsAvailable: boolean
 }

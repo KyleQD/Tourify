@@ -24,13 +24,28 @@ describe('Operations logistics route contracts', () => {
     expect(source).toContain("type === 'assignments'")
     expect(source).toContain('logistics_task_equipment')
     expect(source).toContain('equipment_links:logistics_task_equipment')
-    expect(source).toContain('withAdminAuth')
+    expect(source).toContain('withAdminCapability')
     expect(source).toContain('resolveAuthorizedOrgLogisticsScope')
+  })
+
+  it('uses the canonical capability gate for logistics task mutations', () => {
+    for (const path of [
+      'app/api/admin/logistics/items/[id]/route.ts',
+      'app/api/admin/logistics/items/[id]/status/route.ts',
+      'app/api/admin/logistics/items/bulk/route.ts',
+    ]) {
+      const source = read(path)
+      expect(source).toContain("withAdminCapability('logistics.manage'")
+      expect(source).not.toContain('authenticateApiRequest')
+      expect(source).not.toContain('checkAdminPermissions')
+      expect(source).not.toContain('resolveActingAdminContext')
+      expect(source).toContain('executeLogisticsCommand')
+    }
   })
 
   it('persists logistics context on team communications', () => {
     const source = read('app/api/admin/communications/route.ts')
-    const migration = read('supabase/migrations/20260630214500_logistics_team_communications_scope.sql')
+    const migration = read('supabase/migrations/20260908100000_reconcile_archived_logistics_foundation.sql')
 
     expect(source).toContain('event_id')
     expect(source).toContain('tour_id')
@@ -46,7 +61,7 @@ describe('Operations logistics route contracts', () => {
     const catering = read('app/api/admin/logistics/catering/route.ts')
     const backline = read('app/api/admin/logistics/backline/route.ts')
     const reservations = read('app/api/admin/logistics/equipment/reservations/route.ts')
-    const foundation = read('supabase/migrations/20260719210000_logistics_ops_foundation.sql')
+    const foundation = read('supabase/migrations/20260908100000_reconcile_archived_logistics_foundation.sql')
 
     expect(transport).toContain('ground_transportation_coordination')
     expect(catering).toContain('buildDietaryKitchenSummary')
@@ -91,7 +106,7 @@ describe('Operations logistics route contracts', () => {
   it('exposes worker site map and bulk zone assign routes', () => {
     const worker = read('app/api/work/site-maps/[id]/route.ts')
     const bulk = read('app/api/admin/logistics/site-maps/[id]/zones/bulk-assign/route.ts')
-    const ownership = read('supabase/migrations/20260710140000_site_map_zone_ownership.sql')
+    const ownership = read('supabase/migrations/20260908100000_reconcile_archived_logistics_foundation.sql')
 
     expect(worker).toContain('map_task_assignments')
     expect(worker).toContain('employment_assignments')
@@ -112,14 +127,17 @@ describe('Operations logistics route contracts', () => {
     expect(source).toContain('details: error.message')
   })
 
-  it('creates site maps with a minimal select and optional event scope', () => {
+  it('creates site maps with a minimal select and canonical organization scope', () => {
     const source = read('app/api/admin/logistics/site-maps/route.ts')
     const manager = read('components/admin/logistics/site-map/site-map-manager.tsx')
-    const migration = read('supabase/migrations/20260710192849_site_map_rls_no_recursion.sql')
+    const migration = read('supabase/migrations/20260710193033_site_map_rls_no_recursion.sql')
     const guard = read('components/account/account-route-guard.tsx')
 
     expect(source).toContain("const selectCreated = '*'")
-    expect(source).toContain('if (body.eventId)')
+    expect(source).toContain('event_v2_id: eventId || null')
+    expect(source).toContain("code: 'site_map_scope_required'")
+    expect(source).toContain("query.eq('event_v2_id', eventId)")
+    expect(source).not.toContain('event_id: body.eventId || null')
     expect(manager).toContain('upsertSiteMap(data.data)')
     expect(manager).toContain('openSiteMap(data.data.id)')
     expect(manager).toContain("if (eventId) formData.append('eventId', eventId)")

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth, withAdminCapability } from '@/lib/auth/api-auth'
 import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 const createNotificationSchema = z.object({
@@ -13,7 +13,7 @@ const createNotificationSchema = z.object({
   related_content_type: z.string().max(50).optional(),
 })
 
-export const GET = withAdminAuth(async (request, { user, supabase }) => {
+export const GET = withAdminCapability('communications.send', async (request, { user, supabase }) => {
   try {
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('event_id')
@@ -116,7 +116,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
+export const PATCH = withAdminCapability('communications.send', async (request: NextRequest, { user, supabase }) => {
   try {
     const { searchParams } = new URL(request.url)
     const markAllRead = searchParams.get('markAllRead') === 'true'

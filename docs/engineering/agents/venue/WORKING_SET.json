@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "agent": "venue",
+  "description": "Own venue identity, public profiles, bookings, venue operations, and venue kit.",
+  "paths": [
+    "app/venue/**",
+    "app/venues/**",
+    "app/api/venue/**",
+    "components/venue/**",
+    "components/venues/**",
+    "components/venue-kit/**",
+    "lib/venue/**",
+    "__tests__/venue/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

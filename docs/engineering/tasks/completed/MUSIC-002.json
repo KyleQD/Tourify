@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "id": "MUSIC-002",
+  "title": "Gate/remove music webhook unsigned fallback",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "music",
+  "created_at": "2026-09-09T09:35:14.369Z",
+  "updated_at": "2026-09-09T20:00:31.906Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; owned route and test surfaces preserved",
+  "goal": "Gate the unsigned music/royalty webhook fallback (fail closed in production)",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/api/",
+    "lib/music/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/music/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Unsigned webhook fallback removed in production"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx jest app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts --runInBand",
+      "npx eslint app/api/webhooks/music-royalty-payouts/route.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts"
+    ],
+    "evidence": [
+      "Route tests prove the retired unsigned switch and the generic STRIPE_WEBHOOK_SECRET are rejected, while a valid HMAC signed with STRIPE_WEBHOOK_SECRET_MUSIC_ROYALTIES is accepted.",
+      "Focused ESLint passed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T20:00:31.906Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Removed unsigned music royalties webhook fallback and verified signed local handling.",
+    "completed": [
+      "Unsigned fallback removal",
+      "generic secret fallback removal",
+      "valid/invalid signature route tests"
+    ],
+    "next_steps": [
+      "Release provisions STRIPE_WEBHOOK_SECRET_MUSIC_ROYALTIES before enabling local webhook forwarding."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T12:30:00.000Z",
+        "summary": "Removed unsigned acceptance rather than retaining a development exception; the route is fail closed in every environment.",
+        "next": "Provision the dedicated music royalties endpoint secret."
+      },
+      {
+        "at": "2026-09-09T20:00:31.906Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Removed unsigned music royalties webhook fallback and verified signed local handling.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Release: set STRIPE_WEBHOOK_SECRET_MUSIC_ROYALTIES; remove MUSIC_ROYALTY_PAYOUTS_WEBHOOK_ALLOW_UNSIGNED from local configuration because it no longer has any effect."
+  ]
+}

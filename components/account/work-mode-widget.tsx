@@ -80,7 +80,7 @@ export function WorkModeWidget() {
                 size="sm"
                 variant="ghost"
                 className="mt-2 h-7 w-full justify-start px-0 text-xs text-indigo-200 hover:text-white"
-                onClick={() => router.push(`/work/today?assignment=${activeAssignment.id}`)}
+                onClick={() => router.push(`/work/overview?assignment=${activeAssignment.id}`)}
               >
                 <ExternalLink className="mr-1.5 h-3 w-3" />
                 Open Work Mode
@@ -107,7 +107,7 @@ export function WorkModeWidget() {
                   return
                 }
                 activateWorkMode(assignment.id)
-                router.push(`/work/today?assignment=${assignment.id}`)
+                router.push(`/work/overview?assignment=${assignment.id}`)
               }}
             >
               <div className="flex-1">

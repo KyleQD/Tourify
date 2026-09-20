@@ -1,0 +1,20 @@
+Connecting to local database...
+Linting schema: extensions
+Linting schema: migration_helpers
+Linting schema: private
+Linting schema: public
+[
+  {
+    "function": "extensions.st_findextent",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "8",
+          "text": "FOR over EXECUTE statement"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },

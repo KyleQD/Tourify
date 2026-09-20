@@ -1,6 +1,7 @@
 export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { createRateLimiter, clientKeyFromRequest } from '@/lib/utils/rate-limit'
 
 const AVATAR_BUCKET = 'avatars'
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -107,6 +108,14 @@ async function persistProfileImage(params: {
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = createRateLimiter({ namespace: 'avatar-upload', limit: 10, windowSec: 300 })
+    if (!(await rl.check(clientKeyFromRequest(request))).success) {
+      return NextResponse.json(
+        { success: false, error: 'Too many upload attempts. Try again shortly.' },
+        { status: 429 }
+      )
+    }
+
     const authResult = await authenticateApiRequest(request)
     if (!authResult?.user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })

@@ -64,10 +64,27 @@ export async function GET(request: NextRequest) {
   if (applicationsResult.error)
     return NextResponse.json({ success: false, error: applicationsResult.error.message }, { status: 500 })
 
+  // VEN-138: Onboarding surface reads the canonical candidates table.
+  let onboarding: Array<Record<string, unknown>> = []
+  if (new URL(request.url).searchParams.get("include") === "onboarding") {
+    const { data: candidates, error: onboardingError } = await service
+      .from("staff_onboarding_candidates")
+      .select(
+        "id, name, email, position, department, status, stage, onboarding_progress, start_date, created_at",
+      )
+      .eq("venue_id", venueId)
+      .order("created_at", { ascending: false })
+      .limit(200)
+    if (onboardingError)
+      return NextResponse.json({ success: false, error: onboardingError.message }, { status: 500 })
+    onboarding = candidates ?? []
+  }
+
   return NextResponse.json({
     success: true,
     jobs: jobsResult.data ?? [],
     applications: applicationsResult.data ?? [],
+    onboarding,
   })
 }
 

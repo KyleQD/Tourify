@@ -1,0 +1,47 @@
+[
+  {
+    "sliceId": "ADM-BASE-001",
+    "domain": "Admin control plane",
+    "routePatterns": ["/api/admin/**"],
+    "tables": [],
+    "migrationPatterns": [],
+    "testPatterns": ["__tests__/admin/**"],
+    "sourcePaths": [
+      "docs/admin-audit/registry/program.json",
+      "lib/admin/api-route-registry.ts",
+      "scripts/ci/admin-route-registry-baseline.json"
+    ],
+    "verifiedAtCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
+    "sourceSha256": "82294fb61fcb689594584b0c935c3dcdc12f92e429fdd93a7eb771d497c574f8"
+  },
+  {
+    "sliceId": "ADM-BASE-002",
+    "domain": "Supabase migration and tenant security",
+    "routePatterns": [],
+    "tables": ["organization_members", "events_v2", "tours", "security_audit_events"],
+    "migrationPatterns": ["supabase/migrations/*.sql"],
+    "testPatterns": ["__tests__/admin/rls-*.test.ts", "__tests__/migrations/**"],
+    "sourcePaths": [
+      "supabase/config.toml",
+      "scripts/ci/check-migration-validation.mjs",
+      "__tests__/admin/rls-persona-matrix.test.ts"
+    ],
+    "verifiedAtCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "sourceSha256": "68d3bff36b30d07f88cd1375a77947975be806f7d1849d07a92e7573a7311fb5"
+  },
+  {
+    "sliceId": "ADM-BASE-003",
+    "domain": "Admin application and delivery",
+    "routePatterns": ["/admin/dashboard/**", "/api/admin/**"],
+    "tables": ["events_v2", "tours", "work_mode_publications"],
+    "migrationPatterns": [],
+    "testPatterns": ["__tests__/admin/**", "tests/e2e/**"],
+    "sourcePaths": [
+      "app/admin/dashboard/layout.tsx",
+      "app/admin/dashboard/components/optimized-sidebar.tsx",
+      "playwright.config.ts"
+    ],
+    "verifiedAtCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "sourceSha256": "0a80dbc510299f846e0e4faa1a08eeb8b0986442276b5fb051bc45fc6e962cdf"
+  }
+]

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 import { getTrustedMusicWriteClient } from "@/lib/music/music-access"
 import { MUSIC_CERTIFICATION_STANDARD_VERSION } from "@/lib/music/music-trust"
 import { resolveMusicTrustFlags } from "@/lib/music/music-trust-flags"
@@ -19,7 +20,7 @@ const createSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireArtistMusicUser(request)
   if (!authResult.success) return authResult.response
   const { user, supabase } = authResult.auth
   const trackId = request.nextUrl.searchParams.get("trackId")
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
     if (!(await limiter.check(user.id)).success) return jsonError({ status: 429, code: "rate_limited", message: "Too many certification requests.", retryable: true })

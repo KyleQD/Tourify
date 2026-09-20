@@ -16,7 +16,7 @@
  },
  "preflight": {
   "rowCountQueries": [
-   "to_regclass probes; pg_policies inventory"
+   "to_regclass probes for contracts, vendor_contracts, admin_requests and the PLAN-201-owned tour_plan_quarantine; pg_policies inventory"
   ],
   "expectedAffectedRows": "DDL only — no persisted rows changed by this file itself",
   "artifact": null
@@ -37,7 +37,7 @@
  "constraintsAndIndexes": {
   "constraints": [],
   "indexes": [],
-  "validationPlan": "phantom tables created org-scoped + RLS"
+  "validationPlan": "The three missing tables are created with RLS; tour_plan_quarantine retains the canonical PLAN-201 resolved_at-based contract, indexes, and policies without a competing status model"
  },
  "recovery": {
   "rollback": "Restore prior state per source archive or drop new objects (new tables only)",

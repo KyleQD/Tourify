@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
+
 function required(name: string, fallback?: string) {
   const value = process.env[name] || fallback
   if (!value) throw new Error(`Missing required env: ${name}`)
@@ -7,6 +9,12 @@ function required(name: string, fallback?: string) {
 }
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("music_origin_processing")) {
+    console.error("[music-trust-reconcile] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
   const supabase = createClient(
     required("SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
     required("SUPABASE_SERVICE_ROLE_KEY"),

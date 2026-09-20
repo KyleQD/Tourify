@@ -3,6 +3,23 @@ import { createClient } from '@/lib/supabase/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { hasTicketingPermission } from '@/lib/ticketing/permissions'
 
+class TicketingReportUnavailableError extends Error {}
+
+function requiredNumber(value: unknown): number {
+  const numeric = Number(value)
+  if (value === null || value === undefined || value === '' || !Number.isFinite(numeric)) {
+    throw new TicketingReportUnavailableError()
+  }
+  return numeric
+}
+
+function reportUnavailable() {
+  return NextResponse.json(
+    { error: 'Ticketing report is temporarily unavailable.', code: 'ticketing_unavailable' },
+    { status: 503 },
+  )
+}
+
 /**
  * Event ticketing dashboard metrics from authoritative tables.
  */
@@ -45,34 +62,86 @@ export async function GET(request: NextRequest) {
     supabase.from('ticket_analytics_events').select('event_name, created_at, amounts').eq('event_id', eventId).order('created_at', { ascending: false }).limit(100),
   ])
 
-  const types = typesRes.data || []
-  const orders = ordersRes.data || []
-  const tickets = ticketsRes.data || []
+  if (
+    typesRes.error ||
+    ordersRes.error ||
+    ticketsRes.error ||
+    checkinsRes.error ||
+    compsRes.error ||
+    analyticsRes.error ||
+    !typesRes.data ||
+    !ordersRes.data ||
+    !ticketsRes.data ||
+    checkinsRes.count === null ||
+    compsRes.count === null ||
+    !analyticsRes.data
+  ) {
+    return reportUnavailable()
+  }
+
+  const types = typesRes.data
+  const orders = ordersRes.data
+  const tickets = ticketsRes.data
+
+  try {
+    for (const type of types) {
+      requiredNumber(type.quantity_available)
+      requiredNumber(type.quantity_sold)
+      requiredNumber(type.quantity_reserved)
+      if (type.name === null || type.name === undefined) throw new TicketingReportUnavailableError()
+      if (canFinance) requiredNumber(type.price)
+    }
+
+    for (const ticket of tickets) {
+      if (ticket.status === null || ticket.status === undefined) throw new TicketingReportUnavailableError()
+      if (ticket.ticket_type_id === null || ticket.ticket_type_id === undefined) throw new TicketingReportUnavailableError()
+    }
+
+    if (canFinance) {
+      for (const order of orders) {
+        if (order.payment_status === null || order.payment_status === undefined) throw new TicketingReportUnavailableError()
+        requiredNumber(order.total_amount)
+        requiredNumber(order.platform_fee_amount)
+        requiredNumber(order.discount_amount)
+      }
+    }
+  } catch (error) {
+    if (error instanceof TicketingReportUnavailableError) return reportUnavailable()
+    throw error
+  }
 
   const ticketsSold = tickets.filter((t: any) => !['refunded', 'canceled', 'void'].includes(t.status)).length
   const ticketsRemaining = types.reduce((sum: number, t: any) => {
-    return sum + Math.max(0, (t.quantity_available || 0) - (t.quantity_sold || 0) - (t.quantity_reserved || 0))
+    return sum + Math.max(0, requiredNumber(t.quantity_available) - requiredNumber(t.quantity_sold) - requiredNumber(t.quantity_reserved))
   }, 0)
 
   const completedOrders = orders.filter((o: any) => o.payment_status === 'completed')
-  const grossRevenue = completedOrders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0)
-  const platformFees = completedOrders.reduce((sum: number, o: any) => sum + Number(o.platform_fee_amount || 0), 0)
-  const discounts = completedOrders.reduce((sum: number, o: any) => sum + Number(o.discount_amount || 0), 0)
+  const grossRevenue = canFinance
+    ? completedOrders.reduce((sum: number, o: any) => sum + requiredNumber(o.total_amount), 0)
+    : 0
+  const platformFees = canFinance
+    ? completedOrders.reduce((sum: number, o: any) => sum + requiredNumber(o.platform_fee_amount), 0)
+    : 0
+  const discounts = canFinance
+    ? completedOrders.reduce((sum: number, o: any) => sum + requiredNumber(o.discount_amount), 0)
+    : 0
   const refundedOrders = orders.filter((o: any) => o.payment_status === 'refunded')
-  const refunds = refundedOrders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0)
+  const refunds = canFinance
+    ? refundedOrders.reduce((sum: number, o: any) => sum + requiredNumber(o.total_amount), 0)
+    : 0
 
-  const capacity = types.reduce((sum: number, t: any) => sum + (t.quantity_available || 0), 0)
+  const capacity = types.reduce((sum: number, t: any) => sum + requiredNumber(t.quantity_available), 0)
   const sellThrough = capacity > 0 ? Math.round((ticketsSold / capacity) * 100) : 0
-  const checkedIn = checkinsRes.count ?? tickets.filter((t: any) => t.status === 'checked_in').length
+  const checkedIn = checkinsRes.count
   const noShows = Math.max(0, ticketsSold - checkedIn)
 
   const byType = types.map((t: any) => ({
     ticket_type_id: t.id,
     name: t.name,
     sold: t.quantity_sold,
-    remaining: Math.max(0, (t.quantity_available || 0) - (t.quantity_sold || 0) - (t.quantity_reserved || 0)),
+    remaining: Math.max(0, requiredNumber(t.quantity_available) - requiredNumber(t.quantity_sold) - requiredNumber(t.quantity_reserved)),
     revenue: canFinance
-      ? tickets.filter((x: any) => x.ticket_type_id === t.id && !['refunded', 'canceled', 'void'].includes(x.status)).length * Number(t.price || 0)
+      ? tickets.filter((x: any) => x.ticket_type_id === t.id && !['refunded', 'canceled', 'void'].includes(x.status)).length * requiredNumber(t.price)
       : undefined,
   }))
 
@@ -83,7 +152,7 @@ export async function GET(request: NextRequest) {
     checked_in: checkedIn,
     no_show_estimate: noShows,
     capacity_utilization_pct: capacity > 0 ? Math.round((checkedIn / capacity) * 100) : 0,
-    complimentary_issued: compsRes.count ?? 0,
+    complimentary_issued: compsRes.count,
     by_type: byType,
     recent_analytics: analyticsRes.data || [],
     finances: canFinance

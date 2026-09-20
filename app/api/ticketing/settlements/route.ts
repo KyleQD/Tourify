@@ -62,11 +62,27 @@ export async function GET(request: NextRequest) {
   if (!canFull && !canShare)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [{ data: allocations }, { data: txns }, { data: settlement }] = await Promise.all([
+  const [allocationsResult, txnsResult, settlementResult] = await Promise.all([
     supabase.from('ticket_revenue_allocations').select('*').eq('event_id', eventId).eq('is_active', true),
     supabase.from('financial_transactions').select('category, type, amount').eq('event_id', eventId),
     supabase.from('settlements').select('*').eq('event_id', eventId).maybeSingle(),
   ])
+
+  if (allocationsResult.error || txnsResult.error || settlementResult.error) {
+    console.error('[settlements] authoritative read unavailable', {
+      allocations: allocationsResult.error,
+      transactions: txnsResult.error,
+      settlement: settlementResult.error,
+    })
+    return NextResponse.json(
+      { error: 'Settlement data is temporarily unavailable', code: 'ticketing_unavailable' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
+
+  const allocations = allocationsResult.data
+  const txns = txnsResult.data
+  const settlement = settlementResult.data
 
   const gross = (txns || [])
     .filter((t: any) => t.type === 'income' && t.category === 'ticket_revenue')
@@ -242,9 +258,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Atomic path: single-transaction delete+insert via RPC (AUDIT H6). Falls
-  // back to the legacy sequential flow with a loud warning when the RPC has
-  // not been provisioned yet.
+  // Atomic path: the existing RPC contract now appends a new active revision,
+  // retires the prior active revision, and no-ops identical retries. Never
+  // fall back to delete+insert on a money-path write.
   try {
     // RPC name not present in generated types (post-types migration); cast keeps runtime contract.
     const rpc = supabase.rpc as unknown as (
@@ -255,44 +271,22 @@ export async function POST(request: NextRequest) {
       p_event_id: parsed.event_id,
       p_allocations: JSON.stringify(parsed.allocations),
     })
-    if (!rpcError) {
-      return NextResponse.json({ success: true, atomic: true })
-    }
+    if (!rpcError) return NextResponse.json({ success: true, atomic: true, versioned: true })
     if (
       rpcError.code === '42883' ||
       rpcError.code === 'PGRST202' ||
       /could not find the function/i.test(rpcError.message || '')
     ) {
-      console.warn('[settlements] replace_ticket_revenue_allocations not provisioned — using legacy non-atomic path')
+      console.error('[settlements] versioned allocation RPC is not provisioned')
+      return NextResponse.json({ error: 'Settlement versioning is unavailable' }, { status: 503 })
     } else {
       // Real failure from inside the transaction (e.g. share validation) or
-      // an environment missing the quarantined-chain table.
+      // an environment missing the canonical table.
       console.error('[settlements] atomic replace failed:', rpcError)
-      const isMissingTable = /table_missing/i.test(rpcError.message || '')
-      if (!isMissingTable) {
-        return NextResponse.json({ error: rpcError.message }, { status: 400 })
-      }
-      console.warn('[settlements] allocation table absent in this environment — legacy path will surface the error')
+      return NextResponse.json({ error: rpcError.message || 'Failed to save allocations' }, { status: 400 })
     }
   } catch (rpcThrow) {
-    console.warn('[settlements] RPC invocation threw — falling back to legacy path:', rpcThrow)
+    console.error('[settlements] versioned allocation RPC invocation failed:', rpcThrow)
+    return NextResponse.json({ error: 'Settlement versioning is unavailable' }, { status: 503 })
   }
-
-  // Legacy path (kept for environments without the migration applied).
-  await supabase.from('ticket_revenue_allocations').delete().eq('event_id', parsed.event_id)
-
-  if (parsed.allocations.length) {
-    const { error } = await supabase.from('ticket_revenue_allocations').insert(
-      parsed.allocations.map((a) => ({
-        event_id: parsed.event_id,
-        ...a,
-      }))
-    )
-    if (error) {
-      console.error('[settlements] legacy insert failed after delete:', error)
-      return NextResponse.json({ error: 'Failed to save allocations' }, { status: 500 })
-    }
-  }
-
-  return NextResponse.json({ success: true, atomic: false })
 }

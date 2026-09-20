@@ -26,10 +26,11 @@ interface AuthContextType {
   signUp: (
     email: string,
     password: string,
-    metadata?: { full_name?: string; username?: string; account_type?: string }
+    metadata?: { full_name?: string; username?: string; account_type?: string },
+    redirectTo?: string,
   ) => Promise<{ error?: AuthError; needsEmailConfirmation?: boolean }>
   /** Resend signup confirmation when the inbox is empty or the link expired. */
-  resendSignupConfirmation: (email: string) => Promise<{ error?: AuthError }>
+  resendSignupConfirmation: (email: string, redirectTo?: string) => Promise<{ error?: AuthError }>
   signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
   signOut: () => Promise<{ error?: AuthError }>
   resetPassword: (email: string) => Promise<{ error?: AuthError }>
@@ -285,7 +286,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (
     email: string, 
     password: string, 
-    metadata?: { full_name?: string; username?: string; account_type?: string }
+    metadata?: { full_name?: string; username?: string; account_type?: string },
+    redirectTo?: string,
   ) => {
     try {
       setLoading(true)
@@ -336,7 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: getAuthSignUpEmailRedirectTo(),
+          emailRedirectTo: getAuthSignUpEmailRedirectTo(redirectTo),
           data: {
             full_name: metadata?.full_name,
             username: normalizedUsername || metadata?.username,
@@ -406,7 +408,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const resendSignupConfirmation = async (email: string) => {
+  const resendSignupConfirmation = async (email: string, redirectTo?: string) => {
     const trimmed = email.trim()
     if (!trimmed || !trimmed.includes('@')) {
       return {
@@ -421,7 +423,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: trimmed,
-        options: { emailRedirectTo: getAuthSignUpEmailRedirectTo() },
+        options: { emailRedirectTo: getAuthSignUpEmailRedirectTo(redirectTo) },
       })
       if (error) {
         let message = error.message

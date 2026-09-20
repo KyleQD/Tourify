@@ -24,7 +24,7 @@
       "to_regclass probes for all 16 touched tables; policy name inventory via pg_policies",
       "count of rows per table with NULL event_id AND NULL tour_id (become service-role-only visible)"
     ],
-    "expectedAffectedRows": "DDL only — zero persisted rows changed by this file itself",
+    "expectedAffectedRows": "DDL only — zero persisted rows changed; policies are scoped using actual owner columns or parent event/tour relationships, while shared lodging reference tables become read-only for authenticated users",
     "artifact": null
   },
   "execution": {
@@ -33,7 +33,7 @@
     "batchSize": 0,
     "resumeStrategy": "Transactional DDL: drop named wide policies, create scoped policies + SECURITY DEFINER scope helper; retry-safe (drop-if-exists before every create)",
     "resumeCursor": "supabase migration version 20260825120000",
-    "idempotency": "Every DROP POLICY IF EXISTS / CREATE POLICY pair converges on re-run; helper functions are CREATE OR REPLACE"
+    "idempotency": "Every legacy and replacement policy is dropped by exact name before recreation; parent-scope helpers use CREATE OR REPLACE; a second execution converges"
   },
   "quarantine": {
     "required": false,
@@ -41,9 +41,14 @@
     "strategy": "No data backfill; orphaned no-scope rows intentionally become invisible to user principals (fail closed)"
   },
   "constraintsAndIndexes": {
-    "constraints": [],
+    "constraints": [
+      "vendor tables use vendor_id only where the column exists; equipment setup workflows and tasks inherit created_by ownership",
+      "travel and lodging child rows inherit authorization from their booking, group, flight, or transport parent",
+      "shared lodging providers, room types, and availability are authenticated-readable but have no client mutation policy",
+      "unscoped operational rows fail closed for non-service principals"
+    ],
     "indexes": [],
-    "validationPlan": "pg_policies shows scoped policies replacing *_all policies; can_access_org_scope is SECURITY DEFINER with pinned search_path"
+    "validationPlan": "pg_policies shows every historical authenticated-wide policy removed, parent helpers are SECURITY DEFINER with pinned search_path, and owner/same-org/cross-org/anonymous negatives cover parents and descendants"
   },
   "recovery": {
     "rollback": "Re-issue prior wide policies by documented names (fin_tx_all, budgets_all, <table>_all) pending review; do not disable RLS",

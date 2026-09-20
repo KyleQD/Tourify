@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { artistMusicApiFetch } from "@/lib/artist/artist-music"
 
 type RangeKey = "7d" | "30d" | "90d"
 
@@ -90,11 +91,9 @@ export default function ArtistMusicAnalyticsPage() {
   async function load(nextRange = range) {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/artist/music/analytics?range=${nextRange}`, {
-        credentials: "include",
-        cache: "no-store",
-      })
-      const json = await response.json()
+      const { response, body: json } = await artistMusicApiFetch<AnalyticsResponse>(
+        `/api/artist/music/analytics?range=${nextRange}`,
+      )
       if (!response.ok) throw new Error(json?.error?.message || json?.message || "Failed to load analytics")
       setAnalytics(json.data)
     } catch (error) {

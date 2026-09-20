@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "agent": "design-system",
+  "description": "Own shared UI primitives, accessibility, layout, tokens, and interaction consistency.",
+  "paths": [
+    "app/globals.css",
+    "components/ui/**",
+    "components/layout/**",
+    "components/surface/**",
+    "tailwind.config.ts",
+    "components.json"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

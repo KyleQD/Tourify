@@ -69,6 +69,10 @@ export function RosterAssignmentDialog({
   const [tours, setTours] = useState<TourOption[]>([])
   const [shiftId, setShiftId] = useState("")
   const [shifts, setShifts] = useState<ShiftOption[]>([])
+  const [shiftDate, setShiftDate] = useState("")
+  const [shiftStart, setShiftStart] = useState("")
+  const [shiftEnd, setShiftEnd] = useState("")
+  const [shiftRole, setShiftRole] = useState(member?.position ?? "")
   const [managers, setManagers] = useState<ManagerOption[]>([])
   const [isLoadingShifts, setIsLoadingShifts] = useState(false)
   const [zone, setZone] = useState(member?.position ?? "")
@@ -82,6 +86,10 @@ export function RosterAssignmentDialog({
       setEventId(contextEventId || "")
       setTourId(contextTourId || employer.scope?.tourId || "")
       setShiftId("")
+      setShiftDate("")
+      setShiftStart("")
+      setShiftEnd("")
+      setShiftRole(member?.position ?? "")
       setZone(member?.position ?? "")
       setAssignedManagerId(member?.assignedManagerId ?? "")
       setNotes("")
@@ -216,9 +224,13 @@ export function RosterAssignmentDialog({
     }
   }, [open, singleEventId])
 
-  async function ensureShiftStub(targetEventId: string): Promise<string | undefined> {
-    if (shiftId && eventId === targetEventId) return shiftId
-    if (!targetEventId || !member) return undefined
+  async function resolveShift(targetEventId: string): Promise<string | undefined> {
+    if (shiftId && shiftId !== "__create__" && eventId === targetEventId) return shiftId
+    if (shiftId !== "__create__") return undefined
+    if (!targetEventId || !member) throw new Error("Select an event before creating a shift")
+    if (!shiftDate || !shiftStart || !shiftEnd || !shiftRole.trim()) {
+      throw new Error("Date, start time, end time, and role are required for a new shift")
+    }
 
     const response = await fetch(`/api/events/${targetEventId}/staff`, {
       method: "POST",
@@ -226,15 +238,16 @@ export function RosterAssignmentDialog({
       headers: { "Content-Type": "application/json", ...actingHeaders },
       body: JSON.stringify({
         staff_member_id: member.id,
-        shift_date: new Date().toISOString().slice(0, 10),
-        start_time: "09:00",
-        end_time: "17:00",
-        role_assignment: member.position || "crew",
-        notes: "Created from roster assignment",
+        shift_date: shiftDate,
+        start_time: shiftStart,
+        end_time: shiftEnd,
+        role_assignment: shiftRole.trim(),
+        zone: zone || undefined,
+        notes: notes || "Created from roster assignment",
       }),
     })
     const data = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(data?.error || "Failed to create shift stub")
+    if (!response.ok) throw new Error(data?.error || "Failed to create shift")
     return data?.shift?.id || data?.data?.id
   }
 
@@ -275,8 +288,7 @@ export function RosterAssignmentDialog({
 
         for (const ev of tourEvents) {
           try {
-            const resolvedShiftId = await ensureShiftStub(ev.id)
-            lastMember = await callAssignmentApi(ev.id, tourId || undefined, resolvedShiftId)
+            lastMember = await callAssignmentApi(ev.id, tourId || undefined, undefined)
           } catch {
             failed++
           }
@@ -298,7 +310,7 @@ export function RosterAssignmentDialog({
         else onOpenChange(false)
       } else {
         // Single event or tour-only assignment
-        const resolvedShiftId = singleEventId ? await ensureShiftStub(singleEventId) : undefined
+        const resolvedShiftId = singleEventId ? await resolveShift(singleEventId) : undefined
         const data = await callAssignmentApi(singleEventId || undefined, tourId || undefined, resolvedShiftId)
         onAssigned(data)
         onOpenChange(false)
@@ -370,29 +382,26 @@ export function RosterAssignmentDialog({
           <div className="grid gap-2">
             <Label className={detailSurfacePattern.label}>Shift</Label>
             <Select
-              value={shiftId || "__create__"}
-              onValueChange={(value) => setShiftId(value === "__create__" ? "" : value)}
+              value={shiftId || "__none__"}
+              onValueChange={(value) => setShiftId(value === "__none__" ? "" : value)}
               disabled={!singleEventId || isLoadingShifts || eventId === "__all_tour_events__"}
             >
               <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                 <SelectValue
                   placeholder={
                     eventId === "__all_tour_events__"
-                      ? "Shift stubs created per event"
+                      ? "Assigning to tour events without shifts"
                       : !singleEventId
                         ? "Select an event first"
                         : isLoadingShifts
                           ? "Loading shifts…"
-                          : shifts.length
-                            ? "Select a shift"
-                            : "Create shift stub on assign"
+                          : "Select or create a shift"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__create__">
-                  {shifts.length ? "Create new shift stub" : "Create shift stub on assign"}
-                </SelectItem>
+                <SelectItem value="__none__">No shift — event assignment only</SelectItem>
+                <SelectItem value="__create__">Create a new shift</SelectItem>
                 {shifts.map((shift) => (
                   <SelectItem key={shift.id} value={shift.id}>
                     {shift.label}
@@ -401,6 +410,26 @@ export function RosterAssignmentDialog({
               </SelectContent>
             </Select>
           </div>
+          {shiftId === "__create__" ? (
+            <div className="grid gap-3 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.05] p-4 sm:grid-cols-2">
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="new-shift-role" className={detailSurfacePattern.label}>Shift role</Label>
+                <Input id="new-shift-role" className={detailSurfacePattern.input} value={shiftRole} onChange={(event) => setShiftRole(event.target.value)} placeholder="Stage manager, security, runner" />
+              </div>
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="new-shift-date" className={detailSurfacePattern.label}>Date</Label>
+                <Input id="new-shift-date" type="date" className={detailSurfacePattern.input} value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-shift-start" className={detailSurfacePattern.label}>Start time</Label>
+                <Input id="new-shift-start" type="time" className={detailSurfacePattern.input} value={shiftStart} onChange={(event) => setShiftStart(event.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-shift-end" className={detailSurfacePattern.label}>End time</Label>
+                <Input id="new-shift-end" type="time" className={detailSurfacePattern.input} value={shiftEnd} onChange={(event) => setShiftEnd(event.target.value)} />
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-2">
             <Label htmlFor="zone" className={detailSurfacePattern.label}>Zone</Label>
             <Input

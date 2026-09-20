@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822151252_world_editorial_rbac.sql",
   "taskId": "WOM-ACT-RBAC",
-  "status": "local_rehearsal",
+  "status": "planned",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [
@@ -59,7 +59,7 @@
     "production": null
   },
   "exclusions": {
-    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW \u2014 local rehearsal migration per docs/24 A1-A4"
+    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW — local rehearsal migration per docs/24 A1-A4"
   },
   "exceptions": []
 }

@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { VenueSiteMapViewer } from "@/components/venue/site-map-viewer"
+import { VenueSiteMapViewer } from "@/app/venue/components/site-map-viewer"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 

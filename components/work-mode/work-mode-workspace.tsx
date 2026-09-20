@@ -6,17 +6,17 @@ import {
   AlertCircle,
   ArrowRight,
   BriefcaseBusiness,
-  CalendarClock,
   Check,
+  ClipboardCheck,
   ExternalLink,
   Loader2,
   RefreshCw,
-  ShieldCheck,
   X,
 } from "lucide-react"
 
 import { useWorkMode } from "@/hooks/use-work-mode"
 import { WORK_MODE_VIEWS, type WorkModeView } from "@/lib/work-mode/navigation"
+import { WorkModeOverview } from "@/components/work-mode/work-mode-overview"
 import { trackUxEvent } from "@/lib/ux/client-telemetry"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,11 +25,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type {
   WorkModeAssignmentListItem,
   WorkModePublication,
+  WorkModeTaskItem,
 } from "@/types/hiring-roster-work-mode"
 
 interface WorkModeWorkspaceProps {
   view: WorkModeView
   initialAssignmentId: string | null
+  initialPanel?: string | null
 }
 
 function formatDateTime(value: string | null): string {
@@ -131,13 +133,52 @@ function PublicationList({
   )
 }
 
+function TaskList({ tasks }: { tasks: WorkModeTaskItem[] }) {
+  if (tasks.length === 0) {
+    return <UnavailablePanel title="No tasks yet" description="Onboarding and assigned operational tasks will appear here." />
+  }
+  return (
+    <div className="grid gap-3">
+      {tasks.map((task) => (
+        <Card key={task.id} className={task.kind === "onboarding" ? "border-violet-400/30 bg-violet-500/10" : "border-slate-800 bg-slate-900/70"}>
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {task.kind === "onboarding" ? <ClipboardCheck className="h-4 w-4 text-violet-300" aria-hidden="true" /> : null}
+                <p className="font-medium text-slate-100">{task.title}</p>
+                <Badge variant="outline" className="border-slate-700 text-slate-300">{task.status || "assigned"}</Badge>
+              </div>
+              <p className="mt-1 text-sm text-slate-400">
+                {task.kind === "onboarding" ? "Required onboarding packet" : task.dueDate ? `Due ${formatDateTime(task.dueDate)}` : "Operational task"}
+              </p>
+            </div>
+            {task.actionUrl ? (
+              <Button asChild size="sm">
+                <Link href={task.actionUrl}>Complete onboarding<ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" /></Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 export function WorkModeWorkspace({
   view,
   initialAssignmentId,
+  initialPanel,
 }: WorkModeWorkspaceProps) {
   const {
     assignments,
     publications,
+    tasks,
+    events,
+    communications,
+    reminders,
+    attention,
+    unreadCount,
+    sourceAvailability,
     activeAssignment,
     isLoading,
     error,
@@ -147,6 +188,7 @@ export function WorkModeWorkspace({
     refreshAssignments,
     workerActionsAvailable,
     submitWorkerAction,
+    respondToCommunication,
   } = useWorkMode()
   const [respondingId, setRespondingId] = useState<string | null>(null)
   const [workerActionId, setWorkerActionId] = useState<string | null>(null)
@@ -174,11 +216,15 @@ export function WorkModeWorkspace({
 
   const scopedPublications = useMemo(
     () =>
-      activeAssignment?.eventId
-        ? publications.filter((publication) => publication.eventId === activeAssignment.eventId)
+      activeAssignment
+        ? publications.filter((publication) =>
+            (activeAssignment.eventId && publication.eventId === activeAssignment.eventId)
+            || (activeAssignment.tourId && publication.tourId === activeAssignment.tourId))
         : [],
-    [activeAssignment?.eventId, publications],
+    [activeAssignment, publications],
   )
+  const scopedTasks = useMemo(() => tasks.filter((task) =>
+    task.kind === "onboarding" || !task.eventId || task.eventId === activeAssignment?.eventId), [activeAssignment?.eventId, tasks])
 
   async function respond(assignmentId: string, action: "accept" | "decline") {
     const startedAt = performance.now()
@@ -291,10 +337,12 @@ export function WorkModeWorkspace({
                 <span className="text-xs font-semibold uppercase tracking-[0.18em]">Work Mode</span>
               </div>
               <h1 className="mt-2 text-2xl font-semibold">
-                {activeAssignment?.roleTitle ?? "Choose an assignment"}
+                {view === "overview" ? "Your work overview" : activeAssignment?.roleTitle ?? "Choose an assignment"}
               </h1>
               <p className="mt-1 text-sm text-slate-400">
-                {activeAssignment
+                {view === "overview"
+                  ? "Upcoming positions, priority actions, and updates from your organizations."
+                  : activeAssignment
                   ? `${activeAssignment.department || "Crew"} · ${formatDateTime(activeAssignment.startsAt)}`
                   : "Your employer-published schedule and event information appears here."}
               </p>
@@ -361,7 +409,25 @@ export function WorkModeWorkspace({
           })}
         </nav>
 
-        {!activeAssignment ? (
+        {view === "overview" ? (
+          <section className="mt-5" aria-live="polite">
+            <WorkModeOverview
+              assignments={assignments}
+              events={events}
+              tasks={tasks}
+              communications={communications}
+              reminders={reminders}
+              attention={attention}
+              unreadCount={unreadCount}
+              sourceAvailability={sourceAvailability}
+              initialAssignmentId={initialAssignmentId}
+              initialPanel={initialPanel}
+              respondingId={respondingId}
+              onAssignmentResponse={(assignmentId, action) => void respond(assignmentId, action)}
+              onCommunicationResponse={respondToCommunication}
+            />
+          </section>
+        ) : !activeAssignment ? (
           <section className="mt-5" aria-labelledby="assignment-heading">
             <h2 id="assignment-heading" className="text-lg font-semibold">
               Your assignments
@@ -382,6 +448,10 @@ export function WorkModeWorkspace({
                           <CardDescription className="text-slate-400">
                             {assignment.department || "Crew"} · {formatDateTime(assignment.startsAt)}
                           </CardDescription>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {assignment.tourId ? <Badge variant="secondary">Tour assignment</Badge> : null}
+                            {assignment.eventId ? <Badge variant="secondary">Event shift</Badge> : null}
+                          </div>
                         </div>
                         <Badge variant="outline" className={statusClass(assignment.status)}>
                           {assignment.status}
@@ -425,62 +495,6 @@ export function WorkModeWorkspace({
           </section>
         ) : (
           <section className="mt-5" aria-live="polite">
-            {view === "today" ? (
-              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <Card className="border-slate-800 bg-slate-900/70">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-slate-100">
-                      <CalendarClock className="h-5 w-5 text-cyan-300" aria-hidden="true" />
-                      Assignment window
-                    </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      The schedule published by your employer.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-                    <div className="rounded-lg bg-slate-800/70 p-3">
-                      <p className="text-slate-400">Starts</p>
-                      <p className="mt-1 font-medium">{formatDateTime(activeAssignment.startsAt)}</p>
-                    </div>
-                    <div className="rounded-lg bg-slate-800/70 p-3">
-                      <p className="text-slate-400">Ends</p>
-                      <p className="mt-1 font-medium">{formatDateTime(activeAssignment.endsAt)}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-slate-800 bg-slate-900/70">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-slate-100">
-                      <ShieldCheck className="h-5 w-5 text-cyan-300" aria-hidden="true" />
-                      Access
-                    </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      Capabilities granted for this assignment.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                    {Object.entries(activeAssignment.permissions)
-                      .filter(([, enabled]) => enabled)
-                      .map(([permission]) => (
-                        <Badge key={permission} variant="secondary">
-                          {permission.replaceAll("_", " ")}
-                        </Badge>
-                      ))}
-                    {Object.values(activeAssignment.permissions).every((enabled) => !enabled) ? (
-                      <p className="text-sm text-slate-400">No additional capabilities published.</p>
-                    ) : null}
-                  </CardContent>
-                </Card>
-                <div className="lg:col-span-2">
-                  <h2 className="mb-3 text-lg font-semibold">Latest updates</h2>
-                  <PublicationList
-                    publications={scopedPublications.slice(0, 3)}
-                    emptyMessage="Your organizer has not published an advance, day sheet, map, or broadcast."
-                  />
-                </div>
-              </div>
-            ) : null}
-
             {view === "schedule" ? (
               <Card className="border-slate-800 bg-slate-900/70">
                 <CardHeader>
@@ -535,10 +549,15 @@ export function WorkModeWorkspace({
             ) : null}
 
             {view === "tasks" ? (
-              <PublicationList
-                publications={publicationsFor("task", "tasks", "task_list", "run_of_show")}
-                emptyMessage="No assignment-scoped task list has been published."
-              />
+              <div className="space-y-5">
+                <TaskList tasks={scopedTasks} />
+                {publicationsFor("task", "tasks", "task_list", "run_of_show").length ? (
+                  <div>
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Published task packets</h2>
+                    <PublicationList publications={publicationsFor("task", "tasks", "task_list", "run_of_show")} emptyMessage="No assignment-scoped task list has been published." />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {view === "documents" ? (
               <PublicationList

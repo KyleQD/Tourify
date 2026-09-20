@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import type Stripe from "stripe"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { getStripe } from "@/lib/stripe"
-import { handleMarketplaceStripeEventIdempotent } from "@/lib/marketplace/webhook-processor"
+import {
+  handleMarketplaceStripeEventIdempotent,
+  WEBHOOK_PROCESSING_FAILED,
+} from "@/lib/marketplace/webhook-processor"
 
 const getWebhookSecret = () => {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET_MARKETPLACE || process.env.STRIPE_WEBHOOK_SECRET
-  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET_MARKETPLACE or STRIPE_WEBHOOK_SECRET is required")
+  const secret = process.env.STRIPE_WEBHOOK_SECRET_MARKETPLACE
+  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET_MARKETPLACE is required")
   return secret
 }
 
@@ -36,9 +39,9 @@ export async function POST(request: NextRequest) {
   const result = await handleMarketplaceStripeEventIdempotent({ event, supabase })
 
   if (result.outcome === "error") {
-    console.error("Marketplace webhook processing error", { eventId: event.id, message: result.message })
+    console.error("Marketplace webhook processing error", { eventId: event.id })
     // Return 500 so Stripe retries
-    return NextResponse.json({ error: result.message }, { status: 500 })
+    return NextResponse.json({ error: WEBHOOK_PROCESSING_FAILED }, { status: 500 })
   }
 
   // Duplicates and skips are safe — return 200 so Stripe doesn't retry

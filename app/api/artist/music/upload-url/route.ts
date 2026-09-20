@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { requireApiUser, jsonError } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { createRateLimiter } from "@/lib/utils/rate-limit"
 
@@ -26,7 +27,7 @@ function extensionFor(kind: "full" | "preview" | "cover", fileName: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user } = authResult.auth
 

@@ -9,7 +9,7 @@ on:
       - main
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
 
 jobs:
   production-debug:
@@ -45,6 +45,28 @@ jobs:
         run: npm ci
       - name: Vitest
         run: npm run test:unit
+
+  database-types:
+    name: Database Types
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.115.0
+      - name: Start local Supabase
+        run: supabase start
+      - name: Verify active migration chain
+        run: npm run check:migration-chain
+      - name: Verify generated database types
+        run: npm run check:database-types
 
   checks:
     name: Lint And Build
@@ -106,6 +128,9 @@ jobs:
 
       - name: Service-role allowlist (SEC-109)
         run: npm run check:service-role-allowlist
+
+      - name: Admin workflow registry and generated evidence views
+        run: npm run check:admin-audit
 
       - name: Dependency audit (critical)
         run: npm audit --audit-level=critical

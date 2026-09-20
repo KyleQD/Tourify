@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "id": "MUSIC-005",
+  "title": "Adopt music commerce auth contracts in API routes",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "music",
+  "created_at": "2026-09-10T21:07:03.264Z",
+  "updated_at": "2026-09-10T21:17:10.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (534 entries)",
+  "goal": "Adopt the verified Artist/Music/Marketplace auth and ownership contracts in the owning music-commerce API handlers",
+  "scope": {
+    "in": [
+      "Owning API handlers for music commerce route families"
+    ],
+    "out": [
+      "Migrations, production deployment, unrelated marketplace UI"
+    ]
+  },
+  "working_set": [
+    "app/api/music-marketplace",
+    "app/api/marketplace",
+    "__tests__/music-commerce"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/music/INTERFACES.md",
+    "docs/engineering/agents/marketplace/INTERFACES.md",
+    "docs/engineering/agents/music/DECISIONS.md",
+    "docs/engineering/agents/marketplace/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Owning music-commerce API handlers use the verified auth and ownership contracts",
+    "Focused route regression tests pass"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/music-commerce",
+      "npx eslint app/api/music-marketplace app/api/marketplace"
+    ],
+    "evidence": [
+      "npx vitest run __tests__/music-commerce: passed (3 files, 20 tests)",
+      "npx vitest run lib/marketplace/__tests__/music-commerce-boundary.test.ts: passed (1 file, 8 tests)",
+      "npx eslint app/api/music-marketplace app/api/marketplace: clean",
+      "npx jest app/api/marketplace/checkout/__tests__/route.test.ts --runInBand: passed (1 suite, 4 tests)",
+      "npm run agents:validate: 0 errors, 1 pre-existing RELEASE-001 verification warning",
+      "Repository-wide tsc was stopped after remaining resource-blocked with no diagnostics; prior MKT-003 evidence records the same heap/resource limitation"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T21:17:10.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Adopted the verified Marketplace account/acting-context contract across all 13 music-marketplace handlers and native Marketplace order reads; preserved native checkout guest auth.",
+    "completed": [
+      "Replaced legacy requireApiUser gates with requireMarketplaceAccount in all 13 app/api/music-marketplace route handlers.",
+      "Changed music-commerce row scoping and writes to use the verified account.userId while preserving existing ownership predicates.",
+      "Adopted requireMarketplaceAccount in app/api/marketplace/orders/route.ts for seller/buyer order reads.",
+      "Preserved app/api/marketplace/checkout/route.ts's explicit optional-auth guest checkout contract.",
+      "Added __tests__/music-commerce/route-auth-adoption.test.ts covering every route target and the checkout exception."
+    ],
+    "next_steps": [
+      "Coordinate the separate Artist Music route batch to adopt requireArtistMusicUser for catalog, rights, and royalty routes."
+    ],
+    "blockers": [
+      "Repository-wide TypeScript verification remains resource-blocked and was not used as completion evidence.",
+      "Artist Music route adoption remains outside this task's explicit write scope."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T21:17:10.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed Marketplace-owned music-commerce API auth adoption. All 13 music-marketplace handlers and native Marketplace orders use requireMarketplaceAccount; checkout guest auth remains explicit.",
+        "completed": [
+          "Route adoption regression coverage",
+          "Focused route tests and Marketplace boundary tests",
+          "Scoped API lint and agents:validate"
+        ],
+        "next": "Adopt the Music artist-profile contract in the separate Artist Music route batch."
+      }
+    ]
+  },
+  "handoffs": []
+}

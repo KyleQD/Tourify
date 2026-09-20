@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823130000_booking_lifecycle.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "booking"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Read-only affected-relation and per-organization row counts must be captured before execution"
+    ],
+    "expectedAffectedRows": "Not yet measured; execution remains blocked until preflight evidence is attached",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823130000",
+    "idempotency": "Must be proven by interrupted replay in an isolated environment before promotion"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Review locks and use expand/validate sequencing for existing relations"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "REL102-BOOKING-LIFECYCLE-CHECK",
+      "type": "blocking-constraint-reviewed",
+      "owner": "database-engineering",
+      "rationale": "The nullable lifecycle column is introduced immediately before this finite enum check and backfilled deterministically in the same change.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-BOOKING-LIFECYCLE-CHECK",
+      "sourceSha256": "9fe29ad69c0ddd65fe0efedb184e3d7ddaf0b398ec95f2595dc9d09f9e2ed523"
+    }
+  ]
+}

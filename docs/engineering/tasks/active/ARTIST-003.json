@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "id": "ARTIST-003",
+  "title": "Build contract signing UI",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "artist",
+  "created_at": "2026-09-09T09:35:15.394Z",
+  "updated_at": "2026-09-16T19:24:56.009Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Build the contract signing UI within the artist pipeline",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/artist/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/artist/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Contract signing UI implemented"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx eslint 'app/artist/business/contracts/page.tsx' 'app/artist/business/contracts/[id]/page.tsx'",
+      "npm run typecheck",
+      "npm run agents:validate",
+      "npm run verify:fast -- --changed"
+    ],
+    "evidence": [
+      "Focused ESLint passed for both changed artist contract files.",
+      "TypeScript typecheck passed.",
+      "Control-plane validation passed: 17 agents, 69 tasks, 0 errors; existing RELEASE-001 warning remains.",
+      "verify:fast --changed could not complete because the pre-existing dirty worktree includes a missing components/ui/use-mobile.tsx path; the command was stopped after the unrelated ESLint failure."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T22:40:29.000Z",
+    "result": "passed-with-unrelated-worktree-limitation"
+  },
+  "progress": {
+    "summary": "Production-readiness triage keeps ARTIST-003 at P2 and outside the core launch gate. Escalate only if QA-003 proves contract signing is required by a selected staging journey.",
+    "completed": [
+      "Added /artist/business/contracts/[id] with server-side authenticated owner/counterparty checks.",
+      "Reused the existing contract review/signing client and signContractAction without changing backend schema or state transitions.",
+      "Updated the artist contracts list Review & sign navigation to the artist-scoped route."
+    ],
+    "next_steps": [
+      "Product/QA should exercise owner and counterparty signing against deployed Supabase; resolve the unrelated verify:fast worktree path issue before claiming a clean changed-worktree fast run."
+    ],
+    "blockers": [
+      "Topology regeneration was attempted after adding the route but hung in the existing large dirty worktree and was stopped; agents:validate still passes."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T22:38:36.820Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added artist-scoped contract review/signing route and routed the artist contracts list Review & sign action into it. Reused the existing authorized contract review client and signContractAction, preserving owner/counterparty checks and database state transitions.",
+        "completed": [],
+        "next_steps": [
+          "Product/QA should exercise the owner and counterparty flows against a deployed Supabase environment; the existing generic /contracts/:id entry remains the email/deep-link surface."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T22:41:49.328Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded contract-signing UI slice completed in app/artist; exact changed paths: app/artist/business/contracts/[id]/page.tsx, app/artist/business/contracts/page.tsx, docs/engineering/generated/README.md, docs/engineering/generated/components.md, docs/engineering/generated/api-routes.md, docs/engineering/generated/database-objects.md, docs/engineering/generated/database-schema.md, docs/engineering/generated/integrations.md, docs/engineering/generated/permissions.md, docs/engineering/generated/project-map.md, docs/engineering/generated/routes.md, and docs/engineering/tasks/active/ARTIST-003.json. Focused lint and typecheck pass; agents:validate passes with only the pre-existing RELEASE-001 warning.",
+        "completed": [
+          "app/artist/business/contracts/[id]/page.tsx: authenticated artist-scoped review route with owner/counterparty authorization.",
+          "app/artist/business/contracts/page.tsx: Review & sign navigation now enters the artist-scoped route.",
+          "docs/engineering/generated/routes.md and related generated maps: refreshed to include the new route."
+        ],
+        "next_steps": [
+          "Product/QA should exercise owner and counterparty signing against deployed Supabase.",
+          "Resolve the unrelated verify:fast worktree path issue before claiming a clean changed-worktree fast run."
+        ],
+        "blockers": [
+          "verify:fast --changed could not complete because the pre-existing dirty worktree includes a missing components/ui/use-mobile.tsx path; topology generation also did not terminate cleanly even though the generated maps include the new route."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:56.009Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness triage keeps ARTIST-003 at P2 and outside the core launch gate. Escalate only if QA-003 proves contract signing is required by a selected staging journey.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

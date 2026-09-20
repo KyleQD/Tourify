@@ -1,32 +1,68 @@
-name: Deploy Demo
+name: Deploy Staging
 
 on:
-  workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full, reviewed Git SHA from main
+        required: true
+        type: string
+      migration_evidence:
+        description: Staging migration evidence reference
+        required: true
+        type: string
+      approval_reference:
+        description: Change/release approval reference
+        required: true
+        type: string
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "24"
+  VERCEL_CLI_VERSION: "59.19.1"
 
 jobs:
   deploy:
-    name: Deploy To demo.tourify.live
+    name: Deploy isolated staging to demo.tourify.live
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
-    environment: demo
+    environment: staging
     permissions:
       contents: read
+      actions: read
     concurrency:
-      group: deploy-demo-production
-      cancel-in-progress: true
+      group: deploy-vercel-staging
+      cancel-in-progress: false
     steps:
-      - name: Checkout
+      - name: Checkout exact release SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Require an exact main-branch SHA
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$RELEASE_SHA" | grep -Eq '^[0-9a-fA-F]{40}$'; then
+            echo "::error::release_sha must be a full 40-character Git SHA."
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main
+
+      - name: Require successful CI, E2E, and security runs for the SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          for workflow in ci.yml e2e.yml security-scans.yml; do
+            conclusion="$(gh run list --workflow "$workflow" --commit "$RELEASE_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+            if [ "$conclusion" != "success" ]; then
+              echo "::error::$workflow must have a successful run for $RELEASE_SHA (found: ${conclusion:-none})."
+              exit 1
+            fi
+          done
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,26 +70,67 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      - name: Validate isolated staging topology
+        env:
+          DEPLOYMENT_ENVIRONMENT: staging
+          DEPLOYMENT_DOMAINS: demo.tourify.live
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
+          VERCEL_STAGING_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
+          VERCEL_PRODUCTION_PROJECT_ID: ${{ vars.VERCEL_PRODUCTION_PROJECT_ID }}
+          SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_STAGING_PROJECT_ID }}
+          SUPABASE_STAGING_PROJECT_ID: ${{ vars.SUPABASE_STAGING_PROJECT_ID }}
+          SUPABASE_PRODUCTION_PROJECT_ID: ${{ vars.SUPABASE_PRODUCTION_PROJECT_ID }}
+        run: npm run check:deployment-topology
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+      - name: Install pinned Vercel CLI
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
 
-      - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Pull isolated staging project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_STAGING_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_STAGING_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
 
-      - name: Build
-        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Build staging artifact
+        run: vercel build --prod --token="$VERCEL_TOKEN"
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_STAGING_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_STAGING_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
 
-      - name: Deploy
-        run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Deploy exact prebuilt staging artifact
+        id: deploy
+        run: |
+          set -euo pipefail
+          deployment_url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_STAGING_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_STAGING_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
+
+      - name: Record staging deployment evidence
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          DEPLOYMENT_ENVIRONMENT: staging
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          MIGRATION_EVIDENCE: ${{ inputs.migration_evidence }}
+          RELEASE_APPROVER: ${{ github.actor }}
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+          PROMOTION_SOURCE: main/${{ inputs.release_sha }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
+          SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_STAGING_PROJECT_ID }}
+        run: node scripts/ci/write-deployment-evidence.mjs "$RUNNER_TEMP/staging-deployment-evidence.json"
+
+      - name: Retain staging deployment evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-deployment-${{ inputs.release_sha }}
+          path: ${{ runner.temp }}/staging-deployment-evidence.json
+          if-no-files-found: error
+          retention-days: 90

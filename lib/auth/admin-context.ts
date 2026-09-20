@@ -6,6 +6,10 @@ import {
   resolveEffectiveAdminCapabilities,
   type AdminCapability,
 } from '@/lib/auth/admin-capabilities'
+import {
+  organizationIdentityFromOrganizerAccount,
+  type CanonicalOrganizationIdentity,
+} from '@/lib/organizations/identity'
 
 export interface AuthenticatedAdminRequest {
   user: { id: string; email?: string | null; phone?: string | null }
@@ -48,9 +52,16 @@ interface OrganizationProfileRow {
   is_active?: boolean | null
 }
 
+interface VerifiedOrganizationProfile extends CanonicalOrganizationIdentity {
+  ownerUserId: string | null
+  isActive: boolean
+}
+
 interface MembershipRow {
   org_id: string
   role: string
+  status: string
+  permissions: string[]
 }
 
 const TOUR_COLLABORATOR_CAPABILITIES: AdminCapability[] = [
@@ -119,7 +130,7 @@ export function parseExplicitAdminActingHeaders(
 async function loadOrganizationProfile(
   supabase: AuthenticatedAdminRequest['supabase'],
   profileId: string,
-): Promise<OrganizationProfileRow | NextResponse> {
+): Promise<VerifiedOrganizationProfile | NextResponse> {
   const { data, error } = await supabase
     .from('organizer_accounts')
     .select('id, user_id, ops_org_id, is_active')
@@ -140,7 +151,20 @@ async function loadOrganizationProfile(
     )
   }
 
-  return data as OrganizationProfileRow
+  const identity = organizationIdentityFromOrganizerAccount(data as OrganizationProfileRow)
+  if (!identity) {
+    return errorResponse(
+      409,
+      'organization_scope_required',
+      'The selected organization has not been connected to an operations organization.',
+    )
+  }
+
+  return {
+    ...identity,
+    ownerUserId: data.user_id ?? null,
+    isActive: data.is_active !== false,
+  }
 }
 
 async function loadMembership(
@@ -150,7 +174,7 @@ async function loadMembership(
 ): Promise<MembershipRow | NextResponse | null> {
   const { data, error } = await supabase
     .from('org_members')
-    .select('org_id, role')
+    .select('org_id, role, status, permissions')
     .eq('user_id', userId)
     .eq('org_id', orgId)
     .maybeSingle()
@@ -158,7 +182,7 @@ async function loadMembership(
   if (error) {
     return errorResponse(503, 'membership_unavailable', 'Unable to verify organization membership.')
   }
-  if (!data?.org_id || !data.role) return null
+  if (!data?.org_id || !data.role || data.status !== 'active') return null
 
   return data as MembershipRow
 }
@@ -204,6 +228,7 @@ async function loadTourCollaboratorScope(
 async function loadCapabilities(
   supabase: AuthenticatedAdminRequest['supabase'],
   membershipRole: string,
+  membershipPermissions: string[],
 ): Promise<AdminCapability[] | NextResponse> {
   const { data, error } = await supabase
     .from('org_role_permissions')
@@ -218,6 +243,7 @@ async function loadCapabilities(
   return resolveEffectiveAdminCapabilities({
     role: membershipRole,
     configuredPermissions: data?.perms,
+    customRoleCapabilities: membershipPermissions,
     membershipStatus: 'active',
   })
 }
@@ -230,7 +256,7 @@ async function buildContextForProfile(
   const organization = await loadOrganizationProfile(auth.supabase, candidate.profileId)
   if (organization instanceof NextResponse) return organization
 
-  const orgId = organization.ops_org_id as string
+  const orgId = organization.organizationId
   if (candidate.requestedOrgId && candidate.requestedOrgId !== orgId) {
     return errorResponse(
       403,
@@ -243,10 +269,10 @@ async function buildContextForProfile(
   if (membership instanceof NextResponse) return membership
 
   if (!membership) {
-    if (organization.user_id === auth.user.id) {
+    if (organization.ownerUserId === auth.user.id) {
       return {
         userId: auth.user.id,
-        profileId: organization.id,
+        profileId: organization.organizerAccountId,
         accountType: 'organization',
         orgId,
         membershipRole: 'owner',
@@ -268,7 +294,7 @@ async function buildContextForProfile(
     }
     return {
       userId: auth.user.id,
-      profileId: organization.id,
+      profileId: organization.organizerAccountId,
       accountType: 'organization',
       orgId,
       membershipRole: collaborator.role,
@@ -280,12 +306,12 @@ async function buildContextForProfile(
     }
   }
 
-  const capabilities = await loadCapabilities(auth.supabase, membership.role)
+  const capabilities = await loadCapabilities(auth.supabase, membership.role, membership.permissions)
   if (capabilities instanceof NextResponse) return capabilities
 
   return {
     userId: auth.user.id,
-    profileId: organization.id,
+    profileId: organization.organizerAccountId,
     accountType: 'organization',
     orgId,
     membershipRole: membership.role,

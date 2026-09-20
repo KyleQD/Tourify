@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { getSiteMapAccess, requireSiteMapAccess, siteMapError, siteMapSuccess } from '@/lib/site-map/access'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -34,67 +34,63 @@ export async function GET(
   request: NextRequest,
   { params }: RouteContext
 ) {
-  try {
-    const { id } = await params
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return siteMapError('Unauthorized', 401)
+  const { id } = await params
+  return withAdminCapability('logistics.view', async (_request, { supabase, user, admin }) => {
+    try {
+      const { data, error } = await supabase
+        .from('map_measurements')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-    const { data, error } = await supabase
-      .from('map_measurements')
-      .select('*')
-      .eq('id', id)
-      .single()
+      if (error || !data) return siteMapError('Measurement not found', 404)
 
-    if (error || !data) return siteMapError('Measurement not found', 404)
+      const access = await getSiteMapAccess(supabase as any, data.site_map_id, user.id, { requiredOrgId: admin.orgId })
+      const accessCheck = requireSiteMapAccess(access, 'read')
+      if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
 
-    const access = await getSiteMapAccess(supabase, data.site_map_id, user.id)
-    const accessCheck = requireSiteMapAccess(access, 'read')
-    if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
-
-    return siteMapSuccess(data)
-  } catch {
-    return siteMapError('Failed to fetch measurement')
-  }
+      return siteMapSuccess(data)
+    } catch {
+      return siteMapError('Failed to fetch measurement')
+    }
+  })(request)
 }
 
 async function updateMeasurement(
   request: NextRequest,
   { params }: RouteContext
 ) {
-  try {
-    const { id } = await params
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return siteMapError('Unauthorized', 401)
+  const { id } = await params
+  return withAdminCapability('logistics.manage', async (_request, { supabase, user, admin }) => {
+    try {
+      const { data: existingMeasurement, error: fetchError } = await supabase
+        .from('map_measurements')
+        .select('id, site_map_id')
+        .eq('id', id)
+        .single()
 
-    const { data: existingMeasurement, error: fetchError } = await supabase
-      .from('map_measurements')
-      .select('id, site_map_id')
-      .eq('id', id)
-      .single()
+      if (fetchError || !existingMeasurement) return siteMapError('Measurement not found', 404)
 
-    if (fetchError || !existingMeasurement) return siteMapError('Measurement not found', 404)
+      const access = await getSiteMapAccess(supabase as any, existingMeasurement.site_map_id, user.id, { requiredOrgId: admin.orgId })
+      const accessCheck = requireSiteMapAccess(access, 'edit')
+      if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
 
-    const access = await getSiteMapAccess(supabase, existingMeasurement.site_map_id, user.id)
-    const accessCheck = requireSiteMapAccess(access, 'edit')
-    if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
+      const body = await request.json()
+      const updates = buildMeasurementUpdates(body)
 
-    const body = await request.json()
-    const updates = buildMeasurementUpdates(body)
+      const { data, error } = await supabase
+        .from('map_measurements')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .single()
 
-    const { data, error } = await supabase
-      .from('map_measurements')
-      .update(updates)
-      .eq('id', id)
-      .select('*')
-      .single()
-
-    if (error) return siteMapError(error.message)
-    return siteMapSuccess(data)
-  } catch {
-    return siteMapError('Failed to update measurement')
-  }
+      if (error) return siteMapError(error.message)
+      return siteMapSuccess(data)
+    } catch {
+      return siteMapError('Failed to update measurement')
+    }
+  })(request)
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
@@ -109,32 +105,30 @@ export async function DELETE(
   request: NextRequest,
   { params }: RouteContext
 ) {
-  try {
-    const { id } = await params
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return siteMapError('Unauthorized', 401)
+  const { id } = await params
+  return withAdminCapability('logistics.manage', async (_request, { supabase, user, admin }) => {
+    try {
+      const { data: existingMeasurement, error: fetchError } = await supabase
+        .from('map_measurements')
+        .select('id, site_map_id')
+        .eq('id', id)
+        .single()
 
-    const { data: existingMeasurement, error: fetchError } = await supabase
-      .from('map_measurements')
-      .select('id, site_map_id')
-      .eq('id', id)
-      .single()
+      if (fetchError || !existingMeasurement) return siteMapError('Measurement not found', 404)
 
-    if (fetchError || !existingMeasurement) return siteMapError('Measurement not found', 404)
+      const access = await getSiteMapAccess(supabase as any, existingMeasurement.site_map_id, user.id, { requiredOrgId: admin.orgId })
+      const accessCheck = requireSiteMapAccess(access, 'edit')
+      if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
 
-    const access = await getSiteMapAccess(supabase, existingMeasurement.site_map_id, user.id)
-    const accessCheck = requireSiteMapAccess(access, 'edit')
-    if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
+      const { error } = await supabase
+        .from('map_measurements')
+        .delete()
+        .eq('id', id)
 
-    const { error } = await supabase
-      .from('map_measurements')
-      .delete()
-      .eq('id', id)
-
-    if (error) return siteMapError(error.message)
-    return siteMapSuccess({ deleted: true })
-  } catch {
-    return siteMapError('Failed to delete measurement')
-  }
+      if (error) return siteMapError(error.message)
+      return siteMapSuccess({ deleted: true })
+    } catch {
+      return siteMapError('Failed to delete measurement')
+    }
+  })(request)
 }

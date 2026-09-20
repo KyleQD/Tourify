@@ -100,7 +100,7 @@ export function BoxOfficeSellPanel({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bo-qty">Quantity</Label>
-            <Input id="bo-qty" inputMode="numeric" value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, "")) || "1"} className="bg-gray-800" />
+            <Input id="bo-qty" inputMode="numeric" value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, "") || "1")} className="bg-gray-800" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bo-name">Buyer name</Label>

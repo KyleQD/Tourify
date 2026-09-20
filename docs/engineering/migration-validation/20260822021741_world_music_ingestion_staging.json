@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822021741_world_music_ingestion_staging.sql",
   "taskId": "WOM-G1-C",
-  "status": "isolated_validated",
+  "status": "planned",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [

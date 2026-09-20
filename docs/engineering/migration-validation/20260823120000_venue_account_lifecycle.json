@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823120000_venue_account_lifecycle.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "venue"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.venue_profiles",
+      "select count(*) from public.events where venue_id is not null",
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'events' and column_name in ('date', 'event_date', 'start_at') order by column_name",
+      "select count(*) from public.venue_ownership_transfers where status = 'pending'"
+    ],
+    "expectedAffectedRows": "Adds and deterministically backfills events.start_at when absent, then installs owner-authorized archive/restore/delete and ownership-transfer contracts without changing public Venue identity",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823120000",
+    "idempotency": "Compatibility and lifecycle columns/tables/indexes use IF NOT EXISTS; start_at fills nulls only; functions and participant-read policy are replaced deterministically"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "venue_ownership_transfers references Venue and auth identities and permits only pending, accepted, cancelled, or expired status",
+      "archive preflight treats an active event with unknown date as a blocker rather than silently safe",
+      "hard delete requires an archived Venue and a second dependency preflight"
+    ],
+    "indexes": [
+      "idx_venue_ownership_transfers_one_pending",
+      "idx_venue_ownership_transfers_to_user"
+    ],
+    "validationPlan": "Fresh-chain rehearsal, owner/non-owner/recipient authorization negatives, active and unknown-date dependency fixtures, atomic transfer checks, audit-row proof, and archive-to-delete recovery-window behavior"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

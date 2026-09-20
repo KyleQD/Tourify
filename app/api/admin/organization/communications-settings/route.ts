@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { withAdminCapability, withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
-  // Derive org_id from the user's profile (same pattern as audit route)
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("org_id")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  if (!profile?.org_id) {
-    return NextResponse.json({ error: "No org found for user" }, { status: 403 })
-  }
-
-  const orgId = profile.org_id as string
+export const GET = withAdminCapability("org.settings.manage", async (_request: NextRequest, { supabase, admin }) => {
+  const orgId = admin.orgId
 
   let settings: Record<string, unknown> | null = null
   let unavailable = false

@@ -8,10 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
+import { Linking } from "react-native"
 import { useRouter } from "expo-router"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/auth-provider"
 import { apiRequest } from "@/lib/api/client"
+import { env } from "@/lib/config/env"
 
 interface Conversation {
   id: string
@@ -23,6 +25,7 @@ interface Conversation {
   unread_count: number
   trust_tier: "open" | "request" | "context" | null
   context_type: string | null
+  action_url?: string | null
 }
 
 interface UnifiedItem {
@@ -34,6 +37,7 @@ interface UnifiedItem {
   last_activity: string | null
   trust_tier?: string | null
   context_type?: string | null
+  action_url?: string | null
 }
 
 const TABS: Array<{ id: "primary" | "requests" | "work"; label: string }> = [
@@ -136,6 +140,7 @@ export default function MessagesScreen() {
           unread_count: 0,
           trust_tier: null,
           context_type: null,
+          action_url: item.action_url ?? null,
         }
       })
 
@@ -190,8 +195,19 @@ export default function MessagesScreen() {
   }, [conversations, activeTab])
 
   function handleOpenConversation(item: Conversation) {
-    if (item.source === "direct") router.push(`/chat/${item.id}`)
-    else if (item.source === "group") router.push(`/group-chats/${item.id}`)
+    if (item.source === "direct") {
+      router.push(`/chat/${item.id}`)
+    } else if (item.source === "group") {
+      router.push(`/group-chats/${item.id}`)
+    } else if (item.source === "event_group") {
+      // Event-team channels live on the web admin surface today; the unified
+      // list provides their action_url. Open as a web handoff (same pattern
+      // as marketplace deferrals) instead of silently doing nothing.
+      if (item.action_url) {
+        const base = env.apiBaseUrl.replace(/\/$/, "")
+        void Linking.openURL(`${base}${item.action_url}`)
+      }
+    }
   }
 
   function renderConversation({ item }: { item: Conversation }) {

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
+import { assertPlatformAdmin } from '@/lib/auth/platform-admin'
 import {
   requireAdminCapability,
   resolveActingAdminContext,
@@ -240,6 +241,27 @@ export function withAdminAuth(
 }
 
 /**
+ * Platform-only wrapper. Use this for cross-organization operations and
+ * sensitive operational records. Organization membership never satisfies it.
+ */
+export function withPlatformAdmin(
+  handler: (
+    request: NextRequest,
+    auth: { user: any; supabase: any },
+  ) => Promise<NextResponse> | NextResponse,
+) {
+  return withAuth(async (request, auth) => {
+    if (!(await assertPlatformAdmin(auth.supabase, auth.user.id))) {
+      return NextResponse.json(
+        { error: 'Forbidden', details: 'Platform admin access required' },
+        { status: 403 },
+      )
+    }
+    return handler(request, auth)
+  })
+}
+
+/**
  * Canonical organization/Admin wrapper for domain commands.
  *
  * Unlike `withAdminAuth`, this resolves one explicit acting organization and
@@ -248,7 +270,7 @@ export function withAdminAuth(
  * routes are migrated.
  */
 export function withAdminCapability(
-  capability: AdminCapability,
+  capabilityOrResolver: AdminCapability | ((request: NextRequest) => AdminCapability),
   handler: (
     request: NextRequest,
     auth: { user: any; supabase: any; admin: ActingAdminContext },
@@ -258,6 +280,9 @@ export function withAdminCapability(
     const admin = await resolveActingAdminContext(request, auth)
     if (admin instanceof NextResponse) return admin
 
+    const capability = typeof capabilityOrResolver === 'function'
+      ? capabilityOrResolver(request)
+      : capabilityOrResolver
     const denied = requireAdminCapability(admin, capability)
     if (denied) {
       denied.headers.set('x-correlation-id', admin.correlationId)

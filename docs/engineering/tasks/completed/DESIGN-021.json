@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-021",
+  "title": "Retire venue separator primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:50.158Z",
+  "updated_at": "2026-09-11T20:27:32.684Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/separator.tsx to components/ui/separator.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/separator.tsx",
+      "components/ui/separator.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/separator.tsx",
+    "components/ui/separator.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "The venue separator copy lacks data-slot attributes; compare and approve parity before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/separator|@/components/venue/ui/separator\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/separator.tsx components/ui/separator.tsx",
+      "git diff --check -- components/venue/ui/separator.tsx components/ui/separator.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use audit passed: rg for 'components/venue/ui/separator|@/components/venue/ui/separator' returned 0 matches (exit 1) across app, components, hooks, lib, apps, __tests__, and scripts; no barrel index exists in components/venue/ui, and no relative re-export (./separator, ../ui/separator, export *) of the venue twin exists under components/venue. The venue twin has no source consumers.",
+      "Canonical import inventory passed: 94 files import @/components/ui/separator across the audited scope (94 import lines, 94 distinct files). Venue-surface consumers are already migrated to the canonical path: 19 files (7 under app/venue/** and 12 under components/venue/**) import @/components/ui/separator. No consumer references the venue twin.",
+      "Twin characterization passed — divergent/stale copy, NOT byte-identical: diff -u shows exactly one removed line (canonical renders data-slot=\"separator\" on SeparatorPrimitive.Root; the venue twin omits it). SHA-256 canonical f7f35d3360f9afcf297662c75b7d6b273fc4b5bf7a173e6e25189f1366a9e679 vs venue twin 995c54f1c5c688f712a675fe35d55bcada2b31dba561dcc71553a1ad601e59ec. Public export parity: both export a single named export Separator. Radix prop/ref parity: identical forwardRef generic (ElementRef/ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>), identical defaults (orientation=\"horizontal\", decorative=true), identical cn class contract (\"shrink-0 bg-border\" + orientation sizing), identical displayName (SeparatorPrimitive.Root.displayName); the only divergence is the missing data-slot marker. This confirms the STATE.md durable fact that 'avatar.tsx and separator.tsx differ from shared targets' and acceptance criterion 3.",
+      "Register disposition confirmed: CANONICAL_COMPONENT_REGISTER.csv line 1302 marks components/venue/ui/separator.tsx 'retire later' (DUP-082, 0 incomplete markers, target components/ui/separator.tsx); line 1135 keeps the canonical under the same DUP-082 group. Note: the register's DUP-082 decision basis for both separator rows reads 'Exact duplicate', which is inaccurate for this twin — it is a near/divergent duplicate missing data-slot=\"separator\". Line 328's app/venue/components/ui/separator.tsx row is a stale DUP-082 entry: that route-local copy no longer exists on disk. Disposition is canonical keep, consumers already migrated, twin retained as retire-later compatibility debt.",
+      "Focused ESLint passed for components/venue/ui/separator.tsx and components/ui/separator.tsx (exit 0).",
+      "Focused git diff check passed for the two separator paths and docs/engineering (exit 0).",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:27:32.684Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded separator audit complete. The venue separator twin has zero consumers; 94 files (incl. 19 venue-surface) import the canonical. The twin is a DIVERGENT stale copy: it omits the canonical data-slot=separator attribute (register's exact-duplicate basis is inaccurate and should be corrected in the separate retirement step). Twin retained.",
+    "completed": [
+      "Audited all source references and confirmed zero live consumers of components/venue/ui/separator.tsx in app, components, hooks, lib, apps, __tests__, and scripts; also confirmed no barrel or relative re-export of the twin under components/venue.",
+      "Inventoried canonical imports: 94 files import @/components/ui/separator; venue-surface consumers already migrated (7 files under app/venue/**, 12 files under components/venue/**).",
+      "Characterized the twin as a divergent/stale copy: the canonical adds data-slot=\"separator\" (line 18) that the venue twin omits; all other lines, public export (single named Separator), Radix prop/ref parity, defaults, cn class contract, and displayName are identical. SHA-256 canonical f7f35d3360... vs twin 995c54f1c5.... This matches the STATE.md durable fact that separator.tsx differs from the shared target.",
+      "Confirmed the register disposition (DUP-082): canonical keep, venue twin retire-later; noted that the register labels the separator twin 'Exact duplicate' (inaccurate — data-slot divergence) and that line 328's app/venue/components/ui/separator.tsx register row is stale (file not on disk).",
+      "Recorded an audit-only result without deleting files, changing callers, or editing the canonical component register or any venue behavior."
+    ],
+    "next_steps": [
+      "Audit live consumers and identify the owning surface for components/venue/ui/separator.tsx.",
+      "The venue separator copy lacks data-slot attributes; compare and approve parity before retirement. Coordinate any migration and deletion only after focused verification and register evidence."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:09:23.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed an audit-only review of the venue separator twin against components/ui/separator.tsx. Zero-use evidence recorded (0 rg matches, no barrel/relative re-exports, no venue-surface consumer of the twin path). Canonical import inventory: 94 files on @/components/ui/separator, with 19 venue-surface consumers (7 app/venue/**, 12 components/venue/**) already migrated to canonical. The twin is a divergent/stale copy, NOT byte-identical: canonical renders data-slot=\"separator\" (line 18) which the twin omits; all other lines, the single public export (Separator), Radix prop/ref parity, defaults, cn class contract, and displayName match — confirming the STATE.md durable fact and the acceptance-criterion note. Register DUP-082 disposition confirmed (canonical keep at line 1135, twin retire-later at line 1302); the 'Exact duplicate' label is inaccurate for this twin (data-slot divergence), and line 328's app/venue/components/ui/separator.tsx row is stale (file not on disk). No source, caller, register, or venue behavior changes were made; twin retained.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-021.json"
+        ],
+        "verification": [
+          "Zero-use rg audit: 0 matches; no barrel/relative re-exports",
+          "Canonical import inventory: 94 files on @/components/ui/separator; 19 venue-surface (7 app/venue/** + 12 components/venue/**) consumers already migrated",
+          "Twin characterized as divergent/stale: 1-line diff (missing data-slot=\"separator\"); SHA-256 canonical f7f35d3360... vs twin 995c54f1c5...; export/Radix prop-ref parity otherwise exact",
+          "Focused ESLint passed (exit 0)",
+          "Focused git diff --check passed (exit 0)",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No approved migration/deletion scope for the audit-only pass"
+        ],
+        "next_steps": [
+          "Retain the twin as registered retire-later compatibility debt until an explicitly approved deletion decision is recorded.",
+          "Register rows 328 (app/venue/components/ui/separator.tsx, stale path) and the DUP-082 'Exact duplicate' label for separator (data-slot divergence) should be corrected in the separately scoped retirement/register step."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:27:32.684Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded separator audit complete. The venue separator twin has zero consumers; 94 files (incl. 19 venue-surface) import the canonical. The twin is a DIVERGENT stale copy: it omits the canonical data-slot=separator attribute (register's exact-duplicate basis is inaccurate and should be corrected in the separate retirement step). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

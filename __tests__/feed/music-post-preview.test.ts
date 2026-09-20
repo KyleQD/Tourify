@@ -136,7 +136,7 @@ describe('feed music post integration', () => {
 
     expect(source).toContain('fetchTrackPreviews')
     expect(source).toContain('track_preview: trackPreview')
-    expect(source).toContain('track_preview: post.track_preview || null')
+    expect(source).toContain('getStoredTrackPreview(post)')
     expect(source).toContain('isMusicFeedPost')
   })
 
@@ -169,7 +169,7 @@ describe('feed music post integration', () => {
     expect(dashboardFeed).toContain('isMusicFeedPost')
     expect(dashboardFeed).toContain('buildFeedMusicTrackFromPost')
     expect(dashboardFeed).toContain('playSource="feed_post"')
-    expect(dashboardFeed).toContain('!musicTrack && post.media_urls')
+    expect(dashboardFeed).toContain('!musicTrack && (')
   })
 
   it('records feed plays with a feed_post analytics source', () => {
@@ -177,7 +177,7 @@ describe('feed music post integration', () => {
     const player = read('components/feed/feed-music-player.tsx')
 
     expect(jukebox).toContain('JukeboxPlayOptions')
-    expect(jukebox).toContain('body: JSON.stringify({ musicId, source })')
+    expect(jukebox).toContain('recordPlay(track.id, playSourceRef.current, track.provider)')
     expect(player).toContain('playSource')
     expect(player).toContain('{ source: playSource }')
     expect(player).toContain("setExpanded(true, 'now-playing')")

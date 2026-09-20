@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMUX-W01",
+  "title": "Complete Admin navigation IA audit wave",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "created_at": "2026-09-09T01:13:24.676Z",
+  "updated_at": "2026-09-09T01:27:07.069Z",
+  "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+  "working_tree_status": "dirty (399 entries)",
+  "goal": "Reconcile and finish the first non-blocked Admin UX audit navigation slice without falsely closing ADM-B01",
+  "scope": {
+    "in": [
+      "ADMUX-0101 first-level Admin information architecture",
+      "Existing W01 navigation and canonical URL changes from the prior task"
+    ],
+    "out": [
+      "ADM-B01 external CI/staging evidence",
+      "Later W02-W17 audit waves"
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/components/optimized-sidebar.tsx",
+    "lib/admin/navigation/admin-navigation-model.ts",
+    "lib/admin/navigation/admin-route-state.tsx",
+    "components/admin/navigation",
+    "__tests__/admin/admin-route-state.test.ts",
+    "__tests__/admin/workspace-scope.test.ts",
+    "docs/admin-audit/registry/ux-audit-program.json",
+    "docs/admin-audit/registry/baselines.json",
+    "docs/admin-audit/generated",
+    ".agents/admin-dashboard-builder"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/admin-audit/EXECUTION_MODE.md",
+    "docs/admin-audit/ENGINEERING_CONSTITUTION.md",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md",
+    "docs/admin-ux-implementation/PROGRESS.md"
+  ],
+  "acceptance_criteria": [
+    "Every existing Admin destination remains reachable through the restructured first-level IA",
+    "Primary labels are task-oriented and non-duplicative, with search and keyboard behavior preserved",
+    "Focused navigation tests, lint, admin audit validation, and diff checks pass",
+    "ADM-B01 remains blocked until its independent CI and staging evidence exists",
+    "Task and admin durable state are checkpointed with exact evidence"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/admin/admin-route-state.test.ts __tests__/admin/workspace-scope.test.ts",
+      "npx eslint app/admin/dashboard/components/optimized-sidebar.tsx lib/admin/navigation/admin-navigation-model.ts lib/admin/navigation/admin-route-state.tsx",
+      "npm run check:admin-audit",
+      "npx vitest run __tests__/admin/admin-navigation-ia.test.ts __tests__/admin/admin-route-state.test.ts __tests__/admin/workspace-scope.test.ts",
+      "npx eslint app/admin/dashboard/components/optimized-sidebar.tsx lib/admin/navigation/admin-navigation-model.ts lib/admin/navigation/admin-route-state.tsx __tests__/admin/admin-navigation-ia.test.ts __tests__/admin/admin-route-state.test.ts __tests__/admin/workspace-scope.test.ts",
+      "git diff --check"
+    ],
+    "evidence": [
+      "Vitest: 3 files passed, 11 tests passed.",
+      "Focused ESLint: clean.",
+      "Admin audit validation: 79 findings, 362 spec tasks, 20 workflows, 18 launch gates, 26 evidence receipts; 15 batches validated.",
+      "git diff --check: clean."
+    ],
+    "last_run_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+    "last_run_at": "2026-09-09T01:27:07.069Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Implemented and locally verified ADMUX-0101 first-level Admin IA without promoting canonical audit status.",
+    "completed": [
+      "Aligned the rendered sidebar to Home, Operations, Workforce, Commerce, Network, and Organization & System.",
+      "Removed the duplicate Organization destination from Workforce while preserving it under Organization & System.",
+      "Made sidebar search filter to direct matching destination links and keep result groups expanded for keyboard access.",
+      "Added executable route inventory, first-click grouping, and direct-search contract tests.",
+      "Refreshed ADM-BASE-003 source hash and generated admin audit views/workbook after the governed sidebar source changed."
+    ],
+    "next_steps": [
+      "Create a separate bounded ADMUX-0102 task for accessible mobile and collapsed navigation.",
+      "Keep ADM-B01 blocked until independent CI and staging migration evidence exists."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T01:27:07.069Z",
+        "sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+        "summary": "Implemented and locally verified ADMUX-0101 first-level Admin IA without promoting canonical audit status.",
+        "completed": [
+          "Aligned the rendered sidebar to Home, Operations, Workforce, Commerce, Network, and Organization & System.",
+          "Removed the duplicate Organization destination from Workforce while preserving it under Organization & System.",
+          "Made sidebar search filter to direct matching destination links and keep result groups expanded for keyboard access.",
+          "Added executable route inventory, first-click grouping, and direct-search contract tests.",
+          "Refreshed ADM-BASE-003 source hash and generated admin audit views/workbook after the governed sidebar source changed."
+        ],
+        "next_steps": [
+          "Create a separate bounded ADMUX-0102 task for accessible mobile and collapsed navigation.",
+          "Keep ADM-B01 blocked until independent CI and staging migration evidence exists."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const MUSIC_RIGHTS_INTELLIGENCE_FLAG_NAMES = [
   "music_rights_intelligence_consent_enabled",
   "music_rights_intelligence_datasets_enabled",
@@ -35,6 +37,9 @@ export async function resolveMusicRightsIntelligenceFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<MusicRightsIntelligenceFlags> {
+  if (!isLaunchCapabilityAvailable("music_rights_intelligence"))
+    return { ...DISABLED_MUSIC_RIGHTS_INTELLIGENCE_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

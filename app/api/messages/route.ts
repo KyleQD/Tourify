@@ -329,6 +329,8 @@ export async function GET(request: NextRequest) {
           content,
           attachments,
           sender_id,
+          is_read,
+          read_at,
           created_at,
           sender:profiles!sender_id (
             id,
@@ -342,6 +344,8 @@ export async function GET(request: NextRequest) {
           content,
           attachment_urls,
           sender_id,
+          is_read,
+          read_at,
           created_at,
           sender:profiles!sender_id (
             id,

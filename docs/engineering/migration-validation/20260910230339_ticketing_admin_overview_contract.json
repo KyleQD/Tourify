@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260910230339_ticketing_admin_overview_contract.sql",
+  "taskId": "DB-005",
+  "status": "planned",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["ticketing", "analytics", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "static source review of the active ticketing chain; approved running target required for runtime postflight",
+    "evidenceArtifact": "static-review:DB-005-TICKETING-ADMIN-OVERVIEW-2026-09-11 (migration SHA-256 948876537adb8f04731f9ea7d40a6844a495b6660dea112687bf3f2143c62a8f)"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count existing ticket_shares, ticket_referrals, ticket_analytics, and social_media_performance rows before execution",
+      "Inspect existing ticketing overview RPC signatures and grants"
+    ],
+    "expectedAffectedRows": "DDL and function replacement only; no data backfill",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Re-run the additive migration after isolated validation; tables, indexes, policies, and functions are guarded or deterministically replaced",
+    "resumeCursor": "Supabase migration version 20260910230339",
+    "idempotency": "CREATE IF NOT EXISTS, guarded indexes, deterministic policy replacement, and CREATE OR REPLACE functions make repeated application safe"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data migration or quarantine"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Event references remain scoped to events_v2",
+      "Authenticated reads and writes require event organization or ticketing grant checks"
+    ],
+    "indexes": [
+      "Event indexes for shares, referrals, analytics, and social performance"
+    ],
+    "validationPlan": "Static review verifies the additive table/RLS/RPC contract and canonical events_v2 foreign keys; an approved running target must still verify exact catalog shape, policy predicates, invoker security/search_path/grants, and organization/event isolation"
+  },
+  "recovery": {
+    "rollback": "Disable callers and restore prior function definitions only through a reviewed forward migration; retain additive tables unless isolated evidence identifies a concrete incompatibility",
+    "forwardFix": "Correct policies, grants, or RPC behavior through a later additive migration"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect table constraints, indexes, RLS state, and named policies",
+      "Inspect get_admin_ticketing_overview and get_admin_ticketing_social_performance definitions, search_path, and grants",
+      "Run authenticated member, non-member, ticketing-grant, and service-role isolation probes"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

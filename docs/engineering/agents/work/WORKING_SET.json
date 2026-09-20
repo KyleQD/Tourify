@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "agent": "work",
+  "description": "Own jobs, hiring, workforce, staffing, shifts, onboarding, and work mode.",
+  "paths": [
+    "app/work/**",
+    "app/jobs/**",
+    "app/staffing/**",
+    "app/api/hiring/**",
+    "app/api/job-applications/**",
+    "components/hiring/**",
+    "components/job-posting/**",
+    "components/work-mode/**",
+    "lib/hiring/**",
+    "lib/work-mode/**",
+    "__tests__/hiring/**",
+    "__tests__/jobs/**",
+    "__tests__/work-mode/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

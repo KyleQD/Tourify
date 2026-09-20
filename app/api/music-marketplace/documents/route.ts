@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 
 export const dynamic = "force-dynamic"
@@ -16,10 +17,10 @@ const createSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireMarketplaceAccount(request)
     if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
-    const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+    const { userId, supabase } = authResult.account
+    const flags = await resolveMusicMarketplaceFlags(supabase, userId)
     if (!flags.music_marketplace_offerings_enabled)
       return jsonError({
         status: 404,
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     await supabase.from("music_marketplace_document_access_logs").insert({
       document_id: data.id,
-      actor_user_id: user.id,
+      actor_user_id: userId,
       action: "register",
       metadata: { visibility: payload.visibility },
     })

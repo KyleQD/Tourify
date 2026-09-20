@@ -2,7 +2,7 @@
 /**
  * VkPdfExport
  * PDF download button for the Venue Kit document.
- * Mirrors EPKDocument.tsx — uses html2pdf dynamically imported.
+ * Opens the browser print dialog so users can save the rendered kit as PDF.
  */
 import React, { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -26,22 +26,27 @@ export default function VkPdfExport({ vkData, className }: VkPdfExportProps) {
     setIsGenerating(true)
 
     try {
-      // Dynamic import so html2pdf only loads when needed
-      const html2pdf = (await import("html2pdf.js")).default
-
       const fileName = `${vkData.vkSlug || vkData.venueName.toLowerCase().replace(/\s+/g, "-") || "venue"}-kit.pdf`
-
-      const options = {
-        margin:      [0, 0, 0, 0],
-        filename:    fileName,
-        image:       { type: "jpeg", quality: 0.96 },
-        html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
-        jsPDF:       { unit: "mm", format: "a4", orientation: "portrait" as const },
-        pagebreak:   { mode: ["avoid-all", "css", "legacy"] },
+      const printWindow = window.open("", "_blank", "width=900,height=700")
+      if (!printWindow) {
+        throw new Error("Allow pop-ups to export the Venue Kit as a PDF.")
       }
 
-      await html2pdf().set(options).from(containerRef.current).save()
-      toast({ title: "PDF downloaded", description: fileName })
+      printWindow.opener = null
+      const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+        .map((node) => node.outerHTML)
+        .join("\n")
+      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Venue Kit</title>${styles}<style>
+        @page { size: A4; margin: 0; }
+        html, body { margin: 0; padding: 0; background: white; }
+        body { width: 794px; }
+      </style></head><body>${containerRef.current.innerHTML}</body></html>`)
+      printWindow.document.close()
+      printWindow.document.title = fileName
+      printWindow.focus()
+      printWindow.onafterprint = () => printWindow.close()
+      window.setTimeout(() => printWindow.print(), 250)
+      toast({ title: "PDF export ready", description: `Choose “Save as PDF” in the print dialog for ${fileName}.` })
     } catch (err) {
       console.error("PDF export failed", err)
       toast({ title: "PDF export failed", description: String(err), variant: "destructive" })

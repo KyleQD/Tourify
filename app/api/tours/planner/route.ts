@@ -291,15 +291,10 @@ export const GET = withAdminCapability('tour.view', async (request: NextRequest,
       })
       .filter(Boolean)
 
-    const { data: legacyEvents } = await supabase
-      .from('events')
-      .select('id, name, description, venue_name, event_date, event_time, capacity, status, created_at')
-      .eq('tour_id', tourId)
-      .order('event_date', { ascending: true })
-
-    const eventsForPlanner = linkedEvents.length > 0
-      ? linkedEvents
-      : (legacyEvents || [])
+    // events_v2 is the canonical tour event relation. Do not probe the legacy
+    // events table here: a missing link is a valid empty state, not a schema
+    // compatibility signal.
+    const eventsForPlanner = linkedEvents
 
     // Transform data for the planner
     const plannerData = {

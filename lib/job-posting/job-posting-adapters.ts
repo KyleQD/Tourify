@@ -1,6 +1,7 @@
 import { getDefaultApplicationFields } from "@/lib/hiring/job-posting-builder-schema"
 import type { HiringEntity } from "@/types/hiring-entity"
 import type { CreateJobFormData } from "@/types/artist-jobs"
+import type { JobAssignmentScope } from "@/lib/hiring/job-seat-permissions"
 
 export type WorkforceSalaryType = "hourly" | "daily" | "flat" | "salary" | "fixed" | "annual"
 
@@ -19,6 +20,12 @@ export interface WorkforceQuickJobValues {
   salaryType?: WorkforceSalaryType
   remote?: boolean
   urgent?: boolean
+  assignmentScope?: JobAssignmentScope
+  eventId?: string | null
+  tourId?: string | null
+  onboardingTemplateId?: string | null
+  seatRole?: string | null
+  seatPermissions?: string[]
   requirements?: string[]
   responsibilities?: string[]
   skills?: string[]
@@ -115,6 +122,12 @@ export function buildWorkforceJobPostingPayload({
     skills: values.skills ?? [],
     benefits: values.benefits ?? [],
     application_form_template: { fields: getDefaultApplicationFields() },
+    assignment_scope: values.assignmentScope ?? "organization",
+    event_id: values.assignmentScope === "event" ? values.eventId ?? null : null,
+    tour_id: values.assignmentScope === "tour" ? values.tourId ?? null : null,
+    onboarding_template_id: values.onboardingTemplateId ?? null,
+    seat_role: values.assignmentScope === "organization" ? values.seatRole ?? "worker" : null,
+    seat_permissions: values.assignmentScope === "organization" ? values.seatPermissions ?? [] : [],
     status,
   }
 }

@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "id": "INTG-007",
+  "title": "External credential vault and integration gating",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "integrations",
+  "created_at": "2026-09-16T19:20:39.904Z",
+  "updated_at": "2026-09-16T19:20:39.904Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Remove plaintext external credentials and keep every unverified provider disabled until encrypted lifecycle verification passes",
+  "scope": {
+    "in": [
+      "Social OAuth credential persistence, migration or revocation, encryption, rotation, refresh, disconnect, logging, and provider gating"
+    ],
+    "out": [
+      "Enabling providers before credential and lifecycle acceptance passes"
+    ]
+  },
+  "working_set": [
+    "app/api/social",
+    "lib/integrations",
+    "supabase/migrations",
+    "__tests__/integrations"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "No plaintext access or refresh token is persisted or emitted to logs",
+    "Existing plaintext credentials are migrated safely or revoked with recorded disposition",
+    "Encrypted store, rotation, refresh, disconnect, and log-redaction tests pass",
+    "Social OAuth and other unverified providers remain disabled until their acceptance evidence is recorded"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/integrations",
+      "npm run check:production-debug",
+      "npm run check:migration-validation"
+    ],
+    "evidence": [
+      "Audit baseline: the organization social OAuth callback still constructs persistence data containing plaintext access_token and refresh_token alongside encrypted envelopes."
+    ],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Created; implementation not started.",
+    "completed": [],
+    "next_steps": [
+      "Inventory plaintext credential write/read paths and the existing token-vault contract",
+      "Implement migration or revocation and fail-closed provider capability gates"
+    ],
+    "blockers": [
+      "Social OAuth and affected providers must remain disabled through RELEASE-008 until credential migration or revocation and encrypted lifecycle verification pass."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Provide provider enablement status and credential-vault evidence to RELEASE-008; unverified providers remain disabled in the launch capability manifest."
+  ]
+}

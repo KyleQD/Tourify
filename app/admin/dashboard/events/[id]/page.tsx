@@ -129,7 +129,7 @@ import {
   buildAdminStaffHref,
   resolveEmployerFromEventRow,
 } from "@/lib/admin/admin-ops-context"
-import { EVENT_OPS_TABS, normalizeEventOpsTab, type EventOpsTab } from "@/lib/admin/event-ops-tabs"
+import { EVENT_OPS_TABS, EVENT_WORKSPACE_GROUPS, normalizeEventOpsTab, type EventOpsTab } from "@/lib/admin/event-ops-tabs"
 import {
   EventStaffPanel,
   EventVendorPanel,
@@ -158,6 +158,10 @@ interface Event {
   venue_id?: string | null
   venue_name: string
   venue_address?: string
+  venue_city?: string
+  venue_state?: string
+  venue_country?: string
+  venue_website?: string
   event_date: string
   event_time?: string
   doors_open?: string
@@ -236,6 +240,10 @@ function normalizeEventDetails(input: any, eventId: string): Event {
     venue_id: input?.venue_id || null,
     venue_name: normalized.venue_name || input?.venue_name || "Venue TBD",
     venue_address: input?.venue_address || "",
+    venue_city: input?.venue_city || input?.settings?.venue_city || "",
+    venue_state: input?.venue_state || input?.settings?.venue_state || "",
+    venue_country: input?.venue_country || input?.settings?.venue_country || "",
+    venue_website: input?.venue_website || input?.settings?.venue_website || "",
     event_date: normalized.event_date || input?.event_date || "",
     event_time: normalized.event_time || input?.event_time || "",
     doors_open: input?.doors_open || "",
@@ -615,14 +623,17 @@ export default function EventManagementPage() {
         if (staffRes.status === 'fulfilled' && staffRes.value?.shifts) {
           setStaff(staffRes.value.shifts.map((s: any) => ({
             id: s.id,
-            name: s.staff_name || s.role || 'Staff',
-            role: s.role || 'crew',
-            email: s.staff_email || '',
-            phone: s.phone || undefined,
+            name: s.staff_members?.name || s.staff_name || s.role_assignment || 'Staff',
+            role: s.role_assignment || s.staff_members?.role || 'crew',
+            email: s.staff_members?.email || s.staff_email || '',
+            phone: s.staff_members?.phone || s.phone || undefined,
             avatar: undefined,
             status: s.status === 'assigned' ? 'confirmed' : s.status === 'declined' ? 'declined' : 'pending',
             arrival_time: s.start_time,
             departure_time: s.end_time,
+            staff_member_id: s.staff_member_id,
+            shift_date: s.shift_date,
+            notes: s.notes,
           })))
         }
 
@@ -960,6 +971,7 @@ export default function EventManagementPage() {
           description={`${formatSafeDate(event.event_date)}${event.event_time ? ` at ${event.event_time}` : ""} · ${event.venue_name}`}
           badge={event.status.replace('_', ' ')}
           tabs={EVENT_OPS_TABS}
+          tabGroups={EVENT_WORKSPACE_GROUPS}
           activeTab={activeTab}
           onTabChange={handleEventTabChange}
           tabColsClassName="md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
@@ -1161,8 +1173,22 @@ export default function EventManagementPage() {
                     <EventJobPostingPanel
                       eventId={eventId}
                       eventName={event.name}
+                      eventDescription={event.description}
                       eventDate={event.event_date}
+                      eventTime={event.event_time}
                       eventLocation={event.venue_name}
+                      eventAddress={event.venue_address}
+                      eventCity={event.venue_city}
+                      eventState={event.venue_state}
+                      eventCountry={event.venue_country}
+                      eventDurationMinutes={event.duration_minutes}
+                      venueWebsite={event.venue_website}
+                      venueContactEmail={event.venue_contact_email}
+                      venueContactPhone={event.venue_contact_phone}
+                      soundRequirements={event.sound_requirements}
+                      lightingRequirements={event.lighting_requirements}
+                      stageRequirements={event.stage_requirements}
+                      specialRequirements={event.special_requirements}
                       onJobPosted={(job) => {
                         toast.success(`Job "${job.title}" posted successfully!`)
                       }}
@@ -1320,8 +1346,22 @@ export default function EventManagementPage() {
                 <EventJobPostingPanel
                   eventId={eventId}
                   eventName={event.name}
+                  eventDescription={event.description}
                   eventDate={event.event_date}
+                  eventTime={event.event_time}
                   eventLocation={event.venue_name}
+                  eventAddress={event.venue_address}
+                  eventCity={event.venue_city}
+                  eventState={event.venue_state}
+                  eventCountry={event.venue_country}
+                  eventDurationMinutes={event.duration_minutes}
+                  venueWebsite={event.venue_website}
+                  venueContactEmail={event.venue_contact_email}
+                  venueContactPhone={event.venue_contact_phone}
+                  soundRequirements={event.sound_requirements}
+                  lightingRequirements={event.lighting_requirements}
+                  stageRequirements={event.stage_requirements}
+                  specialRequirements={event.special_requirements}
                   onJobPosted={(job) => {
                     toast.success(`Job "${job.title}" posted successfully!`)
                   }}
@@ -1330,6 +1370,8 @@ export default function EventManagementPage() {
             >
               <EventStaffPanel
                 eventId={eventId}
+                eventDate={event.event_date}
+                eventTime={event.event_time}
                 staff={staff}
                 onStaffUpdate={setStaff}
               />

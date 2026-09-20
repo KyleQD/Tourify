@@ -5,7 +5,14 @@
  * and domain refetches mount when their tab becomes active.
  */
 
-import type { LucideIcon } from "lucide-react"
+import {
+  Calendar,
+  DollarSign,
+  LayoutDashboard,
+  Map,
+  Users,
+  type LucideIcon,
+} from "lucide-react"
 import type { TourCommandCenterDomainAccess } from "@/lib/admin/tour-command-center-summary"
 
 export type TourCommandCenterTabId =
@@ -217,4 +224,92 @@ export function shouldLoadTourWorkflowFanout(args: {
 }): boolean {
   if (args.workflowDialogOpen) return true
   return getTourCommandCenterTabContract(args.activeTab).allowsWorkflowFanout
+}
+
+// ─── Grouped Workspace Navigation ────────────────────────────────────
+
+export interface TourWorkspaceGroup {
+  id: string
+  label: string
+  icon: LucideIcon
+  primaryTab: TourCommandCenterTabId
+  secondary: Array<{ id: TourCommandCenterTabId; label: string }>
+}
+
+/**
+ * Grouped workspace navigation for Tour detail pages.
+ * Reduces 9 flat tabs to 5 primary groups with secondary items.
+ * Fixes: AUX-TOUR-012
+ */
+export const TOUR_WORKSPACE_GROUPS: TourWorkspaceGroup[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    icon: LayoutDashboard,
+    primaryTab: "overview",
+    secondary: [],
+  },
+  {
+    id: "route-shows",
+    label: "Route & Shows",
+    icon: Calendar,
+    primaryTab: "events",
+    secondary: [
+      { id: "events", label: "Shows" },
+      { id: "calendar-sync", label: "Calendar" },
+    ],
+  },
+  {
+    id: "people-partners",
+    label: "People & Partners",
+    icon: Users,
+    primaryTab: "team",
+    secondary: [
+      { id: "team", label: "People" },
+      { id: "jobs", label: "Jobs" },
+      { id: "vendors", label: "Vendors" },
+    ],
+  },
+  {
+    id: "commerce",
+    label: "Commerce",
+    icon: DollarSign,
+    primaryTab: "ticketing",
+    secondary: [
+      { id: "ticketing", label: "Ticketing" },
+      { id: "finances", label: "Finances" },
+    ],
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    icon: Map,
+    primaryTab: "logistics",
+    secondary: [
+      { id: "logistics", label: "Logistics" },
+    ],
+  },
+]
+
+/**
+ * Resolve a flat tab to its workspace group.
+ */
+export function resolveTourWorkspaceGroup(
+  tab: TourCommandCenterTabId
+): TourWorkspaceGroup | undefined {
+  for (const group of TOUR_WORKSPACE_GROUPS) {
+    if (group.primaryTab === tab) return group
+    if (group.secondary.some((s) => s.id === tab)) return group
+  }
+  return undefined
+}
+
+/**
+ * Get the default tab for a workspace group.
+ */
+export function getDefaultTabForTourGroup(
+  groupId: string
+): TourCommandCenterTabId {
+  const group = TOUR_WORKSPACE_GROUPS.find((g) => g.id === groupId)
+  return group?.primaryTab ?? "overview"
 }

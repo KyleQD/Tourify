@@ -23,6 +23,16 @@ audit's acceptance criteria are verified.
   to all 347 audited pages.
 - `CANONICAL_COMPONENT_REGISTER.csv` identifies the canonical member of duplicate
   groups and quarantines explicit incomplete/mock components.
+- `TOKEN_AUTHORITY_INVENTORY.md` maps CSS-variable runtime truth, Tailwind
+  aliases, theme.ts palette facts, and ThemeProvider implementations with
+  duplicate/conflict annotations and the staged migration roadmap (DESIGN-030).
+- `TOKEN_REGISTRY.md` is the target-authority token registry (DESIGN-030 Phase
+  2, extended Phase 3): one machine-checkable row per semantic role (role ->
+  canonical CSS var -> runtime value -> Tailwind alias(es) -> defining file(s) ->
+  status live/dead/conflict/duplicate), superseding the inventory for migration
+  decisions; the inventory remains its survey input. Phase 3 added the
+  ThemeProvider composition contract (Table L) + provider audit table with the
+  per-file zero-delta deletion evidence.
 - `RECONCILIATION_SUMMARY.md` provides status totals and the evidence standard.
 - `CANONICAL_TERMINOLOGY_AND_STATUS.md` owns cross-account language and lifecycle
   mappings.

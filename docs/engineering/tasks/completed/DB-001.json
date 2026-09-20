@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-001",
+  "title": "Audit Database workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T06:17:42.390Z",
+  "updated_at": "2026-09-10T20:54:36.029Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Database area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: Supabase migrations, schema evolution, RLS, RPCs, generated types, and data integrity",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/database/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The database default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/database/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/database/BASELINE.md: what the database area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/database/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task DB-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/database/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/database/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/database/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate",
+      "npm run agents:context -- --task DB-001",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "MIGRATION_CHECKSUM_BASE_SHA=7cf660ad8422dbd3adbdb77369d94638cdc2231b npm run check:migration-checksums",
+      "npm run check:database-types (sandbox telemetry-write limitation; prior DB-004/DB-007 pass retained)"
+    ],
+    "evidence": [
+      "docs/work-packets/DB-001.md",
+      "docs/engineering/agents/database/BASELINE.md",
+      "docs/engineering/agents/database/GAPS.md",
+      "docs/engineering/agents/database/QUESTIONS.md",
+      "docs/engineering/tasks/completed/DB-003.json",
+      "docs/engineering/tasks/completed/DB-004.json",
+      "docs/engineering/tasks/completed/DB-007.json",
+      "npm run agents:validate: 0 errors, 1 pre-existing RELEASE-001 warning"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T20:54:36.029Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the read-only Database audit and reconciled the original artifacts with DB-002/003/004/007. Current source chain is 289 files; local live-apply evidence covers 287; validation manifests are 99 planned, 2 isolated_validated, 5 staging_validated, and 0 production_verified. Baseline, gaps, questions, state, backlog, and DB-001 work packet are updated. No migration SQL or production code was changed.",
+    "completed": [
+      "BASELINE.md — current 289-file source chain, RLS (1287 detected policies), RPCs (259 functions), generated types, migration-validation evidence, tests, routes, APIs, and components; direction cited to DEVELOPMENT_BACKLOG.md and plans",
+      "GAPS.md — 17 open items triaged (5 M / 6 I / 6 R) each with evidence + location; resolved DB-003/004/007 findings separated",
+      "QUESTIONS.md — P1 Q1-Q4 then P2 Q5-Q9, each with build/fix/drop + sequencing",
+      "STATE.md updated to partial; BACKLOG.md updated with post-audit candidate work",
+      "BASELINE.md reconciled to current 289-file source chain, 693 objects, 418 tables, 259 functions, 1287 detected policies, 106 manifests, and current route/component/API evidence",
+      "GAPS.md reconciled: 5 missing, 6 incomplete, 6 improve; resolved DB-003/004/007 findings separated from remaining gaps",
+      "QUESTIONS.md prioritized Q1-Q9 with build/fix/drop and sequencing",
+      "STATE.md and BACKLOG.md updated; DB-001 work packet created",
+      "Scope expansion recorded: historical migration archives, root SQL, and .agents ledgers were read because the initial audit cited them as chain/schema drift evidence"
+    ],
+    "next_steps": [
+      "Owner answers to Q1-Q4 become bounded database follow-up tasks",
+      "QA/Release reconcile DB-002 apply claims with production_verified manifest status",
+      "Run current-chain/live-catalog proof for the two-file evidence delta",
+      "Build RLS, trigger, index, catalog-drift, and erasure regressions after ticketing/events decisions"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T08:00:00.000Z",
+        "summary": "Audit complete. Top P1 questions to owner: (Q1) reconcile the migration baseline and apply 4 STAGED security/money migrations (build+fix+drop; blocks WS-1.1/G2/G7); (Q2) canonicalize & regenerate generated types, drop divergent dupes (build+fix+drop); (Q3) RLS coverage regression + apply venue/RBAC & RPC-authorization baselines (build+fix); (Q4) ticketing schema reconciliation (fix); (Q5) approve gated apply of staged security/money migrations (fix). P2: events-vs-events_v2 (Q6), trigger/DP inventory (Q7), index/initplan scale (Q8), GDPR erasure map (Q9). Gaps: 7 missing / 6 incomplete / 6 improve. No production code or migration files modified (read-only).",
+        "notes": "Scope expanded beyond default working set on evidence: read supabase/migrations/archive (133 files) and supabase/migration-archive/pre-reconciliation-local-only-2026-08-20 (276 files), supabase/migrations_backup (94), root-level supabase/*.sql, and .agents/organization-ticketing + .agents/plans/phase-0-data-integrity.md to establish migration reconciliation and generated-type drift.",
+        "next": "Run npm run agents:validate; then await owner Q&A and open follow-up task records"
+      },
+      {
+        "at": "2026-09-10T20:54:36.029Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the read-only Database audit and reconciled the original artifacts with DB-002/003/004/007. Current source chain is 289 files; local live-apply evidence covers 287; validation manifests are 99 planned, 2 isolated_validated, 5 staging_validated, and 0 production_verified. Baseline, gaps, questions, state, backlog, and DB-001 work packet are updated. No migration SQL or production code was changed.",
+        "completed": [
+          "BASELINE.md reconciled to current 289-file source chain, 693 objects, 418 tables, 259 functions, 1287 detected policies, 106 manifests, and current route/component/API evidence",
+          "GAPS.md reconciled: 5 missing, 6 incomplete, 6 improve; resolved DB-003/004/007 findings separated from remaining gaps",
+          "QUESTIONS.md prioritized Q1-Q9 with build/fix/drop and sequencing",
+          "STATE.md and BACKLOG.md updated; DB-001 work packet created",
+          "Scope expansion recorded: historical migration archives, root SQL, and .agents ledgers were read because the initial audit cited them as chain/schema drift evidence"
+        ],
+        "next_steps": [
+          "Owner answers to Q1-Q4 become bounded database follow-up tasks",
+          "QA/Release reconcile DB-002 apply claims with production_verified manifest status",
+          "Run current-chain/live-catalog proof for the two-file evidence delta",
+          "Build RLS, trigger, index, catalog-drift, and erasure regressions after ticketing/events decisions"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

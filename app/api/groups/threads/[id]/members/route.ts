@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 const threadIdSchema = z.string().uuid({ message: 'Invalid thread id' })
 const userIdSchema = z.string().uuid({ message: 'Invalid user id' })
@@ -51,7 +51,8 @@ async function countActiveOwners(
 
 export async function POST(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const parsedId = threadIdSchema.safeParse(getThreadIdFromPath(request))
@@ -93,7 +94,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const parsedId = threadIdSchema.safeParse(getThreadIdFromPath(request))
@@ -142,7 +144,8 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const parsedId = threadIdSchema.safeParse(getThreadIdFromPath(request))

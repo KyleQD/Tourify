@@ -678,8 +678,12 @@ describe('feed posts route helpers', () => {
     expect(result.data?.map(post => post.id)).toEqual(['artist-post'])
   })
 
-  it('routes legacy feed and pulse surfaces to News Pulse', () => {
-    expect(read('app/feed/page.tsx')).toContain("redirect('/news')")
+  it('exposes the social feed as a standalone destination', () => {
+    const feedPage = read('app/feed/page.tsx')
+
+    expect(feedPage).toContain("import { SocialFeed } from '@/components/feed/social-feed'")
+    expect(feedPage).toContain('<SocialFeed />')
+    expect(feedPage).not.toContain("redirect('/news')")
     expect(read('app/news/page.tsx')).toContain('NewsPage')
   })
 

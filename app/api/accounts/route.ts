@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
 import { authenticateRequestWithExplicitJwt } from '@/lib/auth/mobile-request-auth'
+import { verifyActingProfileAccess } from '@/lib/auth/acting-context'
 import { AccountManagementService } from '@/lib/services/account-management.service'
 import type { ProfileType } from '@/lib/services/account-management.service'
-import { isOrganizationType } from '@/lib/accounts/account-types'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
 import { startRouteTiming } from '@/lib/observability/route-timing'
 import { OrganizerAccountSchema } from '@/lib/accounts/organization-account-schema'
 
@@ -37,81 +39,10 @@ async function authenticateAccountsRequest(request: NextRequest) {
   }
 }
 
-async function verifyProfileOwnership(
-  supabase: { from: (table: string) => any },
-  userId: string,
-  profileId: string,
-  accountType: string
-): Promise<boolean> {
-  if (accountType === 'general') {
-    return profileId === userId
-  }
-
-  if (accountType === 'artist' || accountType === 'service') {
-    const { data } = await supabase
-      .from('artist_profiles')
-      .select('id')
-      .eq('id', profileId)
-      .eq('user_id', userId)
-      .maybeSingle()
-    return Boolean(data)
-  }
-
-  if (accountType === 'venue') {
-    const { data } = await supabase
-      .from('venue_profiles')
-      .select('id')
-      .eq('id', profileId)
-      .eq('user_id', userId)
-      .maybeSingle()
-    return Boolean(data)
-  }
-
-  if (isOrganizationType(accountType)) {
-    const { data: organizerRow } = await supabase
-      .from('organizer_accounts')
-      .select('id')
-      .eq('id', profileId)
-      .eq('user_id', userId)
-      .maybeSingle()
-    if (organizerRow) return true
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('account_settings')
-      .eq('id', userId)
-      .maybeSingle()
-
-    const settings = profile?.account_settings as {
-      organizer_accounts?: Array<{ id?: string }>
-      organizer_data?: { organization_name?: string }
-    } | null
-
-    if (Array.isArray(settings?.organizer_accounts)) {
-      if (settings.organizer_accounts.some(org => org.id === profileId)) return true
-    }
-
-    const orgName = settings?.organizer_data?.organization_name
-    if (orgName) {
-      const legacyId = `${userId}-organizer-${orgName.toLowerCase().replace(/\s+/g, '-')}`
-      if (profileId === legacyId) return true
-    }
-
-    return false
-  }
-
-  if (accountType === 'staff') {
-    const { data } = await supabase
-      .from('venue_team_members')
-      .select('id')
-      .eq('id', profileId)
-      .eq('user_id', userId)
-      .maybeSingle()
-    return Boolean(data)
-  }
-
-  return false
-}
+const switchAccountSchema = z.object({
+  profileId: z.string().uuid(),
+  accountType: z.enum(['general', 'artist', 'service', 'venue', 'organization', 'admin']),
+})
 
 export async function GET(request: NextRequest) {
   const endTiming = startRouteTiming('/api/accounts')
@@ -163,12 +94,34 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'switch_account': {
-        const { profileId, accountType } = data
+        const parsed = switchAccountSchema.safeParse(data)
+        if (!parsed.success) {
+          return NextResponse.json({ error: 'Invalid account selection' }, { status: 400 })
+        }
+
+        const { profileId, accountType } = parsed.data
+        const access = await verifyActingProfileAccess(
+          supabase,
+          user.id,
+          profileId,
+          normalizeAccountType(accountType),
+        )
+        if (!access.owned) {
+          return NextResponse.json({ error: 'Account access denied' }, { status: 403 })
+        }
+
         const success = await AccountManagementService.switchAccount(
           user.id,
           profileId,
-          accountType
+          accountType,
+          userSupabase ?? supabase,
         )
+        if (!success) {
+          return NextResponse.json(
+            { error: 'Account selection could not be persisted' },
+            { status: 503 },
+          )
+        }
         return NextResponse.json({ success })
       }
 

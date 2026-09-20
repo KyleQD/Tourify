@@ -9,6 +9,8 @@
  * All flags default OFF — no live provider is enabled by default.
  */
 
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export type EventFeatureFlag =
   | "EVENT_DISCOVERY_V2"
   | "EVENT_PROVIDER_TICKETMASTER"
@@ -24,8 +26,18 @@ function readFlag(name: string): boolean {
   return raw === "1" || raw === "true" || raw === "on"
 }
 
+const EXTERNAL_PROVIDER_FLAGS = new Set<EventFeatureFlag>([
+  "EVENT_PROVIDER_TICKETMASTER",
+  "EVENT_PROVIDER_BANDSINTOWN",
+  "EVENT_PROVIDER_BANDSINTOWN_PARTNER_MODE",
+  "EVENT_EXTERNAL_CLAIMS",
+  "EVENT_PROVIDER_ADMIN_TOOLS",
+])
+
 export function isEventFeatureEnabled(flag: EventFeatureFlag): boolean {
-  return readFlag(flag)
+  const explicitlyApproved = readFlag(flag)
+  if (!EXTERNAL_PROVIDER_FLAGS.has(flag)) return explicitlyApproved
+  return isLaunchCapabilityAvailable("external_event_providers", explicitlyApproved)
 }
 
 export type BandsintownMode = "disabled" | "artist_owned_key" | "partner"
@@ -38,6 +50,8 @@ export type BandsintownMode = "disabled" | "artist_owned_key" | "partner"
  * to the base provider flag.
  */
 export function getBandsintownMode(): BandsintownMode {
+  if (!isLaunchCapabilityAvailable("external_event_providers")) return "disabled"
+
   const explicit = process.env.BANDSINTOWN_MODE?.trim().toLowerCase()
   if (explicit === "disabled" || explicit === "artist_owned_key" || explicit === "partner") {
     return explicit

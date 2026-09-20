@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-003",
+  "title": "Shared EmptyState/ErrorState/Skeleton primitives",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-09T09:35:22.062Z",
+  "updated_at": "2026-09-10T16:35:47Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Build shared EmptyState/ErrorState/Skeleton primitives and adopt across surfaces",
+  "scope": {
+    "in": [
+      "components/ui/ shared state primitives and direct shared callers",
+      "__tests__/design-system/shared-state-primitives.test.tsx"
+    ],
+    "out": [
+      "admin- and venue-owned state components",
+      "database, routes, migrations, and unrelated worktree changes"
+    ]
+  },
+  "working_set": [
+    "components/ui/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/design-system/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Shared primitives built and adopted"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/design-system/shared-state-primitives.test.tsx",
+      "./node_modules/.bin/eslint components/ui/empty-state.tsx components/ui/error-state.tsx components/ui/skeleton.tsx components/ui/feature-unavailable.tsx components/ui/loading-screen.tsx components/ui/error-boundary.tsx __tests__/design-system/shared-state-primitives.test.tsx",
+      "./node_modules/.bin/tsc --noEmit --pretty false --project /private/tmp/tourify-design-003-tsconfig.json",
+      "git diff --check -- components/ui __tests__/design-system docs/engineering/agents/design-system docs/engineering/tasks"
+    ],
+    "evidence": [
+      "Vitest: 1 file passed, 3 tests passed.",
+      "Scoped ESLint: clean.",
+      "Scoped TypeScript compile: passed with the task-only config at /private/tmp/tourify-design-003-tsconfig.json.",
+      "Targeted diff check: clean for task-owned files; repository-wide diff check still reports pre-existing trailing whitespace in app/admin/dashboard/venues/page.tsx and a blank line at EOF in lib/database.types.ts.",
+      "Full repository typecheck was attempted with the package-configured 8 GB heap but remained silent for several minutes; it was stopped after the default-heap attempt independently failed with Node out-of-memory. No task-file diagnostics were emitted."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T16:35:47Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Built and adopted shared EmptyState, ErrorState, and Skeleton primitives within the shared UI boundary. Direct shared callers now use the primitives while preserving action slots and existing loading/error behavior.",
+    "completed": [
+      "Added accessible components/ui/empty-state.tsx and components/ui/error-state.tsx with labelled content, live error semantics, icon slots, and action slots.",
+      "Made components/ui/skeleton.tsx decorative by default with aria-hidden while retaining caller overrides.",
+      "Adopted EmptyState in FeatureUnavailable, ErrorState in ErrorMessage/NetworkError, and Skeleton in LoadingSkeleton.",
+      "Added focused accessibility and interaction tests for the shared primitives."
+    ],
+    "next_steps": [
+      "Create DESIGN-004 for the first domain adoption wave after owner answers to QUESTIONS.md Q2/Q6; migrate admin and venue-owned duplicates through their owning agents.",
+      "Address the repository-scale TypeScript verification/resource issue in the QA or release verification stream."
+    ],
+    "blockers": [
+      "Full repository typecheck cannot complete reliably in this worktree: default Node heap fails with out-of-memory and the configured 8 GB run remained silent until manually stopped; task-scoped TypeScript passed."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T16:35:47Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the shared state primitive slice and verified the changed files with focused Vitest, ESLint, scoped TypeScript, and targeted diff checks.",
+        "completed": [
+          "EmptyState and ErrorState are reusable slot-based primitives with accessible labelling.",
+          "Skeleton is decorative by default and LoadingSkeleton delegates to it.",
+          "FeatureUnavailable and shared ErrorMessage now consume the canonical primitives."
+        ],
+        "next_steps": [
+          "Migrate domain-owned duplicates in a separate bounded task after cross-domain ownership answers."
+        ],
+        "blockers": [
+          "Repository-wide typecheck resource exhaustion; scoped compile passed."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -210,6 +210,50 @@ export const ADMIN_FEATURE_FIXTURE = {
   },
 } as const
 
+export const ADMIN_UX_FIXTURE_CONTRACT = {
+  personas: [
+    { id: "org_a_owner", org: "a", role: "owner", userId: ADMIN_FEATURE_FIXTURE.users.orgAOwner.userId },
+    { id: "org_a_operations_manager", org: "a", role: "operations_manager", userId: ADMIN_FEATURE_FIXTURE.users.orgAManager.userId },
+    { id: "org_a_workforce_manager", org: "a", role: "workforce_manager", userId: "81818181-8181-4181-8181-818181818181" },
+    { id: "org_a_finance_manager", org: "a", role: "finance_manager", userId: "82828282-8282-4282-8282-828282828282" },
+    { id: "org_a_member", org: "a", role: "member", userId: ADMIN_FEATURE_FIXTURE.users.orgAViewer.userId },
+    { id: "org_a_worker", org: "a", role: "worker", userId: ADMIN_FEATURE_FIXTURE.users.orgAWorker.userId },
+    { id: "org_a_artist", org: "a", role: "artist", userId: "83838383-8383-4383-8383-838383838383" },
+    { id: "org_b_owner", org: "b", role: "owner", userId: ADMIN_FEATURE_FIXTURE.users.orgBOwner.userId },
+    { id: "org_b_operations_manager", org: "b", role: "operations_manager", userId: ADMIN_FEATURE_FIXTURE.users.orgBManager.userId },
+    { id: "org_b_workforce_manager", org: "b", role: "workforce_manager", userId: "84848484-8484-4484-8484-848484848484" },
+    { id: "org_b_finance_manager", org: "b", role: "finance_manager", userId: "85858585-8585-4585-8585-858585858585" },
+    { id: "org_b_member", org: "b", role: "member", userId: ADMIN_FEATURE_FIXTURE.users.orgBViewer.userId },
+    { id: "org_b_worker", org: "b", role: "worker", userId: ADMIN_FEATURE_FIXTURE.users.orgBWorker.userId },
+    { id: "org_b_artist", org: "b", role: "artist", userId: "86868686-8686-4686-8686-868686868686" },
+    { id: "unauthenticated", org: null, role: "unauthenticated", userId: null },
+  ],
+  collectionMinimums: {
+    tours: 125,
+    events: 125,
+    ticketOrders: 40,
+    financeLedgerRows: 200,
+    conversations: 32,
+    unreadConversations: 9,
+  },
+  failureScenarios: [
+    { source: "dashboard_tasks", outcomes: [401, 409, 500, "timeout"] },
+    { source: "event_children", outcomes: [403, 500, "timeout"] },
+    { source: "logistics_children", outcomes: [403, 500, "timeout"] },
+    { source: "ticketing_children", outcomes: [403, 500, "timeout"] },
+    { source: "finance_overview", outcomes: [403, 500, "timeout"] },
+    { source: "analytics", outcomes: [403, 500, "realtime_disconnected"] },
+    { source: "organization_scope", outcomes: [403, 409, "stale_child_scope"] },
+  ],
+  viewports: [
+    { id: "phone-compact", width: 320, height: 568, zoom: 1 },
+    { id: "phone", width: 375, height: 812, zoom: 1 },
+    { id: "tablet", width: 768, height: 1024, zoom: 1 },
+    { id: "desktop", width: 1440, height: 900, zoom: 1 },
+    { id: "desktop-zoom-200", width: 1440, height: 900, zoom: 2 },
+  ],
+} as const
+
 export type FixtureOrgKey = keyof typeof ADMIN_FEATURE_FIXTURE.orgs
 
 export function fixtureOrg(key: FixtureOrgKey) {

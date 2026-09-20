@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260903090000_site_map_element_security_and_atomic_sync.sql",
+  "taskId": "SEC-104-SITE-MAP-ELEMENTS",
+  "status": "planned",
+  "owner": "ops-logistics",
+  "reviewer": "security-data",
+  "domains": ["admin", "logistics", "site-maps", "rls", "rpc"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Fresh dedicated Supabase project plus a two-organization site-map fixture",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count site maps, elements, and activity rows grouped by canonical event or tour organization",
+      "Count maps whose event and tour resolve to conflicting organizations"
+    ],
+    "expectedAffectedRows": "No backfill; policies, functions, and prospective NOT VALID checks change while element rows remain unchanged",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 1000,
+    "resumeStrategy": "Reapply deterministic CREATE OR REPLACE functions, policy drops/creates, and grants",
+    "resumeCursor": "Supabase migration version 20260903090000",
+    "idempotency": "All functions are replaced deterministically and every policy is dropped before recreation"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant key is guessed; maps with no unique canonical parent organization fail closed"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "site_map_elements_sec104_geometry_check NOT VALID",
+      "site_map_elements_sec104_color_check NOT VALID",
+      "site_map_elements_sec104_stroke_color_check NOT VALID",
+      "site_map_elements_sec104_payload_check NOT VALID"
+    ],
+    "indexes": [],
+    "validationPlan": "Inventory pre-existing constraint violations, repair or quarantine them, validate all four constraints, and verify owner, active editor, logistics manager, view-only member, Org B, revoked, and unauthenticated access through direct table and RPC calls"
+  },
+  "recovery": {
+    "rollback": "Disable Admin canvas mutation and apply a reviewed forward policy/function restoration; do not edit prior migration bytes",
+    "forwardFix": "Replace affected functions or policies additively, then replay the atomic sync and two-organization matrix"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect site_maps, site_map_elements, and site_map_activity_log RLS policy definitions",
+      "Inspect execute grants and security mode for can_logistics, resolve_logistics_org_id, and sync_site_map_elements",
+      "Compare element row counts before and after same-payload replay and forced mid-command failure"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

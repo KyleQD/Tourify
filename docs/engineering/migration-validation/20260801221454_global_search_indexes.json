@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260801221454_global_search_indexes.sql",
+  "taskId": "ADMIN-GLOBAL-SEARCH-INDEXES",
+  "status": "planned",
+  "owner": "search-platform",
+  "reviewer": "database-performance",
+  "domains": ["search", "profiles", "events", "tours", "content", "hiring"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "production-like snapshot with representative row counts and text distributions for every indexed surface",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Capture relation sizes and qualifying public-row counts for profiles, artists, venues, organizations, events, events_v2, tours, music, posts, and jobs"
+    ],
+    "expectedAffectedRows": "Generated search vectors are materialized for existing rows in every affected table; no business values are changed",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 600000,
+    "batchSize": 0,
+    "resumeStrategy": "Apply one guarded generated column or index at a time and resume from the first missing catalog object",
+    "resumeCursor": "Supabase migration version 20260801221454 plus last verified index name",
+    "idempotency": "Extensions, generated columns, and indexes use IF NOT EXISTS"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Abort on incompatible column definitions and repair additively; no tenant keys or relationships are inferred"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [
+      "partial GIN full-text and trigram indexes for public discovery surfaces",
+      "following_id lookup index"
+    ],
+    "validationPlan": "Measure build time, lock duration, index size, query plans, visibility predicates, and search parity before and after migration"
+  },
+  "recovery": {
+    "rollback": "Keep application search on the prior query path and remove invalid indexes through a reviewed forward migration",
+    "forwardFix": "Create missing indexes concurrently where required and repair generated expressions additively"
+  },
+  "postflight": {
+    "queries": [
+      "Verify every index is valid and used by representative public search queries without exposing non-public rows"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -5,7 +5,7 @@ import {
   adminAccessErrorResponse,
   assertTourAuthority,
 } from "@/lib/admin/admin-tour-event-access"
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
 const bodySchema = z.object({
   user_ids: z.array(z.string().uuid()).min(1).max(50),
@@ -55,7 +55,7 @@ async function ensureCoreTeam(
   return data.id as string
 }
 
-export const POST = withAdminAuth(async (req: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("tour.manage", async (req: NextRequest, { supabase, user }) => {
   try {
     const tourId = extractTourId(req.url)
     if (!tourId) return NextResponse.json({ error: "tour id required" }, { status: 400 })

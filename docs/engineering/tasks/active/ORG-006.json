@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0",
+  "id": "ORG-006",
+  "title": "Disposition org-scoped event lifecycle actions",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "organization",
+  "created_at": "2026-09-18T23:22:13.000Z",
+  "updated_at": "2026-09-18T23:58:34.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; bounded ORG-006 authorization and focused-test changes present",
+  "goal": "Own and disposition the organization-scoped event, calendar, status, and hold server actions while preserving canonical tenant identity and the existing object-level authorization fix",
+  "scope": {
+    "in": [
+      "app/events/_actions/event-actions.ts",
+      "The sole current createEventAction caller at app/events/create/page.tsx",
+      "Exact consumer and disposition review for createCalendarAction, updateEventStatusAction, and createHoldAction",
+      "Organization identity, event.manage, event-owned-org lookup, calendar-org binding, validation, lifecycle transition, and revalidation contracts",
+      "Focused same-org, cross-org, unrelated-user, missing-resource, and stale-client authorization tests"
+    ],
+    "out": [
+      "Database migrations, hosted RLS mutation, calendar/event schema redesign, or CP-051 apply work",
+      "Admin event/tour routes, venue booking lifecycle implementation, ticketing lifecycle implementation, and public event discovery",
+      "Broad UI redesign of app/events/create/page.tsx",
+      "Removal of unused exports without explicit per-export disposition evidence"
+    ]
+  },
+  "working_set": [
+    "app/events/_actions/event-actions.ts",
+    "app/events/create/page.tsx",
+    "__tests__/events/event-actions-authorization.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/completed/ORG-002.json",
+    "docs/engineering/tasks/completed/ORG-003.json",
+    "docs/engineering/tasks/completed/ORG-004.json",
+    "docs/engineering/tasks/completed/ORG-005.json",
+    "docs/engineering/tasks/active/DB-006.json",
+    "docs/engineering/tasks/active/QA-003.json",
+    "docs/AUDIT_FINDINGS_2026-08-23.md"
+  ],
+  "acceptance_criteria": [
+    "Every exported action has a named live consumer or an explicit retain/retire decision backed by caller evidence; unused exports are not removed from absence alone",
+    "All retained mutations authenticate and authorize with event.manage against canonical organizations/org_members context; event-id mutations derive the actual owning org rather than trusting client authority input",
+    "Calendar and hold writes prove calendar-to-org binding, valid lifecycle inputs, and fail-closed behavior for missing, stale, cross-org, and unrelated-user resources",
+    "The completed H8 object-level authorization fix is preserved or strengthened, never bypassed by client-provided org identifiers or service-role access",
+    "Focused tests, lint, scoped type diagnostics, caller inventory, diff validation, and control-plane validation pass"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/events/event-actions-authorization.test.ts",
+      "npx eslint app/events/_actions/event-actions.ts app/events/create/page.tsx __tests__/events/event-actions-authorization.test.ts",
+      "npx tsc --noEmit --pretty false --skipLibCheck --target ES2020 --module esnext --moduleResolution bundler app/events/_actions/event-actions.ts app/events/create/page.tsx __tests__/events/event-actions-authorization.test.ts",
+      "rg -n \"createCalendarAction|createEventAction|updateEventStatusAction|createHoldAction\" app components hooks lib __tests__ --glob '*.{ts,tsx,js,jsx,mjs,cjs}'",
+      "git diff --check -- app/events/_actions/event-actions.ts app/events/create/page.tsx __tests__/events/event-actions-authorization.test.ts docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "ORCH-002 read-only research found app/events/create/page.tsx as the only external action consumer, using createEventAction; the other three exports currently have no callers.",
+      "The 2026-08-23 audit and development backlog record H8 as fixed by event.manage checks against the referenced or actual organization plus calendar-to-org binding.",
+      "2026-09-18T23:58:34.000Z: exact app/components/hooks/lib caller scan confirmed createEventAction has one live caller at app/events/create/page.tsx; createCalendarAction, updateEventStatusAction, and createHoldAction have zero external callers.",
+      "2026-09-18T23:58:34.000Z: retained createEventAction as live; retained createCalendarAction and updateEventStatusAction pending organization/database adoption or explicit authorized retirement; retained createHoldAction pending venue adoption or explicit authorized retirement. No export was deleted from absence alone.",
+      "2026-09-18T23:58:34.000Z: strengthened updateEventStatusAction to authorize the event's actual organization, bind the update to that same org_id, require a returned row, and fail closed for missing, moved, or stale targets.",
+      "2026-09-18T23:58:34.000Z: event and hold creation now reject malformed or non-forward time ranges; hold creation requires a successful calendar id + org id lookup before insert.",
+      "2026-09-18T23:58:34.000Z: focused Vitest passed 1 file / 11 tests; ESLint passed for the action, unchanged live caller, and test; inherited-config scoped TypeScript passed for the changed action/test; caller inventory, diff validation, and agents:validate passed."
+    ],
+    "last_run_sha": "working-tree@7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-18T23:58:34.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "The bounded local ORG-006 contract is implemented and verified. All four exports have explicit retain dispositions, H8 authorization is preserved and strengthened for stale event targets, and lifecycle time/calendar binding tests pass. The task remains active for owner adoption/retirement decisions and hosted DB/QA evidence.",
+    "completed": [
+      "Assigned the org-scoped event/calendar/hold action surface to the organization agent through this explicit bounded task.",
+      "Recorded the live-consumer inventory and durable H8 authorization evidence without treating unused exports as authorized deletions.",
+      "Dispositioned createEventAction as retained with its live create-page consumer and retained the other three zero-caller exports pending named owner adoption or explicit authorized retirement.",
+      "Preserved request-scoped Supabase authentication plus has_perm(event.manage) against the named organization for create actions.",
+      "Strengthened event status updates to resolve the actual owning org, authorize that org, bind the mutation to event id plus org id, and reject a zero-row stale update.",
+      "Preserved calendar-to-org authorization for holds and added explicit lookup-error and returned-org checks before insert.",
+      "Added focused same-org, unauthenticated, unrelated-user, cross-tenant, missing-resource, stale-target, calendar-binding, and invalid-time coverage."
+    ],
+    "next_steps": [
+      "Organization/database decide whether createCalendarAction and updateEventStatusAction receive live canonical consumers or explicit authorized retirement.",
+      "Venue decides whether createHoldAction is adopted by the venue calendar/hold lifecycle or explicitly retired; no absence-based deletion is authorized.",
+      "DB-006 confirms hosted events_v2 and has_perm/RLS behavior, then QA-003 certifies same-org success and cross-tenant/stale denial against the exact release SHA."
+    ],
+    "blockers": [
+      "DB-006 has not completed hosted evidence for the canonical events_v2 contract.",
+      "Calendar/hold product ownership and lifecycle expectations require venue review before unused exports can be retired or adopted.",
+      "QA-003 lacks hosted staging identities and exact-SHA event-lifecycle evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-18T23:22:13.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Created ORG-006 to own the previously unresolved organization-scoped event lifecycle actions while preserving the recorded H8 authorization fix.",
+        "next_steps": [
+          "Complete per-export disposition and focused tenant-authorization coverage before implementation."
+        ],
+        "blockers": [
+          "DB-006, venue lifecycle review, and QA-003 hosted evidence remain pending."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:58:34.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded local action disposition and authorization hardening. All exports are retained with explicit consumer/owner evidence; status writes are bound to the authorized actual org; hold calendar binding and lifecycle time validation fail closed.",
+        "changed_paths": [
+          "app/events/_actions/event-actions.ts",
+          "__tests__/events/event-actions-authorization.test.ts",
+          "docs/engineering/tasks/active/ORG-006.json",
+          "docs/engineering/agents/organization/STATE.md",
+          "docs/engineering/tasks/TASK_INDEX.json"
+        ],
+        "verification": [
+          "npx vitest run __tests__/events/event-actions-authorization.test.ts: passed (1 file, 11 tests)",
+          "npx eslint app/events/_actions/event-actions.ts app/events/create/page.tsx __tests__/events/event-actions-authorization.test.ts: passed",
+          "npx tsc --project /private/tmp/org006-tsconfig.json --pretty false with repo tsconfig inheritance and action/test files: passed",
+          "Exact caller scan: createEventAction has one external caller; the other three exports have none",
+          "git diff --check for ORG-006 paths: passed",
+          "npm run agents:validate: passed"
+        ],
+        "next_steps": [
+          "Obtain organization/database/venue disposition decisions and hosted DB-006 plus QA-003 evidence before closure."
+        ],
+        "blockers": [
+          "No hosted RLS/RPC evidence or venue adoption/retirement authority was produced in this local-only wave.",
+          "The task's original raw tsc file-list command does not load repository path/JSX settings and also reports the unchanged create page's existing async startTransition diagnostic; the changed action/test pass under an inherited scoped tsconfig."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "DB-006 and the database owner confirm events_v2 and has_perm/RLS semantics; ORG-006 does not mutate schema or claim hosted database evidence.",
+    "Organization/database review the retained zero-caller calendar and status actions for live adoption or explicit retirement authority.",
+    "Venue reviews the retained zero-caller hold action before adoption or explicit retirement; ticketing/public discovery remain out of scope.",
+    "QA-003 certifies retained event lifecycle and cross-tenant denial flows against the exact deployed release SHA."
+  ]
+}

@@ -12,9 +12,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import type {
   WorkModeApiResponse,
+  WorkModeAttentionItem,
   WorkModeAssignmentListItem,
-  WorkModeAssignmentsPayload,
+  WorkModeCommunication,
+  WorkModeEventSummary,
+  WorkModeOverviewPayload,
   WorkModePublication,
+  WorkModeReminder,
+  WorkModeSourceAvailability,
+  WorkModeTaskItem,
 } from '@/types/hiring-roster-work-mode'
 
 const WORK_MODE_KEY = 'tourify.work-mode-assignment'
@@ -22,6 +28,13 @@ const WORK_MODE_KEY = 'tourify.work-mode-assignment'
 export function useWorkMode() {
   const [assignments, setAssignments] = useState<WorkModeAssignmentListItem[]>([])
   const [publications, setPublications] = useState<WorkModePublication[]>([])
+  const [tasks, setTasks] = useState<WorkModeTaskItem[]>([])
+  const [events, setEvents] = useState<WorkModeEventSummary[]>([])
+  const [communications, setCommunications] = useState<WorkModeCommunication[]>([])
+  const [reminders, setReminders] = useState<WorkModeReminder[]>([])
+  const [attention, setAttention] = useState<WorkModeAttentionItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [sourceAvailability, setSourceAvailability] = useState<WorkModeSourceAvailability | null>(null)
   const [workerActionsAvailable, setWorkerActionsAvailable] = useState(false)
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -50,15 +63,22 @@ export function useWorkMode() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/work-mode/assignments', {
+      const response = await fetch('/api/work-mode/overview', {
         credentials: 'include',
         cache: 'no-store',
       })
-      const payload = (await response.json()) as WorkModeApiResponse<WorkModeAssignmentsPayload>
-      if (!response.ok || !payload.data) {
-        throw new Error(payload.error || 'Unable to load Work Mode.')
+      const payload = (await response.json().catch(() => null)) as WorkModeApiResponse<WorkModeOverviewPayload> | null
+      if (!response.ok || !payload?.data) {
+        throw new Error(payload?.error || 'Unable to load Work Mode.')
       }
       setPublications(payload.data.publications)
+      setTasks(payload.data.tasks || [])
+      setEvents(payload.data.events || [])
+      setCommunications(payload.data.communications || [])
+      setReminders(payload.data.reminders || [])
+      setAttention(payload.data.attention || [])
+      setUnreadCount(payload.data.unreadCount || 0)
+      setSourceAvailability(payload.data.sourceAvailability)
       setAssignments(payload.data.assignments)
       setWorkerActionsAvailable(payload.data.workerActionsAvailable)
       setActiveAssignmentId((current) => {
@@ -70,6 +90,13 @@ export function useWorkMode() {
     } catch (requestError) {
       setAssignments([])
       setPublications([])
+      setTasks([])
+      setEvents([])
+      setCommunications([])
+      setReminders([])
+      setAttention([])
+      setUnreadCount(0)
+      setSourceAvailability(null)
       setWorkerActionsAvailable(false)
       setError(requestError instanceof Error ? requestError.message : 'Unable to load Work Mode.')
     } finally {
@@ -163,9 +190,42 @@ export function useWorkMode() {
     }
   }, [])
 
+  const respondToCommunication = useCallback(async (
+    id: string,
+    source: "team_communication" | "event_bulletin",
+    action: "mark_read" | "acknowledge",
+  ) => {
+    setError(null)
+    try {
+      const response = await fetch(`/api/work-mode/communications/${id}/respond`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, action }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as WorkModeApiResponse<never> | null
+        setError(payload?.error || "The communication response could not be saved.")
+        return false
+      }
+      await fetchAssignments()
+      return true
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The communication response could not be saved.")
+      return false
+    }
+  }, [fetchAssignments])
+
   return {
     assignments,
     publications,
+    tasks,
+    events,
+    communications,
+    reminders,
+    attention,
+    unreadCount,
+    sourceAvailability,
     workerActionsAvailable,
     activeAssignment,
     isInWorkMode: activeAssignmentId !== null,
@@ -177,6 +237,7 @@ export function useWorkMode() {
     declineAssignment,
     respondToAssignment,
     submitWorkerAction,
+    respondToCommunication,
     refreshAssignments: fetchAssignments,
   }
 }

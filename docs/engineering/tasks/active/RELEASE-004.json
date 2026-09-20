@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-004",
+  "title": "Isolated prod/demo recovery and continuity plan",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T09:35:23.764Z",
+  "updated_at": "2026-09-16T19:24:55.512Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Document and prove recovery for isolated staging and production Vercel and Supabase topology, including PITR, restore drills, ownership, and application rollback",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "docs/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "The recovery and continuity plan reflects separate staging and production Vercel and Supabase projects",
+    "Production backup and PITR settings are evidenced and an isolated restore drill completes successfully",
+    "Application rollback, forward-only database repair, incident ownership, recovery objectives, and escalation paths are documented",
+    "RELEASE-007 topology evidence is linked and no recovery procedure depends on destructive reset or migration-history rewriting"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run check:local-docker",
+      "npm run check:migration-chain"
+    ],
+    "evidence": [
+      "2026-09-09: local Docker readiness passed; active migration-chain validation passed across 279 migrations."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T19:58:51Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted RELEASE-004 to P0 and reversed the prior split deferral. Recovery planning must cover isolated staging/production Vercel and Supabase projects, PITR, restore drill, ownership, and non-destructive rollback.",
+    "completed": [
+      "Added local rollback and Supabase recovery handoff notes in docs/LOCAL_DEPLOYMENT_READINESS.md."
+    ],
+    "next_steps": [
+      "Obtain separate demo/production confirmation, backup/PITR dashboard evidence, and complete an isolated restore drill for production readiness."
+    ],
+    "blockers": [
+      "No approved Supabase target confirmation or production restore-drill evidence is available in the local workspace."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T19:58:51Z",
+        "summary": "Recorded local rollback boundaries: preserve volumes, never rewrite migration history, and use isolated Supabase recovery targets.",
+        "next": "Attach actual backup and restore-drill evidence in the production-scoped follow-up."
+      },
+      {
+        "at": "2026-09-16T19:24:55.512Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted RELEASE-004 to P0 and reversed the prior split deferral. Recovery planning must cover isolated staging/production Vercel and Supabase projects, PITR, restore drill, ownership, and non-destructive rollback.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -55,7 +55,7 @@ export function useGlobalSearch() {
       setIsLoading(true)
       try {
         const params = new URLSearchParams({ q: normalized, category: "all", limit: "5" })
-        const response = await fetch(`/api/search/global?${params}`, {
+        const response = await fetch(`/api/search?${params}`, {
           credentials: "include",
           cache: "no-store",
           signal: controller.signal,

@@ -44,8 +44,13 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
+    // SECURITY: staff credentials are sensitive PII and must live in a PRIVATE
+    // bucket (`private-docs`). The public `profile-images` bucket must never
+    // receive them — anyone with the URL could read staff documents.
+    const CERT_BUCKET = 'private-docs'
+
     const { error: uploadError } = await supabase.storage
-      .from('profile-images')
+      .from(CERT_BUCKET)
       .upload(filePath, buffer, {
         contentType: file.type,
         cacheControl: '3600',
@@ -59,14 +64,14 @@ export async function POST(request: NextRequest) {
       )
 
     const { data: signedUrlData } = await supabase.storage
-      .from('profile-images')
+      .from(CERT_BUCKET)
       .createSignedUrl(filePath, 60 * 60 * 24 * 7)
-    const storageUri = `storage://profile-images/${filePath}`
+    const storageUri = `storage://${CERT_BUCKET}/${filePath}`
 
     const { error: registryErr } = await supabase.from('staff_documents').insert({
       owner_user_id: user.id,
       document_type: `certification:${safeCertKey || 'credential'}`,
-      storage_bucket: 'profile-images',
+      storage_bucket: CERT_BUCKET,
       storage_path: filePath,
       verified_status: 'pending',
       metadata: { source: 'settings_certifications_upload' },

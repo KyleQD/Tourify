@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { MessageSquare, Plus, Send, RefreshCw } from "lucide-react"
+import { BellRing, MessageSquare, Plus, Send, RefreshCw } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
 import { cn } from "@/lib/utils"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
@@ -25,6 +26,7 @@ interface TeamMessage {
   created_at: string
   sender_id?: string
   recipients: string[]
+  remind_at?: string | null
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -47,6 +49,8 @@ export function StaffCommunicationsTab({ venueId }: Props) {
     message_type: 'general',
     priority: 'normal',
     recipients: '',
+    remind_at: '',
+    requires_acknowledgment: false,
   })
 
   const fetchMessages = useCallback(async () => {
@@ -69,6 +73,7 @@ export function StaffCommunicationsTab({ venueId }: Props) {
 
   async function sendMessage() {
     if (!form.content.trim()) { toast.error('Message content is required'); return }
+    if (form.message_type === 'reminder' && !form.remind_at) { toast.error('Reminder date and time are required'); return }
     setSending(true)
     try {
       const recipients = form.recipients.split(/[\s,;]+/).map(r => r.trim()).filter(Boolean)
@@ -82,6 +87,8 @@ export function StaffCommunicationsTab({ venueId }: Props) {
           message_type: form.message_type,
           priority: form.priority,
           recipients: recipients.length > 0 ? recipients : [],
+          remind_at: form.message_type === 'reminder' && form.remind_at ? new Date(form.remind_at).toISOString() : null,
+          requires_acknowledgment: form.requires_acknowledgment,
           type: 'staff_bulletin',
           ...(venueId ? { venue_id: venueId } : {}),
         }),
@@ -89,7 +96,7 @@ export function StaffCommunicationsTab({ venueId }: Props) {
       if (!res.ok) throw new Error(await res.text())
       toast.success('Message sent')
       setShowDialog(false)
-      setForm({ subject: '', content: '', message_type: 'general', priority: 'normal', recipients: '' })
+      setForm({ subject: '', content: '', message_type: 'general', priority: 'normal', recipients: '', remind_at: '', requires_acknowledgment: false })
       void fetchMessages()
     } catch (err: any) {
       toast.error(err.message || 'Failed to send message')
@@ -139,6 +146,7 @@ export function StaffCommunicationsTab({ venueId }: Props) {
                     </div>
                     <p className="text-slate-300 text-sm mt-1 line-clamp-2">{m.content}</p>
                     <p className="text-slate-500 text-xs mt-1">{formatSafeDate(m.sent_at || m.created_at)}</p>
+                    {m.remind_at ? <p className="mt-1 flex items-center gap-1 text-xs text-amber-300"><BellRing className="h-3 w-3" />Reminder {formatSafeDate(m.remind_at)}</p> : null}
                   </div>
                 </div>
               </CardContent>
@@ -167,7 +175,7 @@ export function StaffCommunicationsTab({ venueId }: Props) {
                 <Select value={form.message_type} onValueChange={v => setForm(p => ({ ...p, message_type: v }))}>
                   <SelectTrigger className={cn(detailSurfacePattern.selectTrigger, "text-sm")}><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                    {['general','announcement','schedule','training','emergency','performance','compliance'].map(t => (
+                    {['general','announcement','update','alert','reminder'].map(t => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>
@@ -183,13 +191,23 @@ export function StaffCommunicationsTab({ venueId }: Props) {
                 </Select>
               </div>
             </div>
+            {form.message_type === 'reminder' ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="staff-remind-at" className={detailSurfacePattern.label}>Reminder date and time *</Label>
+                <Input id="staff-remind-at" type="datetime-local" value={form.remind_at} onChange={e => setForm(p => ({ ...p, remind_at: e.target.value }))} className={cn(detailSurfacePattern.input, "text-sm")} required />
+              </div>
+            ) : null}
             <div className="space-y-1.5">
               <Label className={detailSurfacePattern.label}>Message *</Label>
               <Textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Your message to the team..." className={cn(detailSurfacePattern.textarea, "min-h-[80px] text-sm")} />
             </div>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-700/60 p-3">
+              <Checkbox id="staff-message-ack" checked={form.requires_acknowledgment} onCheckedChange={value => setForm(p => ({ ...p, requires_acknowledgment: value === true }))} />
+              <Label htmlFor="staff-message-ack" className="text-sm text-slate-300">Require workers to acknowledge this message</Label>
+            </div>
             <div className="space-y-1.5">
-              <Label className={detailSurfacePattern.label}>Recipients (emails, optional)</Label>
-              <Input value={form.recipients} onChange={e => setForm(p => ({ ...p, recipients: e.target.value }))} placeholder="Leave blank for all staff, or enter emails..." className={cn(detailSurfacePattern.input, "text-sm")} />
+              <Label className={detailSurfacePattern.label}>Recipient user IDs (optional)</Label>
+              <Input value={form.recipients} onChange={e => setForm(p => ({ ...p, recipients: e.target.value }))} placeholder="Leave blank for all active staff" className={cn(detailSurfacePattern.input, "text-sm")} />
             </div>
           </div>
           <DialogFooter>

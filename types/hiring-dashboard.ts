@@ -9,9 +9,13 @@ export type HiringDashboardTab =
   | "templates"
   | "audit"
 
+export type HiringJobPostingStatus = "draft" | "published" | "paused" | "closed" | "filled" | "archived"
+
 export interface HiringDashboardProps {
   employer: HiringEntity
   initialTab?: HiringDashboardTab
+  initialCandidateId?: string | null
+  initialMemberId?: string | null
 }
 
 export interface HiringDashboardStatCard {
@@ -44,6 +48,16 @@ export interface HiringAuditActivity {
   subjectName?: string | null
   description?: string | null
   createdAt: string
+  target?: HiringActivityTarget | null
+}
+
+export type HiringActivityTargetType = "application" | "candidate" | "roster_member" | "job"
+
+export interface HiringActivityTarget {
+  type: HiringActivityTargetType
+  id: string
+  href: string
+  actionLabel: string
 }
 
 export interface HiringJobListItem {
@@ -51,10 +65,56 @@ export interface HiringJobListItem {
   title: string
   department?: string | null
   position?: string | null
-  status?: string | null
+  status?: HiringJobPostingStatus | null
   numberOfPositions?: number | null
   createdAt?: string | null
   publishedAt?: string | null
+  archivedAt?: string | null
+  filledAt?: string | null
+  eventId?: string | null
+  tourId?: string | null
+}
+
+export interface HiringJobOverviewItem extends HiringJobListItem {
+  totalApplicants: number
+  pendingApplicants: number
+  approvedApplicants: number
+  activeHires: number
+  remainingPositions: number
+  hasVacancy: boolean
+  linkedEvent?: { id: string; title: string; startAt?: string | null } | null
+  linkedTour?: { id: string; name: string; startDate?: string | null; endDate?: string | null } | null
+}
+
+export interface HiringOverviewActionCounts {
+  newApplications: number
+  onboardingAwaitingApproval: number
+  readyToAssign: number
+  openRoles: number
+}
+
+export interface HiringReadyWorker {
+  id: string
+  userId?: string | null
+  name: string
+  position?: string | null
+  department?: string | null
+}
+
+export interface HiringOverviewData {
+  actionCounts: HiringOverviewActionCounts
+  currentJobs: HiringJobOverviewItem[]
+  archivedJobs: HiringJobOverviewItem[]
+  readyToAssignWorkers: HiringReadyWorker[]
+  recentActivity: HiringAuditActivity[]
+  freshAt: string
+}
+
+export interface HiringEventCoverage {
+  eventId: string
+  totalShifts: number
+  filledShifts: number
+  openShifts: number
 }
 
 export interface HiringApplicationListItem {

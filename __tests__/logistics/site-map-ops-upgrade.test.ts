@@ -10,7 +10,7 @@ function read(path: string) {
 
 describe('Site map ops upgrade contracts', () => {
   it('keeps zone ownership migration and event zone bridge wiring', () => {
-    const migration = read('supabase/migrations/20260710140000_site_map_zone_ownership.sql')
+    const migration = read('supabase/migrations/20260908100000_reconcile_archived_logistics_foundation.sql')
     const zonesPost = read('app/api/admin/logistics/site-maps/[id]/zones/route.ts')
     const zonesPut = read('app/api/admin/logistics/site-maps/[id]/zones/[zoneId]/route.ts')
     const sync = read('lib/site-map/zone-roster-sync.ts')

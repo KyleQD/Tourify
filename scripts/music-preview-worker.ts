@@ -5,6 +5,7 @@ import { basename, join } from "node:path"
 import { promisify } from "node:util"
 import { randomUUID } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
 
 const execFileAsync = promisify(execFile)
 
@@ -218,6 +219,12 @@ async function runOnce() {
 }
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("music_preview_processing")) {
+    console.error("[music-preview-worker] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
   const loop = process.env.MUSIC_PREVIEW_WORKER_LOOP === "true"
   const intervalMs = Math.max(Number(process.env.MUSIC_PREVIEW_WORKER_INTERVAL_MS) || 15000, 1000)
 

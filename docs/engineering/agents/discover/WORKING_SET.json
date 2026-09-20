@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "agent": "discover",
+  "description": "Own search, discovery, world data, directories, news, and recommendations.",
+  "paths": [
+    "app/discover/**",
+    "app/search/**",
+    "app/news/**",
+    "app/api/search/**",
+    "components/discover/**",
+    "components/search/**",
+    "components/world/**",
+    "lib/search/**",
+    "lib/world/**",
+    "__tests__/search/**",
+    "__tests__/world/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

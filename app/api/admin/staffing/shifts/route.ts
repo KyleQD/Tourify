@@ -33,7 +33,7 @@ const createSchema = z
     notes: z.string().optional(),
     status: z.enum(["scheduled", "confirmed", "completed", "cancelled"]).optional(),
     /** When true, sync Work Mode invite and notify the worker immediately. */
-    notify: z.boolean().optional().default(false),
+    notify: z.boolean().optional().default(true),
   })
   .superRefine((value, ctx) => {
     if (!value.venue_id && !value.org_id && !(value.entity_type && value.entity_id)) {

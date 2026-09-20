@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_TREATY_LEGACY_FLAG_NAMES = [
   "creator_treaty_legacy_readiness_enabled",
   "creator_treaty_legacy_century_scale_strategy_enabled",
@@ -57,6 +59,9 @@ export async function resolveCreatorTreatyLegacyFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorTreatyLegacyFlags> {
+  if (!isLaunchCapabilityAvailable("creator_treaty_system_legacy"))
+    return { ...DISABLED_CREATOR_TREATY_LEGACY_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { checkIsAdmin } from "@/lib/auth/admin"
+import { withPlatformAdmin } from "@/lib/auth/api-auth"
 import { isEventFeatureEnabled } from "@/lib/events/providers/flags"
 
 const reviewSchema = z.object({
@@ -11,22 +10,11 @@ const reviewSchema = z.object({
   action: z.enum(["approve", "reject", "revoke"]),
 })
 
-async function requireAdmin() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-  return checkIsAdmin()
-}
-
 /** GET /api/admin/event-claims — pending claims for review. */
-export async function GET() {
+export const GET = withPlatformAdmin(async () => {
   if (!isEventFeatureEnabled("EVENT_PROVIDER_ADMIN_TOOLS")) {
     return NextResponse.json({ error: { code: "FEATURE_UNAVAILABLE" } }, { status: 503 })
   }
-  const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 })
 
   const client = createServiceRoleClient()
   const { data, error } = await client
@@ -37,17 +25,15 @@ export async function GET() {
     .limit(100)
   if (error) return NextResponse.json({ error: { code: "QUERY_FAILED" } }, { status: 500 })
   return NextResponse.json({ claims: data ?? [] })
-}
+})
 
 /** POST /api/admin/event-claims — review a claim. Approval grants
  *  ownership (artist_id for artist claims) without touching provider
  *  source URLs or checkout data. */
-export async function POST(request: NextRequest) {
+export const POST = withPlatformAdmin(async (request: NextRequest) => {
   if (!isEventFeatureEnabled("EVENT_PROVIDER_ADMIN_TOOLS")) {
     return NextResponse.json({ error: { code: "FEATURE_UNAVAILABLE" } }, { status: 503 })
   }
-  const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 })
 
   const input = reviewSchema.parse(await request.json())
   const client = createServiceRoleClient()
@@ -84,4 +70,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, status: nextStatus })
-}
+})

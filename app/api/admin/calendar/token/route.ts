@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { resolveActingAdminContext } from '@/lib/auth/admin-context'
-import { requireAdminCapability } from '@/lib/auth/admin-context'
 
-export const GET = withAuth(async (request: NextRequest, { supabase, user }) => {
-  const admin = await resolveActingAdminContext(request, { supabase, user })
-  if (admin instanceof NextResponse) return admin
-
-  const denied = requireAdminCapability(admin, 'org.settings.manage')
-  if (denied) return denied
-
+export const GET = withAdminCapability('org.settings.manage', async (request: NextRequest, { admin }) => {
   const service = createServiceRoleClient()
   const { data: org, error } = await service
     .from('organizations')
@@ -51,13 +43,7 @@ export const GET = withAuth(async (request: NextRequest, { supabase, user }) => 
   })
 })
 
-export const POST = withAuth(async (request: NextRequest, { supabase, user }) => {
-  const admin = await resolveActingAdminContext(request, { supabase, user })
-  if (admin instanceof NextResponse) return admin
-
-  const denied = requireAdminCapability(admin, 'org.settings.manage')
-  if (denied) return denied
-
+export const POST = withAdminCapability('org.settings.manage', async (request: NextRequest, { admin }) => {
   const service = createServiceRoleClient()
   const newToken = crypto.randomUUID()
 

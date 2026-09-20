@@ -132,10 +132,15 @@ export async function POST(request: NextRequest) {
 
       if (pending.reservationId) {
         try {
-          const { finalizeInventory } = await import('@/lib/ticketing/inventory')
-          await finalizeInventory({ supabase: service as any, reservationId: pending.reservationId })
-        } catch {
-          // continue
+          const { requireFinalizedInventory } = await import('@/lib/ticketing/inventory')
+          await requireFinalizedInventory({ supabase: service as any, reservationId: pending.reservationId })
+        } catch (inventoryError) {
+          console.error('[Box Office] comp inventory finalize failed:', inventoryError)
+          await service
+            .from('ticket_sales')
+            .update({ payment_status: 'failed', issuance_status: 'failed', updated_at: new Date().toISOString() })
+            .eq('id', pending.orderId)
+          return NextResponse.json({ error: 'Reserved inventory is no longer available' }, { status: 409 })
         }
       }
 

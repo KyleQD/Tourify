@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-002",
+  "title": "Worker deployment framework (release)",
+  "status": "blocked",
+  "priority": "P2",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T09:35:23.186Z",
+  "updated_at": "2026-09-16T19:24:55.947Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Own CI/deploy/observability for the worker scheduling framework and register workers with monitoring",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    ".github/workflows/",
+    "vercel.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Workers registered and monitored"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run check:cron-route-inventory"
+    ],
+    "evidence": [
+      "2026-09-09: inventory passed with 7 scheduled cron routes and 1 explicitly deferred route.",
+      "2026-09-10: runtime cron unauthorized rejection probe PASS — GET /api/cron/ticket-invite-expiry with fake identity (no Authorization, x-webhook-secret: bogus) returned 401 {\"error\":\"Unauthorized\"}; guard fails closed with CRON_SECRET unset."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T19:58:51Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Core-web launch scoping blocks production worker deployment. Scheduled advanced music work and incomplete event reminders remain disabled until the core release is stable and MUSIC-004 is re-authorized.",
+    "completed": [
+      "Added a checked inventory that requires every cron route to be scheduled or explicitly deferred."
+    ],
+    "next_steps": [
+      "Resume after RELEASE-005 core launch certification and an approved MUSIC-004 worker subset; keep event reminders disabled until delivery, replay, retry, and monitoring are complete."
+    ],
+    "blockers": [
+      "Core web production launch is not yet stable or certified.",
+      "MUSIC-004 is blocked and event-reminder delivery/replay behavior is incomplete."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T19:58:51Z",
+        "summary": "Added cron route inventory for local readiness; it passes with seven scheduled routes and event-reminders explicitly deferred.",
+        "next": "Keep worker scheduling in a separate promotion-scoped task."
+      },
+      {
+        "at": "2026-09-10T04:39:06.370Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Runtime evidence collected (read-only release probe): cron unauthorized rejection PASS (GET /api/cron/ticket-invite-expiry with fake identity -> 401 Unauthorized; guard fails closed with CRON_SECRET unset); cron inventory PASS standalone (7 scheduled, 1 deferred).",
+        "completed": [],
+        "next_steps": [
+          "Worker deployment model + monitoring remain promotion-scoped; event-reminders delivery/replay still unresolved."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-16T19:24:55.947Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Core-web launch scoping blocks production worker deployment. Scheduled advanced music work and incomplete event reminders remain disabled until the core release is stable and MUSIC-004 is re-authorized.",
+        "completed": [],
+        "next_steps": [
+          "Resume after RELEASE-005 core launch certification and an approved MUSIC-004 worker subset; keep event reminders disabled until delivery, replay, retry, and monitoring are complete."
+        ],
+        "blockers": [
+          "Core web production launch is not yet stable or certified.",
+          "MUSIC-004 is blocked and event-reminder delivery/replay behavior is incomplete."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

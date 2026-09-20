@@ -56,6 +56,8 @@ interface Message {
   content: string
   sender_id: string
   created_at: string
+  is_read?: boolean
+  read_at?: string | null
   attachments?: MessageAttachment[]
   sender: {
     id: string
@@ -203,6 +205,9 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [inboxEpoch, setInboxEpoch] = useState(0)
   const [pendingRecipient, setPendingRecipient] = useState<PendingRecipient | null>(null)
+  const [typingUserIds, setTypingUserIds] = useState<string[]>([])
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
 
   const { user, isAuthenticated, loading: authLoading } = useAuth()
   const { actingHeaders, actingAccount } = useActingContext()
@@ -214,6 +219,8 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const profileCacheRef = useRef<Map<string, ConversationProfile>>(new Map())
+  const messagesChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   const tabParam = searchParams.get('tab') as TabId | null
   const conversationParam = searchParams.get('conversation')
@@ -364,9 +371,9 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       if (profile) {
         const next: ConversationProfile = {
           id: profile.id,
-          username: profile.username,
-          full_name: profile.full_name,
-          avatar_url: profile.avatar_url,
+          username: profile.username ?? 'Unknown user',
+          full_name: profile.full_name ?? profile.username ?? 'Unknown user',
+          avatar_url: profile.avatar_url ?? undefined,
         }
         profileCacheRef.current.set(senderId, next)
         setMessages((prev) =>
@@ -385,48 +392,112 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
   useEffect(() => {
     if (!effectiveUserId || !canAccessMessages || !selectedConversation) return
 
-    const messagesChannel = supabase
-      .channel(`messages-${selectedConversation}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
+    let cancelled = false
+    const typingTimeouts = typingTimeoutsRef.current
+
+    const connect = async () => {
+      setRealtimeStatus('connecting')
+      const response = await fetch(`/api/messages/${selectedConversation}/realtime`, {
+        credentials: 'include',
+        headers: { ...actingHeaders },
+      })
+      if (!response.ok || cancelled) {
+        setRealtimeStatus('disconnected')
+        return
+      }
+
+      const { channel: topic } = await response.json() as { channel: string }
+      const messagesChannel = supabase
+        .channel(topic, { config: { presence: { key: effectiveUserId } } })
+        .on('postgres_changes', {
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${selectedConversation}`,
-        },
-        (payload) => {
+        }, (payload) => {
           const incoming = payload.new as any
-          if (incoming.sender_id === effectiveUserId) return
-
-          const cached = profileCacheRef.current.get(incoming.sender_id)
-          const senderShell: ConversationProfile = cached || {
-            id: incoming.sender_id,
-            username: 'Loading...',
-            full_name: 'Loading...',
-            avatar_url: '',
+          if (payload.eventType === 'INSERT') {
+            const cached = profileCacheRef.current.get(incoming.sender_id)
+            const senderShell: ConversationProfile = cached || {
+              id: incoming.sender_id,
+              username: 'Loading...',
+              full_name: 'Loading...',
+              avatar_url: '',
+            }
+            setMessages((prev) => {
+              if (prev.some((message) => message.id === incoming.id)) return prev
+              return [...prev, { ...incoming, sender: senderShell }]
+            })
+            if (incoming.sender_id !== effectiveUserId && !cached) void fetchSenderDetails(incoming.sender_id)
+            if (incoming.sender_id !== effectiveUserId) {
+              void fetch(`/api/messages/${selectedConversation}/realtime`, {
+                method: 'POST', credentials: 'include', headers: { ...actingHeaders },
+              })
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages((prev) => prev.map((message) =>
+              message.id === incoming.id ? { ...message, ...incoming } : message,
+            ))
           }
+        })
+        .on('broadcast', { event: 'typing' }, ({ payload }) => {
+          const senderId = String(payload?.userId || '')
+          if (!senderId || senderId === effectiveUserId) return
+          setTypingUserIds((prev) => prev.includes(senderId) ? prev : [...prev, senderId])
+          const existing = typingTimeouts.get(senderId)
+          if (existing) clearTimeout(existing)
+          typingTimeouts.set(senderId, setTimeout(() => {
+            setTypingUserIds((prev) => prev.filter((id) => id !== senderId))
+            typingTimeouts.delete(senderId)
+          }, 1800))
+        })
+        .on('presence', { event: 'sync' }, () => {
+          const state = messagesChannel.presenceState<{ userId?: string }>()
+          setOnlineUserIds(Object.keys(state).filter((id) => id !== effectiveUserId))
+        })
+        .on('presence', { event: 'join' }, ({ key }) => {
+          if (key !== effectiveUserId) setOnlineUserIds((prev) => [...new Set([...prev, key])])
+        })
+        .on('presence', { event: 'leave' }, ({ key }) => {
+          setOnlineUserIds((prev) => prev.filter((id) => id !== key))
+        })
 
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: incoming.id,
-              content: incoming.content,
-              sender_id: incoming.sender_id,
-              created_at: incoming.created_at,
-              sender: senderShell,
-            },
-          ])
+      messagesChannelRef.current = messagesChannel
+      messagesChannel.subscribe(async (subscriptionStatus) => {
+        if (subscriptionStatus === 'SUBSCRIBED') {
+          setRealtimeStatus('connected')
+          await messagesChannel.track({ userId: effectiveUserId, onlineAt: new Date().toISOString() })
+        } else if (subscriptionStatus === 'CHANNEL_ERROR' || subscriptionStatus === 'TIMED_OUT') {
+          setRealtimeStatus('disconnected')
+        }
+      })
+    }
 
-          if (!cached) void fetchSenderDetails(incoming.sender_id)
-        },
-      )
-      .subscribe()
+    void connect().catch((error) => {
+      console.error('Messaging realtime connection error:', error)
+      setRealtimeStatus('disconnected')
+    })
 
     return () => {
-      void supabase.removeChannel(messagesChannel)
+      cancelled = true
+      typingTimeouts.forEach((timeout) => clearTimeout(timeout))
+      typingTimeouts.clear()
+      setTypingUserIds([])
+      setOnlineUserIds([])
+      setRealtimeStatus('disconnected')
+      if (messagesChannelRef.current) {
+        void supabase.removeChannel(messagesChannelRef.current)
+        messagesChannelRef.current = null
+      }
     }
-  }, [effectiveUserId, canAccessMessages, selectedConversation, fetchSenderDetails])
+  }, [effectiveUserId, canAccessMessages, selectedConversation, fetchSenderDetails, actingHeaders])
+
+  useEffect(() => {
+    if (!selectedConversation || !canAccessMessages) return
+    void fetch(`/api/messages/${selectedConversation}/realtime`, {
+      method: 'POST', credentials: 'include', headers: { ...actingHeaders },
+    }).then(() => undefined).catch(() => undefined)
+  }, [selectedConversation, canAccessMessages, actingHeaders])
 
   useEffect(() => {
     if (!effectiveUserId || !canAccessMessages) return
@@ -707,6 +778,15 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       void sendMessage()
     }
   }
+
+  const broadcastTyping = useCallback((typing: boolean) => {
+    if (!messagesChannelRef.current || !effectiveUserId) return
+    void messagesChannelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: effectiveUserId, typing },
+    })
+  }, [effectiveUserId])
 
   const getOtherParticipant = useCallback(
     (conversation: Conversation): ConversationProfile | undefined => {
@@ -1234,6 +1314,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                                   )}
                                   <p className="text-xs text-gray-400 mt-1 text-right">
                                     {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                                    {isOwnMessage && message.read_at ? ' · Seen' : ''}
                                   </p>
                                 </div>
                               </div>
@@ -1245,6 +1326,13 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                     </div>
                   )}
                 </ScrollArea>
+
+                <div className="flex items-center justify-between px-4 pb-1 text-xs text-slate-400">
+                  <span aria-live="polite">
+                    {typingUserIds.length > 0 ? 'Someone is typing…' : onlineUserIds.length > 0 ? 'Active now' : ''}
+                  </span>
+                  <span>{realtimeStatus === 'connected' ? 'Live' : realtimeStatus === 'connecting' ? 'Connecting…' : 'Offline'}</span>
+                </div>
 
                 {/* Banners + Composer */}
                 <div className="p-4 border-t border-slate-700/60 space-y-3">
@@ -1318,7 +1406,10 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                     />
                     <Textarea
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value)
+                        broadcastTyping(Boolean(e.target.value.trim()))
+                      }}
                       onKeyDown={handleKeyPress}
                       placeholder={composerPlaceholder}
                       className="flex-1 bg-slate-800 border-slate-600 text-white placeholder-gray-400 resize-none"

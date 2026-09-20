@@ -184,6 +184,36 @@ export async function DELETE(
         orgId: admin.orgId,
       })
 
+      // Atomic path: single-transaction cascade via RPC (AUDIT H6). Falls
+      // back to the legacy sequential deletes with a loud warning when the
+      // RPC has not been provisioned yet.
+      try {
+        const { error: rpcError } = await supabase.rpc('delete_tour_cascade', {
+          p_tour_id: id,
+        })
+        if (!rpcError) {
+          return NextResponse.json({
+            success: true,
+            message: 'Tour deleted successfully',
+            atomic: true,
+          })
+        }
+        if (rpcError.message === 'tour_not_found') {
+          return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
+        }
+        const isMissingRpc =
+          rpcError.code === '42883' ||
+          rpcError.code === 'PGRST202' ||
+          /could not find the function/i.test(rpcError.message || '')
+        if (!isMissingRpc) {
+          console.error('[Tour API] atomic cascade failed:', rpcError)
+          return NextResponse.json({ error: 'Failed to delete tour' }, { status: 500 })
+        }
+        console.warn('[Tour API] delete_tour_cascade not provisioned — using legacy non-atomic deletes')
+      } catch (rpcThrow) {
+        console.warn('[Tour API] RPC invocation threw — falling back to legacy path:', rpcThrow)
+      }
+
       const { error: linksDeleteError } = await supabase
         .from('tour_events')
         .delete()

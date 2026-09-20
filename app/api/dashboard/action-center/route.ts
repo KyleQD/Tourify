@@ -142,7 +142,7 @@ export async function GET() {
             ? "Review invitations and open your active Work Mode assignment."
             : "Accepted shifts and assignments will appear here."
           : "Assignments are temporarily unavailable.",
-      href: "/work/today",
+      href: "/work/overview",
       count: assignments.count,
       state: assignments.state,
       priority: assignments.count ? "now" : "complete",

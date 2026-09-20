@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "a043d35d4304cc8181078a17e2138c1f47baf199",
+  "purpose": "Preserve applied or branch-checkpointed migration history byte-for-byte while prospectively enforcing safer constraint patterns. Entries with sourceCommit identify a checkpoint from the reconciled branch that postdates baselineCommit.",
+  "migrations": [
+    {
+      "file": "supabase/migrations/20250120000000_extend_artist_jobs_for_collaborations.sql",
+      "sha256": "430475993716e420a224031383a25092f8e0f1e7bdadbacc80f8648882324606"
+    },
+    {
+      "file": "supabase/migrations/20250818122000_logistics_tasks_align.sql",
+      "sha256": "0db21dca5c2de0777c6fac928b13856e7178c1ad6919bb81ab20f9725834b4b1"
+    },
+    {
+      "file": "supabase/migrations/20260701021033_job_application_profile_snapshot.sql",
+      "sha256": "f94846e9c2056d5a50889e0d480e554e3cbed69a177f459c9d239b4248031cd3"
+    },
+    {
+      "file": "supabase/migrations/20260701032519_hiring_onboarding_candidate_links.sql",
+      "sha256": "906fbecffa65a05bc2a9279b725438eb5d785e588757522a16df76c6a9422d31"
+    },
+    {
+      "file": "supabase/migrations/20260701033141_template_parent_lineage.sql",
+      "sha256": "7bd50e5c361b4bec110f6fcaf17d7c6b22c8a49d59991c501f1d2cba1d293026"
+    },
+    {
+      "file": "supabase/migrations/20260709213620_staff_onboarding_candidates_submitted_status.sql",
+      "sha256": "ad9e1dbc4f3ac0ff5d1fc92ecdb30983567a4b06618e5df5d5957083dd0e3a3e"
+    },
+    {
+      "file": "supabase/migrations/20260710013545_staff_onboarding_candidates_needs_revision.sql",
+      "sha256": "0e05d8789268348c54cb4e14697ed0c55f447a86e83b214dfe496c89851280f8"
+    },
+    {
+      "file": "supabase/migrations/20260710125120_fix_tour_events_event_fk_to_events_v2.sql",
+      "sha256": "13f0cf0e87b28dae664b333752df5b8f512c2b9710bc5fefb94bf6ac1b1b1f8f"
+    },
+    {
+      "file": "supabase/migrations/20260711024815_artist_event_producer.sql",
+      "sha256": "0a7bd49aaddace9c0b512e1da25a320482748656ab560b8a15f69cde5af57b03"
+    },
+    {
+      "file": "supabase/migrations/20260817224511_repair_booking_request_recipient_constraint.sql",
+      "sha256": "9a8636fea1ff3fe97c8cae93915cba88c7be49a5a990379831ce43b8d75fa5d2"
+    },
+    {
+      "file": "supabase/migrations/20260819205907_connected_worker_work_hub.sql",
+      "sha256": "73cf7e1cfd4e69d493381aa8cf083cfc30790fc164e50b6caf4f029855019255"
+    },
+    {
+      "file": "supabase/migrations/20260823220000_site_map_bridge.sql",
+      "sha256": "234775ec34220c8e3663158e70656e2f4f2400ba626433d20005a3ed5814b07e",
+      "sourceCommit": "ae6b4574c2e395197b273a825b99611a3f8d88cf"
+    }
+  ]
+}

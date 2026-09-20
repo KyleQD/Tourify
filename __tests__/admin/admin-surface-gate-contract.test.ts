@@ -21,6 +21,7 @@ describe("admin surface gate membership-only contract", () => {
 
   it("queries org_members with admin-capable roles", () => {
     expect(src).toMatch(/from\('org_members'\)[\s\S]*?in\('role', \['owner', 'admin', 'tour_manager', 'production'\]\)/)
+    expect(src).toMatch(/from\('org_members'\)[\s\S]*?eq\('status', 'active'\)/)
   })
 
   it("grants super to direct organization creators (owner invariant)", () => {

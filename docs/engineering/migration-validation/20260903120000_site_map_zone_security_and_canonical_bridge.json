@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260903120000_site_map_zone_security_and_canonical_bridge.sql",
+  "taskId": "SEC-104-SITE-MAP-ZONES",
+  "status": "planned",
+  "owner": "ops-logistics",
+  "reviewer": "security-data",
+  "domains": ["admin", "events", "logistics", "site-maps", "staffing", "rls", "rpc"],
+  "riskLevel": "critical",
+  "representativeSnapshot": {
+    "kind": "Fresh dedicated Supabase project plus a legacy-data fixture containing two organizations, ambiguous event links, duplicate zone bridges, invalid leads, unsupported scopes, and invalid counts",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count site_maps by event_id foreign-key target, event_v2_id, legacy_event_id, tour_id, and resolved organization",
+      "Count site_map_zones by site map, candidate event-zone identity, lead membership validity, bounds validity, and duplicate bridge",
+      "Count staff_zones by event, venue, organization, supervisor validity, count validity, supported scope, and duplicate bridge",
+      "Count pre-existing event_zones by canonical scope, source metadata, duplicate identity, invalid status, invalid category, and invalid counts"
+    ],
+    "expectedAffectedRows": "Every resolvable site-map and staff-zone bridge is linked deterministically; unsafe or ambiguous rows remain preserved and are recorded in private.site_map_zone_migration_issues; no tenant identity is guessed",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 1000,
+    "resumeStrategy": "Reapply the idempotent migration in an isolated environment, inspect the private review queue, and use an additive forward migration for any failure after the migration version is recorded",
+    "resumeCursor": "Supabase migration version 20260903120000 plus the primary keys recorded in private.site_map_zone_migration_issues",
+    "idempotency": "DDL uses IF NOT EXISTS or deterministic drop/recreate operations; bridge inserts reuse source UUIDs with conflict handling; reconciliation updates are predicate-scoped"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "private.site_map_zone_migration_issues",
+    "strategy": "Preserve unresolved and invalid source rows, fail closed for authorization, detach invalid optional actors or bridges where required, and record exact source identifiers and issue codes for reviewed recovery"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "site_maps_event_v2_id_fkey NOT VALID",
+      "event_zones_event_id_fkey NOT VALID",
+      "event_zones_tour_id_fkey NOT VALID",
+      "event_zones_venue_id_fkey NOT VALID",
+      "event_zones_adhoc_venue_id_fkey NOT VALID",
+      "event_zones_scope_check NOT VALID",
+      "event_zones_category_check NOT VALID",
+      "event_zones_status_check NOT VALID",
+      "event_zones_counts_check NOT VALID",
+      "event_zones_metadata_check NOT VALID",
+      "site_map_zones_event_zone_id_fkey NOT VALID then validated after reconciliation",
+      "site_map_zones_lead_user_id_fkey NOT VALID then validated after invalid leads are detached",
+      "site_map_zones_sec104_bounds_check NOT VALID",
+      "site_map_zones_sec104_payload_check NOT VALID",
+      "staff_zones_org_id_fkey NOT VALID then validated after reconciliation",
+      "staff_zones_event_zone_id_fkey NOT VALID then validated after reconciliation",
+      "staff_zones_sec104_scope_check NOT VALID",
+      "staff_zones_sec104_counts_check NOT VALID"
+    ],
+    "indexes": [
+      "idx_site_maps_event_v2_id",
+      "idx_event_zones_org_event",
+      "idx_event_zones_org_tour",
+      "idx_event_zones_event",
+      "idx_event_zones_tour",
+      "idx_event_zones_venue",
+      "idx_event_zones_adhoc_venue",
+      "idx_event_zones_supervisor",
+      "idx_site_map_zones_lead_user_id",
+      "idx_site_map_zones_assigned_department",
+      "site_map_zones_event_zone_unique",
+      "idx_site_map_zones_event_zone_id",
+      "staff_zones_event_zone_unique",
+      "idx_staff_zones_org_event",
+      "idx_staff_zones_event_zone_id"
+    ],
+    "validationPlan": "Apply to a fresh database and the representative legacy snapshot; inventory all NOT VALID constraint violations before validation; compare source, canonical, bridge, duplicate, orphan, and quarantine counts; test policies and security-definer routines as Org A, Org B, revoked, unauthenticated, and service-role actors"
+  },
+  "recovery": {
+    "rollback": "Disable the Admin zone mutation surfaces and canonical bridge consumers, retain source and review-queue rows, and restore behavior only through a reviewed additive migration; never rewrite an applied migration or reset a persistent database",
+    "forwardFix": "Add corrected functions, policies, constraints, or reconciliation statements in a later migration, replay only rows identified by the review queue, and repeat the full two-organization and row-count matrix"
+  },
+  "postflight": {
+    "queries": [
+      "Compare site_maps, site_map_zones, staff_zones, event_zones, and review-queue row counts before and after migration and idempotent replay",
+      "Report duplicate, orphaned, missing, and scope-mismatched event-zone bridges by source table and organization",
+      "Inspect RLS enablement, policies, grants, ownership, search_path, volatility, and security mode for every touched table and function",
+      "Run direct PostgREST table and RPC tests for same-organization access, Org B denial, forged actor or organization input, revocation, stale session, and unauthenticated access",
+      "Verify forced mid-command failure does not leave a source zone and canonical event-zone out of sync"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

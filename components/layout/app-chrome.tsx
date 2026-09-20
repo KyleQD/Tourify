@@ -30,15 +30,25 @@ export function AppChrome({ children }: AppChromeProps) {
   const pathname = usePathname() || ''
   const { hideRootNav, hidePlayer, isAdminRoute, isVenueRoute } =
     getAppChromeVisibility(pathname)
+  const showMobileAppNav = !hideRootNav && !isAdminRoute && pathname !== '/'
+  const contentClassName = `min-w-0 flex-1 ${
+    isAdminRoute || isVenueRoute
+      ? ''
+      : showMobileAppNav
+        ? 'pb-[calc(var(--player-height,0px)+4rem+env(safe-area-inset-bottom))] md:pb-[var(--player-height,0px)]'
+        : 'pb-[var(--player-height,0px)]'
+  }`
 
   return (
     <JukeboxProvider>
       <AchievementUnlockProvider>
         <div className="flex min-h-screen w-full min-w-0 flex-col overflow-x-clip">
           {!hideRootNav ? <Nav /> : null}
-          <main className={`min-w-0 flex-1 ${isAdminRoute || isVenueRoute ? '' : 'pb-[var(--player-height,0px)]'}`}>
-            {children}
-          </main>
+          {pathname === '/' ? (
+            <div className={contentClassName}>{children}</div>
+          ) : (
+            <main className={contentClassName}>{children}</main>
+          )}
           {!hidePlayer ? (
             <>
               <PersistentPlayerBar />

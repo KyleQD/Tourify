@@ -158,6 +158,38 @@ describe('Admin acting context selection', () => {
     })
   })
 
+  it('rejects a cross-tenant acting-org assertion even for an authorized profile', async () => {
+    const result = await resolveActingAdminContext(
+      new NextRequest('http://localhost/api/admin/tours', {
+        headers: {
+          'x-acting-profile-id': 'profile-a',
+          'x-acting-account-type': 'organization',
+          'x-acting-org-id': 'org-b',
+        },
+      }),
+      {
+        user: { id: 'user-a' },
+        supabase: mockSupabase({
+          organizer_accounts: {
+            data: { id: 'profile-a', user_id: 'user-a', ops_org_id: 'org-a', is_active: true },
+            error: null,
+          },
+          org_members: {
+            data: { org_id: 'org-a', role: 'owner', status: 'active', permissions: [] },
+            error: null,
+          },
+          org_role_permissions: { data: { perms: [] }, error: null },
+        }),
+      },
+    )
+
+    expect(result).toBeInstanceOf(NextResponse)
+    expect((result as NextResponse).status).toBe(403)
+    await expect((result as NextResponse).json()).resolves.toMatchObject({
+      code: 'acting_context_mismatch',
+    })
+  })
+
   it('builds org-scoped cache keys for switch invalidation (SEC-101)', () => {
     expect(actingAdminCacheKey({ orgId: 'org-a', profileId: 'profile-a' })).toBe(
       'admin-org:org-a:profile:profile-a',

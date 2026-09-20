@@ -1,4 +1,5 @@
 import type { HiringEntity } from "@/types/hiring-entity"
+import type { JobAssignmentScope } from "@/lib/hiring/job-seat-permissions"
 
 export type ApplicationFormFieldType =
   | "text"
@@ -12,7 +13,7 @@ export type ApplicationFormFieldType =
   | "checkbox"
   | "number"
 
-export type JobPostingStatus = "draft" | "published" | "closed" | "archived"
+export type JobPostingStatus = "draft" | "published" | "paused" | "closed" | "filled" | "archived"
 
 export type JobEmploymentType = "full_time" | "part_time" | "contractor" | "volunteer" | "intern"
 
@@ -73,6 +74,9 @@ export interface JobPostingFormValues {
   required_certifications: string[]
   application_form_template: ApplicationFormTemplateDefinition
   onboarding_template_id?: string | null
+  assignment_scope?: JobAssignmentScope
+  seat_role?: string | null
+  seat_permissions?: string[]
   event_id?: string | null
   tour_id?: string | null
   event_date?: string | null

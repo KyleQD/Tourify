@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0",
+  "id": "USER-005",
+  "title": "Authentication and account lifecycle launch readiness",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "general-user",
+  "created_at": "2026-09-16T19:20:38.952Z",
+  "updated_at": "2026-09-19T02:37:54.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Make the complete production account lifecycle correct, tenant-safe, and verified in isolated staging",
+  "scope": {
+    "in": [
+      "Signup, verification, login, logout, reset, onboarding, persona switching, sessions, redirect allowlists, and account deletion",
+      "Cross-persona and cross-tenant authorization and privacy-retention behavior"
+    ],
+    "out": ["Unified settings rewrite owned by USER-003"]
+  },
+  "working_set": [
+    "app/auth",
+    "app/api/auth",
+    "app/api/account/delete/route.ts",
+    "app/api/settings/certifications/upload/route.ts",
+    "lib/auth",
+    "__tests__/auth"
+  ],
+  "references": ["docs/DEVELOPMENT_WORKFLOW.md", "docs/DEPLOYMENT_ROUTINE.md"],
+  "acceptance_criteria": [
+    "Every account lifecycle flow passes in isolated staging",
+    "Cross-persona and cross-tenant access attempts fail at the server data boundary",
+    "Redirects, sessions, reset tokens, deletion, and retention behavior match the approved security and privacy contracts"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npm run test:signup-verify-db",
+      "npx vitest run __tests__/auth",
+      "npm run verify:feature",
+      "Focused auth/privacy suites: 17 files, 76 tests passed",
+      "npx vitest run __tests__/auth: 9 files, 36 tests passed",
+      "npx vitest run __tests__/auth/account-delete-route.test.ts: 1 file, 11 tests passed",
+      "npx eslint app/api/account/delete/route.ts __tests__/auth/account-delete-route.test.ts: passed",
+      "npx tsc -p /tmp/tsconfig.user005-storage.json --pretty false: blocked by pre-existing lib/auth/admin-context.ts organization identity type error"
+    ],
+    "evidence": [
+      "Production-readiness audit selected authentication, onboarding, personas, profiles, sessions, reset, and account deletion as core launch journeys requiring deployed certification.",
+      "Local implementation and focused tests only; no hosted staging claim",
+      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
+      "Private-docs deletion now explicitly enumerates both <user-id>/ and staff-credentials/<user-id>/ while retaining the historical profile-images certification prefix. Elevated Storage operations construct paths only from the authenticated UUID plus validated one-segment list results, re-listing from offset zero in 1,000-object batches until each prefix is empty.",
+      "Focused tests prove more-than-1,000-object completion, later-batch list failure with auth deletion withheld, remainder-only retry, no-progress loop protection, current and legacy user-bound discovery, cross-user exclusion, unsafe-name fail-closed behavior, partial-failure reporting, and credential-free responses. No hosted Storage access or mutation was performed.",
+      "Official Supabase Storage documentation reviewed 2026-09-18: remove accepts explicit same-bucket paths; server-side service/secret keys bypass RLS and must never be exposed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-19T02:37:54.000Z",
+    "result": "fail"
+  },
+  "progress": {
+    "summary": "Closed the local private-docs certification erasure and pagination gap: account deletion drains every exact-user prefix in service-sized batches, rejects unsafe or repeated results, withholds auth deletion after any later-batch failure, and remains retry-safe after partial Storage progress. Focused tests, lint, and formatting pass; scoped TypeScript remains blocked by a pre-existing admin-context identity mismatch. Hosted staging lifecycle evidence remains blocked.",
+    "completed": [
+      "Canonical redirect and configured-origin enforcement",
+      "Verified session and persona switching authorization",
+      "Account deletion authorization, cleanup, and retention mapping",
+      "Exact-user private-docs and certification-object deletion with multi-batch, no-progress, and fail-closed retry coverage"
+    ],
+    "next_steps": [
+      "Run isolated staging lifecycle and cross-tenant negative authorization certification",
+      "Certify the two private-docs deletion prefixes against isolated staging Storage without exposing elevated credentials",
+      "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+    ],
+    "blockers": [
+      "Full repository typecheck did not complete within bounded window",
+      "Scoped TypeScript is blocked by the pre-existing lib/auth/admin-context.ts OrganizationProfileRow/OrganizerAccountIdentityRow mismatch",
+      "No isolated staging credentials or deployed lifecycle evidence"
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T04:41:34.665Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented account lifecycle hardening: same-site configured-origin redirects, verified auth session, server-side persona membership checks, authenticated deletion cleanup, and corrected erasure-map evidence. Focused auth/privacy suites passed (17 files, 76 tests); hosted staging and MFA evidence remain outstanding.",
+        "completed": [
+          "Canonical redirect and configured-origin enforcement",
+          "Verified session and persona switching authorization",
+          "Account deletion authorization, cleanup, and retention mapping"
+        ],
+        "next_steps": [
+          "Run isolated staging lifecycle and cross-tenant negative authorization certification",
+          "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+        ],
+        "blockers": [
+          "No isolated staging credentials or deployed lifecycle evidence",
+          "MFA schema and persistent verification remain owned by INTG-003/DB-008"
+        ]
+      },
+      {
+        "at": "2026-09-18T04:52:32.161Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Focused shared-worktree verification passed: npx vitest run __tests__/auth (9 files, 36 tests). Full typecheck was bounded and interrupted after no diagnostics; staging lifecycle and deployed negative-authorization evidence remain blocked.",
+        "completed": [],
+        "next_steps": [
+          "Run isolated staging lifecycle and cross-tenant negative authorization certification",
+          "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+        ],
+        "blockers": [
+          "Full repository typecheck did not complete within bounded window",
+          "No isolated staging credentials or deployed lifecycle evidence"
+        ]
+      },
+      {
+        "at": "2026-09-19T01:20:24.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the bounded USER-005 Storage deletion gap. The elevated server cleanup now discovers <user-id>/ and staff-credentials/<user-id>/ in private-docs, retains the historical profile-images certification prefix, validates exact UUID-derived prefixes and one-segment listed names, and withholds auth deletion after any list/remove/validation failure so retries remain safe. Focused Vitest passed 1 file / 8 tests and focused ESLint passed; scoped TypeScript is blocked by a pre-existing admin-context identity type error. No hosted access or mutation occurred.",
+        "completed": [
+          "Current private-docs direct-user and certification prefix coverage",
+          "Cross-user exclusion and unsafe-list-result fail-closed coverage",
+          "Partial failure reporting and idempotent retry coverage",
+          "Server-only elevated Storage credential boundary verification"
+        ],
+        "next_steps": [
+          "Run isolated staging lifecycle and cross-tenant negative authorization certification",
+          "Certify deletion of both private-docs prefixes against isolated staging Storage",
+          "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+        ],
+        "blockers": [
+          "No isolated staging credentials or deployed lifecycle evidence",
+          "Scoped TypeScript is blocked by the pre-existing lib/auth/admin-context.ts OrganizationProfileRow/OrganizerAccountIdentityRow mismatch"
+        ]
+      },
+      {
+        "at": "2026-09-19T02:37:54.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Corrected the account-deletion Storage pagination gap found during integration review. Each exact authenticated-user prefix is now repeatedly listed from offset zero at the service's 1,000-object maximum, each successful batch is removed before re-listing, and auth deletion occurs only after an empty result. Later list/validation/remove errors, repeated removed paths, and the bounded batch ceiling fail closed; retries safely process only remaining objects. Focused Vitest passed 1 file / 11 tests, including 1,005 objects, later-page failure plus completion retry, no-progress protection, prefix safety, partial failure, and credential-free responses. ESLint and Prettier checks passed. No hosted or schema action occurred.",
+        "completed": [
+          "Multi-batch exact-prefix Storage deletion beyond 1,000 objects",
+          "Later-batch fail-closed behavior and remainder-only retry",
+          "No-progress and bounded-loop protection before auth deletion"
+        ],
+        "next_steps": [
+          "Run isolated staging lifecycle and cross-tenant negative authorization certification",
+          "Certify multi-batch deletion of both private-docs prefixes against isolated staging Storage",
+          "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+        ],
+        "blockers": [
+          "No isolated staging credentials or deployed lifecycle evidence",
+          "Scoped TypeScript is blocked by the pre-existing lib/auth/admin-context.ts OrganizationProfileRow/OrganizerAccountIdentityRow mismatch"
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide account-lifecycle, two-prefix private-docs deletion, partial-failure retry, and negative-authorization fixtures plus staging evidence to QA-003. Coordinate persistent MFA storage with INTG-003 and DB-008."
+  ]
+}

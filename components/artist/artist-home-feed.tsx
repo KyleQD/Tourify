@@ -49,6 +49,40 @@ function buildNoStoreInit(input?: RequestInit): RequestInit {
   }
 }
 
+interface ArtistFeedStats {
+  followers: number
+  postCount: number
+  engagementTotal: number
+  engagementRate: number
+  profileId?: string
+}
+
+/** Loads the artist home feed analytics from the scoped feed-stats route. */
+async function fetchFeedStats(profileId: string): Promise<ArtistFeedStats | null> {
+  try {
+    const response = await fetch(
+      `/api/artist/feed-stats?profile_id=${encodeURIComponent(profileId)}`,
+      buildNoStoreInit()
+    )
+    if (!response.ok) return null
+    const result = await response.json()
+    return result?.success && result?.data ? (result.data as ArtistFeedStats) : null
+  } catch {
+    return null
+  }
+}
+
+async function fetchPendingCollaborationCount(): Promise<number> {
+  try {
+    const response = await fetch('/api/feed/collaborations/pending', buildNoStoreInit())
+    if (!response.ok) return 0
+    const result = await response.json()
+    return Array.isArray(result?.data) ? result.data.length : 0
+  } catch {
+    return 0
+  }
+}
+
 type RawMediaItem = string | {
   url?: string
   type?: string
@@ -118,12 +152,16 @@ function toArtistFeedPost(post: any, likedPostIds: Set<string>): ArtistFeedPost 
   }
 }
 
-function ArtistHomeFeedStream() {
+type ArtistHomeFeedFilter = 'home' | 'tagged'
+
+function ArtistHomeFeedStream({ filter = 'home' }: { filter?: ArtistHomeFeedFilter }) {
   const { user } = useAuth()
   const { profile: artistProfile, displayName } = useArtist()
   const { flags } = usePostStyleFlags()
   const [posts, setPosts] = useState<ArtistFeedPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [feedStats, setFeedStats] = useState<ArtistFeedStats | null>(null)
+  const [pendingCollaborations, setPendingCollaborations] = useState(0)
   const feedTopRef = useRef<HTMLDivElement>(null)
 
   const transformPosts = useCallback(async (feedPosts: any[]): Promise<ArtistFeedPost[]> => {
@@ -145,7 +183,8 @@ function ArtistHomeFeedStream() {
 
     setIsLoading(true)
     try {
-      const params = new URLSearchParams({ type: 'home', limit: '40' })
+      const feedType = filter === 'home' ? 'home' : 'tagged'
+      const params = new URLSearchParams({ type: feedType, limit: '40' })
       if (artistProfile?.id) params.set('profile_id', artistProfile.id)
 
       const response = await fetch(`/api/feed/posts?${params}`, buildNoStoreInit())
@@ -160,12 +199,16 @@ function ArtistHomeFeedStream() {
     } finally {
       setIsLoading(false)
     }
-  }, [user?.id, artistProfile?.id, transformPosts])
+  }, [user?.id, artistProfile?.id, transformPosts, filter])
 
   useEffect(() => {
     if (!user) return
     fetchPosts()
-  }, [user, fetchPosts])
+    if (artistProfile?.id) {
+      void fetchFeedStats(artistProfile.id).then((stats) => setFeedStats(stats))
+    }
+    void fetchPendingCollaborationCount().then(setPendingCollaborations)
+  }, [user, fetchPosts, artistProfile?.id])
 
   function handlePostCreated(newPost: any) {
     const transformed = toArtistFeedPost(newPost, new Set())
@@ -316,6 +359,38 @@ function ArtistHomeFeedStream() {
             }}
           />
         </motion.div>
+
+        {pendingCollaborations > 0 ? (
+          <div className={cn(ARTIST_CARD, 'flex flex-wrap items-center justify-between gap-3 p-4')}>
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <MessageCircle className="h-4 w-4 text-purple-300" />
+              <span>
+                {pendingCollaborations} pending collaboration invite
+                {pendingCollaborations === 1 ? '' : 's'}
+              </span>
+            </div>
+            <Button size="sm" variant="outline" className={ARTIST_OUTLINE_BTN} asChild>
+              <Link href="/artist/content">Review in Content Hub</Link>
+            </Button>
+          </div>
+        ) : null}
+
+        {feedStats ? (
+          <div className={cn(ARTIST_CARD, 'grid grid-cols-3 gap-3 p-4')}>
+            <div>
+              <p className={cn(ARTIST_MUTED, 'text-xs')}>Posts</p>
+              <p className="mt-0.5 text-lg font-semibold text-white">{feedStats.postCount}</p>
+            </div>
+            <div>
+              <p className={cn(ARTIST_MUTED, 'text-xs')}>Followers</p>
+              <p className="mt-0.5 text-lg font-semibold text-white">{feedStats.followers}</p>
+            </div>
+            <div>
+              <p className={cn(ARTIST_MUTED, 'text-xs')}>Engagement rate</p>
+              <p className="mt-0.5 text-lg font-semibold text-white">{feedStats.engagementRate}%</p>
+            </div>
+          </div>
+        ) : null}
 
         <div ref={feedTopRef} className="space-y-4">
           {isLoading ? (

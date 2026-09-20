@@ -11,6 +11,7 @@ const MANAGED = [
   "EVENT_PROVIDER_TICKETMASTER",
   "EVENT_PROVIDER_BANDSINTOWN",
   "EVENT_PROVIDER_BANDSINTOWN_PARTNER_MODE",
+  "BANDSINTOWN_MODE",
   "TICKETMASTER_API_KEY",
   "BANDSINTOWN_APP_ID",
 ] as const
@@ -26,20 +27,21 @@ describe("event feature flags", () => {
     expect(getBandsintownMode()).toBe("disabled")
   })
 
-  it("accepts 1/true/on (case-insensitive)", () => {
+  it("keeps launch-disabled provider flags closed despite legacy approval", () => {
     process.env.EVENT_PROVIDER_TICKETMASTER = "TRUE"
-    expect(isEventFeatureEnabled("EVENT_PROVIDER_TICKETMASTER")).toBe(true)
+    expect(isEventFeatureEnabled("EVENT_PROVIDER_TICKETMASTER")).toBe(false)
     process.env.EVENT_PROVIDER_TICKETMASTER = "on"
-    expect(isEventFeatureEnabled("EVENT_PROVIDER_TICKETMASTER")).toBe(true)
+    expect(isEventFeatureEnabled("EVENT_PROVIDER_TICKETMASTER")).toBe(false)
     process.env.EVENT_PROVIDER_TICKETMASTER = "yes"
     expect(isEventFeatureEnabled("EVENT_PROVIDER_TICKETMASTER")).toBe(false)
   })
 
-  it("partner mode requires both bandsintown flags", () => {
+  it("keeps Bandsintown disabled despite flags or an explicit mode", () => {
     process.env.EVENT_PROVIDER_BANDSINTOWN = "true"
-    expect(getBandsintownMode()).toBe("artist_owned_key")
+    expect(getBandsintownMode()).toBe("disabled")
     process.env.EVENT_PROVIDER_BANDSINTOWN_PARTNER_MODE = "true"
-    expect(getBandsintownMode()).toBe("partner")
+    process.env.BANDSINTOWN_MODE = "partner"
+    expect(getBandsintownMode()).toBe("disabled")
   })
 
   it("bandsintown stays disabled when base flag is off even if partner flag set", () => {
@@ -53,11 +55,9 @@ describe("validateProviderConfig", () => {
     expect(validateProviderConfig()).toEqual([])
   })
 
-  it("flags missing Ticketmaster key when enabled", () => {
+  it("does not treat a legacy Ticketmaster flag as launch approval", () => {
     process.env.EVENT_PROVIDER_TICKETMASTER = "true"
-    const issues = validateProviderConfig()
-    expect(issues).toHaveLength(1)
-    expect(issues[0].variable).toBe("TICKETMASTER_API_KEY")
+    expect(validateProviderConfig()).toEqual([])
   })
 
   it("passes when key present", () => {
@@ -66,9 +66,8 @@ describe("validateProviderConfig", () => {
     expect(validateProviderConfig()).toEqual([])
   })
 
-  it("flags missing Bandsintown app id when enabled", () => {
+  it("does not treat a legacy Bandsintown flag as launch approval", () => {
     process.env.EVENT_PROVIDER_BANDSINTOWN = "true"
-    const issues = validateProviderConfig()
-    expect(issues.map((i) => i.variable)).toContain("BANDSINTOWN_APP_ID")
+    expect(validateProviderConfig()).toEqual([])
   })
 })

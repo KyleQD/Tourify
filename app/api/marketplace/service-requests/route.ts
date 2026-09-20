@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireApiUser, jsonError } from "@/lib/api/route-helpers"
-import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import { requireServicesEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 import { isRequestExpired } from "@/lib/marketplace/service-state-machine"
 
 export const dynamic = "force-dynamic"
@@ -26,7 +26,7 @@ const submitSchema = z.object({
  * Buyer submits a new service booking or quote request.
  */
 export async function POST(request: NextRequest) {
-  const guard = requireMarketplaceEnabled()
+  const guard = requireServicesEnabled()
   if (guard) return guard
 
   const authResult = await requireApiUser(request)
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
  *   - As seller: requests for listings they own.
  */
 export async function GET(request: NextRequest) {
-  const guard = requireMarketplaceEnabled()
+  const guard = requireServicesEnabled()
   if (guard) return guard
 
   const authResult = await requireApiUser(request)

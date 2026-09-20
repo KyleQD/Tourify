@@ -44,6 +44,13 @@ export const ENVIRONMENT_CONTRACT: readonly EnvironmentVariableContract[] = [
     purpose: "Canonical HTTPS deployment origin for metadata, email links, and OAuth redirects.",
   },
   {
+    name: "VERCEL_GIT_COMMIT_SHA",
+    availability: "runtime",
+    exposure: "public",
+    requirement: "optional",
+    purpose: "Authoritative 40-character Git commit identity injected by Vercel and exposed by the health endpoint for release certification.",
+  },
+  {
     name: "SUPABASE_SERVICE_ROLE_KEY",
     availability: "runtime",
     exposure: "server-secret",
@@ -119,6 +126,13 @@ export const ENVIRONMENT_CONTRACT: readonly EnvironmentVariableContract[] = [
     exposure: "server-secret",
     requirement: "optional",
     purpose: "Stripe ticketing and marketplace adapter.",
+  },
+  {
+    name: "FEATURE_AUDIT_ADVANCED_WEBHOOKS_APPROVED",
+    availability: "runtime",
+    exposure: "server-secret",
+    requirement: "optional",
+    purpose: "Explicit release approval for deferred music, institutional, licensing, and rights-admin webhooks.",
   },
   {
     name: "EVENT_DISCOVERY_V2",
@@ -227,6 +241,17 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+function isLocalOrHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    if (url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password) return true
+    const localHost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1"
+    return url.protocol === "http:" && localHost && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
 export function validateProductionEnvironment(
   phase: EnvironmentPhase,
   environment: EnvironmentValueMap = process.env,
@@ -287,6 +312,81 @@ export function validateProductionEnvironment(
   return { valid: issues.length === 0, issues }
 }
 
+/**
+ * Local development still needs real Supabase credentials and server-only
+ * secrets. Local loopback URLs are allowed here, while production validation
+ * remains HTTPS-only.
+ */
+export function validateLocalEnvironment(
+  environment: EnvironmentValueMap = process.env,
+): EnvironmentValidationResult {
+  const issues: EnvironmentValidationIssue[] = []
+  const missing = REQUIRED_FOR_PRODUCTION.filter((name) => !valueOf(environment, name))
+
+  if (missing.length > 0) {
+    issues.push({
+      code: "missing",
+      variables: missing,
+      message: `Missing required local variables: ${missing.join(", ")}.`,
+    })
+  }
+
+  for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SITE_URL"] as const) {
+    const value = valueOf(environment, name)
+    if (value && !isLocalOrHttpsUrl(value)) {
+      issues.push({
+        code: "invalid",
+        variables: [name],
+        message: `${name} must be an absolute HTTPS URL or a loopback HTTP URL without embedded credentials.`,
+      })
+    }
+  }
+
+  const encryptionKey = valueOf(environment, "ENCRYPTION_KEY")
+  if (encryptionKey && !/^[a-f0-9]{64}$/i.test(encryptionKey)) {
+    issues.push({
+      code: "invalid",
+      variables: ["ENCRYPTION_KEY"],
+      message: "ENCRYPTION_KEY must contain exactly 64 hexadecimal characters (32 bytes).",
+    })
+  }
+
+  const anonymousKey = valueOf(environment, "NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  const serviceRoleKey = valueOf(environment, "SUPABASE_SERVICE_ROLE_KEY")
+  if (anonymousKey && serviceRoleKey && anonymousKey === serviceRoleKey) {
+    issues.push({
+      code: "unsafe_reuse",
+      variables: ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+      message: "The public Supabase key and server-only service-role key must be different.",
+    })
+  }
+
+  for (const group of COMPLETE_GROUPS) {
+    const configured = group.filter((name) => Boolean(valueOf(environment, name)))
+    if (configured.length > 0 && configured.length < group.length) {
+      const absent = group.filter((name) => !configured.includes(name))
+      issues.push({
+        code: "incomplete_group",
+        variables: [...group],
+        message: `Optional integration is only partly configured; also set ${absent.join(", ")} or remove the whole group.`,
+      })
+    }
+  }
+
+  if (valueOf(environment, "RATE_LIMIT_ENFORCE") === "true") {
+    const rateLimitValues = ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"].map((name) => valueOf(environment, name))
+    if (rateLimitValues.every((value) => !value)) {
+      issues.push({
+        code: "incomplete_group",
+        variables: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
+        message: "RATE_LIMIT_ENFORCE=true requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+      })
+    }
+  }
+
+  return { valid: issues.length === 0, issues }
+}
+
 export function formatEnvironmentValidationError(
   phase: EnvironmentPhase,
   result: EnvironmentValidationResult,
@@ -294,6 +394,15 @@ export function formatEnvironmentValidationError(
   const details = result.issues.map((issue) => `- ${issue.message}`).join("\n")
   return [
     `[env-check] Production ${phase} environment is invalid (${result.issues.length} issue${result.issues.length === 1 ? "" : "s"}).`,
+    details,
+    "No values were printed. Configure the named variables, then retry.",
+  ].join("\n")
+}
+
+export function formatLocalEnvironmentValidationError(result: EnvironmentValidationResult): string {
+  const details = result.issues.map((issue) => `- ${issue.message}`).join("\n")
+  return [
+    `[env-check] Local environment is invalid (${result.issues.length} issue${result.issues.length === 1 ? "" : "s"}).`,
     details,
     "No values were printed. Configure the named variables, then retry.",
   ].join("\n")

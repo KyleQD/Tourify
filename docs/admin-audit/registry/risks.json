@@ -1,0 +1,74 @@
+[
+  {
+    "riskId": "RISK-001",
+    "title": "Repository and deployed Supabase divergence",
+    "impact": 5,
+    "likelihood": 5,
+    "mitigation": "Pin branch, commit, project reference, migration head, and schema inventory; compare staging to repository before promotion.",
+    "trigger": "Any schema, policy, grant, bucket, or migration mismatch.",
+    "contingency": "Freeze promotion, restore the last verified migration head, and reconcile through a reviewed additive change.",
+    "owner": null,
+    "status": "open",
+    "evidenceIds": []
+  },
+  {
+    "riskId": "RISK-002",
+    "title": "Event migration loss or duplication",
+    "impact": 5,
+    "likelihood": 5,
+    "mitigation": "Use stable ID mapping, dry-run backfill, quarantine, row/relationship reconciliation, and rollback rehearsal.",
+    "trigger": "Any unexplained count, duplicate, orphan, or relationship delta.",
+    "contingency": "Stop cutover, retain legacy reads, repair quarantined rows, and rerun reconciliation.",
+    "owner": null,
+    "status": "open",
+    "evidenceIds": []
+  },
+  {
+    "riskId": "RISK-003",
+    "title": "Branch reconciliation reintroduces legacy routes",
+    "impact": 4,
+    "likelihood": 4,
+    "mitigation": "Classify every delta and enforce exact route/method registry plus navigation smoke.",
+    "trigger": "A stale or duplicate route appears after reconciliation.",
+    "contingency": "Disable the route, restore canonical redirect, and add a regression contract.",
+    "owner": null,
+    "status": "open",
+    "evidenceIds": []
+  },
+  {
+    "riskId": "RISK-004",
+    "title": "Role consolidation locks out valid managers",
+    "impact": 4,
+    "likelihood": 4,
+    "mitigation": "Maintain an old-to-new role map and run the two-organization capability matrix.",
+    "trigger": "A seeded valid persona loses an intended action.",
+    "contingency": "Rollback the role assignment change and restore through an additive capability grant.",
+    "owner": null,
+    "status": "open",
+    "evidenceIds": []
+  },
+  {
+    "riskId": "RISK-005",
+    "title": "Storage privatization breaks existing links",
+    "impact": 4,
+    "likelihood": 4,
+    "mitigation": "Inventory and migrate objects, use signed URLs, and verify recipient and outsider behavior.",
+    "trigger": "Authorized recipients cannot open migrated files or old public URLs remain reachable.",
+    "contingency": "Keep private access enforced, issue replacement signed links, and surface recoverable expired-link UX.",
+    "owner": null,
+    "status": "open",
+    "evidenceIds": []
+  },
+  {
+    "riskId": "RISK-006",
+    "title": "Workflow work expands launch scope",
+    "impact": 4,
+    "likelihood": 3,
+    "mitigation": "Honor locked scope decisions; hide and server-deny deferred capabilities.",
+    "trigger": "A deferred finance, signature, native, or provider surface becomes reachable.",
+    "contingency": "Disable the surface and record the regression before continuing the wave.",
+    "owner": null,
+    "status": "open",
+    "evidenceIds": []
+  }
+]

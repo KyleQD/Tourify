@@ -1,0 +1,709 @@
+{
+  "schema_version": "1.0",
+  "id": "ORCH-002",
+  "title": "Curate workspace and own launch critical path",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "orchestrator",
+  "created_at": "2026-09-16T19:20:36.990Z",
+  "updated_at": "2026-09-19T23:45:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (1,431 path-level entries; 0 unresolved; 0 unexplained deletions)",
+  "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
+  "scope": {
+    "in": [
+      "Preserve and secret-scan the current shared workspace",
+      "Create a recoverable snapshot and clean production-readiness branch",
+      "Map every retained change to a task, owner, acceptance criterion, and atomic commit",
+      "Maintain the launch dependency graph and weekly go/no-go state"
+    ],
+    "out": [
+      "Implementing domain product fixes owned by other agents"
+    ]
+  },
+  "working_set": [
+    "docs/engineering",
+    ".github/workflows"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "No retained release diff is unowned and no deletion is unexplained",
+    "A recoverable workspace snapshot and clean deployable release branch exist",
+    "Generated maps and launch dependency state match the release candidate SHA",
+    "npm run agents:validate passes with zero errors"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run agents:generate",
+      "npm run agents:validate",
+      "npm run audit:worktree",
+      "node scripts/agent-tools/generate-workspace-ownership.mjs"
+    ],
+    "evidence": [
+      "Production-readiness audit at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b found 758 workspace entries and established workspace curation as the first release gate.",
+      "agents:generate refreshed routes, components, database, permissions, integrations, and TASK_INDEX at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b.",
+      "agents:validate passed: 17 agents, 109 tasks, 0 warnings, 0 errors.",
+      "2026-09-18 orchestration wave dispatched three non-overlapping P0 lanes: ADMIN-003, INTG-003, and RELEASE-006. Focused evidence passed in all three lanes; each remains active only where its task-level acceptance criteria still require additional route migration, hosted staging evidence, or deterministic type/build evidence.",
+      "2026-09-18 topology refresh after the MFA schema addition generated 372 web pages, 24 mobile screens, 945 API handlers, 1,920 component files, 428 migrations, 705 database objects, 1,299 policies, 945 permissions, and 9 integrations; agents:validate passed with 17 agents, 109 tasks, 0 warnings, and 0 errors.",
+      "2026-09-18 second orchestration wave advanced ADMIN-003, RELEASE-008, and QA-003 with 33 dry-discovered launch tests, exact 72/72 admin legacy-route accounting, 40 production-unsafe routes covered by the deny registry, fail-closed public-surface contracts, and authoritative release-SHA health metadata.",
+      "2026-09-18 third orchestration wave advanced ADMIN-003 and RELEASE-008 while ORCH-002 generated the first path-level ownership manifest: 1,351 entries, 973 candidate-owned, 121 exact task-record paths, 257 unresolved, 34 unexplained deletions, and zero high-signal credential-pattern findings in the bounded current-file scan.",
+      "2026-09-18 ownership refinement regenerated 1,352 entries: 1,220 candidate-owned, 121 exact task-record paths, and 11 unresolved. All 34 deletions remain unexplained; the value-redacting scan again found zero high-signal patterns and excluded 48 generated-evidence paths, 34 missing/deleted paths, 1 generated binary, and 1 lockfile.",
+      "2026-09-18 fourth orchestration wave proved the Marketplace admin family fully canonical at four routes/five methods, gated the institutional finance worker before secret/queue access, and reduced ownership ambiguity to 11 paths. Consolidated focused checks passed with the admin registry exact at 71/71.",
+      "2026-09-18 adjudication assigned seven formerly ambiguous paths from direct task, caller, and decision evidence; four cross-domain paths remain unresolved with explicit decision handoffs. The current 1,355-entry manifest has 1,230 candidates, 121 task records, 4 unresolved paths, 33 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 fifth orchestration wave migrated rights-admin operations to the canonical platform guard, gated the music-licensing outbox before secrets/database/network/queue work, and completed ownership adjudication to four explicit handoffs. Consolidated verification passed 42 admin tests, 23 release tests, the exact 70/70 legacy registry, public-surface/debug/cron checks, ownership invariants, generator syntax, and control-plane validation.",
+      "2026-09-18 sixth ownership pass assigned app/api/analytics/errors/route.ts to release / RELEASE-003 from direct observability charter and task evidence. Three paths remain unresolved with narrower evidence-based decisions; the current 1,358-entry manifest has 1,234 candidates, 121 task records, 3 unresolved paths, 33 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 sixth orchestration wave migrated institutional operations to the canonical platform guard, gated the rights-admin worker before secrets/database/network/queue work, and reduced unresolved ownership to three paths. Consolidated verification passed 45 admin tests, 25 release tests, the exact 69/69 legacy registry, public-surface/debug/cron checks, ownership invariants, and control-plane validation.",
+      "2026-09-18 bounded deletion-evidence pass explained eight deletions from DESIGN-030 and DESIGN-002 explicit retirement records. The current 1,362-entry manifest has 1,238 candidates, 121 task records, 3 unresolved paths, 25 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 seventh orchestration wave migrated licensing operations to the canonical platform guard, introduced a dedicated fail-closed rights-intelligence capability and worker boundary, and reduced unexplained deletions to 25. Consolidated verification passed 48 admin tests, 27 release tests, the exact 68/68 legacy registry, lint, public-surface/debug/cron checks, and ownership/control-plane invariants.",
+      "2026-09-18 second bounded deletion-evidence pass explained eight different deletions from DESIGN-002 and DESIGN-029 explicit retirement records. The current 1,365-entry manifest has 1,241 candidates, 121 task records, 3 unresolved paths, 17 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 eighth orchestration wave migrated rights-intelligence operations to the canonical platform guard, added a fail-closed creator-cooperative capability boundary, and reduced unexplained deletions to 17. Consolidated verification passed 52 admin tests, 29 release tests, the exact 67/67 legacy registry, lint, public-surface/debug/cron checks, and ownership/control-plane invariants.",
+      "2026-09-18 third bounded deletion-evidence pass explained eight additional DESIGN-029 venue UI retirements. The current 1,368-entry manifest has 1,244 candidates, 121 task records, 3 unresolved paths, 9 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 ninth orchestration wave migrated creator-cooperative operations to the canonical platform guard, added a fail-closed creator-digital-commons capability boundary, and reduced unexplained deletions to nine. Consolidated verification passed 55 admin tests, 31 release tests, the exact 66/66 legacy registry, lint, public-surface/debug/cron checks, and ownership/control-plane invariants.",
+      "2026-09-18 fourth bounded deletion-evidence pass explained eight additional DESIGN-029 venue UI retirements while preserving the recorded separator and use-mobile divergences. The current 1,371-entry manifest has 1,247 candidates, 121 task records, 3 unresolved paths, 1 unexplained deletion, and zero bounded credential-pattern findings.",
+      "2026-09-18 tenth orchestration wave migrated creator-digital-commons operations to the canonical platform guard, added a fail-closed creator-federation capability boundary, and reduced unexplained deletions to one. Consolidated verification passed 58 admin tests, 33 release tests, the exact 65/65 legacy registry, lint, public-surface/debug/cron checks, and ownership/control-plane invariants.",
+      "2026-09-18 final bounded deletion-evidence pass explained components/venue/ui/use-toast.ts from DESIGN-004 and DESIGN-029 byte-identity, canonical-target, zero-consumer, CP-037, register-retirement, and staged-deletion evidence. The current 1,374-entry manifest has 1,250 candidates, 121 task records, 3 unresolved paths, 0 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 eleventh orchestration wave migrated creator-federation operations to the canonical platform guard, added a fail-closed creator-interoperability-convention boundary, and completed evidence for all 34 deletions. Consolidated verification passed 61 admin tests, 35 release tests, the exact 64/64 legacy registry, lint, public-surface/debug/cron checks, and ownership/control-plane invariants.",
+      "2026-09-18 ownership formalization created and validated DB-009, USER-006, and ORG-006, then mapped the final three shared paths to those exact tasks. The current 1,380-entry manifest has 1,253 candidates, 127 task records, 0 unresolved paths, 0 unexplained deletions, and zero bounded credential-pattern findings.",
+      "2026-09-18 twelfth orchestration wave migrated creator-interoperability-convention operations to the canonical platform guard, added a fail-closed creator-interoperability-institution boundary, and formalized all remaining ownership paths. Consolidated verification passed 64 admin tests, 37 release tests, the exact 63/63 legacy registry, surface/cron checks, and 112-task control-plane validation.",
+      "2026-09-18 thirteenth orchestration wave migrated creator-interoperability-institution operations, gated creator-interoperability-organization, and implemented DB-009's fail-closed three-table event-reference contract with an exact 18-importer matrix. Consolidated verification passed 67 admin tests, 39 release tests, 8 DB-009 tests, and the exact 62/62 legacy registry.",
+      "2026-09-18 fourteenth orchestration wave migrated creator-interoperability-organization operations, gated creator-protocol-constitution, and completed DB-009's executable review of all 18 consumers. Consolidated verification passed 70 admin tests, 41 release tests, 9 DB-009 tests, and the exact 61/61 legacy registry.",
+      "2026-09-19 fifteenth orchestration wave migrated creator-protocol-constitution operations, gated creator-public-infrastructure, and completed ORG-006's local per-export authorization hardening without deleting unused exports. Consolidated verification passed 73 admin tests, 43 release tests, 11 ORG-006 tests, and the exact 60/60 legacy registry.",
+      "2026-09-19 sixteenth orchestration wave migrated creator-public-infrastructure operations, gated creator-multilateral-treaty-operations, and hardened USER-006's retained private-docs signer against prefix confusion, traversal, expiry conflicts, limiter failure, and token leakage. Consolidated verification passed 76 admin tests, 45 release tests, 23 USER-006 tests, and the exact 59/59 legacy registry.",
+      "2026-09-19 Waves 17-22 completed all eleven creator admin operations migrations, closed USER-005 private-docs deletion across both user-prefix layouts with multi-batch draining, guarded all 22 executable music worker entrypoints, and added five disabled direct-page boundaries. Consolidated verification passed 76 focused tests plus surface/debug/cron/registry checks; the 1,416-entry ownership manifest has 1,281 candidates, 135 task records, zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings.",
+      "2006-09-19 Wave 24 added fail-closed server denial boundaries for public-infrastructure and treaty-operations direct pages before hydration or API discovery, closing the next two smallest RELEASE-008 page families. Consolidated verification passed 56 focused tests plus surface/debug/cron/registry checks; the ownership manifest regenerated to 1,431 entries (1,286 candidates, 141 task records, 4 unresolved concurrent-work paths, zero unexplained deletions, zero credential-pattern findings).",
+      "2026-09-19 deployment-wave closeout: RELEASE-006's build environment-guard blocker was proven a configuration gate rather than a code defect — the production build contract passes with the approved https://tourify.live origin, the full build compiles through the type-checking stage on Next 15.5.24, and the migration chain validates; remaining deployment steps (full compile completion, migration checksums, supabase-target verification, and exact-SHA staging deployment) are credentialed/hosted gates owned by RELEASE-006, RELEASE-007, DB-008, and QA-003.",
+      "2026-09-19 ownership finalization adjudicated the final four concurrent-work paths from DESIGN-035 evidence: components/layout/app-chrome.tsx and components/nav.tsx implement its checkpoint-verified mobile chrome (compact phone header, five-action bottom navigation, content/player spacing), and components/marketing/landing-hero-auth.tsx and tourify-landing-page.tsx are its named working-set files. The manifest is now 1,431 entries with 1,286 candidates, 145 task records, zero unresolved paths, zero unexplained deletions, and zero credential-pattern findings."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-19T02:51:55Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Completed Wave 23: added fail-closed server boundaries for cooperative and interoperability-convention pages, and documented five additional tenant/resource-scoped admin prerequisites without unsafe guard migration.",
+    "completed": [
+      "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
+      "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
+      "Updated PROJECT_STATE.md, DEPENDENCY_MAP.md, and every affected owner STATE.md and BACKLOG.md.",
+      "ADMIN-003 migrated Marketplace moderation GET/PATCH to the canonical platform-admin guard and reduced the exact legacy-route exception count from 75 to 74 with 30 focused tests passing.",
+      "INTG-003 added a forward-only MFA verification-code migration, server-only repository, default-deny/RLS and service-role boundary, and 11 passing focused tests; hosted application remains intentionally pending.",
+      "RELEASE-006 proved the pinned Node/npm toolchain, an isolated unflagged npm ci including lifecycle hooks, peer resolution, and zero high/critical audit findings without disturbing the shared dependency tree.",
+      "Refreshed generated topology after the new MFA migration and validated all 109 task records with zero warnings or errors.",
+      "ADMIN-003 migrated Marketplace order list/detail GET routes to withPlatformAdmin, preserved dynamic parameters and order predicates, passed 26 focused tests, and reduced the exact legacy exception count to 72/72.",
+      "RELEASE-008 established the canonical launch capability manifest, production route-deny registry, crawler/canonical/CSP/health contracts, and authoritative x-tourify-release-sha metadata; 40 unsafe routes are covered and focused checks pass.",
+      "QA-003 wired protected manual exact-SHA certification for isolated staging, replaced placeholder scenarios with authorization/replay/concurrency contracts, rejects missing inputs and skipped tests, and dry-discovers 33 Playwright tests.",
+      "ADMIN-003 migrated Marketplace payout retry to withPlatformAdmin with mutation/resource denial coverage; 40 focused tests passed and the exact legacy exception count is 71/71.",
+      "RELEASE-008 wired the canonical manifest into polls analytics, external event provider flags/sync, and the marketplace-finance worker so disabled capabilities fail before auth, credentials, database, or queue work.",
+      "ORCH-002 added a deterministic path-level ownership generator and manifest covering 1,351 entries with candidate/exact/unresolved status and a value-redacting bounded credential-pattern scan.",
+      "Refined owner rules from documented working sets, active-task paths, legacy ledgers, mobile/domain families, and repository tooling; unresolved ownership fell from 257 to 11 without confirming candidates or explaining deletions.",
+      "Confirmed the complete Marketplace admin family is four routes/five methods, all canonical withPlatformAdmin/platform_admin; no speculative fifth route was invented.",
+      "RELEASE-008 gated the institutional finance worker before credential and queue access while retaining the existing advanced-webhook ingress gate.",
+      "Adjudicated seven paths using direct evidence: ADMIN-003 for logistics guard/version contracts and site-map access, WORK-003 for the event-zone bridge contract, TICKET-005 for the guest-list-backed attending endpoint, DESIGN-030 for the deleted root provider, and the database decision record for hand-authored view models.",
+      "Recorded explicit decision handoffs for the remaining analytics-error, shared event-reference, private signed-upload, and organization-scoped event-action surfaces; explained only the DESIGN-030 provider deletion, leaving 33 deletions untouched.",
+      "ADMIN-003 migrated rights-admin operations GET/POST to withPlatformAdmin while preserving gates, flag keys, kill-switch behavior, non-idempotency, responses, and audit attribution; 42 consolidated tests passed and the exact legacy registry is 70/70.",
+      "RELEASE-008 gated the music-licensing outbox worker through advanced_music_webhooks before secrets, database, network, or queue access; 23 consolidated release tests passed.",
+      "Fifth-wave public-surface, production-debug, cron, admin-registry, ownership-invariant, generator-syntax, and agents:validate checks all passed.",
+      "Assigned app/api/analytics/errors/route.ts to release / RELEASE-003 because the release charter owns production observability and the task owns web error monitoring and elevated-error alerts; retained three narrower decision handoffs without guessing.",
+      "ADMIN-003 migrated institutional operations GET/POST to withPlatformAdmin while preserving feature gates, reconciliation and flag reads, kill-switch scoping, rollout reset, non-idempotency, responses, and actor attribution; 45 consolidated tests passed and the exact legacy registry is 69/69.",
+      "RELEASE-008 gated the rights-admin retry worker through advanced_music_webhooks before secrets, database, network, or queue access and runtime-covered the webhook's fail-closed request-body behavior; 25 consolidated release tests passed.",
+      "Sixth-wave public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed.",
+      "Recorded evidence-backed explanations for three DESIGN-030 provider duplicates, four DESIGN-030 unloaded CSS roots, and the DESIGN-002 components/ui/use-mobile.tsx duplicate; the bounded pass touched no product file and inferred no other deletion reason.",
+      "ADMIN-003 migrated licensing operations GET/POST to withPlatformAdmin while preserving feature gates, all ten kill-switch mappings, flag-key scoping, non-idempotency, response behavior, and full audit attribution; 48 consolidated tests passed and the exact legacy registry is 68/68.",
+      "RELEASE-008 added the disabled music_rights_intelligence capability, fail-closed flag resolution before trusted data access, and worker denial before secrets or queue access; 27 consolidated release tests passed.",
+      "Seventh-wave lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed.",
+      "Recorded evidence-backed explanations for hooks/use-mobile.tsx and seven DESIGN-029 venue UI compatibility twins; the bounded pass touched no product file and inferred no other deletion reason.",
+      "ADMIN-003 migrated rights-intelligence operations GET/POST to withPlatformAdmin while preserving filtered reads, every kill-switch mapping, the exact five-key competition stop, non-idempotency, responses, and audit attribution; 52 consolidated tests passed and the exact legacy registry is 67/67.",
+      "RELEASE-008 added the disabled creator_cooperative capability, stopped cooperative flag resolution before trusted data access, and gated only the cooperative worker through an optional shared-runner boundary before secrets or queue access; 29 consolidated release tests passed.",
+      "Eighth-wave lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed.",
+      "Recorded evidence-backed explanations for eight more DESIGN-029 venue UI compatibility twins; the bounded pass touched no product file and inferred no other deletion reason.",
+      "ADMIN-003 migrated creator-cooperative operations GET/POST to withPlatformAdmin while preserving read projections, every kill switch, the exact six-key privacy stop, non-idempotency, responses, and audit attribution; 55 consolidated tests passed and the exact legacy registry is 66/66.",
+      "RELEASE-008 added the disabled creator_digital_commons capability, stopped its flag resolver before trusted data access, and gated its shared-runner configuration before secrets or queue access; 31 consolidated release tests passed.",
+      "Ninth-wave lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed.",
+      "Recorded evidence-backed explanations for eight additional DESIGN-029 venue UI twins while preserving the separator and use-mobile divergence records; components/venue/ui/use-toast.ts remains for a separate bounded pass.",
+      "ADMIN-003 migrated creator-digital-commons operations GET/POST to withPlatformAdmin while preserving reads, every kill switch, the exact four-key exit freeze, non-idempotency, responses, and full audit fields; 58 consolidated tests passed and the exact legacy registry is 65/65.",
+      "RELEASE-008 added the disabled creator_federation capability, stopped its flag resolver before trusted data access, and gated its shared-runner configuration before secrets or queue access; 33 consolidated release tests passed.",
+      "Tenth-wave lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed.",
+      "Recorded explicit DESIGN-004 and DESIGN-029 evidence for components/venue/ui/use-toast.ts; all 34 worktree deletions now have evidence-backed explanations.",
+      "ADMIN-003 migrated creator-federation operations GET/POST to withPlatformAdmin while preserving reads, every kill switch, the exact eight-key partition stop, non-idempotency, responses, and audit attribution; 61 consolidated tests passed and the exact legacy registry is 64/64.",
+      "RELEASE-008 added the disabled creator_interoperability_convention capability, stopped its flag resolver before trusted data access, and gated its worker before secrets or queue access; 35 consolidated release tests passed.",
+      "Eleventh-wave lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed.",
+      "Created and validated DB-009, USER-006, and ORG-006 with bounded scope, acceptance, dependencies, blockers, verification, and handoffs; mapped only their three explicit paths as task-backed ownership.",
+      "ADMIN-003 migrated creator-interoperability-convention operations GET/POST to withPlatformAdmin while preserving gates, reads, exact kill-switch mappings, the five-key convention freeze, responses, and audit fields; 64 consolidated tests passed and the exact legacy registry is 63/63.",
+      "RELEASE-008 added the disabled creator_interoperability_institution capability, stopped its flag resolver before trusted data access, and gated its worker before secrets or queue access; 37 consolidated release tests passed.",
+      "Twelfth-wave public-surface, production-debug, cron, admin-registry, ownership-invariant, generated-map, and 112-task control-plane checks passed.",
+      "ADMIN-003 migrated the final three creator operations families; all eleven creator operations routes are canonical and the exact legacy registry is 56/56. Seven subsequent tenant or mixed-scope families were left unchanged with explicit prerequisites rather than losing legitimate access.",
+      "USER-005 now deletes both private-docs/<user-id>/ and private-docs/staff-credentials/<user-id>/ with exact-user validation, repeated 1,000-object draining, no-progress protection, retry-safe partial failure, and auth deletion only after every prefix re-lists empty.",
+      "RELEASE-008 now guards all 22 executable music worker entrypoints before privileged work, including preview, origin, protected derivative, testnet anchor, royalty ingestion, and unscheduled trust reconciliation.",
+      "RELEASE-008 added server denial boundaries for artist music finance, both rights-intelligence roots, creator commons, and federation before hydration or API discovery.",
+      "RELEASE-008 added server denial boundaries for cooperative, creator interoperability convention, public infrastructure, and multilateral treaty operations before hydration or API discovery; focused tests rose to 56 and the remaining direct-page families are interop institution/organization, protocol constitution, and treaty legacy/renewal.",
+      "Consolidated verification passed 56 focused tests, public-surface, production-debug, cron inventory, and ownership invariants with unchanged 1,418-entry manifest integrity.",
+      "Consolidated verification passed 76 focused tests, public-surface, production-debug, cron inventory, the exact 56/56 admin registry, ownership generation, and the 112-task control plane; only two unrelated pre-existing trailing-space findings remain in user-owned files."
+    ],
+    "next_steps": [
+      "Continue remaining RELEASE-008 direct-page families one at a time; require owner decisions and resource predicates before resuming ADMIN-003 migrations; obtain hosted exact-SHA certification."
+    ],
+    "blockers": [
+      "The current path-level worktree manifest reports 1,418 entries, 0 unresolved paths, and 0 deletions without evidence-backed explanations; candidate confirmation and release-grade scanning remain required before cleanup or commit sequencing.",
+      "Hosted staging/database evidence and valid production-like environment configuration are not available in this orchestration wave.",
+      "The full repository typecheck produced no diagnostics but did not finish within a six-minute bounded run, so no pass is claimed.",
+      "QA-003 still lacks protected staging credentials, an exact deployed SHA run, hosted Stripe execution, and final P0/P1 defect disposition."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-16T19:29:31.268Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the production-readiness control-plane update: ten new bounded task records, corrected launch priorities and acceptance criteria, explicit deferrals, owner state/backlog updates, and a generated 109-task dependency index.",
+        "completed": [
+          "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
+          "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
+          "Updated PROJECT_STATE.md, DEPENDENCY_MAP.md, and every affected owner STATE.md and BACKLOG.md."
+        ],
+        "next_steps": [
+          "Secret-scan and preserve the audited workspace before branch restructuring.",
+          "Build the retained-change ownership and atomic-commit manifest on the production-readiness branch."
+        ],
+        "blockers": [
+          "The current 758-entry dirty workspace must be preserved and curated before it can become a release candidate."
+        ]
+      },
+      {
+        "at": "2026-09-18T21:54:02Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched a compute-bounded P0 wave for ADMIN-003, INTG-003, and RELEASE-006. All three produced focused passing evidence and honest remaining blockers; generated topology and the 109-task control plane were refreshed and validated.",
+        "completed": [
+          "ADMIN-003: canonicalized Marketplace moderation GET/PATCH; 30 focused tests passed; legacy exception count is 74/74.",
+          "INTG-003: added the forward-only MFA verification-code schema and server-only repository; 11 focused tests passed; active migration chain is 295.",
+          "RELEASE-006: toolchain, isolated exact clean install, peer resolution, and high/critical dependency audit gates passed.",
+          "agents:generate and agents:validate completed after the schema change with 17 agents, 109 tasks, 0 warnings, and 0 errors."
+        ],
+        "next_steps": [
+          "Use DB-008 for explicit MFA staging application, security/concurrency probes, advisor evidence, and canonical type regeneration.",
+          "Continue ADMIN-003 one route family at a time and unblock RELEASE-006 with valid HTTPS environment configuration plus deterministic type/build evidence.",
+          "Preserve and ownership-map the 1,316-entry worktree before any clean release-branch curation."
+        ],
+        "blockers": [
+          "No hosted staging mutation or release promotion was authorized.",
+          "NEXT_PUBLIC_SITE_URL is not an absolute HTTPS URL, so build:vercel stops before compilation.",
+          "Full repository typecheck remained unfinished after a bounded six-minute run."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:11:09Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed a second non-overlapping P0 wave across ADMIN-003, RELEASE-008, and QA-003. Local authorization, production-surface, and launch-certification contracts pass focused verification; hosted certification remains intentionally open.",
+        "completed": [
+          "ADMIN-003: migrated Marketplace order list/detail GET routes to the platform-admin guard; 26 focused tests passed; registry is exact at 72/72 legacy routes.",
+          "RELEASE-008: added the launch capability manifest, exact/child production deny registry, canonical/noindex/CSP/public-health contracts, and authoritative full-SHA health header; 40 unsafe routes are covered.",
+          "QA-003: added protected exact-main-SHA workflow dispatch, application-backed authorization/replay/concurrency scenarios, missing-input and skip rejection, and 33-test dry discovery.",
+          "Consolidated checks passed: 13 Node contract tests, 7 focused health/feature tests, 26 admin tests, public-surface/debug/admin/cron registries, fixture validation, Playwright discovery, and agents:validate."
+        ],
+        "next_steps": [
+          "Provision the protected staging environment and QA_CERT values, deploy a main-ancestor SHA with VERCEL_GIT_COMMIT_SHA, and run QA-003 without skips.",
+          "Continue ADMIN-003 with the isolated Marketplace payout-retry mutation route and complete RELEASE-008 consumer wiring only in bounded slices.",
+          "Keep release sign-off blocked until hosted evidence, final P0/P1 disposition, typecheck/build, and RELEASE-005 governance pass."
+        ],
+        "blockers": [
+          "No hosted staging run, Stripe execution, required-check enforcement, or production promotion evidence is available.",
+          "RELEASE-008 is not yet wired through every navigation, page, cron, and worker consumer.",
+          "Repository-wide typecheck/build blockers recorded by RELEASE-006 remain unresolved."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:19:39Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the third compute-bounded wave: Marketplace payout retry uses the canonical platform guard, selected disabled server consumers use the launch manifest, and ORCH-002 now has a deterministic path-level ownership inventory with bounded secret-pattern evidence.",
+        "completed": [
+          "ADMIN-003: payout retry migrated with dynamic parameter, status, timing, idempotency, resource predicate, and actor-attribution behavior preserved; 40 focused tests passed; registry exact at 71/71.",
+          "RELEASE-008: polls analytics, external event provider flags/sync cron, and marketplace-finance worker now fail closed through the canonical manifest; 11 focused tests and release contract checks passed.",
+          "ORCH-002: generated 1,351 path-level entries — 973 candidate-owned, 121 exact task-record paths, 257 unresolved, and 34 deletions awaiting explanations.",
+          "Bounded current-file credential-pattern scan recorded zero findings and explicit exclusions without storing matched values; control-plane validation passed with 17 agents, 109 tasks, 0 warnings, and 0 errors."
+        ],
+        "next_steps": [
+          "Route the 257 unresolved paths to domain owners and require evidence-backed explanations for all 34 deletions.",
+          "Continue RELEASE-008 with one deferred worker family or direct-page/navigation family per batch, and continue ADMIN-003 only where scope is explicit.",
+          "Do not create the clean release branch or atomic commits until ownership and deletion disposition are complete."
+        ],
+        "blockers": [
+          "The ownership manifest is candidate routing evidence, not confirmed ownership or cleanup authorization.",
+          "Generated evidence, binary/large files, lockfiles, deleted paths, and Git history are outside the bounded credential-pattern scan; a release-grade scanner remains required.",
+          "Hosted staging, full typecheck/build, and release governance evidence remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:27:24.261Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Refined deterministic workspace ownership routing from 257 unresolved paths to 11 while preserving candidate-only status, all 34 unexplained deletions, and zero-value credential scan output.",
+        "completed": [
+          "Changed candidate classification so a deterministic domain match remains candidate routing evidence even when that domain has no open task; empty task IDs do not imply confirmation.",
+          "Added evidence-backed rules for domain working sets, active task paths, legacy specialist ledgers, mobile messaging/observability, workers, repository tooling, and generated World evidence.",
+          "Regenerated 1,352 entries with 1,220 candidates, 121 exact task records, 11 unresolved paths, and all 34 deletion explanations still null.",
+          "Re-ran the bounded value-redacting credential-pattern scan: zero findings; exclusions were 48 generated-evidence, 34 missing/deleted, 1 generated binary, and 1 lockfile."
+        ],
+        "next_steps": [
+          "Obtain domain confirmation for candidates, adjudicate the 11 cross-domain paths, and collect evidence-backed explanations for every deletion before any curation or commit sequencing."
+        ],
+        "blockers": [
+          "The 11 remaining paths cross domain boundaries and need owner adjudication rather than inferred routing.",
+          "All 34 deletions still require evidence-backed explanations before cleanup or commit sequencing."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:29:31Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the fourth bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: Marketplace admin classification is exhausted, institutional finance work fails closed, and only 11 ownership paths remain unresolved.",
+        "completed": [
+          "ADMIN-003 read-only classification proved all four Marketplace admin routes/five methods use withPlatformAdmin and platform_admin registry contracts; 32 focused tests passed and the legacy registry remains exact at 71/71.",
+          "RELEASE-008 gated the institutional finance outbox before credentials or queue access and retained the request-body-first denial contract for institutional webhooks; 21 consolidated focused tests passed.",
+          "ORCH-002 refined 1,352 paths to 1,220 candidates, 121 exact task-record mappings, and 11 unresolved paths without changing product files or explaining deletions.",
+          "Public-surface, production-debug, cron, admin-registry, ownership-contract, generator-syntax, and agents:validate checks passed."
+        ],
+        "next_steps": [
+          "Adjudicate the 11 remaining cross-domain paths and obtain owner confirmation plus deletion explanations before curation.",
+          "Move ADMIN-003 to a different proven family and RELEASE-008 to one licensing or rights worker family in separate bounded slices.",
+          "Keep hosted certification, typecheck/build, release governance, cleanup, and atomic commit work blocked on their recorded prerequisites."
+        ],
+        "blockers": [
+          "All 34 deletions remain unexplained and candidate ownership is not owner confirmation.",
+          "Hosted staging and release-governance evidence remain unavailable.",
+          "Repository-wide typecheck/build blockers remain unresolved."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:34:36Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Adjudicated seven of 11 ambiguous ownership paths from task records, callers, diffs, and durable decisions; four cross-domain paths remain with explicit decision handoffs.",
+        "completed": [
+          "Assigned ADMIN-003 to the logistics guard/version contracts and site-map access helper, WORK-003 to the event-zone bridge contract, TICKET-005 to the guest-list-backed attending route, DESIGN-030 to the deleted root provider, and database ownership to the hand-authored view-model contract.",
+          "Recorded deterministic ownership basis and exact task evidence on all seven resolved manifest entries.",
+          "Added decision-needed notes for analytics error reporting, shared event reference resolution, private signed uploads, and organization-scoped event/calendar/hold actions.",
+          "Used DESIGN-030's explicit zero-importer/zero-symbol evidence to explain app/providers.tsx only; the other 33 deletions remain unexplained.",
+          "Regenerated 1,355 entries: 1,230 candidates, 121 exact task records, 4 unresolved, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Obtain the four named cross-domain decisions and owner confirmation for candidates before curation or atomic commit sequencing."
+        ],
+        "blockers": [
+          "Four shared platform/event surfaces have no charter or task record strong enough to assign safely.",
+          "Thirty-three deletions still lack evidence-backed explanations; no cleanup is authorized."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:36:38Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the fifth compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: rights-admin operations are canonical, the licensing outbox fails closed, and only four ownership decisions remain.",
+        "completed": [
+          "ADMIN-003: migrated rights-admin operations GET/POST to withPlatformAdmin while preserving feature gates, kill-switch mapping, exact feature-flag key, non-idempotency, responses, and audit attribution; 42 consolidated tests passed and the registry is exact at 70/70.",
+          "RELEASE-008: gated the music-licensing outbox through advanced_music_webhooks before credentials, database, network, or queue work; 23 consolidated release tests passed.",
+          "ORCH-002: resolved seven of 11 ambiguous ownership paths, attached explicit handoffs to the remaining four, and reduced unexplained deletions from 34 to 33 without cleanup.",
+          "Consolidated public-surface, production-debug, cron, admin-registry, ownership-invariant, generator-syntax, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Obtain the four owner decisions, candidate confirmations, and evidence-backed explanations for the remaining 33 deletions.",
+          "Advance ADMIN-003 through one isolated non-Marketplace operations family and RELEASE-008 through one rights-admin or rights-intelligence worker family."
+        ],
+        "blockers": [
+          "Four cross-domain surfaces remain deliberately unresolved and 33 deletions remain unexplained; no cleanup or atomic commit sequencing is authorized.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:40:27Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Assigned the analytics error-report route to release / RELEASE-003 from direct observability ownership; retained three cross-domain paths with narrower evidence-based handoffs.",
+        "completed": [
+          "Mapped app/api/analytics/errors/route.ts to release / RELEASE-003 because the release charter owns observability and the active task owns web error monitoring, elevated-error alerts, release metadata, and staging-soak evidence.",
+          "Confirmed DB-006 explicitly excludes the shared event-reference compatibility resolver pending identifier and authorization mapping.",
+          "Confirmed the security audit records zero callers for the generic private-docs signed-upload route; no task currently owns adoption or retirement.",
+          "Confirmed no current charter or active task owns the complete organization-scoped event/calendar/hold action surface; organization and database responsibilities cover only adjacent tenant-context and schema boundaries.",
+          "Regenerated 1,358 entries: 1,234 candidates, 121 exact task records, 3 unresolved, 33 unexplained deletions, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Designate an event-contract owner, decide the zero-caller signed-upload route's adoption or authorized retirement, and designate an event-lifecycle action owner before curation."
+        ],
+        "blockers": [
+          "Three cross-domain paths remain without sufficiently direct charter or task ownership.",
+          "Thirty-three deletions still lack evidence-backed explanations; no cleanup is authorized."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:42:30Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the sixth compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: institutional operations are canonical, the rights-admin worker fails closed, and three ownership decisions remain.",
+        "completed": [
+          "ADMIN-003: migrated institutional operations GET/POST to withPlatformAdmin while preserving feature gates, reconciliation/flag reads, kill-switch key scoping, rollout reset, non-idempotency, status behavior, and actor attribution; 45 consolidated tests passed and the registry is exact at 69/69.",
+          "RELEASE-008: runtime-covered rights-admin webhook denial and gated the registration/claim retry worker through advanced_music_webhooks before credentials, database, network, or queue work; 25 consolidated release tests passed.",
+          "ORCH-002: assigned the analytics error-report route to release / RELEASE-003 and narrowed the three remaining ownership decisions without guessing; 33 deletions remain unexplained.",
+          "Consolidated public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Designate the shared event-contract and event-lifecycle owners, decide adoption versus authorized retirement for the zero-caller signed-upload route, confirm candidate mappings, and explain the remaining 33 deletions.",
+          "Advance ADMIN-003 through one isolated licensing or rights-intelligence operations family and RELEASE-008 through one rights-intelligence or creator worker family."
+        ],
+        "blockers": [
+          "Three cross-domain surfaces remain deliberately unresolved and 33 deletions remain unexplained; no cleanup or atomic commit sequencing is authorized.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:59:25Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed an evidence-only pass over eight deletions, reducing unexplained deletions from 33 to 25 without modifying or inferring disposition for any other path.",
+        "completed": [
+          "DESIGN-030 Phase 3 evidence explains the three deleted provider duplicates at components/venue/theme-provider.tsx, app/venue/components/theme-provider.tsx, and app/admin/dashboard/components/theme-provider.tsx after recorded negative module-path, symbol, and barrel checks.",
+          "DESIGN-030 Phase 5 evidence explains the four deleted CSS roots at app/venue/globals.css, app/admin/dashboard/components/styles/globals.css, styles/globals.css, and styles/venue/globals.css after recorded zero-importer, live-replacement, and provenance-preservation checks.",
+          "DESIGN-002 evidence explains components/ui/use-mobile.tsx as a verified duplicate retired in favor of canonical hooks/use-mobile.ts.",
+          "Regenerated 1,362 entries: 1,238 candidates, 121 exact task records, 3 unresolved, 25 unexplained deletions, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Continue deletion adjudication only in bounded evidence-backed subsets; obtain the three named cross-domain ownership decisions before curation."
+        ],
+        "blockers": [
+          "Twenty-five deletions still lack task or decision evidence in the manifest; no cleanup or disposition is authorized.",
+          "Three cross-domain paths remain without sufficiently direct charter or task ownership."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:01:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the seventh compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: licensing operations are canonical, rights-intelligence fails closed, and eight deletion explanations are now evidence-backed.",
+        "completed": [
+          "ADMIN-003: migrated licensing operations GET/POST to withPlatformAdmin while preserving gates, ten kill-switch mappings, flag-key scoping, non-idempotency, responses, and full audit attribution; 48 consolidated tests passed and the registry is exact at 68/68.",
+          "RELEASE-008: added the disabled music_rights_intelligence capability, returned the existing all-disabled flag contract before trusted data access, and stopped its worker before credentials or queue access; 27 consolidated release tests passed.",
+          "ORCH-002: explained eight deletions from explicit DESIGN-030 and DESIGN-002 retirement evidence without product changes; 25 deletions and three ownership decisions remain.",
+          "Consolidated lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Advance ADMIN-003 through rights-intelligence operations and RELEASE-008 through one creator or preview worker family.",
+          "Continue deletion adjudication only where task records contain explicit replacement or retirement evidence; preserve the three owner-decision handoffs."
+        ],
+        "blockers": [
+          "Three cross-domain surfaces remain deliberately unresolved and 25 deletions remain unexplained; no cleanup or atomic commit sequencing is authorized.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:03:39Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed a second evidence-only eight-deletion pass, reducing unexplained deletions from 25 to 17 without modifying or inferring disposition for any other path.",
+        "completed": [
+          "DESIGN-002 evidence explains hooks/use-mobile.tsx as a verified duplicate retired after static import checks in favor of canonical hooks/use-mobile.ts.",
+          "DESIGN-029 evidence explains components/venue/ui alert-dialog, alert, aspect-ratio, avatar, carousel, context-menu, and drawer as compatibility twins retired under CP-037 after per-file parity, zero-consumer, aggregate, and barrel checks.",
+          "The avatar explanation preserves DESIGN-029's explicit divergent data-slot disposition rather than describing it as byte-identical.",
+          "Regenerated 1,365 entries: 1,241 candidates, 121 exact task records, 3 unresolved, 17 unexplained deletions, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Continue deletion adjudication only in bounded evidence-backed subsets; obtain the three named cross-domain ownership decisions before curation."
+        ],
+        "blockers": [
+          "Seventeen deletions still lack recorded explanations in the manifest; no cleanup or disposition is authorized.",
+          "Three cross-domain paths remain without sufficiently direct charter or task ownership."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:06:20Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the eighth compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: rights-intelligence operations are canonical, creator-cooperative fails closed, and eight more deletions are explained.",
+        "completed": [
+          "ADMIN-003: migrated rights-intelligence operations GET/POST to withPlatformAdmin while preserving filtered reads, kill-switch mappings, the exact five-key competition stop, non-idempotency, responses, and audit attribution; 52 consolidated tests passed and the registry is exact at 67/67.",
+          "RELEASE-008: added the disabled creator_cooperative capability, stopped flag resolution before trusted data access, and gated only its worker through an optional shared-runner boundary before credentials or queue work; 29 consolidated release tests passed.",
+          "ORCH-002: explained hooks/use-mobile.tsx and seven DESIGN-029 venue UI compatibility twins from explicit retirement evidence; 17 deletions and three ownership decisions remain.",
+          "Consolidated lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Review creator admin operations as an isolated family and gate one remaining creator or preview worker family.",
+          "Continue deletion adjudication only from explicit task evidence and preserve the three owner-decision handoffs."
+        ],
+        "blockers": [
+          "Three cross-domain surfaces remain deliberately unresolved and 17 deletions remain unexplained; no cleanup or atomic commit sequencing is authorized.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:08:13Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed a third evidence-only eight-deletion pass, reducing unexplained deletions from 17 to 9 without modifying or inferring disposition for any other path.",
+        "completed": [
+          "DESIGN-029 evidence explains components/venue/ui dropdown-menu, form, hover-card, input-otp, menubar, navigation-menu, pagination, and resizable as compatibility twins retired under CP-037.",
+          "The task record explicitly supplies per-file parity dispositions, per-file and aggregate zero-consumer checks, barrel checks, canonical-register retirement, and staged deletion for the selected paths.",
+          "Regenerated 1,368 entries: 1,244 candidates, 121 exact task records, 3 unresolved, 9 unexplained deletions, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Continue deletion adjudication only in bounded evidence-backed subsets; obtain the three named cross-domain ownership decisions before curation."
+        ],
+        "blockers": [
+          "Nine deletions still lack recorded explanations in the manifest; no cleanup or disposition is authorized.",
+          "Three cross-domain paths remain without sufficiently direct charter or task ownership."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:11:07Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the ninth compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: creator-cooperative operations are canonical, creator-digital-commons fails closed, and eight more deletions are explained.",
+        "completed": [
+          "ADMIN-003: migrated creator-cooperative operations GET/POST to withPlatformAdmin while preserving read projections, kill switches, the exact six-key privacy stop, non-idempotency, responses, and audit attribution; 55 consolidated tests passed and the registry is exact at 66/66.",
+          "RELEASE-008: added the disabled creator_digital_commons capability, stopped flag resolution before trusted data access, and gated its worker before credentials or queue work; 31 consolidated release tests passed.",
+          "ORCH-002: explained eight more DESIGN-029 venue UI retirements from explicit completed-task evidence; nine deletions and three ownership decisions remain.",
+          "Consolidated lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Review one additional creator admin operations family and one matching creator worker family.",
+          "Explain at most eight of the final nine deletion paths from explicit evidence, then handle the last path separately."
+        ],
+        "blockers": [
+          "Three cross-domain surfaces remain deliberately unresolved and nine deletions remain unexplained; no cleanup or atomic commit sequencing is authorized.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:12:47Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed a fourth evidence-only eight-deletion pass, reducing unexplained deletions from 9 to 1 without modifying or inferring disposition for any other path.",
+        "completed": [
+          "DESIGN-029 evidence explains components/venue/ui select, separator, sidebar, sonner, table, toggle-group, toggle, and use-mobile as compatibility twins retired under CP-037.",
+          "The task record supplies per-file parity dispositions, per-file and aggregate zero-consumer checks, barrel checks, canonical-register retirement, and staged deletion; the separator and use-mobile divergence records are preserved.",
+          "Regenerated 1,371 entries: 1,247 candidates, 121 exact task records, 3 unresolved, 1 unexplained deletion, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Review components/venue/ui/use-toast.ts in a separate bounded evidence pass; obtain the three named cross-domain ownership decisions before curation."
+        ],
+        "blockers": [
+          "One deletion still lacks a recorded explanation in the manifest; no cleanup or disposition is authorized.",
+          "Three cross-domain paths remain without sufficiently direct charter or task ownership."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:14:48Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the tenth compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: creator-digital-commons operations are canonical, creator-federation fails closed, and eight more deletions are explained.",
+        "completed": [
+          "ADMIN-003: migrated creator-digital-commons operations GET/POST to withPlatformAdmin while preserving reads, kill switches, the exact four-key exit freeze, non-idempotency, responses, and full audit fields; 58 consolidated tests passed and the registry is exact at 65/65.",
+          "RELEASE-008: added the disabled creator_federation capability, stopped flag resolution before trusted data access, and gated its worker before credentials or queue work; 33 consolidated release tests passed.",
+          "ORCH-002: explained eight more DESIGN-029 venue UI retirements from explicit evidence; only components/venue/ui/use-toast.ts remains unexplained alongside three ownership decisions.",
+          "Consolidated lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Complete the isolated use-toast deletion evidence pass and review one matching creator admin/worker pair.",
+          "Convert the three owner-decision handoffs into explicit bounded ownership tasks before any curation."
+        ],
+        "blockers": [
+          "Three cross-domain surfaces remain deliberately unresolved and one deletion remains unexplained; no cleanup or atomic commit sequencing is authorized.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:17:24Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the final evidence-only deletion pass, reducing unexplained deletions from 1 to 0 without assigning the three unresolved ownership paths.",
+        "completed": [
+          "DESIGN-004 records hooks/use-toast.ts as the canonical target and the deleted venue twin as byte-identical.",
+          "DESIGN-029 records matching SHA-256 and cmp evidence, per-file and aggregate zero-consumer checks, barrel checks, CP-037 authorization, canonical-register retirement, and staged deletion.",
+          "Regenerated 1,374 entries: 1,250 candidates, 121 exact task records, 3 unresolved, 0 unexplained deletions, zero credential-pattern findings, and unchanged scan exclusions."
+        ],
+        "next_steps": [
+          "Obtain decisions for the three named cross-domain ownership paths before curation; keep their current unresolved handoffs until tasks are explicitly assigned."
+        ],
+        "blockers": [
+          "Three cross-domain paths remain without sufficiently direct charter or task ownership.",
+          "Candidate confirmation and a release-grade scan remain outstanding before curation."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:19:41Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the eleventh compute-bounded wave across ADMIN-003, RELEASE-008, and ORCH-002: creator-federation operations are canonical, creator-interoperability-convention fails closed, and every deletion is explained.",
+        "completed": [
+          "ADMIN-003: migrated creator-federation operations GET/POST to withPlatformAdmin while preserving reads, kill switches, the exact eight-key partition stop, non-idempotency, responses, and audit attribution; 61 consolidated tests passed and the registry is exact at 64/64.",
+          "RELEASE-008: added the disabled creator_interoperability_convention capability, stopped flag resolution before trusted data access, and gated its worker before credentials or queue work; 35 consolidated release tests passed.",
+          "ORCH-002: explained the final use-toast deletion from direct DESIGN-004 and DESIGN-029 evidence; all 34 deletions are now explained and three ownership paths remain.",
+          "Consolidated lint, public-surface, production-debug, cron, admin-registry, ownership-invariant, and control-plane checks passed."
+        ],
+        "next_steps": [
+          "Create bounded database, general-user, and organization tasks for the three shared paths and map those paths only after the new task contracts are explicit.",
+          "Continue one matching creator admin/worker family while ownership tasks are formalized."
+        ],
+        "blockers": [
+          "Three shared paths require explicit new task ownership before curation; candidate confirmations and a release-grade scan remain outstanding.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:25:51.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Created and validated three bounded ownership tasks, then reduced unresolved ownership from 3 to 0 without changing product behavior.",
+        "completed": [
+          "DB-009 owns app/api/events/_lib/event-reference.ts and its multi-table identity/access contract without expanding DB-006.",
+          "USER-006 owns app/api/upload/signed-url/route.ts and requires a named adoption or explicitly authorized retirement decision.",
+          "ORG-006 owns app/events/_actions/event-actions.ts and preserves the H8 object-level authorization contract while dispositioning each export.",
+          "Regenerated 1,380 entries: 1,253 candidates, 127 exact task records, 0 unresolved, 0 unexplained deletions, zero credential-pattern findings, and unchanged scan exclusions.",
+          "Control-plane validation passed for 17 agents and 112 tasks with zero warnings and zero errors."
+        ],
+        "next_steps": [
+          "Execute each new task only after its recorded cross-domain dependencies are reviewed; confirm candidate ownership and perform a release-grade branch/history scan before curation."
+        ],
+        "blockers": [
+          "Candidate ownership is not yet confirmed repository-wide, and the bounded scan is not a release-grade branch/history attestation.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:27:50Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the twelfth compute-bounded wave: creator-interoperability-convention operations are canonical, creator-interoperability-institution fails closed, and all retained paths now have explicit task or candidate ownership with every deletion explained.",
+        "completed": [
+          "ADMIN-003: migrated creator-interoperability-convention operations GET/POST to withPlatformAdmin while preserving gates, reads, exact kill-switch mappings, the five-key convention freeze, responses, and audit fields; 64 consolidated tests passed and the registry is exact at 63/63.",
+          "RELEASE-008: added the disabled creator_interoperability_institution capability, stopped flag resolution before trusted data access, and gated its worker before credentials or queue work; 37 consolidated release tests passed.",
+          "ORCH-002: created DB-009, USER-006, and ORG-006 and mapped the final three shared paths; the manifest has zero unresolved paths and zero unexplained deletions.",
+          "Generated topology and control-plane validation passed for 17 agents and 112 tasks with zero warnings or errors."
+        ],
+        "next_steps": [
+          "Begin bounded owner confirmation for candidate mappings and dispatch the three new tasks only within their recorded dependencies.",
+          "Continue one matching creator admin/worker family while local release gates remain productive."
+        ],
+        "blockers": [
+          "Candidate confirmation and a release-grade branch/history scan remain required before curation or commit sequencing.",
+          "Hosted certification, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:39:39Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the thirteenth bounded wave across ADMIN-003, RELEASE-008, and DB-009.",
+        "completed": [
+          "ADMIN-003 migrated creator-interoperability-institution operations with preserved eleven-key freeze and audit behavior; 67 consolidated tests passed and the registry is exact at 62/62.",
+          "RELEASE-008 added the disabled creator_interoperability_organization boundary before trusted data, credentials, or queue work; 39 consolidated release tests passed.",
+          "DB-009 implemented fail-closed events_v2-to-artist_events-to-events resolution, ambiguity/error denial, published-like viewer access, owner access, and an exact 18-importer matrix; 8 focused tests passed.",
+          "Focused lint, public-surface, production-debug, cron, registry, JSON, ownership, and 112-task control-plane checks passed."
+        ],
+        "next_steps": [
+          "Obtain named consumer-domain review for DB-009 and DB-006 hosted cutover evidence.",
+          "Continue bounded candidate confirmation and remaining creator families when local execution resumes."
+        ],
+        "blockers": [
+          "A release-grade branch/history scanner is not installed; candidate confirmation remains incomplete.",
+          "Hosted certification, DB-006 cutover evidence, repository-wide typecheck/build evidence, and final release governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:51:59Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the fourteenth bounded wave across ADMIN-003, RELEASE-008, and DB-009.",
+        "completed": [
+          "ADMIN-003 migrated creator-interoperability-organization operations with preserved nine-key freeze and audit behavior; 70 consolidated tests passed and the registry is exact at 61/61.",
+          "RELEASE-008 added the disabled creator_protocol_constitution boundary before trusted data, credentials, or queue work; 41 consolidated release tests passed.",
+          "DB-009 now executes an exact 18-consumer matrix and records checkout binding, vendor-gate, and deployed-RLS gaps; 9 focused tests passed.",
+          "Focused lint, public-surface, production-debug, cron, registry, and 112-task control-plane checks passed."
+        ],
+        "next_steps": [
+          "Route DB-009's checkout binding and deployed RLS findings to their named owners and obtain DB-006 hosted evidence.",
+          "Continue the remaining matched creator families and begin ORG-006 local review."
+        ],
+        "blockers": [
+          "DB-009 awaits consumer-owner decisions, deployed RLS evidence, DB-006 hosted cutover, TICKET-005 certification, and QA-003 denial evidence.",
+          "Release-grade scanning, hosted certification, full type/build evidence, candidate confirmation, and final governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-19T00:03:06Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the fifteenth bounded wave across ADMIN-003, RELEASE-008, and ORG-006.",
+        "completed": [
+          "ADMIN-003 migrated creator-protocol-constitution operations while preserving freeze and audit behavior; 73 tests passed and the registry is exact at 60/60.",
+          "RELEASE-008 added the disabled creator_public_infrastructure boundary before trusted data, credentials, or queue work; 43 release tests passed.",
+          "ORG-006 bound status and hold mutations to actual organization ownership, fails closed on lookup errors or malformed time ranges, and retains unused exports pending explicit adoption or retirement; 11 tests passed.",
+          "Focused lint, surface, cron, registry, ownership, and 112-task control-plane checks passed."
+        ],
+        "next_steps": [
+          "Obtain Organization/Database/Venue adoption or retirement decisions for ORG-006 exports and hosted authorization evidence.",
+          "Continue the four remaining creator admin operations families and remaining worker/page consumers."
+        ],
+        "blockers": [
+          "ORG-006 awaits owner decisions, DB-006 hosted evidence, Venue lifecycle approval, and QA-003 exact-SHA certification.",
+          "Release-grade scanning, candidate confirmation, full type/build evidence, hosted certification, and final governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-19T00:15:27Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the sixteenth bounded wave across ADMIN-003, RELEASE-008, and USER-006.",
+        "completed": [
+          "ADMIN-003 migrated creator-public-infrastructure operations with all 13 action mappings preserved; 76 tests passed and the registry is exact at 59/59.",
+          "RELEASE-008 added the disabled creator_multilateral_treaty_operations boundary before trusted data, credentials, or queue work; 45 release tests passed.",
+          "USER-006 retained the zero-caller route, rejects cross-user/traversal/expiry ambiguity, pins private-docs with fixed expiry, and fails closed on limiter/signing failure without exposing service-role credentials; 23 tests passed.",
+          "Focused lint, surface, cron, registry, ownership, and 112-task control-plane checks passed."
+        ],
+        "next_steps": [
+          "Decide USER-006 adoption versus authorized retirement and reconcile certification-upload/account-deletion paths with private-docs storage policy.",
+          "Continue the three remaining creator admin families and remaining worker/page consumers."
+        ],
+        "blockers": [
+          "USER-006 awaits product disposition, restrictive hosted Storage policy evidence, USER-005 cleanup coverage, and QA-003 cross-user certification.",
+          "Release-grade scanning, candidate confirmation, full type/build evidence, hosted certification, and final governance remain outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:46:36.087Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed Waves 17-22: finalized all creator admin ops migrations, closed the USER-005 private-docs deletion gap including safe multi-batch draining, guarded the complete executable music-worker inventory, and added five launch-disabled direct-page boundaries.",
+        "completed": [],
+        "next_steps": [
+          "Continue RELEASE-008 one direct-page/navigation family at a time; resolve ADMIN-003 tenant-scope decisions before further guard migrations; obtain hosted exact-SHA certification and release-governance evidence."
+        ],
+        "blockers": []
+      },
+{
+        "at": "2026-09-19T02:51:49.807Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed Wave 23: added fail-closed server boundaries for cooperative and interoperability-convention pages, and documented five additional tenant/resource-scoped admin prerequisites without unsafe guard migration.",
+        "completed": [],
+        "next_steps": [
+          "Continue remaining RELEASE-008 direct-page families one at a time; require owner decisions and resource predicates before resuming ADMIN-003 migrations; obtain hosted exact-SHA certification."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-19T23:15:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed Wave 24: added fail-closed server boundaries for public-infrastructure and treaty-operations pages, closing the next two smallest RELEASE-008 direct-page families before hydration or API discovery. Wave 25 (deployment closeout): proved the RELEASE-006 build environment guard passes with the approved HTTPS origin and confirmed the migration chain validates.",
+        "completed": [
+          "Added app/public-infrastructure/layout.tsx gated on creator_public_infrastructure and app/treaty-operations/layout.tsx gated on creator_multilateral_treaty_operations using the canonical denial-layout pattern.",
+          "Extended the page-coverage test with denial plus page-boundary discovery assertions for both families; focused page/consumer tests pass at 56.",
+          "Public-surface, production-debug (40 covered unsafe routes), cron inventory (7 scheduled, 1 deferred), and focused ESLint passed with no registry or ownership changes to RELEASE-008 surfaces.",
+          "Regenerated generated maps (372 pages, 24 mobile, 945 API, 1,929 components) and the ownership manifest now has 1,431 entries, 1,286 candidates, 141 task records, zero unexplained deletions, zero credential findings, and 4 unresolved paths that are pre-existing concurrent marketing/nav-worktree modifications outside this wave.",
+          "Deployment closeout: proved the production build contract passes with the approved https://tourify.live origin (RELEASE-006 blocker is configuration, not code), confirmed the approved deployment env files carry HTTPS, ran the full build through the type-checking stage on Next 15.5.24, and confirmed the migration chain validates; remaining deployment gates are credentialed/hosted."
+        ],
+        "next_steps": [
+          "Continue remaining RELEASE-008 direct-page families (interop institution/organization, protocol constitution, treaty legacy/renewal) one at a time; require owner decisions and resource predicates before resuming ADMIN-003 migrations; obtain hosted exact-SHA certification."
+        ],
+        "blockers": [
+          "Hosted staging/database evidence and valid production-like environment configuration remain unavailable outside this orchestration wave.",
+          "Four unresolved paths (components/layout/app-chrome.tsx, components/marketing/landing-hero-auth.tsx, components/marketing/tourify-landing-page.tsx, components/nav.tsx) are concurrent worktree modifications preserved untouched, not assigned by this wave."
+        ]
+      },
+      {
+        "at": "2026-09-19T23:45:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wave 25 (deployment closeout): proved the RELEASE-006 build environment guard is a configuration gate, not a code defect, using the approved HTTPS origin; the full build compiles through the type-checking stage and the migration chain validates. Remaining deployment is credentialed/hosted.",
+        "completed": [
+          "Ran the production build environment contract with NEXT_PUBLIC_SITE_URL=https://tourify.live and it passed; confirmed deployment/demo.env and deployment/production.env carry approved HTTPS origins, so the earlier build blocker is resolved at the configuration level.",
+          "Ran npm run build:vercel with the approved origin on Next.js 15.5.24: compilation began and reached the type-checking stage; no completion is claimed from the shared dirty worktree.",
+          "Confirmed npm run check:migration-validation passes across the full chain including the MFA verification-code store; migration checksums and supabase-target gates require hosted inputs not present in this workspace.",
+          "No product, workflow, or env-file code was changed; progress is limited to bounded verification evidence captured in RELEASE-006, release STATE.md, and this record."
+        ],
+        "next_steps": [
+          "Run full typecheck/build to completion on the curated release checkout or the exact-SHA CI/Vercel build; provision hosted Vercel/Supabase credentials; deploy an exact reviewed SHA to isolated staging for QA-003 certification through RELEASE-007."
+        ],
+        "blockers": [
+          "Hosted Vercel/Supabase credentials, the exact-SHA deployment, and QA_CERT values are unavailable in this workspace; migration checksums and supabase-target checks need their documented hosted inputs."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "After the release branch and ownership manifest are stable, hand wave 1 to RELEASE-006, RELEASE-007, DB-002, and DB-008; do not dispatch later waves until their recorded prerequisites pass."
+  ]
+}

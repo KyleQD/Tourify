@@ -1,0 +1,1136 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-09-19T22:45:31.735Z",
+  "tasks": [
+    {
+      "id": "ADMIN-001",
+      "title": "Audit Admin workspace — baseline, gaps, and questions",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "admin",
+      "updated_at": "2026-09-09T06:17:39.523Z",
+      "path": "docs/engineering/tasks/active/ADMIN-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ADMIN-002",
+      "title": "Admin gate split: platform is_admin + capability",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "admin",
+      "updated_at": "2026-09-11T17:47:55.671Z",
+      "path": "docs/engineering/tasks/completed/ADMIN-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ADMIN-003",
+      "title": "Codify one standard admin guard wrapper",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "admin",
+      "updated_at": "2026-09-19T02:49:19.000Z",
+      "path": "docs/engineering/tasks/active/ADMIN-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ADMUX-0102",
+      "title": "Replace custom mobile and collapsed Admin sidebar behavior",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "admin",
+      "updated_at": "2026-09-10T18:19:43.155Z",
+      "path": "docs/engineering/tasks/active/ADMUX-0102.json",
+      "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1"
+    },
+    {
+      "id": "ADMUX-W01",
+      "title": "Complete Admin navigation IA audit wave",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "admin",
+      "updated_at": "2026-09-09T01:27:07.069Z",
+      "path": "docs/engineering/tasks/completed/ADMUX-W01.json",
+      "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1"
+    },
+    {
+      "id": "ARTIST-001",
+      "title": "Audit Artist workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "artist",
+      "updated_at": "2026-09-09T14:00:00.000Z",
+      "path": "docs/engineering/tasks/active/ARTIST-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ARTIST-002",
+      "title": "Artist owns artist-facing music surface",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "artist",
+      "updated_at": "2026-09-10T11:55:00.000Z",
+      "path": "docs/engineering/tasks/completed/ARTIST-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ARTIST-003",
+      "title": "Build contract signing UI",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "artist",
+      "updated_at": "2026-09-16T19:24:56.009Z",
+      "path": "docs/engineering/tasks/active/ARTIST-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ARTIST-004",
+      "title": "Adopt artist music auth in API routes",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "artist",
+      "updated_at": "2026-09-10T21:33:31.000Z",
+      "path": "docs/engineering/tasks/completed/ARTIST-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "AUTH-AGENT-001",
+      "title": "Provision scoped service identities for engineering agents",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "database",
+      "updated_at": "2026-09-09T03:52:19.882Z",
+      "path": "docs/engineering/tasks/completed/AUTH-AGENT-001.json",
+      "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1"
+    },
+    {
+      "id": "CTRL-001",
+      "title": "Bootstrap Tourify engineering control plane",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "orchestrator",
+      "updated_at": "2026-09-09T01:05:05.075Z",
+      "path": "docs/engineering/tasks/completed/CTRL-001.json",
+      "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1"
+    },
+    {
+      "id": "DB-001",
+      "title": "Audit Database workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "database",
+      "updated_at": "2026-09-10T20:54:36.029Z",
+      "path": "docs/engineering/tasks/completed/DB-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-002",
+      "title": "Close hosted database permission and money-path exposure",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "database",
+      "updated_at": "2026-09-17T01:29:01.283Z",
+      "path": "docs/engineering/tasks/active/DB-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-003",
+      "title": "Reconcile migration tree into one authoritative baseline",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "database",
+      "updated_at": "2026-09-10T06:00:00.000Z",
+      "path": "docs/engineering/tasks/completed/DB-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-004",
+      "title": "Regenerate canonical database types + CI drift check",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "database",
+      "updated_at": "2026-09-10T06:00:00.000Z",
+      "path": "docs/engineering/tasks/completed/DB-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-005",
+      "title": "Ticketing schema additive migration",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "database",
+      "updated_at": "2026-09-16T19:24:55.209Z",
+      "path": "docs/engineering/tasks/active/DB-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-006",
+      "title": "Complete canonical events_v2 launch cutover",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "database",
+      "updated_at": "2026-09-16T19:24:55.270Z",
+      "path": "docs/engineering/tasks/active/DB-006.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-007",
+      "title": "Reconcile post-styles/post-appearances migration family",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "database",
+      "updated_at": "2026-09-10T03:31:16.956Z",
+      "path": "docs/engineering/tasks/completed/DB-007.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-008",
+      "title": "Hosted schema reconciliation and migration ledger",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "database",
+      "updated_at": "2026-09-17T01:29:01.343Z",
+      "path": "docs/engineering/tasks/active/DB-008.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-009",
+      "title": "Define the shared multi-table event-reference contract",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "database",
+      "updated_at": "2026-09-18T23:49:45.000Z",
+      "path": "docs/engineering/tasks/active/DB-009.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-001",
+      "title": "Audit Design System workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-10T22:20:00.000Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-002",
+      "title": "Unify use-mobile hook",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-10T16:30:00.000Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-003",
+      "title": "Shared EmptyState/ErrorState/Skeleton primitives",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-10T16:35:47Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-004",
+      "title": "Design-system side of venue tree consolidation",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:39:40.880Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-005",
+      "title": "Retire venue alert-dialog primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:10.193Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-006",
+      "title": "Retire venue alert primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:10.407Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-006.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-007",
+      "title": "Retire venue aspect-ratio primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:10.584Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-007.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-008",
+      "title": "Retire venue avatar primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:10.760Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-008.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-009",
+      "title": "Retire venue carousel primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:10.939Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-009.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-010",
+      "title": "Retire venue context-menu primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:11.115Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-010.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-011",
+      "title": "Retire venue drawer primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:04:08.634Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-011.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-012",
+      "title": "Retire venue dropdown-menu primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:04:08.899Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-012.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-013",
+      "title": "Retire venue form primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:04:09.077Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-013.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-014",
+      "title": "Retire venue hover-card primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:04:09.253Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-014.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-015",
+      "title": "Retire venue input-otp primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:04:09.428Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-015.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-016",
+      "title": "Retire venue menubar primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:07:23.710Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-016.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-017",
+      "title": "Retire venue navigation-menu primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:07:23.886Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-017.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-018",
+      "title": "Retire venue pagination primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:07:24.063Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-018.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-019",
+      "title": "Retire venue resizable primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:07:24.267Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-019.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-020",
+      "title": "Retire venue select primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:07:24.441Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-020.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-021",
+      "title": "Retire venue separator primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:27:32.684Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-021.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-022",
+      "title": "Retire venue sidebar primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:11.289Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-022.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-023",
+      "title": "Retire venue sonner primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:27:32.868Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-023.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-024",
+      "title": "Retire venue table primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:27:33.050Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-024.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-025",
+      "title": "Retire venue toggle-group primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:27:33.228Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-025.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-026",
+      "title": "Retire venue toggle primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:27:33.409Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-026.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-027",
+      "title": "Retire venue use-mobile primitive after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T19:46:11.469Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-027.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-029",
+      "title": "Retire venue-ui compatibility twins after shared contract migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T20:39:16.715Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-029.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-030",
+      "title": "Token authority: CSS-variable runtime truth + staged migration",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-13T18:51:17.001Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-030.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-031",
+      "title": "Domain use-mobile copies: migrate callers to canonical contract",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-11T21:17:29.529Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-031.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-032",
+      "title": "Sidebar/chart token gap: surface --sidebar-*/--chart-* via Tailwind projection",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-13T18:06:56.438Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-032.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-033",
+      "title": "Apply owner-approved --radius token (C-03 gate)",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-16T19:24:56.135Z",
+      "path": "docs/engineering/tasks/active/DESIGN-033.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-034",
+      "title": "Token registry CI regression gate (Phase 6)",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-16T19:24:56.201Z",
+      "path": "docs/engineering/tasks/active/DESIGN-034.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DESIGN-035",
+      "title": "Mobile landing and signup flow hardening",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "design-system",
+      "updated_at": "2026-09-19T22:45:31.681Z",
+      "path": "docs/engineering/tasks/active/DESIGN-035.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DISC-001",
+      "title": "Audit Discover workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "discover",
+      "updated_at": "2026-09-09T06:17:41.084Z",
+      "path": "docs/engineering/tasks/completed/DISC-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DISC-002",
+      "title": "Consolidate search to one endpoint",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "discover",
+      "updated_at": "2026-09-16T19:24:55.639Z",
+      "path": "docs/engineering/tasks/active/DISC-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-001",
+      "title": "Audit Integrations workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-10T22:03:01.000Z",
+      "path": "docs/engineering/tasks/completed/INTG-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-002",
+      "title": "Photos webhook idempotency ledger",
+      "status": "completed",
+      "priority": "P0",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-09T20:00:30.614Z",
+      "path": "docs/engineering/tasks/completed/INTG-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-003",
+      "title": "MFA hardening: hash backup codes + DB code store",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-18T21:50:57.000Z",
+      "path": "docs/engineering/tasks/active/INTG-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-004",
+      "title": "Secure all cron routes with CRON_SECRET",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-09T20:00:31.047Z",
+      "path": "docs/engineering/tasks/completed/INTG-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-005",
+      "title": "Split Stripe webhook secrets",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-09T20:00:31.506Z",
+      "path": "docs/engineering/tasks/completed/INTG-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-006",
+      "title": "Align webhook idempotency/verification per route",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-18T04:57:40.920Z",
+      "path": "docs/engineering/tasks/active/INTG-006.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "INTG-007",
+      "title": "External credential vault and integration gating",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "integrations",
+      "updated_at": "2026-09-16T19:20:39.904Z",
+      "path": "docs/engineering/tasks/active/INTG-007.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MKT-001",
+      "title": "Audit Marketplace workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "marketplace",
+      "updated_at": "2026-09-09",
+      "path": "docs/engineering/tasks/completed/MKT-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MKT-002",
+      "title": "Per-persona storefronts canonical",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "marketplace",
+      "updated_at": "2026-09-16T19:24:55.761Z",
+      "path": "docs/engineering/tasks/active/MKT-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MKT-003",
+      "title": "Marketplace side of music commerce split",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "marketplace",
+      "updated_at": "2026-09-10T19:58:00.000Z",
+      "path": "docs/engineering/tasks/completed/MKT-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MKT-004",
+      "title": "Marketplace transaction launch readiness",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "marketplace",
+      "updated_at": "2026-09-18T04:52:32.433Z",
+      "path": "docs/engineering/tasks/active/MKT-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MUSIC-001",
+      "title": "Audit Music workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "music",
+      "updated_at": "2026-09-10T22:07:24.282Z",
+      "path": "docs/engineering/tasks/completed/MUSIC-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MUSIC-002",
+      "title": "Gate/remove music webhook unsigned fallback",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "music",
+      "updated_at": "2026-09-09T20:00:31.906Z",
+      "path": "docs/engineering/tasks/completed/MUSIC-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MUSIC-003",
+      "title": "Music commerce split by concern",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "music",
+      "updated_at": "2026-09-10T13:02:00.000Z",
+      "path": "docs/engineering/tasks/completed/MUSIC-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MUSIC-004",
+      "title": "Music worker deployment framework",
+      "status": "blocked",
+      "priority": "P2",
+      "owner_agent": "music",
+      "updated_at": "2026-09-16T19:24:55.885Z",
+      "path": "docs/engineering/tasks/blocked/MUSIC-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MUSIC-005",
+      "title": "Adopt music commerce auth contracts in API routes",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "music",
+      "updated_at": "2026-09-10T21:17:10.000Z",
+      "path": "docs/engineering/tasks/completed/MUSIC-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORCH-001",
+      "title": "Audit Orchestrator workspace — baseline, gaps, and questions",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "orchestrator",
+      "updated_at": "2026-09-16T19:24:55.823Z",
+      "path": "docs/engineering/tasks/active/ORCH-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORCH-002",
+      "title": "Curate workspace and own launch critical path",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "orchestrator",
+      "updated_at": "2026-09-19T02:51:49.807Z",
+      "path": "docs/engineering/tasks/active/ORCH-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORG-001",
+      "title": "Audit Organization workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "organization",
+      "updated_at": "2026-09-09T07:54:12.191Z",
+      "path": "docs/engineering/tasks/completed/ORG-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORG-002",
+      "title": "Unify org identity model",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "organization",
+      "updated_at": "2026-09-10T21:47:59.404Z",
+      "path": "docs/engineering/tasks/completed/ORG-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORG-003",
+      "title": "Atomic org invite accept + revocation",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "organization",
+      "updated_at": "2026-09-10T03:50:46.000Z",
+      "path": "docs/engineering/tasks/completed/ORG-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORG-004",
+      "title": "Fix accept_org_invite circular RLS for first-time recipients",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "organization",
+      "updated_at": "2026-09-10T03:50:46.000Z",
+      "path": "docs/engineering/tasks/completed/ORG-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORG-005",
+      "title": "First-time invitee organizer_account_id visibility",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "organization",
+      "updated_at": "2026-09-10T06:00:00.000Z",
+      "path": "docs/engineering/tasks/completed/ORG-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "ORG-006",
+      "title": "Disposition org-scoped event lifecycle actions",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "organization",
+      "updated_at": "2026-09-18T23:58:34.000Z",
+      "path": "docs/engineering/tasks/active/ORG-006.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "QA-001",
+      "title": "Audit QA workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "qa",
+      "updated_at": "2026-09-10T20:45:08.625Z",
+      "path": "docs/engineering/tasks/completed/QA-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "QA-002",
+      "title": "Resolve 27 vitest failures inline",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "qa",
+      "updated_at": "2026-09-10T04:00:45.073Z",
+      "path": "docs/engineering/tasks/completed/QA-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "QA-003",
+      "title": "Core web launch certification suite",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "qa",
+      "updated_at": "2026-09-18T22:02:55.300Z",
+      "path": "docs/engineering/tasks/active/QA-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-001",
+      "title": "Audit Release workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "release",
+      "updated_at": "2026-09-09T06:17:43.450Z",
+      "path": "docs/engineering/tasks/completed/RELEASE-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-002",
+      "title": "Worker deployment framework (release)",
+      "status": "blocked",
+      "priority": "P2",
+      "owner_agent": "release",
+      "updated_at": "2026-09-16T19:24:55.947Z",
+      "path": "docs/engineering/tasks/blocked/RELEASE-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-003",
+      "title": "Full observability: Sentry + uptime + alerting",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "release",
+      "updated_at": "2026-09-16T19:24:55.452Z",
+      "path": "docs/engineering/tasks/active/RELEASE-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-004",
+      "title": "Isolated prod/demo recovery and continuity plan",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "release",
+      "updated_at": "2026-09-16T19:24:55.512Z",
+      "path": "docs/engineering/tasks/active/RELEASE-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-005",
+      "title": "Enforce production release required checks",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "release",
+      "updated_at": "2026-09-16T19:24:55.573Z",
+      "path": "docs/engineering/tasks/active/RELEASE-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-006",
+      "title": "Reproducible runtime and dependency baseline",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "release",
+      "updated_at": "2026-09-18T21:51:55Z",
+      "path": "docs/engineering/tasks/active/RELEASE-006.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-007",
+      "title": "Isolated staging and controlled production promotion",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "release",
+      "updated_at": "2026-09-17T01:29:01.219Z",
+      "path": "docs/engineering/tasks/active/RELEASE-007.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "RELEASE-008",
+      "title": "Production capability and public surface controls",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "release",
+      "updated_at": "2026-09-19T02:50:34.000Z",
+      "path": "docs/engineering/tasks/active/RELEASE-008.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "SOCIAL-001",
+      "title": "Audit Social workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "social",
+      "updated_at": "2026-09-11T18:19:45.470Z",
+      "path": "docs/engineering/tasks/completed/SOCIAL-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "SOCIAL-002",
+      "title": "Build standalone feed",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "social",
+      "updated_at": "2026-09-10T17:48:25.000Z",
+      "path": "docs/engineering/tasks/completed/SOCIAL-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "SOCIAL-003",
+      "title": "Full community groups",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "social",
+      "updated_at": "2026-09-10T20:29:29.076Z",
+      "path": "docs/engineering/tasks/completed/SOCIAL-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "SOCIAL-004",
+      "title": "Realtime messaging",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "social",
+      "updated_at": "2026-09-16T19:24:55.700Z",
+      "path": "docs/engineering/tasks/active/SOCIAL-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "TICKET-001",
+      "title": "Audit Ticketing workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "ticketing",
+      "updated_at": "2026-09-09T08:28:52.625Z",
+      "path": "docs/engineering/tasks/completed/TICKET-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "TICKET-002",
+      "title": "Versioned ticket settlement",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "ticketing",
+      "updated_at": "2026-09-11T17:55:39Z",
+      "path": "docs/engineering/tasks/completed/TICKET-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "TICKET-003",
+      "title": "False-zero read truthfulness",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "ticketing",
+      "updated_at": "2026-09-11T17:55:39Z",
+      "path": "docs/engineering/tasks/completed/TICKET-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "TICKET-004",
+      "title": "Always-auth ticket purchase GA contract",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "ticketing",
+      "updated_at": "2026-09-11T17:47:54.882Z",
+      "path": "docs/engineering/tasks/completed/TICKET-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "TICKET-005",
+      "title": "Ticketing transaction launch certification",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "ticketing",
+      "updated_at": "2026-09-18T04:52:32.558Z",
+      "path": "docs/engineering/tasks/active/TICKET-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "USER-001",
+      "title": "Audit General User workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "general-user",
+      "updated_at": "2026-09-09T08:04:49.469Z",
+      "path": "docs/engineering/tasks/completed/USER-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "USER-002",
+      "title": "Standardize onboarding API contract",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "general-user",
+      "updated_at": "2026-09-11T17:47:54.662Z",
+      "path": "docs/engineering/tasks/completed/USER-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "USER-003",
+      "title": "Rewrite unified settings surface",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "general-user",
+      "updated_at": "2026-09-16T19:24:56.071Z",
+      "path": "docs/engineering/tasks/active/USER-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "USER-004",
+      "title": "Extend GDPR erasure map",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "general-user",
+      "updated_at": "2026-09-11T17:47:55.086Z",
+      "path": "docs/engineering/tasks/completed/USER-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "USER-005",
+      "title": "Authentication and account lifecycle launch readiness",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "general-user",
+      "updated_at": "2026-09-19T02:37:54.000Z",
+      "path": "docs/engineering/tasks/active/USER-005.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "USER-006",
+      "title": "Decide private-docs signed-upload adoption or retirement",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "general-user",
+      "updated_at": "2026-09-19T00:11:37.000Z",
+      "path": "docs/engineering/tasks/active/USER-006.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "VENUE-001",
+      "title": "Audit Venue workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "venue",
+      "updated_at": "2026-09-10T23:02:41.300Z",
+      "path": "docs/engineering/tasks/completed/VENUE-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "VENUE-002",
+      "title": "Venue component tree consolidation",
+      "status": "blocked",
+      "priority": "P2",
+      "owner_agent": "venue",
+      "updated_at": "2026-09-16T19:24:56.264Z",
+      "path": "docs/engineering/tasks/blocked/VENUE-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "VENUE-003",
+      "title": "Build venue booking lifecycle",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "venue",
+      "updated_at": "2026-09-10T17:49:52.392Z",
+      "path": "docs/engineering/tasks/completed/VENUE-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "WORK-001",
+      "title": "Audit Work workspace — baseline, gaps, and questions",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "work",
+      "updated_at": "2026-09-10T20:35:45.844Z",
+      "path": "docs/engineering/tasks/completed/WORK-001.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "WORK-002",
+      "title": "Build staffing persona matrix",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "work",
+      "updated_at": "2026-09-11T17:47:55.428Z",
+      "path": "docs/engineering/tasks/completed/WORK-002.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "WORK-003",
+      "title": "Site-map zones event-zone bridge reconciliation",
+      "status": "completed",
+      "priority": "P1",
+      "owner_agent": "work",
+      "updated_at": "2026-09-10T02:09:38.538Z",
+      "path": "docs/engineering/tasks/completed/WORK-003.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "WORK-004",
+      "title": "Work Mode overview and event workspace",
+      "status": "completed",
+      "priority": "P2",
+      "owner_agent": "work",
+      "updated_at": "2026-09-11T02:07:19.549Z",
+      "path": "docs/engineering/tasks/completed/WORK-004.json",
+      "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    }
+  ]
+}

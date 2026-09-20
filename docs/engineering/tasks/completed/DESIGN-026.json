@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-026",
+  "title": "Retire venue toggle primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:57.671Z",
+  "updated_at": "2026-09-11T20:27:33.409Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/toggle.tsx to components/ui/toggle.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/toggle.tsx",
+      "components/ui/toggle.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/toggle.tsx",
+    "components/ui/toggle.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical form / editor preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/toggle|@/components/venue/ui/toggle\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/toggle.tsx components/ui/toggle.tsx",
+      "git diff --check -- components/venue/ui/toggle.tsx components/ui/toggle.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use audit passed: rg for 'components/venue/ui/toggle|@/components/venue/ui/toggle' returned 0 matches (exit 1) across app, components, hooks, lib, apps, __tests__, and scripts; no barrel index exists in components/venue/ui, and no relative re-export (./toggle, ../ui/toggle, export *) of the venue twin exists under components/venue. Repo-wide confirmation (including docs) finds the twin path only in generated indexes and records: docs/engineering/generated/components.md, sibling task DESIGN-025.json (toggle-group family), this task record, and CANONICAL_COMPONENT_REGISTER.csv. The venue twin has no source consumers.",
+      "Canonical import inventory passed: 3 files reference @/components/ui/toggle across the audited scope. Direct consumers of the canonical path: components/ui/toggle-group.tsx:8 and components/venue/ui/toggle-group.tsx:8 both import toggleVariants from @/components/ui/toggle (canonical internal + already-migrated venue toggle-group twin). app/venue/components/staff/venue-staff-shifts-panel.tsx:10 imports ToggleGroup/ToggleGroupItem from @/components/ui/toggle-group (venue-surface consumer of the canonical group; substring match on 'toggle'). Venue-surface count under app/venue/** + components/venue/**: 2 matches, and neither imports the venue twin. No consumer references the venue twin.",
+      "Twin characterization passed: components/venue/ui/toggle.tsx is byte-identical to components/ui/toggle.tsx (diff exit 0; SHA-256 10783ad8d10a3405551a84e13d86dc2cb8f7b87005508e07445eab8b34d77032 on both files). Public contract parity is complete: both export Toggle and toggleVariants only. Toggle is a React.forwardRef wrapper over TogglePrimitive.Root with displayName = TogglePrimitive.Root.displayName; Radix prop/ref parity is exact (React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root> & VariantProps<typeof toggleVariants>, ref passthrough, cn() composition). cva/variant parity is exact: variant default/outline, size default/sm/lg, defaultVariants variant=default size=default.",
+      "Register disposition confirmed: CANONICAL_COMPONENT_REGISTER.csv line 1149 keeps components/ui/toggle.tsx (DUP-095, 0 incomplete markers, canonical shared primitive); line 1315 marks components/venue/ui/toggle.tsx 'retire later' (DUP-095, exact duplicate, target components/ui/toggle.tsx, 'preserve until imports move and zero-use evidence is recorded'). Lines 340-341 (app/venue/components/ui/toggle.tsx DUP-095 and app/venue/components/ui/toggle-group.tsx DUP-094) are stale rows: neither route-local file exists on disk, mirroring the DESIGN-020 line 327 stale-row finding. Disposition is canonical keep, consumers already migrated, twin retained as retire-later compatibility debt.",
+      "Focused ESLint passed for components/venue/ui/toggle.tsx and components/ui/toggle.tsx (exit 0).",
+      "Focused git diff check passed for the two toggle paths and docs/engineering (exit 0).",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:27:33.409Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded toggle audit complete. The venue toggle twin has zero consumers; files are byte-identical with Toggle + toggleVariants export parity and remain registered retire-later (DUP-095). Twin retained.",
+    "completed": [],
+    "next_steps": [
+      "Audit live consumers and identify the owning surface for components/venue/ui/toggle.tsx.",
+      "Confirm public/export parity with the canonical target before retirement. Coordinate any migration and deletion only after focused verification and register evidence."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:09:11.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed an audit-only review of the venue toggle twin against components/ui/toggle.tsx. The twin is a byte-identical duplicate (matching SHA-256 10783ad8...) with full public-export parity (Toggle, toggleVariants) and exact Radix prop/ref and cva/variant parity. Zero-use evidence recorded: 0 rg matches on the twin path, no barrel/relative re-exports under components/venue, and repo-wide source references absent (twin path appears only in generated index, sibling DESIGN-025, this record, and the register CSV). Canonical import inventory: 2 direct consumers of @/components/ui/toggle (toggleVariants via components/ui/toggle-group.tsx and the already-migrated venue toggle-group twin) plus 1 venue-surface substring consumer on the canonical toggle-group path (app/venue/components/staff/venue-staff-shifts-panel.tsx). Register DUP-095 disposition confirmed (canonical keep at line 1149, twin retire-later at line 1315); lines 340-341 route-local rows are stale (files not on disk), mirroring DESIGN-020 line 327. Validation quirk: one interim agents:validate run reported a transient malformed-JSON error on sibling record DESIGN-023.json (concurrent mid-write in the dirty worktree, outside this task's scope); the record parsed cleanly moments later and the final validate pass is clean. No source, caller, register, or venue behavior changes were made; twin retained.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-026.json"
+        ],
+        "verification": [
+          "Zero-use rg audit: 0 matches (exit 1); no barrel/relative re-exports; repo-wide source references absent",
+          "Canonical import inventory: 2 direct @/components/ui/toggle consumers (both toggleVariants) + 1 venue-surface toggle-group substring consumer",
+          "Byte-identical twin: matching SHA-256 10783ad8...; full export parity (Toggle, toggleVariants) and exact Radix prop/ref + cva/variant parity",
+          "Focused ESLint passed (exit 0)",
+          "Focused git diff --check passed (exit 0)",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No approved migration/deletion scope for the audit-only pass"
+        ],
+        "next_steps": [
+          "Retain the twin as registered retire-later compatibility debt until an explicitly approved deletion decision is recorded.",
+          "Register rows 340-341 (app/venue/components/ui/toggle-group.tsx DUP-094 and app/venue/components/ui/toggle.tsx DUP-095) are stale and should be corrected in the separately scoped retirement/register step."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:27:33.409Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded toggle audit complete. The venue toggle twin has zero consumers; files are byte-identical with Toggle + toggleVariants export parity and remain registered retire-later (DUP-095). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

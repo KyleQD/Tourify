@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "agent": "music",
+  "description": "Own music catalog, playback, rights, royalties, ingestion, and music worker flows.",
+  "paths": [
+    "app/music/**",
+    "app/api/music/**",
+    "components/music/**",
+    "lib/music/**",
+    "lib/playback/**",
+    "scripts/music-*.ts",
+    "__tests__/music/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

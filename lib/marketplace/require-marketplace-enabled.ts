@@ -98,6 +98,19 @@ export function requireExternalListingsEnabled(): NextResponse | null {
 }
 
 /**
+ * Gate listing mutations by the canonical launch variant. This keeps a route
+ * from checking only the master switch and accidentally enabling a deferred
+ * service or external-listing path.
+ */
+export function requireMarketplaceListingKindEnabled(
+  listingKind: "physical" | "service" | "external",
+): NextResponse | null {
+  if (listingKind === "service") return requireServicesEnabled()
+  if (listingKind === "external") return requireExternalListingsEnabled()
+  return requireNativeGoodsEnabled()
+}
+
+/**
  * Guards guest checkout entry points.
  * Returns a 503 NextResponse when disabled; null when the route should proceed.
  */

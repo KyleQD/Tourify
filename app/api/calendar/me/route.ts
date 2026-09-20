@@ -67,18 +67,12 @@ export async function GET() {
     ].filter((id): id is string => Boolean(id))),
   )
 
-  const [eventsResponse, eventsV2Response] = eventIds.length
-    ? await Promise.all([
-        supabase
-          .from("events")
-          .select("id, title, start_at, end_at, venue_name, city, state")
-          .in("id", eventIds),
-        supabase
-          .from("events_v2")
-          .select("id, title, start_at, end_at, timezone")
-          .in("id", eventIds),
-      ])
-    : [{ data: [], error: null }, { data: [], error: null }]
+  const eventsV2Response = eventIds.length
+    ? await supabase
+        .from("events_v2")
+        .select("id, title, start_at, end_at, timezone")
+        .in("id", eventIds)
+    : { data: [], error: null }
 
   const events = new Map<string, {
     title: string
@@ -86,14 +80,6 @@ export async function GET() {
     endAt: string | null
     subtitle: string | null
   }>()
-  for (const event of eventsResponse.data ?? []) {
-    events.set(event.id, {
-      title: event.title,
-      startAt: event.start_at,
-      endAt: event.end_at,
-      subtitle: [event.venue_name, event.city, event.state].filter(Boolean).join(" · ") || null,
-    })
-  }
   for (const event of eventsV2Response.data ?? []) {
     events.set(event.id, {
       title: event.title,
@@ -116,7 +102,7 @@ export async function GET() {
       subtitle: assignment.department || event?.title || null,
       startAt: assignment.starts_at,
       endAt: assignment.ends_at,
-      href: `/work/today?assignment=${encodeURIComponent(assignment.id)}`,
+      href: `/work/overview?assignment=${encodeURIComponent(assignment.id)}`,
       status: assignment.status,
       conflictIds: [],
     })
@@ -164,7 +150,7 @@ export async function GET() {
     sources,
     partial:
       Object.values(sources).some((state) => state === "unavailable") ||
-      Boolean(eventsResponse.error && eventsV2Response.error),
+      Boolean(eventsV2Response.error),
     generatedAt: new Date().toISOString(),
   }
   return NextResponse.json(
@@ -172,4 +158,3 @@ export async function GET() {
     { headers: { "Cache-Control": "private, no-store" } },
   )
 }
-

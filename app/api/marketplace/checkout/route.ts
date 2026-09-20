@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createHash, randomBytes } from "crypto"
+import { randomBytes } from "crypto"
 import type Stripe from "stripe"
-import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import { requireGuestCheckoutEnabled, requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 import { fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { loadActiveFeeSnapshot, calculateFeeBreakdown } from "@/lib/marketplace/fee-calculator"
 import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
@@ -13,17 +13,13 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { marketplaceCheckoutRequestSchema } from "@tourify/api-contracts"
+import { hashMarketplaceCheckoutInput, resolveCheckoutAttempt } from "@/lib/marketplace/checkout-idempotency"
 
 export const dynamic = "force-dynamic"
 
 function parseCheckoutErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message
   return "Invalid checkout payload"
-}
-
-/** SHA-256 hash of normalised payload for idempotency dedup */
-function hashPayload(payload: unknown): string {
-  return createHash("sha256").update(JSON.stringify(payload)).digest("hex")
 }
 
 export async function POST(request: NextRequest) {
@@ -42,6 +38,10 @@ export async function POST(request: NextRequest) {
       : await createServerClient()
 
     const buyer = authResult?.user ?? null
+    if (!buyer) {
+      const guestGuard = requireGuestCheckoutEnabled()
+      if (guestGuard) return guestGuard
+    }
 
     // ── Parse payload ─────────────────────────────────────────────────────────
     let rawBody: unknown
@@ -77,45 +77,79 @@ export async function POST(request: NextRequest) {
     // Client must supply an idempotency key. If a pending/completed attempt with
     // the same key already exists we return the existing checkout URL.
     const idempotencyKey = payload.idempotencyKey
-    const inputHash = hashPayload({
+    if (!idempotencyKey) {
+      return jsonError({
+        status: 400,
+        code: "idempotency_key_required",
+        message: "An idempotency key is required for checkout.",
+        retryable: false,
+      })
+    }
+
+    const inputHash = hashMarketplaceCheckoutInput({
       lines: payload.lines,
+      shippingAddress: payload.shippingAddress ?? null,
       guestEmail: payload.guestEmail ?? null,
       buyerUserId: buyer?.id ?? null,
     })
 
-    if (idempotencyKey) {
-      const svc = createServiceRoleClient()
-      const { data: existingAttempt } = await svc
-        .from("marketplace_checkout_attempts")
-        .select("id, status, order_id")
-        .eq("idempotency_key", idempotencyKey)
+    const svc = createServiceRoleClient()
+    const { data: existingAttempt, error: attemptLookupError } = await svc
+      .from("marketplace_checkout_attempts")
+      .select("status, order_id, input_hash")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle()
+
+    if (attemptLookupError) {
+      return jsonError({
+        status: isSchemaCacheMissingError(attemptLookupError) ? 503 : 500,
+        code: isSchemaCacheMissingError(attemptLookupError) ? "schema_not_ready" : "idempotency_check_failed",
+        message: isSchemaCacheMissingError(attemptLookupError)
+          ? getSchemaNotReadyMessage({ feature: "Marketplace checkout idempotency" })
+          : "Unable to verify checkout idempotency.",
+        retryable: true,
+      })
+    }
+
+    const attemptDecision = resolveCheckoutAttempt(existingAttempt as any, inputHash)
+    if (attemptDecision.action === "conflict") {
+      const errorByReason = {
+        payload_mismatch: ["idempotency_payload_mismatch", "This idempotency key was already used with a different checkout payload."],
+        already_completed: ["already_completed", "This checkout has already been completed."],
+        key_not_reusable: ["idempotency_key_not_reusable", "This checkout attempt is closed. Use a new idempotency key."],
+        in_progress: ["checkout_in_progress", "This checkout is already being created. Retry shortly with the same key."],
+      } as const
+      const [code, message] = errorByReason[attemptDecision.reason]
+      return jsonError({ status: 409, code, message, retryable: attemptDecision.reason === "in_progress" })
+    }
+
+    if (attemptDecision.action === "resume") {
+      const { data: existingOrder, error: existingOrderError } = await svc
+        .from("marketplace_orders")
+        .select("id, stripe_checkout_session_id")
+        .eq("id", attemptDecision.orderId)
         .maybeSingle()
 
-      if (existingAttempt) {
-        if (existingAttempt.status === "pending" && existingAttempt.order_id) {
-          // Return existing order + checkout URL if still valid
-          const { data: existingOrder } = await svc
-            .from("marketplace_orders")
-            .select("id, stripe_checkout_session_id")
-            .eq("id", existingAttempt.order_id)
-            .maybeSingle()
-
-          if (existingOrder?.stripe_checkout_session_id) {
-            const stripe = getStripeClient()
-            try {
-              const session = await stripe.checkout.sessions.retrieve(existingOrder.stripe_checkout_session_id)
-              if (session.status === "open" && session.url) {
-                return NextResponse.json({ data: { orderId: existingOrder.id, checkoutUrl: session.url } })
-              }
-            } catch {
-              // Session expired/invalid — fall through to create a fresh one
-            }
+      if (existingOrderError) {
+        return jsonError({ status: 500, code: "idempotency_resume_failed", message: "Unable to resume checkout.", retryable: true })
+      }
+      if (existingOrder?.stripe_checkout_session_id) {
+        const stripe = getStripeClient()
+        try {
+          const session = await stripe.checkout.sessions.retrieve(existingOrder.stripe_checkout_session_id)
+          if (session.status === "open" && session.url) {
+            return NextResponse.json({ data: { orderId: existingOrder.id, checkoutUrl: session.url } })
           }
-        }
-        if (existingAttempt.status === "completed") {
-          return jsonError({ status: 409, code: "already_completed", message: "This checkout has already been completed.", retryable: false })
+        } catch {
+          // Closed or unavailable sessions never create another order for the same key.
         }
       }
+      return jsonError({
+        status: 409,
+        code: "checkout_session_unavailable",
+        message: "The previous checkout session is no longer available. Use a new idempotency key.",
+        retryable: false,
+      })
     }
 
     // ── Load listings ─────────────────────────────────────────────────────────
@@ -357,16 +391,20 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Record checkout attempt for idempotency ───────────────────────────────
-    if (idempotencyKey) {
-      await svcClient.from("marketplace_checkout_attempts").upsert({
-        idempotency_key: idempotencyKey,
-        buyer_user_id: buyer?.id ?? null,
-        guest_email: guestEmail,
-        order_id: order.id,
-        input_hash: inputHash,
-        status: "pending",
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      }, { onConflict: "idempotency_key", ignoreDuplicates: true })
+    const { error: checkoutAttemptError } = await svcClient.from("marketplace_checkout_attempts").upsert({
+      idempotency_key: idempotencyKey,
+      buyer_user_id: buyer?.id ?? null,
+      guest_email: guestEmail,
+      order_id: order.id,
+      input_hash: inputHash,
+      status: "pending",
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    }, { onConflict: "idempotency_key", ignoreDuplicates: true })
+    if (checkoutAttemptError) {
+      await svcClient.from("marketplace_payout_ledger").delete().eq("order_id", order.id)
+      await svcClient.from("marketplace_order_items").delete().eq("order_id", order.id)
+      await svcClient.from("marketplace_orders").delete().eq("id", order.id)
+      return jsonError({ status: 500, code: "idempotency_claim_failed", message: "Unable to reserve this checkout attempt.", retryable: true })
     }
 
     // ── Stripe Checkout session ───────────────────────────────────────────────
@@ -437,7 +475,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      session = await stripe.checkout.sessions.create(sessionParams)
+      session = await stripe.checkout.sessions.create(sessionParams, {
+        idempotencyKey: `marketplace-checkout:${idempotencyKey}`,
+      })
     } catch (sessionError) {
       console.error("Failed to create Stripe checkout session", sessionError)
       await svcClient.from("marketplace_payout_ledger").delete().eq("order_id", order.id)

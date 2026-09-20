@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822172419_world_london_canonical_promotion.sql",
   "taskId": "WOM-ACT-LDN",
-  "status": "local_rehearsal",
+  "status": "planned",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [
@@ -14,7 +14,9 @@
     "evidenceArtifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md"
   },
   "preflight": {
-    "rowCountQueries": "London prerequisites present",
+    "rowCountQueries": [
+      "London prerequisites present"
+    ],
     "expectedAffectedRows": "Draft-only promotion",
     "artifact": null
   },
@@ -55,7 +57,7 @@
     "production": null
   },
   "exclusions": {
-    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW \u2014 local rehearsal migration per docs/24 A1-A4"
+    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW — local rehearsal migration per docs/24 A1-A4"
   },
   "exceptions": []
 }

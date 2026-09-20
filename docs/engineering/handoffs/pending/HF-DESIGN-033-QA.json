@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DESIGN-033-QA",
+  "task_id": "DESIGN-033",
+  "from_agent": "design-system",
+  "to_agent": "qa",
+  "status": "pending",
+  "created_at": "2026-09-13T19:40:00.000Z",
+  "source_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "summary": "The owner-approved C-03 radius change (DESIGN-033) is APPLIED: `--radius: 0.5rem` now lives at app/globals.css `:root`, so the Tailwind radius aliases resolve to 0.5/0.375/0.25rem (8/6/4px) instead of the previous computed 0 (square corners) throughout the app. Blast radius: ~3,068 `rounded-{lg,md,sm}` utility usages across 923 files (1500/966/602), all surfaces except the staff-scheduling prototype scope (which keeps its own 0.625rem and is unaffected). Authenticated QA rechecked general dashboard/settings, organization admin dashboard and staff Scheduling, artist overview, and direct `/artist` via the Codex in-app browser fallback. Direct `/artist` now renders the artist home shell for the clean seeded artist persona without a page-level Loading screen. The seeded venue route still renders underneath the required terms gate whose save fails with `duplicate key value violates constraint accounts_account_type_display_name_key`, with repeated venue-stats errors, so the authenticated visual gate remains open.",
+  "working_set": [
+    "app/globals.css",
+    "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
+    "docs/implementation/ui-ux-completion/TOKEN_AUTHORITY_INVENTORY.md",
+    "docs/engineering/agents/design-system/STATE.md"
+  ],
+  "completed": [
+    "`--radius: 0.5rem` added to app/globals.css `:root` (semantic radius block; the ONLY token added by DESIGN-033; point-in-time sweep registered).",
+    "tailwind.config.ts extend.borderRadius VERIFIED 1:1, not changed: rounded-lg = var(--radius) -> 0.5rem (8px), rounded-md = calc(var(--radius) - 2px) -> 0.375rem (6px), rounded-sm = calc(var(--radius) - 4px) -> 0.25rem (4px).",
+    "Scoped Tailwind build (v3.4.17 CLI, probe) emits all three utilities verbatim; numeric resolution confirmed.",
+    "Registry Table C (4 rows) + Table K (3 rows) flipped conflict -> live; inventory C-03 row + §2.2/§8/roadmap updated; STATE.md durable facts + risks updated.",
+    "Verification: eslint exit 0, scoped tsc exit 0, git diff --check clean, design-system tests 5/5 + theme/style-adjacent 22/22 pass, agents:validate 17/99/0/0."
+  ],
+  "next_steps": [
+    "Provision or repair a clean authenticated venue QA session, then rerun `/venue/dashboard` without the terms-save duplicate-key modal or venue-stats errors; the other required surfaces, including direct `/artist`, are now evidenced.",
+    "Confirm rounded-lg/md/sm corners render at 8/6/4px and no surface shows unintended breakage (overlaps, clipped hit areas, spacing collisions from newly-rounded cards/buttons/inputs/modals).",
+    "Re-check an exercised staff-scheduling prototype surface to confirm its scoped `--radius: 0.625rem` remains unchanged, then close this handoff with the visual evidence; DESIGN-033 must remain active until that gate passes."
+  ],
+  "blockers": [
+    "Venue acceptance remains blocked: QA Multi B at `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` cannot complete the mandatory terms save because of `accounts_account_type_display_name_key`, and repeated `Error fetching venue stats: Object` errors are observed. No clean venue session was available without bypassing or mutating hosted account state."
+  ],
+  "verification": [
+    "Scoped Tailwind build output: .rounded-lg{border-radius:var(--radius)}, .rounded-md{border-radius:calc(var(--radius) - 2px)}, .rounded-sm{border-radius:calc(var(--radius) - 4px)}; numeric resolution 0.5/0.375/0.25rem (8/6/4px) with --radius: 0.5rem.",
+    "npx eslint app/globals.css tailwind.config.ts — 0 errors (CSS ignored by flat config warning only, exit 0)",
+    "scoped tsc tailwind.config.ts — 0 errors (config unchanged; repo-wide tsc resource-constrained, reported honestly)",
+    "git diff --check -- app/globals.css — clean (exit 0)",
+    "npx vitest run __tests__/design-system — 2 files / 5 tests passed; theme/style-adjacent (dashboard-themes, post-style-boundary, premiere-styles-v3) 22/22 passed; zero test files assert border-radius/rounded-*/--radius (rg)",
+    "npm run agents:validate — 17 agents, 99 tasks, 0 warnings, 0 errors",
+    "Runtime route sweep against the primary checkout on localhost:3000: `/` rendered with root `--radius: .5rem`; sampled `rounded-md` elements computed to 6px and the main `rounded-2xl` card to 16px. `/admin`, `/artist`, `/venue`, `/dashboard`, and `/settings` all redirected to `/login?redirectTo=...` without an authenticated session; no authenticated visual acceptance was claimed. `/staffing` rendered a public surface without the `.staff-scheduling-prototype` scope, so staff-scope runtime exercise remains outstanding.",
+    "Fallback browser evidence: the scripted agent-browser launcher was attempted but blocked by the desktop Chrome Crashpad/profile socket permission boundary; the existing Codex in-app browser session was used to inspect localhost:3000 instead.",
+    "Authenticated visual QA (2026-09-13, localhost:3000): `/dashboard` and `/settings` rendered for QA personas; organization `/admin/dashboard?account=b06240db-f9dd-4bb0-892f-083078914867` and `/admin/dashboard/staff?...&tab=scheduling` rendered with no framework overlay; `/artist/overview` rendered the artist command center. Runtime readback: root `.5rem`, app `rounded-md` 6px / `rounded-lg` 8px, `.staff-scheduling-prototype` `.625rem` with sampled 10px `rounded-lg` controls.",
+    "Authenticated blocker follow-up (2026-09-13): clean seeded artist persona `qa-flow-artist1@tourify.test` rendered direct `/artist` with the post composer, quiet-feed loading/empty state, artist navigation, and Overview link; no page-level Loading screen or new artist console error was observed. QA Multi B venue `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` rendered the Venue workspace underneath the mandatory terms gate, but required terms save reproduced the duplicate-key constraint `accounts_account_type_display_name_key`; repeated `Error fetching venue stats: Object` errors were observed, so venue acceptance was not claimed.",
+    "Staff-scheduling follow-up (2026-09-13): organization `/admin/dashboard/staff?account=b06240db-f9dd-4bb0-892f-083078914867&tab=scheduling` rendered Scheduling & Shifts; runtime readback confirmed root `.5rem`, app `rounded-lg` 8px / `rounded-md` 6px, and `.staff-scheduling-prototype` `.625rem` with a sampled 10px control. Focused 27-test suite, static proof, and `npm run agents:validate` (17 agents / 99 tasks / 0 warnings / 0 errors) passed."
+  ]
+}

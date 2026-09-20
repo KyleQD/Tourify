@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "id": "MKT-002",
+  "title": "Per-persona storefronts canonical",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "marketplace",
+  "created_at": "2026-09-09T09:35:15.656Z",
+  "updated_at": "2026-09-16T19:24:55.761Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Make the canonical per-persona storefront contract match the marketplace launch paths and gate every incompatible storefront variant",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "lib/marketplace/",
+    "app/marketplace/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/marketplace/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "The canonical storefront identity contract is documented and used by every enabled marketplace listing, storefront, checkout, and order path",
+    "Seller ownership and tenant scope are enforced at server and data boundaries",
+    "Incompatible or archive-only storefront variants are removed from launch paths or disabled through RELEASE-008",
+    "Focused identity tests and the MKT-004 deployed staging lifecycle pass"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npm test -- --runInBand lib/marketplace/__tests__/storefront-identity.test.ts",
+      "npx eslint lib/marketplace/storefront-identity.ts lib/marketplace/__tests__/storefront-identity.test.ts",
+      "npm run typecheck"
+    ],
+    "evidence": [
+      "Focused storefront identity suite passed: 1 suite, 4 tests, 0 snapshots.",
+      "Focused ESLint passed with exit code 0.",
+      "Typecheck started but emitted no output; interrupted after approximately 3 minutes with exit code 130. No typecheck result claimed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T00:13:32.000Z",
+    "result": "partial"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted MKT-002 to P1. The canonical persona storefront must drive every enabled marketplace launch path; incompatible variants remain gated until MKT-004 certification.",
+    "completed": [
+      "Added canonical owner mapping from verified acting context to seller entity id/type, including ownership comparison.",
+      "Documented the accepted per-persona model and the deferred archive-only schema boundary in marketplace state, gaps, and questions.",
+      "Added focused coverage for artist, service, venue, organization, general-user, and cross-user/persona ownership cases."
+    ],
+    "next_steps": [
+      "Keep MKT-002 active until the additive schema task lands seller_entity_id/seller_entity_type and runtime readiness evidence is available.",
+      "When schema reconciliation is approved, wire storefront reads/writes and listing scoping to the canonical owner contract behind existing marketplace feature flags.",
+      "Run a bounded typecheck again in an environment where the repository-wide command completes; preserve account-type, acting-context, resource-ownership, and guest-checkout boundaries."
+    ],
+    "blockers": [
+      "Active marketplace_storefronts schema still has seller_user_id with unique-per-user ownership; seller_entity_id/seller_entity_type remain archive-only and were intentionally not enabled or migrated.",
+      "Repository-wide npm run typecheck did not complete after approximately 3 minutes and was interrupted; focused lint/tests passed."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T00:14:00.000Z",
+        "summary": "Advanced bounded per-persona storefront canonicalization without schema or route rollout.",
+        "changed_paths": [
+          "lib/marketplace/storefront-identity.ts",
+          "lib/marketplace/__tests__/storefront-identity.test.ts",
+          "docs/engineering/agents/marketplace/STATE.md",
+          "docs/engineering/agents/marketplace/GAPS.md",
+          "docs/engineering/agents/marketplace/QUESTIONS.md",
+          "docs/engineering/tasks/active/MKT-002.json"
+        ],
+        "verification": [
+          "npm test -- --runInBand lib/marketplace/__tests__/storefront-identity.test.ts — passed (1 suite, 4 tests).",
+          "npx eslint lib/marketplace/storefront-identity.ts lib/marketplace/__tests__/storefront-identity.test.ts — passed (exit 0).",
+          "npm run typecheck — inconclusive; no output after approximately 3 minutes, interrupted with exit 130."
+        ],
+        "blockers": [
+          "Persona columns are not in the active schema; archive-only migrations remain disabled.",
+          "Full typecheck did not finish in this run."
+        ],
+        "next_steps": [
+          "Coordinate the separate additive schema reconciliation before runtime adoption.",
+          "Re-run repository-wide typecheck, then add route-level canonical owner wiring only after schema evidence is available."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.761Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted MKT-002 to P1. The canonical persona storefront must drive every enabled marketplace launch path; incompatible variants remain gated until MKT-004 certification.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -48,6 +48,12 @@ export interface StaffOperationsSummary {
     onLeave: number
     pending: number
   }
+  eventCoverage: Array<{
+    eventId: string
+    totalShifts: number
+    filledShifts: number
+    openShifts: number
+  }>
   freshAt: string
   unavailableSources?: string[]
 }

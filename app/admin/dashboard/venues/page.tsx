@@ -213,10 +213,16 @@ export default function VenuesPage() {
   useEffect(() => {
     async function fetchVenues() {
       try {
-        const res = await fetch('/api/search?q=&type=venues&limit=50', buildNoStoreInit())
+        const res = await fetch('/api/search?category=profiles&profileType=venue&limit=50', buildNoStoreInit())
         if (res.ok) {
           const data = await res.json()
-          const list = data.results?.venues ?? []
+          const list = Array.isArray(data.items)
+            ? data.items.map((item: any) => ({
+                id: item.id, full_name: item.title, username: item.metadata?.handle,
+                avatar_url: item.imageUrl, location: item.metadata?.location,
+                verified: item.verified, created_at: item.date,
+              }))
+            : []
           setVenues(list.map(mapProfileToVenue))
         }
       } catch (err) {

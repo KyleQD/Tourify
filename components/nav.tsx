@@ -43,7 +43,6 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { useProfile } from "@/hooks/use-profile"
 import { useMultiAccount } from "@/hooks/use-multi-account"
-import { AccountSwitcher } from "@/components/account-switcher"
 import { TourifyLogo } from "@/components/tourify-logo"
 import { supabase } from "@/lib/supabase"
 import { EnhancedNotificationCenter } from "@/components/notifications/enhanced-notification-center"
@@ -104,7 +103,7 @@ function resolveNavDisplayName(
 export function Nav() {
   const router = useRouter()
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { profileData } = useProfile()
   const { currentAccount } = useMultiAccount()
   const [notifications, setNotifications] = useState(0)
@@ -245,10 +244,11 @@ export function Nav() {
     }
   }
 
-  // Don't show nav on auth pages or onboarding
+  // Don't render authenticated app chrome on public/auth routes while auth is unresolved.
   const hideNav = pathname.startsWith('/auth') || 
                   pathname.startsWith('/login') ||
-                  pathname === '/' && !user
+                  authLoading ||
+                  (!user && !primaryProfile?.id)
 
   if (hideNav) {
     return null
@@ -274,24 +274,34 @@ export function Nav() {
     window.location.assign('/auth/signout')
   }
 
+  const mobileItemClass = (isActive: boolean) =>
+    `relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300 ${
+      isActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+    }`
+
+  const isHomeActive = pathname === getHomeRoute()
+
   return (
-    <nav className="sticky top-0 z-50 w-full backdrop-blur-xl bg-slate-900/80 border-b border-purple-400/20 shadow-lg shadow-purple-500/10">
+    <>
+    <nav className="sticky top-0 z-40 w-full border-b border-purple-400/20 bg-slate-900/90 shadow-lg shadow-purple-500/10 backdrop-blur-xl">
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-pink-500/5"></div>
-      <div className="relative container mx-auto grid h-16 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:gap-3 lg:gap-4">
+      <div className="relative container mx-auto grid h-14 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 px-3 sm:px-4 md:h-16 md:gap-3 lg:gap-4">
         {/* Logo - Home Button */}
-        <div
-          className="flex shrink-0 items-center space-x-3 group hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+        <button
+          type="button"
+          className="group flex min-h-11 shrink-0 items-center transition-all duration-300 ease-in-out hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
           onClick={handleHomeClick}
+          aria-label="Go to home"
         >
           <div className="relative shrink-0">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
             <TourifyLogo
               variant="white"
               size="xl"
-              className="h-12 w-auto object-contain relative z-10 group-hover:brightness-110 transition-all duration-300"
+              className="relative z-10 h-8 w-auto object-contain transition-all duration-300 group-hover:brightness-110 sm:h-9 md:h-12"
             />
           </div>
-        </div>
+        </button>
 
         {/* Center: nav pills + search (shrink-safe) */}
         <div className="flex min-w-0 items-center gap-2 md:gap-3">
@@ -381,7 +391,7 @@ export function Nav() {
             variant="ghost"
             size="sm"
             onClick={() => router.push('/messages')}
-            className="relative p-2 hover:bg-slate-800/50 rounded-full"
+            className="relative hidden min-h-11 min-w-11 rounded-full p-2 hover:bg-slate-800/50 md:inline-flex"
             aria-label="Open messages"
           >
             <MessageSquare className="h-5 w-5 text-slate-300" />
@@ -400,7 +410,7 @@ export function Nav() {
             variant="ghost"
             size="sm"
             onClick={() => router.push('/friends/search')}
-            className="relative hidden p-2 hover:bg-slate-800/50 rounded-full transition-all duration-200 sm:inline-flex"
+            className="relative hidden min-h-11 min-w-11 rounded-full p-2 transition-all duration-200 hover:bg-slate-800/50 lg:inline-flex"
             aria-label="Find friends"
           >
             <Users className="h-5 w-5 text-slate-300" />
@@ -408,7 +418,7 @@ export function Nav() {
 
           {/* Create Button — icon-only below xl */}
           <Button
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 rounded-full shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+            className="hidden min-h-11 min-w-11 rounded-full border-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg transition-all duration-300 hover:from-purple-600 hover:to-pink-600 hover:shadow-purple-500/25 md:inline-flex"
             size="sm"
             onClick={() => router.push('/create')}
             aria-label="Create"
@@ -418,13 +428,15 @@ export function Nav() {
           </Button>
 
           {/* Compact Account Switcher */}
-          <CompactAccountSwitcher />
+          <div className="hidden xl:block">
+            <CompactAccountSwitcher />
+          </div>
 
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 shrink-0 rounded-full ring-2 ring-purple-400/30 hover:ring-purple-400/50 transition-all duration-300">
-                <Avatar className="h-10 w-10">
+              <Button variant="ghost" className="relative h-11 w-11 shrink-0 rounded-full ring-2 ring-purple-400/30 transition-all duration-300 hover:ring-purple-400/50 md:h-10 md:w-10">
+                <Avatar className="h-9 w-9 md:h-10 md:w-10">
                   <AvatarImage src={navAvatarUrl} alt={navDisplayName} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
                     {navInitial}
@@ -496,5 +508,66 @@ export function Nav() {
         onClose={() => setShowMobileSearch(false)} 
       />
     </nav>
+
+    {!pathname.startsWith('/admin') ? (
+      <nav
+        aria-label="Mobile app navigation"
+        className="safe-area-bottom fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-slate-950/95 px-2 backdrop-blur-xl md:hidden"
+      >
+        <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center gap-1">
+          <button
+            type="button"
+            onClick={handleHomeClick}
+            className={mobileItemClass(isHomeActive)}
+            aria-current={isHomeActive ? 'page' : undefined}
+          >
+            <Home className="h-5 w-5" aria-hidden />
+            <span>Home</span>
+          </button>
+          <Link
+            href="/discover"
+            className={mobileItemClass(pathname === '/discover' || pathname.startsWith('/discover/'))}
+            aria-current={pathname.startsWith('/discover') ? 'page' : undefined}
+          >
+            <Search className="h-5 w-5" aria-hidden />
+            <span>Discover</span>
+          </Link>
+          <Link
+            href="/create"
+            className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[11px] font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+            aria-current={pathname === '/create' ? 'page' : undefined}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30">
+              <Plus className="h-5 w-5" aria-hidden />
+            </span>
+            <span>Create</span>
+          </Link>
+          <Link
+            href="/messages"
+            className={mobileItemClass(pathname === '/messages' || pathname.startsWith('/messages/'))}
+            aria-current={pathname.startsWith('/messages') ? 'page' : undefined}
+          >
+            <span className="relative">
+              <MessageSquare className="h-5 w-5" aria-hidden />
+              {messagesUnread > 0 ? (
+                <span className="absolute -right-2.5 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-pink-500 px-1 text-[9px] font-bold text-white">
+                  {messagesUnread > 9 ? '9+' : messagesUnread}
+                </span>
+              ) : null}
+            </span>
+            <span>Messages</span>
+          </Link>
+          <Link
+            href="/profile"
+            className={mobileItemClass(pathname === '/profile' || pathname.startsWith('/profile/'))}
+            aria-current={pathname.startsWith('/profile') ? 'page' : undefined}
+          >
+            <User className="h-5 w-5" aria-hidden />
+            <span>Profile</span>
+          </Link>
+        </div>
+      </nav>
+    ) : null}
+    </>
   )
 } 

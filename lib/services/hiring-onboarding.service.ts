@@ -9,7 +9,7 @@ import type {
   HiringServiceResult,
   TokenOnboardingPayload,
 } from "@/types/hiring-service"
-import type { HiringAuditActivity } from "@/types/hiring-dashboard"
+import type { HiringAuditActivity, HiringJobOverviewItem, HiringOverviewData } from "@/types/hiring-dashboard"
 import { fail, ok } from "@/types/hiring-service"
 import { assertCanManageHiring } from "@/lib/auth/hiring-permissions"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
@@ -32,6 +32,13 @@ import { HiringRosterService } from "@/lib/services/hiring-roster.service"
 import { resolveHiringEntityDisplayName } from "@/lib/auth/hiring-entity-resolver"
 import { sendRosterAddedNotification } from "@/lib/rebuild/hiring-roster-notify"
 import { sendOnboardingChangesRequestedNotification } from "@/lib/rebuild/hiring-onboarding-changes-notify"
+import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
+import { presentJobListItem } from "@/lib/hiring/api-presenters"
+import { isAdminCapability } from "@/lib/auth/admin-capabilities"
+import type { JobAssignmentScope } from "@/lib/hiring/job-seat-permissions"
+import { resolveSchedulingOrgId } from "@/lib/hiring/resolve-scheduling-org-id"
+import { createEventStaffAssignment, syncTourEmploymentAssignment } from "@/lib/services/staffing-assignment.service"
+import { reconcileJobPostingFillStatus } from "@/lib/hiring/job-posting-lifecycle"
 
 interface ServiceArgs {
   supabase: SupabaseClient
@@ -153,8 +160,6 @@ async function insertHiringAuditEvent({
     applicationId ??
     (typeof metadata?.applicationId === "string" ? metadata.applicationId : null) ??
     (entityTable === "job_applications" && entityId ? entityId : null)
-
-  if (!resolvedApplicationId) return
 
   await supabase.from("hiring_audit_events").insert({
     ...getEmployerColumns(actor.employer),
@@ -642,14 +647,21 @@ async function resolveAssignmentJobContext({
   supabase: SupabaseClient
   application: Record<string, unknown>
   jobPosting?: Record<string, unknown> | null
-}): Promise<{ eventId: string | null; tourId: string | null }> {
+}): Promise<{
+  assignmentScope: JobAssignmentScope
+  eventId: string | null
+  eventV2Id: string | null
+  tourId: string | null
+  seatRole: string | null
+  seatPermissions: string[]
+}> {
   const jobPostingId = typeof application.job_posting_id === "string" ? application.job_posting_id : null
 
   let posting = jobPosting ?? null
   if (!posting && jobPostingId) {
     const { data } = await supabase
       .from("job_posting_templates")
-      .select("event_id, tour_id")
+      .select("assignment_scope, event_id, tour_id, seat_role, seat_permissions")
       .eq("id", jobPostingId)
       .maybeSingle()
     posting = (data as Record<string, unknown> | null) ?? null
@@ -657,13 +669,24 @@ async function resolveAssignmentJobContext({
 
   const postingEventId = posting && typeof posting.event_id === "string" ? posting.event_id : null
   const postingTourId = posting && typeof posting.tour_id === "string" ? posting.tour_id : null
+  const assignmentScope: JobAssignmentScope =
+    posting?.assignment_scope === "event" || posting?.assignment_scope === "tour"
+      ? posting.assignment_scope
+      : postingEventId
+        ? "event"
+        : postingTourId
+          ? "tour"
+          : "organization"
 
   let eventId: string | null = null
+  let eventV2Id: string | null = null
   if (postingEventId) {
     // employment_assignments.event_id references the `events` table; skip when the
     // posting's event is not present there to keep the insert safe.
     const { data: eventRow } = await supabase.from("events").select("id").eq("id", postingEventId).maybeSingle()
     eventId = eventRow?.id ? postingEventId : null
+    const { data: eventV2Row } = await supabase.from("events_v2").select("id").eq("id", postingEventId).maybeSingle()
+    eventV2Id = eventV2Row?.id ? postingEventId : null
   }
 
   let tourId: string | null = null
@@ -672,7 +695,17 @@ async function resolveAssignmentJobContext({
     tourId = tourRow?.id ? postingTourId : null
   }
 
-  return { eventId, tourId }
+  return {
+    assignmentScope,
+    eventId,
+    eventV2Id,
+    tourId,
+    seatRole: posting && typeof posting.seat_role === "string" ? posting.seat_role : null,
+    seatPermissions:
+      posting && Array.isArray(posting.seat_permissions)
+        ? posting.seat_permissions.filter(isAdminCapability)
+        : [],
+  }
 }
 
 async function projectHireToTourCrew({
@@ -695,6 +728,7 @@ async function projectHireToTourCrew({
     .select("id, role, status")
     .eq("tour_id", tourId)
     .eq("user_id", userId)
+    .eq("role", role)
     .maybeSingle()
 
   if (existing?.id) {
@@ -886,6 +920,213 @@ async function createEmploymentAssignmentShell({
   return ok(data as Record<string, unknown>)
 }
 
+function getShiftDateTime(value: string, timeZone: string): { date: string; time: string } | null {
+  const instant = new Date(value)
+  if (!Number.isFinite(instant.getTime())) return null
+
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(instant)
+  } catch {
+    return null
+  }
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)?.value
+  const year = part("year")
+  const month = part("month")
+  const day = part("day")
+  const hour = part("hour")
+  const minute = part("minute")
+  if (!year || !month || !day || !hour || !minute) return null
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` }
+}
+
+async function projectHireToEventRoster(args: {
+  supabase: SupabaseClient
+  actor: HiringActor
+  eventId: string
+  staffMemberId: string
+  role: string
+  applicationId: string
+  jobPostingId: string | null
+}): Promise<{ assignment: Record<string, unknown> | null; warning?: string }> {
+  const orgId = await resolveSchedulingOrgId({ supabase: args.supabase, employer: args.actor.employer })
+  if (!orgId) return { assignment: null, warning: "Event roster sync failed because the organization scope is unavailable." }
+
+  const { data: event, error } = await args.supabase
+    .from("events_v2")
+    .select("id,org_id,venue_id,start_at,end_at,timezone")
+    .eq("id", args.eventId)
+    .maybeSingle()
+  if (error || !event) return { assignment: null, warning: `Event roster sync failed: ${error?.message || "event not found"}` }
+  if (event.org_id !== orgId) return { assignment: null, warning: "Event roster sync failed because the event belongs to another organization." }
+  if (!event.start_at) return { assignment: null, warning: "Applicant approved, but the event has no start time for its roster shift." }
+
+  const timeZone = typeof event.timezone === "string" && event.timezone ? event.timezone : "UTC"
+  const start = getShiftDateTime(event.start_at, timeZone)
+  const fallbackEnd = new Date(new Date(event.start_at).getTime() + 4 * 60 * 60 * 1000).toISOString()
+  const end = getShiftDateTime(event.end_at || fallbackEnd, timeZone)
+  if (!start || !end) return { assignment: null, warning: "Applicant approved, but the event schedule could not be converted into a roster shift." }
+
+  const endTime = end.date === start.date && end.time > start.time ? end.time : "23:59"
+  try {
+    const { data: existingShift } = await args.supabase
+      .from("staff_shifts")
+      .select("id")
+      .eq("event_id", args.eventId)
+      .eq("staff_member_id", args.staffMemberId)
+      .eq("shift_date", start.date)
+      .eq("start_time", start.time)
+      .eq("end_time", endTime)
+      .is("deleted_at", null)
+      .not("status", "in", "(cancelled,declined)")
+      .limit(1)
+      .maybeSingle()
+    if (existingShift?.id) {
+      const { data: existingAssignment } = await args.supabase
+        .from("employment_assignments")
+        .select("*")
+        .eq("staff_shift_id", existingShift.id)
+        .maybeSingle()
+      if (existingAssignment?.id) {
+        await args.supabase.from("employment_assignments").update({
+          event_v2_id: args.eventId,
+          job_application_id: args.applicationId,
+          job_posting_id: args.jobPostingId,
+          source: "job_approval",
+          updated_at: getNowIso(),
+        }).eq("id", existingAssignment.id)
+      }
+      return { assignment: (existingAssignment as Record<string, unknown> | null) ?? null }
+    }
+
+    const result = await createEventStaffAssignment({
+      supabase: args.supabase,
+      actorUserId: args.actor.userId,
+      orgId,
+      eventId: args.eventId,
+      venueId: event.venue_id,
+      staffMemberId: args.staffMemberId,
+      shiftDate: start.date,
+      startTime: start.time,
+      endTime,
+      role: args.role,
+      assignmentStatus: "confirmed",
+      notify: true,
+    })
+    if (result.workMode.assignmentId) {
+      await args.supabase.from("employment_assignments").update({
+        event_v2_id: args.eventId,
+        job_application_id: args.applicationId,
+        job_posting_id: args.jobPostingId,
+        source: "job_approval",
+        updated_at: getNowIso(),
+      }).eq("id", result.workMode.assignmentId)
+    }
+    return { assignment: { ...result.workMode, id: result.workMode.assignmentId } }
+  } catch (projectionError) {
+    return {
+      assignment: null,
+      warning: `Applicant approved, but the event roster could not be updated: ${projectionError instanceof Error ? projectionError.message : "unexpected error"}`,
+    }
+  }
+}
+
+async function provisionOrganizationSeat(args: {
+  supabase: SupabaseClient
+  actor: HiringActor
+  userId: string
+  staffMemberId: string
+  applicationId: string
+  jobPostingId: string | null
+  roleTitle: string
+  department: string | null
+  seatRole: string | null
+  seatPermissions: string[]
+}): Promise<{ assignment: Record<string, unknown> | null; warning?: string }> {
+  const orgId = await resolveSchedulingOrgId({ supabase: args.supabase, employer: args.actor.employer })
+  if (!orgId || args.actor.employer.entityType !== "organization") {
+    return { assignment: null, warning: "Organization seat provisioning is only available for organization employers." }
+  }
+
+  const now = getNowIso()
+  const requestedPermissions = args.seatPermissions.filter(isAdminCapability)
+  const { data: existingMember, error: memberLookupError } = await args.supabase
+    .from("org_members")
+    .select("role,permissions")
+    .eq("org_id", orgId)
+    .eq("user_id", args.userId)
+    .maybeSingle()
+  if (memberLookupError) return { assignment: null, warning: `Seat provisioning failed: ${memberLookupError.message}` }
+
+  const existingPermissions = Array.isArray(existingMember?.permissions)
+    ? existingMember.permissions.filter(isAdminCapability)
+    : []
+  const permissions = Array.from(new Set([...existingPermissions, ...requestedPermissions]))
+  const elevatedRoles = new Set(["owner", "admin", "tour_manager", "production", "finance", "ticketing"])
+  const role = existingMember?.role && elevatedRoles.has(existingMember.role)
+    ? existingMember.role
+    : args.seatRole?.trim() || "worker"
+  const memberPayload = {
+    role,
+    permissions,
+    status: "active",
+    invited_by: args.actor.userId,
+    activated_at: now,
+    revoked_at: null,
+    updated_at: now,
+    seat_source: "job_approval",
+    job_posting_id: args.jobPostingId,
+    job_application_id: args.applicationId,
+  }
+  const memberMutation = existingMember
+    ? args.supabase.from("org_members").update(memberPayload).eq("org_id", orgId).eq("user_id", args.userId)
+    : args.supabase.from("org_members").insert({ ...memberPayload, org_id: orgId, user_id: args.userId, invited_at: now })
+  const { error: memberError } = await memberMutation
+  if (memberError) return { assignment: null, warning: `Seat provisioning failed: ${memberError.message}` }
+
+  const { data: existingAssignment, error: assignmentLookupError } = await args.supabase
+    .from("employment_assignments")
+    .select("id")
+    .eq("user_id", args.userId)
+    .eq("employer_entity_type", args.actor.employer.entityType)
+    .eq("employer_entity_id", args.actor.employer.entityId)
+    .in("assignment_kind", ["organization", "legacy_engagement"])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (assignmentLookupError) return { assignment: null, warning: `Seat access sync failed: ${assignmentLookupError.message}` }
+
+  const assignmentPayload = {
+    user_id: args.userId,
+    staff_member_id: args.staffMemberId,
+    employer_entity_type: args.actor.employer.entityType,
+    employer_entity_id: args.actor.employer.entityId,
+    assignment_kind: "organization",
+    role_title: args.roleTitle,
+    department: args.department,
+    permissions,
+    status: "active",
+    source: "job_approval",
+    job_application_id: args.applicationId,
+    job_posting_id: args.jobPostingId,
+    updated_at: now,
+  }
+  const assignmentMutation = existingAssignment?.id
+    ? args.supabase.from("employment_assignments").update(assignmentPayload).eq("id", existingAssignment.id)
+    : args.supabase.from("employment_assignments").insert({ ...assignmentPayload, created_at: now, starts_at: now })
+  const { data: assignment, error: assignmentError } = await assignmentMutation.select("*").single()
+  if (assignmentError) return { assignment: null, warning: `Seat access sync failed: ${assignmentError.message}` }
+  return { assignment: assignment as Record<string, unknown> }
+}
+
 async function resolveTemplateForCandidate({
   supabase,
   candidate,
@@ -925,6 +1166,60 @@ async function resolveTemplateForCandidate({
   return null
 }
 
+async function validateJobPostingDestination({
+  supabase,
+  actor,
+  data,
+}: {
+  supabase: SupabaseClient
+  actor: HiringActor
+  data: CreateJobPostingInput
+}): Promise<HiringServiceResult<{
+  assignmentScope: JobAssignmentScope
+  eventId: string | null
+  tourId: string | null
+  seatRole: string | null
+  seatPermissions: string[]
+}>> {
+  const eventId = data.event_id ?? (data.assignment_scope ? null : actor.employer.scope?.eventId ?? null)
+  const tourId = data.tour_id ?? (data.assignment_scope ? null : actor.employer.scope?.tourId ?? null)
+  const assignmentScope: JobAssignmentScope = data.assignment_scope ?? (eventId ? "event" : tourId ? "tour" : "organization")
+
+  if ((assignmentScope === "event" && !eventId) || (assignmentScope === "tour" && !tourId)) {
+    return fail({ code: "VALIDATION_ERROR", message: `Select a ${assignmentScope} for this job posting.` })
+  }
+  if ((assignmentScope !== "event" && eventId) || (assignmentScope !== "tour" && tourId) || (eventId && tourId)) {
+    return fail({ code: "VALIDATION_ERROR", message: "A job can target the organization, one event, or one tour." })
+  }
+
+  const orgId = await resolveSchedulingOrgId({ supabase, employer: actor.employer })
+  if (assignmentScope === "event") {
+    if (!orgId) return fail({ code: "FORBIDDEN", message: "This employer cannot assign jobs to organization events." })
+    const { data: event, error } = await supabase.from("events_v2").select("id,org_id").eq("id", eventId).maybeSingle()
+    if (error) return fail({ code: "DATABASE_ERROR", message: "Unable to validate the selected event.", details: error })
+    if (!event) return fail({ code: "NOT_FOUND", message: "The selected event was not found." })
+    if (event.org_id !== orgId) return fail({ code: "FORBIDDEN", message: "The selected event belongs to another organization." })
+  }
+  if (assignmentScope === "tour") {
+    if (!orgId) return fail({ code: "FORBIDDEN", message: "This employer cannot assign jobs to organization tours." })
+    const { data: tour, error } = await supabase.from("tours").select("id,org_id").eq("id", tourId).maybeSingle()
+    if (error) return fail({ code: "DATABASE_ERROR", message: "Unable to validate the selected tour.", details: error })
+    if (!tour) return fail({ code: "NOT_FOUND", message: "The selected tour was not found." })
+    if (tour.org_id !== orgId) return fail({ code: "FORBIDDEN", message: "The selected tour belongs to another organization." })
+  }
+
+  const seatPermissions = assignmentScope === "organization"
+    ? Array.from(new Set((data.seat_permissions ?? []).filter(isAdminCapability)))
+    : []
+  return ok({
+    assignmentScope,
+    eventId: assignmentScope === "event" ? eventId : null,
+    tourId: assignmentScope === "tour" ? tourId : null,
+    seatRole: assignmentScope === "organization" ? data.seat_role?.trim() || "worker" : null,
+    seatPermissions,
+  })
+}
+
 export const HiringOnboardingService = {
   async createJobPosting({ supabase, actor, data }: CreateJobPostingArgs): Promise<HiringServiceResult<Record<string, unknown>>> {
     const permission = await assertCanManageHiring({ supabase, userId: actor.userId, employer: actor.employer })
@@ -936,11 +1231,21 @@ export const HiringOnboardingService = {
         ? data.onboarding_template_id
         : null
 
-    if (status === "published" && !onboardingTemplateId) {
-      return fail({
-        code: "BAD_REQUEST",
-        message: "An onboarding template is required before publishing a job posting.",
-      })
+    const destination = await validateJobPostingDestination({ supabase, actor, data })
+    if (!destination.ok) return destination
+
+    if (onboardingTemplateId) {
+      const templateResult = await getTemplateById({ supabase, id: onboardingTemplateId })
+      if (templateResult.error || !templateResult.data) {
+        return fail({ code: "NOT_FOUND", message: "The selected onboarding packet is no longer available." })
+      }
+      const template = templateResult.data
+      if (
+        template.scope !== "global" &&
+        (template.employer_entity_type !== actor.employer.entityType || template.employer_entity_id !== actor.employer.entityId)
+      ) {
+        return fail({ code: "FORBIDDEN", message: "The selected onboarding packet belongs to another employer." })
+      }
     }
 
     const payload = {
@@ -964,8 +1269,11 @@ export const HiringOnboardingService = {
       required_certifications: data.required_certifications ?? [],
       application_form_template: data.application_form_template ?? { fields: [] },
       onboarding_template_id: onboardingTemplateId,
-      event_id: data.event_id ?? actor.employer.scope?.eventId ?? null,
-      tour_id: data.tour_id ?? actor.employer.scope?.tourId ?? null,
+      assignment_scope: destination.data.assignmentScope,
+      event_id: destination.data.eventId,
+      tour_id: destination.data.tourId,
+      seat_role: destination.data.seatRole,
+      seat_permissions: destination.data.seatPermissions,
       event_date: data.event_date ?? null,
       status,
       created_by: actor.userId,
@@ -1208,7 +1516,7 @@ export const HiringOnboardingService = {
     if (jobPostingId) {
       const { data: postingRow } = await supabase
         .from("job_posting_templates")
-        .select("id, title, department, position, onboarding_template_id, event_id, tour_id, employment_type")
+        .select("id, title, department, position, onboarding_template_id, assignment_scope, event_id, tour_id, seat_role, seat_permissions, employment_type")
         .eq("id", jobPostingId)
         .maybeSingle()
       jobPosting = (postingRow as Record<string, unknown> | null) ?? null
@@ -1363,8 +1671,8 @@ export const HiringOnboardingService = {
             (typeof approvedApplication.employment_type === "string" && approvedApplication.employment_type) ||
             null,
           completed: false,
-          eventId: jobContext.eventId,
-          tourId: jobContext.tourId,
+          eventId: null,
+          tourId: null,
         })
 
         rosterMemberId = member?.id ?? null
@@ -1375,6 +1683,8 @@ export const HiringOnboardingService = {
           .eq("user_id", rosterUserId)
           .eq("employer_entity_type", actor.employer.entityType)
           .eq("employer_entity_id", actor.employer.entityId)
+          .order("created_at", { ascending: true })
+          .limit(1)
           .maybeSingle()
         employmentAssignment = (assignmentRow as Record<string, unknown> | null) ?? null
 
@@ -1394,6 +1704,57 @@ export const HiringOnboardingService = {
               null,
           })
           if (!tourProjection.ok && tourProjection.warning) warnings.push(tourProjection.warning)
+
+          const orgId = await resolveSchedulingOrgId({ supabase, employer: actor.employer })
+          if (orgId && rosterMemberId) {
+            try {
+              employmentAssignment = await syncTourEmploymentAssignment({
+                supabase,
+                orgId,
+                tourId: jobContext.tourId,
+                userId: rosterUserId,
+                staffMemberId: rosterMemberId,
+                role: jobPosition,
+                department: jobDepartment,
+                status: "confirmed",
+                applicationId,
+                jobPostingId,
+              }) as Record<string, unknown>
+            } catch (syncError) {
+              warnings.push(`Tour Work Mode sync failed: ${syncError instanceof Error ? syncError.message : "unexpected error"}`)
+            }
+          }
+        }
+
+        if (jobContext.eventV2Id && rosterMemberId) {
+          const eventProjection = await projectHireToEventRoster({
+            supabase,
+            actor,
+            eventId: jobContext.eventV2Id,
+            staffMemberId: rosterMemberId,
+            role: jobPosition,
+            applicationId,
+            jobPostingId,
+          })
+          if (eventProjection.assignment) employmentAssignment = eventProjection.assignment
+          if (eventProjection.warning) warnings.push(eventProjection.warning)
+        }
+
+        if (jobContext.assignmentScope === "organization" && rosterMemberId) {
+          const seat = await provisionOrganizationSeat({
+            supabase,
+            actor,
+            userId: rosterUserId,
+            staffMemberId: rosterMemberId,
+            applicationId,
+            jobPostingId,
+            roleTitle: jobPosition,
+            department: jobDepartment,
+            seatRole: jobContext.seatRole,
+            seatPermissions: jobContext.seatPermissions,
+          })
+          if (seat.assignment) employmentAssignment = seat.assignment
+          if (seat.warning) warnings.push(seat.warning)
         }
       } catch (rosterError) {
         console.error("[approveApplication] roster upsert failed", rosterError)
@@ -1439,13 +1800,30 @@ export const HiringOnboardingService = {
         workflowId: workflowResult.data?.id,
         employmentAssignmentId: employmentAssignment?.id ?? null,
         rosterMemberId,
-        eventId: jobContext.eventId,
+        eventId: jobContext.eventV2Id ?? jobContext.eventId,
         tourId: jobContext.tourId,
+        assignmentScope: jobContext.assignmentScope,
+        organizationSeatPermissions: jobContext.seatPermissions,
         onboardingTemplateId: persistableTemplateId,
         onboardingTemplateSource: resolvedTemplate.source,
         onboardingTemplateState: templateState,
       },
     })
+
+    const approvedJobPostingId =
+      typeof approvedApplication.job_posting_id === "string" ? approvedApplication.job_posting_id : null
+    if (approvedJobPostingId) {
+      try {
+        await reconcileJobPostingFillStatus({
+          supabase,
+          employer: actor.employer,
+          jobPostingId: approvedJobPostingId,
+          actorUserId: actor.userId,
+        })
+      } catch (fillError) {
+        console.error("[approveApplication] job fill reconciliation failed", fillError)
+      }
+    }
 
     return ok({
       application: updateResult.data,
@@ -2183,6 +2561,33 @@ export const HiringOnboardingService = {
         .from("staff_invitations")
         .update({ status: "completed", updated_at: getNowIso() })
         .eq("id", invitation.id)
+
+      await supabase.from("hiring_audit_events").insert({
+        employer_entity_type: candidate.employer_entity_type,
+        employer_entity_id: candidate.employer_entity_id,
+        venue_id: candidate.venue_id ?? null,
+        application_id:
+          (typeof candidate.job_application_id === "string" && candidate.job_application_id) ||
+          (typeof candidate.application_id === "string" && candidate.application_id) ||
+          null,
+        job_id: typeof candidate.job_posting_id === "string" ? candidate.job_posting_id : null,
+        actor_user_id: userId,
+        event_type: "onboarding_candidate_submitted",
+        action: "onboarding_candidate_submitted",
+        from_status: typeof candidate.status === "string" ? candidate.status : "in_progress",
+        to_status: "submitted",
+        subject_type: "staff_onboarding_candidate",
+        subject_id: candidateId,
+        title: "Onboarding ready for review",
+        content: "A candidate completed onboarding and submitted it for review.",
+        metadata: {
+          entity_table: "staff_onboarding_candidates",
+          entity_id: candidateId,
+          candidate_id: candidateId,
+          job_posting_id: candidate.job_posting_id ?? null,
+        },
+        created_at: getNowIso(),
+      })
     }
 
     // Do not activate roster on worker submit — admin must approve first (View details → Approve).
@@ -2195,6 +2600,161 @@ export const HiringOnboardingService = {
       employmentAssignment: null,
       alreadySubmitted: false,
       warnings,
+    })
+  },
+
+  async getHiringOverview({
+    supabase,
+    actor,
+  }: GetDashboardStatsArgs): Promise<HiringServiceResult<Omit<HiringOverviewData, "recentActivity">>> {
+    const permission = await assertCanManageHiring({ supabase, userId: actor.userId, employer: actor.employer })
+    if (!permission.ok) return permission
+
+    const employerFilters = {
+      employer_entity_type: actor.employer.entityType,
+      employer_entity_id: actor.employer.entityId,
+    }
+
+    const [jobsResult, applicationsResult, candidatesResult, rosterResult] = await Promise.all([
+      supabase
+        .from("job_posting_templates")
+        .select("id,title,department,position,status,number_of_positions,created_at,published_at,archived_at,filled_at,event_id,tour_id")
+        .match(employerFilters)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("job_applications")
+        .select("id,job_posting_id,status")
+        .match(employerFilters)
+        .limit(1000),
+      supabase
+        .from("staff_onboarding_candidates")
+        .select("id,job_posting_id,status,stage")
+        .match(employerFilters)
+        .limit(1000),
+      supabase
+        .from("staff_members")
+        .select("id,user_id,name,full_name,position,department,status,onboarding_candidate_id")
+        .match(employerFilters)
+        .limit(1000),
+    ])
+
+    const failure = [jobsResult, applicationsResult, candidatesResult, rosterResult].find((result) => result.error)
+    if (failure?.error) {
+      return fail({ code: "DATABASE_ERROR", message: "Unable to load the hiring overview.", details: failure.error })
+    }
+
+    const jobs = (jobsResult.data ?? []) as Record<string, unknown>[]
+    const applications = (applicationsResult.data ?? []) as Record<string, unknown>[]
+    const candidates = (candidatesResult.data ?? []) as Record<string, unknown>[]
+    const roster = (rosterResult.data ?? []) as Record<string, unknown>[]
+    const linkedEventIds = Array.from(new Set(jobs.map((job) => typeof job.event_id === "string" ? job.event_id : null).filter((id): id is string => Boolean(id))))
+    const linkedTourIds = Array.from(new Set(jobs.map((job) => typeof job.tour_id === "string" ? job.tour_id : null).filter((id): id is string => Boolean(id))))
+    const [linkedEventsResult, linkedToursResult] = await Promise.all([
+      linkedEventIds.length
+        ? supabase.from("events_v2").select("id,title,start_at").in("id", linkedEventIds)
+        : Promise.resolve({ data: [] }),
+      linkedTourIds.length
+        ? supabase.from("tours").select("id,name,start_date,end_date").in("id", linkedTourIds)
+        : Promise.resolve({ data: [] }),
+    ])
+    const linkedEventsById = new Map(
+      ((linkedEventsResult.data ?? []) as Record<string, unknown>[]).map((event) => [String(event.id), event])
+    )
+    const linkedToursById = new Map(
+      ((linkedToursResult.data ?? []) as Record<string, unknown>[]).map((tour) => [String(tour.id), tour])
+    )
+    const candidateJobIds = new Map(
+      candidates
+        .filter((row) => typeof row.id === "string")
+        .map((row) => [String(row.id), typeof row.job_posting_id === "string" ? row.job_posting_id : null])
+    )
+    const activeRoster = roster.filter((row) => row.status === "active")
+    const activeStaffIds = activeRoster.map((row) => String(row.id)).filter(Boolean)
+    const shiftsResult = activeStaffIds.length
+      ? await supabase
+          .from("staff_shifts")
+          .select("staff_member_id")
+          .in("staff_member_id", activeStaffIds)
+          .gte("shift_date", getNowIso().slice(0, 10))
+          .neq("status", "cancelled")
+          .limit(2000)
+      : { data: [], error: null }
+
+    const scheduledStaffIds = new Set(
+      ((shiftsResult.data ?? []) as Array<{ staff_member_id?: string | null }>)
+        .map((row) => row.staff_member_id)
+        .filter((id): id is string => Boolean(id))
+    )
+    const readyToAssignWorkers = activeRoster
+      .filter((row) => !scheduledStaffIds.has(String(row.id)))
+      .map((row) => ({
+        id: String(row.id),
+        userId: typeof row.user_id === "string" ? row.user_id : null,
+        name:
+          (typeof row.full_name === "string" && row.full_name) ||
+          (typeof row.name === "string" && row.name) ||
+          "Team member",
+        position: typeof row.position === "string" ? row.position : null,
+        department: typeof row.department === "string" ? row.department : null,
+      }))
+
+    const jobItems: HiringJobOverviewItem[] = jobs.map((job) => {
+      const id = String(job.id)
+      const jobApplications = applications.filter((application) => application.job_posting_id === id)
+      const activeHires = activeRoster.filter((member) => {
+        const candidateId = typeof member.onboarding_candidate_id === "string" ? member.onboarding_candidate_id : null
+        return candidateId ? candidateJobIds.get(candidateId) === id : false
+      }).length
+      const positions = typeof job.number_of_positions === "number" && job.number_of_positions > 0
+        ? job.number_of_positions
+        : 1
+      const remainingPositions = Math.max(0, positions - activeHires)
+      const linkedEvent = typeof job.event_id === "string" ? linkedEventsById.get(job.event_id) : null
+      const linkedTour = typeof job.tour_id === "string" ? linkedToursById.get(job.tour_id) : null
+
+      return {
+        ...presentJobListItem(job),
+        totalApplicants: jobApplications.length,
+        pendingApplicants: jobApplications.filter((application) => application.status === "pending").length,
+        approvedApplicants: jobApplications.filter((application) =>
+          application.status === "approved" || application.status === "accepted"
+        ).length,
+        activeHires,
+        remainingPositions,
+        hasVacancy: job.status === "filled" && remainingPositions > 0,
+        linkedEvent: linkedEvent ? {
+          id: String(linkedEvent.id),
+          title: typeof linkedEvent.title === "string" ? linkedEvent.title : "Linked event",
+          startAt: typeof linkedEvent.start_at === "string" ? linkedEvent.start_at : null,
+        } : null,
+        linkedTour: linkedTour ? {
+          id: String(linkedTour.id),
+          name: typeof linkedTour.name === "string" ? linkedTour.name : "Linked tour",
+          startDate: typeof linkedTour.start_date === "string" ? linkedTour.start_date : null,
+          endDate: typeof linkedTour.end_date === "string" ? linkedTour.end_date : null,
+        } : null,
+      }
+    })
+
+    const currentJobs = jobItems.filter((job) => job.status !== "archived")
+    const archivedJobs = jobItems.filter((job) => job.status === "archived")
+
+    return ok({
+      actionCounts: {
+        newApplications: applications.filter((application) => application.status === "pending").length,
+        onboardingAwaitingApproval: candidates.filter(
+          (candidate) => candidate.status === "submitted" || candidate.stage === "review"
+        ).length,
+        readyToAssign: readyToAssignWorkers.length,
+        openRoles: currentJobs
+          .filter((job) => job.status === "published")
+          .reduce((sum, job) => sum + job.remainingPositions, 0),
+      },
+      currentJobs,
+      archivedJobs,
+      readyToAssignWorkers,
+      freshAt: getNowIso(),
     })
   },
 
@@ -2402,6 +2962,7 @@ export const HiringOnboardingService = {
         candidateIdByDocumentId,
         rosterMembersById,
         jobsById,
+        employerQueryString: getEmployerQueryString(actor.employer),
       })
     )
 
@@ -2638,6 +3199,19 @@ export const HiringOnboardingService = {
         documents_auto_approved: pendingDocIds.length,
       },
     })
+
+    if (typeof updated.job_posting_id === "string") {
+      try {
+        await reconcileJobPostingFillStatus({
+          supabase,
+          employer: actor.employer,
+          jobPostingId: updated.job_posting_id,
+          actorUserId: actor.userId,
+        })
+      } catch (fillError) {
+        console.error("[approveOnboardingCandidate] job fill reconciliation failed", fillError)
+      }
+    }
 
     return ok({
       candidate: updated as Record<string, unknown>,

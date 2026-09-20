@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 
-import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { checkIsAdmin } from "@/lib/auth/admin"
+import { withPlatformAdmin } from "@/lib/auth/api-auth"
 import { isEventFeatureEnabled } from "@/lib/events/providers/flags"
 
 const actionSchema = z.object({
@@ -12,22 +11,11 @@ const actionSchema = z.object({
   winnerEventId: z.string().uuid().optional(),
 })
 
-async function requireAdmin() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-  return checkIsAdmin()
-}
-
 /** GET /api/admin/event-merges — pending merge candidates, newest first. */
-export async function GET() {
+export const GET = withPlatformAdmin(async () => {
   if (!isEventFeatureEnabled("EVENT_PROVIDER_ADMIN_TOOLS")) {
     return NextResponse.json({ error: { code: "FEATURE_UNAVAILABLE" } }, { status: 503 })
   }
-  const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 })
 
   const client = createServiceRoleClient()
   const { data, error } = await client
@@ -41,15 +29,13 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: { code: "QUERY_FAILED" } }, { status: 500 })
   return NextResponse.json({ candidates: data ?? [] })
-}
+})
 
 /** POST /api/admin/event-merges — execute a merge / reject / never-merge. */
-export async function POST(request: NextRequest) {
+export const POST = withPlatformAdmin(async (request: NextRequest) => {
   if (!isEventFeatureEnabled("EVENT_PROVIDER_ADMIN_TOOLS")) {
     return NextResponse.json({ error: { code: "FEATURE_UNAVAILABLE" } }, { status: 503 })
   }
-  const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: { code: "FORBIDDEN" } }, { status: 403 })
 
   const input = actionSchema.parse(await request.json())
   const client = createServiceRoleClient()
@@ -94,4 +80,4 @@ export async function POST(request: NextRequest) {
     .eq("id", candidate.id)
   if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED" } }, { status: 500 })
   return NextResponse.json({ ok: true })
-}
+})

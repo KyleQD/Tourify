@@ -36,6 +36,7 @@ export interface HiringAuditPresenterContext {
   candidateIdByDocumentId?: Map<string, string>
   rosterMembersById?: Map<string, AuditRosterMemberSummary>
   jobsById?: Map<string, AuditJobSummary>
+  employerQueryString?: string
 }
 
 export interface HiringAuditReferenceIds {
@@ -206,6 +207,15 @@ export function presentHiringAuditActivity(
   const eventKey = getEventKey(row)
   const createdAt = firstString(row.created_at) ?? new Date().toISOString()
   const jobTitle = getJobTitle(row, context)
+  const applicationId = getApplicationId(row)
+  const candidateId = getCandidateId(row) ?? (() => {
+    const documentId = getDocumentId(row)
+    return documentId ? context.candidateIdByDocumentId?.get(documentId) ?? null : null
+  })()
+  const rosterMemberId = getRosterMemberId(row)
+  const application = applicationId ? context.applicationsById?.get(applicationId) : null
+  const candidate = candidateId ? context.candidatesById?.get(candidateId) : null
+  const jobId = firstString(getJobId(row), application?.jobId, candidate?.jobId)
   const fromStatus = statusLabel(firstString(row.from_status, metadataFor(row).from_status))
   const toStatus = statusLabel(firstString(row.to_status, metadataFor(row).to_status))
 
@@ -214,6 +224,21 @@ export function presentHiringAuditActivity(
   let subjectName: string | null = null
 
   switch (eventKey) {
+    case "application_submitted":
+    case "job_application_submitted": {
+      const person = personForApplication(row, context)
+      action = "New application"
+      description = withJobSuffix(`${person} submitted an application`, jobTitle)
+      subjectName = person
+      break
+    }
+    case "onboarding_candidate_submitted": {
+      const person = personForCandidate(row, context)
+      action = "Onboarding ready for review"
+      description = `${person} completed onboarding and is waiting for approval.`
+      subjectName = person
+      break
+    }
     case "approve":
     case "application_approved":
     case "job_application_approved": {
@@ -314,6 +339,26 @@ export function presentHiringAuditActivity(
       subjectName = person
       break
     }
+    case "job_filled": {
+      action = "Role filled"
+      description = jobTitle ? `${jobTitle} reached its hiring target.` : "A role reached its hiring target."
+      break
+    }
+    case "job_archived": {
+      action = "Job posting archived"
+      description = jobTitle ? `${jobTitle} was removed from active listings.` : "A job posting was archived."
+      break
+    }
+    case "job_restored": {
+      action = "Job posting restored"
+      description = jobTitle ? `${jobTitle} was restored as a draft.` : "A job posting was restored as a draft."
+      break
+    }
+    case "job_reposted": {
+      action = "Job posting reposted"
+      description = jobTitle ? `A new draft was created from ${jobTitle}.` : "A new job draft was created from an archived posting."
+      break
+    }
     default: {
       action = cleanLabel(eventKey)
       if (fromStatus && toStatus) {
@@ -325,6 +370,51 @@ export function presentHiringAuditActivity(
     }
   }
 
+  const query = context.employerQueryString ? `&${context.employerQueryString}` : ""
+  const routeQuery = context.employerQueryString ? `?${context.employerQueryString}` : ""
+  const prefersCandidate = eventKey.startsWith("onboarding_") || eventKey.startsWith("document_")
+  const prefersRoster = eventKey.startsWith("roster_") || eventKey === "candidate_assignment_updated"
+  const prefersJob = eventKey.startsWith("job_") && !eventKey.startsWith("job_application_")
+  const applicationTarget = applicationId
+    ? {
+        type: "application" as const,
+        id: applicationId,
+        href: `/admin/dashboard/applications/${applicationId}${routeQuery}`,
+        actionLabel: "Review application",
+      }
+    : null
+  const candidateTarget = candidateId
+      ? {
+          type: "candidate" as const,
+          id: candidateId,
+          href: `/admin/dashboard/hiring?tab=onboarding&candidateId=${encodeURIComponent(candidateId)}${query}`,
+          actionLabel: "Review onboarding",
+        }
+      : null
+  const rosterTarget = rosterMemberId
+        ? {
+            type: "roster_member" as const,
+            id: rosterMemberId,
+            href: `/admin/dashboard/hiring?tab=roster&memberId=${encodeURIComponent(rosterMemberId)}${query}`,
+            actionLabel: "Open team member",
+          }
+        : null
+  const jobTarget = jobId
+          ? {
+              type: "job" as const,
+              id: jobId,
+              href: `/admin/dashboard/jobs/${jobId}${routeQuery}`,
+              actionLabel: "Manage job",
+            }
+          : null
+  const target = prefersCandidate
+    ? candidateTarget ?? rosterTarget ?? applicationTarget ?? jobTarget
+    : prefersRoster
+      ? rosterTarget ?? candidateTarget ?? applicationTarget ?? jobTarget
+      : prefersJob
+        ? jobTarget ?? applicationTarget ?? candidateTarget ?? rosterTarget
+        : applicationTarget ?? candidateTarget ?? rosterTarget ?? jobTarget
+
   return {
     id: String(row.id),
     action,
@@ -332,5 +422,6 @@ export function presentHiringAuditActivity(
     createdAt,
     actorName: null,
     subjectName,
+    target,
   }
 }

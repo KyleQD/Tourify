@@ -12,6 +12,7 @@ async function safeNotify(input: {
   content: string
   relatedContentId?: string
   metadata?: Record<string, unknown>
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
 }): Promise<void> {
   try {
     await OptimizedNotificationService.createNotification({
@@ -21,7 +22,7 @@ async function safeNotify(input: {
       content: input.content,
       relatedContentId: input.relatedContentId,
       relatedContentType: 'ticket',
-      priority: 'normal',
+      priority: input.priority || 'normal',
       metadata: {
         ...input.metadata,
         idempotency_key: input.metadata?.idempotency_key,
@@ -107,6 +108,7 @@ export async function notifyCompIssued(params: {
   userId: string
   ticketId: string
   eventTitle?: string
+  eventId?: string
 }): Promise<void> {
   await safeNotify({
     userId: params.userId,
@@ -116,6 +118,36 @@ export async function notifyCompIssued(params: {
       ? `You received a complimentary ticket for ${params.eventTitle}.`
       : 'You received a complimentary ticket.',
     relatedContentId: params.ticketId,
-    metadata: { idempotency_key: `comp_issued:${params.ticketId}` },
+    priority: 'high',
+    metadata: {
+      link: '/tickets/my-tickets',
+      event_id: params.eventId,
+      idempotency_key: `comp_issued:${params.ticketId}`,
+    },
+  })
+}
+
+export async function notifyTicketInvite(params: {
+  userId: string
+  inviteId: string
+  eventTitle?: string
+  eventId?: string
+  inviteUrl: string
+}): Promise<void> {
+  await safeNotify({
+    userId: params.userId,
+    type: 'ticket',
+    title: 'Admission invitation',
+    content: params.eventTitle
+      ? `You have an admission invitation for ${params.eventTitle}. Accept it to add the ticket to your wallet.`
+      : 'You have an admission invitation. Accept it to add the ticket to your wallet.',
+    relatedContentId: params.inviteId,
+    priority: 'high',
+    metadata: {
+      link: params.inviteUrl,
+      invite_url: params.inviteUrl,
+      event_id: params.eventId,
+      idempotency_key: `ticket_invite:${params.inviteId}`,
+    },
   })
 }

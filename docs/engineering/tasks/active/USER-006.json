@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0",
+  "id": "USER-006",
+  "title": "Decide private-docs signed-upload adoption or retirement",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "general-user",
+  "created_at": "2026-09-18T23:22:13.000Z",
+  "updated_at": "2026-09-19T00:11:37.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; bounded USER-006 retained-route hardening and focused tests present",
+  "goal": "Give the generic private-docs signed-upload route an explicit consumer contract or retire it with durable authorization and zero-caller evidence while preserving user privacy and storage boundaries",
+  "scope": {
+    "in": [
+      "app/api/upload/signed-url/route.ts",
+      "Read-only comparison with app/api/settings/certifications/upload/route.ts and app/api/account/delete/route.ts",
+      "Exact caller inventory and an explicit adopt-versus-authorized-retire decision",
+      "Authentication, user-prefix normalization, expiry, rate-limit, cross-user denial, response, and storage-policy contract tests"
+    ],
+    "out": [
+      "Unrelated artist/music, venue, message-attachment, or workforce upload routes",
+      "Storage migrations, RLS policy mutation, hosted Supabase changes, bucket creation, or secret provisioning",
+      "USER-003 settings-family rewrite and USER-005 account-lifecycle implementation beyond their named private-docs dependencies",
+      "Endpoint deletion without an accepted retirement decision and refreshed zero-caller evidence"
+    ]
+  },
+  "working_set": [
+    "app/api/upload/signed-url/route.ts",
+    "__tests__/uploads/private-docs-signed-url.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/USER-003.json",
+    "docs/engineering/tasks/active/USER-005.json",
+    "docs/engineering/tasks/active/QA-003.json",
+    "docs/engineering/agents/general-user/STATE.md",
+    "supabase/migrations/20250816141000_storage_private_docs.sql",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "A durable decision names either one canonical product consumer for this route or authorizes retirement after an exact zero-caller scan; absence alone is not retirement authorization",
+    "If adopted, the named consumer uses a documented path shape and the route proves authentication, normalized own-user prefix, bounded expiry, rate limiting, cross-user/path traversal denial, and fail-closed storage errors",
+    "If retired, route removal is accompanied by refreshed zero-caller and route-map evidence plus verification that settings certification upload, account deletion, and QA upload journeys use their approved paths",
+    "The private-docs storage-policy dependency is reviewed with the database owner; no application-layer prefix check is misrepresented as hosted RLS proof",
+    "Focused tests, lint, caller scan, route-map validation, diff validation, and control-plane validation pass"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/uploads/private-docs-signed-url.test.ts",
+      "npx eslint app/api/upload/signed-url/route.ts __tests__/uploads/private-docs-signed-url.test.ts",
+      "rg -n \"/api/upload/signed-url|api/upload/signed-url\" app components hooks lib __tests__ scripts --glob '*.{ts,tsx,js,jsx,mjs,cjs}'",
+      "rg -n \"private-docs\" app lib __tests__ --glob '*.{ts,tsx}'",
+      "git diff --check -- app/api/upload/signed-url/route.ts __tests__/uploads/private-docs-signed-url.test.ts docs/engineering",
+      "npm run agents:generate",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "ORCH-002 read-only research found no product caller for /api/upload/signed-url; only the route itself and ownership tooling mention it.",
+      "Settings certification upload and account deletion independently use private-docs, so their contracts must be preserved regardless of this route's disposition.",
+      "2026-09-19T00:11:37.000Z: exact app/components/hooks/lib scan confirmed zero product callers; scripts/agent-tools/generate-workspace-ownership.mjs is the sole non-route tooling reference.",
+      "2026-09-19T00:11:37.000Z: retained the route in decision-blocked status. No consumer was invented and no deletion/retirement was inferred from zero callers.",
+      "Current official Supabase documentation states createSignedUploadUrl tokens have a fixed two-hour lifetime and can upload without further authentication; Storage object INSERT is authorized by RLS when the signing call is made.",
+      "2026-09-19T00:11:37.000Z: replaced the unused client expiry clamp with a truthful fixed 7,200-second contract, exact private-docs bucket response, no-store headers, and rejection of conflicting client expiry values.",
+      "2026-09-19T00:11:37.000Z: own-user path validation now rejects raw/double-encoded traversal, encoded separators, backslashes, empty/dot segments, control characters, whitespace padding, and cross-user prefixes instead of rewriting attacker input.",
+      "2026-09-19T00:11:37.000Z: limiter errors and production without distributed limiting now fail closed before authentication/signing; Storage signing errors return no token.",
+      "2026-09-19T00:11:37.000Z: focused Vitest passed 1 file / 23 tests; focused ESLint, inherited-config scoped TypeScript, caller scan, diff validation, JSON validation, and agents:validate passed."
+    ],
+    "last_run_sha": "working-tree@7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-19T00:11:37.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "The zero-caller route is retained and decision-blocked, with no inferred adoption or retirement. Its local security contract is now fail closed for authentication, prefix/path validation, fixed expiry truthfulness, limiter availability, bucket selection, and Storage errors. Hosted RLS and product disposition remain open.",
+    "completed": [
+      "Assigned the generic private-docs signed-upload route to the general-user agent through this explicit bounded task.",
+      "Recorded the current zero-product-caller finding and the existing settings-certification/account-deletion dependencies without inferring retirement.",
+      "Chose the non-destructive retained/decision-blocked outcome because no product consumer or retirement authority exists.",
+      "Made authentication precede request-body/path processing after the coarse abuse-control boundary.",
+      "Replaced path rewriting with exact own-user-prefix validation and traversal/ambiguous-path rejection.",
+      "Aligned the response with Supabase's fixed two-hour signed-upload TTL and rejected unsupported client TTL claims.",
+      "Pinned signing to private-docs, added no-store response headers, kept service-role credentials out of the route, and made limiter/signing failures fail closed.",
+      "Added focused zero-caller, authentication, cross-user, traversal, bucket, expiry, limiter, signing-error, and service-role leakage tests."
+    ],
+    "next_steps": [
+      "Obtain a product/security decision to adopt one named consumer or authorize retirement.",
+      "If adopted, reconcile the route's <user-id>/ path with the certification flow's staff-credentials/<user-id>/ path and name the exact consumer before changing either contract.",
+      "Database scopes authenticated private-docs INSERT policy to an approved user/org prefix in a separate migration task; USER-006 does not claim application checks as RLS proof.",
+      "USER-005 reconciles account deletion cleanup for private-docs staff-credentials/<user-id>/ objects, then QA-003 certifies the selected upload path and cross-user denial."
+    ],
+    "blockers": [
+      "No approved adoption or retirement decision exists yet.",
+      "The active private-docs migration permits authenticated inserts anywhere in the bucket and does not enforce the route's own-user prefix at the storage boundary; no hosted policy evidence was produced.",
+      "The existing certification uploader writes private-docs/staff-credentials/<user-id>/..., while this retained route intentionally permits only <user-id>/...; adopting it would require an explicit consumer/path decision.",
+      "USER-005 account deletion currently enumerates only <user-id>/ under private-docs, so it does not cover the certification path; that lifecycle fix is outside USER-006.",
+      "QA-003 lacks hosted staging upload credentials and exact-SHA execution evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-18T23:22:13.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Created USER-006 to own the previously unresolved zero-caller private-docs signed-upload route without deleting, adopting, or changing it.",
+        "next_steps": [
+          "Obtain the explicit adopt-versus-retire decision and database storage-policy review."
+        ],
+        "blockers": [
+          "Disposition and hosted storage-boundary evidence remain pending."
+        ]
+      },
+      {
+        "at": "2026-09-19T00:11:37.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Confirmed zero product callers, retained the route without inventing adoption or retirement authority, and hardened the local signer to reject cross-user/traversal paths, unsupported expiry claims, unavailable limiting, and Storage signing errors.",
+        "changed_paths": [
+          "app/api/upload/signed-url/route.ts",
+          "__tests__/uploads/private-docs-signed-url.test.ts",
+          "docs/engineering/tasks/active/USER-006.json",
+          "docs/engineering/agents/general-user/STATE.md",
+          "docs/engineering/tasks/TASK_INDEX.json"
+        ],
+        "verification": [
+          "npx vitest run __tests__/uploads/private-docs-signed-url.test.ts: passed (1 file, 23 tests)",
+          "npx eslint app/api/upload/signed-url/route.ts __tests__/uploads/private-docs-signed-url.test.ts: passed",
+          "npx tsc --project /private/tmp/user006-tsconfig.json --pretty false with repo config inheritance: passed",
+          "Exact product caller scan: 0; ownership generator reference classified as tooling",
+          "git diff --check for USER-006 paths: passed",
+          "npm run agents:validate: passed"
+        ],
+        "next_steps": [
+          "Obtain explicit adopt-or-retire authority, then coordinate database prefix policy, USER-005 cleanup truth, and QA-003 hosted isolation evidence."
+        ],
+        "blockers": [
+          "No product disposition authority or hosted Storage/RLS evidence exists in this local-only wave."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "USER-003/product owner decides whether the settings certification uploader remains canonical or explicitly adopts this generic signer; its staff-credentials/<user-id>/ path is not compatible with the retained signer's <user-id>/ path without a named decision.",
+    "USER-005 adds private-docs/staff-credentials/<user-id>/ cleanup or otherwise resolves the currently uncovered certification objects.",
+    "Database replaces the bucket-only authenticated INSERT policy with an approved user/org-prefix policy in a separate migration task; no migration is applied or rewritten in USER-006.",
+    "QA-003 certifies the selected upload path and cross-user denial against the exact deployed release SHA."
+  ]
+}

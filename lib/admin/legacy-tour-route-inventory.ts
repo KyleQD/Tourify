@@ -59,6 +59,20 @@ export const LEGACY_TOUR_ROUTE_INVENTORY: LegacyTourRouteInventoryEntry[] = [
     notes: "Admin list/create UI primarily uses /api/admin/tours; CreateTourForm is superseded but still wired to legacy POST.",
   },
   {
+    route: "/api/tours/invitations/[token]",
+    methods: ["GET", "POST"],
+    owner: "tour-collaboration",
+    replacement: "Tour collaboration invitation preview/accept command (move behind the canonical Admin collaboration boundary at TOUR-604)",
+    dataSource: "tour_collaboration_invitations, tours, accept_tour_collaboration_invitation, tour_team_members",
+    flag: FLAG,
+    retirementMilestone: RETIRE,
+    writeClass: "delegates_to_canonical",
+    consumers: [
+      { path: "app/tours/invite/[token]/page.tsx", kind: "ui" },
+    ],
+    notes: "Bearer-token preview and authenticated acceptance for invitations issued by /api/admin/tours/[id]/collaboration-invites.",
+  },
+  {
     route: "/api/tours/planner",
     methods: ["GET", "POST"],
     owner: "tour-planner",

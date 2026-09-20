@@ -4,13 +4,14 @@ import test from "node:test"
 import { validateToolchain } from "./check-toolchain.mjs"
 
 const valid = {
-  nodeVersion: "v20.19.0",
-  userAgent: "npm/11.5.2 node/v20.19.0 darwin arm64 workspaces/false",
+  nodeVersion: "v24.19.0",
+  userAgent: "npm/11.17.0 node/v24.19.0 darwin arm64 workspaces/false",
   legacyPeerDeps: "false",
   lockfileExists: true,
   lockfileVersion: 3,
-  packageManager: "npm@11.5.2",
-  nodeEngine: "20.x",
+  packageManager: "npm@11.17.0",
+  nodeEngine: "24.x",
+  npmEngine: "11.17.0",
 }
 
 test("accepts the supported npm/Node/lockfile contract", () => {
@@ -27,4 +28,12 @@ test("rejects unsupported runtime, package manager, and legacy peer bypass", () 
     lockfileVersion: 2,
   })
   assert.equal(failures.length, 5)
+})
+
+test("rejects an npm version that differs from the pinned package manager", () => {
+  const failures = validateToolchain({
+    ...valid,
+    userAgent: "npm/11.16.1 node/v24.19.0 darwin arm64 workspaces/false",
+  })
+  assert.deepEqual(failures, ["npm 11.17.0 is required; received 11.16.1"])
 })

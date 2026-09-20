@@ -1,5 +1,6 @@
 import {
   ADMIN_FEATURE_FIXTURE,
+  ADMIN_UX_FIXTURE_CONTRACT,
   type FixtureOrgKey,
 } from "@/lib/testing/admin-feature-factory"
 
@@ -47,6 +48,18 @@ export interface AdminFeatureScenario {
     bankReferenceLastFour: string
     contractCounterpartyEmail: string
   }
+  communications: Array<{
+    id: string
+    org_id: string
+    subject: string
+    unread: boolean
+    last_message_at: string
+  }>
+  uxRuntime: {
+    personas: typeof ADMIN_UX_FIXTURE_CONTRACT.personas
+    failureScenarios: typeof ADMIN_UX_FIXTURE_CONTRACT.failureScenarios
+    viewports: typeof ADMIN_UX_FIXTURE_CONTRACT.viewports
+  }
 }
 
 const PARENT_FOREIGN_KEYS: Readonly<Record<string, string>> = {
@@ -66,14 +79,14 @@ const PARENT_FOREIGN_KEYS: Readonly<Record<string, string>> = {
 }
 
 const REALISTIC_VOLUMES: Readonly<Record<string, { parents: number; childrenPerParent: number }>> = {
-  tours: { parents: 2, childrenPerParent: 18 },
-  events: { parents: 18, childrenPerParent: 8 },
+  tours: { parents: 125, childrenPerParent: 3 },
+  events: { parents: 125, childrenPerParent: 2 },
   travel: { parents: 4, childrenPerParent: 24 },
   lodging: { parents: 6, childrenPerParent: 18 },
   equipment: { parents: 12, childrenPerParent: 10 },
   catering: { parents: 18, childrenPerParent: 24 },
-  ticketing: { parents: 4, childrenPerParent: 40 },
-  finance: { parents: 18, childrenPerParent: 12 },
+  ticketing: { parents: 1, childrenPerParent: 40 },
+  finance: { parents: 1, childrenPerParent: 200 },
   vendors: { parents: 12, childrenPerParent: 5 },
   contracts: { parents: 6, childrenPerParent: 8 },
   site_maps: { parents: 6, childrenPerParent: 12 },
@@ -146,6 +159,19 @@ export function buildAdminFeatureScenario(input: {
   const ownTour = ADMIN_FEATURE_FIXTURE.domainRecords.tours[input.org]
   const foreignTour = ADMIN_FEATURE_FIXTURE.domainRecords.tours[foreignOrg]
   const idempotencyKey = `fixture:${input.kind}:${input.org}:publish:1`
+  const conversationCount = input.kind === "realistic"
+    ? ADMIN_UX_FIXTURE_CONTRACT.collectionMinimums.conversations
+    : 3
+  const unreadCount = input.kind === "realistic"
+    ? ADMIN_UX_FIXTURE_CONTRACT.collectionMinimums.unreadConversations
+    : 1
+  const communications = Array.from({ length: conversationCount }, (_, index) => ({
+    id: derivedUuid("90909090-9090-4090-8090-909090909090", index + 1),
+    org_id: ADMIN_FEATURE_FIXTURE.orgs[input.org].orgId,
+    subject: `Fixture operations conversation ${String(index + 1).padStart(2, "0")}`,
+    unread: index < unreadCount,
+    last_message_at: new Date(Date.UTC(2026, 9, 31, 23, 30 - index)).toISOString(),
+  }))
 
   return {
     kind: input.kind,
@@ -193,6 +219,12 @@ export function buildAdminFeatureScenario(input: {
       passportLastFour: "4432",
       bankReferenceLastFour: "9811",
       contractCounterpartyEmail: `legal-${input.org}@fixture.tourify.test`,
+    },
+    communications,
+    uxRuntime: {
+      personas: ADMIN_UX_FIXTURE_CONTRACT.personas,
+      failureScenarios: ADMIN_UX_FIXTURE_CONTRACT.failureScenarios,
+      viewports: ADMIN_UX_FIXTURE_CONTRACT.viewports,
     },
   }
 }

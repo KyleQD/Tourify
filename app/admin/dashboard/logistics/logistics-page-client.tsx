@@ -112,6 +112,10 @@ function groupActiveRosterMembers(members: RosterMember[]): TeamGroup[] {
   })
 }
 
+import { LOGISTICS_WORKSPACE_GROUPS, type LogisticsTabId } from "@/lib/admin/logistics-workspace-tabs"
+import { ChevronDown } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
 const LOGISTICS_OPS_TABS = [
   { value: 'overview', label: 'Overview', icon: Truck },
   { value: 'transportation', label: 'Transport', icon: Truck },
@@ -488,12 +492,12 @@ export default function LogisticsPageClient() {
           legLabel: selectedLegId,
         })}
         tabs={[...LOGISTICS_OPS_TABS]}
+        tabGroups={LOGISTICS_WORKSPACE_GROUPS}
         activeTab={activeTab}
         onTabChange={(tab) => {
-          setActiveTab(tab)
+          setActiveTab(tab as LogisticsTabId)
           updateLogisticsUrl({ tab })
         }}
-        tabColsClassName="md:grid-cols-4 xl:grid-cols-8"
         actions={
           <LogisticsScopeBar
             orgLabel={orgLabel}

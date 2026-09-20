@@ -820,7 +820,7 @@ export default function ContractsPage() {
                       </DropdownMenuItem>
 
                       <DropdownMenuItem asChild className="text-slate-200 focus:bg-slate-800">
-                        <Link href={`/contracts/${contract.id}`} className="flex items-center cursor-pointer">
+                        <Link href={`/artist/business/contracts/${contract.id}`} className="flex items-center cursor-pointer">
                           <Eye className="h-4 w-4 mr-2" />
                           Review & sign
                         </Link>

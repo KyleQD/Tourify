@@ -9,6 +9,7 @@ import { calculateTicketFees } from '@/lib/ticketing/fees'
 import { hasTicketingPermission } from '@/lib/ticketing/permissions'
 import { buildQrPayload, parseQrPayload } from '@/lib/ticketing/credentials'
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
+import { claimWebhookEvent } from '@/lib/ticketing/finalize'
 
 function mockSupabase(handlers: Record<string, any>) {
   return {
@@ -97,6 +98,45 @@ describe('4. Webhook replay via claimWebhookEvent', () => {
     // Mirrors ticket_stripe_webhook_events unique PK / 23505 handling
     expect(await claim('evt_replay_1')).toBe(true)
     expect(await claim('evt_replay_1')).toBe(false)
+  })
+
+  it('claims through the durable ledger regardless of the ticketing feature flag', async () => {
+    const inserted: any[] = []
+    const supabase = {
+      from: () => ({
+        insert: async (row: any) => {
+          inserted.push(row)
+          return { data: row, error: null }
+        },
+      }),
+    }
+
+    await claimWebhookEvent({
+      supabase,
+      stripeEventId: 'evt_flag_off',
+      eventType: 'checkout.session.completed',
+    })
+
+    expect(inserted).toEqual([{
+      id: 'evt_flag_off',
+      event_type: 'checkout.session.completed',
+      order_id: null,
+      payload_summary: {},
+    }])
+  })
+
+  it('fails closed when the durable ledger cannot be written', async () => {
+    const supabase = {
+      from: () => ({
+        insert: async () => ({ data: null, error: { code: '42P01', message: 'ledger unavailable' } }),
+      }),
+    }
+
+    await expect(claimWebhookEvent({
+      supabase,
+      stripeEventId: 'evt_ledger_failure',
+      eventType: 'checkout.session.completed',
+    })).rejects.toThrow('Ticketing webhook claim failed: ledger unavailable')
   })
 })
 

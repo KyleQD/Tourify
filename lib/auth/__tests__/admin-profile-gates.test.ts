@@ -5,7 +5,7 @@ describe('profileIndicatesAdminAccess', () => {
     ['null profile', null, false],
     ['empty profile', {}, false],
     ['is_admin', { is_admin: true }, true],
-    ['role admin', { role: 'admin' }, true],
+    ['role admin (self-serviceable, not a grant)', { role: 'admin' } as any, false],
     // ADM-M-003: self-serviceable shapes are no longer grants
     ['account_type admin (not a grant)', { account_type: 'admin' } as any, false],
     ['account_type organizer (not a grant)', { account_type: 'organizer' } as any, false],

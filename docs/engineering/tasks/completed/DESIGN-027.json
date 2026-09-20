@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-027",
+  "title": "Retire venue use-mobile primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:58.665Z",
+  "updated_at": "2026-09-11T19:46:11.469Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/use-mobile.tsx to hooks/use-mobile.ts, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/use-mobile.tsx",
+      "hooks/use-mobile.ts",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/use-mobile.tsx",
+    "hooks/use-mobile.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "The register target components/ui/use-mobile.tsx is stale; use hooks/use-mobile.ts as the live canonical hook and preserve intentional contract differences until callers are migrated. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/use-mobile|@/components/venue/ui/use-mobile\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/use-mobile.tsx hooks/use-mobile.ts",
+      "git diff --check -- components/venue/ui/use-mobile.tsx hooks/use-mobile.ts docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Import audit passed: 0 source imports or references to components/venue/ui/use-mobile.tsx were found outside the twin definition across app, components, hooks, lib, apps, __tests__, and scripts.",
+      "Consumer audit passed: the venue shared sidebar and all other live useIsMobile consumers import hooks/use-mobile.ts; no consumer resolves to the venue twin.",
+      "Parity audit passed for intentional differences: both hooks use the 768px mobile breakpoint, but the venue twin returns a boolean-only useIsMobile contract while hooks/use-mobile.ts returns isMobile/isTablet/isDesktop/breakpoint and also exports useTouchDevice and useHapticFeedback.",
+      "Focused import/parity assertions passed for the twin and canonical exports and shared breakpoint.",
+      "Focused ESLint passed for components/venue/ui/use-mobile.tsx and hooks/use-mobile.ts.",
+      "Focused git diff check passed for the two hook paths and docs/engineering.",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:11.469Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the audit-only pass. The venue twin has zero live consumers, but it is not contract-equivalent to hooks/use-mobile.ts and no callers or files were changed.",
+    "completed": [
+      "Audited all source references and confirmed zero live consumers of components/venue/ui/use-mobile.tsx.",
+      "Audited related useIsMobile consumers and confirmed live venue shared UI already uses hooks/use-mobile.ts.",
+      "Compared the twin and canonical contracts: shared 768px mobile breakpoint; boolean-only venue return versus canonical responsive object plus touch and haptic exports.",
+      "Recorded an audit-only result without deleting files, changing callers, or editing shared design-system state."
+    ],
+    "next_steps": [
+      "Keep the venue twin until an explicitly approved migration/deletion decision addresses its boolean-only public contract.",
+      "If a future consumer is discovered, migrate it to hooks/use-mobile.ts with an owning-surface task and contract-specific verification before retirement.",
+      "Update the canonical component register only in the separately scoped retirement step; do not delete the twin in this audit-only task."
+    ],
+    "blockers": [
+      "No approved consumer migration or deletion is in scope for this audit-only batch.",
+      "The twin and canonical hook are intentionally not API-parity equivalent: consumers expecting a boolean useIsMobile result cannot be switched transparently to the canonical object contract.",
+      "The canonical component register still points the retire-later target at stale components/ui/use-mobile.tsx; register correction belongs to the retirement step and was not changed here."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:31:47.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed an audit-only review of the venue use-mobile twin against hooks/use-mobile.ts. No live consumers were found; intentional contract differences were documented and no source, caller, register, or shared state changes were made.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-027.json"
+        ],
+        "verification": [
+          "Import audit: 0 venue-twin references outside its definition",
+          "Contract/parity assertions passed",
+          "Focused ESLint passed",
+          "Focused git diff check passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No approved migration/deletion scope",
+          "Boolean-only twin contract differs from the canonical responsive-object contract",
+          "Stale canonical register target remains unchanged by this audit-only task"
+        ],
+        "next_steps": [
+          "Retain the twin until an approved contract migration and retirement decision is recorded."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:11.469Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the audit-only pass. The venue twin has zero live consumers, but it is not contract-equivalent to hooks/use-mobile.ts and no callers or files were changed.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

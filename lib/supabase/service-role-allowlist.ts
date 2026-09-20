@@ -16,6 +16,8 @@ export const SERVICE_ROLE_MODULES = [
   "admin.workforce.identity-merge",
   "security.audit",
   "admin.logistics.site-map-public-link",
+  "admin.logistics.comms-thread",
+  "admin.staff.channels",
   "admin.events.advancing",
   "admin.events.day-sheet",
   "admin.applications",
@@ -33,6 +35,7 @@ export const SERVICE_ROLE_MODULES = [
   "marketplace.webhooks",
   "music.rights.public",
   "accounts.server-load",
+  "work.communications.response",
 ] as const
 
 export type ServiceRoleModuleId = (typeof SERVICE_ROLE_MODULES)[number]

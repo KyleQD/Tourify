@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-001",
+  "title": "Audit Admin workspace — baseline, gaps, and questions",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "created_at": "2026-09-09T06:17:39.523Z",
+  "updated_at": "2026-09-09T06:17:39.523Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Admin area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: admin dashboards, admin operations, authorization gates, and audit registries",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/admin/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The admin default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/admin/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/admin/BASELINE.md: what the admin area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/admin/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task ADMIN-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/admin/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/admin/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/admin/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Audit complete. BASELINE.md, GAPS.md, QUESTIONS.md produced; STATE.md and BACKLOG.md updated. Awaiting product owner answers on Q001-Q013.",
+    "completed": [
+      "Read all startup protocol files (INDEX.md, CHARTER.md, STATE.md, ADMIN-001.json)",
+      "Read all admin domain working set (WORKING_SET.json, ARCHITECTURE.md, INTERFACES.md, VERIFICATION.md, BACKLOG.md, DECISIONS.md)",
+      "Read all generated maps (routes.md, api-routes.md, components.md, database-objects.md, database-schema.md, permissions.md)",
+      "Read named references (DEVELOPMENT_WORKFLOW.md, PROJECT_STATE.md, SYSTEM_MAP.md, DEPENDENCY_MAP.md, DECISIONS.md, registry.yaml, DEVELOPMENT_BACKLOG.md)",
+      "Read work packets (TA-PH0.md)",
+      "Read legacy agent ledgers (admin-dashboard-builder, admin-feature-spec-builder, admin-ui-wiring)",
+      "Verified admin area inventory via glob: 79 page routes, 289 API routes, 258 components, 281 lib files, 244 tests, 31 auth core files",
+      "Produced docs/engineering/agents/admin/BASELINE.md",
+      "Produced docs/engineering/agents/admin/GAPS.md (13 gaps: 2 P0, 3 P1, 5 P2, 3 P3)",
+      "Produced docs/engineering/agents/admin/QUESTIONS.md (11 questions: 3 P1, 6 P2, 2 P3)",
+      "Updated docs/engineering/agents/admin/STATE.md",
+      "Updated docs/engineering/agents/admin/BACKLOG.md"
+    ],
+    "next_steps": [
+      "Run npm run agents:validate and confirm 0 errors",
+      "Await product owner answers on Q001-Q013",
+      "Create follow-up task records from answered questions (WS-0.8, WS-1.7, etc.)"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "at": "2026-09-09T06:30:00Z",
+        "summary": "Full audit complete. Read all required files, verified inventory via glob, produced BASELINE.md (79 pages, 289 APIs, 258 components, 281 lib files, 244 tests, 31 auth files), GAPS.md (13 gaps: G001-G014, 2 P0 blockers from WS-0.8/WS-1.7), QUESTIONS.md (11 questions: Q001-Q013, 3 P1 blocking), updated STATE.md and BACKLOG.md. No production code changed.",
+        "next": "Run npm run agents:validate, then return final report to orchestrator. Await product owner answers on Q001-Q013 to create follow-up task records."
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_TREATY_RENEWAL_FLAG_NAMES = [
   "creator_treaty_renewal_readiness_enabled",
   "creator_treaty_renewal_repeated_cycles_enabled",
@@ -68,6 +70,9 @@ export async function resolveCreatorTreatyRenewalFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorTreatyRenewalFlags> {
+  if (!isLaunchCapabilityAvailable("creator_treaty_system_renewal"))
+    return { ...DISABLED_CREATOR_TREATY_RENEWAL_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

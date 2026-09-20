@@ -240,7 +240,7 @@ export async function hasTicketingPermission(params: {
     const { data: assignments } = await supabase
       .from('employment_assignments')
       .select('id, permissions')
-      .eq('event_id', eventId)
+      .eq('event_v2_id', eventId)
       .eq('user_id', userId)
       .in('status', ['confirmed', 'active'])
       .limit(1)

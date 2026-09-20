@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823071000_staff_shifts_backfill.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "staff"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Read-only affected-relation and per-organization row counts must be captured before execution"
+    ],
+    "expectedAffectedRows": "Not yet measured; execution remains blocked until preflight evidence is attached",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823071000",
+    "idempotency": "Must be proven by interrupted replay in an isolated environment before promotion"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Review locks and use expand/validate sequencing for existing relations"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "migration": "20260822151255_world_pilot_staging_load.sql",
   "taskId": "WOM-ACT-STAGING",
-  "status": "local_rehearsal",
+  "status": "planned",
   "owner": "world-of-music",
   "reviewer": "security-data",
   "domains": [
@@ -58,7 +58,18 @@
     "production": null
   },
   "exclusions": {
-    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW \u2014 local rehearsal migration per docs/24 A1-A4"
+    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW — local rehearsal migration per docs/24 A1-A4"
   },
-  "exceptions": []
+  "exceptions": [
+    {
+      "id": "REL102-WORLD-PILOT-SEED",
+      "type": "scoped-insert-select",
+      "owner": "database-engineering",
+      "rationale": "Source-controlled candidates resolve only reviewed source keys, upsert deterministic natural keys, and the file rolls back by default.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-WORLD-PILOT-SEED",
+      "sourceSha256": "c453aa21d048a95897c3ae9422b4c412f236432f04195cfd5168edb5e20b0d29"
+    }
+  ]
 }

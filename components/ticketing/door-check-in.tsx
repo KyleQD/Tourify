@@ -39,6 +39,14 @@ interface DoorStats {
   checkpoints: string[]
 }
 
+function requiredStat(payload: unknown, key: keyof Pick<DoorStats, "total" | "checked_in" | "capacity">): number {
+  const value = (payload as Record<string, unknown> | null)?.[key]
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error("Attendance statistics are temporarily unavailable")
+  }
+  return value
+}
+
 interface AdmissionRow {
   checkin_id: string
   checkpoint: string
@@ -139,9 +147,9 @@ export function DoorCheckIn({
       }
       const payload = await res.json()
       setStats({
-        total: Number(payload.total || 0),
-        checked_in: Number(payload.checked_in || 0),
-        capacity: Number(payload.capacity || 0),
+        total: requiredStat(payload, "total"),
+        checked_in: requiredStat(payload, "checked_in"),
+        capacity: requiredStat(payload, "capacity"),
         checkpoints: Array.isArray(payload.checkpoints) ? payload.checkpoints : [],
       })
       setStatsError(null)
@@ -188,10 +196,7 @@ export function DoorCheckIn({
 
   useEffect(() => {
     setOnline(navigator.onLine)
-    const goOnline = () => {
-      setOnline(true)
-      void reconcile()
-    }
+    const goOnline = () => setOnline(true)
     const goOffline = () => setOnline(false)
     window.addEventListener("online", goOnline)
     window.addEventListener("offline", goOffline)
@@ -199,7 +204,7 @@ export function DoorCheckIn({
       window.removeEventListener("online", goOnline)
       window.removeEventListener("offline", goOffline)
     }
-  }, [eventId, reconcile])
+  }, [])
 
   // Reconcile pending scans when connectivity returns or on mount.
   const reconcile = useCallback(async () => {
@@ -238,6 +243,14 @@ export function DoorCheckIn({
       })
     }
   }, [fetchStats, loadRecent, refreshQueueCount])
+
+  // Kick reconciliation when connectivity flips back on.
+  useEffect(() => {
+    if (!online) return
+    const handler = () => void reconcile()
+    window.addEventListener("online", handler)
+    return () => window.removeEventListener("online", handler)
+  }, [online, reconcile])
 
   useEffect(() => {
     const interval = setInterval(() => {

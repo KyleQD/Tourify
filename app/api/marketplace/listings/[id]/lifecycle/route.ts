@@ -1,5 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
+import {
+  requireMarketplaceEnabled,
+  requireMarketplaceEnabledForAccount,
+  requireMarketplaceListingKindEnabled,
+} from "@/lib/marketplace/require-marketplace-enabled"
 import { resolveActingContext } from "@/lib/auth/acting-context"
 import {
   executeListingTransition,
@@ -29,6 +33,9 @@ export async function POST(
   const ctx = await resolveActingContext(request)
   if (ctx instanceof NextResponse) return ctx
 
+  const accountGuard = requireMarketplaceEnabledForAccount(ctx.accountType)
+  if (accountGuard) return accountGuard
+
   const { id: listingId } = await params
   const { userId, supabase } = ctx
 
@@ -48,6 +55,22 @@ export async function POST(
       message: "targetStatus and expectedVersion are required.",
     })
   }
+
+  const { data: launchListing } = await supabase
+    .from("marketplace_listings")
+    .select("listing_kind, seller_user_id")
+    .eq("id", listingId)
+    .maybeSingle()
+  if (!launchListing) {
+    return jsonError({ status: 404, code: "listing_not_found", message: "Listing not found." })
+  }
+  if (launchListing.seller_user_id !== userId) {
+    return jsonError({ status: 403, code: "forbidden", message: "Forbidden." })
+  }
+  const listingKindGuard = requireMarketplaceListingKindEnabled(
+    launchListing.listing_kind || "physical",
+  )
+  if (listingKindGuard) return listingKindGuard
 
   // Check seller agreement acceptance
   const { data: storefront } = await supabase

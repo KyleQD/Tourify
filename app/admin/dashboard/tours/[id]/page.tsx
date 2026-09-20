@@ -116,6 +116,7 @@ import {
   resolveActiveTourCommandCenterTab,
   resolveTourCommandCenterVisibleTabs,
   shouldLoadTourWorkflowFanout,
+  TOUR_WORKSPACE_GROUPS,
   type TourCommandCenterTabId,
 } from "@/lib/admin/tour-command-center-tabs"
 import { TourDuplicatePreviewDialog } from "@/components/admin/tours/tour-duplicate-preview-dialog"
@@ -156,6 +157,9 @@ interface Event {
   tour_id: string
   venue_name: string
   venue_address?: string
+  venue_city?: string
+  venue_state?: string
+  venue_country?: string
   event_date: string
   event_time?: string
   doors_open?: string
@@ -364,6 +368,9 @@ export default function TourManagementPage() {
           tour_id: event.tour_id || tourId,
           venue_name: normalized.venue_name || "Venue TBD",
           venue_address: event.venue_address || "",
+          venue_city: event.venue_city || event.settings?.venue_city || "",
+          venue_state: event.venue_state || event.settings?.venue_state || "",
+          venue_country: event.venue_country || event.settings?.venue_country || "",
           event_date: normalized.event_date,
           event_time: normalized.event_time || "",
           doors_open: event.doors_open || "",
@@ -1248,6 +1255,7 @@ export default function TourManagementPage() {
           description={`Tour management · ${formatSafeDate(safeTour.start_date)} – ${formatSafeDate(safeTour.end_date)}`}
           badge={safeTour.status.replace('_', ' ')}
           tabs={visibleTourTabs}
+          tabGroups={TOUR_WORKSPACE_GROUPS}
           activeTab={activeTab}
           onTabChange={(value) => {
             const next = resolveActiveTourCommandCenterTab({
@@ -1712,8 +1720,19 @@ export default function TourManagementPage() {
                   <TourJobPostingPanel
                     tourId={tourId}
                     tourName={safeTour.name}
+                    tourDescription={safeTour.description}
                     tourStartDate={safeTour.start_date}
                     tourEndDate={safeTour.end_date}
+                    tourTransportation={safeTour.transportation}
+                    tourAccommodation={safeTour.accommodation}
+                    tourEquipmentRequirements={safeTour.equipment_requirements}
+                    tourSpecialRequirements={safeTour.special_requirements}
+                    tourStops={events.map((event) => ({
+                      venueName: event.venue_name,
+                      venueCity: event.venue_city,
+                      venueState: event.venue_state,
+                      venueCountry: event.venue_country,
+                    }))}
                     onJobPosted={(job) => {
                       toast.success(`Job "${job.title}" posted successfully!`)
                     }}

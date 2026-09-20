@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /**
  * P3-07 / ADM-M-010 — /admin/request backend.
@@ -28,8 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'A reason is required' }, { status: 400 })
   }
 
-  const svc = createServiceRoleClient()
-  const { error } = await svc.from('admin_requests').insert({
+  const { error } = await auth.supabase.from('admin_requests').insert({
     user_id: auth.user.id,
     reason: parsed.data.reason,
     experience: parsed.data.experience ?? null,

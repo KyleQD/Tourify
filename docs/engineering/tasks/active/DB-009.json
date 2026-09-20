@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-009",
+  "title": "Define the shared multi-table event-reference contract",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-18T23:22:13.000Z",
+  "updated_at": "2026-09-18T23:49:45.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; bounded DB-009 resolver and contract-test changes present",
+  "goal": "Define, own, and verify one fail-closed identity and access contract for resolving artist_events, events, and events_v2 references without weakening any consumer authorization boundary",
+  "scope": {
+    "in": [
+      "app/api/events/_lib/event-reference.ts",
+      "The exact direct-importer inventory across event subresources, app/api/payment/route.ts, and lib/events/event-task-workflow.ts",
+      "UUID-versus-slug lookup order, source-table identity, owner/org/venue/schedule projection, and published-like viewer access semantics",
+      "Focused contract and negative-authorization tests for the shared resolver"
+    ],
+    "out": [
+      "Schema migrations, hosted database mutation, or destructive events/events_v2/artist_events cutover",
+      "Broad consumer behavior rewrites outside the shared resolver contract",
+      "Public discovery ranking, ticket purchase behavior, workforce workflows, social posting, or artist event lifecycle implementation",
+      "DB-006's six already-bounded canonical events_v2 callers and its required staging/production evidence"
+    ]
+  },
+  "working_set": [
+    "app/api/events/_lib/event-reference.ts",
+    "__tests__/events/event-reference-contract.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/active/DB-006.json",
+    "docs/engineering/agents/database/STATE.md",
+    "docs/event-discovery/INTEGRATION_CONFLICTS.md",
+    "docs/architecture/adr/ADR-004-canonical-event-tour-records.md"
+  ],
+  "acceptance_criteria": [
+    "The resolver contract explicitly defines identifier forms, lookup order, returned source identity, and field/nullability semantics for artist_events, events, and events_v2",
+    "Viewer access is fail closed and tested for anonymous, unrelated authenticated, owner, organization-scoped, published/public, unpublished, missing, and ambiguous references without relying on service-role bypass",
+    "Every direct importer is classified by domain and its expected source-table and authorization behavior; incompatible consumers receive named handoffs instead of silent fallback",
+    "The contract preserves CP-053 and DB-006 events_v2 canonical direction while keeping explicitly approved legacy compatibility isolated and observable",
+    "Focused tests, lint, scoped type diagnostics, importer inventory, diff validation, and control-plane validation pass"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/events/event-reference-contract.test.ts",
+      "npx eslint app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts",
+      "npx tsc --noEmit --pretty false --skipLibCheck --target ES2020 --module esnext --moduleResolution bundler app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts",
+      "rg -l \"event-reference\" app lib --glob '*.{ts,tsx}'",
+      "git diff --check -- app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "ORCH-002 read-only research found 18 direct importers: 16 event subresource routes plus app/api/payment/route.ts and lib/events/event-task-workflow.ts.",
+      "DB-006 explicitly leaves legacy/public/artist-event compatibility outside its bounded six-caller cutover until identifier and authorization contracts are mapped.",
+      "2026-09-18T23:36:27.000Z: implemented canonical events_v2 -> artist_events -> events lookup for both UUID and slug identifiers, while retaining source identity and owner/org/venue/schedule projections.",
+      "2026-09-18T23:36:27.000Z: the resolver now fails closed on query errors, malformed data, within-table duplicates, and cross-table ambiguity; it uses only the caller-supplied authenticated client.",
+      "2026-09-18T23:36:27.000Z: focused Vitest passed 1 file / 8 tests; focused ESLint and scoped TypeScript diagnostics passed; the static importer inventory remained exactly 18 app/lib paths.",
+      "2026-09-18T23:49:45.000Z discover review: the event page accepts UUID or slug, branches on the resolved table, and calls canAccessEventAsViewer; active events_v2 RLS remains organization-member scoped, so anonymous published events_v2 behavior still needs approved hosted policy/evidence.",
+      "2026-09-18T23:49:45.000Z social review: attendance and posts retain event_table source qualification and viewer checks on writes; their reads rely on RLS after resolution. Active attendance policy evidence is legacy-events oriented and no active event_posts creation/RLS migration was found in this bounded review, so deployed read isolation remains unverified.",
+      "2026-09-18T23:49:45.000Z ticketing/payment review: finance and frozen legacy guest-list reads require authenticated event permission; checkout accepts a UUID-only eventId and uses a user-scoped client after booking ownership. The route does not bind booking.event_id to the requested/resolved event, which requires a ticketing/payment security handoff.",
+      "2026-09-18T23:49:45.000Z work review: staff routes require admin capability plus active-org identity, incidents and vendor collection creation gate on events_v2, and tasks use permission-gated workflow context. The vendor item route remains polymorphic without the collection route's events_v2 gate, and other unqualified event_id subresources still require work-owner compatibility approval.",
+      "2026-09-18T23:49:45.000Z: refined focused matrix verification passed 1 file / 9 tests, focused ESLint, scoped TypeScript diagnostics, importer inventory, diff validation, and agents:validate."
+    ],
+    "last_run_sha": "working-tree@7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-18T23:49:45.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "All DB-009 local implementation and consumer-inventory acceptance criteria are met and focused verification passes. The 18 callers are evidence-checked against identifier, source, and authorization behavior, with divergences named rather than normalized silently. DB-009 stays active pending domain-owner decisions and hosted RLS/canonical-cutover evidence.",
+    "completed": [
+      "Assigned the shared multi-table event-reference path to the database agent through this explicit bounded task.",
+      "Recorded the 18-importer topology and the DB-006 scope boundary without treating generated maps as behavioral proof.",
+      "Classified all 18 direct importers by domain, accepted identifier form, source-table behavior, and authorization boundary in a focused contract matrix.",
+      "Made events_v2 the first lookup source for UUID and slug resolution, then artist_events and events, preserving CP-053 while retaining unique legacy compatibility.",
+      "Changed lookup failures, malformed rows, same-table duplicates, and cross-table matches from silent fallback to a null fail-closed result.",
+      "Restricted anonymous/unrelated events_v2 viewer access to confirmed, advancing, and onsite; owner access remains explicit, and org metadata alone does not grant viewer access.",
+      "Preserved events_v2 org, venue, date, and time projections required by organization-scoped staff and workflow consumers.",
+      "Reviewed all 18 importers against executable route evidence and refined the matrix to distinguish UUID-only payment, source-qualified social/discover callers, unqualified polymorphic subresources, events_v2-gated collection writes, and active-organization workforce routes.",
+      "Recorded explicit consumer handoffs for the unbound payment booking/event identity, vendor item-route source divergence, social read-policy evidence, public events_v2 RLS, and unqualified polymorphic event_id consumers."
+    ],
+    "next_steps": [
+      "Discover/database owners decide and evidence how public confirmed/advancing/onsite events_v2 rows are visible to anonymous callers without weakening org-scoped writes.",
+      "Ticketing/payment owners bind the owned booking's event_id to the requested/resolved event before checkout and certify ordinary buyers can resolve the canonical event through RLS.",
+      "Work owner decides whether vendor item mutations and other unqualified event_id subresources remain intentionally polymorphic or require events_v2/source-qualified gating.",
+      "Social/database owners provide active/deployed RLS evidence for attendance and event-post reads, then QA-003 exercises the named positive and denial scenarios."
+    ],
+    "blockers": [
+      "DB-006 has not completed hosted staging/production evidence for the canonical events_v2 cutover; active source shows events_v2 SELECT is organization-member scoped rather than a proven public-read contract.",
+      "Ticketing/payment has not approved or fixed the missing booking.event_id to requested event binding in app/api/payment/route.ts.",
+      "Work has not approved the vendor item route's polymorphic mutations or the unqualified event_id identity used by jobs, locations, participants, tasks, finance, guest list, incidents reads, and vendor reads.",
+      "Social/database lacks active/deployed event_posts RLS evidence and events_v2-aware attendance read-policy evidence; local route inspection cannot replace hosted isolation tests."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-18T23:22:13.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Created DB-009 to own the previously unresolved shared event-reference compatibility contract without expanding DB-006 or changing product behavior.",
+        "next_steps": [
+          "Build and review the exact consumer contract matrix before implementation."
+        ],
+        "blockers": [
+          "Canonical cutover evidence and consumer-domain sign-off remain pending."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:36:27.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the bounded local multi-table resolver contract and its exact 18-importer matrix. Canonical-first lookup now rejects errors and ambiguity; public viewer semantics fail closed without creating or using a service-role client.",
+        "changed_paths": [
+          "app/api/events/_lib/event-reference.ts",
+          "__tests__/events/event-reference-contract.test.ts",
+          "docs/engineering/tasks/active/DB-009.json",
+          "docs/engineering/agents/database/STATE.md"
+        ],
+        "verification": [
+          "npx vitest run __tests__/events/event-reference-contract.test.ts: passed (1 file, 8 tests)",
+          "npx eslint app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts: passed",
+          "npx tsc --noEmit --pretty false --skipLibCheck --target ES2020 --module esnext --moduleResolution bundler app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts: passed",
+          "rg -l event-reference app lib --glob '*.{ts,tsx}': exactly 18 direct importer paths plus the defining module excluded from the count"
+        ],
+        "next_steps": [
+          "Complete named consumer-domain review and retain DB-006's separate hosted evidence dependency before closing DB-009."
+        ],
+        "blockers": [
+          "No consumer-domain sign-off or DB-006 hosted evidence was produced in this local-only wave."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:49:45.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed a read-only consumer-domain audit of all 18 importers and refined the executable matrix to match actual UUID/slug, source-table, and authorization behavior. Local acceptance is met; route and hosted-policy divergences are explicit handoffs rather than implicit resolver fallback.",
+        "changed_paths": [
+          "__tests__/events/event-reference-contract.test.ts",
+          "docs/engineering/tasks/active/DB-009.json",
+          "docs/engineering/agents/database/STATE.md",
+          "docs/engineering/tasks/TASK_INDEX.json"
+        ],
+        "verification": [
+          "npx vitest run __tests__/events/event-reference-contract.test.ts: passed (1 file, 9 tests)",
+          "npx eslint app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts: passed",
+          "npx tsc --noEmit --pretty false --skipLibCheck --target ES2020 --module esnext --moduleResolution bundler app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts: passed",
+          "Exact recursive app/lib importer comparison: matrix equals all 18 direct importers",
+          "git diff --check for the DB-009 working set and control-plane records: passed",
+          "npm run agents:validate: passed"
+        ],
+        "next_steps": [
+          "Route each named divergence to its consumer owner and collect approved hosted RLS/cutover evidence before closure."
+        ],
+        "blockers": [
+          "Payment event binding, public events_v2 RLS, social read-policy evidence, and work source-identity decisions are outside this local database contract-review wave."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "DB-006 provides the canonical events_v2 direction and legacy-caller classification; DB-009 must not claim its hosted cutover evidence.",
+    "Discover/database: approve and verify anonymous public events_v2 read policy while retaining organization-scoped mutation boundaries.",
+    "Ticketing/payment: bind booking.event_id to the requested/resolved event; then certify buyer-scoped canonical checkout under TICKET-005.",
+    "Work: decide whether app/api/events/[id]/vendors/[vendorId]/route.ts and other unqualified event_id subresources remain polymorphic or receive source/events_v2 gates.",
+    "Social/database: establish active and deployed RLS truth for event_attendance and event_posts reads across all three event sources.",
+    "QA-003: execute anonymous, unrelated, owner, organization member, published/public, unpublished, missing, ambiguous, and booking/event mismatch scenarios after owner changes land."
+  ]
+}

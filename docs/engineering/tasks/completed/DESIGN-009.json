@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-009",
+  "title": "Retire venue carousel primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:36.186Z",
+  "updated_at": "2026-09-11T19:46:10.939Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/carousel.tsx to components/ui/carousel.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/carousel.tsx",
+      "components/ui/carousel.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/carousel.tsx",
+    "components/ui/carousel.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/carousel|@/components/venue/ui/carousel\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/carousel.tsx components/ui/carousel.tsx",
+      "git diff --check -- components/venue/ui/carousel.tsx components/ui/carousel.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded source audit across app/, components/, hooks/, lib/, apps/, __tests__/, and scripts/ found 0 consumers or exact import references for components/venue/ui/carousel.tsx and @/components/venue/ui/carousel.",
+      "The source inventory contains only components/ui/carousel.tsx and components/venue/ui/carousel.tsx; no additional carousel module or approved external dependency was found.",
+      "The canonical consumer inventory found one direct import of components/ui/carousel.tsx in components/social/post-item.tsx; no consumer requires an in-scope migration from the venue twin.",
+      "components/venue/ui/carousel.tsx and components/ui/carousel.tsx are byte-identical: both are 262 lines and both have SHA-256 69686986376cbc02a5f907b1ca8a7a759808c4e8df1200517c57ec749e8484cd.",
+      "Public/export parity is exact: both modules export CarouselApi, Carousel, CarouselContent, CarouselItem, CarouselPrevious, and CarouselNext with identical Embla, React ref, props, accessibility, and navigation contracts.",
+      "Canonical register evidence lists components/venue/ui/carousel.tsx as retire-later with components/ui/carousel.tsx as its canonical target and 0 detected consumers. The twin is retained because compatibility-file deletion is outside this pass.",
+      "Focused ESLint passed for components/venue/ui/carousel.tsx and components/ui/carousel.tsx.",
+      "Focused git diff check passed for the two carousel files and docs/engineering.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:10.939Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the bounded carousel consumer and parity audit. All live consumers already use the canonical shared primitive; the venue twin is an exact, unused duplicate and is retained as retire-later compatibility debt.",
+    "completed": [
+      "Read the engineering index, design-system charter/state, DESIGN-009, DESIGN-004, VENUE-002, the development workflow, and the canonical component register.",
+      "Audited bounded source consumers and found zero references to components/venue/ui/carousel.tsx or its venue alias; no approved external dependency was found.",
+      "Confirmed the canonical source has one direct consumer in components/social/post-item.tsx and no venue-twin consumer requires migration.",
+      "Confirmed byte-level parity and exact public/export parity between the venue twin and components/ui/carousel.tsx.",
+      "Ran focused consumer, parity, ESLint, diff, and control-plane checks without changing venue behavior or deleting compatibility files."
+    ],
+    "next_steps": [
+      "Retain components/venue/ui/carousel.tsx until a separately authorized cleanup action removes retire-later compatibility debt.",
+      "If cleanup is authorized later, re-run the bounded zero-use and parity checks before deleting the venue twin."
+    ],
+    "blockers": [
+      "Compatibility-file deletion is explicitly out of scope for this audit pass; the venue twin remains retained despite complete zero-use and parity evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:43:48.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded carousel audit. Zero venue-twin consumers were found; one direct consumer already uses the canonical shared primitive. The two files are byte-identical with matching public exports. Recorded the canonical keep, already-migrated consumer, and retire-later venue-twin dispositions.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-009.json"
+        ],
+        "verification": [
+          "Bounded venue-twin consumer audit: 0 consumers",
+          "Canonical consumer inventory: 1 direct import",
+          "Byte comparison and SHA-256 parity",
+          "Focused ESLint: passed",
+          "Focused git diff check: passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Retire-later compatibility-file deletion was not authorized in this pass."
+        ],
+        "next_steps": [
+          "Preserve the venue twin until a separately authorized cleanup task revalidates zero-use evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:10.939Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded carousel consumer and parity audit. All live consumers already use the canonical shared primitive; the venue twin is an exact, unused duplicate and is retained as retire-later compatibility debt.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

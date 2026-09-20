@@ -121,7 +121,7 @@ describe("POST /api/marketplace/checkout", () => {
     mockedServiceRole.mockReturnValue(makeServiceRoleMock() as any)
 
     const request = {
-      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }] }),
+      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }], idempotencyKey: "checkout-self-1" }),
       nextUrl: { origin: "https://test.example.com" },
     } as any
 
@@ -184,7 +184,7 @@ describe("POST /api/marketplace/checkout", () => {
     mockedServiceRole.mockReturnValue(makeServiceRoleMock() as any)
 
     const request = {
-      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }] }),
+      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }], idempotencyKey: "checkout-payout-1" }),
       nextUrl: { origin: "https://test.example.com" },
     } as any
 
@@ -238,7 +238,7 @@ describe("POST /api/marketplace/checkout", () => {
     mockedServiceRole.mockReturnValue(makeServiceRoleMock() as any)
 
     const request = {
-      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }] }),
+      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }], idempotencyKey: "checkout-inventory-1" }),
       nextUrl: { origin: "https://test.example.com" },
     } as any
 
