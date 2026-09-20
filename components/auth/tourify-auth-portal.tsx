@@ -540,10 +540,10 @@ export function TourifyAuthPortal({
 
           <Tabs value={activeAuthTab} onValueChange={(value) => handleAuthTabChange(value as AuthTab)} className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-2 bg-white/10 p-1 backdrop-blur-sm">
-              <TabsTrigger value="signup" className="min-h-11 data-[state=active]:bg-purple-700 data-[state=active]:text-white">
+              <TabsTrigger value="signup" className="min-h-11 md:min-h-11 data-[state=active]:bg-purple-700 data-[state=active]:text-white">
                 Sign Up
               </TabsTrigger>
-              <TabsTrigger value="signin" className="min-h-11 data-[state=active]:bg-purple-700 data-[state=active]:text-white">
+              <TabsTrigger value="signin" className="min-h-11 md:min-h-11 data-[state=active]:bg-purple-700 data-[state=active]:text-white">
                 Sign In
               </TabsTrigger>
             </TabsList>

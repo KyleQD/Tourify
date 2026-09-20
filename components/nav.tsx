@@ -509,7 +509,7 @@ export function Nav() {
       />
     </nav>
 
-    {!pathname.startsWith('/admin') ? (
+    {!pathname.startsWith('/admin') && !pathname.startsWith('/artist') ? (
       <nav
         aria-label="Mobile app navigation"
         className="safe-area-bottom fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-slate-950/95 px-2 backdrop-blur-xl md:hidden"

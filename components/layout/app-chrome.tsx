@@ -30,7 +30,8 @@ export function AppChrome({ children }: AppChromeProps) {
   const pathname = usePathname() || ''
   const { hideRootNav, hidePlayer, isAdminRoute, isVenueRoute } =
     getAppChromeVisibility(pathname)
-  const showMobileAppNav = !hideRootNav && !isAdminRoute && pathname !== '/'
+  const showMobileAppNav =
+    !hideRootNav && !isAdminRoute && !pathname.startsWith('/artist') && pathname !== '/'
   const contentClassName = `min-w-0 flex-1 ${
     isAdminRoute || isVenueRoute
       ? ''
