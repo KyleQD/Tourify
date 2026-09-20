@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "release",
   "created_at": "2026-09-16T19:20:38.019Z",
-  "updated_at": "2026-09-19T23:15:00.000Z",
+  "updated_at": "2026-09-20T11:07:10.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (922 entries)",
   "goal": "Expose only launch-certified capabilities and public routes while publishing correct production security, crawler, and release metadata",
@@ -70,14 +70,15 @@
       "2026-09-18 creator cooperative page slice: a server layout now returns notFound for /cooperative while creator_cooperative is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, inbound education/federation links, and unrelated navigation remain unchanged. Fifty focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
       "2026-09-18 creator interoperability convention page slice: a server layout now returns notFound for /interop-convention while creator_interoperability_convention is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
       "2026-09-19 creator public infrastructure page slice: a server layout now returns notFound for /public-infrastructure while creator_public_infrastructure is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
-      "2026-09-19 creator multilateral treaty operations page slice: a server layout now returns notFound for /treaty-operations while creator_multilateral_treaty_operations is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed."
+      "2026-09-19 creator multilateral treaty operations page slice: a server layout now returns notFound for /treaty-operations while creator_multilateral_treaty_operations is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-20 Wave 26 direct-page closeout: server layouts now return notFound for interop-institution, interop-organization, protocol-constitution, treaty-legacy, and treaty-renewal before client hydration or their 5/5/5/6/5 discovery requests while those capabilities remain disabled; each layout matches the canonical denial pattern exactly. Sixty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed. agents:generate refreshed all maps at 59971a9e and agents:validate reported 17 agents, 113 tasks, 0 warnings, 0 errors with the ownership manifest reporting the five layouts as task-record for RELEASE-008."
     ],
     "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
     "last_run_at": "2026-09-19T02:50:34.000Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Closed the creator public infrastructure and creator multilateral treaty operations direct pages at canonical server boundaries before client render or API discovery while preserving their already fail-closed resolver and API contracts.",
+    "summary": "Closed the final five launch-disabled direct-page families (interop institution, interop organization, protocol constitution, treaty legacy, treaty renewal) at canonical server layout boundaries before client hydration or API discovery, completing the direct-page enforcement inventory at the curated release snapshot; only hosted exact-SHA staging verification remains.",
     "completed": [
       "Added the canonical enabled/pilot/disabled launch capability manifest and prevented legacy approval variables from enabling launch-disabled API capabilities.",
       "Made the existing middleware request-boundary adapter consume the canonical production deny registry with exact-or-child matching; added uncovered admin-test and notification-test APIs.",
@@ -117,18 +118,36 @@
       "Closed the /cooperative direct page at a server layout boundary before client hydration and four creator-cooperative discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, inbound links, and unrelated navigation.",
       "Closed the /interop-convention direct page at a server layout boundary before client hydration and four convention discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
       "Closed the /public-infrastructure direct page at a server layout boundary before client hydration and four public-infrastructure discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
-      "Closed the /treaty-operations direct page at a server layout boundary before client hydration and four treaty-operations discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation."
+      "Closed the /treaty-operations direct page at a server layout boundary before client hydration and four treaty-operations discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
+      "Closed the /interop-institution, /interop-organization, /protocol-constitution, /treaty-legacy, and /treaty-renewal direct pages at canonical server layout boundaries before client hydration and their 5/5/5/6/5 discovery requests while preserving every canonical-backed resolver, API route, worker, admin surface, and unrelated navigation."
     ],
     "next_steps": [
-      "Continue remaining direct-page/navigation consumers beyond artist music issuer/investor offerings, rights intelligence, creator digital commons, creator federation, creator cooperative, creator interoperability convention, creator public infrastructure, and creator multilateral treaty operations; deploy an exact reviewed SHA to isolated staging for QA-003."
+      "All launch-disabled direct-page families identified in the RELEASE-008 inventory are now closed at canonical server layout boundaries; remaining work is hosted exact-SHA staging verification for QA-003 and owner review of public metrics/legal findings."
     ],
     "blockers": [
-      "Remaining navigation/direct-page consumers beyond the artist music issuer/investor marketplace, rights-intelligence, creator-digital-commons, creator-federation, creator-cooperative, and creator-interoperability-convention families have not all been wired to the manifest. The executable music-worker inventory, including private trust reconciliation, is canonically guarded; provider-specific surfaces remain disabled until their owner task passes.",
-      "Hosted staging/production crawler, canonical, headers, and route-denial behavior is unverified because this slice did not mutate or query hosted deployment state.",
+      "Hosted staging/production crawler, canonical, headers, and route-denial behavior remains unverified and requires an exact reviewed SHA deployed to isolated staging for QA-003; this slice did not mutate or query hosted deployment state.",
       "Public metrics/evidence and legal-review findings remain outside this local enforcement slice and require an owner review.",
       "Full verify:release was not rerun: RELEASE-006 already records the non-HTTPS local site URL build blocker and a bounded full typecheck timeout."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-20T11:07:10.000Z",
+        "sha": "59971a9eeba217a635b47d5c667450cd40082f0d",
+        "summary": "Closed the five remaining launch-disabled direct-page families at canonical server layout boundaries before client hydration or API discovery (Wave 26).",
+        "completed": [
+          "Added canonical denial-pattern server layouts for app/interop-institution (creator_interoperability_institution), app/interop-organization (creator_interoperability_organization), app/protocol-constitution (creator_protocol_constitution), app/treaty-legacy (creator_treaty_system_legacy), and app/treaty-renewal (creator_treaty_system_renewal), each returning notFound while its capability is disabled.",
+          "Extended launch-capability-pages coverage with ten new cases: a denial assertion per family and an API-discovery assertion per family proving the real 5/5/5/6/5 /api discovery routes extracted from each page.tsx are still called.",
+          "Added confirmatory RELEASE-008 ownership rules for all five layout paths; regenerated the ownership manifest at the current SHA reports them task-record for RELEASE-008.",
+          "Sixty-six focused Vitest cases, focused ESLint, check:public-surface, check:production-debug (40 covered routes), and check:cron-route-inventory (7 scheduled, 1 deferred) all passed; agents:generate refreshed all maps at 59971a9e and agents:validate reported 17 agents, 113 tasks, 0 warnings, 0 errors."
+        ],
+        "next_steps": [
+          "Remaining RELEASE-008 work is hosted exact-SHA staging verification for QA-003 after an approved deployment, plus owner review of public metrics/legal findings."
+        ],
+        "blockers": [
+          "Hosted staging/production crawler, canonical, headers, and route-denial behavior requires an exact reviewed SHA deployed to isolated staging (QA-003).",
+          "Public metrics/evidence and legal-review findings require owner review."
+        ]
+      },
       {
         "at": "2026-09-18T22:04:56.434Z",
         "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",

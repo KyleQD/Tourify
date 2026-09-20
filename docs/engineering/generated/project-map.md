@@ -2,46 +2,43 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
-- Branch: `codex/admin-master-remediation`
-- Working tree: dirty (935 entries)
-- Generated at: 2026-09-20T03:08:22.215Z
+- Source SHA: `59971a9eeba217a635b47d5c667450cd40082f0d`
+- Branch: `release/release008-pages-20260920`
+- Working tree: dirty (7 entries)
+- Generated at: 2026-09-20T11:04:26.893Z
 - Generator: `control-plane.mjs generate`
 
 ## Top-level directories
 
 | Directory | Files |
 | --- | ---: |
-| `__tests__/` | 478 |
-| `app/` | 1855 |
-| `apps/` | 182 |
-| `audit-artifacts/` | 5 |
-| `components/` | 1129 |
+| `__tests__/` | 477 |
+| `app/` | 1859 |
+| `apps/` | 180 |
+| `components/` | 1128 |
 | `config/` | 2 |
 | `context/` | 3 |
 | `contexts/` | 7 |
 | `contracts/` | 2 |
 | `data/` | 10 |
-| `deployment/` | 7 |
-| `docker/` | 5 |
-| `docs/` | 2982 |
+| `deployment/` | 6 |
+| `docker/` | 4 |
+| `docs/` | 2980 |
 | `docs-integration-suite/` | 20 |
 | `hooks/` | 69 |
-| `lib/` | 1291 |
+| `lib/` | 1290 |
 | `logs/` | 2 |
 | `migrations/` | 30 |
 | `packages/` | 2 |
-| `playwright-report/` | 1 |
 | `prisma/` | 1 |
-| `public/` | 89 |
-| `scripts/` | 268 |
+| `public/` | 88 |
+| `scripts/` | 267 |
 | `security/` | 1 |
 | `seed/` | 3 |
 | `seed_articles/` | 13 |
 | `services/` | 1 |
-| `supabase/` | 846 |
-| `test-results/` | 2 |
-| `tests/` | 19 |
+| `supabase/` | 845 |
+| `tests/` | 18 |
 | `types/` | 31 |
 | `utils/` | 6 |
 

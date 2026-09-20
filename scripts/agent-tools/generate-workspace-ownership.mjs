@@ -340,6 +340,36 @@ const pathEvidence = new Map([
     confirmed: true,
     basis: 'RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator multilateral treaty operations capability.',
   }],
+  ['app/interop-institution/layout.tsx', {
+    owner: 'release',
+    taskIds: ['RELEASE-008'],
+    confirmed: true,
+    basis: 'RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator interoperability institution capability.',
+  }],
+  ['app/interop-organization/layout.tsx', {
+    owner: 'release',
+    taskIds: ['RELEASE-008'],
+    confirmed: true,
+    basis: 'RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator interoperability organization capability.',
+  }],
+  ['app/protocol-constitution/layout.tsx', {
+    owner: 'release',
+    taskIds: ['RELEASE-008'],
+    confirmed: true,
+    basis: 'RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator protocol constitution capability.',
+  }],
+  ['app/treaty-legacy/layout.tsx', {
+    owner: 'release',
+    taskIds: ['RELEASE-008'],
+    confirmed: true,
+    basis: 'RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator treaty system legacy capability.',
+  }],
+  ['app/treaty-renewal/layout.tsx', {
+    owner: 'release',
+    taskIds: ['RELEASE-008'],
+    confirmed: true,
+    basis: 'RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator treaty system renewal capability.',
+  }],
   ['app/api/events/_lib/event-reference.ts', {
     owner: 'database',
     taskIds: ['DB-009'],

@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
-- Branch: `codex/admin-master-remediation`
-- Working tree: dirty (935 entries)
-- Generated at: 2026-09-20T03:08:22.215Z
+- Source SHA: `59971a9eeba217a635b47d5c667450cd40082f0d`
+- Branch: `release/release008-pages-20260920`
+- Working tree: dirty (7 entries)
+- Generated at: 2026-09-20T11:04:26.893Z
 - Generator: `control-plane.mjs generate`
 
-## TSX and JSX files (1929)
+## TSX and JSX files (1934)
 
 | Source | Detected exported components |
 | --- | --- |
@@ -449,7 +449,9 @@
 | `app/internal/world/pilot/page.tsx` | default or inline |
 | `app/interop-convention/layout.tsx` | InteropConventionLayout |
 | `app/interop-convention/page.tsx` | InteropConventionReadinessPage |
+| `app/interop-institution/layout.tsx` | InteropInstitutionLayout |
 | `app/interop-institution/page.tsx` | InteropInstitutionReadinessPage |
+| `app/interop-organization/layout.tsx` | InteropOrganizationLayout |
 | `app/interop-organization/page.tsx` | InteropOrganizationReadinessPage |
 | `app/jobs/[id]/layout.tsx` | JobPublicLayout |
 | `app/jobs/[id]/page.tsx` | JobDetailPage |
@@ -511,6 +513,7 @@
 | `app/projects/[id]/settings/page.tsx` | ProjectSettingsPage |
 | `app/projects/new/page.tsx` | NewProjectPage |
 | `app/projects/page.tsx` | ProjectsPage |
+| `app/protocol-constitution/layout.tsx` | ProtocolConstitutionLayout |
 | `app/protocol-constitution/page.tsx` | ProtocolConstitutionReadinessPage |
 | `app/public-infrastructure/layout.tsx` | PublicInfrastructureLayout |
 | `app/public-infrastructure/page.tsx` | PublicInfrastructureReadinessPage |
@@ -546,9 +549,11 @@
 | `app/tickets/success/page.tsx` | TicketSuccessPage |
 | `app/tours/[slug]/page.tsx` | default or inline |
 | `app/tours/invite/[token]/page.tsx` | TourInvitationPage |
+| `app/treaty-legacy/layout.tsx` | TreatyLegacyLayout |
 | `app/treaty-legacy/page.tsx` | TreatyLegacyReadinessPage |
 | `app/treaty-operations/layout.tsx` | TreatyOperationsLayout |
 | `app/treaty-operations/page.tsx` | TreatyOperationsReadinessPage |
+| `app/treaty-renewal/layout.tsx` | TreatyRenewalLayout |
 | `app/treaty-renewal/page.tsx` | TreatyRenewalReadinessPage |
 | `app/twitter-image.tsx` | default or inline |
 | `app/venue/[username]/page.tsx` | default or inline |

@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
-- Branch: `codex/admin-master-remediation`
-- Working tree: dirty (935 entries)
-- Generated at: 2026-09-20T03:08:22.215Z
+- Source SHA: `59971a9eeba217a635b47d5c667450cd40082f0d`
+- Branch: `release/release008-pages-20260920`
+- Working tree: dirty (7 entries)
+- Generated at: 2026-09-20T11:04:26.893Z
 - Generator: `control-plane.mjs generate`
 
 ## Web pages (372)

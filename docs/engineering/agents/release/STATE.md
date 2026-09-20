@@ -318,3 +318,27 @@ required e2e governance remain promotion-scoped.
   hosted schema evidence (DB-008), and exact-SHA staging certification
   (QA-003). No code or env files were changed in this closeout; evidence lives
   in RELEASE-006 and this state file.
+
+## P0 orchestration wave 26 (RELEASE-008) — 2026-09-20
+
+- Closed the final five launch-disabled direct-page families at canonical server
+  layout boundaries before client hydration or API discovery: `/interop-institution`
+  (`creator_interoperability_institution`), `/interop-organization`
+  (`creator_interoperability_organization`), `/protocol-constitution`
+  (`creator_protocol_constitution`), `/treaty-legacy` (`creator_treaty_system_legacy`),
+  and `/treaty-renewal` (`creator_treaty_system_renewal`).
+- Each layout matches the Wave 24 canonical denial pattern exactly — no new guard
+  forms, middleware, or flag semantics — returning `notFound()` while the capability
+  is disabled. The five families' 5/5/5/6/5 discovery calls remain behind the denied
+  boundary, and every page/API/resolver/admin/worker is unchanged.
+- Extended the page-coverage suite with ten focused cases (denial + real discovery
+  routes per family) and added confirmatory RELEASE-008 ownership rules for the five
+  layout paths; the regenerated ownership manifest at `59971a9e` reports them
+  task-record for RELEASE-008.
+- Evidence: 66 focused Vitest cases passed, focused ESLint clean,
+  `check:public-surface`, `check:production-debug` (40 covered unsafe routes), and
+  `check:cron-route-inventory` (7 scheduled, 1 deferred) passed; `agents:generate`
+  refreshed all maps at the current SHA and `agents:validate` reported
+  **17 agents, 113 tasks, 0 warnings, 0 errors**.
+- Remaining RELEASE-008 work: hosted exact-SHA staging verification for QA-003 after
+  an approved deployment, and owner review of public metrics/legal findings.
