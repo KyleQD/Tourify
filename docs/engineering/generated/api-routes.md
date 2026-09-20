@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `8e6b215c3caf49ee4488c142ea478df7f7095500`
-- Branch: `release/design035-wave27-20260920`
-- Working tree: dirty (3 entries)
-- Generated at: 2026-09-20T11:36:15.548Z
+- Source SHA: `cd57bbfb7c664fa31cbd3289373983fbe1ee4add`
+- Branch: `release/clean-snapshot`
+- Working tree: clean
+- Generated at: 2026-09-20T11:37:41.909Z
 - Generator: `control-plane.mjs generate`
 
 ## Route handlers (945)

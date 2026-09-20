@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-16T19:20:36.990Z",
-  "updated_at": "2026-09-19T23:45:00.000Z",
+  "updated_at": "2026-09-20T04:38:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (1,431 path-level entries; 0 unresolved; 0 unexplained deletions)",
   "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
@@ -79,14 +79,15 @@
       "2006-09-19 Wave 24 added fail-closed server denial boundaries for public-infrastructure and treaty-operations direct pages before hydration or API discovery, closing the next two smallest RELEASE-008 page families. Consolidated verification passed 56 focused tests plus surface/debug/cron/registry checks; the ownership manifest regenerated to 1,431 entries (1,286 candidates, 141 task records, 4 unresolved concurrent-work paths, zero unexplained deletions, zero credential-pattern findings).",
       "2026-09-19 deployment-wave closeout: RELEASE-006's build environment-guard blocker was proven a configuration gate rather than a code defect — the production build contract passes with the approved https://tourify.live origin, the full build compiles through the type-checking stage on Next 15.5.24, and the migration chain validates; remaining deployment steps (full compile completion, migration checksums, supabase-target verification, and exact-SHA staging deployment) are credentialed/hosted gates owned by RELEASE-006, RELEASE-007, DB-008, and QA-003.",
       "2026-09-19 ownership finalization adjudicated the final four concurrent-work paths from DESIGN-035 evidence: components/layout/app-chrome.tsx and components/nav.tsx implement its checkpoint-verified mobile chrome (compact phone header, five-action bottom navigation, content/player spacing), and components/marketing/landing-hero-auth.tsx and tourify-landing-page.tsx are its named working-set files. The manifest is now 1,431 entries with 1,286 candidates, 145 task records, zero unresolved paths, zero unexplained deletions, and zero credential-pattern findings.",
-      "2026-09-20 Wave 26 integration at 89b5aa42 on release/clean-snapshot: 66 focused Vitest page/consumer cases pass, check:production-debug (40 covered unsafe routes), check:public-surface, and check:cron-route-inventory pass, and the ownership manifest reports the five new RELEASE-008 layout paths as task-record with zero unresolved paths and zero unexplained deletions."
+      "2026-09-20 Wave 26 integration at 89b5aa42 on release/clean-snapshot: 66 focused Vitest page/consumer cases pass, check:production-debug (40 covered unsafe routes), check:public-surface, and check:cron-route-inventory pass, and the ownership manifest reports the five new RELEASE-008 layout paths as task-record with zero unresolved paths and zero unexplained deletions.",
+      "2026-09-20 Wave 27 integration at cd57bbfb on release/clean-snapshot: DESIGN-035 verified against all acceptance criteria in real Chrome at 320/390/768/1440 and closed — one value prop and one account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed, rectangular clip-path-none radius-16px padded auth card, and usable keyboard focus/reduced-motion; gaps closed (duplicate CTAs, 44px touch targets, /artist/* bottom-nav exclusion). eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to baseline with 0 new errors. Task record moved to completed/; remaining authenticated /artist session and release-mode Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors."
     ],
-    "last_run_sha": "59971a9e",
-    "last_run_at": "2026-09-20T04:15:00Z",
+    "last_run_sha": "cd57bbfb",
+    "last_run_at": "2026-09-20T04:38:00Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Completed Wave 26: closed the final five launch-disabled direct-page families (RELEASE-008, full page coverage achieved) and obtained a definitive RELEASE-006 build verdict (clean-checkout build:vercel FAILs at the production environment guard, so build completion is genuinely hosted-credential-gated).",
+    "summary": "Completed Wave 27: verified and closed DESIGN-035 (mobile landing, signup, and shared authenticated chrome) with real-browser evidence, integrated the lane (2adff521, cd57bbfb), regenerated maps, and validated 17 agents / 113 tasks / 0 warnings / 0 errors. Wave 26's RELEASE-006 verdict stands: production build completion is hosted-credential-gated.",
     "completed": [
       "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
       "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
@@ -156,6 +157,25 @@
       "The current path-level worktree manifest is clean at 1,416 entries with 0 unresolved and 0 unexplained deletions; candidate confirmation and release-grade scanning remain required before cleanup or commit sequencing beyond the snapshot."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-20T04:38:00.000Z",
+        "sha": "cd57bbfb",
+        "summary": "Completed Wave 27 and integrated the DESIGN-035 lane onto release/clean-snapshot via cherry-picks (2adff521 code, cd57bbfb evidence). DESIGN-035 verified and closed: the snapshot's mobile chrome was audited against every acceptance criterion in real Chrome at 320x568, 390x844, 768x1024, and 1440 — one value prop and one obvious account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed (three account-path instances remain), rectangular (clip-path none, radius 16px) comfortably padded auth card, and usable keyboard focus/reduced-motion. Gaps closed: duplicate CTA and repeated final marketing section removed, 44px touch targets on header/nav/auth-tab controls at md+, and the global mobile bottom nav + AppChrome padding now exclude /artist/* to avoid the double bottom bar with MobileArtistNav. Evidence: eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to HEAD baseline with 0 new errors, puppeteer probes and screenshots captured. Task record moved to completed/ with evidence and handoff; authenticated /artist session and release-mode skip-link Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors.",
+        "completed": [
+          "Verified the DESIGN-035 working set (tourify-landing-page, landing-hero-auth, tourify-auth-portal, app-chrome, nav) against all acceptance criteria in real Chrome at 320/390/768/1440.",
+          "Closed gaps: removed the duplicate CTA and repeated final marketing section, raised header/nav/auth-tab controls to >=44px touch targets at md+, and excluded /artist/* from the global mobile bottom nav + AppChrome padding to prevent the double bottom bar.",
+          "Recorded evidence in the DESIGN-035 task record (moved to completed/), the work packet, and the design-system STATE.",
+          "Regenerated generated maps at the integration SHA and confirmed agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors."
+        ],
+        "next_steps": [
+          "Hold DESIGN-034 as a queued non-P0 token-registry CI gate; keep INTG-006 and the remaining release/db/qa gates hosted-credential-bound.",
+          "Await owner decisions before resuming ADMIN-003; provision hosted credentials for RELEASE-006/007, DB-008, and QA-003."
+        ],
+        "blockers": [
+          "The authenticated /artist chrome exclusion and release-mode skip-link Tab probe still need a seeded-session browser pass (recorded in DESIGN-035; launch-level a11y evidence belongs to QA-003).",
+          "Hosted exact-SHA staging deployment, DB-008 migration application/evidence, and QA-003 protected certification remain outside the workspace."
+        ]
+      },
       {
         "at": "2026-09-20T04:15:00.000Z",
         "sha": "89b5aa42",
