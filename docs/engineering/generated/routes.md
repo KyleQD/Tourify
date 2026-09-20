@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `89b5aa42ce33d97132b4920671ddecdbd7d28979`
-- Branch: `release/clean-snapshot`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-20T11:10:57.445Z
+- Source SHA: `8e6b215c3caf49ee4488c142ea478df7f7095500`
+- Branch: `release/design035-wave27-20260920`
+- Working tree: dirty (3 entries)
+- Generated at: 2026-09-20T11:36:15.548Z
 - Generator: `control-plane.mjs generate`
 
 ## Web pages (372)

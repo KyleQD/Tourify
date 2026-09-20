@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-035",
+  "title": "Mobile landing and signup flow hardening",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-19T03:10:59.428Z",
+  "updated_at": "2026-09-20T11:36:51.217Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (924 entries)",
+  "goal": "Make the public landing and signup journey clear, compact, touch-friendly, and overflow-free at phone widths",
+  "scope": {
+    "in": [
+      "Public root landing-page hierarchy and responsive layout",
+      "Presentation-only responsive options for the embedded auth card",
+      "Phone touch targets, safe-area spacing, overflow, and reduced-motion behavior"
+    ],
+    "out": [
+      "Authentication behavior or data contracts",
+      "Authenticated application navigation and domain dashboards",
+      "Expo mobile application"
+    ]
+  },
+  "working_set": [
+    "components/marketing/tourify-landing-page.tsx",
+    "components/marketing/landing-hero-auth.tsx",
+    "components/auth/tourify-auth-portal.tsx",
+    "components/layout/app-chrome.tsx",
+    "components/nav.tsx",
+    "docs/work-packets/DESIGN-035.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    "The first phone viewport presents one value proposition and one obvious account path",
+    "Header and CTA controls remain distinct, touch-friendly, and collision-free from 320px upward",
+    "The landing page has no horizontal overflow at phone, tablet, or desktop widths",
+    "Repeated marketing sections and duplicate calls to action are removed",
+    "The embedded auth card is readable and comfortably padded on phones without changing auth behavior"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx eslint components/marketing/tourify-landing-page.tsx components/marketing/landing-hero-auth.tsx components/auth/tourify-auth-portal.tsx components/layout/app-chrome.tsx components/nav.tsx",
+      "npx tsc -p tsconfig.design035.json --pretty false (temporary tsconfig including the five working-set files plus their transitive graph; deleted after the run)",
+      "npx vitest run __tests__/venue/app-chrome-visibility.test.ts",
+      "npx vitest run __tests__/design-system",
+      "puppeteer + Google Chrome for Testing 153.0.8010.36 (headless): viewport 320x568 / 390x844 / 768x1024 / 1440x900 overflow, control geometry, keyboard focus, and prefers-reduced-motion probes against a local webpack-mode next dev server (port 3100)"
+    ],
+    "evidence": [
+      "ESLint on all five changed/verified files: exit 0, no warnings or errors (re-run clean after all edits)",
+      "Focused TypeScript check: 26 pre-existing errors, byte-identical diff vs the pristine HEAD baseline (a3149819) — file set and messages match 1:1; 0 new errors introduced by DESIGN-035. Errors confined to lib/services/venue.service.ts (19), contexts/jukebox-context.tsx (3), lib/services/account-management.service.ts (2), hooks/use-profile.ts (1), and a pre-existing resolveNavDisplayName signature mismatch at components/nav.tsx:230",
+      "vitest __tests__/venue/app-chrome-visibility.test.ts: 2/2 passed",
+      "vitest __tests__/design-system: 2 files / 5 tests passed",
+      "Headless Chrome: no horizontal overflow at 320, 390, 768, or 1440 (documentElement.scrollWidth === clientWidth; html/body overflow-x visible); header controls measure 44px+ at every width (logo link, Sign in, Join free at ≤390; Try the Beta, Features, Get Started at ≥768) with no overlaps; auth-card tab triggers 44px at 320/768/1440 after the md:min-h-11 pin; auth card is rectangular (clip-path none, radius 16px) and padded (288px wide at 320 with 16px page gutters, 358px at 390, 448px at 768/1440)",
+      "320x568 first viewport: one h1 ('Run your live music world from one place', y144 h117), one primary account path ('Create your free account' CTA, y412 h48) plus 'Explore the demo' (y472 h48); full page shows exactly three account-path instances — header 'Join free', hero 'Create your free account', and the auth-card 'Create Account' form submit (functional button, not a marketing CTA)",
+      "Duplicate landing CTAs removed: the 'Create your free account' button in the 'Built for everyone in live music' section and the entire final 'Ready to simplify your live music workflow?' section (Sign up free / Try the Beta Today) were deleted; account-types section keeps only its feature grid",
+      "Artist chrome collision closed statically: the global five-action mobile bottom nav (nav.tsx) and AppChrome's mobile content padding now exclude /artist/*, which owns MobileArtistNav (components/artist/mobile-artist-nav.tsx) and its own pb-16; verified by diff — real-browser confirmation on an authenticated session remains a follow-up",
+      "Keyboard probe (dev-mode Tab walk): skip link is reachable and becomes visible on focus; the dev-only nextjs-portal HMR overlay consumes the first Tab in dev (production has no such element), so the skip link is the first Tab target in production; focus order then reaches the hero CTAs, auth tabs, and form fields",
+      "prefers-reduced-motion probe at 320x568 (page.emulateMediaFeatures): no element has a non-zero animation or transition duration and layout is intact; the only landing motion is Tailwind transition-opacity (0s under reduced motion) plus animate-pulse inside the aria-hidden Suspense fallback",
+      "Screenshots: /tmp/design035-320x568.png, /tmp/design035-390x844.png, /tmp/design035-768x1024.png, /tmp/design035-desktop-1440x900.png; probe JSONs /tmp/design035-viewport-results.json, /tmp/design035-viewport-results2.json; typecheck log /tmp/tsc-d035.log; motion probe in the working-session temp dir"
+    ],
+    "last_run_sha": "8e6b215c3caf49ee4488c142ea478df7f7095500",
+    "last_run_at": "2026-09-20T11:36:51.217Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the DESIGN-035 hardening pass on top of the curated snapshot (59971a9e). Closed the three remaining real gaps — duplicate landing CTAs, 40px header touch targets, and the /artist double-bottom-bar collision with the artist-owned MobileArtistNav — and verified every acceptance criterion in headless Chrome at four widths plus keyboard and reduced-motion probes. Zero new type or lint errors; the 26-typecheck-error baseline is unchanged from HEAD. Evidence recorded; task moved to completed.",
+    "completed": [
+      "Removed the duplicate 'Create your free account' CTA from the 'Built for everyone in live music' section and deleted the entire repeated final 'Ready to simplify your live music workflow?' CTA section (tourify-landing-page.tsx); the first-viewport account path stays unique (header 'Join free' + hero 'Create your free account')",
+      "Raised landing header controls to 44px: header logo link and the three desktop nav buttons (Try the Beta, Features, Get Started) gained min-h-11",
+      "Pinned auth-portal tab triggers to 44px at every breakpoint with md:min-h-11 (portal-scoped presentation change; the shared TabsPrimitive base stays min-h-11 md:min-h-0)",
+      "Excluded /artist/* from the global mobile bottom nav (nav.tsx render condition) and from AppChrome's mobile content padding (showMobileAppNav), removing the double bottom bar with components/artist/mobile-artist-nav.tsx",
+      "Verified no horizontal overflow at 320/390/768/1440, exact first-viewport hierarchy, 44px controls, rectangular padded auth card, keyboard focus order, and reduced-motion behavior in real Chrome; captured screenshots and probe JSONs as evidence"
+    ],
+    "next_steps": [
+      "Authenticated real-browser confirmation of the shared mobile chrome (global bottom nav + AppChrome padding on /dashboard and friends, and the /artist exclusion) once a seeded Supabase session is available on the headless or E2E harness",
+      "Release-mode (npm run build/start) keyboard probe of the skip link: the dev-only nextjs-portal overlay consumes the first Tab in dev; production is expected to land directly on the skip link",
+      "QA-003 owns launch-level accessibility evidence (screen-reader passes, contrast checks) per the design-system/QA boundary"
+    ],
+    "blockers": [
+      "Full-repo tsc --noEmit remains resource-constrained in this dirty worktree (see STATE.md typecheck note); a scoped five-file check was used instead and proves 0 new errors vs HEAD",
+      "Turbopack is invalid in this worktree (node_modules is a symlink pointing outside the filesystem root); webpack dev mode was used for the browser probes",
+      "Real-browser confirmation of the /artist double-bar fix and authenticated chrome requires a session; only static verification was possible",
+      "The dev-mode nextjs-portal overlay intercepts the first Tab press; this is dev-only and does not affect production focus order"
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-19T22:45:31.681Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Expanded from public landing-only hardening to the shared authenticated mobile chrome after the owner clarified that the request covers the overall mobile experience. The global nav currently crowds 6-7 actions into the phone header while the player is already offset for a missing 64px bottom bar.",
+        "completed": [],
+        "next_steps": [
+          "Add a compact phone header, persistent five-action bottom navigation, and matching content/player spacing without changing desktop or venue/admin navigation."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-20T04:45:00.000Z",
+        "sha": "8e6b215c3caf49ee4488c142ea478df7f7095500",
+        "summary": "Audit completed: closed the duplicate landing CTAs, raised all landing/auth header controls to 44px, and excluded /artist/* from the global mobile chrome to remove the double bottom bar. Verified in real Chrome at 320/390/768/1440 (no overflow, exact first-viewport hierarchy, rectangular padded auth card), plus keyboard and prefers-reduced-motion probes. Lint clean; vitest 2/2 + 5/5; typecheck delta zero vs HEAD.",
+        "completed": [
+          "All five acceptance criteria verified; evidence captured in /tmp screenshots and probe JSONs"
+        ],
+        "next_steps": [
+          "Record evidence in this task record and STATE.md; authenticated real-browser and release-mode keyboard follow-ups"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

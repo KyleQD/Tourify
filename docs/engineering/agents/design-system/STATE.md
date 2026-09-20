@@ -481,3 +481,32 @@ durable target. Venue wrappers must not fork shared interaction/state contracts.
 
 - DESIGN-033 and DESIGN-034 remain P2 and non-blocking unless QA-003 identifies a core accessibility, usability, or token-drift failure.
 - QA-003 owns launch accessibility evidence; WCAG AA, keyboard/focus, responsive-browser, and governed assistive-technology checks remain the durable acceptance target.
+
+## Mobile chrome contract — 2026-09-20 (DESIGN-035)
+
+- The shared mobile app chrome has one global entry point: the five-action bottom nav in
+  `components/nav.tsx` (`safe-area-bottom fixed inset-x-0 bottom-0 z-50 md:hidden grid
+  h-16 max-w-md grid-cols-5`). It renders only on non-admin, non-artist, non-venue,
+  non-root, authenticated mobile routes (render conditions exclude `/admin`, `/artist`,
+  and the root path; venue routes are excluded via `hideRootNav` in
+  `lib/routing/app-chrome-visibility.ts`).
+- `AppChrome` reserves matching content space with
+  `pb-[calc(var(--player-height,0px)+4rem+env(safe-area-inset-bottom))] md:pb-[var(--player-height,0px)]`,
+  and its `showMobileAppNav` mirrors the same route exclusions. The
+  `persistent-player-bar` sits at `bottom-16` on mobile (above the nav) and
+  `md:bottom-0` above md.
+- Surface-owned chrome wins: the artist workspace owns `MobileArtistNav`
+  (`components/artist/mobile-artist-nav.tsx`, own bottom bar + `pb-16`) and is excluded
+  from the global nav/AppChrome mobile chrome. Admin and venue surfaces own their own
+  chrome similarly. Any new authenticated top-level surface must either adopt the global
+  bars or add its exclusion to both `nav.tsx` and `app-chrome.tsx`.
+- Landing/signup presentation contract: the landing page has exactly one account path in
+  the first viewport (header "Join free" + hero "Create your free account"); repeated
+  marketing CTAs are deliberately absent (removed in DESIGN-035). Landing header
+  controls and the auth card's Sign Up/Sign In tabs are pinned to 44px at every
+  breakpoint (`min-h-11`, and `md:min-h-11` on the auth tabs because the shared
+  `TabsPrimitive` base is `min-h-11 md:min-h-0`). The embedded auth card on the landing
+  surface is rectangular (`shardShape={false}`, 16px radius).
+- Reduced-motion contract: the landing surface carries no essential motion; the only
+  animation is Tailwind `transition-opacity` (0s under `prefers-reduced-motion`) and
+  `animate-pulse` inside the `aria-hidden` Suspense fallback.
