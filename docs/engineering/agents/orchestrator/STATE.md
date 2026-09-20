@@ -585,3 +585,36 @@
   QA-003 certification) requires hosted Vercel/Supabase credentials or owner
   decisions. ADMIN-003 remains precondition-bound pending owner decisions and
   resource predicates.
+
+## P2 orchestration wave 27 — 2026-09-20
+
+- DESIGN-035 (design-system, P2) verified and closed in Wave 27. The snapshot's
+  mobile chrome was audited against every acceptance criterion in real Chrome
+  at 320x568, 390x844, 768x1024, and 1440: one value prop and one obvious
+  account path in the first viewport, >=44px collision-free controls, zero
+  horizontal overflow, duplicate marketing sections/CTAs removed (three
+  account-path instances remain), a rectangular (clip-path none, radius 16px)
+  comfortably padded auth card, and usable keyboard focus/reduced-motion.
+- Gaps closed additively: removed the duplicate CTA and the repeated final
+  marketing section; raised header/nav/auth-tab controls to >=44px touch
+  targets at md+; excluded `/artist/*` from the global mobile bottom nav and
+  AppChrome padding so the surface's own `MobileArtistNav` is not doubled.
+- Evidence: eslint exit 0 on the five working-set files (tourify-landing-page,
+  landing-hero-auth, tourify-auth-portal, app-chrome, nav); vitest 2/2 (chrome
+  visibility) + 5/5 (design-system); scoped typecheck byte-identical to the
+  HEAD baseline with 0 new errors; puppeteer probes/screenshots captured. The
+  task record moved to `completed/` with evidence and handoff; the work packet
+  and design-system STATE were updated.
+- Follow-ups recorded as DESIGN-035 blockers: authenticated real-browser
+  confirmation of the `/artist` chrome exclusion (needs a seeded session) and a
+  release-mode skip-link Tab probe (dev-only HMR overlay consumes the first
+  Tab). Launch-level a11y evidence belongs to QA-003.
+- Integrated via cherry-picks 2adff521 (code) and cd57bbfb (evidence) onto
+  `release/clean-snapshot`, then regenerated maps and committed the ORCH-002
+  checkpoint at 591ea934. `agents:validate`: 17 agents, 113 tasks, 0 warnings,
+  0 errors. Worktree removed and pruned.
+- Remaining local track: DESIGN-034 stays a queued non-P0 token-registry gate;
+  no locally dispatchable P0 work remains. Every remaining P0 gate is
+  hosted-credential-, owner-decision-, or QA/venue-evidence-bound (RELEASE-006/
+  007/008 hosted surfaces, DB-008, QA-003, ADMIN-003 preconditions, DESIGN-033
+  browser evidence).
