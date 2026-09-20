@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `59971a9eeba217a635b47d5c667450cd40082f0d`
-- Branch: `release/release008-pages-20260920`
-- Working tree: dirty (7 entries)
-- Generated at: 2026-09-20T11:04:26.893Z
+- Source SHA: `89b5aa42ce33d97132b4920671ddecdbd7d28979`
+- Branch: `release/clean-snapshot`
+- Working tree: dirty (1 entries)
+- Generated at: 2026-09-20T11:10:57.445Z
 - Generator: `control-plane.mjs generate`
 
 Only environment-variable names are recorded. Secret values and local env files are never read.
