@@ -553,3 +553,35 @@
 - Four manifest-unresolved paths are pre-existing concurrent
   marketing/nav-worktree modifications preserved untouched, not assigned by
   this wave.
+
+## P0 orchestration wave 26 — 2026-09-20
+
+- The prior wave-25 clean-checkout build attempt was lost when its temporary
+  worktree (`/var/folders/.../T/opencode`) was swept before the build finished,
+  so its in-progress claims were unverifiable.
+- RELEASE-008 closed the final five launch-disabled direct-page families at
+  canonical server layout boundaries in Wave 26: `/interop-institution`,
+  `/interop-organization`, `/protocol-constitution`, `/treaty-legacy`, and
+  `/treaty-renewal`. 66 focused Vitest cases pass; check:production-debug (40
+  covered unsafe routes), check:public-surface, and check:cron-route-inventory
+  pass; maps regenerated at the current SHA; ownership manifest reports the
+  five layouts as RELEASE-008 task-record. Page coverage for launch-disabled
+  direct pages is now complete.
+- RELEASE-006 produced the definitive local build verdict on the curated clean
+  checkout (59971a9e): `npm run build:vercel` **FAILS at the production
+  environment guard before compilation** because the clean checkout has no
+  `.env*` files. Missing required variables: NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY,
+  INTERNAL_API_SECRET, CRON_SECRET. The earlier "guard passes with the
+  approved origin" evidence only held in the dirty shared worktree that
+  inherited untracked env values; no credential was fabricated or copied.
+  Build completion is genuinely hosted/credential-gated.
+- Integrated both lanes onto `release/clean-snapshot` via cherry-picks
+  6c3ca4e8 (RELEASE-008 pages), 89b5aa42 (RELEASE-006 verdict), and fc52c7cf
+  (orchestrator checkpoint + generated-map refresh). Worktree is clean;
+  `agents:validate` reports 17 agents, 113 tasks, 0 warnings, 0 errors.
+- Local release track is exhausted: every remaining P0 gate (RELEASE-006 build,
+  RELEASE-007 infra isolation, RELEASE-008 hosted surfaces, DB-008 migrations,
+  QA-003 certification) requires hosted Vercel/Supabase credentials or owner
+  decisions. ADMIN-003 remains precondition-bound pending owner decisions and
+  resource predicates.
