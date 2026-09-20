@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "release",
   "created_at": "2026-09-16T19:20:37.421Z",
-  "updated_at": "2026-09-19T23:45:00.000Z",
+  "updated_at": "2026-09-20T11:03:31.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (836 entries)",
   "goal": "Make clean installation, dependency security, type checking, and production builds deterministic on the supported production runtime",
@@ -59,14 +59,15 @@
       "2026-09-19: The production build environment contract passes when run with an approved HTTPS origin (NEXT_PUBLIC_SITE_URL=https://tourify.live); the guard is a configuration gate, not a code defect, and the approved deployment env files (deployment/demo.env, deployment/production.env) already carry HTTPS origins.",
       "2026-09-19: npm run build:vercel with the approved HTTPS origin began compilation on Next.js 15.5.24 and reached the type-checking build stage, but did not complete within a bounded 30-minute run in the dirty shared worktree; consistent with the known slow full-typecheck constraint.",
       "2026-09-19: npm run check:migration-validation passed for the full migration chain including the newest MFA verification-code store migration; migration checksums and supabase-target checks remain hosted/credential-gated because they require MIGRATION_CHECKSUM_BASE_SHA, SUPABASE_PROJECT_ID, and SUPABASE_TARGET_CONFIRMATION inputs that are not present in this workspace.",
-      "npm run agents:validate passed with 17 agents, 109 tasks, 0 warnings, and 0 errors."
+      "npm run agents:validate passed with 17 agents, 109 tasks, 0 warnings, and 0 errors.",
+      "2026-09-20 (curated checkout 59971a9e): Definitive npm run build:vercel run to completion with the approved origin (NEXT_PUBLIC_SITE_URL=https://tourify.live) exited 1 at the production environment guard before compilation. Exact first error chain: build:vercel -> validate:env:production (node --import tsx scripts/ci/validate-production-env.ts --phase build) -> validateProductionEnvironment(\"build\") in lib/config/environment-contract.ts -> issue code \"missing\" with variables NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET. The clean checkout carries no .env* files (.env* gitignored at .gitignore:24), so the six required production variables are absent; .next/BUILD_ID was not produced, and the 04:00Z 2026-09-20 temp-worktree compile claim is unverifiable because that worktree (and its evidence) was swept. Full run output: build-2026-09-20.log. Verdict: unambiguous FAIL for build:vercel in this workspace; completion evidence requires a credentialed environment."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-19T23:45:00Z",
+    "last_run_sha": "59971a9eeba217a635b47d5c667450cd40082f0d",
+    "last_run_at": "2026-09-20T11:03:31Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Runtime alignment, clean install, peer resolution, patched Next.js, and the high/critical audit gate are evidenced, and the production build environment contract now passes with an approved HTTPS origin. RELEASE-006 remains active because full typecheck/compile did not complete in a bounded dirty-tree run and the hosted deployment still needs credentials.",
+    "summary": "Runtime alignment, clean install, peer resolution, patched Next.js, and the high/critical audit gate are evidenced. The definitive build:vercel rerun on the curated clean checkout exited 1 at the production environment guard: with NEXT_PUBLIC_SITE_URL=https://tourify.live the sole remaining guard inputs are the six absent required production variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET), so compilation never starts and .next/BUILD_ID is not produced. RELEASE-006 stays active: build completion evidence requires a credentialed environment, and the hosted exact-SHA deployment remains open.",
     "completed": [
       "Aligned .nvmrc, package engines, toolchain checks, GitHub Node setup points, and Docker runtime targets to Node 24.x with npm 11.17.0.",
       "Pinned Next.js and eslint-config-next to the patched 15.5.24 Maintenance LTS release and refreshed the lockfile; added the launch QA accessibility dependency.",
@@ -76,14 +77,55 @@
       "Ran the full production build with the approved origin on Next.js 15.5.24: compilation started and reached the type-checking stage; full completion remains bound by the repository's slow typecheck in the shared dirty tree."
     ],
     "next_steps": [
-      "Run the full repository typecheck/build to completion on the curated release checkout with no concurrent dirty-tree lanes (the exact-SHA CI/Vercel build is the authoritative completion gate).",
-      "Provision the hosted release build environment variables and deploy an exact reviewed SHA; run npm run build:vercel in CI/Vercel where HTTPS origins and required secrets are present."
+      "Refresh generated engineering maps at the current snapshot SHA: the maps committed at 59971a9e are stamped 7cf660ad (the RELEASE-006 base SHA) and predate the RELEASE-006..008 topology changes, so npm run agents:validate reports 8 stale generated-map warnings.",
+      "Run build:vercel for exact SHA 59971a9e in a credentialed environment (hosted Vercel build or CI with the HTTPS origin plus the six required production variables) to capture compile/lint/typecheck/prerender completion evidence.",
+      "Provision the hosted release build environment variables and deploy an exact reviewed SHA; run npm run build:vercel in CI/Vercel where HTTPS origins and required secrets are present.",
+      "Provision hosted build/migration credentials and deploy an exact reviewed SHA to isolated staging for QA-003 certification."
     ],
     "blockers": [
-      "The full repository typecheck emits no diagnostics but exceeds a bounded 30-minute run in the shared dirty worktree; completion must occur on the curated release checkout or CI.",
-      "Hosted Vercel/Supabase credentials and the exact-SHA deployment run remain outside this workspace; migration checksums and supabase-target checks require their documented hosted inputs."
+      "The production build environment contract requires NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, and CRON_SECRET in addition to NEXT_PUBLIC_SITE_URL; none exist in the clean checkout, and fabricating or copying hosted credentials is out of scope for this lane.",
+      "Hosted Vercel/Supabase credentials and the exact-SHA deployment run remain outside this workspace; migration checksums and supabase-target checks require their documented hosted inputs.",
+      "The previous temp-worktree build evidence (04:00Z 2026-09-20) was lost when that worktree was swept and cannot be verified; only fresh credentialed runs count."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-20T11:03:31.000Z",
+        "sha": "59971a9eeba217a635b47d5c667450cd40082f0d",
+        "summary": "Definitive build:vercel rerun on the curated clean checkout exited 1 at the production environment guard before compilation; .next/BUILD_ID was not produced. The only remaining guard inputs are the six absent required production variables, so the build is blocked by credentials, not by compile/lint/typecheck.",
+        "completed": [
+          "Corrected the shell environment on the curated checkout (unset stale npm_config_user_agent; confirmed node v24.19.0 and npm 11.17.0).",
+          "Ran the production build to completion with the approved origin: NEXT_PUBLIC_SITE_URL=https://tourify.live npm run build:vercel (exit 1, full output in build-2026-09-20.log).",
+          "Captured the exact first error chain: build:vercel -> validate:env:production (node --import tsx scripts/ci/validate-production-env.ts --phase build) -> validateProductionEnvironment(build) in lib/config/environment-contract.ts -> issue code 'missing' with variables NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET.",
+          "Determined the root cause of the earlier claimed guard pass: the clean checkout carries no .env* files (.env* is gitignored at .gitignore:24), while the dirty shared worktree inherited untracked env values; the 04:00Z 2026-09-20 temp-worktree evidence was lost with the sweep and is unverifiable."
+        ],
+        "next_steps": [
+          "Run build:vercel for this exact SHA in a credentialed environment (hosted Vercel build or CI with the HTTPS origin plus the six required production variables) to obtain compile/lint/typecheck/prerender completion evidence.",
+          "Provision hosted build/migration credentials and deploy an exact reviewed SHA to isolated staging for QA-003 certification."
+        ],
+        "blockers": [
+          "The production build environment contract requires NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, and CRON_SECRET in addition to NEXT_PUBLIC_SITE_URL; none are present in the clean checkout, and fabricating or copying hosted credentials is out of scope.",
+          "Hosted Vercel/Supabase credentials and an exact-SHA hosted deployment are not available in this workspace."
+        ]
+      },
+      {
+        "at": "2026-09-20T04:00:00.000Z",
+        "sha": "59971a9e",
+        "summary": "Created the release snapshot commit (59971a9e) on release/clean-snapshot from the curated workspace (1,431 path-level entries; 0 ownership-unresolved; 0 credential-pattern findings) and started the definitive clean-checkout build in a temporary isolated git worktree. NOTE: this checkpoint's build-progress claims (compile succeeded, type validation running) are unverifiable because that temporary worktree and its evidence were swept before capture; the authoritative result is recorded by the 2026-09-20T11:03:31Z checkpoint, whose clean checkout ran at 59971a9e with the stale npm user-agent override removed.",
+        "completed": [
+          "Committed the curated workspace as a single recoverable snapshot (release/clean-snapshot @ 59971a9e); main worktree is clean (0 entries) after the commit.",
+          "Added an isolated git worktree at the snapshot SHA with a clean node_modules via unflagged npm ci under Node v24.19.0/npm 11.17.0 (toolchain guard passed once the stale shell npm_config_user_agent override was corrected).",
+          "Production build environment contract passed in the clean worktree with NEXT_PUBLIC_SITE_URL=https://tourify.live; webpack compilation completed (warnings only from the known @opentelemetry instrumentation dynamic require) and the build moved into the lint/type-validation stage.",
+          "Confirmed the type-validation worker is actively progressing (dedicated jest-worker at ~95% CPU, no diagnostics emitted) rather than stalled."
+        ],
+        "next_steps": [
+          "Capture the definitive build result (pass or fail) when the clean-checkout type-validation and page prerender stages complete.",
+          "On pass, advance the phase plan to closing remaining RELEASE-008 surface pages, then DB-008 migrations, RELEASE-007 infra isolation, and QA-003 certification."
+        ],
+        "blockers": [
+          "Full clean-checkout type validation has not yet completed; this bounded run is the authoritative local attempt and remains subject to the repository's slow full-typecheck profile.",
+          "Hosted Vercel/Supabase credentials and the exact-SHA hosted deployment remain outside this workspace."
+        ]
+      },
       {
         "at": "2026-09-17T01:29:01.097Z",
         "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",

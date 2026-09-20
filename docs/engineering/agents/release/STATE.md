@@ -342,3 +342,32 @@ required e2e governance remain promotion-scoped.
   **17 agents, 113 tasks, 0 warnings, 0 errors**.
 - Remaining RELEASE-008 work: hosted exact-SHA staging verification for QA-003 after
   an approved deployment, and owner review of public metrics/legal findings.
+
+## P0 orchestration wave 26 (RELEASE-006) — 2026-09-20
+
+- Definitive `npm run build:vercel` rerun on the curated clean checkout at SHA
+  `59971a9eeba217a635b47d5c667450cd40082f0d` exits 1 at the production
+  environment guard before compilation; `.next/BUILD_ID` is not produced.
+  Command: `NEXT_PUBLIC_SITE_URL=https://tourify.live npm run build:vercel` on
+  node v24.19.0 / npm 11.17.0 with the stale npm user-agent override removed;
+  full output captured in `build-2026-09-20.log` (worktree root, uncommitted
+  evidence artifact).
+- Exact failure chain: `build:vercel` -> `validate:env:production`
+  (`node --import tsx scripts/ci/validate-production-env.ts --phase build`) ->
+  `validateProductionEnvironment("build")` in
+  `lib/config/environment-contract.ts` -> issue code `missing` for
+  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `ENCRYPTION_KEY`, `INTERNAL_API_SECRET`,
+  `CRON_SECRET`. The clean checkout carries no `.env*` files (`.env*` is
+  gitignored at `.gitignore:24`); the earlier "guard passes with the approved
+  HTTPS origin" evidence only held in the dirty shared worktree whose untracked
+  env values supplied those six variables. No credential was fabricated or
+  copied, and hosted/Vercel/Supabase state was not touched.
+- The 04:00Z 2026-09-20 temp-worktree claim (compilation succeeded, type
+  validation running) is unverifiable: that worktree and its evidence were
+  swept before capture.
+- Verdict: **FAIL** for `build:vercel` in a clean (credential-free) checkout.
+  Compile/lint/typecheck/prerender completion evidence remains
+  hosted/credential-gated (exact-SHA CI/Vercel build with the HTTPS origin plus
+  the six required variables). RELEASE-006 stays active, and
+  `npm run agents:validate` passes at `59971a9e`.
