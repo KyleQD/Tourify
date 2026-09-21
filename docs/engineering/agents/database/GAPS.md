@@ -119,8 +119,13 @@ or **improve** (working direction exists but needs hardening or cleanup).
   documents planner writes to `events` while admin surfaces read `events_v2`.
   `docs/engineering/agents/database/DECISIONS.md` now records chain and type
   conventions, but not the final events choice or a complete RLS/view convention.
-- **Impact**: runtime probing, disappearing saves, and inconsistent authorization
-  assumptions remain possible.
+  The DB-006 six-caller cutover to `events_v2` is complete in code, and the
+  2026-09-21 checkpoint classifies all 52 remaining legacy callers (14
+  compatibility-gated, 38 deferred with owners) in `STATE.md`; the local
+  classification acceptance gap is closed.
+- **Impact**: hosted staging/production cutover evidence (CP-053) and the 38
+  deferred callers' named-owner reviews remain before runtime probing and
+  inconsistent authorization assumptions can be fully retired.
 
 ## R — Improve
 
@@ -183,6 +188,21 @@ or **improve** (working direction exists but needs hardening or cleanup).
   box-office saga, but credential/QR issuance still occurs app-side.
 - **Impact**: box-office and transfer flows cannot yet be one SQL transaction.
 
+### R-7. Dynamic-table event callers escape the literal caller scan
+
+- **Triage**: improve
+- **Evidence/location**: DB-006's 52-file legacy caller inventory is built on
+  literal `.from('events')` / `.from('artist_events')` scans plus the recorded
+  dynamic resolver. Repository-wide dynamic-table reads in
+  `app/api/events/_lib/event-reference.ts` (covered), `app/api/events/[id]/page/route.ts`
+  (DB-009 resolver consumer, covered), and `lib/services/event-page.service.ts`
+  (dynamic `EventTableName` including `artist_events`/`events`; no active
+  importer found outside the `lib/supabase/service-role-legacy-imports.json`
+  mapping artifact) are not visible to the literal scan.
+- **Impact**: future dynamic-table callers could bind to legacy event tables
+  without appearing in the canonical caller inventory; a parameterized
+  table-name scan or import graph is needed to keep the inventory complete.
+
 ## Resolved during the audit window
 
 - DB-003 established the active chain as the only apply source and reconciled the
@@ -192,10 +212,13 @@ or **improve** (working direction exists but needs hardening or cleanup).
   schema through 287 migrations.
 - DB-002 advanced the four staged security/money migrations to
   `staging_validated` and recorded RLS/RPC probes.
+- DB-006 (2026-09-21) closed the local caller-classification acceptance gap:
+  all 52 remaining legacy `events`/`artist_events` callers are classified (14
+  compatibility-gated, 38 deferred with owners) in `STATE.md`.
 
 ## Counts
 
 - **Missing:** 5
 - **Incomplete:** 6
-- **Improve:** 6
-- **Total open items:** 17
+- **Improve:** 7
+- **Total open items:** 18

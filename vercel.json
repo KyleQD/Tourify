@@ -83,6 +83,10 @@
     {
       "source": "/healthz",
       "destination": "/api/health"
+    },
+    {
+      "source": "/readyz",
+      "destination": "/api/health/readyz"
     }
   ]
 }

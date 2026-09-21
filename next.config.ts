@@ -99,11 +99,16 @@ const nextConfig: NextConfig = {
   // Mirror it here so the liveness contract (and `npm run smoke:healthz`) resolves
   // identically in local dev and in the production build. Vercel applies next.config
   // rewrites too, so the vercel.json entry is now redundant but harmless.
+  // The readiness contract /readyz -> /api/health/readyz follows the same pattern.
   async rewrites() {
     return [
       {
         source: '/healthz',
         destination: '/api/health',
+      },
+      {
+        source: '/readyz',
+        destination: '/api/health/readyz',
       },
     ]
   },

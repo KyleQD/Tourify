@@ -45,7 +45,7 @@ export async function finalizePaidOrder(params: {
   stripeEventId: string
   paymentIntentId?: string | null
   checkoutSessionId?: string | null
-}): Promise<{ alreadyFinalized: boolean }> {
+}): Promise<{ alreadyFinalized: boolean; skipped?: 'terminal_state' }> {
   const { supabase, orderId } = params
 
   const { data: order, error } = await supabase
@@ -59,6 +59,20 @@ export async function finalizePaidOrder(params: {
 
   if (order.payment_status === 'completed' && order.issuance_status === 'issued')
     return { alreadyFinalized: true }
+
+  // Refund replay safety: an order that reached a money-terminal refund state
+  // (full refund, cancelled, or any partial refund recorded in metadata.refund)
+  // must acknowledge a delivered/replayed paid event WITHOUT re-running
+  // issuance, promo accounting, analytics, ledger, or notification side
+  // effects. Late-arriving checkout.session.completed webhooks after a
+  // charge.refunded are the canonical case.
+  const refundRecorded = Boolean((order.metadata as Record<string, unknown> | null | undefined)?.refund)
+  if (
+    order.payment_status === 'refunded' ||
+    order.payment_status === 'cancelled' ||
+    refundRecorded
+  )
+    return { alreadyFinalized: true, skipped: 'terminal_state' }
 
   const updatePayload: Record<string, unknown> = {
     payment_status: 'completed',
@@ -252,14 +266,24 @@ export async function refundOrderTickets(params: {
   actorUserId: string
   refundAmount: number
   ticketIds?: string[]
-}): Promise<void> {
+}): Promise<{ duplicate: boolean }> {
   const { data, error } = await params.supabase.rpc('apply_ticket_refund', {
     p_order_id: params.orderId,
     p_actor_user_id: params.actorUserId,
     p_refund_amount: params.refundAmount,
     p_ticket_ids: params.ticketIds?.length ? params.ticketIds : null,
   })
-  if (error) throw new Error(error.message || 'Failed to apply ticket refund')
+
+  // Canonical refund replay: apply_ticket_refund raises
+  // "Order has already been refunded" once metadata.refund exists. A replay
+  // of an already-applied refund is a duplicate acknowledgement with NO side
+  // effects — no re-restored inventory, no second ledger receipt, no
+  // analytics, no notification.
+  if (error) {
+    if (String(error.message || '').includes('already been refunded'))
+      return { duplicate: true }
+    throw new Error(error.message || 'Failed to apply ticket refund')
+  }
 
   const result = Array.isArray(data) ? data[0] : data
   if (!result) throw new Error('Refund did not update an order')
@@ -292,4 +316,6 @@ export async function refundOrderTickets(params: {
       orderId: params.orderId,
     })
   }
+
+  return { duplicate: false }
 }

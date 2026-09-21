@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:07.688Z",
-  "updated_at": "2026-09-16T19:24:55.270Z",
+  "updated_at": "2026-09-21T15:15:00Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Make events_v2 canonical for every core launch flow, explicitly gate incompatible legacy domains, and eliminate runtime schema probing",
@@ -67,16 +67,21 @@
       "Removed dashboard event count/recent-event dual reads and legacy aggregation; dashboard now reads events_v2 only.",
       "Added a focused contract test preventing regression to legacy reads in the two cutover paths.",
       "Removed legacy events reads from analytics, personal calendar, community stats, and operational reminders.",
-      "Expanded the regression test to all six bounded callers and fixed the calendar partial-state reference."
+      "Expanded the regression test to all six bounded callers and fixed the calendar partial-state reference.",
+      "Completed the repository-wide caller-classification acceptance gap (2026-09-21): all 52 recorded legacy events/artist_events caller files are classified as 14 compatibility-gated and 38 deferred with named owners and contract rationales; the six canonical hot paths are the migrated callers and carry zero legacy reads. Exact counts reproduced by scan: 45 files with literal .from('events') reads + 14 files with literal .from('artist_events') reads, union 51 literal files, plus app/api/events/_lib/event-reference.ts (dynamic EVENT_REFERENCE_LOOKUP_ORDER) = 52.",
+      "Confirmed no clearly-safe in-scope gating change exists for any remaining caller: every remaining legacy caller sits outside the DB-006 working set, no caller whose identifier/authorization contract already matches events_v2 is in-scope-editable for this lane, and the six canonical paths contain zero legacy probes. No code change was made in this lane.",
+      "Recorded adjacent dynamic-table scan findings not captured by the literal 52-file inventory: lib/services/event-page.service.ts (dynamic EventTableName including artist_events/events; no active importer found; ARTIST cleanup review) and app/api/events/[id]/page/route.ts (DB-009 resolver-branched reader, covered by DB-009's 18-importer matrix)."
     ],
     "next_steps": [
       "Run the manual, targeted staging migration/postflight checks when an approved environment is available; never reset or force replay.",
       "Evaluate the remaining legacy callers individually; map identifier and authorization contracts before any cutover and do not invent events_v2 schema.",
-      "Record staging and production evidence before closing the task."
+      "Record staging and production evidence before closing the task.",
+      "Sequence the classified deferred callers by named owner for separate bounded reviews: WORK (admin staff-operations/staffing, hiring-onboarding), ARTIST (artist events surfaces/actions/services), TOUR (tour subresource CRUD, tour_id link), SOCIAL (share routes, community activity), VENUE (venue.service), BOOKINGS, COMMUNITY (news feed), ORG public-provider, MUSIC (public-track), INTG (canonical-event-service, event-matcher), ADMIN (event-claims), PAYMENT/TICKET-005 (payment price branch).",
+      "Resolve adjacent findings out of the DB-006 working set: retire or source-qualify lib/services/event-page.service.ts dynamic legacy-capable reads (ARTIST), and keep app/api/events/[id]/page/route.ts under DB-009's resolver contract."
     ],
     "blockers": [
       "No staging or production database evidence is available in this workspace; CP-051 forbids automatic migration application or replay.",
-      "The bounded six-caller review has no legacy events reads. An exact app/lib inventory still finds legacy events or artist_events callers in 52 other files, including artist/public-provider, venue, booking, feed, workflow, admin, and tour surfaces; these remain out of scope until their identifier and authorization contracts are mapped."
+      "The bounded six-caller review has no legacy events reads. The exact app/lib inventory of remaining legacy events or artist_events callers is 52 files, now classified (2026-09-21): 14 compatibility-gated and 38 deferred with named owners and contract rationales. None is a safe in-scope cutover for this lane because each cardinal edge is either already explicitly gated (resolver/event_table/dual-read) or carries a distinct identifier/authorization contract (artist_id/user_id, legacy venue_id columns, legacy events.tour_id, employment-assignment FK) requiring the named owner's review. Cutover therefore remains split across separate bounded owner reviews, not this lane."
     ],
     "checkpoints": [
       {
@@ -160,6 +165,28 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-21T15:15:00Z",
+        "sha": "b9396775",
+        "summary": "Closed the local caller-classification acceptance gap: every remaining legacy events/artist_events caller is now classified. Exact scan reproduces the recorded 52 files (45 literal events + 14 literal artist_events, union 51 literal, plus app/api/events/_lib/event-reference.ts with dynamic EVENT_REFERENCE_LOOKUP_ORDER = 52). Disposition: 0 migrated among the 52 (the six bounded hot paths are the migrated callers and carry zero legacy reads), 14 compatibility-gated (explicit resolver/event_table/dual-read/dual-write or legacy-FK gates: event-reference.ts, events/discover, organizers/[slug], payment, venues/[id], venue/actions/event-actions, get-upcoming-attending-events, attending-event-posts, feed-service, epk.service, hiring-onboarding, staff-shift-assignment-sync, workflow-permissions, workflow-threads), 38 deferred with named owner + contract rationale (artist/public-provider, venue, booking, tour, work/admin, social, community, music, integrations import, payment domains). No clearly-safe in-scope gating change exists: every remaining caller is outside the DB-006 working set and none of the six canonical paths probes legacy tables, so no code change was made in this lane. Adjacent dynamic-table findings recorded: lib/services/event-page.service.ts (no active importer; ARTIST cleanup) and app/api/events/[id]/page/route.ts (DB-009 resolver consumer). Full per-file classification recorded in STATE.md.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DB-006.json",
+          "docs/engineering/agents/database/STATE.md",
+          "docs/engineering/agents/database/GAPS.md"
+        ],
+        "verification": [
+          "PASS: exact six-caller no-legacy-read assertion - rg -n \"\\.from(['\"]events['\"])\" over the six hot paths exits 1 (zero matches); node scan prints 'DB-006 canonical caller scan: PASS (6 files, 0 legacy events reads)'.",
+          "PASS: npx vitest run __tests__/admin/events-v2-canonical-cutover.test.ts - 1 file, 7 tests passed.",
+          "PASS: npx eslint over the six callers and the regression test - exit 0, no diagnostics.",
+          "PASS: git diff --check on the three changed doc paths (no whitespace errors).",
+          "INVENTORY: 52 remaining legacy caller files = 14 compatibility-gated + 38 deferred + 0 migrated; six canonical callers migrated (verified events_v2-only)."
+        ],
+        "blockers": [
+          "Staging and production migration/postflight evidence remains unavailable and is required before task closure (CP-053).",
+          "38 deferred callers require their named owners' separate bounded reviews before any further cutover; 14 gated callers remain gated until their owners source-qualify them."
+        ],
+        "next": "Orchestrator to sequence the owner-mapped deferred/gated callers as separate bounded tasks; obtain approved staging and production evidence for the six-caller canonical cutover."
       }
     ]
   },

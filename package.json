@@ -41,6 +41,7 @@
     "check:cron-route-inventory": "node scripts/ci/check-cron-route-inventory.mjs",
     "check:local-docker": "node scripts/ci/check-local-docker-readiness.mjs",
     "smoke:healthz": "node scripts/ci/smoke-healthz.mjs",
+    "smoke:readyz": "node scripts/ci/smoke-readyz.mjs",
     "smoke:rate-limit": "node scripts/ci/smoke-rate-limit.mjs",
     "verify:local": "npm run validate:env:local && npm run check:supabase-target && npm run check:cron-route-inventory && npm run check:local-docker",
     "build:local": "npm run validate:env:production && NODE_OPTIONS='--max-old-space-size=6144' next build",

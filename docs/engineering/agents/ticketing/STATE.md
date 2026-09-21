@@ -1,8 +1,8 @@
 # Ticketing state
 
-- Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b` (working tree)
-- Last reviewed at: 2026-09-11 (TICKET-002/TICKET-003 verification)
-- Active task: none; TICKET-002 and TICKET-003 are complete within their bounded scopes
+- Last reviewed SHA: `b93967752b4262a2d7441755843eb886514fef26` (working tree, branch release/clean-snapshot, 2026-09-21)
+- Last reviewed at: 2026-09-21 (TICKET-005 local deliverable verification)
+- Active task: TICKET-005 (P0) — local deliverable complete; hosted create-to-settlement lifecycle blocked on credentials
 - Confidence: working (canonical direction accepted via TIX-001/ADR-007; security fixes landed; several money-integrity and cutover gaps open)
 
 ## Durable facts
@@ -44,3 +44,12 @@ Update this file only when a task establishes a durable fact future work needs.
 
 - Implemented published/enabled sale gating, reserved inventory accounting, fail-closed reservation consumption, credential replacement rollback, buyer-scoped delivery, conditional transfer and check-in claims, and unavailable settlement reads.
 - Focused ticketing verification passed 35 tests; hosted DB/Stripe lifecycle, distributed purchase idempotency, and canonical refund replay evidence remain open.
+
+## TICKET-005 local deliverable checkpoint — 2026-09-21
+
+- Canonical refund replay certification landed: `refundOrderTickets` returns `{duplicate: true}` when `apply_ticket_refund` raises "already been refunded" (zero side effects — no re-restored inventory, no second ledger receipt, no analytics/notifications), and throws on genuine errors; `finalizePaidOrder` returns `{alreadyFinalized: true, skipped: 'terminal_state'}` with NO re-issuance/ledger/analytics for `refunded`/`cancelled`/`metadata.refund` orders (late-arriving `checkout.session.completed` after `charge.refunded` is the canonical case).
+- Ledger replay safety: `writeRefundLedger` and the `writeSaleLedger` fallback throw on unavailable pre-check reads (fail closed — never infer row-absent from an unreachable read) and treat 23505/duplicate insert errors as duplicate acknowledgements; `financial_transactions.idempotency_key` + `idx_fin_tx_idempotency` (partial unique) is the DB-side replay guard, with `ticket_refund:{orderId}:{ticketId|full}` keys.
+- Request-scoped purchase idempotency landed: `findIdempotentPurchase` (lib/ticketing/orders.ts) dedupes same `idempotency_key` + buyer + event while the order is actionable (pending/completed/paid), newest-order-wins; wired into `app/api/ticketing/enhanced/route.ts` (still returns `deduped: true` with the original order and keeps the keyed `ticket_purchase:{userId}:{key}` Stripe session reference).
+- DB-005 handoff (recorded in TICKET-005.json + this file): the active chain has NO distributed DB-unique purchase idempotency on `ticket_sales` — only partial unique indexes on `order_number`, `stripe_checkout_session_id`, `webhook_event_id` (20260821000000_reconcile_ticketing_foundation.sql). Suggested constraint: partial unique index on `ticket_sales(buyer_user_id, event_id, metadata->>'idempotency_key')` or a dedicated `idempotency_key` column. Until DB-005 lands, two concurrent FIRST requests can both create rows; request-scoped dedup only covers double-click/retry.
+- Certification tests added: `__tests__/ticketing/refund-replay.test.ts` and `__tests__/ticketing/purchase-idempotency.test.ts` (25 tests). Focused suite: 15 files, 120 tests passed. Focused ESLint on the 6 changed files exit 0; `git diff --check` exit 0.
+- No migration authored by this lane and no hosted/webhook/Stripe execution strings in this lane's diff; hosted create-to-settlement lifecycle and Stripe execution remain blocked (no credentials). Changes left uncommitted for orchestrator (no git add/commit per constraints).

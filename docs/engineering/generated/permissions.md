@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `78b47fc8b9cde4e6fb6ef81c1a24c79dcceab103`
+- Source SHA: `b93967752b4262a2d7441755843eb886514fef26`
 - Branch: `release/clean-snapshot`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-21T21:42:35.782Z
+- Working tree: dirty (31 entries)
+- Generated at: 2026-09-21T22:12:46.202Z
 - Generator: `control-plane.mjs generate`
 
 Static detection is a routing aid, not an authorization audit. Missing markers require review; detected markers do not prove correct scope.
@@ -62,7 +62,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 - `lib/supabase/service-role.ts`
 - `lib/supabase/tourify-session-cookie.ts`
 
-## API route indicators (945)
+## API route indicators (946)
 
 | Source | Detected indicators |
 | --- | --- |
@@ -606,6 +606,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/groups/threads/[id]/messages/route.ts` | session/auth, service role |
 | `app/api/groups/threads/[id]/route.ts` | session/auth, service role |
 | `app/api/groups/threads/route.ts` | session/auth, service role |
+| `app/api/health/readyz/route.ts` | session/auth |
 | `app/api/health/route.ts` | session/auth |
 | `app/api/hiring/applications/[id]/route.ts` | manual review required |
 | `app/api/hiring/applications/[id]/star/route.ts` | manual review required |

@@ -258,3 +258,96 @@ cutover. Staged migration work remains under CP-051's explicit manual-apply rule
   task remains active for the owner decisions above, deployed RLS isolation,
   DB-006 staging/production cutover evidence, TICKET-005 checkout certification,
   and QA-003 denial-path evidence.
+
+## DB-006 caller-classification checkpoint — 2026-09-21
+
+- DB-006's local acceptance gap is closed: every remaining legacy `events` /
+  `artist_events` caller is classified into an exact repository-wide inventory
+  of 52 files. The scan reproduces the record exactly: 45 files with literal
+  `.from('events')` reads and 14 with literal `.from('artist_events')` reads
+  (union 51 literal files), plus `app/api/events/_lib/event-reference.ts`,
+  which references both legacy tables only via the dynamic
+  `EVENT_REFERENCE_LOOKUP_ORDER` (canonical order events_v2 → artist_events →
+  events, fail-closed) and is therefore not captured by the literal scan.
+- Disposition of the 52: **0 migrated** (the six bounded hot paths are the
+  migrated callers and carry zero legacy reads), **14 compatibility-gated**,
+  **38 deferred with named owner + contract rationale**. No code change was made
+  in this lane: every remaining caller is outside the DB-006 working set, and
+  the compatibility/identifier edges are either already explicitly gated or
+  require owner mapping, so no clearly-safe in-scope gating edit existed.
+- **Compatibility-gated (14)**, all with an explicit source-identity mechanism
+  (resolver, `event_table` key, parallel legacy+canonical union, legacy-FK
+  existence gate):
+  `app/api/events/_lib/event-reference.ts` (DATABASE/DB-009 resolver contract),
+  `app/api/events/discover/route.ts` (ARTIST/discover),
+  `app/api/organizers/[slug]/route.ts` (ORG public-provider),
+  `app/api/payment/route.ts` (PAYMENT, TICKET-005),
+  `app/api/venues/[id]/route.ts` (VENUE public page),
+  `app/venue/actions/event-actions.ts` (VENUE; events_v2-primary dual-write with
+  legacy mirror),
+  `lib/events/get-upcoming-attending-events.ts` (SOCIAL),
+  `lib/feed/attending-event-posts.ts` (SOCIAL),
+  `lib/news/feed-service.ts` (COMMUNITY/news),
+  `lib/services/epk.service.ts` (ARTIST),
+  `lib/services/hiring-onboarding.service.ts` (WORK/hiring),
+  `lib/services/staff-shift-assignment-sync.ts` (WORK; events_v2 documented
+  primary, legacy FK existence check),
+  `lib/workflows/workflow-permissions.ts` (WORK),
+  `lib/workflows/workflow-threads.ts` (WORK).
+- **Deferred (38)**, all carrying a distinct identifier/authorization contract
+  (`artist_id`/`user_id`, legacy venue columns incl. `date`/`start_date`, legacy
+  `events.tour_id`, employment-assignment FK, or public-provider slug surfaces):
+  app/api/admin/event-claims/route.ts (ADMIN claims),
+  app/api/admin/staff-operations/summary/route.ts (WORK),
+  app/api/admin/staffing/shifts/route.ts (WORK),
+  app/api/community/activity/route.ts (COMMUNITY),
+  app/api/events/[id]/claim/route.ts (ARTIST claims),
+  app/api/events/[id]/share-message/route.ts (SOCIAL),
+  app/api/events/[id]/tour/route.ts (TOUR),
+  app/api/posts/share/route.ts (SOCIAL),
+  app/api/tours/[id]/events/[eventId]/route.ts (TOUR),
+  app/api/tours/[id]/route.ts (TOUR),
+  app/artist/business/analytics/page.tsx (ARTIST),
+  app/artist/events/actions.ts (ARTIST),
+  app/artist/events/actions/analytics.ts (ARTIST),
+  app/artist/events/actions/create-event.ts (ARTIST),
+  app/artist/events/actions/delete-event.ts (ARTIST),
+  app/artist/events/actions/get-event-analytics.ts (ARTIST),
+  app/artist/events/actions/update-event.ts (ARTIST),
+  app/artist/events/components/artist-events-dashboard.tsx (ARTIST),
+  app/artist/events/components/event-analytics.tsx (ARTIST),
+  app/artist/events/components/event-export.tsx (ARTIST),
+  app/artist/events/components/events-calendar.tsx (ARTIST),
+  app/artist/events/page-simple-broken.tsx (ARTIST; unreferenced broken file),
+  app/artist/features/analytics/analytics-dashboard.tsx (ARTIST),
+  app/bookings/page.tsx (BOOKINGS),
+  app/events/[slug]/layout.tsx (ARTIST public-provider/discover),
+  app/services/events.service.ts (ARTIST; no active importers found),
+  lib/artist/artist-event-operations.service.ts (ARTIST),
+  lib/artist/artist-event-promote.service.ts (ARTIST),
+  lib/events/canonical-event-service.ts (INTG imports),
+  lib/events/event-matcher.ts (INTG imports dedup),
+  lib/music/public-track.ts (MUSIC/ARTIST),
+  lib/public-artist/get-public-artist-profile.ts (ARTIST public-provider),
+  lib/public-organization/get-public-organization-profile.ts (ORG
+  public-provider),
+  lib/services/achievement.service.ts (ARTIST),
+  lib/services/artist-business.service.ts (ARTIST),
+  lib/services/artist-content.service.ts (ARTIST),
+  lib/services/artist.service.ts (ARTIST),
+  lib/services/venue.service.ts (VENUE; legacy venue_id reads incl.
+  `date`/`start_date` column-probe fallback, no events_v2 path).
+- Adjacent dynamic-table findings outside the literal 52-file inventory:
+  `lib/services/event-page.service.ts` (dynamic `EventTableName` including
+  `artist_events`/`events`; no active importer found in app/lib other than the
+  legacy-imports mapping artifact; ARTIST cleanup review) and
+  `app/api/events/[id]/page/route.ts` (DB-009 resolver-branched reader, covered
+  by DB-009's 18-importer matrix). `lib/zones/event-zones.ts` uses
+  `TABLE = 'event_zones'`, not an event table, and is out of scope.
+- Verification on branch `release/clean-snapshot` @ b9396775: six-caller
+  no-legacy-read assertion PASS (rg exits 1, zero matches; node scan PASS),
+  focused Vitest 7/7, ESLint on the six callers + regression test exit 0,
+  `git diff --check` on changed doc paths clean. No migration authored, applied,
+  pushed, reset, or replayed; CP-051/CP-053 honored. Remaining blockers:
+  staging/production cutover evidence (owned by release/ops pipeline) and the 38
+  deferred callers' named-owner reviews.

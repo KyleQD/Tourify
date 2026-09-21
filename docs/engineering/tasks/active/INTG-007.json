@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "integrations",
   "created_at": "2026-09-16T19:20:39.904Z",
-  "updated_at": "2026-09-16T19:20:39.904Z",
+  "updated_at": "2026-09-21T15:15:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Remove plaintext external credentials and keep every unverified provider disabled until encrypted lifecycle verification passes",
@@ -43,25 +43,67 @@
       "npm run check:migration-validation"
     ],
     "evidence": [
-      "Audit baseline: the organization social OAuth callback still constructs persistence data containing plaintext access_token and refresh_token alongside encrypted envelopes."
+      "Focused npx vitest run __tests__/integrations/intg007-credential-vault.test.ts — 16/16 passed; full npx vitest run __tests__/integrations — 5 files / 50 tests passed.",
+      "npx eslint lib/integrations/token-vault.ts app/api/social/oauth/callback/route.ts __tests__/integrations/intg007-credential-vault.test.ts — exit 0, no output.",
+      "npm run check:migration-validation — exit 0; 20260921000000_intg007_encrypted_social_credential_vault.sql scanned with planned manifest.",
+      "npm run check:migration-chain — exit 0 (296 files scanned, no duplicate policy creations).",
+      "npm run check:production-debug — exit 0 (40 unsafe routes covered by deny registry).",
+      "npm run agents:validate — 17 agents / 113 tasks / 8 SHA-drift warnings / 0 errors.",
+      "git diff --check — clean; rg trailing-whitespace on new files — 0 matches.",
+      "Plaintext-fragment grep over changed paths — 0 matches for access_token: payload.*, refresh_token: payload.*, token_envelope: tokenEnvelope, keyVersion === 0 decode, or venue_social_integrations legacy .update writes.",
+      "Audit baseline superseded: the organization social OAuth callback no longer constructs persistence data containing plaintext access_token/refresh_token; it persists encrypted envelopes only via buildOrganizationCredentialPayload and fails closed on encryption errors."
     ],
-    "last_run_sha": null,
-    "last_run_at": null,
-    "result": "not-run"
+    "last_run_sha": "b93967752b4262a2d7441755843eb886514fef26",
+    "last_run_at": "2026-09-21T15:15:00.000Z",
+    "result": "pass"
   },
   "progress": {
-    "summary": "Created; implementation not started.",
-    "completed": [],
+    "summary": "First bounded implementation slice complete: inventory recorded, encrypted-at-rest vault boundary implemented (encrypted-only writes, fail-closed reads, log redaction), organization OAuth callback persists encrypted envelopes only, additive forward-only migration authored (unapplied, CP-051) with planned manifest, focused Vitest/ESLint/migration validation pass. No provider was enabled; social OAuth and analytics remain disabled through RELEASE-008.",
+    "completed": [
+      "Inventoried every external OAuth credential write/read path and recorded disposition: app/api/social/oauth/{start,callback}/route.ts, lib/integrations/token-vault.ts + provider-catalog.ts, app/api/venue/integrations/route.ts, app/api/admin/content-hub/{integrations,overview,analytics}/route.ts + integrations/sync/route.ts, lib/services/organization-social-integrations.service.ts, and supabase/functions/{social-oauth,social-analytics}/index.ts.",
+      "Reworked lib/integrations/token-vault.ts into an encrypted-only boundary: writes never touch legacy venue_social_integrations plaintext columns (dual-write retired), reads fail closed (legacy key_version=0 copies, tampered or wrong-key envelopes, and malformed bytes resolve to null — never to raw token text), server-only key access retained, and audit metadata is redacted through redactCredentialLog before persistence.",
+      "Organization social OAuth callback now persists encrypted envelopes only (buildOrganizationCredentialPayload) and fails the connect when encryption fails instead of degrading to plaintext persistence.",
+      "Authored additive forward-only migration supabase/migrations/20260921000000_intg007_encrypted_social_credential_vault.sql (SUPABASE_TELEMETRY off, superset of the active chain, planned manifest in docs/engineering/migration-validation/) revoking client column SELECT on organization_social_integrations.access_token/refresh_token and revoking legacy plaintext copies (org + venue source columns and key_version=0 vault bytes). NOT applied — CP-051 manual apply is hosted and out of scope.",
+      "Added focused Vitest coverage __tests__/integrations/intg007-credential-vault.test.ts (16 tests): no plaintext persisted/emitted, fail-closed decryption, rotation, refresh/disconnect semantics on the vault contract, log redaction, venue-route API-surface compatibility, and a callback source plaintext guard.",
+      "Created pending handoffs HF-INTG-007-ADMIN, HF-INTG-007-VENUE, HF-INTG-007-SOCIAL so the legacy plaintext reads outside this lane are removed before the migration applies."
+    ],
     "next_steps": [
-      "Inventory plaintext credential write/read paths and the existing token-vault contract",
-      "Implement migration or revocation and fail-closed provider capability gates"
+      "Database lane: apply migration 20260921000000 to isolated staging per CP-051 only after admin/venue/social lane cleanup, regenerate canonical types if needed, and record hosted ledgers.",
+      "Admin lane: drop access_token/refresh_token selects in the four content-hub routes and switch sync eligibility to envelope/expiry presence (HF-INTG-007-ADMIN).",
+      "Venue lane: remove the legacy refresh_token select and vault fallback in POST refresh (HF-INTG-007-VENUE).",
+      "Social lane: move social-oauth/social-analytics Edge Functions to encrypted envelope persistence + server-side decrypt (HF-INTG-007-SOCIAL).",
+      "Provide credential-vault evidence and provider enablement status to RELEASE-008; enable nothing until encrypted lifecycle acceptance evidence passes."
     ],
     "blockers": [
-      "Social OAuth and affected providers must remain disabled through RELEASE-008 until credential migration or revocation and encrypted lifecycle verification pass."
+      "Social OAuth and affected providers must remain disabled through RELEASE-008 until credential migration or revocation and encrypted lifecycle verification pass.",
+      "Hosted migration apply and Edge Function redeployment are out of band (CP-051); the authored migration remains unapplied in this environment.",
+      "app/api/venue/integrations/route.ts, app/api/admin/content-hub/* routes, and supabase/functions/social-oauth|social-analytics still reference legacy plaintext columns and are outside the INTG-007 working set; handoffs created and pending."
     ],
-    "checkpoints": []
+    "checkpoints": [
+      {
+        "at": "2026-09-21T15:15:00.000Z",
+        "sha": "b93967752b4262a2d7441755843eb886514fef26",
+        "summary": "INTG-007 bounded slice complete: reworked lib/integrations/token-vault.ts to an encrypted-only boundary (never dual-writes legacy plaintext columns; reads fail closed — key_version 0/legacy copies and undecryptable envelopes resolve to null; log/audit metadata redacted via redactCredentialLog); organization OAuth callback now persists encrypted envelopes only through buildOrganizationCredentialPayload and fails closed on encryption errors; authored additive forward-only migration 20260921000000 (unapplied, CP-051) revoking client column SELECT on organization_social_integrations.access_token/refresh_token and revoking legacy plaintext copies (org + venue source columns and key_version=0 vault bytes) with a planned manifest; no provider enabled and social OAuth/analytics gating unchanged. Focused Vitest 16/16 (full __tests__/integrations 50/50), focused ESLint exit 0, check:migration-validation and check:migration-chain exit 0, check:production-debug exit 0, git diff --check clean, plaintext-fragment grep 0 matches, agents:validate 0 errors. Handoffs created for admin (4 content-hub routes), venue (legacy refresh fallback), and social (2 Edge Functions) to finish removing legacy plaintext reads before the migration is applied.",
+        "completed": [
+          "Encrypted-only token vault boundary with fail-closed reads and log redaction",
+          "Encrypted-only org OAuth callback persistence",
+          "Additive revocation/column-hardening migration authored with planned manifest (unapplied)",
+          "16-test focused Vitest suite + full integrations suite green",
+          "Three pending handoffs for legacy plaintext readers outside the lane"
+        ],
+        "next_steps": [
+          "DB/ADMIN/VENUE/SOCIAL lanes act on the created handoffs; RELEASE-008 consumes vault evidence before any provider enablement"
+        ],
+        "blockers": [
+          "Migration apply and Edge Function redeploy remain hosted (out of scope); providers stay disabled through RELEASE-008"
+        ]
+      }
+    ]
   },
   "handoffs": [
-    "Provide provider enablement status and credential-vault evidence to RELEASE-008; unverified providers remain disabled in the launch capability manifest."
+    "Provide provider enablement status and credential-vault evidence to RELEASE-008; unverified providers remain disabled in the launch capability manifest.",
+    "HF-INTG-007-ADMIN: admin content-hub routes must stop selecting legacy plaintext token columns and switch sync eligibility to envelope/expiry presence.",
+    "HF-INTG-007-VENUE: venue integrations route must drop the legacy refresh_token select/fallback and rely solely on the fail-closed vault.",
+    "HF-INTG-007-SOCIAL: social-oauth and social-analytics Edge Functions must move to encrypted envelope persistence and server-side decrypt."
   ]
 }

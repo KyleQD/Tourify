@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-INTG-007-VENUE",
+  "task_id": "INTG-007",
+  "from_agent": "integrations",
+  "to_agent": "venue",
+  "status": "pending",
+  "created_at": "2026-09-21T15:05:00.000Z",
+  "source_sha": "b93967752b4262a2d7441755843eb886514fef26",
+  "summary": "INTG-007 retires the venue legacy plaintext credential path. lib/integrations/token-vault.ts no longer dual-writes access_token/refresh_token into venue_social_integrations and no longer falls back to legacy columns on read (fail-closed); the authored-but-unapplied migration 20260921000000 nulls the legacy venue plaintext columns and the key_version=0 plaintext vault bytes. app/api/venue/integrations/route.ts still SELECTs legacy refresh_token and uses it as a refresh fallback when the vault has none; after these changes that fallback is always null (fail-closed 400), so the route should drop the legacy select/fallback and read the vault only.",
+  "working_set": [
+    "app/api/venue/integrations/route.ts"
+  ],
+  "completed": [
+    "Vault write path is now encrypted-only (writeVenueIntegrationSecrets never touches venue_social_integrations legacy columns).",
+    "Vault read path is fail-closed: readVenueIntegrationSecrets returns null for legacy/undecryptable material and never falls back to venue_social_integrations.access_token/refresh_token.",
+    "Additive migration authored (unapplied, CP-051) that nulls legacy venue plaintext columns and key_version=0 vault bytes once the venue route no longer reads them.",
+    "Inventory recorded: the venue route legacy fallback (refresh path) and legacy refresh_token select are the last readers of the venue plaintext columns."
+  ],
+  "next_steps": [
+    "Remove the legacy refresh_token column select (line ~121) and the `row.refresh_token` fallback in POST refresh; rely exclusively on readVenueIntegrationSecrets().refreshToken (fails closed).",
+    "Confirm GET health semantics (needs_reauth when vault token missing) are unchanged, then signal database lane that migration 20260921000000 venue statements are safe to apply."
+  ],
+  "blockers": [
+    "Hosted migration apply is out of band (CP-051); venue refresh for re-connected gated providers remains disabled through RELEASE-008."
+  ],
+  "verification": [
+    "npx vitest run __tests__/integrations/intg007-credential-vault.test.ts — 16/16 passed; public API surface test asserts read/write/delete/log exports remain for the venue route imports",
+    "rg plaintext-fragment scan over changed paths — 0 matches for legacy dual-write or key_version=0 plaintext decode",
+    "npm run check:migration-validation — exit 0"
+  ]
+}

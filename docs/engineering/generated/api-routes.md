@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `78b47fc8b9cde4e6fb6ef81c1a24c79dcceab103`
+- Source SHA: `b93967752b4262a2d7441755843eb886514fef26`
 - Branch: `release/clean-snapshot`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-21T21:42:35.782Z
+- Working tree: dirty (31 entries)
+- Generated at: 2026-09-21T22:12:46.202Z
 - Generator: `control-plane.mjs generate`
 
-## Route handlers (945)
+## Route handlers (946)
 
 | Route | Methods | Source |
 | --- | --- | --- |
@@ -553,6 +553,7 @@
 | `/api/groups/threads/[id]/messages` | GET, POST | `app/api/groups/threads/[id]/messages/route.ts` |
 | `/api/groups/threads/[id]/messages/[messageId]/reactions` | POST | `app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts` |
 | `/api/health` | GET, HEAD | `app/api/health/route.ts` |
+| `/api/health/readyz` | GET, HEAD | `app/api/health/readyz/route.ts` |
 | `/api/hiring/applications` | GET, POST | `app/api/hiring/applications/route.ts` |
 | `/api/hiring/applications/[id]` | PATCH | `app/api/hiring/applications/[id]/route.ts` |
 | `/api/hiring/applications/[id]/star` | PATCH | `app/api/hiring/applications/[id]/star/route.ts` |

@@ -1,8 +1,8 @@
 # Integrations state
 
-- Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
-- Last reviewed at: 2026-09-11
-- Active tasks: INTG-003 (local MFA persistence contract complete; hosted validation pending) and INTG-006 (route-local webhook consistency)
+- Last reviewed SHA: `b93967752b4262a2d7441755843eb886514fef26`
+- Last reviewed at: 2026-09-21
+- Active tasks: INTG-003 (local MFA persistence contract complete; hosted validation pending), INTG-006 (route-local webhook consistency), and INTG-007 (external credential vault; first bounded slice complete)
 - Confidence: baseline reconciled against current code and refreshed generated maps; 23 open gaps and 15 owner questions documented
 
 ## Durable facts
@@ -19,7 +19,7 @@
 - MFA backup codes are now stored and verified with bcryptjs hashes at cost factor 12; existing legacy numeric hashes are not compatible and need an explicit regeneration/backfill decision.
 - MFA verification codes use a server-only Supabase repository backed by the additive `mfa_verification_codes` migration. Codes are bcrypt-hashed before persistence; database functions serialize issue limits and attempt/consume transitions. The public table is RLS-enabled with no client policies or grants, and only `service_role` receives table/RPC privileges.
 - Two email abstractions exist: `EmailDeliveryService` and `notification-channels.ts`.
-- Token vault supports encrypted dual-read/write for venue social integrations.
+- Token vault is an encrypted-only, fail-closed boundary for venue social integrations: writes never populate legacy plaintext columns, reads resolve legacy/undecryptable material to null (never raw text), and audit metadata is redacted before persistence.
 - The reconciled audit has 23 open gaps: 11 missing, 9 incomplete, and 3 improve. No unresolved P0 remains; 9 open items are P1 and the remainder P2. Four initial findings are retained as resolved evidence.
 
 ## Current focus
@@ -80,3 +80,12 @@ Release owning external observability provisioning.
 - Marketplace Stripe webhook failures now return a generic retryable error and persist only `internal_error`; provider/database messages are not returned or persisted in the event ledger.
 - Focused Vitest contract/config tests passed (16 tests) and focused ESLint passed for all changed implementation and test files.
 - No hosted systems or Supabase migrations were changed. Database must still reconcile receipt-ledger schemas and prove notification delivery claims on staging/production.
+
+## INTG-007 encrypted credential vault checkpoint — 2026-09-21
+
+- Credential write/read inventory recorded: org OAuth callback (plaintext persistence — now encrypted-only), venue token vault (legacy dual-write — now encrypted-only boundary), venue integrations route (legacy refresh fallback read — outside lane, handoff), admin content-hub routes (legacy plaintext selects — outside lane, handoff), and `supabase/functions/social-oauth`/`social-analytics` (plaintext writes/reads — outside lane, handoff).
+- `lib/integrations/token-vault.ts` is now an encrypted-at-rest boundary: writes persist only AES-256-GCM envelope bytes (`key_version` 1) in the server-only vault table; reads fail closed (legacy `key_version` 0 copies, wrong-key, tampered, or malformed values resolve to `null` and are never surfaced); `redactCredentialLog` strips credential keys from audit metadata before persistence.
+- `app/api/social/oauth/callback/route.ts` persists organization integrations encrypted-only via `buildOrganizationCredentialPayload` and fails the connect when encryption fails instead of writing plaintext.
+- Authored additive forward-only migration `20260921000000_intg007_encrypted_social_credential_vault.sql` (planned manifest) revoking client column SELECT on the org plaintext columns and revoking legacy plaintext copies (org + venue source columns and `key_version` 0 vault bytes). NOT applied — CP-051 manual apply is hosted and out of scope.
+- Focused Vitest passed 16/16 (full `__tests__/integrations`: 5 files / 50 tests); focused ESLint, `check:migration-validation`, `check:migration-chain`, `check:production-debug`, `git diff --check`, and the changed-path plaintext-fragment grep all passed; `agents:validate` reported 0 errors.
+- INTG-007 stays active: DB must apply the migration to isolated staging per CP-051; ADMIN/VENUE/SOCIAL handoffs (HF-INTG-007-ADMIN, HF-INTG-007-VENUE, HF-INTG-007-SOCIAL) must finish removing legacy plaintext reads; no provider was enabled and social OAuth/analytics stay disabled through RELEASE-008.

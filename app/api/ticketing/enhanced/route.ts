@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getStripeOrNull } from '@/lib/stripe'
-import { createPendingOrder } from '@/lib/ticketing/orders'
+import { createPendingOrder, findIdempotentPurchase } from '@/lib/ticketing/orders'
 import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
 import { requireFinalizedInventory } from '@/lib/ticketing/inventory'
 import { evaluateTicketSaleGate, remainingTicketInventory } from '@/lib/ticketing/lifecycle'
@@ -496,16 +496,15 @@ export async function POST(request: NextRequest) {
         String((validatedData.metadata as Record<string, unknown> | undefined)?.idempotency_key ?? '').trim() ||
         null
       if (idempotencyKey) {
-        const { data: existingOrder } = await supabase
-          .from('ticket_sales')
-          .select('id, order_number, payment_status, total_amount, stripe_checkout_session_id, metadata')
-          .contains('metadata', { idempotency_key: idempotencyKey })
-          .eq('buyer_user_id', user.id)
-          .eq('event_id', validatedData.event_id)
-          .in('payment_status', ['pending', 'completed', 'paid'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+        // Canonical request-scoped dedup: same key + same buyer + same event
+        // while the order is actionable returns the NEWEST original order so
+        // retries/double-clicks never mint a second order or Stripe session.
+        const existingOrder = await findIdempotentPurchase({
+          supabase: supabase as any,
+          buyerUserId: user.id,
+          eventId: validatedData.event_id,
+          idempotencyKey,
+        })
 
         if (existingOrder) {
           let checkoutUrl: string | null = null

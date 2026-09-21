@@ -5,8 +5,9 @@ import {
   verifySignedOAuthState,
 } from '@/lib/admin/content-hub/oauth-state'
 import {
-  encryptIntegrationSecret,
-} from '@/lib/marketplace/integration-credentials'
+  buildOrganizationCredentialPayload,
+} from '@/lib/integrations/token-vault'
+import type { OrganizationCredentialPayload } from '@/lib/integrations/token-vault'
 
 type Platform = 'instagram' | 'facebook' | 'youtube' | 'tiktok' | 'twitter'
 
@@ -123,15 +124,20 @@ export async function GET(req: Request) {
       })
     }
 
-    let tokenEnvelope: ReturnType<typeof encryptIntegrationSecret> | null = null
-    let refreshEnvelope: ReturnType<typeof encryptIntegrationSecret> | null = null
+    let credentialPayload: OrganizationCredentialPayload
     try {
-      tokenEnvelope = encryptIntegrationSecret(payload.access_token)
-      if (payload.refresh_token) {
-        refreshEnvelope = encryptIntegrationSecret(payload.refresh_token)
-      }
+      // INTG-007 — the row is written encrypted-only. A plaintext access or
+      // refresh token is never part of the persistence payload, and a failure
+      // to encrypt fails the whole connect instead of degrading to plaintext.
+      credentialPayload = buildOrganizationCredentialPayload(payload)
     } catch (encryptError) {
-      console.error('[social-oauth-callback] encryption failed', encryptError)
+      console.error(
+        '[social-oauth-callback] credential encryption failed',
+        encryptError instanceof Error ? encryptError.message : encryptError,
+      )
+      return adminRedirect(url.origin, organizerAccountId, {
+        oauth_error: 'Credential encryption failed — connection not stored',
+      })
     }
 
     // Types lag the live table (organizer_account_id / ops_org_id added via
@@ -141,13 +147,7 @@ export async function GET(req: Request) {
       ops_org_id: signed.opsOrgId,
       platform,
       account_handle: payload.account_handle || '',
-      access_token: payload.access_token,
-      refresh_token: payload.refresh_token ?? null,
-      token_envelope: tokenEnvelope,
-      refresh_token_envelope: refreshEnvelope,
-      token_expires_at: payload.expires_in
-        ? new Date(Date.now() + payload.expires_in * 1000).toISOString()
-        : null,
+      ...credentialPayload,
       is_connected: true,
       last_sync: new Date().toISOString(),
       connected_by: user.id,

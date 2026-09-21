@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-RELEASE-003-OWNER",
+  "task_id": "RELEASE-003",
+  "from_agent": "release",
+  "to_agent": "owner",
+  "status": "pending",
+  "created_at": "2026-09-21T15:08:00.000Z",
+  "source_sha": "b93967752b4262a2d7441755843eb886514fef26",
+  "summary": "RELEASE-003 is locally green for the readiness contract and the 99.9% monthly web/API SLO + runbooks are published (docs/observability-slo-and-runbooks.md). The remaining acceptance gates are hosted/owner-provisioned and must be supplied by the deployment owner before the web/API launch gate can close: real Sentry web + mobile DSNs, an uptime provider probing /healthz and /readyz, on-call/ack routing for the uptime, Redis, auth, checkout, webhook, and elevated-error-rate alerts, and the 24-hour staging soak.",
+  "working_set": [
+    "app/api/health/readyz/route.ts",
+    "app/api/health/route.ts",
+    "next.config.ts",
+    "vercel.json",
+    "scripts/ci/smoke-readyz.mjs",
+    "scripts/ci/smoke-healthz.mjs",
+    "package.json",
+    "instrumentation.ts",
+    "docs/observability-slo-and-runbooks.md"
+  ],
+  "completed": [
+    "GET/HEAD /readyz returns redacted readiness (supabase, redis, requiredServices state; no DSN, URL, token, or DSN-shaped value emitted) and /healthz stays an unauthenticated liveness 200; both report release metadata via getReleaseMetadataHeaders() consistent with the RELEASE-008 health-sha contract.",
+    "Focused readiness suite green: __tests__/api/readyz-readiness.test.ts — 6/6 passed (Vitest run 2026-09-21T15:06Z, 1 file / 6 tests, 0 failures, 0 skipped).",
+    "Loopback-only smoke script scripts/ci/smoke-readyz.mjs guards against all non-loopback targets (rejects any target outside 127.0.0.1/localhost) and npm run smoke:readyz is wired; smoke:healthz remains green.",
+    "99.9% monthly web/API SLO and runbooks published at docs/observability-slo-and-runbooks.md (error budget 0.1%/month; runbooks for service-uptime-down, Redis, auth, checkout, webhook, elevated error-rate; alerts funnel to a single acknowledged on-call owner with rollback/escalation)."
+  ],
+  "next_steps": [
+    "Owner provisions real Sentry web + mobile DSNs and uptime provider probing /healthz and /readyz; set SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN (web) and EXPO_PUBLIC_SENTRY_DSN (mobile) so release-tagged errors/traces are captured.",
+    "Owner configures on-call/ack routing destination for the six alert classes and the acknowledged on-call holder; alerts currently record pending owner assignment with 15-minute escalation.",
+    "Owner schedules and runs the 24-hour staging soak against the release-tagged build; record result in docs/observability-slo-and-runbooks.md during the soak.",
+    "Re-run npm run smoke:healthz and npm run smoke:readyz and the focused readiness suite as final pre-launch evidence once hosted deps are live."
+  ],
+  "blockers": [
+    "Real Sentry DSNs (web + mobile) are owner-provisioned; observability remains disabled until supplied (no DSN fabricated).",
+    "Uptime provider probing /healthz + /readyz is owner-provisioned; uptime alerting depends on it.",
+    "On-call/ack routing destination and acknowledged owner are owner-provisioned; alert routing is recorded, not yet live-routed.",
+    "24-hour staging soak not yet run; required before web/API launch gate closes."
+  ],
+  "verification": [
+    "npx vitest run __tests__/api/readyz-readiness.test.ts — 6/6 passed (0 failures, 0 skipped)",
+    "npm run smoke:readyz — loopback-only guard; loopback target outside 127.0.0.1/localhost rejected",
+    "npm run smoke:healthz — remains green",
+    "git diff --check on readiness/healthz changes — clean; no DSN/URL/token value added"
+  ]
+}

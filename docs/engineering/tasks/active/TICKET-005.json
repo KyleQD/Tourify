@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "ticketing",
   "created_at": "2026-09-16T19:20:39.276Z",
-  "updated_at": "2026-09-18T04:52:32.558Z",
+  "updated_at": "2026-09-21T15:10:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Certify the complete ticket transaction lifecycle against the reconciled staged schema without anonymous or cross-tenant money access",
@@ -41,31 +41,39 @@
       "npm run test:e2e",
       "npm run verify:release",
       "Focused ticketing suites: 35 tests passed",
-      "npx vitest run __tests__/ticketing: 13 files, 95 tests passed"
+      "npx vitest run __tests__/ticketing: 13 files, 95 tests passed",
+      "npx vitest run __tests__/ticketing (2026-09-21): 15 files, 120 tests passed",
+      "Focused ESLint on 6 changed ticketing files: exit 0",
+      "git diff --check on changed ticketing files: exit 0",
+      "Scoped tsc on changed ticketing lib + test files: clean (route TS2589/TS2769 diagnostics confirmed pre-existing at HEAD)"
     ],
     "evidence": [
       "Audit baseline: existing E2E creates and publishes an event but does not complete purchase, payment webhook, transfer, QR/check-in, refund, or settlement as one deployed lifecycle.",
       "Local implementation and focused tests only; no hosted staging claim",
-      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim"
+      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
+      "Canonical refund replay certification (refund-replay.test.ts) and request-scoped purchase idempotency certification (purchase-idempotency.test.ts) pass; DB-005 handoff recorded for distributed DB-unique purchase idempotency"
     ],
     "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
     "last_run_at": "2026-09-18T04:52:32.558Z",
     "result": "fail"
   },
   "progress": {
-    "summary": "Focused shared-worktree verification passed: npx vitest run __tests__/ticketing (13 files, 95 tests). Full typecheck was bounded and interrupted after no diagnostics; hosted DB/Stripe lifecycle and distributed idempotency remain blocked.",
+    "summary": "Local deliverable completed: canonical refund replay certification and request-scoped purchase idempotency. npx vitest run __tests__/ticketing = 15 files, 120 tests passed; focused ESLint and git diff --check clean (exit 0); no migration authored and no hosted/webhook/Stripe execution in this lane's diff; scoped typecheck of changed lib+test files clean (route diagnostics pre-existing at HEAD). Distributed DB-unique purchase idempotency requires a DB-005 migration — handoff recorded in this task and STATE.md. Hosted create-to-settlement lifecycle and Stripe execution remain blocked (no credentials).",
     "completed": [
       "Canonical published and enabled sale gate",
       "Reserved inventory and fail-closed reservation consumption",
-      "Buyer-scoped delivery, transfer, check-in concurrency, and settlement error handling"
+      "Buyer-scoped delivery, transfer, check-in concurrency, and settlement error handling",
+      "Canonical refund replay certification: refundOrderTickets returns {duplicate:true} on already-refunded RPC with zero side effects; finalizePaidOrder no-ops on refunded/cancelled/metadata.refund terminal states; writeRefundLedger/writeSaleLedger fail closed on unavailable pre-checks and treat 23505/duplicate as duplicate acknowledgements",
+      "Request-scoped purchase idempotency: findIdempotentPurchase dedupes same key+buyer+event actionable orders (newest-order-wins) wired into the enhanced purchase route; distributed DB-unique constraint handed off to DB-005"
     ],
     "next_steps": [
-      "Run deployed create-to-settlement lifecycle against reconciled staging schema",
-      "Add distributed DB-unique purchase idempotency and canonical refund replay certification"
+      "Run deployed create-to-settlement lifecycle against reconciled staging schema once credentials are available",
+      "DB-005: add distributed DB-unique purchase idempotency on ticket_sales (e.g., partial unique index on (buyer_user_id, event_id, metadata->>'idempotency_key')) per handoff note"
     ],
     "blockers": [
-      "Full repository typecheck did not complete within bounded window",
-      "No reconciled hosted schema, staging credentials, or Stripe lifecycle evidence"
+      "Full repository typecheck did not complete within bounded window (path-scoped tsc used instead; changed files clean)",
+      "No reconciled hosted schema, staging credentials, or Stripe lifecycle evidence",
+      "Distributed DB-unique purchase idempotency blocked on DB-005 migration (no ticket_sales idempotency column or unique expression index in active chain)"
     ],
     "checkpoints": [
       {
@@ -99,10 +107,29 @@
           "Full repository typecheck did not complete within bounded window",
           "No reconciled hosted schema, staging credentials, or Stripe lifecycle evidence"
         ]
+      },
+      {
+        "at": "2026-09-21T15:10:00.000Z",
+        "sha": "b93967752b4262a2d7441755843eb886514fef26",
+        "summary": "Completed local deliverable: canonical refund replay certification + request-scoped purchase idempotency. Changed lib/ticketing/orders.ts (added findIdempotentPurchase), app/api/ticketing/enhanced/route.ts (dedup via helper; deduped:true and keyed Stripe session preserved), lib/ticketing/ledger.ts (writeRefundLedger/writeSaleLedger fail closed on unavailable pre-check reads; 23505/duplicate treated as duplicate acknowledgement, other insert errors throw; never infer row-absent from unreachable read), lib/ticketing/finalize.ts (refundOrderTickets returns {duplicate:true} on already-refunded RPC with zero side effects and throws on genuine errors; finalizePaidOrder returns {alreadyFinalized:true, skipped:'terminal_state'} with no re-issuance/ledger/analytics for refunded/cancelled/metadata.refund orders). Added __tests__/ticketing/refund-replay.test.ts (refund/sale ledger replay-race and fail-closed certification; refundOrderTickets duplicate/throw paths; finalizePaidOrder terminal-state no-ops) and __tests__/ticketing/purchase-idempotency.test.ts (request-scoped dedup scope, status scope, newest-wins race ordering, route contract, distributed-boundary scan). Verification: npx vitest run __tests__/ticketing = 15 files, 120 tests passed (baseline 13 files/95); focused ESLint on the 6 changed files exit 0; git diff --check exit 0; no migration authored by this lane and no hosted/webhook/Stripe execution strings in this lane's diff; scoped typecheck of changed lib + test files clean (route TS2589/TS2769 diagnostics at lines 144/286/583/735/773 confirmed identical at HEAD — pre-existing; full-repo typecheck still bounded-interrupted). DB-005 handoff note: active schema chain has NO distributed DB-unique purchase idempotency on ticket_sales (only partial unique indexes on order_number, stripe_checkout_session_id, webhook_event_id); suggested migration is a partial unique index on ticket_sales(buyer_user_id, event_id, metadata->>'idempotency_key') or a dedicated idempotency_key column; financial_transactions already provides idx_fin_tx_idempotency used by ledger replay. Request-scoped idempotency covers double-click/retry dedup locally; two concurrent FIRST requests can still both create rows until DB-005 lands. Hosted create-to-settlement lifecycle and Stripe execution remain blocked (no credentials). No git commit made; changes left in worktree for orchestrator per constraints.",
+        "completed": [
+          "Canonical refund replay certification",
+          "Request-scoped purchase idempotency (findIdempotentPurchase wired into enhanced purchase route)",
+          "DB-005 handoff note recorded for distributed DB-unique purchase idempotency"
+        ],
+        "next_steps": [
+          "DB-005: add distributed DB-unique purchase idempotency on ticket_sales",
+          "Run deployed create-to-settlement lifecycle against reconciled staging schema once credentials are available"
+        ],
+        "blockers": [
+          "No reconciled hosted schema, staging credentials, or Stripe lifecycle evidence (hosted deliverable)",
+          "Distributed DB-unique purchase idempotency requires DB-005 migration"
+        ]
       }
     ]
   },
   "handoffs": [
-    "Consume DB-002, DB-005, DB-006, and INTG-006 evidence; provide the deployed transaction lifecycle and money-boundary certification to QA-003 and RELEASE-005."
+    "Consume DB-002, DB-005, DB-006, and INTG-006 evidence; provide the deployed transaction lifecycle and money-boundary certification to QA-003 and RELEASE-005.",
+    "PENDING DB-005: add distributed DB-unique purchase idempotency on ticket_sales — no idempotency column or unique expression index exists in the active chain (20260821000000_reconcile_ticketing_foundation.sql as extended by DB-005); suggested partial unique index on ticket_sales(buyer_user_id, event_id, metadata->>'idempotency_key') or dedicated idempotency_key column; request-scoped dedup via findIdempotentPurchase is the local stopgap until the constraint lands."
   ]
 }
