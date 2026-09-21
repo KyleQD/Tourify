@@ -661,3 +661,26 @@ The dated sections below are append-only orchestration checkpoints. Present-tens
   and SOCIAL-004 lacks the required isolated two-member plus outsider
   Realtime/RLS run. No deployment, credential, branch-protection, or hosted
   database mutation occurred.
+
+## Local completion wave 30 — 2026-09-21
+
+- INTG-007 closed the plaintext credential gap in the shared tree: the token
+  vault is now an encrypted-only fail-closed boundary, the organization OAuth
+  callback persists encrypted envelopes only, and additive unapplied migration
+  20260921000000 revokes client-readable org token columns and nulls legacy
+  copies (CP-051). Providers stay disabled; handoffs cover the remaining
+  admin/venue/social legacy readers.
+- DB-006 classified all 52 remaining legacy events/artist_events callers (14
+  compatibility-gated, 38 deferred with named owners and contract rationale);
+  the six bounded hot paths remain canonical with zero legacy reads.
+- RELEASE-003 added a redacted GET/HEAD /readyz readiness contract and
+  loopback-only smoke, plus the published 99.9% monthly web/API SLO and
+  runbooks. Real Sentry DSN, uptime provider, on-call routing, and the 24-hour
+  staging soak stay owner-provisioned.
+- TICKET-005 certified replay-safe fail-closed refunds and request-scoped
+  purchase idempotency; the distributed DB-unique ticket-purchase index was
+  handed to DB-005.
+- Control plane closed at the Wave 30 SHA: 17 agents, 113 tasks, 0 warnings,
+  0 errors; 946 API routes and 429 migrations. Committed a1ca8603. Hosted
+  credential, exact-SHA staging, database-apply, and owner-decision gates
+  remain intentionally open.

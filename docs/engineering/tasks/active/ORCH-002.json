@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-16T19:20:36.990Z",
-  "updated_at": "2026-09-21T04:25:12.000Z",
+  "updated_at": "2026-09-21T15:20:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (43 Wave 28 path-level entries; 0 unresolved; 0 unexplained deletions)",
+  "working_tree_status": "clean Wave 30 commit a1ca8603; 0 unresolved; 0 unexplained deletions",
   "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
   "scope": {
     "in": [
@@ -83,12 +83,12 @@
       "2026-09-20 Wave 27 integration at cd57bbfb on release/clean-snapshot: DESIGN-035 verified against all acceptance criteria in real Chrome at 320/390/768/1440 and closed — one value prop and one account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed, rectangular clip-path-none radius-16px padded auth card, and usable keyboard focus/reduced-motion; gaps closed (duplicate CTAs, 44px touch targets, /artist/* bottom-nav exclusion). eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to baseline with 0 new errors. Task record moved to completed/; remaining authenticated /artist session and release-mode Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors.",
       "2026-09-20 Wave 28 closed ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034; focused artist tests passed 3/3 and token-registry tests passed 9/9. agents:generate now refreshes TASK_INDEX before topology generation, reconciling all five moves. The 43-entry wave ownership manifest has zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings. Final control-plane validation passed for 17 agents and 113 tasks with zero warnings and zero errors; focused lint, staged diff, script syntax, and worktree audit passed."
     ],
-    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
-    "last_run_at": "2026-09-21T02:54:40Z",
+    "last_run_sha": "a1ca86032f2bd74e3e32a039a30a680bf9004239",
+    "last_run_at": "2026-09-21T15:20:00Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Wave 29 cleared two stale local blockers without weakening hosted gates. RELEASE-005 now has a green full Vitest baseline (568 files, 5317 tests) and fresh evidence that no matching-SHA E2E or main-branch protection exists. SOCIAL-004 now passes local fast/focused checks with non-disclosing membership failures and deterministic reconnect/delivery/unread state; only the required deployed member/outsider Realtime-RLS run remains.",
+    "summary": "Wave 30 advanced four non-overlapping locally-progressable lanes on release/clean-snapshot: INTG-007 (encrypted social credential vault, provider remain disabled), DB-006 (all 52 legacy events/artist_events callers classified), RELEASE-003 (redacted /readyz readiness + published 99.9% web/API SLO and runbooks), and TICKET-005 (canonical refund replay certification + request-scoped purchase idempotency). Focused tests, lint, migration-chain/-validation, and control-plane checks all pass; hosted credential-, exact-SHA staging-, database-evidence-, and owner-decision gates remain deliberately open.",
     "completed": [
       "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
       "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
@@ -145,19 +145,43 @@
       "RELEASE-008 added server denial boundaries for artist music finance, both rights-intelligence roots, creator commons, and federation before hydration or API discovery.",
       "RELEASE-008 added server denial boundaries for cooperative, creator interoperability convention, public infrastructure, and multilateral treaty operations before hydration or API discovery; focused tests rose to 56 and the remaining direct-page families are interop institution/organization, protocol constitution, and treaty legacy/renewal.",
       "Consolidated verification passed 56 focused tests, public-surface, production-debug, cron inventory, and ownership invariants with unchanged 1,418-entry manifest integrity.",
-      "Consolidated verification passed 76 focused tests, public-surface, production-debug, cron inventory, the exact 56/56 admin registry, ownership generation, and the 112-task control plane; only two unrelated pre-existing trailing-space findings remain in user-owned files."
+      "Consolidated verification passed 76 focused tests, public-surface, production-debug, cron inventory, the exact 56/56 admin registry, ownership generation, and the 112-task control plane; only two unrelated pre-existing trailing-space findings remain in user-owned files.",
+      "Wave 30 lane INTG-007: lib/integrations/token-vault.ts is now an encrypted-only fail-closed boundary (no legacy plaintext dual-write; undecryptable/legacy envelopes resolve to null), the organization OAuth callback persists encrypted envelopes only, and additive forward-only migration 20260921000000 (unapplied, CP-051) revokes the client-readable plaintext columns and nulls legacy copies; 16 focused vault tests and 50/50 integrations tests pass, with admin/venue/social handoffs for the remaining legacy readers.",
+      "Wave 30 lane DB-006: exact scan classified all 52 remaining legacy events/artist_events callers as 14 compatibility-gated and 38 deferred with named owner + contract rationale (0 migrated among the 52; the six bounded hot paths carry zero legacy reads); no code change was required, adjacent dynamic-table findings recorded for later review.",
+      "Wave 30 lane RELEASE-003: new GET/HEAD /readyz redacted readiness route plus loopback-only smoke:readyz and a focused 6-test redaction suite; published the 99.9% monthly web/API SLO and runbooks covering uptime, Redis, auth, checkout, webhook, and elevated-error-rate alerts; real Sentry DSN, uptime provider, on-call routing, and the 24-hour staging soak remain owner-provisioned blockers recorded in HF-RELEASE-003-OWNER.",
+      "Wave 30 lane TICKET-005: canonical refund replay is now replay-safe and fail-closed (duplicate refunds return duplicate acknowledgements with zero side effects; ledger reads never infer row-absent from unreachable reads) and purchases are deduped request-scoped via findIdempotentPurchase; ticketing suite grew from 13 files/95 tests to 15 files/120 tests, with the distributed DB-unique idempotency gap handed to DB-005.",
+      "Consolidated Wave 30 verification passed: 20 focused files / 170 tests for ticketing+integrations plus the readyz and events_v2 suites (5 files/54), focused ESLint exit 0, git diff --check clean, check:migration-chain (296 files) and check:migration-validation (INTG-007 planned manifest) green, and agents:generate/agents:validate passed (17 agents, 113 tasks, 0 warnings, 0 errors) at the 946-route / 429-migration topology."
     ],
     "next_steps": [
-      "Hold RELEASE-008 surface work (page coverage complete); require owner decisions and resource predicates before resuming ADMIN-003 migrations; obtain hosted exact-SHA certification for QA-003, DB-008 hosted migration evidence, and a credentialed exact-SHA build for RELEASE-006.",
-      "Provision hosted Vercel/Supabase credentials, deploy an exact reviewed SHA to isolated staging, and run QA-003 without skips before any release promotion."
+      "Apply the INTG-007 migration + run the MFA check against an approved isolated Supabase staging target, then execute the SOCIAL-004 two-member-plus-outsider Realtime/RLS run and QA-003 exact-SHA certification on that same target once provisioned.",
+      "Sequence DB-005 to add the distributed DB-unique ticket purchase idempotency index; obtain hosted DB-008/DB-002 evidence and DB-006/DB-005 migration postflight evidence.",
+      "Provision hosted Vercel/Supabase credentials and an exact reviewed SHA staging deployment; run RELEASE-006 credentialed build, RELEASE-007 promotion, and QA-003 without skips before any release promotion."
     ],
     "blockers": [
-      "The full repository typecheck produced no diagnostics but did not finish within a bounded run, so no pass is claimed.",
-      "build:vercel completion is blocked at the production environment guard because the clean checkout has no .env* files; the six required variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET) are hosted/credential-gated and were not fabricated or copied.",
-      "QA-003 still lacks protected staging credentials, an exact deployed SHA run, hosted Stripe execution, and final P0/P1 defect disposition.",
-      "The Wave 28 path-level manifest contains 43 staged/working entries with 0 unresolved and 0 unexplained deletions; 33 candidate mappings and release-grade scanning still require confirmation before broader release promotion."
+      "Hosted gates remain: no approved isolated Supabase target, no exact-SHA Vercel staging deployment, no matching-SHA E2E, no main-branch protection, and no deployed QA-003/DB-008/SOCIAL-004/INTG-003 evidence.",
+      "ADMIN-003 resumes only after recorded owner decisions and resource predicates; INTG-007's migration is unapplied (CP-051 manual apply by Database); DB-005 lacks the distributed ticket-purchase idempotency index.",
+      "The full repository typecheck still did not finish within a bounded run, so no pass is claimed; RELEASE-006's credentialed build remains blocked on the six absent hosted variables."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-21T15:20:00.000Z",
+        "sha": "a1ca86032f2bd74e3e32a039a30a680bf9004239",
+        "summary": "Completed Wave 30: INTG-007 implemented the encrypted social credential vault boundary (never plaintext, fail-closed reads, additive unapplied migration 20260921000000 revoking client-readable token columns and nulling legacy copies, providers still disabled), DB-006 classified all 52 remaining legacy events/artist_events callers as 14 compatibility-gated and 38 deferred with owners, RELEASE-003 added the redacted GET/HEAD /readyz readiness route plus loopback-only smoke and published the 99.9% web/API SLO and runbooks with an owner handoff for the hosted Sentry/uptime/on-call/soak gates, and TICKET-005 certified replay-safe fail-closed refunds plus request-scoped purchase idempotency with the distributed DB-unique index handed to DB-005. Consolidated verification passed 5 focused files/54 tests plus 20 files/170 tests across ticketing+integrations, focused ESLint exit 0, git diff --check clean, migration chain (296 files) and validation (new INTG-007 planned manifest) green, and agents:generate/agents:validate reported 17 agents, 113 tasks, 0 warnings, 0 errors at the 946-route/429-migration topology. Committed as a1ca8603 with generated maps refreshed; no hosted mutation, credential fabrication, or release promotion occurred.",
+        "completed": [
+          "INTG-007 encrypted-only vault boundary, OAuth callback envelopes, additive migration + planned manifest, 3 lane handoffs",
+          "DB-006 full 52-file legacy caller classification (14 gated / 38 deferred) with owner + rationale",
+          "RELEASE-003 /readyz redacted readiness + smoke:readyz + SLO/runbook docs + owner handoff",
+          "TICKET-005 replay-safe fail-closed refunds + request-scoped purchase idempotency + DB-005 handoff",
+          "Control-plane generation and validation at the wave SHA (0 errors)"
+        ],
+        "next_steps": [
+          "Provision the approved isolated Supabase staging target and Vercel exact-SHA deployment to unblock the SOCIAL-004 Realtime/RLS, INTG-007/MFA apply, QA-003, DB-008/DB-002, and RELEASE-006/007 hosted gates.",
+          "Have DB-005 land the distributed ticket-purchase idempotency index and record migration postflight evidence."
+        ],
+        "blockers": [
+          "All remaining Wave 30 blockers are hosted-credential, exact-SHA staging, database-apply-evidence, or owner-decision bound."
+        ]
+      },
       {
         "at": "2026-09-21T04:25:12.000Z",
         "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
