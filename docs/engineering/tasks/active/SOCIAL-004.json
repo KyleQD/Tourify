@@ -6,17 +6,31 @@
   "priority": "P1",
   "owner_agent": "social",
   "created_at": "2026-09-09T09:35:18.124Z",
-  "updated_at": "2026-09-16T19:24:55.700Z",
+  "updated_at": "2026-09-21T04:22:42.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "working_tree_status": "dirty shared worktree; SOCIAL-004 edits isolated to messaging routes/client/helpers/tests and social task/state records",
   "goal": "Launch tenant-safe realtime messaging with membership enforcement, reconnect behavior, typing, presence, and durable read state",
   "scope": {
-    "in": [],
-    "out": []
+    "in": [
+      "Direct-message reads, sends, realtime topic handshake, typing, presence, and read state",
+      "Conversation membership and non-disclosure behavior",
+      "Reconnect, duplicate delivery, offline recovery, and unread-state determinism",
+      "Focused local messaging and RLS contract verification"
+    ],
+    "out": [
+      "Live Supabase data or migration changes",
+      "Fabricating two-user deployed staging evidence",
+      "Unrelated auth, account-management, venue, design-system, admin, or orchestrator changes"
+    ]
   },
   "working_set": [
-    "lib/",
-    "app/"
+    "app/messages/messages-page-client.tsx",
+    "app/api/messages/route.ts",
+    "app/api/messages/[conversationId]/",
+    "lib/messages/participant-auth.ts",
+    "lib/messaging/realtime-channel.ts",
+    "lib/messaging/realtime-state.ts",
+    "__tests__/messaging/"
   ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md",
@@ -38,7 +52,9 @@
       "npm run agents:validate",
       "npm run verify:fast -- --changed",
       "npm run typecheck",
-      "npx eslint --no-cache app/messages/messages-page-client.tsx app/api/messages/route.ts app/api/messages/[conversationId]/realtime/route.ts lib/messaging/realtime-channel.ts __tests__/messaging/realtime-channel.test.ts"
+      "npx eslint --no-cache app/messages/messages-page-client.tsx app/api/messages/route.ts app/api/messages/[conversationId]/realtime/route.ts lib/messaging/realtime-channel.ts __tests__/messaging/realtime-channel.test.ts",
+      "npx vitest run __tests__/messaging/realtime-channel.test.ts __tests__/messaging/realtime-determinism.test.ts __tests__/messaging/account-scope.test.ts __tests__/messaging/friends-and-send-schema.test.ts",
+      "NODE_OPTIONS='--max-old-space-size=8192' npx tsc --project /private/tmp/social004-tsconfig.json --noEmit --pretty false"
     ],
     "evidence": [
       "Focused messaging suite passed: 3 files, 20 tests.",
@@ -48,29 +64,38 @@
       "verify:fast -- --changed was blocked before task checks because the shared dirty worktree includes deleted, unrelated components/ui/use-mobile.tsx and hooks/use-mobile.tsx paths in its changed-file inventory.",
       "Focused eslint passed for all declared realtime messaging files.",
       "Scoped TypeScript diagnostics found and repaired three nullable profile-field errors in app/messages/messages-page-client.tsx; the remaining scoped invocation errors are outside messaging in lib/auth/admin-context.ts, lib/services/account-management.service.ts, and lib/services/venue.service.ts.",
-      "Full npm run typecheck exceeded the available run window without diagnostics and was stopped; no messaging diagnostics were emitted."
+      "Full npm run typecheck exceeded the available run window without diagnostics and was stopped; no messaging diagnostics were emitted.",
+      "2026-09-20 clean-snapshot rerun: focused messaging suite passed 4 files / 24 tests, including deterministic duplicate/reconnect/unread behavior and static RLS/non-disclosure contracts.",
+      "2026-09-20 clean-snapshot rerun: focused ESLint and git diff --check passed for all declared messaging paths.",
+      "2026-09-20 clean-snapshot rerun: verify:fast -- --changed passed; the former deleted use-mobile path blocker is disproven.",
+      "2026-09-20 scoped TypeScript rerun emitted no messaging diagnostics; remaining diagnostics are pre-existing in lib/auth/admin-context.ts, lib/services/account-management.service.ts, and lib/services/venue.service.ts.",
+      "Unauthorized existing conversations now return the same 404 response as missing conversations across read, topic/read-state, accept, context, and decline operations, preventing an identifier-existence oracle.",
+      "Realtime delivery now upserts by message id and refetches on SUBSCRIBED, while conversation-list unread state uses persisted is_read/read_at fields.",
+      "No deployed two-member plus outsider Supabase Realtime/RLS run was performed; acceptance remains partial.",
+      "Combined post-change full Vitest passed: 568 files passed, 2 skipped; 5317 tests passed, 8 skipped; exit 0 in 23.04 seconds.",
+      "Control-plane validation passed: 17 agents, 113 tasks, 0 errors; 8 generated-map SHA warnings remain for orchestrator reconciliation."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-11T18:02:48Z",
+    "last_run_sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+    "last_run_at": "2026-09-21T04:25:12.000Z",
     "result": "partial"
   },
   "progress": {
-    "summary": "Production-readiness audit promoted SOCIAL-004 to a P1 core launch dependency. Closure requires server/data-boundary membership enforcement, cross-user and cross-tenant denials, reconnect/read-state behavior, and two-user staging evidence.",
+    "summary": "Local SOCIAL-004 reverification is clean: focused tests/lint and the changed-file fast wrapper pass, membership failures do not disclose conversation existence, and reconnect/duplicate/unread state is deterministic. The task remains active solely because deployed two-member plus outsider Realtime/RLS validation is an explicit acceptance criterion.",
     "completed": [
       "Added membership-authorized opaque Realtime topic handshake for each conversation.",
       "Added membership-authorized read-receipt endpoint using existing messages.is_read/read_at columns; no schema or migration changes.",
       "Extended the messages page with RLS-backed message inserts/updates plus typing broadcast, conversation presence, connection status, and Seen state.",
-      "Added focused coverage for opaque topic stability and conversation-id non-disclosure."
+      "Added focused coverage for opaque topic stability and conversation-id non-disclosure.",
+      "Removed the unauthorized-conversation existence oracle across read, realtime/read-state, accept, context, and decline routes.",
+      "Added message-id upsert semantics, reconnect refetch, and persisted unread/read-state handling.",
+      "Added focused deterministic delivery and RLS/non-disclosure regression coverage; local fast verification passes."
     ],
     "next_steps": [
-      "Resolve the shared missing-file drift and rerun the fast wrapper.",
-      "Resolve the unrelated repository type errors and rerun the full typecheck.",
-      "Validate with two authenticated conversation members that inserts, typing, presence, and read receipts are isolated to the authorized conversation."
+      "On an approved isolated Supabase staging target, validate with two authenticated conversation members plus a non-member that reads, inserts, topics, typing, presence, reconnect recovery, and read receipts are isolated to the authorized conversation.",
+      "Record target/migration version, fixture identities, member outcomes, outsider denials, and cleanup evidence before completion."
     ],
     "blockers": [
-      "The shared dirty worktree makes verify:fast fail before task checks because unrelated deleted components/ui/use-mobile.tsx and hooks/use-mobile.tsx entries are passed to ESLint.",
-      "The full repository typecheck exceeded the available run window; scoped messaging diagnostics pass after the profile nullability repair, while unrelated auth/account-management/venue errors remain.",
-      "No connected Supabase two-user session was available for live Realtime/RLS verification."
+      "No approved isolated Supabase target with two member sessions plus an outsider session was available for the required deployed Realtime/RLS acceptance run."
     ],
     "checkpoints": [
       {
@@ -133,8 +158,42 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-21T04:22:42.000Z",
+        "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+        "summary": "Reverified SOCIAL-004 locally on the clean release snapshot. Cleared the stale deleted-hook/fast-wrapper blocker; fixed unauthorized conversation-existence disclosure and deterministic duplicate/reconnect/unread behavior; focused tests, lint, diff check, and verify:fast pass. Scoped TypeScript emits no messaging diagnostics. Task remains active because no deployed two-member plus outsider Realtime/RLS run was available.",
+        "changed_paths": [
+          "app/api/messages/route.ts",
+          "app/api/messages/[conversationId]/realtime/route.ts",
+          "app/api/messages/[conversationId]/accept/route.ts",
+          "app/api/messages/[conversationId]/context/route.ts",
+          "app/api/messages/[conversationId]/decline/route.ts",
+          "app/messages/messages-page-client.tsx",
+          "lib/messaging/realtime-state.ts",
+          "__tests__/messaging/realtime-determinism.test.ts",
+          "docs/engineering/agents/social/STATE.md",
+          "docs/engineering/tasks/active/SOCIAL-004.json"
+        ],
+        "verification": [
+          "Focused messaging Vitest: 4 files, 24 tests passed.",
+          "Focused ESLint: passed.",
+          "git diff --check: passed.",
+          "verify:fast -- --changed: passed; 2 files / 7 tests in the current changed-file selection.",
+          "Scoped TypeScript: no messaging diagnostics; unrelated auth/account/venue diagnostics remain outside scope.",
+          "agents:validate: 17 agents, 113 tasks, 0 errors; 8 generated-map SHA warnings.",
+          "Combined full Vitest after both Wave 29 lanes: 568 files and 5317 tests passed; 2 files and 8 tests skipped."
+        ],
+        "next_steps": [
+          "Run and retain the required deployed two-member plus outsider Realtime/RLS evidence on an approved isolated target."
+        ],
+        "blockers": [
+          "Required live target and authenticated member/outsider sessions were unavailable."
+        ]
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [
+    "Database/Auth + Release: provide an approved isolated Supabase target and two conversation-member sessions plus one outsider session; record migration version, fixture manifest, Realtime/read-state outcomes, outsider denials, and cleanup evidence."
+  ]
 }

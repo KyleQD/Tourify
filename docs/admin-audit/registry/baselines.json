@@ -11,8 +11,8 @@
       "lib/admin/api-route-registry.ts",
       "scripts/ci/admin-route-registry-baseline.json"
     ],
-    "verifiedAtCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
-    "sourceSha256": "82294fb61fcb689594584b0c935c3dcdc12f92e429fdd93a7eb771d497c574f8"
+    "verifiedAtCommit": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+    "sourceSha256": "ad6b02b049916fae75346e3904f29b7c6341d8194b7c2d4657c618070e8be2c8"
   },
   {
     "sliceId": "ADM-BASE-002",
@@ -26,8 +26,8 @@
       "scripts/ci/check-migration-validation.mjs",
       "__tests__/admin/rls-persona-matrix.test.ts"
     ],
-    "verifiedAtCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
-    "sourceSha256": "68d3bff36b30d07f88cd1375a77947975be806f7d1849d07a92e7573a7311fb5"
+    "verifiedAtCommit": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+    "sourceSha256": "1d10119e79e8bb6f68b8505ea5fb6034b1d11343196b5ef5d93a51ebe699b68b"
   },
   {
     "sliceId": "ADM-BASE-003",

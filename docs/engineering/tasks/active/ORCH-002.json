@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-16T19:20:36.990Z",
-  "updated_at": "2026-09-21T02:49:35.000Z",
+  "updated_at": "2026-09-21T04:25:12.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (43 Wave 28 path-level entries; 0 unresolved; 0 unexplained deletions)",
   "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
@@ -88,7 +88,7 @@
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Wave 28 completed five locally finishable tasks: ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034. The three audit records closed after acceptance reconciliation; ARTIST-003 gained focused signing-flow coverage and a generated-Json type correction; DESIGN-034 added a reviewed token-registry CI drift gate with nine focused tests. Hosted production gates remain unchanged.",
+    "summary": "Wave 29 cleared two stale local blockers without weakening hosted gates. RELEASE-005 now has a green full Vitest baseline (568 files, 5317 tests) and fresh evidence that no matching-SHA E2E or main-branch protection exists. SOCIAL-004 now passes local fast/focused checks with non-disclosing membership failures and deterministic reconnect/delivery/unread state; only the required deployed member/outsider Realtime-RLS run remains.",
     "completed": [
       "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
       "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
@@ -158,6 +158,24 @@
       "The Wave 28 path-level manifest contains 43 staged/working entries with 0 unresolved and 0 unexplained deletions; 33 candidate mappings and release-grade scanning still require confirmation before broader release promotion."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-21T04:25:12.000Z",
+        "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+        "summary": "Advanced RELEASE-005 and SOCIAL-004 through all currently available local evidence. Corrected the stale venue site-map source-inspection contract, proved the historical MFA timeout stale, and ran the combined full Vitest suite green (568 files, 5317 tests; 2 files/8 tests skipped). Hardened messaging against conversation-existence disclosure, duplicate POST/Realtime delivery, reconnect gaps, and incorrect unread state; 24 focused messaging tests pass and verify:fast is clean. Fresh read-only GitHub evidence confirms no matching-SHA E2E and no main branch protection.",
+        "completed": [
+          "Cleared RELEASE-005's local Vitest blocker without modifying production behavior or release enforcement.",
+          "Cleared SOCIAL-004's stale dirty-worktree verifier blocker and added focused privacy/reconnect regression coverage.",
+          "Confirmed hosted credentials remain absent and made no deployment, branch-protection, credential, or hosted database mutation."
+        ],
+        "next_steps": [
+          "Provide an approved isolated Supabase target and two member plus one outsider sessions for SOCIAL-004's final Realtime/RLS acceptance run.",
+          "Provision exact-SHA staging, successful hosted E2E, required main checks/branch protection, and final go/no-go evidence for RELEASE-005."
+        ],
+        "blockers": [
+          "SOCIAL-004 requires deployed member/outsider Realtime and RLS evidence.",
+          "RELEASE-005 requires hosted exact-SHA E2E, branch protection, deterministic build/typecheck and the final promotion evidence bundle."
+        ]
+      },
       {
         "at": "2026-09-21T02:49:35.000Z",
         "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",

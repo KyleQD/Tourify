@@ -300,6 +300,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (conversationId) {
+      // Resolve and verify the acting account before looking up the target so
+      // invalid account hints cannot be used as a conversation-existence oracle.
+      const acting = await resolveActingAccountIds(
+        userId,
+        request.headers.get('x-acting-profile-id') ?? searchParams.get('acting_account_id'),
+      )
+      if (acting.error) return NextResponse.json({ error: acting.error }, { status: 403 })
+
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
         .select('participant_1, participant_2')
@@ -310,15 +318,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
       }
 
-      // VEN-095: acting-account aware membership.
-      const acting = await resolveActingAccountIds(
-        userId,
-        request.headers.get('x-acting-profile-id') ?? searchParams.get('acting_account_id'),
-      )
-      if (acting.error) return NextResponse.json({ error: acting.error }, { status: 403 })
-
       if (!isConversationParticipant(conversation, acting.ids))
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
 
       const rawLimit = Number(searchParams.get('limit') ?? '50')
       const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 100)
@@ -436,7 +437,9 @@ export async function GET(request: NextRequest) {
           id,
           content,
           created_at,
-          sender_id
+          sender_id,
+          is_read,
+          read_at
         )
       `
     const conversationListSelectBase = `
@@ -462,7 +465,9 @@ export async function GET(request: NextRequest) {
           id,
           content,
           created_at,
-          sender_id
+          sender_id,
+          is_read,
+          read_at
         )
       `
 

@@ -16,8 +16,8 @@
       "Organization and actor context come from trusted server state.",
       "Every mutation declares capability, target, validation, idempotency, audit, and stable errors."
     ],
-    "lastVerifiedCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
-    "sourceSha256": "a42fdbd6c58f3c5963b0974cd6339f390e6c19f00b53fe303a55d63275ae0a81"
+    "lastVerifiedCommit": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+    "sourceSha256": "dc260b7bf7d67952fd9c75a20391bd89ebe164c3ab61b2df5dc4ab21f874603b"
   },
   {
     "referenceId": "ADM-REF-002",

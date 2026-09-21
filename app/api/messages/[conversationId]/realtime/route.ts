@@ -26,7 +26,7 @@ async function getAuthorizedConversation(request: NextRequest, conversationId: s
 
   if (error || !conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   if (!isConversationParticipant(conversation, acting.ids)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   }
 
   return { ctx, acting, conversation }

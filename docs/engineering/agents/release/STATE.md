@@ -371,3 +371,60 @@ required e2e governance remain promotion-scoped.
   hosted/credential-gated (exact-SHA CI/Vercel build with the HTTPS origin plus
   the six required variables). RELEASE-006 stays active, and
   `npm run agents:validate` passes at `59971a9e`.
+
+## RELEASE-005 local Vitest closure — 2026-09-21
+
+- At `ddf3b43d482900c6f7c6d8356e122f59885224c6`, the previously recorded MFA
+  backup-code timeout is stale: the isolated integration file passed all 8
+  tests, with the slowest backup-code redemption case completing in 5.425
+  seconds.
+- The `PublicSiteMapViewer` failure reproduced as a stale source-inspection
+  path, not a product regression. The 2026-09-19 venue-tree consolidation moved
+  the implementation to `app/venue/components/site-map-viewer.tsx` and left
+  `components/venue/site-map-viewer.tsx` as a compatibility export. The contract
+  test now verifies both the canonical implementation and compatibility export;
+  the two historical failure files pass together (2 files, 11 tests).
+- Full local Vitest passed on Node v24.19.0/npm 11.17.0: 567 files passed, 2
+  skipped; 5,313 tests passed, 8 skipped; exit 0 in 24.45 seconds. This removes
+  the local Vitest blocker only.
+- Focused ESLint and whitespace checks passed. Agent control-plane validation
+  reported 17 agents, 113 tasks, 0 errors, and the expected 8 generated-map SHA
+  warnings; maps and `TASK_INDEX.json` were intentionally not refreshed.
+- RELEASE-005 remains active. Jest configuration and deterministic
+  typecheck/build evidence are not completed by this slice, and hosted exact-SHA
+  QA-003, branch protection/required checks, deployment blocking, migration and
+  security evidence, approver, deployment IDs, and rollback point remain
+  required. No workflow, deployment, branch-protection, credential, generated
+  map, or shared task-index change was made.
+- After the concurrent SOCIAL-004 regression file landed, the combined suite
+  was rerun: 568 files passed, 2 skipped; 5,317 tests passed, 8 skipped; exit 0
+  in 23.04 seconds. Fresh read-only GitHub evidence remains blocked: the newest
+  ten `e2e.yml` runs are failures from 2026-09-05, none targets `ddf3b43d`, and
+  the main-branch protection endpoint still returns 404 `Branch not protected`.
+
+## RELEASE-005 local Jest closure — 2026-09-21
+
+- The reproduced full Jest baseline had 7 failed/107 passed suites and 8
+  failed/672 passed tests. Five suites imported Vitest but matched Jest's broad
+  `lib/**` patterns; `jest.config.cjs` now explicitly excludes those auth,
+  marketplace, and music suites. They pass under their owning Vitest runner: 5
+  files and 30 tests.
+- The marketplace checkout failures were stale fixtures. The tests now mock the
+  existing guest-checkout capability guard and include the route's mandatory
+  idempotency keys, allowing the intended pricing, guest, payout-readiness, and
+  external-listing contracts to execute. Runtime checkout and idempotency code
+  is unchanged.
+- The music-royalty webhook's canonical `advanced_music_webhooks` capability is
+  intentionally disabled and cannot be overridden by the legacy environment
+  approval alone. The suite now proves the 503 denial before database access,
+  then uses a test-only approval mock to exercise endpoint-secret, durable
+  claim, duplicate, and persistence-failure branches. Runtime webhook and
+  capability code is unchanged.
+- Focused Jest passed 2 suites/18 tests. Full Jest passed all 109 suites and 681
+  tests with no failures or skips in 4.199 seconds. Focused ESLint and
+  changed-path whitespace checks passed.
+- RELEASE-005 remains active: deterministic production typecheck/build, the
+  rest of the local release checks, hosted exact-SHA QA-003, branch protection,
+  deployment gating, and the final go/no-go evidence bundle remain outstanding.
+  No deployment, credential, workflow, generated-map, or `TASK_INDEX.json`
+  mutation was made.

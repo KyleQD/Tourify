@@ -49,6 +49,7 @@ import {
   isAllowedAttachmentMime,
   type MessageAttachment,
 } from '@/lib/messaging/attachments'
+import { upsertMessageById } from '@/lib/messaging/realtime-state'
 import { MessagesSkeleton } from './messages-skeleton'
 
 interface Message {
@@ -95,6 +96,8 @@ interface Conversation {
     content: string
     created_at: string
     sender_id: string
+    is_read?: boolean
+    read_at?: string | null
   } | null
 }
 
@@ -424,10 +427,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
               full_name: 'Loading...',
               avatar_url: '',
             }
-            setMessages((prev) => {
-              if (prev.some((message) => message.id === incoming.id)) return prev
-              return [...prev, { ...incoming, sender: senderShell }]
-            })
+            setMessages((prev) => upsertMessageById(prev, { ...incoming, sender: senderShell }))
             if (incoming.sender_id !== effectiveUserId && !cached) void fetchSenderDetails(incoming.sender_id)
             if (incoming.sender_id !== effectiveUserId) {
               void fetch(`/api/messages/${selectedConversation}/realtime`, {
@@ -466,6 +466,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       messagesChannel.subscribe(async (subscriptionStatus) => {
         if (subscriptionStatus === 'SUBSCRIBED') {
           setRealtimeStatus('connected')
+          await fetchMessages(selectedConversation)
           await messagesChannel.track({ userId: effectiveUserId, onlineAt: new Date().toISOString() })
         } else if (subscriptionStatus === 'CHANNEL_ERROR' || subscriptionStatus === 'TIMED_OUT') {
           setRealtimeStatus('disconnected')
@@ -490,14 +491,27 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
         messagesChannelRef.current = null
       }
     }
-  }, [effectiveUserId, canAccessMessages, selectedConversation, fetchSenderDetails, actingHeaders])
+  }, [effectiveUserId, canAccessMessages, selectedConversation, fetchMessages, fetchSenderDetails, actingHeaders])
 
   useEffect(() => {
     if (!selectedConversation || !canAccessMessages) return
     void fetch(`/api/messages/${selectedConversation}/realtime`, {
       method: 'POST', credentials: 'include', headers: { ...actingHeaders },
-    }).then(() => undefined).catch(() => undefined)
-  }, [selectedConversation, canAccessMessages, actingHeaders])
+    }).then((response) => {
+      if (!response.ok) return
+      const readAt = new Date().toISOString()
+      setConversations((prev) => prev.map((conversation) =>
+        conversation.id === selectedConversation
+          && conversation.last_message
+          && conversation.last_message.sender_id !== effectiveUserId
+          ? {
+              ...conversation,
+              last_message: { ...conversation.last_message, is_read: true, read_at: readAt },
+            }
+          : conversation,
+      ))
+    }).catch(() => undefined)
+  }, [selectedConversation, canAccessMessages, effectiveUserId, actingHeaders])
 
   useEffect(() => {
     if (!effectiveUserId || !canAccessMessages) return
@@ -711,9 +725,10 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
           setSelectedConversation(conversationId)
           await fetchConversations()
           setMessages((prev) => {
+            const delivered = { ...result.message, attachments: attachmentsToSend } as Message
             if (selectedConversation && conversationId === selectedConversation)
-              return [...prev, { ...result.message, attachments: attachmentsToSend }]
-            return [{ ...result.message, attachments: attachmentsToSend }]
+              return upsertMessageById(prev, delivered)
+            return [delivered]
           })
         }
       } else {
@@ -1035,7 +1050,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
 
                     const isSelected = selectedConversation === conversation.id
                     const lastMessage = conversation.last_message
-                    const isUnread = lastMessage && lastMessage.sender_id !== effectiveUserId
+                    const isUnread = lastMessage && lastMessage.sender_id !== effectiveUserId && !lastMessage.is_read
 
                     return (
                       <button

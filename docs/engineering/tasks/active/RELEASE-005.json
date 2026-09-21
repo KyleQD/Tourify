@@ -6,21 +6,28 @@
   "priority": "P0",
   "owner_agent": "release",
   "created_at": "2026-09-09T09:35:24.034Z",
-  "updated_at": "2026-09-16T19:24:55.573Z",
+  "updated_at": "2026-09-21T04:28:49Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "working_tree_status": "dirty (task-owned test-runner and stale-fixture corrections; local Vitest and Jest closure 2026-09-21)",
   "goal": "Require a clean install, green tests, deterministic build, security gates, and matching-SHA deployed E2E before main can promote to production",
   "scope": {
     "in": [],
     "out": []
   },
   "working_set": [
-    ".github/workflows/e2e.yml"
+    ".github/workflows/e2e.yml",
+    "__tests__/logistics/site-map-ops-upgrade.test.ts",
+    "jest.config.cjs",
+    "lib/marketplace/__tests__/checkout-p6.test.ts",
+    "app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts"
   ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md",
     "docs/engineering/agents/release/QUESTIONS.md",
-    "docs/engineering/DECISIONS.md"
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/active/MKT-004.json",
+    "docs/engineering/tasks/active/RELEASE-008.json",
+    "docs/engineering/tasks/active/INTG-006.json"
   ],
   "acceptance_criteria": [
     "The current three Vitest failures, two Jest configuration failures, and production build/typecheck stall are resolved",
@@ -31,32 +38,59 @@
   ],
   "verification": {
     "tier": "release",
-    "commands": [],
+    "commands": [
+      "npx vitest run __tests__/integrations/mfa.service.test.ts --reporter=verbose",
+      "npx vitest run __tests__/logistics/site-map-ops-upgrade.test.ts --reporter=verbose",
+      "npx vitest run __tests__/integrations/mfa.service.test.ts __tests__/logistics/site-map-ops-upgrade.test.ts --reporter=verbose",
+      "npm run test:unit -- --reporter=dot",
+      "npx jest --runInBand lib/marketplace/__tests__/music-commerce-boundary.test.ts lib/music/__tests__/music-commerce-boundary.test.ts lib/auth/__tests__/acting-context.test.ts lib/auth/__tests__/request-public-origin.test.ts lib/auth/__tests__/tourify-auth-helpers.test.ts lib/marketplace/__tests__/checkout-p6.test.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts",
+      "npx vitest run lib/marketplace/__tests__/music-commerce-boundary.test.ts lib/music/__tests__/music-commerce-boundary.test.ts lib/auth/__tests__/acting-context.test.ts lib/auth/__tests__/request-public-origin.test.ts lib/auth/__tests__/tourify-auth-helpers.test.ts --reporter=dot",
+      "npm test -- --runInBand",
+      "npx eslint jest.config.cjs lib/marketplace/__tests__/checkout-p6.test.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts"
+    ],
     "evidence": [
       "Read-only source preflight at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b: full Vitest is not green (5017 passed, 8 skipped, 2 failed across 535 files).",
       "The two failures are __tests__/integrations/mfa.service.test.ts backup-code bcrypt timeout and __tests__/logistics/site-map-ops-upgrade.test.ts expecting PublicSiteMapViewer.",
       "Hosted E2E workflow has no run for candidate SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b; the latest 20 listed runs failed, including run 33990768961 failing both Vitest and Playwright jobs.",
       "Candidate SHA check-runs contain no E2E result; source e2e.yml remains pull_request/manual-only and the hosted workflow cannot prove a post-merge main deployment SHA.",
       "GET /repos/KyleQD/Tourify/branches/main/protection returned 404: main is not branch-protected and no required-check enforcement evidence exists.",
-      "npm run agents:validate passed: 17 agents, 99 tasks, 0 warnings, 0 errors; changed-path diff check passed. No workflow, deployment, or branch-protection changes were made."
+      "npm run agents:validate passed: 17 agents, 99 tasks, 0 warnings, 0 errors; changed-path diff check passed. No workflow, deployment, or branch-protection changes were made.",
+      "At SHA ddf3b43d482900c6f7c6d8356e122f59885224c6, the isolated MFA suite passed all 8 tests. The historical bcrypt timeout is stale on this HEAD; the slowest backup-code redemption case completed in 5.425 seconds without a timeout.",
+      "The isolated site-map contract reproduced 1 failure because the 2026-09-19 venue-tree consolidation moved the implementation to app/venue/components/site-map-viewer.tsx while the source-inspection test still read the legacy compatibility export. The test now verifies the canonical PublicSiteMapViewer implementation and the compatibility re-export; both historical suites pass together (2 files, 11 tests).",
+      "Full local Vitest at SHA ddf3b43d482900c6f7c6d8356e122f59885224c6 passed: 567 files passed, 2 skipped; 5313 tests passed, 8 skipped; exit 0 in 24.45 seconds on Node v24.19.0 and npm 11.17.0. This clears the local Vitest blocker only; no hosted, deployment, or branch-protection claim is implied.",
+      "After the concurrent SOCIAL-004 regression test landed, the combined full suite was rerun successfully: 568 files passed, 2 skipped; 5317 tests passed, 8 skipped; exit 0 in 23.04 seconds. Focused messaging tests also passed 24/24.",
+      "Fresh read-only GitHub evidence on 2026-09-20: the newest 10 e2e.yml runs are still failures from 2026-09-05 (newest run 33990768961); none targets ddf3b43d. GET /repos/KyleQD/Tourify/branches/main/protection still returns 404 Branch not protected.",
+      "Focused ESLint and git diff --check passed for the changed test and records. npm run agents:validate reported 17 agents, 113 tasks, 0 errors and 8 expected generated-map SHA warnings; generated maps and TASK_INDEX were intentionally not refreshed in this local slice.",
+      "The reproduced full Jest baseline had 7 failed and 107 passed suites, with 8 failed and 672 passed tests. Five failures were runner-ownership errors: Vitest suites under lib/auth, lib/marketplace, and lib/music were collected by Jest. The remaining 8 test failures were stale checkout and music-royalty webhook fixtures.",
+      "jest.config.cjs now explicitly assigns the five Vitest-importing suites away from Jest. A focused command naming all seven previously failing paths ran only the two Jest-owned suites and passed 18/18 tests; the five reassigned suites passed under Vitest (5 files, 30 tests).",
+      "Checkout fixtures now provide the existing guest-capability mock and required idempotency keys. Music-royalty webhook tests retain the production canonical advanced-webhook deny gate, prove its 503 response before database access, and use a test-only approval mock solely to exercise signature and durable receipt behavior. No runtime route, capability manifest, or idempotency implementation changed.",
+      "Full local Jest at SHA ddf3b43d482900c6f7c6d8356e122f59885224c6 passed: 109 suites and 681 tests, 0 failures or skips, exit 0 in 4.199 seconds. Focused ESLint and changed-path whitespace checks passed."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-14T08:15:00Z",
+    "last_run_sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+    "last_run_at": "2026-09-21T04:28:49Z",
     "result": "blocked"
   },
   "progress": {
-    "summary": "Production-readiness audit promoted RELEASE-005 to P0. The current gate is three Vitest failures, two Jest configuration failures, deterministic build/typecheck completion, QA-003 matching-SHA certification, branch protection, and release evidence; the stale 27-failure wording is retired.",
-    "completed": [],
+    "summary": "Local Vitest and Jest are green at ddf3b43d. Jest now excludes five explicitly Vitest-owned suites, and stale marketplace checkout and royalty-webhook fixtures reflect the current idempotency and canonical capability gates without production changes. RELEASE-005 remains active because deterministic typecheck/build and all hosted enforcement, exact-SHA certification, deployment, approval, and rollback evidence are not complete.",
+    "completed": [
+      "Reproduced both historically recorded Vitest failures with isolated commands at ddf3b43d.",
+      "Confirmed the MFA bcrypt timeout is stale on current HEAD and corrected the site-map contract test after the canonical venue-tree move.",
+      "Ran the complete local Vitest suite successfully: 567 passed files, 2 skipped; 5313 passed tests, 8 skipped.",
+      "Assigned five Vitest-importing suites explicitly away from Jest and proved all five pass under Vitest (30/30 tests).",
+      "Updated only checkout and royalty-webhook mocks/fixtures for current guest capability, mandatory idempotency, canonical launch-denial, and durable receipt contracts.",
+      "Ran the complete local Jest suite successfully: 109 suites and 681 tests passed with no failures or skips."
+    ],
     "next_steps": [
-      "Resolve the MFA bcrypt timeout and PublicSiteMapViewer test failures, then rerun the full Vitest suite on a clean candidate SHA.",
+      "Complete and record the remaining local release evidence for deterministic typecheck/build, clean install, lint, migrations, service-role audit, and security checks on the candidate SHA.",
       "Obtain a successful hosted E2E run for the exact candidate SHA after the workflow's post-merge/matching-SHA contract is satisfied.",
       "Have the repository owner provision branch protection on main and record e2e.yml as a required check; do not change this from the local task.",
       "Re-run the preflight and close RELEASE-005 only with hosted enforcement evidence."
     ],
     "blockers": [
-      "Full Vitest baseline is not green: two failures remain.",
+      "The composite local acceptance criterion is not fully proved: deterministic production typecheck/build evidence remains outstanding.",
       "No matching-SHA hosted E2E result exists; the latest listed hosted runs failed.",
-      "main is not branch-protected (GitHub API returned 404), so required-check enforcement is unverified."
+      "main branch protection and the complete required-check set are not verified or enforced.",
+      "No final go/no-go record yet links the exact release SHA, CI/E2E runs, deployment IDs, migration evidence, approver, and rollback point."
     ],
     "checkpoints": [
       {
@@ -81,6 +115,46 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-21T04:20:52Z",
+        "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+        "summary": "Closed RELEASE-005's local Vitest blocker. The MFA suite passed in isolation (8/8), proving the recorded bcrypt timeout stale. The site-map suite reproduced one stale path assertion after the canonical venue component moved from components/venue to app/venue; the contract test now checks the canonical implementation plus the legacy compatibility export. The two focused files passed together (11/11), then the complete Vitest suite passed (567 files passed, 2 skipped; 5313 tests passed, 8 skipped; 24.45 seconds).",
+        "completed": [
+          "Expanded the working set to __tests__/logistics/site-map-ops-upgrade.test.ts because the recorded failure required direct reproduction and its inspected implementation path had moved.",
+          "Preserved production code and corrected only the stale source-inspection contract.",
+          "Recorded exact local commands, SHA, toolchain, counts, duration, and exit status.",
+          "Validated the task JSON, focused ESLint, whitespace, and the agent control plane; validation had 0 errors and 8 expected generated-map SHA warnings.",
+          "Re-ran the full suite after concurrent SOCIAL-004 coverage landed: 568 files and 5317 tests passed; 2 files and 8 tests skipped.",
+          "Refreshed live GitHub evidence without mutation: no matching-SHA E2E exists, the latest listed E2E runs failed, and main remains unprotected."
+        ],
+        "next_steps": [
+          "Finish the remaining local release checks and obtain hosted exact-SHA QA-003, required-check enforcement, deployment, approver, migration, and rollback evidence before closure."
+        ],
+        "blockers": [
+          "Hosted exact-SHA E2E certification is absent.",
+          "Branch protection and production deployment blocking are not verified.",
+          "The final go/no-go evidence bundle is incomplete."
+        ]
+      },
+      {
+        "at": "2026-09-21T04:28:49Z",
+        "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+        "summary": "Closed RELEASE-005's local Jest blocker without changing production behavior. Five Vitest-importing suites are now explicitly excluded from Jest and pass under Vitest (5 files, 30 tests). Checkout fixtures supply the current guest-capability mock and required idempotency keys. The royalty webhook suite proves the canonical 503 deny gate and uses a test-only approval mock for signature/receipt branches. The focused Jest rerun passed 18/18 and full Jest passed 109 suites/681 tests.",
+        "completed": [
+          "Expanded the working set only to jest.config.cjs and the two stale Jest fixture suites after reproducing their failures.",
+          "Preserved marketplace checkout, webhook, launch-capability, and idempotency runtime code unchanged.",
+          "Focused Jest, owning-runner Vitest, full Jest, focused ESLint, and changed-path whitespace checks passed."
+        ],
+        "next_steps": [
+          "Finish deterministic production typecheck/build and the remaining local release gates, then obtain hosted exact-SHA certification and enforcement evidence."
+        ],
+        "blockers": [
+          "Deterministic production typecheck/build evidence is incomplete.",
+          "Hosted exact-SHA E2E certification is absent.",
+          "Branch protection and production deployment blocking are not verified.",
+          "The final go/no-go evidence bundle is incomplete."
+        ]
       }
     ]
   },

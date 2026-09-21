@@ -37,6 +37,7 @@ jest.mock("@/lib/marketplace/fee-calculator", () => ({
 }))
 jest.mock("@/lib/marketplace/require-marketplace-enabled", () => ({
   requireMarketplaceEnabled: jest.fn().mockReturnValue(null),
+  requireGuestCheckoutEnabled: jest.fn().mockReturnValue(null),
   requirePublicDiscoveryEnabled: jest.fn().mockReturnValue(null),
 }))
 jest.mock("@/lib/marketplace/printful-fulfillment", () => ({
@@ -144,6 +145,7 @@ describe("checkout — server-authoritative pricing", () => {
     const request = {
       json: async () => ({
         lines: [{ listingId: LISTING_ID, quantity: 1 }],
+        idempotencyKey: "checkout-server-price-1",
         // Attacker tries to inject a different price — this field doesn't exist in the schema
         // and even if it did, the server should use its own price
       }),
@@ -180,6 +182,7 @@ describe("checkout — guest checkout flow", () => {
     const request = {
       json: async () => ({
         lines: [{ listingId: LISTING_ID, quantity: 1 }],
+        idempotencyKey: "checkout-guest-missing-email-1",
         // no guestEmail
       }),
       nextUrl: { origin: "https://test.example.com" },
@@ -216,6 +219,7 @@ describe("checkout — guest checkout flow", () => {
       json: async () => ({
         lines: [{ listingId: LISTING_ID, quantity: 1 }],
         guestEmail: "guest@example.com",
+        idempotencyKey: "checkout-guest-1",
       }),
       nextUrl: { origin: "https://test.example.com" },
     } as any
@@ -494,7 +498,10 @@ describe("checkout — seller payout ineligibility", () => {
     mockedServiceRole.mockReturnValue(makeSupabaseMock() as any)
 
     const request = {
-      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }] }),
+      json: async () => ({
+        lines: [{ listingId: LISTING_ID, quantity: 1 }],
+        idempotencyKey: "checkout-payout-readiness-1",
+      }),
       nextUrl: { origin: "https://test.example.com" },
     } as any
 
@@ -517,7 +524,10 @@ describe("checkout — external listing guard", () => {
     mockedServiceRole.mockReturnValue(makeSupabaseMock({ listing_kind: "external" }) as any)
 
     const request = {
-      json: async () => ({ lines: [{ listingId: LISTING_ID, quantity: 1 }] }),
+      json: async () => ({
+        lines: [{ listingId: LISTING_ID, quantity: 1 }],
+        idempotencyKey: "checkout-external-listing-1",
+      }),
       nextUrl: { origin: "https://test.example.com" },
     } as any
 

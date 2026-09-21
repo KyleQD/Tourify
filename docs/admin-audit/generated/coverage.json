@@ -1,6 +1,6 @@
 {
   "generatedFrom": "TOURIFY-ADMIN-COMPLETION",
-  "registrySourceSha256": "17e3c841be9eb19da71781223a57876aeb3ec7b6dd5aab9815e5501ae30b8123",
+  "registrySourceSha256": "9968c31640df7a6203b0e075806e19f05f9ffefad0b5131d23833d48bd27a701",
   "baseline": {
     "branch": "codex/admin-workflow-completion",
     "commit": "a043d35d4304cc8181078a17e2138c1f47baf199",
@@ -17,7 +17,7 @@
     "launchGates": 18,
     "evidence": 27,
     "adminRouteMethods": 481,
-    "serviceRoleReviewedDebt": 23
+    "serviceRoleReviewedDebt": 30
   },
   "findingsByPriority": {
     "P0": 10,
@@ -129,9 +129,9 @@
   },
   "adminRouteMethods": {
     "byDisposition": {
-      "active": 267,
+      "active": 336,
       "internal_only": 48,
-      "migrate": 165,
+      "migrate": 96,
       "retire": 1
     },
     "byVisibility": {
@@ -148,26 +148,29 @@
   },
   "serviceRoleReviewedDebt": {
     "byDisposition": {
-      "migrate_to_job": 9,
-      "replace_with_rpc": 8,
-      "replace_with_user_rls": 6
+      "migrate_to_job": 13,
+      "replace_with_rpc": 9,
+      "replace_with_user_rls": 8
     },
     "byWorkflow": {
+      "ADM-WF-001": 1,
       "ADM-WF-003": 1,
       "ADM-WF-005": 2,
       "ADM-WF-008": 2,
       "ADM-WF-010": 2,
-      "ADM-WF-011": 1,
-      "ADM-WF-012": 2,
+      "ADM-WF-011": 3,
+      "ADM-WF-012": 3,
       "ADM-WF-014": 1,
       "ADM-WF-018": 1,
       "ADM-WF-019": 3,
-      "ADM-WF-020": 8
+      "ADM-WF-020": 11
     },
     "byFinding": {
       "ADM-M-004": 2,
       "ADM-M-008": 1,
-      "ADM-M-013": 17,
+      "ADM-M-013": 21,
+      "ADM-M-030": 2,
+      "ADM-M-031": 1,
       "ADM-M-032": 1,
       "ADM-M-063": 2
     }

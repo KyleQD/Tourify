@@ -26,13 +26,15 @@ describe('Site map ops upgrade contracts', () => {
   it('ships worker map surface and simplified venue/artist viewers', () => {
     const workerPage = read('app/work/site-maps/[id]/page.tsx')
     const workerViewer = read('components/site-maps/worker-site-map-viewer.tsx')
-    const venue = read('components/venue/site-map-viewer.tsx')
+    const venue = read('app/venue/components/site-map-viewer.tsx')
+    const venueCompatibility = read('components/venue/site-map-viewer.tsx')
     const artist = read('app/artist/events/[id]/site-map/page.tsx')
     const publish = read('app/api/admin/logistics/site-maps/[id]/publish-work-mode/route.ts')
 
     expect(workerPage).toContain('WorkerSiteMapViewer')
     expect(workerViewer).toContain('COMPLETE_TASK')
     expect(venue).toContain('PublicSiteMapViewer')
+    expect(venueCompatibility).toContain('@/app/venue/components/site-map-viewer')
     expect(artist).toContain('PublicSiteMapViewer')
     expect(publish).toContain('worker_url')
   })

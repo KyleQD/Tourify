@@ -825,6 +825,7 @@ async function main() {
 
   const inputs = await loadInputs();
   const workbook = buildWorkbook(inputs);
+  workbook.recalculate();
   if (renderDirectory) await renderWorkbook(workbook, renderDirectory);
   await fs.mkdir(GENERATED_ROOT, { recursive: true });
   const output = await SpreadsheetFile.exportXlsx(workbook);

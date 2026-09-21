@@ -646,3 +646,18 @@ The dated sections below are append-only orchestration checkpoints. Present-tens
 - Remaining P0 work is still hosted-credential-, exact-SHA staging-,
   database-evidence-, QA-certification-, or owner-decision-bound. This local
   wave does not alter the Wave 26 release verdict.
+
+## Local verification wave 29 — 2026-09-20
+
+- RELEASE-005's historical local Vitest blocker is closed. The MFA timeout is
+  stale and the site-map failure was a stale test path after venue-tree
+  consolidation. The combined suite now passes 568 files / 5,317 tests with 2
+  files / 8 tests skipped.
+- SOCIAL-004's clean-worktree verification blocker is closed. Messaging now
+  returns non-disclosing 404s to non-members, deduplicates POST/Realtime rows,
+  refetches after subscription reconnect, and derives unread state from
+  persisted read fields. Twenty-four focused messaging tests pass.
+- Hosted gates remain: no matching-SHA E2E exists, main is still unprotected,
+  and SOCIAL-004 lacks the required isolated two-member plus outsider
+  Realtime/RLS run. No deployment, credential, branch-protection, or hosted
+  database mutation occurred.

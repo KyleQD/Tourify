@@ -5,11 +5,23 @@ jest.mock("@/lib/supabase/service-role", () => ({
   createServiceRoleClient: jest.fn(),
 }))
 
+jest.mock("@/lib/config/audit-feature-gates", () => {
+  const actual = jest.requireActual("@/lib/config/audit-feature-gates")
+  return {
+    ...actual,
+    isAuditFeatureApproved: jest.fn(),
+  }
+})
+
 import { POST } from "../route"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { isAuditFeatureApproved } from "@/lib/config/audit-feature-gates"
 
 const mockedCreateServiceRoleClient = createServiceRoleClient as jest.MockedFunction<
   typeof createServiceRoleClient
+>
+const mockedIsAuditFeatureApproved = isAuditFeatureApproved as jest.MockedFunction<
+  typeof isAuditFeatureApproved
 >
 
 function signedRequest(payload: string, secret: string) {
@@ -33,10 +45,30 @@ describe("POST /api/webhooks/music-royalty-payouts", () => {
     delete process.env.STRIPE_WEBHOOK_SECRET
     delete process.env.STRIPE_WEBHOOK_SECRET_MUSIC_ROYALTIES
     process.env.MUSIC_ROYALTY_PAYOUTS_WEBHOOK_ALLOW_UNSIGNED = "true"
+    mockedIsAuditFeatureApproved.mockReturnValue(true)
   })
 
   afterAll(() => {
     process.env = originalEnv
+  })
+
+  it("fails closed before request processing when advanced webhooks are unavailable", async () => {
+    mockedIsAuditFeatureApproved.mockReturnValueOnce(false)
+
+    const response = await POST(new NextRequest("https://tourify.local/api/webhooks/music-royalty-payouts", {
+      method: "POST",
+      body: JSON.stringify({ id: "evt_disabled", type: "transfer.created" }),
+    }))
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({
+      error: {
+        code: "FEATURE_UNAVAILABLE",
+        message: "This capability is not currently available",
+        feature: "advanced_webhooks",
+      },
+    })
+    expect(mockedCreateServiceRoleClient).not.toHaveBeenCalled()
   })
 
   it("does not accept the retired unsigned fallback, even when it is enabled", async () => {

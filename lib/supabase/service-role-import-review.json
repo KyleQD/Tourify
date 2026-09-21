@@ -205,5 +205,68 @@
     "owner": "ticketing",
     "rationale": "Guest-list administration needs reviewed ticketing commands with event scope and actor attribution.",
     "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/orders/[id]/cancel/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Order cancellation needs a named marketplace command with bounded order scope, audit attribution, and compensating payout writes.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/marketplace/orders/[id]/refund/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Order refunds need a named marketplace command with bounded order scope, idempotent provider actions, and audit attribution.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/messages/[conversationId]/realtime/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-011",
+    "findingId": "ADM-M-030",
+    "owner": "communications",
+    "rationale": "Realtime presence and receipt writes should retain the authenticated participant and enforce conversation membership through RLS.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/music/share-message/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-011",
+    "findingId": "ADM-M-030",
+    "owner": "music-communications",
+    "rationale": "Music share messages should write as the authenticated sender so conversation membership and recipient isolation remain authoritative.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/photos/purchase/webhook/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "photos-commerce",
+    "rationale": "Verified photo purchase events need a named receipt-processing job with durable idempotency, bounded fulfillment, and audit evidence.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/webhooks/supabase/notifications/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-012",
+    "findingId": "ADM-M-031",
+    "owner": "notification-delivery",
+    "rationale": "Notification webhook delivery needs a named outbox job with recipient validation, durable duplicate suppression, and bounded retries.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "lib/auth/agent-service.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-001",
+    "findingId": "ADM-M-013",
+    "owner": "identity-platform",
+    "rationale": "Agent credential lookup and audit attribution need a narrow server RPC instead of a generally privileged client boundary.",
+    "reviewedAt": "2026-09-21"
   }
 ]

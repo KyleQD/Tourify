@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isConversationParticipant(conversation, acting.ids))
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
 
     if (conversation.trust_tier !== 'request' || conversation.accepted_at) {
       return NextResponse.json(
