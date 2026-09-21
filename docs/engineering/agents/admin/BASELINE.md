@@ -1,5 +1,9 @@
 # ADMIN-001 Baseline
 
+Audit snapshot: 2026-09-09 at
+`7cf660ad8422dbd3adbdb77369d94638cdc2231b`. Counts below describe that
+bounded audit snapshot; current launch implementation truth lives in ADMIN-003.
+
 ## Overview
 
 The Tourify Admin surface is a large, mature subsystem spanning organization-level administration, tour production operations, event logistics, ticketing, finance, hiring, and platform-level administration. The admin area represents the largest functional domain in the codebase.
@@ -168,7 +172,20 @@ Located in `lib/auth/`, the authorization layer:
 
 ---
 
-## 6. Tests (244 files)
+## 6. Database Object Boundary
+
+ADMIN-001 did not claim ownership of migrations or database objects. The admin
+surface consumes organization membership, capability, tour/event, logistics,
+ticketing, finance, workforce, publication, and audit data whose repository
+inventory is indexed in `docs/engineering/generated/database-schema.md` and
+`docs/engineering/generated/database-objects.md`. Migrations and RLS remain
+database-domain source of truth; admin behavior must verify tenant and resource
+scope at the API/service boundary described by
+`docs/admin-feature-specs/01_Platform_Tenancy_RBAC_and_Audit.md`.
+
+---
+
+## 7. Tests (244 files)
 
 Located in `__tests__/admin/`, covering:
 
@@ -186,7 +203,7 @@ Located in `__tests__/admin/`, covering:
 
 ---
 
-## 7. Evidence Sources
+## 8. Evidence Sources
 
 | Source | Status | Location |
 |--------|--------|----------|
@@ -199,3 +216,40 @@ Located in `__tests__/admin/`, covering:
 | Generated permissions map | Auth core files | `docs/engineering/generated/permissions.md` |
 | Generated database objects map | 676 objects (includes admin-related) | `docs/engineering/generated/database-objects.md` |
 | DEVELOPMENT_BACKLOG.md | WS-0.8 (admin gate split), WS-1.7 (admin guard sweep) | `docs/DEVELOPMENT_BACKLOG.md` |
+
+---
+
+## Intended Direction
+
+- Split platform authority from organization authority and require explicit
+  server-side capability plus tenant/resource scope. Source:
+  `docs/DEVELOPMENT_BACKLOG.md` WS-0.8,
+  `docs/admin-feature-specs/01_Platform_Tenancy_RBAC_and_Audit.md`, CP-014, and
+  CP-043 in `docs/engineering/DECISIONS.md`.
+- Classify every admin API, converge it onto canonical platform or
+  organization guards where semantics are proven, and retain explicit
+  exceptions when a route needs a different resource policy. Source:
+  `docs/DEVELOPMENT_BACKLOG.md` WS-1.7, CP-044, and ADMIN-003 in
+  `docs/engineering/agents/admin/BACKLOG.md`.
+- Deliver the broader tour-management program in dependency order—tenant and
+  API convergence before authoritative planning, logistics, live operations,
+  commerce, and production hardening. Source:
+  `docs/admin-feature-specs/00_Master_Roadmap.md` and the 362-item index in
+  `.agents/admin-feature-spec-builder/INVENTORY.md`.
+- Keep execution bounded with explicit acceptance and verification evidence.
+  `docs/work-packets/TA-PH0.md` is adjacent packet evidence for that workflow;
+  no ADMIN-001-specific implementation packet was created because this task is
+  a read-only audit. Canonical status remains in task JSON per
+  `docs/DEVELOPMENT_WORKFLOW.md`.
+
+## Closeout Verification — 2026-09-20
+
+- `npm run agents:context -- --task ADMIN-001` rebuilt the bounded packet at
+  `ea5c36a3b468afb82d83809746d01ad479d38541`.
+- Every inventory class required by acceptance is represented above: page
+  routes, API routes, components, domain services/libraries, consumed database
+  objects, tests, and evidence sources, each with repository paths.
+- The historical counts are not silently promoted to current topology. Shared
+  generated maps currently report SHA drift and are left for root
+  reconciliation; this documentation-only closeout does not require a topology
+  rewrite.

@@ -1,12 +1,10 @@
 # Design System state
 
-- Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
-- Last reviewed at: 2026-09-13 (DESIGN-033: C-03 radius gate APPLIED —
-  `--radius: 0.5rem` at `:root`; public `/` runtime confirms the token and
-  sampled 6px/16px corners; owner-accepted app-wide 0 → 8/6/4px corner delta;
-  authenticated QA covers dashboard/settings/admin/staff, artist overview, and
-  direct artist home; the venue terms-save duplicate-key blocker remains;
-  registry Table C/K flipped live)
+- Last reviewed SHA: `ea5c36a3b468afb82d83809746d01ad479d38541`
+- Last reviewed at: 2026-09-20 (DESIGN-034: token-registry CI regression gate
+  implemented — 126 role rows, 69 active runtime variables, 41 exact Tailwind
+  projections, and 2 registered global token sources verified locally; no
+  runtime token values or Tailwind configuration changed)
 - Active task: DESIGN-033 — apply owner-approved `--radius` token (C-03 gate);
   code change + registry/inventory/state updates DONE, status stays active
   (QA visual check of critical surfaces is the final gate; handoff
@@ -269,6 +267,16 @@ Register rows 50/159/292/1218 in CANONICAL_COMPONENT_REGISTER.csv are
   Inventory C-03 row + §2.2 + §8 + Phase roadmap updated. QA visual check of
   critical surfaces (main app, admin, artist, venue, dashboard, settings) is
   the FINAL GATE — pending handoff HF-DESIGN-033-QA to the qa agent.
+- **DESIGN-034 (token-registry CI gate, 2026-09-20) — COMPLETE.**
+  `scripts/ci/check-token-registry.mjs` parses Tables A–I and exact Table K
+  rows, requires every `live`/`conflict` role to have runtime truth, rejects
+  unregistered declarations or non-module global token-source files, and
+  compares all Tailwind CSS-variable projections exactly against registered
+  roles. The machine-readable source boundary is `app/globals.css`,
+  `app/admin/globals.css`, and `tailwind.config.ts`; component-local/module
+  custom properties remain outside the global registry contract. The check
+  and negative fixtures run in main CI; baseline passes at 126 role rows / 69
+  active vars / 41 projections / 2 global sources.
 - **DESIGN-033 QA checkpoint (2026-09-13):** the primary checkout was exercised
   on localhost:3000. Public `/` rendered root `--radius: .5rem`, with sampled
   `rounded-md` at 6px and the main `rounded-2xl` card at 16px. Protected
@@ -382,7 +390,13 @@ Register rows 50/159/292/1218 in CANONICAL_COMPONENT_REGISTER.csv are
   Focused 27-test suite, static proof, and `agents:validate` (17/99/0/0) pass;
   HF-DESIGN-033-QA and DESIGN-033 remain active because venue acceptance is
   still blocked.
-- Remaining design work: (1) token authority Phase 6 (adoption + regressions;
+- **DESIGN-034 Phase 6 regression gate is COMPLETE (2026-09-20):** exact
+  registry/runtime/Tailwind drift is now a main-CI failure, with focused
+  negative fixtures covering missing definitions, rogue global sources and
+  declarations, and unregistered projections. No runtime CSS or Tailwind value
+  changed.
+- Remaining design work: (1) token authority Phase 6 adoption (the regression
+  gate is complete;
   the Phase-5 executable items are done — C-03 radius is APPLIED (DESIGN-033,
   QA visual check pending via HF-DESIGN-033-QA), the `--admin-*` decision is
   RESOLVED (Option B retire), and only the live D-02 override replacement

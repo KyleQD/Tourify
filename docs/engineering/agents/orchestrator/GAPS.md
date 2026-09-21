@@ -38,3 +38,17 @@ Task: ORCH-001
 | U4 | Legacy .agents/ ledgers not linked from task records | `.agents/admin-dashboard-builder/` etc. — should be referenced from task JSONs |
 | U5 | DEVELOPMENT_BACKLOG.md has 5 completed fix passes but no task-level tracking | `docs/DEVELOPMENT_BACKLOG.md` changelog — fix passes not decomposed into tasks |
 | U6 | No process for agents to report questions back to orchestrator | QUESTIONS.md format exists in task schema but no workflow for answer consumption |
+
+## Closeout disposition — 2026-09-20
+
+This file preserves the gaps as they were found on 2026-09-09. Subsequent work
+resolved M2-M4, M8, I1-I4, I7, U1-U3, and U6 through the append-only decision
+log, generated-map workflow, task/context/checkpoint commands, execution-plan
+and handoff templates, and active task records. M5 was verified through
+`docs/engineering/agent-identities.md`; legacy evidence remains preserved under
+`.agents/` per CP-004. Current workspace curation and dependency truth moved to
+ORCH-002 rather than extending this audit indefinitely.
+
+Remaining product or governance work is not an ORCH-001 blocker. It stays in
+the owning task records and the orchestrator backlog, including historical fix
+pass traceability, legacy-ledger linkage where useful, and hosted launch gates.

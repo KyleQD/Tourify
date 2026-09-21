@@ -4,21 +4,14 @@ The canonical work item is a task JSON. Launch priorities remain in `docs/DEVELO
 
 ## Active
 
-- ORCH-001: Audit Orchestrator workspace — baseline, gaps, and questions. IN PROGRESS.
+- ORCH-002: Curate the workspace and own the production launch critical path. IN PROGRESS.
 - LOCAL-READINESS-20260909: Coordinate local-first readiness with Supabase as source of truth. IN PROGRESS.
-- Agent oversight cycle (2026-09-13): reconcile task truth, enforce launch-gate sequencing, and accept only evidence-backed completion.
-- Next batch dispatched (2026-09-13): DESIGN-034 token-registry CI gate and DB-002 production-migration verification, each in an isolated worktree.
-- Follow-on batch dispatched (2026-09-13): DESIGN-033 QA visual gate in an isolated worktree; DESIGN-034 remains queued and DB-002 remains release-blocked.
-- Next visual follow-up dispatched (2026-09-13): DESIGN-033 authenticated browser verification in an isolated worktree; no duplicate DESIGN-034 or DB-002 lane launched.
-- Focused visual blocker follow-up dispatched (2026-09-13): DESIGN-033 venue-session and artist-loading checks in an isolated worktree; DESIGN-034 remains queued.
-- Fresh next batch dispatched (2026-09-13): DESIGN-034 token-registry CI gate after the prior dispatch produced no task-record evidence; DESIGN-033 remains blocked on clean venue QA.
-- Release preflight dispatched (2026-09-14): RELEASE-005 required-check governance inspection; no branch-protection or workflow enforcement changes authorized.
+- Ongoing oversight: reconcile task truth, enforce launch-gate sequencing, and accept only evidence-backed completion through ORCH-002.
 
 ## Dependency board
 
 ### Ready / owner-executable
 
-- DESIGN-034: implement the token-registry CI drift gate.
 - DESIGN-033: obtain QA visual evidence for the applied radius token, then close.
 - ADMIN-003: remain precondition-bound; accept only a newly landed enabling handoff or the owner decision on events communications.
 
@@ -36,22 +29,21 @@ The canonical work item is a task JSON. Launch priorities remain in `docs/DEVELO
 - ARTIST-003, USER-003, and MKT-002: product decisions or deployed/schema evidence required.
 - VENUE-002: remains blocked by its recorded keep-boundary policy.
 
-### Audit / decision hold
+### Completed audits / decision follow-ups
 
-- ADMIN-001, ARTIST-001, and ORCH-001 remain active until owner questions and final control-plane validation are recorded.
+- ADMIN-001, ARTIST-001, and ORCH-001 are complete. Their unresolved product choices become separate bounded follow-up tasks and do not place the audits on hold.
 
 ## Candidate
 
-- Renumber duplicate CP-002 in DECISIONS.md to CP-005.
-- Create exec-plan and handoff templates in `docs/engineering/exec-plans/` and `docs/engineering/handoffs/`.
-- Run `npm run agents:generate` to refresh topology maps before domain audits.
 - Create completed task records for the 5 historical fix passes.
 - Link legacy `.agents/` ledgers from relevant task records.
 
 ## Done
 
 - Control-plane bootstrap created.
-- ORCH-001 read-only audit: BASELINE.md, GAPS.md, QUESTIONS.md produced.
+- ORCH-001 read-only audit completed 2026-09-20: BASELINE.md, GAPS.md, and QUESTIONS.md contain the original audit plus closeout disposition; bounded context rebuilt; validation passed with 0 errors.
+- DESIGN-034 completed the token-registry CI drift gate; its canonical task record contains the implementation and verification evidence.
+- Exec-plan and handoff models created; CP-005 resolved the duplicate decision label; CP-008 established generated-map refresh and SHA currency.
 - Runtime dispatch model selected for local readiness: parallel specialist lanes, followed by QA and release/local-parity integration.
 
 ## Production readiness — 2026-09-16

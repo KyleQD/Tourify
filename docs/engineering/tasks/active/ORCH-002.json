@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-16T19:20:36.990Z",
-  "updated_at": "2026-09-20T04:38:00.000Z",
+  "updated_at": "2026-09-21T02:49:35.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (1,431 path-level entries; 0 unresolved; 0 unexplained deletions)",
+  "working_tree_status": "dirty (43 Wave 28 path-level entries; 0 unresolved; 0 unexplained deletions)",
   "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
   "scope": {
     "in": [
@@ -80,14 +80,15 @@
       "2026-09-19 deployment-wave closeout: RELEASE-006's build environment-guard blocker was proven a configuration gate rather than a code defect — the production build contract passes with the approved https://tourify.live origin, the full build compiles through the type-checking stage on Next 15.5.24, and the migration chain validates; remaining deployment steps (full compile completion, migration checksums, supabase-target verification, and exact-SHA staging deployment) are credentialed/hosted gates owned by RELEASE-006, RELEASE-007, DB-008, and QA-003.",
       "2026-09-19 ownership finalization adjudicated the final four concurrent-work paths from DESIGN-035 evidence: components/layout/app-chrome.tsx and components/nav.tsx implement its checkpoint-verified mobile chrome (compact phone header, five-action bottom navigation, content/player spacing), and components/marketing/landing-hero-auth.tsx and tourify-landing-page.tsx are its named working-set files. The manifest is now 1,431 entries with 1,286 candidates, 145 task records, zero unresolved paths, zero unexplained deletions, and zero credential-pattern findings.",
       "2026-09-20 Wave 26 integration at 89b5aa42 on release/clean-snapshot: 66 focused Vitest page/consumer cases pass, check:production-debug (40 covered unsafe routes), check:public-surface, and check:cron-route-inventory pass, and the ownership manifest reports the five new RELEASE-008 layout paths as task-record with zero unresolved paths and zero unexplained deletions.",
-      "2026-09-20 Wave 27 integration at cd57bbfb on release/clean-snapshot: DESIGN-035 verified against all acceptance criteria in real Chrome at 320/390/768/1440 and closed — one value prop and one account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed, rectangular clip-path-none radius-16px padded auth card, and usable keyboard focus/reduced-motion; gaps closed (duplicate CTAs, 44px touch targets, /artist/* bottom-nav exclusion). eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to baseline with 0 new errors. Task record moved to completed/; remaining authenticated /artist session and release-mode Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors."
+      "2026-09-20 Wave 27 integration at cd57bbfb on release/clean-snapshot: DESIGN-035 verified against all acceptance criteria in real Chrome at 320/390/768/1440 and closed — one value prop and one account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed, rectangular clip-path-none radius-16px padded auth card, and usable keyboard focus/reduced-motion; gaps closed (duplicate CTAs, 44px touch targets, /artist/* bottom-nav exclusion). eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to baseline with 0 new errors. Task record moved to completed/; remaining authenticated /artist session and release-mode Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors.",
+      "2026-09-20 Wave 28 closed ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034; focused artist tests passed 3/3 and token-registry tests passed 9/9. agents:generate now refreshes TASK_INDEX before topology generation, reconciling all five moves. The 43-entry wave ownership manifest has zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings. Final control-plane validation passed for 17 agents and 113 tasks with zero warnings and zero errors; focused lint, staged diff, script syntax, and worktree audit passed."
     ],
-    "last_run_sha": "cd57bbfb",
-    "last_run_at": "2026-09-20T04:38:00Z",
+    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+    "last_run_at": "2026-09-21T02:54:40Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Completed Wave 27: verified and closed DESIGN-035 (mobile landing, signup, and shared authenticated chrome) with real-browser evidence, integrated the lane (2adff521, cd57bbfb), regenerated maps, and validated 17 agents / 113 tasks / 0 warnings / 0 errors. Wave 26's RELEASE-006 verdict stands: production build completion is hosted-credential-gated.",
+    "summary": "Wave 28 completed five locally finishable tasks: ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034. The three audit records closed after acceptance reconciliation; ARTIST-003 gained focused signing-flow coverage and a generated-Json type correction; DESIGN-034 added a reviewed token-registry CI drift gate with nine focused tests. Hosted production gates remain unchanged.",
     "completed": [
       "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
       "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
@@ -154,9 +155,31 @@
       "The full repository typecheck produced no diagnostics but did not finish within a bounded run, so no pass is claimed.",
       "build:vercel completion is blocked at the production environment guard because the clean checkout has no .env* files; the six required variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET) are hosted/credential-gated and were not fabricated or copied.",
       "QA-003 still lacks protected staging credentials, an exact deployed SHA run, hosted Stripe execution, and final P0/P1 defect disposition.",
-      "The current path-level worktree manifest is clean at 1,416 entries with 0 unresolved and 0 unexplained deletions; candidate confirmation and release-grade scanning remain required before cleanup or commit sequencing beyond the snapshot."
+      "The Wave 28 path-level manifest contains 43 staged/working entries with 0 unresolved and 0 unexplained deletions; 33 candidate mappings and release-grade scanning still require confirmation before broader release promotion."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-21T02:49:35.000Z",
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "summary": "Completed local orchestration Wave 28. Closed the ADMIN-001, ARTIST-001, and ORCH-001 audits after reconciling their acceptance evidence and non-blocking owner questions; reverified and closed ARTIST-003 with a 3-test signing-flow contract, focused lint, and bounded semantic typecheck; implemented and independently hardened DESIGN-034's token-registry CI drift gate with 9 passing fixtures and a passing repository contract check (126 role rows, 69 active vars, 41 Tailwind projections, 2 registered global sources).",
+        "completed": [
+          "Moved ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034 to completed with final evidence.",
+          "Corrected stale audit inventory and question-disposition claims without inventing product decisions.",
+          "Added ARTIST-003 regression coverage and aligned contract metadata with the generated Supabase Json type.",
+          "Added the DESIGN-034 package commands and main-CI gate; independent review closed parser, status, path, alias-collision, and symlink blind spots.",
+          "Corrected agents:generate so it refreshes TASK_INDEX before topology generation; all five completed-task paths now reconcile automatically.",
+          "Regenerated the 43-entry ownership manifest with zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings.",
+          "Final gates passed: agents:validate 17 agents / 113 tasks / 0 warnings / 0 errors; ARTIST-003 3/3; DESIGN-034 9/9 plus repository check; scoped lint; staged diff check; script syntax; and worktree audit."
+        ],
+        "next_steps": [
+          "Regenerate shared maps and TASK_INDEX, rerun control-plane/worktree/ownership checks, and commit the verified wave atomically.",
+          "Keep the remaining P0 launch path held on hosted credentials, exact-SHA staging, DB-008 evidence, QA-003 certification, and recorded owner decisions."
+        ],
+        "blockers": [
+          "Hosted Vercel/Supabase credentials and exact-SHA staging remain unavailable; no local task completion changes those release gates.",
+          "ADMIN-003 and other decision-bound tasks remain held until their recorded resource predicates or product decisions exist."
+        ]
+      },
       {
         "at": "2026-09-20T04:38:00.000Z",
         "sha": "cd57bbfb",

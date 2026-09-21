@@ -1,37 +1,41 @@
 # Orchestrator state
 
-- Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
-- Last reviewed at: 2026-09-13
-- Active task: ORCH-001
-- Confidence: active local-readiness orchestration in progress
+- Last reviewed SHA: `ea5c36a3b468afb82d83809746d01ad479d38541`
+- Last reviewed at: 2026-09-20
+- Active task: ORCH-002
+- Confidence: ORCH-001 audit complete; launch orchestration continues in ORCH-002 with hosted release gates still open
 
 ## Durable facts
 
 - Mission: Route bounded work, manage dependencies and overlaps, and maintain project-level execution truth.
 - Default working set is recorded in `WORKING_SET.json`.
 - 17 agents registered in `docs/engineering/agents/registry.yaml`.
-- 17 starter audit tasks created (all `*-001.json`), none previously started.
+- All 17 original domain starter audits are completed; later `*-001` control/auth records are also completed. Current execution status lives in the canonical task directories.
 - Control plane has INDEX.md, PROJECT_STATE.md, SYSTEM_MAP.md, DEPENDENCY_MAP.md, DECISIONS.md.
-- 9 generated topology maps exist in `docs/engineering/generated/`.
-- 1 work packet in progress (TA-PH0), 6 legacy specialist ledgers in `.agents/`.
-- DECISIONS.md decision labels are unique (CP-001..CP-051; no duplicate CP-002); header ordering is historically out of order — do NOT renumber (append-only policy).
+- 8 generated topology maps plus their README exist in `docs/engineering/generated/`.
+- Work packets and legacy `.agents/` ledgers remain supporting evidence; canonical status lives in task JSON.
+- DECISIONS.md decision labels are unique through CP-055 (no duplicate CP-002); header ordering is historically out of order — do NOT renumber (append-only policy).
+- ORCH-001 completed its documentation-only baseline, gap, and owner-question audit; current workspace curation and launch dependency truth are owned by ORCH-002.
 - Exec-plan directory has 1 active plan (LOCAL-READINESS-20260909); HF-ORG-005 is completed and no pending handoff remains for ORG-005.
 - LOCAL-READINESS-20260909 is the active execution plan for local-only readiness with Supabase migrations/types as source of truth; smoke-gate status annotations added 2026-09-10.
 - CP-051 (owner-directed): ALL SQL migrations are applied manually, one at a time, reviewed and explicit; `supabase db reset`, `db push --include-all`, forced/full-chain replays, and any destructive DB reset are forbidden. Enforced in DECISIONS.md, INDEX.md operating constraints, and the exec plan. A background `supabase start` auto-replay failed on `20260415210006_signup_profile_and_email_confirmation.sql` (pg_read_file denied) — filed as a manual-apply item in the DB lane.
-- Wave-1 lane results (2026-09-09): artist lane completed ARTIST-002 home-feed analytics + discover music-card username routing (15 tests green); general-user lane completed onboarding create-account artist_profiles.url_slug contract (22 tests green); DB lane dispatch was cancelled pre-execution and must be re-dispatched under CP-051 manual-migration constraints. Ground truth: 8 vitest failures in 6 files (of 42) remain; 4 owner areas pending (database ×2 migration files, work/logistics zones bridge).
+- Historical Wave-1 result (2026-09-09): the artist and general-user fixes landed, the first DB dispatch was cancelled under CP-051, and eight then-current Vitest failures plus four owner areas were routed into later tasks. The blocker wave below records their subsequent resolution.
 
 ## Current focus
 
-- Coordinating LOCAL-READINESS-20260909 across launch-blocking task lanes only.
+- ORCH-002 owns the clean release snapshot, retained-change ownership, launch dependency graph, and hosted go/no-go evidence. ORCH-001 is closed and must not absorb implementation work.
+- LOCAL-READINESS-20260909 remains historical coordination evidence; current launch truth comes from ORCH-002 and its dependency records.
 - Blocker wave COMPLETE (2026-09-09): full Vitest suite green (4891/4899, 0 failures, QA-002 closed); ORG-003/ORG-004 complete (accept_org_invite RLS defect fixed additively, 288/288 migrations applied manually); DB-003/DB-004/DB-007 done; ARTIST-002, USER-002, WORK-003, ADMIN-002 contract fixes landed.
 - ORG-005 is complete: HF-ORG-005 is closed in `docs/engineering/handoffs/completed/HF-ORG-005.json` after the owner-approved narrow SECURITY DEFINER helper, manual migration apply, and green live probes.
-- Release runtime evidence wave (2026-09-10): read-only probe produced PASS for /healthz (parity rewrite landed in next.config.ts — additive rewrites /healthz -> /api/health; smoke exit 0) and cron unauthorized rejection (401, guard fails closed); search returned graceful 200 empty against empty local DB; 429 remains ops-provisioned (Upstash-compatible backend required, RATE_LIMIT_SMOKE=1 opt-in). `verify:local` gate 1 blocks on 4 unprovisioned local-only vars (NEXT_PUBLIC_SITE_URL, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET), and the Redis URL/token are also absent — owner/ops provisioning required; no release or QA agent is dispatched until those prerequisites exist.
+- Historical release runtime evidence wave (2026-09-10): read-only probes passed for `/healthz` and cron unauthorized rejection; search returned a graceful empty result against the local database, while the 429 smoke and environment gates required operations provisioning. Later release and QA work is tracked by their canonical task records and ORCH-002.
 - Keeping demo/prod promotion and P2 product completion out of the local readiness path.
+
+The dated sections below are append-only orchestration checkpoints. Present-tense task status inside them describes the named checkpoint date; current status is the canonical task record plus ORCH-002.
 
 ## Oversight cycle — 2026-09-13
 
 - Launch readiness is the governing priority. The active queue is managed through the dependency board in `BACKLOG.md` and `exec-plans/active/LOCAL-READINESS-20260909.md`.
-- `ARTIST-001` is intentionally active because its audit awaits owner answers; `TASK_INDEX.json` now matches its active task file. `ADMIN-001` and `ORCH-001` follow the same decision-hold policy.
+- `ARTIST-001` and `ADMIN-001` retain their own recorded decision policies. ORCH-001 is complete after final question disposition and zero-error control-plane validation.
 - `VENUE-002` remains blocked under its recorded keep-boundary policy; no venue cleanup is dispatched without a newly scoped caller seam.
 - Launch-critical evidence order is DB-002/DB-005/DB-006, INTG-003/006, DISC-002, then release provisioning and RELEASE-003/004/005. SOCIAL-004 and MUSIC-004 remain hosted/operations-gated.
 - Completion requires task-record evidence, focused verification, and control-plane validation. Generated maps are refreshed after dependency-affecting changes.
@@ -91,12 +95,12 @@
 - Current owner order: design-system resolves the VENUE-002 handoff; database prepares DB-005/DB-006 for approved manual evidence; ticketing closes local settlement/read-truthfulness verification; integrations completes route-local webhook consistency; music advances the worker contract without scheduling; release and QA wait for provisioning gates.
 - Deployment routine is now codified in `docs/DEPLOYMENT_ROUTINE.md`. E2E runs after Vitest and matching-SHA E2E success is required by both Vercel deployment workflows. The production Supabase workflow previews but refuses automatic migration application; CP-051 operator evidence is required.
 
-## Known risks
+## Historical risks recorded through 2026-09-13
 
 - Dirty worktree (455 entries) — agents must avoid unrelated modifications; docs/engineering control plane is untracked in git (pre-existing).
 - Full-repo `tsc` OOMs on this machine (lib/database.types.ts at ~34k lines) — verification uses scoped tsc instead; recorded across lanes.
 - Release runtime smokes still require a locally running app + configured Redis/Upstash-compatible target; RELEASE lanes recorded local-safe posture but runtime evidence is env-dependent.
-- DECISIONS.md CP-002 label duplicate needs renumbering (documented; not blocking).
+- Decision labels are unique; the historical second CP-002 was assigned CP-005 without renumbering later append-only decisions.
 - Subagent capacity can fail; fallback lane dispatch uses a lighter model when needed.
 - CP-051 owner rule: migrations manual only, no DB reset — enforced in DECISIONS.md, INDEX.md, exec plan; live probes caught one real RLS defect (ORG-003) that automated replay would have masked.
 - Independent P1 continuation: admin legacy-route guard migration was dispatched in a dedicated worktree on 2026-09-10; release and QA remain queued behind missing local secrets and Redis credentials.
@@ -618,3 +622,27 @@
   hosted-credential-, owner-decision-, or QA/venue-evidence-bound (RELEASE-006/
   007/008 hosted surfaces, DB-008, QA-003, ADMIN-003 preconditions, DESIGN-033
   browser evidence).
+
+## Local completion wave 28 — 2026-09-20
+
+- ADMIN-001, ARTIST-001, and ORCH-001 completed their original read-only audit
+  acceptance criteria. Open product questions were dispositioned into owning
+  follow-up work instead of keeping the audits artificially active.
+- ARTIST-003 is complete on its implementation-only contract: artist-scoped
+  navigation, owner/counterparty authorization, signing controls, and the
+  guarded signing RPC are covered by three focused tests; scoped lint and a
+  bounded semantic typecheck pass. Contract metadata now conforms to the
+  generated Supabase `Json` type.
+- DESIGN-034 is complete. Main CI now checks the machine-readable token
+  registry/runtime/Tailwind contract. Independent review hardened minified CSS
+  parsing, status and path validation, malformed-row and alias-collision
+  detection, and symlink handling; all nine fixtures plus the live repository
+  check pass (126 roles, 69 active vars, 41 projections, 2 global sources).
+- The control-plane generator now refreshes `TASK_INDEX.json` as part of
+  `npm run agents:generate`; this prevents completed task moves from leaving
+  stale active paths in the shared index. The Wave 28 ownership manifest
+  records 43 staged/working entries, zero unresolved paths, zero unexplained
+  deletions, and zero bounded credential-pattern findings.
+- Remaining P0 work is still hosted-credential-, exact-SHA staging-,
+  database-evidence-, QA-certification-, or owner-decision-bound. This local
+  wave does not alter the Wave 26 release verdict.

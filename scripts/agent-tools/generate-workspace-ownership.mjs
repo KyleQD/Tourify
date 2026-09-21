@@ -406,6 +406,12 @@ const pathEvidence = new Map([
     confirmed: true,
     basis: 'ORG-006 explicitly owns the organization-scoped event, calendar, status, and hold action disposition while preserving object-level authorization.',
   }],
+  ['app/lib/actions/contracts.actions.ts', {
+    owner: 'artist',
+    taskIds: ['ARTIST-003'],
+    confirmed: true,
+    basis: 'ARTIST-003 reverified the artist contract-signing UI and corrected this shared contract action so metadata conforms to the generated Supabase Json type used by the signing flow.',
+  }],
   ['components/layout/app-chrome.tsx', {
     owner: 'design-system',
     taskIds: ['DESIGN-035'],
@@ -507,7 +513,10 @@ const findings = []
 const exclusionCounts = {}
 const entries = rows.map((row) => {
   const evidence = pathEvidence.get(row.path)
-  const owner = evidence?.owner ?? classifyOwner(row.path)
+  const activeTaskMove = row.path.match(/^docs\/engineering\/tasks\/active\/([^/]+)\.json$/)
+  const movedTask = activeTaskMove ? taskById.get(activeTaskMove[1]) : undefined
+  const completedTaskMove = row.status.includes('D') && movedTask?.status === 'completed'
+  const owner = evidence?.owner ?? (completedTaskMove ? movedTask.owner_agent : classifyOwner(row.path))
   const exact = exactTaskIds(row.path)
   const candidates = exact.length
     ? exact
@@ -528,9 +537,15 @@ const entries = rows.map((row) => {
     // when that domain currently has no non-completed task. Empty task IDs are
     // not confirmation; the owning domain must still accept the path.
     ownership_status: exact.length || evidence?.confirmed ? 'task-record' : owner ? 'candidate' : 'unresolved',
-    ownership_basis: evidence?.basis,
+    ownership_basis: evidence?.basis ?? (completedTaskMove
+      ? `${movedTask.id} completed with acceptance and verification evidence; the active-path deletion is paired with its completed task record.`
+      : undefined),
     unresolved_handoff: owner ? undefined : unresolvedHandoffs.get(row.path),
-    deletion_explanation: deleted ? (evidence?.deletionExplanation ?? null) : undefined,
+    deletion_explanation: deleted
+      ? (evidence?.deletionExplanation ?? (completedTaskMove
+          ? `${movedTask.id} moved from active to completed after its recorded acceptance criteria and verification passed.`
+          : null))
+      : undefined,
   }
 })
 

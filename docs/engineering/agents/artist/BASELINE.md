@@ -33,7 +33,7 @@ Owns artist identity, private and public profiles, EPKs, dashboards, and artist 
 ### Music catalog and rights
 - `/artist/music` — Music hub (`app/artist/music/page.tsx`) **1535-line** "use client" — very large single-file page
 - Sub-pages: analytics, catalog-capital, certification/[trackId], intelligence, licensing, marketplace, marketplace/portfolio, rights-admin, rights/[trackId], royalties, upload
-- API: 46 endpoints under `app/api/artist/music/` covering CRUD, analytics, certification, rights management (agreements, claims, contributions, evidence, invitations, parties, passports, projects, protected-derivatives, recordings, signatures, works), royalties (allocations, imports, matches, statements), payouts, valuation, catalog-imports, generate-preview, pin, upload-url
+- API: 33 route files under `app/api/artist/music/` covering CRUD, analytics, certification, rights management (agreements, claims, contributions, evidence, invitations, parties, passports, projects, protected-derivatives, recordings, signatures, works), royalties (allocations, imports, matches, statements), payouts, valuation, catalog-imports, generate-preview, pin, and upload-url
 
 ### Business dashboard
 - `/artist/business` — Business hub
@@ -64,7 +64,7 @@ Owns artist identity, private and public profiles, EPKs, dashboards, and artist 
 - `components/public-artist/` — 9 files: `public-artist-page.tsx`, `hero/`, `events/`, `media/`, `music/`, `epk/`, `posts/`, `themed-dialog-content.tsx`
 - `components/artist-profile/artist-profile-identity-card.tsx`
 
-## API routes (56+ endpoints under `app/api/artist/`)
+## API routes (45 direct route files plus 10 shared artist route files)
 
 | Path prefix | Count | Purpose |
 |---|---|---|
@@ -74,7 +74,7 @@ Owns artist identity, private and public profiles, EPKs, dashboards, and artist 
 | `/api/artist/epk` | 1 | EPK CRUD (GET, PUT) |
 | `/api/artist/events/` | 6 | Events CRUD + collaborate, promote, publish, tickets |
 | `/api/artist/feed-stats` | 1 | Feed statistics |
-| `/api/artist/music/` | 34 | Music catalog, certification, rights, royalties, payouts |
+| `/api/artist/music/` | 33 | Music catalog, certification, rights, royalties, payouts |
 | `/api/artist/public-appearance` | 1 | Public appearance (GET, PUT) |
 
 Plus shared APIs: `/api/artist-jobs/` (6), `/api/artists/` (3), `/api/debug/check-artist-profile`.
@@ -185,7 +185,7 @@ Artist API routes use a mix of auth patterns (from permissions.md):
 
 ## Intended direction (from DEVELOPMENT_BACKLOG.md)
 
-No artist-specific backlog items exist yet. Relevant cross-domain items that affect the artist area:
+At the 2026-09-09 audit date, no artist-specific items existed in the launch backlog. Relevant cross-domain items affecting the artist area were:
 - WS-0.9: Private storage for sensitive docs (EPK photos, profile images)
 - WS-1.1: Database foundation (migration reconciliation)
 - WS-2.1: Nav/link/API contract sweep (dead links in artist nav)
@@ -194,3 +194,11 @@ No artist-specific backlog items exist yet. Relevant cross-domain items that aff
 - WS-3.1: Data-access layer modernization (React Query adoption)
 - WS-3.4: Caching/CDN for public artist profiles
 - Phase 4: Dead code cleanup (twin component trees, deprecated shims)
+
+### Direction evidence and limits
+
+- `docs/engineering/agents/artist/BACKLOG.md` converts the audit findings into ordered artist work candidates and links each candidate to an owner question.
+- `docs/artist-dashboard-wireframe.md` is the relevant artist product/implementation contract: it defines `/artist` as the account command center, requires owner-scoped real data rather than mock metrics, maps navigation and widget drill-downs, and records the responsive/dashboard acceptance checklist.
+- The original packet review included `docs/work-packets/TA-PH0.md`; that packet concerns authentication, hiring, and tour verification and therefore supplies no artist product direction. This absence is evidence that ARTIST-001 had to establish the artist baseline and backlog rather than inherit an artist-specific work packet.
+- `docs/work-packets/MUSIC-005.md`, created after the baseline date, later confirms the cross-domain boundary by explicitly leaving artist-music route adoption to a separate artist-owned task. It is follow-up boundary evidence, not a source for the 2026-09-09 inventory counts.
+- This document remains the dated ARTIST-001 baseline. Later implementation facts belong in `STATE.md`, task records, and decisions; they do not rewrite the historical inventory without a new audit task.

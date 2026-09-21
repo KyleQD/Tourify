@@ -58,6 +58,8 @@
     "verify:admin:focused": "node --import tsx scripts/audit/admin-execution.ts --verify",
     "check:production-debug": "node --import tsx scripts/check-production-debug-artifacts.mjs",
     "check:public-surface": "node --import tsx scripts/ci/check-public-surface.mjs",
+    "check:token-registry": "node --import tsx scripts/ci/check-token-registry.mjs",
+    "test:token-registry": "node --test scripts/ci/check-token-registry.test.mjs",
     "check:supabase-target": "node scripts/ci/verify-supabase-target.mjs",
     "check:migration-checksums": "node scripts/ci/render-migration-checksums.mjs",
     "test:hiring-phase-13": "vitest run __tests__/hiring/phase-13-real-data.test.ts",

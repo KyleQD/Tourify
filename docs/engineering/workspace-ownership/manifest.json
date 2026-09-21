@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-20T11:06:13.398Z",
-  "base_sha": "59971a9eeba217a635b47d5c667450cd40082f0d",
+  "generated_at": "2026-09-21T02:53:33.540Z",
+  "base_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
   "source": "git status --porcelain=v1 -z --untracked-files=all",
   "policy": {
     "authority": "candidate routing evidence only; task owners must confirm before curation",
@@ -10,30 +10,46 @@
     "max_scanned_file_bytes": 1000000
   },
   "summary": {
-    "total_entries": 15,
+    "total_entries": 43,
     "by_status": {
-      " M": 10,
-      "??": 5
+      " M": 2,
+      "A ": 6,
+      "D ": 2,
+      "M ": 21,
+      "MM": 9,
+      "R ": 3
     },
     "by_owner": {
-      "orchestrator": 9,
-      "release": 6
+      "admin": 5,
+      "artist": 7,
+      "design-system": 3,
+      "orchestrator": 24,
+      "release": 4
     },
     "by_ownership_status": {
-      "candidate": 10,
-      "task-record": 5
+      "candidate": 33,
+      "task-record": 10
     },
     "deleted_without_explanation": 0
   },
   "secret_scan": {
     "finding_count": 0,
     "findings": [],
-    "exclusion_counts": {}
+    "exclusion_counts": {
+      "missing-or-deleted": 2
+    }
   },
   "entries": [
     {
-      "status": " M",
-      "path": "__tests__/config/launch-capability-pages.test.ts",
+      "status": "A ",
+      "path": "__tests__/artist/contract-signing-ui.test.ts",
+      "owner_agent": "artist",
+      "candidate_task_ids": [],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": ".github/workflows/ci.yml",
       "owner_agent": "release",
       "candidate_task_ids": [
         "RELEASE-002",
@@ -47,142 +63,394 @@
       "ownership_status": "candidate"
     },
     {
-      "status": "??",
-      "path": "app/interop-institution/layout.tsx",
-      "owner_agent": "release",
+      "status": "M ",
+      "path": "app/lib/actions/contracts.actions.ts",
+      "owner_agent": "artist",
       "candidate_task_ids": [
-        "RELEASE-008"
+        "ARTIST-003"
       ],
       "ownership_status": "task-record",
-      "ownership_basis": "RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator interoperability institution capability."
+      "ownership_basis": "ARTIST-003 reverified the artist contract-signing UI and corrected this shared contract action so metadata conforms to the generated Supabase Json type used by the signing flow."
     },
     {
-      "status": "??",
-      "path": "app/interop-organization/layout.tsx",
-      "owner_agent": "release",
+      "status": "M ",
+      "path": "docs/engineering/agents/admin/BACKLOG.md",
+      "owner_agent": "admin",
       "candidate_task_ids": [
-        "RELEASE-008"
+        "ADMIN-003",
+        "ADMUX-0102"
       ],
-      "ownership_status": "task-record",
-      "ownership_basis": "RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator interoperability organization capability."
+      "ownership_status": "candidate"
     },
     {
-      "status": "??",
-      "path": "app/protocol-constitution/layout.tsx",
-      "owner_agent": "release",
+      "status": "M ",
+      "path": "docs/engineering/agents/admin/BASELINE.md",
+      "owner_agent": "admin",
       "candidate_task_ids": [
-        "RELEASE-008"
+        "ADMIN-003",
+        "ADMUX-0102"
       ],
-      "ownership_status": "task-record",
-      "ownership_basis": "RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator protocol constitution capability."
+      "ownership_status": "candidate"
     },
     {
-      "status": "??",
-      "path": "app/treaty-legacy/layout.tsx",
-      "owner_agent": "release",
+      "status": "M ",
+      "path": "docs/engineering/agents/admin/GAPS.md",
+      "owner_agent": "admin",
       "candidate_task_ids": [
-        "RELEASE-008"
+        "ADMIN-003",
+        "ADMUX-0102"
       ],
-      "ownership_status": "task-record",
-      "ownership_basis": "RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator treaty system legacy capability."
+      "ownership_status": "candidate"
     },
     {
-      "status": "??",
-      "path": "app/treaty-renewal/layout.tsx",
-      "owner_agent": "release",
+      "status": "M ",
+      "path": "docs/engineering/agents/admin/QUESTIONS.md",
+      "owner_agent": "admin",
       "candidate_task_ids": [
-        "RELEASE-008"
+        "ADMIN-003",
+        "ADMUX-0102"
       ],
-      "ownership_status": "task-record",
-      "ownership_basis": "RELEASE-008 explicitly owns direct-page enforcement for the launch-disabled creator treaty system renewal capability."
+      "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "M ",
+      "path": "docs/engineering/agents/admin/STATE.md",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/artist/BACKLOG.md",
+      "owner_agent": "artist",
+      "candidate_task_ids": [],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/artist/BASELINE.md",
+      "owner_agent": "artist",
+      "candidate_task_ids": [],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/artist/QUESTIONS.md",
+      "owner_agent": "artist",
+      "candidate_task_ids": [],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/artist/STATE.md",
+      "owner_agent": "artist",
+      "candidate_task_ids": [],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/design-system/STATE.md",
+      "owner_agent": "design-system",
+      "candidate_task_ids": [
+        "DESIGN-033"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/orchestrator/BACKLOG.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/orchestrator/BASELINE.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/orchestrator/GAPS.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/orchestrator/QUESTIONS.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/agents/orchestrator/STATE.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "MM",
       "path": "docs/engineering/generated/api-routes.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/components.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/database-objects.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/database-schema.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/integrations.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/permissions.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/project-map.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
-      "status": " M",
+      "status": "MM",
       "path": "docs/engineering/generated/routes.md",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
       ],
       "ownership_status": "candidate"
     },
     {
+      "status": "D ",
+      "path": "docs/engineering/tasks/active/ARTIST-003.json",
+      "owner_agent": "artist",
+      "candidate_task_ids": [
+        "ARTIST-003"
+      ],
+      "ownership_status": "task-record",
+      "ownership_basis": "ARTIST-003 completed with acceptance and verification evidence; the active-path deletion is paired with its completed task record.",
+      "deletion_explanation": "ARTIST-003 moved from active to completed after its recorded acceptance criteria and verification passed."
+    },
+    {
+      "status": "D ",
+      "path": "docs/engineering/tasks/active/DESIGN-034.json",
+      "owner_agent": "design-system",
+      "candidate_task_ids": [
+        "DESIGN-034"
+      ],
+      "ownership_status": "task-record",
+      "ownership_basis": "DESIGN-034 completed with acceptance and verification evidence; the active-path deletion is paired with its completed task record.",
+      "deletion_explanation": "DESIGN-034 moved from active to completed after its recorded acceptance criteria and verification passed."
+    },
+    {
+      "status": "M ",
+      "path": "docs/engineering/tasks/active/ORCH-002.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": "R ",
+      "path": "docs/engineering/tasks/completed/ADMIN-001.json",
+      "original_path": "docs/engineering/tasks/active/ADMIN-001.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ADMIN-001"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": "R ",
+      "path": "docs/engineering/tasks/completed/ARTIST-001.json",
+      "original_path": "docs/engineering/tasks/active/ARTIST-001.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ARTIST-001"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": "A ",
+      "path": "docs/engineering/tasks/completed/ARTIST-003.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ARTIST-003"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": "A ",
+      "path": "docs/engineering/tasks/completed/DESIGN-034.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "DESIGN-034"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": "R ",
+      "path": "docs/engineering/tasks/completed/ORCH-001.json",
+      "original_path": "docs/engineering/tasks/active/ORCH-001.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-001"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
       "status": " M",
+      "path": "docs/engineering/tasks/TASK_INDEX.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "MM",
+      "path": "docs/engineering/workspace-ownership/manifest.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
+      "path": "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
+      "owner_agent": "design-system",
+      "candidate_task_ids": [
+        "DESIGN-033"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "A ",
+      "path": "docs/work-packets/DESIGN-034.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "DESIGN-034"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": "M ",
+      "path": "package.json",
+      "owner_agent": "release",
+      "candidate_task_ids": [
+        "RELEASE-002",
+        "RELEASE-003",
+        "RELEASE-004",
+        "RELEASE-005",
+        "RELEASE-006",
+        "RELEASE-007",
+        "RELEASE-008"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "scripts/agent-tools/control-plane.mjs",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "M ",
       "path": "scripts/agent-tools/generate-workspace-ownership.mjs",
       "owner_agent": "orchestrator",
       "candidate_task_ids": [
-        "ORCH-001",
         "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "A ",
+      "path": "scripts/ci/check-token-registry.mjs",
+      "owner_agent": "release",
+      "candidate_task_ids": [
+        "RELEASE-002",
+        "RELEASE-003",
+        "RELEASE-004",
+        "RELEASE-005",
+        "RELEASE-006",
+        "RELEASE-007",
+        "RELEASE-008"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "A ",
+      "path": "scripts/ci/check-token-registry.test.mjs",
+      "owner_agent": "release",
+      "candidate_task_ids": [
+        "RELEASE-002",
+        "RELEASE-003",
+        "RELEASE-004",
+        "RELEASE-005",
+        "RELEASE-006",
+        "RELEASE-007",
+        "RELEASE-008"
       ],
       "ownership_status": "candidate"
     }

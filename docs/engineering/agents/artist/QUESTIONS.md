@@ -9,7 +9,7 @@ These questions are prioritized P1 (blockers for the artist domain) through P3 (
 ## P1 — Must answer before any follow-up work
 
 ### Q1: Music domain ownership overlap
-The artist music pages (`app/artist/music/`, 1535-line page + 12 sub-pages) and the 34 music API routes under `app/api/artist/music/` overlap with the music domain agent. Who owns the `artist_music` table and the music API routes? Should these be consolidated under one domain or kept as cross-domain surfaces?
+The artist music pages (`app/artist/music/`, 1535-line page + 12 sub-pages) and the 33 music API route files under `app/api/artist/music/` overlap with the music domain agent. Who owns the `artist_music` table and the music API routes? Should these be consolidated under one domain or kept as cross-domain surfaces?
 
 **Options:**
 - A) Keep music routes under the artist domain; music agent is read-only for artist-owned data
@@ -101,7 +101,7 @@ Multiple abandoned files exist: `page-simple-broken.tsx`, `page-optimized.tsx`, 
 Only one error boundary exists for the entire artist tree. Should per-section error boundaries be added for music, events, and business?
 
 ### Q14: Artist-specific test coverage
-Only 9 tests exist for 67+ pages and 56+ API routes. What's the testing priority?
+Only 9 tests exist for 67 pages and 55 artist-facing API route files. What's the testing priority?
 - A) Focus on EPK (premium feature)
 - B) Focus on profile save (identity-critical)
 - C) Focus on events CRUD (highest usage)
@@ -112,3 +112,37 @@ Only 9 tests exist for 67+ pages and 56+ API routes. What's the testing priority
 
 ### Q16: Artist context hardening
 `contexts/artist-context.tsx` is the central context for all artist pages but has zero test coverage. Should this be hardened before other work?
+
+---
+
+## Gap coverage and disposition
+
+This matrix makes the build/fix/drop decision and sequencing explicit for every gap. A single owner question may govern several related gaps; unanswered choices become follow-up tasks and do not block completion of ARTIST-001.
+
+| Gap | Owner question | Decision requested | Sequence |
+|---|---|---|---|
+| G-M1 | Q14 | Build a broader artist test suite, narrow it to critical flows, or defer/drop coverage for now | P3 |
+| G-M2 | Q14 | Build profile-save coverage or defer it behind another critical flow | P3 |
+| G-M3 | Q14 | Include artist-settings coverage in the suite or defer/drop it | P3 |
+| G-M4 | Q13 | Build section loading/error boundaries or accept the root boundary | P3 |
+| G-M5 | Q8 | Build a shared music/dashboard layout, enhance the root layout, or defer | P2 |
+| G-M6 | Q14 | Build the EPK end-to-end journey or prioritize another flow | P3 |
+| G-M7 | Q16 | Build context tests before other work or defer | P3 |
+| G-M8 | Q14 | Build API integration coverage beyond public appearance or defer | P3 |
+| G-I1 | Q6 | Fix the music monolith by extraction/splitting or defer | P2 |
+| G-I2 | Q2 | Fix route authentication with one artist-profile gate contract | P1 |
+| G-I3 | Q12 | Remove the broken variant now or defer cleanup | P3 |
+| G-I4 | Q2 | Fix the EPK route's untyped client boundary while standardizing route gates, or track separately | P1 |
+| G-I5 | Q9 | Build shared server-side schemas (profile first, then EPK/events/music) or limit/defer validation | P2 |
+| G-I6 | Q9 | Split the profile into a server shell and client form while fixing validation, or defer the optimization | P2 |
+| G-I7 | Q7 | Remove, retain as aliases, or build out feature redirects | P2 |
+| G-I8 | Q8 | Build a dashboard layout, enhance the root layout, or defer | P2 |
+| G-I9 | Q4 | Build, defer, or drop the artist contract-signing UI | P1 |
+| G-I10 | Q15 | Build/fix the store integration or drop the placeholder surface | P3 |
+| G-U1 | Q2 | Fix inconsistent auth with one artist-profile resolver | P1 |
+| G-U2 | Q10 | Fix toast inconsistency by choosing one system | P2 |
+| G-U3 | Q6 | Fix direct data access through component/service extraction or defer | P2 |
+| G-U4 | Q12 | Remove dead variants now or defer cleanup | P3 |
+| G-U5 | Q13 | Build section boundaries or keep the root-only strategy | P3 |
+| G-U6 | Q11 | Build EPK rate limiting or explicitly accept current behavior | P3 |
+| G-U7 | Q9 | Build shared server-side validation, basic checks, or defer | P2 |

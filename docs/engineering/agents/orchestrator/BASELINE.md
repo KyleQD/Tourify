@@ -6,6 +6,28 @@ Base SHA: 7cf660ad8422dbd3adbdb77369d94638cdc2231b
 
 ## What exists today
 
+### Runtime implementation surface
+
+The orchestrator is a documentation and coordination domain, not a runtime
+product surface. It owns no web routes, React components, domain services, API
+handlers, Supabase migrations, or database objects. Those surfaces are indexed
+for routing work in `docs/engineering/generated/routes.md`,
+`docs/engineering/generated/components.md`,
+`docs/engineering/generated/api-routes.md`,
+`docs/engineering/generated/database-schema.md`, and
+`docs/engineering/generated/database-objects.md`; behavior remains owned and
+verified by the corresponding domain agents.
+
+The orchestrator's executable evidence is the control-plane tooling and its
+records: the commands declared in `package.json`, their implementation under
+`scripts/agent-tools/`, task records under `docs/engineering/tasks/`, handoffs
+under `docs/engineering/handoffs/`, execution plans under
+`docs/engineering/exec-plans/`, and validation output recorded in ORCH-001.
+There are no orchestrator-local product tests; the focused acceptance gate is
+`npm run agents:validate`, as specified by
+`docs/engineering/agents/orchestrator/VERIFICATION.md` and the ORCH-001 task
+record.
+
 ### Control plane (docs/engineering/)
 
 - **INDEX.md** — required reading order, links to all core memory files. `docs/engineering/INDEX.md`
@@ -66,3 +88,26 @@ Per `docs/DEVELOPMENT_BACKLOG.md` and `docs/engineering/agents/orchestrator/BACK
 4. Maintain cross-domain dependency graph currency.
 5. Coordinate the 17 domain agents through their starter audit tasks.
 6. Drive the 4-phase backlog from P0 security fixes through P3 scale work.
+
+Detailed human-facing work remains in `docs/work-packets/`, while canonical
+task status remains in `docs/engineering/tasks/` per
+`docs/DEVELOPMENT_WORKFLOW.md` and `docs/engineering/tasks/README.md`.
+Cross-domain execution and ownership transfer use
+`docs/engineering/exec-plans/README.md` and
+`docs/engineering/handoffs/README.md`.
+
+## Closeout verification — 2026-09-20
+
+- The original 2026-09-09 snapshot above is retained as audit evidence rather
+  than rewritten to resemble current topology.
+- The bounded context packet was rebuilt with
+  `npm run agents:context -- --task ORCH-001` at
+  `ea5c36a3b468afb82d83809746d01ad479d38541`.
+- The current control plane contains 17 registered agents, 113 task records,
+  eight generated topology maps plus their README, an active execution-plan
+  model, and pending/completed handoff records. Evidence paths are
+  `docs/engineering/agents/registry.yaml`, `docs/engineering/tasks/`,
+  `docs/engineering/generated/`, `docs/engineering/exec-plans/`, and
+  `docs/engineering/handoffs/`.
+- ORCH-002 is the follow-up task for current workspace curation and launch-path
+  orchestration; ORCH-001 remains only the completed baseline audit.

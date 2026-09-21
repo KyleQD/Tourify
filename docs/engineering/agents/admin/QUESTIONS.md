@@ -229,9 +229,9 @@
 | Priority | Count | IDs |
 |----------|-------|-----|
 | P1 (Blocking) | 3 | Q001, Q002, Q003 |
-| P2 (Important) | 6 | Q004, Q005, Q006, Q007, Q008, Q009, Q010, Q011 |
+| P2 (Important) | 8 | Q004, Q005, Q006, Q007, Q008, Q009, Q010, Q011 |
 | P3 (Clarifying) | 2 | Q012, Q013 |
-| **Total** | **11** | |
+| **Total** | **13** | |
 
 ---
 
@@ -242,3 +242,22 @@ The following P1 questions block work in other domains:
 1. **Q001 (Admin Gate Split)** — Blocks any agent working on admin authorization, role-based access, or API route guards.
 2. **Q002 (Admin Guard Sweep)** — Blocks any agent hardening admin routes or adding authorization middleware.
 3. **Q003 (Platform Admin Role)** — Blocks any agent working on platform-level admin features or cross-org authorization.
+
+## Closeout Disposition — 2026-09-20
+
+This closeout does not select new product answers. It records where each
+question now belongs and confirms that unanswered questions do not block the
+read-only audit.
+
+| Questions | Disposition |
+| --- | --- |
+| Q001–Q003 | Existing decisions CP-014, CP-043, and CP-044 supplied the implementation direction; ADMIN-002 and ADMIN-003 own the resulting work and evidence. No new role or guard policy is decided here. |
+| Q004–Q005 | Existing preservation policy CP-004 applies: retain and reference the legacy ledgers. Any archive/delete decision remains a separate owner-authorized cleanup. |
+| Q006 | Remains an owner sequencing question. Create or update an admin-owned follow-up task only when the owner chooses pursue, defer, or investigate; it does not block ADMIN-001. |
+| Q007–Q011 | Remain open product, quality, security, or business-rule questions. Their answers must become bounded admin follow-up tasks with acceptance evidence; ADMIN-001 records them without deciding them. |
+| Q012 | Shared generated-map reconciliation is outside this bounded closeout. Root orchestration owns index/map refresh; the current SHA warnings are recorded, not hidden. |
+| Q013 | ADMUX-0102 owns the active accessibility/navigation slice, while the broader IA product choice remains open. This audit does not choose a navigation strategy. |
+
+The original “blocks” fields describe implementation dependencies, not the
+completion condition for ADMIN-001. All thirteen questions are surfaced in the
+final task checkpoint, and none prevents closing the completed audit.

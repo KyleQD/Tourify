@@ -1,15 +1,15 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-09-20T11:36:51.253Z",
+  "updated_at": "2026-09-21T02:53:23.000Z",
   "tasks": [
     {
       "id": "ADMIN-001",
       "title": "Audit Admin workspace — baseline, gaps, and questions",
-      "status": "active",
+      "status": "completed",
       "priority": "P1",
       "owner_agent": "admin",
-      "updated_at": "2026-09-09T06:17:39.523Z",
-      "path": "docs/engineering/tasks/active/ADMIN-001.json",
+      "updated_at": "2026-09-20T20:02:31.000Z",
+      "path": "docs/engineering/tasks/completed/ADMIN-001.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
     {
@@ -58,8 +58,8 @@
       "status": "completed",
       "priority": "P1",
       "owner_agent": "artist",
-      "updated_at": "2026-09-09T14:00:00.000Z",
-      "path": "docs/engineering/tasks/active/ARTIST-001.json",
+      "updated_at": "2026-09-20T20:00:31.000Z",
+      "path": "docs/engineering/tasks/completed/ARTIST-001.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
     {
@@ -75,11 +75,11 @@
     {
       "id": "ARTIST-003",
       "title": "Build contract signing UI",
-      "status": "active",
+      "status": "completed",
       "priority": "P2",
       "owner_agent": "artist",
-      "updated_at": "2026-09-16T19:24:56.009Z",
-      "path": "docs/engineering/tasks/active/ARTIST-003.json",
+      "updated_at": "2026-09-20T20:11:45.000Z",
+      "path": "docs/engineering/tasks/completed/ARTIST-003.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
     {
@@ -525,11 +525,11 @@
     {
       "id": "DESIGN-034",
       "title": "Token registry CI regression gate (Phase 6)",
-      "status": "active",
+      "status": "completed",
       "priority": "P2",
       "owner_agent": "design-system",
-      "updated_at": "2026-09-16T19:24:56.201Z",
-      "path": "docs/engineering/tasks/active/DESIGN-034.json",
+      "updated_at": "2026-09-21T02:49:35Z",
+      "path": "docs/engineering/tasks/completed/DESIGN-034.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
     {
@@ -725,11 +725,11 @@
     {
       "id": "ORCH-001",
       "title": "Audit Orchestrator workspace — baseline, gaps, and questions",
-      "status": "active",
+      "status": "completed",
       "priority": "P1",
       "owner_agent": "orchestrator",
-      "updated_at": "2026-09-16T19:24:55.823Z",
-      "path": "docs/engineering/tasks/active/ORCH-001.json",
+      "updated_at": "2026-09-20T19:57:36.000Z",
+      "path": "docs/engineering/tasks/completed/ORCH-001.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
     {
@@ -738,7 +738,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "orchestrator",
-      "updated_at": "2026-09-19T23:45:00.000Z",
+      "updated_at": "2026-09-21T02:49:35.000Z",
       "path": "docs/engineering/tasks/active/ORCH-002.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },

@@ -132,6 +132,9 @@ jobs:
       - name: Admin workflow registry and generated evidence views
         run: npm run check:admin-audit
 
+      - name: Token registry regression gate (DESIGN-034)
+        run: npm run test:token-registry && npm run check:token-registry
+
       - name: Dependency audit (critical)
         run: npm audit --audit-level=critical
 

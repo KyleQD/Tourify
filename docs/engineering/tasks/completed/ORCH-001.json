@@ -2,11 +2,11 @@
   "schema_version": "1.0",
   "id": "ORCH-001",
   "title": "Audit Orchestrator workspace — baseline, gaps, and questions",
-  "status": "active",
+  "status": "completed",
   "priority": "P1",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-09T06:17:39.267Z",
-  "updated_at": "2026-09-16T19:24:55.823Z",
+  "updated_at": "2026-09-20T19:57:36.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Audit the Orchestrator area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: the engineering control plane itself: domain registry, task/handoff/exec-plan model, generated maps currency, agent identities, and the cross-domain dependency graph (DOCS/engineering)",
@@ -53,19 +53,22 @@
   "verification": {
     "tier": "fast",
     "commands": [
+      "npm run agents:context -- --task ORCH-001",
       "npm run agents:validate"
     ],
     "evidence": [
-      "TASK_INDEX.json and task filesystem reconciliation checked: all 99 task records agree on status and path.",
-      "npm run agents:generate completed at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b; refreshed routes, components, database, permissions, and integrations maps.",
-      "npm run agents:validate passed: 17 agents, 99 tasks, 0 warnings, 0 errors."
+      "Original audit artifacts exist at docs/engineering/agents/orchestrator/BASELINE.md, GAPS.md, and QUESTIONS.md; each retains the 2026-09-09 findings and now records the final 2026-09-20 disposition.",
+      "npm run agents:context -- --task ORCH-001 completed at ea5c36a3b468afb82d83809746d01ad479d38541 and produced a bounded 14-of-46-file packet; SHA drift was explicitly reported rather than hidden.",
+      "npm run agents:validate passed before completion: 17 agents, 113 tasks, 8 generated-map SHA-drift warnings, 0 errors. Shared generated maps and TASK_INDEX.json were intentionally not rewritten in this bounded closeout.",
+      "Closeout edits are limited to docs/engineering/agents/orchestrator/ and the ORCH-001 task record; no production code or migration file was changed.",
+      "Owner questions are resolved, routed to ORCH-002, or explicitly classified as non-blocking historical cleanup in QUESTIONS.md and the final checkpoint."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-13T20:08:24Z",
+    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+    "last_run_at": "2026-09-20T19:57:36Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "Production-readiness audit recorded a hard NO-GO for the current live topology and created ORCH-002 to own workspace curation and the launch critical path. ORCH-001 remains active until its original audit acceptance criteria are satisfied.",
+    "summary": "ORCH-001 is complete. The original baseline, triaged gap inventory, and prioritized owner questions are preserved with closeout dispositions; state and backlog are reconciled; bounded context and zero-error control-plane validation were rerun; current workspace and launch orchestration remain in ORCH-002.",
     "completed": [
       "authored docs/engineering/agents/orchestrator/BASELINE.md from working set and references",
       "authored docs/engineering/agents/orchestrator/GAPS.md (8 missing, 7 incomplete, 6 improve)",
@@ -109,12 +112,15 @@
       "accepted ADMIN-003 review-only observations + precondition handoff notes",
       "accepted DESIGN-030 Phase 5 dead-root + neon retirement",
       "accepted HF-DESIGN-030-ADMIN retirement decision",
-      "completed DESIGN-030 token authority migration"
+      "completed DESIGN-030 token authority migration",
+      "verified all eight original ORCH-001 acceptance criteria and recorded closeout evidence",
+      "surfaced final dispositions for P1 Q1-Q4 and P2 Q5-Q10 in QUESTIONS.md and the final checkpoint",
+      "reconciled orchestrator STATE.md and BACKLOG.md to make ORCH-002 the active control task",
+      "reran bounded context and agents:validate with 17 agents, 113 tasks, and 0 errors"
     ],
     "next_steps": [
-      "Dispatch or continue only disjoint owner lanes in dependency order: DB-002/005/006, INTG-003/006, DISC-002, then release provisioning and release gates.",
-      "Obtain DESIGN-033 visual evidence and advance DESIGN-034; keep ADMIN-003, SOCIAL-004, MUSIC-004, ARTIST-003, USER-003, and MKT-002 held to their recorded preconditions.",
-      "Refresh generated maps and run npm run agents:validate before accepting the orchestration cycle."
+      "Continue workspace curation, dependency truth, and hosted launch-gate coordination only through ORCH-002 and the owning domain tasks.",
+      "Reconcile shared generated maps and TASK_INDEX.json outside this bounded closeout; ORCH-001 deliberately did not rewrite them."
     ],
     "blockers": [],
     "checkpoints": [
@@ -531,6 +537,25 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-20T19:57:36.000Z",
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "summary": "Final ORCH-001 acceptance audit complete. P1 questions: Q1 dispatch is answered by the registered-domain/task model; Q2 map currency by CP-008 and SHA-stamped validation; Q3 dirty ownership is routed to ORCH-002; Q4 exec-plan/handoff models are built. P2 questions: Q5 decision IDs are unique via CP-005; Q6 credentials were unnecessary for the read-only audit; Q7 QA/release boundaries are task/charter enforced; Q8 legacy ledgers are preserved by CP-004; Q9 packets are detailed plans while task JSON is canonical status; Q10 historical fix-pass records remain non-blocking cleanup. BASELINE.md now explicitly records that this documentation domain owns no runtime routes, components, services, APIs, migrations, or database objects. STATE.md and BACKLOG.md point current work to ORCH-002. The bounded context command succeeded and agents:validate passed with 17 agents, 113 tasks, 8 shared-map SHA warnings, and 0 errors. The evidence-led read-only expansion to package.json and scripts/agent-tools/control-plane.mjs verified the INDEX-advertised command wiring; the original 2026-09-09 checkpoint already records why exec-plans and handoffs were added. No production or migration file changed.",
+        "completed": [
+          "Verified BASELINE.md path-backed control-plane inventory, intended direction, implementation-surface boundary, and evidence sources.",
+          "Verified GAPS.md triages every finding as missing, incomplete, or improve and records closeout disposition without erasing the historical audit.",
+          "Verified QUESTIONS.md prioritizes all ten owner questions and records build/fix/drop or routing decisions.",
+          "Rebuilt the bounded ORCH-001 context packet and confirmed the original scope-expansion reason remains recorded in the 2026-09-09 checkpoint.",
+          "Verified package.json and scripts/agent-tools/control-plane.mjs only to substantiate the control-plane commands advertised by INDEX.md; recorded that evidence-led expansion in this checkpoint.",
+          "Reconciled orchestrator state and backlog and preserved ORCH-002 as the follow-up control task.",
+          "Ran npm run agents:validate before completion: 0 errors."
+        ],
+        "next_steps": [
+          "Root orchestration should reconcile TASK_INDEX.json and shared generated maps after concurrent task closeouts.",
+          "Continue all implementation and launch-gate work through ORCH-002 and domain-owned task records."
+        ],
+        "blockers": []
       }
     ]
   },
@@ -538,6 +563,6 @@
     "Database lane (re-dispatch under CP-051): promote 20260728233640_repair_post_engagement_persistence.sql + 20260731233358_premiere_post_styles_v3.sql from the pre-reconciliation archive into the active chain additively; apply all pending migrations manually (no db reset, no automated full-chain replay); reconcile live table counts via SQL; regen lib/database.types.ts + type-drift check; file the pg_read_file manual-apply item for 20260415210006.",
     "Work/logistics lane: reconcile the site-map zones route with the event-zone bridge contract (restore resolveOrCreateEventZone usage in app/api/admin/logistics/site-maps/[id]/zones/route.ts per __tests__/logistics/site-map-ops-upgrade.test.ts).",
     "Release/QA (wave 3): local Supabase-backed search + configured-Redis 429 smoke, /healthz loopback smoke, cron unauthorized rejection, org-invite RLS probes — all against manually applied migrations.",
-    "ORCH-002 owns workspace preservation, release-branch curation, the production launch dependency graph, and weekly go/no-go reporting; ORCH-001 remains open only for its original audit acceptance criteria."
+    "ORCH-002 owns workspace preservation, release-branch curation, the production launch dependency graph, and weekly go/no-go reporting; ORCH-001 is closed after satisfying its original audit acceptance criteria."
   ]
 }

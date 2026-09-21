@@ -1,21 +1,22 @@
 # Admin state
 
-- Last reviewed SHA: `a7193116c5a677b1c2939aa4a66e9415dac6eed1`
-- Last reviewed at: 2026-09-13
-- Active task: `ADMIN-002` / `ADMIN-003` local-readiness implementation checkpoint
-- Confidence: platform/org gate split and standard wrappers are implemented; legacy route migration remains open.
+- Last reviewed SHA: `ea5c36a3b468afb82d83809746d01ad479d38541`
+- Last reviewed at: 2026-09-20
+- Active task: `ADMIN-003` production guard convergence; `ADMUX-0102` governed navigation evidence
+- Confidence: ADMIN-001 audit complete; platform/org gate split is implemented, while legacy route migration and hosted evidence remain open.
 
 ## Durable facts
 
 - Mission: Own admin dashboards, admin operations, authorization gates, and audit registries.
 - Default working set is recorded in `WORKING_SET.json`.
 - Admin area inventory: 79 page routes, 289 API routes, 258 components, 281 lib files, 244 tests, 31 auth core files.
+- ADMIN-001 is a completed 2026-09-09 audit snapshot. Its thirteen owner questions are preserved and dispositioned without making unanswered product policy a completion blocker.
 - Legacy ledgers (admin-dashboard-builder, admin-feature-spec-builder, admin-ui-wiring) are all COMPLETE or near-COMPLETE; reference them from task records instead of re-executing.
 - Two P0 security items from DEVELOPMENT_BACKLOG.md: WS-0.8 (admin gate split) and WS-1.7 (admin guard sweep) must be resolved before launch.
 - `ADM-B01` remains blocked on independent CI/staging evidence and must not be closed from local-only results.
 - The W01 first-level Admin IA now uses six task-oriented groups, keeps canonical sidebar destinations reachable, and exposes matching destinations directly during search.
 - Local verification does not promote canonical `ADM-B13` or `ADMUX-0101` status; those remain governed by the audit registry, batch dependencies, and immutable evidence rules.
-- Generated maps are stale (SHA `a7193116`, 386/399 entries dirty) and should be refreshed when maps are out of date.
+- Generated maps are navigation aids and currently warn that their source SHA differs from the checkout; shared refresh is owned by root orchestration, not the docs-only ADMIN-001 closeout.
 - Platform profile authority is now `profiles.is_admin` or a nonzero/recognized `admin_level`; `role = 'admin'` alone is not a platform grant. Organization authority stays in the acting-org capability context.
 - `withPlatformAdmin` is the platform-only HTTP wrapper; `withAdminCapability` is the standard organization-scoped guard. The audit reader now uses the latter.
 - Event analytics and event export now use `withAdminCapability('event.view')` and retain `assertAdminEventAccess` ownership checks; this is the first bounded legacy-route convergence batch.

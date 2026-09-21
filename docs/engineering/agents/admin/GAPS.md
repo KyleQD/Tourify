@@ -187,6 +187,21 @@
 |--------|-------|-----|
 | P0 (Blocker) | 2 | G001, G002 |
 | P1 (High) | 3 | G003, G004, G005 |
-| P2 (Medium) | 5 | G006, G007, G008, G009, G010, G011 |
+| P2 (Medium) | 6 | G006, G007, G008, G009, G010, G011 |
 | P3 (Low) | 3 | G012, G013, G014 |
-| **Total** | **13** | |
+| **Total** | **14** | |
+
+## Acceptance Triage — Missing / Incomplete / Improve
+
+The priority labels above describe urgency. The required gap-type triage is:
+
+| Type | IDs | Basis |
+| --- | --- | --- |
+| Missing | None | The audited domain had implementation or evidence for every listed concern; the gaps were incomplete coverage or improvement debt rather than absent subsystems. |
+| Incomplete | G001–G010 | Existing authorization, policy, lifecycle, wiring, and database-validation mechanisms were present but incomplete or not fully verified at the cited locations. |
+| Improve | G011–G014 | Test visibility, generated-map currency, navigation IA, and legacy-ledger hygiene improve confidence or maintainability without representing an absent subsystem. |
+
+This preserves the 2026-09-09 findings. Later implementation evidence belongs
+to ADMIN-002, ADMIN-003, ADMUX-0102, and their owner records; it does not erase
+the baseline gaps or make unanswered product-policy questions an ADMIN-001
+blocker.

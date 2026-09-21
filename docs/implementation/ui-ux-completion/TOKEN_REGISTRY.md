@@ -57,6 +57,24 @@ Scoped Tailwind build emits the three utilities; staff scope unaffected
 (own `0.625rem` wins by cascade). Table C rows flipped `live`; Table K
 radius rows flipped `live`; QA visual-check of critical surfaces is the
 final gate (handoff HF-DESIGN-033-QA). See §6.)
+Amended: 2026-09-20 (**Phase 6 CI gate — DESIGN-034.**) Table K now records
+all 41 Tailwind projection aliases as exact rows. The CI contract below makes
+the two global runtime token sources and the Tailwind projection source
+machine-readable; `npm run check:token-registry` fails when a live/conflict
+role lacks runtime truth, a global token declaration/source is unregistered,
+or Tailwind/Table K projections drift.
+
+<!-- token-registry-ci
+runtime-source: app/globals.css
+runtime-source: app/admin/globals.css
+projection-source: tailwind.config.ts
+-->
+
+The CI source boundary covers non-module global CSS custom-property sources.
+Component-local `.module.css` properties and inline layout/data properties
+(for example `--post-*`, `--artist-theme-*`, `--sidebar-width`, and Recharts'
+local `--color-bg`/`--color-border`) are intentionally not global design-token
+sources. Tailwind values that project a CSS variable are always in scope.
 
 ---
 
@@ -299,12 +317,12 @@ zero consumers (dead).
 | neon-amber | `--neon-amber-rgb` | `247 200 79` | `neon-amber` | app/globals.css staff scope | conflict | C-02 (owner note as above) |
 | neon-green | `--neon-green-rgb` | `91 234 155` | `neon-green` | app/globals.css staff scope | conflict | C-02 (owner note as above) |
 | neon-red | `--neon-red-rgb` | `242 96 114` | `neon-red` | app/globals.css staff scope | conflict | C-02 (owner note as above) |
-| neon-purple-composite | `--neon-purple` | `rgb(var(--neon-purple-rgb))` | none | ~~app/globals.css staff scope~~ | removed | REMOVED Phase 5 (zero `var(--neon-purple)` references re-proven by negative rg; definition deleted; triplet + alias intact) |
-| neon-pink-composite | `--neon-pink` | `rgb(var(--neon-pink-rgb))` | none | idem | removed | REMOVED Phase 5 |
-| neon-cyan-composite | `--neon-cyan` | `rgb(var(--neon-cyan-rgb))` | none | idem | removed | REMOVED Phase 5 |
-| neon-amber-composite | `--neon-amber` | `rgb(var(--neon-amber-rgb))` | none | idem | removed | REMOVED Phase 5 |
-| neon-green-composite | `--neon-green` | `rgb(var(--neon-green-rgb))` | none | idem | removed | REMOVED Phase 5 |
-| neon-red-composite | `--neon-red` | `rgb(var(--neon-red-rgb))` | none | idem | removed | REMOVED Phase 5 |
+| neon-purple-composite | `--neon-purple` | `rgb(var(--neon-purple-rgb))` | none | ~~app/globals.css staff scope~~ | dead | REMOVED Phase 5 (zero `var(--neon-purple)` references re-proven by negative rg; definition deleted; triplet + alias intact) |
+| neon-pink-composite | `--neon-pink` | `rgb(var(--neon-pink-rgb))` | none | idem | dead | REMOVED Phase 5 |
+| neon-cyan-composite | `--neon-cyan` | `rgb(var(--neon-cyan-rgb))` | none | idem | dead | REMOVED Phase 5 |
+| neon-amber-composite | `--neon-amber` | `rgb(var(--neon-amber-rgb))` | none | idem | dead | REMOVED Phase 5 |
+| neon-green-composite | `--neon-green` | `rgb(var(--neon-green-rgb))` | none | idem | dead | REMOVED Phase 5 |
+| neon-red-composite | `--neon-red` | `rgb(var(--neon-red-rgb))` | none | idem | dead | REMOVED Phase 5 |
 
 ## Table H — `--color-*` v4-style map (staff scope)
 
@@ -422,17 +440,28 @@ Defining file: `tailwind.config.ts`. 41 projections (38 color alias names +
 | `foreground` | `hsl(var(--foreground))` | `--foreground` | A live (F) | live |
 | `primary` | `hsl(var(--primary))` | `--primary` | A live (F) | conflict (C-01, C-06) |
 | `primary-foreground` | `hsl(var(--primary-foreground))` | `--primary-foreground` | A live (F) | live |
-| `secondary(/-foreground)` | `hsl(var(--secondary[-foreground]))` | idem | A live (F) | conflict (C-01) |
-| `destructive(/-foreground)` | `hsl(var(--destructive[-foreground]))` | idem | A live (F) | live |
-| `muted(/-foreground)` | `hsl(var(--muted[-foreground]))` | idem | A live (F) | live |
-| `accent(/-foreground)` | `hsl(var(--accent[-foreground]))` | idem | A live (F) | live |
-| `popover(/-foreground)` | `hsl(var(--popover[-foreground]))` | idem | A live (F) | live |
-| `card(/-foreground)` | `hsl(var(--card[-foreground]))` | idem | A live (F) | live |
-| `neon-purple/pink/cyan/amber/green/red` | `rgb(var(--neon-*-rgb) / <alpha-value>)` | `--neon-*-rgb` | G (staff scope only) | conflict (C-02 resolved Phase 4 as intended staff-surface scope: keep scoped, owner note; NO `:root` promotion — all 26 consumers in-scope) |
+| `secondary` | `hsl(var(--secondary))` | `--secondary` | A live (F) | conflict (C-01) |
+| `secondary-foreground` | `hsl(var(--secondary-foreground))` | `--secondary-foreground` | A live (F) | live |
+| `destructive` | `hsl(var(--destructive))` | `--destructive` | A live | live |
+| `destructive-foreground` | `hsl(var(--destructive-foreground))` | `--destructive-foreground` | A live (F) | live |
+| `muted` | `hsl(var(--muted))` | `--muted` | A live (F) | live |
+| `muted-foreground` | `hsl(var(--muted-foreground))` | `--muted-foreground` | A live (F) | live |
+| `accent` | `hsl(var(--accent))` | `--accent` | A live (F) | live |
+| `accent-foreground` | `hsl(var(--accent-foreground))` | `--accent-foreground` | A live (F) | live |
+| `popover` | `hsl(var(--popover))` | `--popover` | A live (F) | live |
+| `popover-foreground` | `hsl(var(--popover-foreground))` | `--popover-foreground` | A live (F) | live |
+| `card` | `hsl(var(--card))` | `--card` | A live (F) | live |
+| `card-foreground` | `hsl(var(--card-foreground))` | `--card-foreground` | A live (F) | live |
+| `neon-purple` | `rgb(var(--neon-purple-rgb) / <alpha-value>)` | `--neon-purple-rgb` | G (staff scope only) | conflict (C-02: intentional staff-surface scope; all consumers in-scope) |
+| `neon-pink` | `rgb(var(--neon-pink-rgb) / <alpha-value>)` | `--neon-pink-rgb` | G (staff scope only) | conflict (C-02) |
+| `neon-cyan` | `rgb(var(--neon-cyan-rgb) / <alpha-value>)` | `--neon-cyan-rgb` | G (staff scope only) | conflict (C-02) |
+| `neon-amber` | `rgb(var(--neon-amber-rgb) / <alpha-value>)` | `--neon-amber-rgb` | G (staff scope only) | conflict (C-02) |
+| `neon-green` | `rgb(var(--neon-green-rgb) / <alpha-value>)` | `--neon-green-rgb` | G (staff scope only) | conflict (C-02) |
+| `neon-red` | `rgb(var(--neon-red-rgb) / <alpha-value>)` | `--neon-red-rgb` | G (staff scope only) | conflict (C-02) |
 | `rounded-lg` | `var(--radius)` | `--radius` | C live (`:root` 0.5rem, DESIGN-033) | live | C-03 APPLIED 2026-09-13 — resolves `0.5rem` (8px) |
 | `rounded-md` | `calc(var(--radius) - 2px)` | `--radius` | C live (`:root` 0.5rem, DESIGN-033) | live | C-03 APPLIED 2026-09-13 — resolves `0.375rem` (6px) |
 | `rounded-sm` | `calc(var(--radius) - 4px)` | `--radius` | C live (`:root` 0.5rem, DESIGN-033) | live | C-03 APPLIED 2026-09-13 — resolves `0.25rem` (4px) |
-| `sidebar` (bg/`DEFAULT`) | `hsl(var(--sidebar-background))` | `--sidebar-background` | I live (`:root` dark, DESIGN-032) | live | added DESIGN-032 |
+| `sidebar` | `hsl(var(--sidebar-background))` | `--sidebar-background` | I live (`:root` dark, DESIGN-032) | live | `colors.sidebar.DEFAULT`; added DESIGN-032 |
 | `sidebar-foreground` | `hsl(var(--sidebar-foreground))` | `--sidebar-foreground` | idem | live | added DESIGN-032; `/70` opacity modifier via color-mix (Tailwind 3.4), same pattern as `border-border/50` |
 | `sidebar-primary` | `hsl(var(--sidebar-primary))` | `--sidebar-primary` | idem | live | family-complete; 0 consumers |
 | `sidebar-primary-foreground` | `hsl(var(--sidebar-primary-foreground))` | `--sidebar-primary-foreground` | idem | live | family-complete; 0 consumers |

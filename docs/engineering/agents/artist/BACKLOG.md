@@ -4,18 +4,14 @@ The canonical work item is a task JSON. Launch priorities remain in `docs/DEVELO
 
 ## Active
 
-- ARTIST-001: Audit complete — awaiting product owner answers to QUESTIONS.md (16 questions, P1–P3)
+- None.
 
 ## Candidate
 
 Ordered by priority from the audit. Convert to bounded tasks once questions are answered.
 
-### P1 (awaiting product owner answers)
-1. Standardize artist API auth patterns (Q2) — create `requireArtistProfile` wrapper
+### P1
 2. Audit `archive/` migration tables for active schema (Q3) — database agent handoff
-3. Decide music domain ownership boundary (Q1) — cross-agent coordination
-4. Build artist contract viewing/signing UI or defer (Q4)
-5. Implement EPK subscription gating or confirm free tier (Q5)
 
 ### P2 (can start without answers)
 6. Refactor artist music page monolith into focused components (Q6)
@@ -36,6 +32,10 @@ Ordered by priority from the audit. Convert to bounded tasks once questions are 
 
 - Control-plane bootstrap created.
 - ARTIST-001 audit completed: BASELINE.md, GAPS.md, QUESTIONS.md produced.
+- Music ownership resolved by CP-026; ARTIST-002 established the browser transport/server-gate contract.
+- ARTIST-004 adopted `requireArtistMusicUser` across all artist-music API route files.
+- EPK remains free and unrestricted under CP-033; no subscription-gating task is needed.
+- ARTIST-003 implemented the CP-034 contract review/signing UI with artist-scoped navigation, owner/counterparty authorization, and focused regression coverage.
 
 ## Production launch triage — 2026-09-16
 

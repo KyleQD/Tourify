@@ -1169,6 +1169,7 @@ function generateIntegrations(state) {
 }
 
 function generate() {
+  const tasks = refreshIndex()
   const state = snapshot()
   generateProjectMap(state)
   const routes = generateRoutes(state)
@@ -1176,7 +1177,7 @@ function generate() {
   const database = generateDatabase(state)
   const permissions = generatePermissions(state)
   const integrations = generateIntegrations(state)
-  console.log(JSON.stringify({ sha: state.sha, routes, components, database, permissions, integrations }, null, 2))
+  console.log(JSON.stringify({ sha: state.sha, tasks: tasks.length, routes, components, database, permissions, integrations }, null, 2))
 }
 
 function generateOne(kind) {

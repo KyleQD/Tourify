@@ -4,14 +4,13 @@ The canonical work item is a task JSON. Launch priorities remain in `docs/DEVELO
 
 ## Active
 
-- `ADMIN-001` — read-only audit of admin workspace: baseline, gaps, questions. BASELINE.md, GAPS.md, QUESTIONS.md produced; awaiting product owner answers on Q001-Q013.
+- `ADMIN-003` — production admin guard convergence, resource-scope classification, and hosted denial evidence. IN PROGRESS.
 - `ADMUX-0102` — replace custom mobile/collapsed-sidebar behavior with accessible, client-routed navigation.
 
 ## Candidate
 
 - `ADMUX-0103` — acting-organization scope behavior, after the first navigation slice is stable.
-- WS-0.8 — admin gate split (P0 blocker from DEVELOPMENT_BACKLOG.md); blocked on Q001 answer.
-- WS-1.7 — admin guard sweep (P0 blocker from DEVELOPMENT_BACKLOG.md); blocked on Q002 answer.
+- Owner answers to ADMIN-001 Q006–Q011 and Q013 become bounded admin follow-up tasks if and when product chooses to pursue them; they do not block the completed audit.
 
 ## Blocked
 
@@ -20,6 +19,8 @@ The canonical work item is a task JSON. Launch priorities remain in `docs/DEVELO
 ## Done
 
 - Control-plane bootstrap created.
+- `ADMIN-001` — read-only baseline/gaps/questions audit completed 2026-09-20; all thirteen questions are preserved with non-decisional dispositions, bounded context rebuilt, and control-plane validation passed with 0 errors.
+- `ADMIN-002` — implemented the WS-0.8 platform/organization gate split under CP-014 and CP-043.
 - `ADMUX-W01` — implemented and locally verified `ADMUX-0101` first-level IA, route reachability, and direct destination search; canonical audit status was not promoted.
 
 ## P0 production launch task — 2026-09-16

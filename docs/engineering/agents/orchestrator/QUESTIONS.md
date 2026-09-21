@@ -64,3 +64,22 @@ QA-001 and RELEASE-001 acceptance criteria state "edit: deny" permission. Is thi
 5 fix passes are documented in DEVELOPMENT_BACKLOG.md changelog but not decomposed into task records. Should these be retroactively tracked as completed tasks?
 - **Blocks**: Nothing; historical record.
 - **Recommendation**: Create completed task records for traceability.
+
+## Closeout disposition — 2026-09-20
+
+| Question | Disposition and evidence |
+| --- | --- |
+| P1 Q1 — dispatch | Answered: bounded work is routed through the 17 registered domain owners and canonical task records; CP-009 and `docs/engineering/agents/orchestrator/STATE.md` record the operating model. |
+| P1 Q2 — map currency | Answered: CP-008 established regeneration and SHA stamping. Current SHA-drift warnings are non-blocking for this documentation-only closeout and will be reconciled with shared generated files outside ORCH-001. |
+| P1 Q3 — dirty ownership | Follow-up created: ORCH-002 owns preservation, ownership mapping, deletion evidence, and release-branch curation. |
+| P1 Q4 — plans/handoffs | Built: `docs/engineering/exec-plans/README.md`, `docs/engineering/exec-plans/TEMPLATE.md`, `docs/engineering/handoffs/README.md`, and `docs/engineering/handoffs/TEMPLATE.md` define the models. |
+| P2 Q5 — decision ID | Fixed under the append-only policy: the second historical CP-002 is CP-005; `docs/engineering/DECISIONS.md` has unique labels. |
+| P2 Q6 — identities | Read-only audit required no runtime credentials. Provisioning remains implementation work governed by CP-002 and does not block this audit. |
+| P2 Q7 — QA/release writes | Resolved operationally through task scope and owner charters; audit tasks self-enforce their recorded read-only boundaries. |
+| P2 Q8 — legacy ledgers | Answered by CP-004: preserve and link rather than bulk-migrate or delete `.agents/` evidence. |
+| P2 Q9 — packet/task overlap | Answered: `docs/DEVELOPMENT_WORKFLOW.md` keeps detailed human-facing packets; `docs/engineering/tasks/README.md` makes task JSON canonical status truth. |
+| P2 Q10 — fix-pass history | Non-blocking candidate: retain the changelog and create historical completed records only when traceability value justifies the work; do not manufacture implementation evidence. |
+
+The four P1 decisions are resolved or routed to ORCH-002. The P2 items are
+resolved policy or explicitly non-blocking historical cleanup, so unanswered
+owner questions do not block ORCH-001 completion.

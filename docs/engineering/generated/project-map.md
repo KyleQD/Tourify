@@ -2,17 +2,17 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `1072fcf45259e44d583e3f1f7c452f2f44b74584`
+- Source SHA: `ea5c36a3b468afb82d83809746d01ad479d38541`
 - Branch: `release/clean-snapshot`
-- Working tree: clean
-- Generated at: 2026-09-20T11:38:41.456Z
+- Working tree: dirty (43 entries)
+- Generated at: 2026-09-21T02:53:23.145Z
 - Generator: `control-plane.mjs generate`
 
 ## Top-level directories
 
 | Directory | Files |
 | --- | ---: |
-| `__tests__/` | 478 |
+| `__tests__/` | 479 |
 | `app/` | 1860 |
 | `apps/` | 182 |
 | `audit-artifacts/` | 5 |
@@ -24,7 +24,7 @@
 | `data/` | 10 |
 | `deployment/` | 7 |
 | `docker/` | 5 |
-| `docs/` | 2982 |
+| `docs/` | 2983 |
 | `docs-integration-suite/` | 20 |
 | `hooks/` | 69 |
 | `lib/` | 1291 |
@@ -34,7 +34,7 @@
 | `playwright-report/` | 1 |
 | `prisma/` | 1 |
 | `public/` | 89 |
-| `scripts/` | 268 |
+| `scripts/` | 270 |
 | `security/` | 1 |
 | `seed/` | 3 |
 | `seed_articles/` | 13 |
