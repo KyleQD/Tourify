@@ -175,12 +175,12 @@ export function isConsentActive(consent: ApplicantConsent): boolean {
 
 export function retentionExpiryDate(consent: ApplicantConsent, fromDate: string): string | null {
   if (consent.data_retention_period === 'indefinite') return null;
-  const base = new Date(fromDate);
+  const base = new Date(`${fromDate}T00:00:00.000Z`);
   const map: Record<RetentionPeriod, number> = {
     '30d': 30, '90d': 90, '180d': 180, '365d': 365, '2y': 730, 'indefinite': 0,
   };
   const days = map[consent.data_retention_period];
-  base.setDate(base.getDate() + days);
+  base.setUTCDate(base.getUTCDate() + days);
   return base.toISOString().slice(0, 10);
 }
 

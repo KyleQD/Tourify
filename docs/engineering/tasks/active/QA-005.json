@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-005",
+  "title": "Campaign-safe synthetic actor provisioning",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "qa",
+  "created_at": "2026-09-22T15:20:12.137Z",
+  "updated_at": "2026-09-22T16:21:28.308Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (78 entries)",
+  "goal": "Provision only campaign-owned synthetic actors and records in verified isolated staging, without adopting or resetting existing users",
+  "scope": {
+    "in": [
+      "Implement a fail-closed campaign-owned synthetic actor provisioner and non-secret actor manifest.",
+      "Verify isolated staging target, campaign namespace, existing-user refusal, and no credential publication."
+    ],
+    "out": [
+      "Adopting or resetting existing users.",
+      "Running against production or deleting campaign records."
+    ]
+  },
+  "working_set": [
+    "scripts/qa/",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/QA-004.json",
+    "docs/engineering/agent-user-simulation-runbook.md",
+    "docs/qa-account-matrix.md"
+  ],
+  "acceptance_criteria": [
+    "Unique campaign ID prefixes every provisioned identity and record.",
+    "Existing untagged or ambiguous users cause a hard refusal without password or metadata updates.",
+    "Target isolation and payment test mode are validated before hosted mutation.",
+    "Manifest contains non-secret IDs and actor intent only; focused tests prove refusal paths."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "Focused fixture provisioner tests",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Local: npx vitest run __tests__/qa/campaign-actor-provisioner.test.ts passed (6 tests); scoped ESLint passed.",
+      "Local: health release metadata tests passed (9 tests) and npm run check:public-surface passed.",
+      "No hosted Auth request or mutation was made.",
+      "2026-09-22 local release/QA gate wave: 13 deployment/topology/evidence/workflow Node tests, 7 actor-provisioner tests, 7 mobile gate tests, launch fixture contract, public-surface check, focused ESLint, and workflow YAML parse passed. Hosted deployment, certification, and simulation were not run.",
+      "2026-09-22 operator preparation: 8 focused actor-provisioner tests passed, including known live origin, missing protected secret, non-isolated header, SHA, Stripe mode, and untagged collision refusal; no hosted Auth request was made.",
+      "2026-09-22 thin pilot preflight: npx vitest run __tests__/qa/campaign-actor-provisioner.test.ts passed (1 file, 8 tests); no hosted actor was provisioned.",
+      "2026-09-22 QA actor operator pass: docs/audits/flow-notes/qa005-actor-provisioning-packet-2026-09-22.md records all 11 absent QA_CAMPAIGN inputs, twelve manifest actor keys, exact hosted gate dependencies, and first web pilot order. Read-only GET health checks returned 200 but no release/deployment/database/Stripe identity headers; both CSPs advertised the same Supabase origin. No hosted Auth, database, payment, device, or UI action.",
+      "2026-09-22 final QA check: npx vitest run __tests__/qa/campaign-actor-provisioner.test.ts passed 8/8 tests. All eleven QA_CAMPAIGN_* inputs absent; no Auth request or manifest creation."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T16:20:35Z",
+    "result": "local-contract-pass; hosted-provisioning-not-run"
+  },
+  "progress": {
+    "summary": "Actor provisioning packet prepared at docs/audits/flow-notes/qa005-actor-provisioning-packet-2026-09-22.md. It lists required protected QA_CAMPAIGN inputs, twelve Auth-only actors, manifest constraints, refusal conditions, and pilot prerequisites. Provisioning did not run because isolated staging, DB proof, Stripe test header/key, and all QA_CAMPAIGN inputs are absent.",
+    "completed": [
+      "Added 12 campaign-tagged synthetic Auth actors, including second tenant/venue and platform-admin candidate without privilege.",
+      "Added collision preflight, exact SHA/deployment checks, staging database-origin and Stripe test-mode checks, secret-derived passwords, and 0600 non-secret ID manifest.",
+      "Six focused fixture tests, nine health metadata tests, scoped lint, and public-surface contract passed.",
+      "Added a missing-production-metadata refusal test; seven focused tests pass."
+    ],
+    "next_steps": [
+      "Load protected staging inputs only after release/DB proof, then run npm run qa:simulation:provision with a fresh SIM campaign ID and protected manifest path."
+    ],
+    "blockers": [
+      "RELEASE-007 isolated staging deployment, Supabase origin, and secret-scope proof is absent; DB-008 ledger and DB-002 hosted denial probes are pending.",
+      "All eleven QA_CAMPAIGN_* inputs, including protected service key, Stripe test key, and password seed, are absent in this operator environment."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:30:36Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Campaign-safe Auth actor provisioner and operator guide implemented locally; live provisioning intentionally blocked by isolated-staging and release-header requirements.",
+        "completed": [
+          "Added 12 campaign-tagged synthetic Auth actors, including second tenant/venue and platform-admin candidate without privilege.",
+          "Added collision preflight, exact SHA/deployment checks, Stripe test-mode guard, secret-derived passwords, and 0600 non-secret manifest.",
+          "Five focused Vitest tests and scoped TypeScript verification passed."
+        ],
+        "next": "Obtain separate staging deployment/DB, x-tourify-release-sha and x-tourify-deployment-id on health, protected secret references, and test-mode proof; then provision campaign actors."
+      },
+      {
+        "at": "2026-09-22T15:46:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Campaign-safe Auth actor provisioner and operator guide implemented locally; release health now exposes staging database origin and Stripe mode for a fail-closed preflight. Hosted provisioning remains gated.",
+        "completed": [
+          "Added collision preflight, exact SHA/deployment checks, staging database-origin and Stripe test-mode checks, secret-derived passwords, and 0600 non-secret ID manifest.",
+          "Six focused fixture tests, nine health metadata tests, scoped lint, and public-surface contract passed."
+        ],
+        "next": "Record independent RELEASE-007 proof of separate staging deployment, database, and credentials; then supply protected values and provision campaign actors."
+      },
+      {
+        "at": "2026-09-22T16:00:00Z",
+        "sha": null,
+        "summary": "Campaign actor provisioner now refuses production health responses without the recorded deployment ID and Supabase origin before any Auth access. Hosted provisioning remains blocked.",
+        "completed": [
+          "Added a missing-production-metadata refusal test; seven focused tests pass."
+        ],
+        "next": "After hosted production and staging identity headers match independent RELEASE-007 evidence, supply protected credentials and provision campaign-owned actors."
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Read-only release inspection confirms actor provisioning must remain stopped because the current demo alias is the production deployment and protected staging inputs are absent.",
+        "completed": [
+          "Confirmed no actor provisioning occurred during the release packet check."
+        ],
+        "next_steps": [
+          "Provision only after independent staging Vercel/Supabase identity, Stripe test mode, and protected actor credentials match RELEASE-007 evidence."
+        ],
+        "blockers": [
+          "Current demo alias shares production deployment dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:00Z",
+        "sha": null,
+        "summary": "Preflight rechecked: public demo and production health still omit release/deployment/database/payment identity headers; no campaign actors provisioned.",
+        "completed": [
+          "Prepared docs/engineering/qa004-thin-pilot.md and linked the 2026-09-22 gate observation in the campaign ledger; no hosted mutation or pass credit."
+        ],
+        "next": "After independent RELEASE-007 and database/security proof, run fresh-campaign provisioning with protected staging credentials; map manifest keys to QA-004 report aliases and retain non-secret IDs."
+      },
+      {
+        "at": "2026-09-22T16:15:24Z",
+        "sha": null,
+        "summary": "Tightened staging-origin refusal and completed the protected operator checklist, manifest contract, and evidence fields. Hosted actor bootstrap remains blocked.",
+        "completed": [
+          "2026-09-22 operator preparation: 8 focused actor-provisioner tests passed, including known live origin, missing protected secret, non-isolated header, SHA, Stripe mode, and untagged collision refusal; no hosted Auth request was made."
+        ],
+        "next": "Receive RELEASE-007 separate deployment/DB/secret proof, DB-008 ledger, DB-002 hosted denial probes, and all eleven protected variables; then run a fresh campaign ID and retain the 0600 manifest and non-secret operator evidence."
+      },
+      {
+        "at": "2026-09-22T16:19:23Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty shared tree)",
+        "summary": "Provisioning is blocked; all eleven protected inputs are absent and current demo/production identity is not isolated. Exact actor packet prepared.",
+        "completed": [
+          "Prepared non-secret operator packet and checked current readiness without hosted mutation."
+        ],
+        "next_steps": [
+          "After independent isolation, DB and payment proof, load protected inputs and run the fresh campaign provisioner; verify twelve unique IDs and 0600 manifest."
+        ],
+        "blockers": [
+          "No isolated staging proof or QA_CAMPAIGN_* input exists in this runner."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:21:28.308Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Actor provisioning packet prepared at docs/audits/flow-notes/qa005-actor-provisioning-packet-2026-09-22.md. It lists required protected QA_CAMPAIGN inputs, twelve Auth-only actors, manifest constraints, refusal conditions, and pilot prerequisites. Provisioning did not run because isolated staging, DB proof, Stripe test header/key, and all QA_CAMPAIGN inputs are absent.",
+        "completed": [],
+        "next_steps": [
+          "Load protected staging inputs only after release/DB proof, then run npm run qa:simulation:provision with a fresh SIM campaign ID and protected manifest path."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+  ]
+}

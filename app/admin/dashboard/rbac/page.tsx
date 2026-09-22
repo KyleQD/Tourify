@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useActingContext } from '@/hooks/use-acting-context'
 import { AdminEmptyState } from '../components/admin-empty-state'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -224,7 +224,7 @@ export default function RBACManagementPage() {
             Assign Roles
           </Button>
           <Button 
-            onClick={() => setShowCreateRole(true)} 
+            onClick={() => setShowCreateRole(true)}
             className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -234,32 +234,32 @@ export default function RBACManagementPage() {
       </div>
 
       <Tabs defaultValue="membership" className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
-          <TabsTrigger value="membership" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm sm:grid-cols-4 xl:grid-cols-7">
+          <TabsTrigger value="membership" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Users className="h-4 w-4 mr-2" />
             Members
           </TabsTrigger>
-          <TabsTrigger value="grants" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+          <TabsTrigger value="grants" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Key className="h-4 w-4 mr-2" />
             Grants
           </TabsTrigger>
-          <TabsTrigger value="review" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+          <TabsTrigger value="review" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Eye className="h-4 w-4 mr-2" />
             Access Review
           </TabsTrigger>
-          <TabsTrigger value="retention" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+          <TabsTrigger value="retention" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Lock className="h-4 w-4 mr-2" />
             Retention
           </TabsTrigger>
-          <TabsTrigger value="roles" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+          <TabsTrigger value="roles" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Crown className="h-4 w-4 mr-2" />
             Roles
           </TabsTrigger>
-          <TabsTrigger value="permissions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10">
+          <TabsTrigger value="permissions" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10">
             <Shield className="h-4 w-4 mr-2" />
             Permissions
           </TabsTrigger>
-          <TabsTrigger value="matrix" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+          <TabsTrigger value="matrix" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Settings className="h-4 w-4 mr-2" />
             Matrix
           </TabsTrigger>
@@ -294,7 +294,7 @@ export default function RBACManagementPage() {
               
               return (
                 <Card 
-                  key={role.id} 
+                  key={role.id}
                   className="bg-slate-800/50 border-slate-700 hover:border-purple-500/40 transition-all duration-300 cursor-pointer group"
                   onClick={() => setSelectedRole(role)}
                 >
@@ -451,13 +451,14 @@ export default function RBACManagementPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Permission matrix, scroll horizontally for more roles">
+                <table className="w-max min-w-full text-sm">
+                  <caption className="sr-only">Permissions by role</caption>
                   <thead>
                     <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-3 text-slate-400 font-medium sticky left-0 bg-slate-800/50">Permission</th>
+                      <th scope="col" className="text-left py-2 px-3 text-slate-400 font-medium sticky left-0 bg-slate-800/50">Permission</th>
                       {roles.map((role) => (
-                        <th key={role.id} className="text-center py-2 px-2 text-slate-400 font-medium min-w-[80px]">
+                        <th scope="col" key={role.id} className="text-center py-2 px-2 text-slate-400 font-medium min-w-[80px]">
                           <span className="text-xs">{role.display_name}</span>
                         </th>
                       ))}
@@ -465,15 +466,15 @@ export default function RBACManagementPage() {
                   </thead>
                   <tbody>
                     {Object.entries(permissionsByCategory).map(([category, catPerms]) => (
-                      <>
-                        <tr key={`cat-${category}`} className="bg-slate-900/30">
-                          <td colSpan={roles.length + 1} className="py-1.5 px-3 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                      <Fragment key={category}>
+                        <tr className="bg-slate-900/30">
+                          <th scope="rowgroup" colSpan={roles.length + 1} className="py-1.5 px-3 text-left text-xs font-semibold text-purple-400 uppercase tracking-wider">
                             {category.replace(/_/g, ' ')}
-                          </td>
+                          </th>
                         </tr>
                         {catPerms.map((perm) => (
                           <tr key={perm.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                            <td className="py-1.5 px-3 text-slate-300 text-xs sticky left-0 bg-slate-800/50">{perm.display_name}</td>
+                            <th scope="row" className="py-1.5 px-3 text-left font-normal text-slate-300 text-xs sticky left-0 bg-slate-800/50">{perm.display_name}</th>
                             {roles.map((role) => {
                               const hasPermission = (role as any).permissions?.includes(perm.id) ||
                                 (role as any).permission_count > 0
@@ -482,12 +483,13 @@ export default function RBACManagementPage() {
                                   <div className={`mx-auto h-4 w-4 rounded-sm ${hasPermission ? 'bg-purple-500/30' : ''} flex items-center justify-center`}>
                                     {hasPermission && <CheckCircle className="h-3 w-3 text-purple-400" />}
                                   </div>
+                                  <span className="sr-only">{hasPermission ? 'Allowed' : 'Not allowed'}</span>
                                 </td>
                               )
                             })}
                           </tr>
                         ))}
-                      </>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -567,7 +569,7 @@ export default function RBACManagementPage() {
                             }}
                           />
                           <Label 
-                            htmlFor={permission.id} 
+                            htmlFor={permission.id}
                             className="text-sm text-slate-300 cursor-pointer"
                           >
                             {permission.display_name}
@@ -589,7 +591,7 @@ export default function RBACManagementPage() {
                 Cancel
               </Button>
               <Button 
-                onClick={handleCreateRole} 
+                onClick={handleCreateRole}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
               >
                 Create Role
@@ -656,7 +658,7 @@ export default function RBACManagementPage() {
                 Cancel
               </Button>
               <Button 
-                onClick={handleAssignRole} 
+                onClick={handleAssignRole}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
                 disabled={!selectedRole || !selectedUser}
               >
@@ -668,4 +670,4 @@ export default function RBACManagementPage() {
       </Dialog>
     </WorkforcePageShell>
   )
-} 
+}

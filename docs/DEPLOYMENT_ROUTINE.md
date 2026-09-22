@@ -35,14 +35,17 @@ postflight evidence, then resumes application release validation.
 
 ## 3. Demo deployment
 
-After CI and matching E2E pass on `main`:
+After successful CI, E2E, and security `push` runs for the same current `main` SHA, dispatch `deploy-demo.yml` manually from `main` with the full SHA, migration evidence, and approval reference. The protected `staging` GitHub environment must hold its own Vercel token and the registered staging/production project IDs and Supabase origins. The two Vercel projects, Supabase project IDs, and Supabase origins must differ.
 
 1. Pull the demo Vercel environment for the frozen SHA.
 2. Build with the pinned Node/dependency contract.
 3. Deploy the prebuilt artifact to the demo environment.
-4. Run `/healthz`, auth/session, representative admin, ticketing, hiring,
+4. Require the deployment URL and `demo.tourify.live` to return the same Vercel-generated `dpl_` ID and exact SHA, the registered staging Supabase origin, and Stripe test mode on `/api/health`.
+5. Run `/healthz`, auth/session, representative admin, ticketing, hiring,
    messaging, marketplace, and music smoke checks.
-5. Record the deployed SHA, migration state, smoke results, and rollback SHA.
+6. Retain the staging deployment artifact with its SHA, deployment ID, project fingerprints, migration evidence, run ID, and approver. A URL alone is not a deployment ID.
+
+Run the protected `e2e.yml` launch-certification dispatch for that same current `main` SHA after staging is ready. Its staging health preflight requires the recorded deployment ID, separate production identity and Supabase origin, and Stripe test mode before browsers start. Retain the Playwright report and defect disposition.
 
 ## 4. Production deployment
 
@@ -51,8 +54,9 @@ database evidence, backup/PITR and restore-drill evidence, Sentry and uptime
 monitoring, alert routing and on-call ownership, Redis-backed 429 evidence,
 and cron/worker ownership.
 
-Apply approved migrations first, verify postflight behavior, then deploy the
-exact reviewed application SHA. Run authenticated critical-path, health,
+Apply approved migrations first, verify postflight behavior, then dispatch `deploy-production.yml` manually from `main`. Supply the full reviewed SHA, successful staging and launch-certification run IDs, staging `dpl_` ID, production migration evidence, and approval reference. The protected `production` GitHub environment must require manual reviewers and hold a production-only Vercel token. The workflow checks successful matching-SHA CI, E2E, security, staging, and launch-certification runs and verifies the retained staging artifact before deploying. Vercel's Git integration must be configured so a push cannot auto-deploy or reassign the production domains outside this workflow; this hosted setting cannot be proven from repository code.
+
+Run authenticated critical-path, health,
 checkout, marketplace/music, rate-limit, and cron authorization smokes. Watch
 auth and checkout errors/latency, cron failures, and worker/outbox depth during
 the release window.
@@ -76,3 +80,7 @@ operational evidence are absent: `NEXT_PUBLIC_SITE_URL`, `ENCRYPTION_KEY`,
 `INTERNAL_API_SECRET`, `CRON_SECRET`, an Upstash-compatible Redis target,
 Sentry/uptime configuration, PITR/restore evidence, and hosted required-check
 verification.
+Staging and production also need separate hosted Vercel/Supabase projects and
+secrets, protected GitHub environments, disabled Vercel Git auto-deploy for
+production, and Vercel system environment variables exposed at runtime so
+`/api/health` can report the authoritative SHA and deployment ID.

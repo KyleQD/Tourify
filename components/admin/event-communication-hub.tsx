@@ -198,33 +198,33 @@ export function EventCommunicationHub({ eventId, eventName }: EventCommunication
       </div>
 
       <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-4">
-        <TabsList className="flex w-full bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
-          <TabsTrigger value="bulletins" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm sm:grid-cols-3 xl:grid-cols-7">
+          <TabsTrigger value="bulletins" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
             <Megaphone className="h-4 w-4 mr-2" />
             Bulletins
           </TabsTrigger>
-          <TabsTrigger value="group-chats" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+          <TabsTrigger value="group-chats" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
             <Hash className="h-4 w-4 mr-2" />
             Group Chats
           </TabsTrigger>
-          <TabsTrigger value="site-map" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+          <TabsTrigger value="site-map" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
             <Map className="h-4 w-4 mr-2" />
             Site Map
           </TabsTrigger>
-          <TabsTrigger value="tasks" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+          <TabsTrigger value="tasks" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
             <ClipboardCheck className="h-4 w-4 mr-2" />
             Tasks
           </TabsTrigger>
-          <TabsTrigger value="documents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+          <TabsTrigger value="documents" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
             <FileText className="h-4 w-4 mr-2" />
             Documents
           </TabsTrigger>
-          <TabsTrigger value="secure-uploads" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+          <TabsTrigger value="secure-uploads" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
             <Upload className="h-4 w-4 mr-2" />
             Secure Uploads
           </TabsTrigger>
           {isAdmin && (
-            <TabsTrigger value="settings" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
+            <TabsTrigger value="settings" className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm transition-all">
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </TabsTrigger>
@@ -385,7 +385,7 @@ function BulletinsSection({ eventId, userRole, isAdmin }: { eventId: string; use
                         {bulletin.pinned && (
                           <Pin className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
                         )}
-                        <h4 className="font-semibold text-white truncate">{bulletin.title}</h4>
+                        <h4 className="min-w-0 flex-1 line-clamp-2 break-words font-semibold text-white" title={bulletin.title}>{bulletin.title}</h4>
                         <Badge className={config.color}>
                           <PriorityIcon className="h-3 w-3 mr-1" />
                           {config.label}

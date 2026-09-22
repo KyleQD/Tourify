@@ -239,7 +239,7 @@ describe('isConsentActive', () => {
 describe('retentionExpiryDate', () => {
   it('computes 90d expiry correctly', () => {
     const expiry = retentionExpiryDate(baseConsent({ data_retention_period: '90d' }), '2025-01-01');
-    expect(expiry).toBe('2025-03-31');
+    expect(expiry).toBe('2025-04-01');
   });
 
   it('returns null for indefinite', () => {

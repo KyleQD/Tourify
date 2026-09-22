@@ -8,8 +8,11 @@ import type { SocialPlatform } from "@/types/organization-social-integrations.ty
 export const GET = withAdminCapability("content.view", async (_request: NextRequest, { supabase, admin }) => {
   const { data: rows, error } = await supabase
     .from("organization_social_integrations")
+    // INTG-007 — encrypted-only surface. Plaintext credential columns are
+    // never selected (client SELECT is revoked by 20260921000000); token
+    // presence derives from the encrypted envelopes.
     .select(
-      "id, organizer_account_id, ops_org_id, platform, account_handle, access_token, refresh_token, token_envelope, refresh_token_envelope, token_expires_at, is_connected, last_sync, analytics, connected_by, created_at, updated_at",
+      "id, organizer_account_id, ops_org_id, platform, account_handle, token_envelope, refresh_token_envelope, token_expires_at, is_connected, last_sync, analytics, connected_by, created_at, updated_at",
     )
     .eq("organizer_account_id", admin.profileId)
     .order("platform", { ascending: true })
@@ -44,10 +47,11 @@ export const DELETE = withAdminCapability(
 
     const { error } = await supabase
       .from("organization_social_integrations")
+      // INTG-007 — disconnect clears the encrypted envelopes and connection
+      // state only; legacy plaintext columns are never referenced (revoked by
+      // 20260921000000 and already nulled at apply).
       .update({
         is_connected: false,
-        access_token: null,
-        refresh_token: null,
         token_envelope: null,
         refresh_token_envelope: null,
         analytics: {

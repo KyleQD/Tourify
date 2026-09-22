@@ -51,6 +51,13 @@ export const ENVIRONMENT_CONTRACT: readonly EnvironmentVariableContract[] = [
     purpose: "Authoritative 40-character Git commit identity injected by Vercel and exposed by the health endpoint for release certification.",
   },
   {
+    name: "VERCEL_DEPLOYMENT_ID",
+    availability: "build-and-runtime",
+    exposure: "public",
+    requirement: "optional",
+    purpose: "Vercel-generated deployment identity exposed by the health endpoint for campaign fixture target verification.",
+  },
+  {
     name: "SUPABASE_SERVICE_ROLE_KEY",
     availability: "runtime",
     exposure: "server-secret",

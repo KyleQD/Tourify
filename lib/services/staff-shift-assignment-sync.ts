@@ -332,6 +332,7 @@ export async function syncActiveStaffMemberShifts(args: {
     .from("staff_shifts")
     .select("*")
     .eq("staff_member_id", args.staffMemberId)
+    .is("deleted_at", null)
     .not("status", "in", "(cancelled,declined,completed)")
 
   if (shiftError) return { synced, notified, errors: [shiftError.message] }
@@ -342,10 +343,11 @@ export async function syncActiveStaffMemberShifts(args: {
         supabase: db,
         shift: shift as StaffShiftRow,
         notify: true,
-        assignmentStatus: "invited",
+        assignmentStatus: shift.status === "confirmed" ? "confirmed" : "invited",
         actorUserId: args.actorUserId,
       })
       if (result.assignmentId) synced += 1
+      else errors.push(`Shift ${shift.id} could not be linked to a worker assignment.`)
       if (result.notified) notified += 1
     } catch (error) {
       errors.push(error instanceof Error ? error.message : `Failed to sync ${shift.id}`)

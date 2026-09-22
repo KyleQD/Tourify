@@ -336,7 +336,7 @@ export default function TicketingPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         {/* Grouped workspace navigation — replaces 12 flat tabs with 5 primary groups */}
-        <div className="flex items-center gap-1 overflow-x-auto px-1 py-2 border-b border-slate-700/30" role="tablist" aria-label="Ticketing workspace sections">
+        <nav className="flex items-center gap-1 overflow-x-auto border-b border-slate-700/30 px-1 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Ticketing workspace sections">
           {TICKETING_WORKSPACE_GROUPS.map((group) => {
             const hasSecondary = group.secondary.length > 0;
             const isGroupActive = group.primaryTab === activeTab || group.secondary.some((s) => s.id === activeTab);
@@ -348,20 +348,15 @@ export default function TicketingPage() {
                 <DropdownMenu key={group.id}>
                   <DropdownMenuTrigger asChild>
                     <button
+                      type="button"
                       className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
                         isGroupActive
                           ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
                           : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
                       }`}
-                      role="tab"
-                      aria-selected={isGroupActive}
+                      aria-current={isGroupActive ? 'page' : undefined}
                     >
                       {displayLabel}
-                      {activeSecondary && (
-                        <span className="text-xs text-slate-400 ml-1">
-                          — {activeSecondary.label}
-                        </span>
-                      )}
                       <ChevronDown className="h-3 w-3" />
                     </button>
                   </DropdownMenuTrigger>
@@ -388,6 +383,7 @@ export default function TicketingPage() {
 
             return (
               <button
+                type="button"
                 key={group.id}
                 onClick={() => setActiveTab(group.primaryTab)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
@@ -395,14 +391,13 @@ export default function TicketingPage() {
                     ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
                 }`}
-                role="tab"
-                aria-selected={activeTab === group.primaryTab}
+                aria-current={activeTab === group.primaryTab ? 'page' : undefined}
               >
                 {group.label}
               </button>
             );
           })}
-        </div>
+        </nav>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Enhanced Metrics Cards — never show zero KPIs for a failed org-scoped load */}
@@ -420,14 +415,14 @@ export default function TicketingPage() {
             <div className="lg:col-span-2">
               <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                 <CardHeader className="space-y-2 pb-2">
-                  <div className="flex flex-row items-center justify-between gap-4">
-                    <CardTitle className="text-lg font-semibold text-white flex items-center">
-                      <BarChart3 className="mr-2 h-5 w-5 text-purple-500" />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle className="flex min-w-0 items-center text-lg font-semibold text-white">
+                      <BarChart3 className="mr-2 h-5 w-5 shrink-0 text-purple-500" />
                       Ticket Sales Overview
                     </CardTitle>
-                    <div className="flex items-center space-x-2 shrink-0">
+                    <div className="flex max-w-full flex-wrap items-center gap-2">
                       <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-                        <SelectTrigger className="w-[180px] h-8 text-xs bg-slate-800/70 border-slate-700">
+                        <SelectTrigger className="h-8 w-[180px] max-w-full border-slate-700 bg-slate-800/70 text-xs">
                           <SelectValue placeholder="Select Event" />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
@@ -510,22 +505,22 @@ export default function TicketingPage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="all" className="w-full">
-                <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm mb-4">
+                <TabsList className="mb-4 grid h-auto w-full grid-cols-3 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm">
                   <TabsTrigger
                     value="all"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
+                    className="min-w-0 whitespace-normal px-1 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     All Transactions
                   </TabsTrigger>
                   <TabsTrigger
                     value="completed"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
+                    className="min-w-0 whitespace-normal px-1 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     Completed
                   </TabsTrigger>
                   <TabsTrigger
                     value="refunded"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
+                    className="min-w-0 whitespace-normal px-1 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     Refunded
                   </TabsTrigger>
@@ -533,32 +528,33 @@ export default function TicketingPage() {
 
                 <TabsContent value="all" className="mt-0">
                   <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="All transactions table, scroll horizontally for more columns">
+                      <table className="w-full min-w-[920px] table-fixed text-sm">
+                        <caption className="sr-only">All recent transactions</caption>
                         <thead className="bg-slate-800/50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Event
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Ticket Type
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Amount
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Date
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Actions
                             </th>
                           </tr>
@@ -594,35 +590,39 @@ export default function TicketingPage() {
 
                 <TabsContent value="completed" className="mt-0">
                   <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Completed transactions table, scroll horizontally for more columns">
+                      <table className="w-full min-w-[920px] table-fixed text-sm">
+                        <caption className="sr-only">Completed recent transactions</caption>
                         <thead className="bg-slate-800/50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Event
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Ticket Type
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Amount
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Date
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
-                          {sales.filter(sale => sale.payment_status === 'paid').slice(0, 10).map((sale) => (
+                          {sales.filter(sale => sale.payment_status === 'paid').length === 0 ? (
+                            <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No completed transactions</td></tr>
+                          ) : sales.filter(sale => sale.payment_status === 'paid').slice(0, 10).map((sale) => (
                             <TransactionRow
                               key={sale.id}
                               id={sale.order_number}
@@ -642,35 +642,39 @@ export default function TicketingPage() {
 
                 <TabsContent value="refunded" className="mt-0">
                   <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Refunded transactions table, scroll horizontally for more columns">
+                      <table className="w-full min-w-[920px] table-fixed text-sm">
+                        <caption className="sr-only">Refunded recent transactions</caption>
                         <thead className="bg-slate-800/50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Event
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Ticket Type
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Amount
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Date
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
-                          {sales.filter(sale => sale.payment_status === 'refunded').slice(0, 10).map((sale) => (
+                          {sales.filter(sale => sale.payment_status === 'refunded').length === 0 ? (
+                            <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No refunded transactions</td></tr>
+                          ) : sales.filter(sale => sale.payment_status === 'refunded').slice(0, 10).map((sale) => (
                             <TransactionRow
                               key={sale.id}
                               id={sale.order_number}
@@ -1264,10 +1268,10 @@ function TransactionRow({ id, saleId, customer, event, ticketType, amount, date,
 
   return (
     <tr className="hover:bg-slate-800/30">
-      <td className="px-4 py-3 text-slate-300">{id}</td>
-      <td className="px-4 py-3 text-slate-300">{customer}</td>
-      <td className="px-4 py-3 text-slate-300">{event}</td>
-      <td className="px-4 py-3 text-slate-300">{ticketType}</td>
+      <td className="break-words px-4 py-3 text-slate-300">{id}</td>
+      <td className="break-words px-4 py-3 text-slate-300">{customer}</td>
+      <td className="break-words px-4 py-3 text-slate-300"><span className="line-clamp-2" title={event}>{event}</span></td>
+      <td className="break-words px-4 py-3 text-slate-300"><span className="line-clamp-2" title={ticketType}>{ticketType}</span></td>
       <td className="px-4 py-3 text-slate-300">{amount}</td>
       <td className="px-4 py-3 text-slate-400">{date}</td>
       <td className="px-4 py-3">{getStatusBadge()}</td>

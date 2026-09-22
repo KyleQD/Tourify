@@ -10,8 +10,10 @@ export const GET = withAdminCapability("content.view", async (_request: NextRequ
   try {
     const { data: rows, error } = await supabase
       .from("organization_social_integrations")
+      // INTG-007 — encrypted-only surface; legacy plaintext credential
+      // columns are never selected (client SELECT revoked by 20260921000000).
       .select(
-        "id, organizer_account_id, ops_org_id, platform, account_handle, access_token, refresh_token, token_envelope, refresh_token_envelope, token_expires_at, is_connected, last_sync, analytics, connected_by, created_at, updated_at",
+        "id, organizer_account_id, ops_org_id, platform, account_handle, token_envelope, refresh_token_envelope, token_expires_at, is_connected, last_sync, analytics, connected_by, created_at, updated_at",
       )
       .eq("organizer_account_id", admin.profileId)
       .order("platform", { ascending: true })

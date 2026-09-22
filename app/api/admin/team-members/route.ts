@@ -122,25 +122,57 @@ export const GET = withAdminCapability('workforce.view', async (request: NextReq
   }
 })
 
-export async function PATCH(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+export const PATCH = withAdminCapability('workforce.manage', async (request: NextRequest, { supabase, admin }) => {
   try {
     const body = await request.json()
     const { id, role, permissions, status } = body
 
     if (!id) return NextResponse.json({ error: 'Member id is required' }, { status: 400 })
 
+    const { data: existing, error: existingError } = await supabase
+      .from('venue_team_members')
+      .select('id, venue_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (existingError) {
+      console.error('[Team Members] PATCH lookup error:', existingError)
+      return NextResponse.json({ error: existingError.message }, { status: 500 })
+    }
+
+    if (!existing?.id) {
+      return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
+    }
+
+    if (!existing.venue_id) {
+      return NextResponse.json({ error: 'Team member has no venue scope' }, { status: 409 })
+    }
+
+    const { data: venueBridge, error: venueBridgeError } = await supabase
+      .from('venue_identity_bridges')
+      .select('operational_org_id')
+      .eq('venue_profile_id', existing.venue_id)
+      .maybeSingle()
+
+    if (venueBridgeError) {
+      console.error('[Team Members] PATCH venue scope error:', venueBridgeError)
+      return NextResponse.json({ error: venueBridgeError.message }, { status: 500 })
+    }
+
+    if (!venueBridge?.operational_org_id || venueBridge.operational_org_id !== admin.orgId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (role !== undefined) updates.role = role
     if (permissions !== undefined) updates.permissions = permissions
     if (status !== undefined) updates.status = status
 
-    const { data, error } = await auth.supabase
+    const { data, error } = await supabase
       .from('venue_team_members')
       .update(updates)
       .eq('id', id)
+      .eq('venue_id', existing.venue_id)
       .select(`
         id,
         user_id,
@@ -164,7 +196,7 @@ export async function PATCH(request: NextRequest) {
     console.error('[Team Members] PATCH exception:', error)
     return NextResponse.json({ error: 'Failed to update team member' }, { status: 500 })
   }
-}
+})
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateApiRequest(request)

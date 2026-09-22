@@ -13,10 +13,13 @@ export class OrganizationSocialIntegrationsService {
   constructor(private readonly supabase: SupabaseLike) {}
 
   async list(organizerAccountId: string) {
+    // INTG-007 — encrypted-only surface. Legacy plaintext credential
+    // columns are never selected (client SELECT revoked by 20260921000000);
+    // token presence derives from the encrypted envelopes.
     const { data, error } = await this.supabase
       .from("organization_social_integrations")
       .select(
-        "id, organizer_account_id, ops_org_id, platform, account_handle, access_token, refresh_token, token_envelope, refresh_token_envelope, token_expires_at, is_connected, last_sync, analytics, connected_by, created_at, updated_at",
+        "id, organizer_account_id, ops_org_id, platform, account_handle, token_envelope, refresh_token_envelope, token_expires_at, is_connected, last_sync, analytics, connected_by, created_at, updated_at",
       )
       .eq("organizer_account_id", organizerAccountId)
       .order("platform", { ascending: true })
@@ -30,8 +33,6 @@ export class OrganizationSocialIntegrationsService {
       .from("organization_social_integrations")
       .update({
         is_connected: false,
-        access_token: null,
-        refresh_token: null,
         token_envelope: null,
         refresh_token_envelope: null,
         analytics: {

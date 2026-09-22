@@ -126,6 +126,7 @@ describe("SEC-003 Admin command capability matrix", () => {
       "/api/admin/vendor-requests",
       "/api/admin/vendor-requests/[id]",
       "/api/admin/logistics/site-maps/[id]/zones/bulk-assign",
+      "/api/admin/team-members",
     ]) {
       expect(find(route).authClass, route).toBe("capability_gated");
     }
@@ -203,6 +204,30 @@ describe("SEC-003 Admin command capability matrix", () => {
         "POST",
       ),
     ).toEqual(["logistics.manage"]);
+
+    const legacyVenueTeamMembers = find("/api/admin/team-members");
+    expect(adminCommandCapabilities(legacyVenueTeamMembers, "GET")).toEqual([
+      "workforce.view",
+    ]);
+    for (const method of ["POST", "PATCH", "DELETE"] as const)
+      expect(adminCommandCapabilities(legacyVenueTeamMembers, method)).toEqual([
+        "workforce.manage",
+      ]);
+  });
+
+  it("classifies venue detail admin access as platform-only", () => {
+    const route = "/api/admin/venues/[id]";
+    const registryEntry = ADMIN_API_ROUTE_REGISTRY.find((entry) => entry.route === route);
+    expect(registryEntry?.authClass).toBe("platform_admin");
+    expect(registryEntry?.capability).toBeUndefined();
+
+    const contracts = adminCommandCapabilityMatrix().filter((entry) => entry.route === route);
+    expect(contracts.map((entry) => entry.method)).toEqual(["GET", "PATCH"]);
+    for (const contract of contracts) {
+      expect(contract.actingContext).toBe("platform_admin");
+      expect(contract.tenantTarget).toBe("platform");
+      expect(contract.capabilities).toEqual([]);
+    }
   });
 
   it("keeps the audit-export, staff, and calendar-token entries capability-gated with code-exact capabilities", () => {

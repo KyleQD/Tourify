@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `648d652e93693ee89973858ce96797e622b5aa4b`
-- Branch: `release/clean-snapshot`
-- Working tree: dirty (39 entries)
-- Generated at: 2026-09-22T09:13:53.629Z
+- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Branch: `codex/qa004-staging-campaign`
+- Working tree: dirty (1 entries)
+- Generated at: 2026-09-22T17:00:56.458Z
 - Generator: `control-plane.mjs generate`
 
 ## Web pages (372)

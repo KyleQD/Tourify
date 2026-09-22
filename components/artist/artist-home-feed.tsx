@@ -83,6 +83,20 @@ async function fetchPendingCollaborationCount(): Promise<number> {
   }
 }
 
+/** Follow through the user-scoped contract; an already-following retry is success. */
+export async function followArtistFeedUser(
+  targetUserId: string,
+  request: typeof fetch = fetch,
+): Promise<boolean> {
+  const response = await request('/api/social/follow', buildNoStoreInit({
+    method: 'POST',
+    body: JSON.stringify({ followingId: targetUserId, action: 'follow' }),
+  }))
+  if (!response.ok) return false
+  const result = await response.json()
+  return result?.success === true && result?.isFollowing === true
+}
+
 type RawMediaItem = string | {
   url?: string
   type?: string
@@ -249,15 +263,18 @@ function ArtistHomeFeedStream({ filter = 'home' }: { filter?: ArtistHomeFeedFilt
 
   async function handleFollow(targetUserId: string) {
     if (!user?.id) return
-    const { error } = await supabase
-      .from('follows')
-      .insert({ follower_id: user.id, following_id: targetUserId })
-    if (error) {
+    try {
+      const followed = await followArtistFeedUser(targetUserId)
+      if (!followed) {
+        toast.error('Failed to follow')
+        return
+      }
+    } catch {
       toast.error('Failed to follow')
       return
     }
     toast.success('Followed')
-    fetchPosts()
+    void fetchPosts()
   }
 
   async function handlePin(postId: string, isPinned: boolean) {

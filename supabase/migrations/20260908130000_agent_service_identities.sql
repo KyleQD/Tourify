@@ -6,7 +6,6 @@
 -- user, but this migration never creates credentials or grants platform access.
 
 set client_min_messages = warning;
-create extension if not exists pgcrypto;
 
 create table if not exists public.agent_identities (
   id uuid primary key default gen_random_uuid(),

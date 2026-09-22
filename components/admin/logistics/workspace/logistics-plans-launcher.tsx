@@ -298,7 +298,7 @@ export function LogisticsPlansLauncher({
             <div className="flex flex-col gap-3 border border-slate-800 bg-slate-950/60 p-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <p className="text-xs uppercase text-cyan-300">Active tour logistics</p>
-                <h3 className="mt-1 truncate text-xl font-semibold text-white">{plan.name}</h3>
+                <h3 className="mt-1 line-clamp-2 break-words text-xl font-semibold text-white" title={plan.name}>{plan.name}</h3>
                 <p className="mt-1 text-sm text-slate-400">{compactDate(plan.startDate, plan.endDate)}</p>
               </div>
               <div className="flex flex-wrap gap-2">

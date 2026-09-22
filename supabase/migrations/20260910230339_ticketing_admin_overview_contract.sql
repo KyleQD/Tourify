@@ -4,7 +4,6 @@
 -- deleting ticketing objects.
 
 set client_min_messages = warning;
-create extension if not exists pgcrypto;
 
 create table if not exists public.ticket_shares (
   id uuid primary key default gen_random_uuid(),

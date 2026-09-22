@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "id": "WORK-005",
+  "title": "Canonical staff and shift simulation lifecycle",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-22T15:20:20.643Z",
+  "updated_at": "2026-09-22T15:56:34Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (80 entries)",
+  "goal": "Make a hired campaign worker appear in the canonical staff roster and persist schedule, attendance, and work history across worker and manager views",
+  "scope": {
+    "in": [
+      "Bridge campaign hire/onboarding to canonical staff member and staff_shifts persistence.",
+      "Verify manager and worker schedule, attendance, and completed work history through UI."
+    ],
+    "out": [
+      "Treating tours.settings.crew_shifts fallback as a pass.",
+      "Destructive backfill or cleanup."
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/staff/",
+    "app/admin/dashboard/hiring/",
+    "lib/",
+    "scripts/qa/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/QA-004.json",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    "Hired worker has authorized canonical staff row and persisted staff_shifts row.",
+    "Manager and worker see the same assignment after reload.",
+    "Check-in/out and completion update manager operations and worker history.",
+    "Foreign user and unassigned worker cannot read or mutate the shift."
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "Focused staffing and shift tests",
+      "npm run verify:feature -- --changed",
+      "Staging worker/manager rerun"
+    ],
+    "evidence": [
+      "Local: 25 focused hiring tests passed; scoped lint and diff checks passed.",
+      "No migration or hosted database action was taken.",
+      "Four focused hiring/shift Vitest suites passed locally (22 tests); broader Work Mode and staffing selection passed (9 files, 47 tests). Focused shift-sync lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no actor run.",
+      "QA-004 product repair validation rerun (2026-09-22): Hiring/staff-shift Vitest: 4 files, 23 tests passed; manager/worker persisted-shift and completion UI rerun remains open."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T15:56:34Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Canonical hire-to-shift local bridge reverified; persisted cross-actor event/tour shift proof remains pending.",
+    "completed": [
+      "Event staff assignment now writes schema-supported confirmed status instead of invalid assigned.",
+      "Completed onboarding activates the canonical staff row and syncs persisted shifts into worker employment assignments, preserving confirmed status and surfacing failed links.",
+      "Four focused hiring test files passed (25 tests); scoped lint and diff checks passed."
+    ],
+    "next_steps": [
+      "Verify manager and worker see the same persisted shift after reload on isolated staging.",
+      "Complete WORK-006 attendance read path and staged check-in/out proof before claiming full shift lifecycle."
+    ],
+    "blockers": [
+      "Campaign-safe actors and isolated staging are required for cross-actor proof."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:37:53Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Canonical hire-to-shift bridge corrected locally; cross-actor staging and attendance completion are still pending.",
+        "completed": [
+          "Event staff assignment now writes schema-supported confirmed status instead of invalid assigned.",
+          "Completed onboarding activates the canonical staff row and syncs persisted shifts into worker employment assignments, preserving confirmed status and surfacing failed links.",
+          "Four focused hiring test files passed (25 tests); scoped lint and diff checks passed."
+        ],
+        "next": "Verify manager and worker see the same persisted shift after reload on isolated staging."
+      },
+      {
+        "at": "2026-09-22T15:55:04Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Canonical hire-to-shift local bridge reverified; persisted cross-actor event/tour shift proof remains pending.",
+        "completed": [
+          "Four focused hiring/shift Vitest suites passed locally (22 tests); broader Work Mode and staffing selection passed (9 files, 47 tests). Focused shift-sync lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no actor run."
+        ],
+        "next": "Rerun hired worker and manager schedule/attendance/history in isolated staging after WORK-006 database gate."
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Hiring/staff-shift Vitest: 4 files, 23 tests passed; manager/worker persisted-shift and completion UI rerun remains open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      }
+    ]
+  },
+  "handoffs": [
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+  ]
+}

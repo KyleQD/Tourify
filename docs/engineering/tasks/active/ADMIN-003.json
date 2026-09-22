@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "admin",
   "created_at": "2026-09-09T09:35:09.553Z",
-  "updated_at": "2026-09-19T02:49:19.000Z",
+  "updated_at": "2026-09-22T15:56:00Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "working_tree_status": "dirty (shared workspace; QA-004 admin-scope repair wave)",
   "goal": "Require every production admin API to use the canonical server-side guard with explicit role, tenant, and resource scope",
   "scope": {
     "in": [],
@@ -114,14 +114,17 @@
       "PARTICIPANT-ACCESS RISK (owner-accepted, recorded per instructions): withAdminCapability('event.view') gates these routes on the acting-organization capability resolver BEFORE the handler's membership checks run, so event_participants users / employment_assignments workers who are NOT granted an admin capability (event.view or a role that derives it) in an acting org are now locked out of the participant-facing GET/mark_read/acknowledge surface at the wrapper boundary — they never reach the event_participants/event_owner/worker membership logic. This is an accepted owner decision for this batch. RECOMMENDATION (for QA and future work): if non-admin participant access to event bulletins must remain (participant read/acknowledge flows), a participant-specific API surface or an RBAC-aware read guard (not a plain admin capability guard) is required; QA must verify this during review.",
       "Assigned verification (all commands run, evidence recorded): (1) Focused Vitest — 5 files / 83 tests passed: __tests__/admin/admin-route-capability-matrix.test.ts (the capability matrix does not assert these two routes directly, confirmed by inspection; passes unchanged), __tests__/admin/admin-context.test.ts, __tests__/admin/comms-domain.test.ts, __tests__/admin/comms-path-inventory.test.ts, __tests__/admin/comms-sec-phase6.test.ts. No dedicated communications route suite exists in __tests__/admin (glob-verified: no communications/communication-settings/bulletin route tests), so there are no non-admin-fixture failures to record — the owner-expected failure class is therefore N/A for the focused suites executed. (2) npx eslint on the two changed routes — passed (no output). (3) node scripts/ci/check-admin-route-registry.mjs — passed: 289 route files, legacy classifications 75/75 (exact, unchanged), REL-103 route-method contracts exact, legacy debt did not grow. (4) Scoped TypeScript via the untracked local tsconfig.admin003-slice.json project — ZERO diagnostics in the two changed route files; the only surfaced diagnostic is the pre-recorded imported dependency incompatibility at lib/auth/admin-context.ts:154 (OrganizerAccountIdentityRow/OrganizationProfileRow), consistent with every prior batch. Repository-wide tsc remains resource-constrained and is NOT claimed (honest report). (5) npm run agents:validate — passed: 17 agents, 99 tasks, 0 warnings, 0 errors. (6) git diff --check on the two changed route paths — passed.",
       "Checkpoint note: the communications family migration closes the last explicitly owner-assigned drift from the deferred set. The remaining ADMIN-003 deferrals are unchanged: staffing/*, top-level team-members mutators, venues, site-maps/import, logistics/vendor/*, equipment/catalog, calendar anyOf, travel/lodging/rentals, messaging, marketplace, platform-ops, and onboarding remain deferred with the recorded reasons ('Precondition handoffs' in STATE.md).",
-      "Marketplace order read-family verification (2026-09-18): collection and detail GET use withPlatformAdmin; focused Vitest passed 2 files / 26 tests including role-only profile denial, platform method contracts, and preservation of the detail route's dynamic id predicate; focused ESLint passed; registry CI passed at 289 routes and exact legacy 72/72; npm run agents:validate passed with 17 agents / 109 tasks / 0 warnings / 0 errors; changed-path git diff --check passed. Repository-wide typecheck was intentionally not run for this compute-bounded batch and is not claimed."
+      "Marketplace order read-family verification (2026-09-18): collection and detail GET use withPlatformAdmin; focused Vitest passed 2 files / 26 tests including role-only profile denial, platform method contracts, and preservation of the detail route's dynamic id predicate; focused ESLint passed; registry CI passed at 289 routes and exact legacy 72/72; npm run agents:validate passed with 17 agents / 109 tasks / 0 warnings / 0 errors; changed-path git diff --check passed. Repository-wide typecheck was intentionally not run for this compute-bounded batch and is not claimed.",
+      "2026-09-22 QA-004 admin-scope repair: /api/admin/team-members PATCH now uses withAdminCapability(\"workforce.manage\"), resolves the target venue_team_members row, verifies venue_identity_bridges.operational_org_id matches the acting admin organization, and binds the update by both member id and venue id.",
+      "2026-09-22 QA-004 admin-scope repair: /api/admin/venues/[id] GET/PATCH now use withPlatformAdmin, and GET no longer discovers events by venue_name text matching; it only loads events_v2 through a venue_identity_bridges.venues_v2_id bridge.",
+      "2026-09-22 verification: npx vitest run __tests__/admin/admin-team-members-scope.test.ts __tests__/admin/admin-route-capability-matrix.test.ts passed 2 files / 14 tests; node scripts/ci/check-admin-route-registry.mjs passed with 290 route files and legacy classifications 54/54; scoped ESLint on changed admin routes/tests/registry passed."
     ],
     "last_run_sha": "working-tree",
     "last_run_at": "2026-09-18T21:59:39Z",
     "result": "partial"
   },
   "progress": {
-    "summary": "Read-only classification of the applications family, the next three legacy entries after the deferred analytics/top-performers route. No canonical migration is safe as-is. Direct code evidence proves heterogeneous venue/employer resource scope rather than platform ownership: collection GET requires venue_id or resolves it from job_posting_id; collection reject/request_evidence, bulk PATCH, and item PATCH load each application and check its venue; approval resolves the application employer and calls assertCanManageHiring; audit GET resolves a venue/organization/artist employer before canManageHiring. Legitimate grants include direct entity ownership, can_manage_hiring, organization hiring.manage, and legacy Venue/Organizer/Artist entity permissions, and bulk requests may span venues. withPlatformAdmin would revoke valid resource managers; withAdminCapability cannot preserve direct venue/entity grants or bind multi-venue operations because no complete venue/employer-to-acting-org contract exists. No application route, registry, baseline, or test file changed. Required precondition: durable employer/venue-to-org resolution plus a policy for mapping direct entity grants and multi-venue bulk behavior to acting organizations, while retaining all per-resource checks.",
+    "summary": "ADMIN-003 remains active, but the QA-004 admin findings for top-level team-member PATCH and venue detail scope are locally repaired and registry-classified. Hosted denial and full release verification remain outstanding.",
     "completed": [
       "Added withPlatformAdmin for global privileged operations.",
       "Documented and exercised withAdminCapability for acting-organization capability checks.",
@@ -147,7 +150,8 @@
       "Completed the exhaustive legacy-sweep review of the entire remaining legacy dataset: all 75 registry-legacy admin routes classified against routed code (events sub-resources absent, logistics remaining family, vendor-requests canonical, and the 70 other legacy entries mapped to deferral classes), with zero handlers meeting the withAdminCapability + ownership-check migration bar this batch; registry and baseline unchanged at exact 75/75.",
       "Migrated the events communications route family (2 routes, 5 handlers) onto withAdminCapability('event.view'): app/api/admin/events/[id]/communications (GET route.ts:21, POST :105, PATCH :213) and communication-settings (GET route.ts:36, PATCH :76); import swapped from withAuth/withAdminAuth to withAdminCapability from @/lib/auth/api-auth (dead withAdminAuth import removed). All participant/owner membership checks preserved (event_participants, events_v2.created_by, employment_assignments, mark_read/acknowledge, pin/unpin/delete/moderate, settings owner gate). Registry already capability_gated event.view — alignment only, baseline exact 75/75.",
       "Migrated Marketplace moderation GET/PATCH from a role-string profile gate to withPlatformAdmin; preserved query validation, the PATCH queue-item id predicate, and assigned_admin_id attribution. Classified the route platform_admin, lowered the exact legacy baseline to 74/74, and added platform-role denial plus registry/method-contract coverage.",
-      "Migrated the platform-global Marketplace order collection/detail GET family to withPlatformAdmin. Preserved list filtering/pagination and the detail route's awaited dynamic id, .eq('id', id) resource predicate, joins, and 404 behavior; classified both registry entries platform_admin and lowered the exact legacy baseline to 72/72."
+      "Migrated the platform-global Marketplace order collection/detail GET family to withPlatformAdmin. Preserved list filtering/pagination and the detail route's awaited dynamic id, .eq('id', id) resource predicate, joins, and 404 behavior; classified both registry entries platform_admin and lowered the exact legacy baseline to 72/72.",
+      "Locally repaired QA-004 findings SIM-20260922-ADMIN-001 and SIM-20260922-ADMIN-002 under ADMIN-003: team-member PATCH is workforce.manage plus venue-org scoped; venue detail is platform-admin only with bridged event lookup."
     ],
     "next_steps": [
       "Keep ADMIN-003 active. Resolve the applications venue/employer-to-org precondition before migration, then continue registry order without revisiting analytics/top-performers. Hosted denial and release verification remain outstanding."
@@ -631,6 +635,25 @@
           "Keep ADMIN-003 active. Continue exact legacy-registry order after the logistics vendor family only when the next bounded batch is assigned; do not infer platform ownership from a global catalog or missing tenant predicates. Hosted denial and release verification remain outstanding."
         ],
         "blockers": []
+      },
+      {
+        "at": "2026-09-22T15:56:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Closed the local QA-004 admin-scope repair wave for team-member PATCH and venue detail routes.",
+        "completed": [
+          "Changed app/api/admin/team-members/route.ts so PATCH uses withAdminCapability(\"workforce.manage\"), preloads the member, requires the target venue bridge operational_org_id to match admin.orgId, and updates with both id and venue_id predicates.",
+          "Changed app/api/admin/venues/[id]/route.ts so GET/PATCH use withPlatformAdmin; GET removed loose events_v2 venue_name ilike lookup and now loads events only via venue_identity_bridges.venues_v2_id.",
+          "Updated lib/admin/api-route-registry.ts and scripts/ci/admin-route-registry-baseline.json: /api/admin/team-members is capability_gated workforce.view/manage, /api/admin/venues/[id] is platform_admin, exact legacy baseline is 54/54.",
+          "Added __tests__/admin/admin-team-members-scope.test.ts and extended __tests__/admin/admin-route-capability-matrix.test.ts for wrong-org denial, id+venue update scoping, bridged event lookup, and registry contracts.",
+          "Verification passed: focused Vitest 2 files / 14 tests, scoped ESLint, and admin route registry check."
+        ],
+        "next_steps": [
+          "Keep ADMIN-003 active for remaining non-QA-004 legacy families and hosted/release denial evidence.",
+          "QA-004 must rerun platform admin, scoped org manager, unrelated signed-in user, and wrong-scope manager on isolated staging before these findings count as campaign-passed."
+        ],
+        "blockers": [
+          "Hosted denial and release verification still require RELEASE-007 isolated staging, DB-008/DB-002 hosted security proof, and QA-004 campaign-owned actors."
+        ]
       }
     ]
   },

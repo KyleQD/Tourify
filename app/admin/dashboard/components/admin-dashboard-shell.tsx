@@ -26,7 +26,7 @@ export function AdminDashboardShell({ children }: { children: React.ReactNode })
   return (
     <AdminDashboardProvider>
       {/* Height accounts for sticky global Nav (h-16) from AppChrome */}
-      <div className="relative flex h-[calc(100vh-4rem)] min-h-[calc(100vh-4rem)] w-full min-w-0 overflow-hidden bg-black">
+      <div className="admin-dashboard-surface relative flex h-[calc(100vh-4rem)] min-h-[calc(100vh-4rem)] w-full min-w-0 overflow-hidden bg-black">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black via-slate-950 to-purple-950/30" />
         <div className="pointer-events-none absolute top-0 right-1/4 h-[600px] w-[600px] rounded-full bg-purple-600/[0.04] blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/[0.04] blur-3xl" />

@@ -165,14 +165,15 @@ export function PayrollExportPanel() {
         ) : null}
 
         {exports.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" role="region" tabIndex={0} aria-label="Payroll export ledger, scroll horizontally for all columns">
+            <table className="w-full min-w-[640px] text-sm">
+              <caption className="sr-only">Payroll export records</caption>
               <thead>
                 <tr className="border-b border-slate-700/50 text-xs text-slate-400 uppercase tracking-wide">
                   <th className="py-2 pr-3 text-left font-medium">Period</th>
                   <th className="py-2 pr-3 text-right font-medium">Workers</th>
                   <th className="py-2 pr-3 text-right font-medium">Hours</th>
-                  <th className="py-2 pr-3 text-right font-medium hidden md:table-cell">Cost</th>
+                  <th className="py-2 pr-3 text-right font-medium">Cost</th>
                   <th className="py-2 text-left font-medium">Status</th>
                 </tr>
               </thead>
@@ -190,7 +191,7 @@ export function PayrollExportPanel() {
                     <td className="py-2 pr-3 text-right text-slate-300 text-xs tabular-nums">
                       {fmtHours(exp.totalHours)}
                     </td>
-                    <td className="py-2 pr-3 text-right text-slate-300 text-xs tabular-nums hidden md:table-cell">
+                    <td className="py-2 pr-3 text-right text-slate-300 text-xs tabular-nums">
                       {fmtCurrency(exp.totalCostMinorUnits, exp.currency)}
                     </td>
                     <td className="py-2">

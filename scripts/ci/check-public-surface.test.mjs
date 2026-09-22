@@ -15,7 +15,7 @@ const {
   getPublicSitemapOrigin,
   isProductionIndexingAllowed,
 } = publicSurfaceModule
-const { RELEASE_SHA_HEADER, getAuthoritativeReleaseSha, getReleaseMetadataHeaders } = releaseMetadataModule
+const { RELEASE_SHA_HEADER, DEPLOYMENT_ID_HEADER, SUPABASE_ORIGIN_HEADER, STRIPE_MODE_HEADER, getAuthoritativeReleaseSha, getAuthoritativeDeploymentId, getReleaseMetadataHeaders } = releaseMetadataModule
 const { buildContentSecurityPolicy } = securityHeadersModule
 
 const production = {
@@ -76,6 +76,30 @@ test('health release identity fails closed without an authoritative valid SHA', 
     getReleaseMetadataHeaders({ RELEASE_SHA: '0123456789abcdef0123456789abcdef01234567' }),
     {},
   )
+})
+
+test('health deployment identity uses only the Vercel-generated deployment ID', () => {
+  const deploymentId = 'dpl_7Gw5ZMBpQA8h9GF832KGp7nwbuh3'
+  assert.equal(getAuthoritativeDeploymentId({ VERCEL_DEPLOYMENT_ID: deploymentId }), deploymentId)
+  assert.deepEqual(getReleaseMetadataHeaders({ VERCEL_DEPLOYMENT_ID: deploymentId }), {
+    [DEPLOYMENT_ID_HEADER]: deploymentId,
+  })
+  assert.equal(getAuthoritativeDeploymentId({ VERCEL_DEPLOYMENT_ID: 'custom-staging-id' }), null)
+  assert.deepEqual(getReleaseMetadataHeaders({ DEPLOYMENT_ID: deploymentId }), {})
+})
+
+test('health exposes the public database origin and payment mode for staging isolation checks', () => {
+  assert.deepEqual(getReleaseMetadataHeaders({
+    NEXT_PUBLIC_SUPABASE_URL: 'https://staging-ref.supabase.co',
+    STRIPE_SECRET_KEY: 'sk_test_never_expose_this_value',
+  }), {
+    [SUPABASE_ORIGIN_HEADER]: 'https://staging-ref.supabase.co',
+    [STRIPE_MODE_HEADER]: 'test',
+  })
+  assert.deepEqual(getReleaseMetadataHeaders({
+    NEXT_PUBLIC_SUPABASE_URL: 'http://unsafe.example',
+    STRIPE_SECRET_KEY: 'unrecognized',
+  }), {})
 })
 
 test('repository public-surface wiring satisfies the contract', async () => {

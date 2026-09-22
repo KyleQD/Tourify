@@ -398,3 +398,82 @@ cutover. Staged migration work remains under CP-051's explicit manual-apply rule
   pushed, reset, or replayed; CP-051/CP-053 honored. Remaining blockers:
   staging/production cutover evidence (owned by release/ops pipeline) and the 38
   deferred callers' named-owner reviews.
+
+## DB-005 creator search projection (HF-DISC-002-CREATOR-METADATA) — 2026-09-22
+
+- Wave 2026-09-22 lane 2 on `release/clean-snapshot` (HEAD
+  623b576b7963d4a2eccb2fbf83f24f2011842a83; dirty worktree): the DISC-002 PENDING
+  handoff `HF-DISC-002-CREATOR-METADATA` is actioned. The canonical `/api/search`
+  profile path (`lib/search/global-search-service.ts` `queryProfiles`) reads ONLY
+  `public.accounts` — the CP-052 search/compatibility projection whose
+  `profile_table`/`profile_id` polymorphic identity is `unique(profile_table,
+  profile_id)` (`20260711182530_organization_personas_integration.sql`). Creator
+  filters on `/api/search/enhanced` derived genres,
+  skills/creatorType/service/availability, and artistProfileId from
+  `artist_profiles.genres` (`20240415000000_create_profiles.sql`) and
+  `artist_profiles.settings` jsonb (`20260801221454_global_search_indexes.sql`)
+  via `lib/creator/capability-system.ts` `extractCreatorCapabilitiesV1`
+  (`capabilities_v1.*` with `professional.*` / `preferences.*` fallbacks;
+  `settings.public_profile !== false` is the public gate) — so the canonical
+  projection lacked the columns needed to express equivalent filters.
+- New additive, forward-only migration
+  `supabase/migrations/20260922120000_creator_search_metadata_projection.sql`
+  (SHA-256 `9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7`)
+  adds four columns to `public.accounts`: `artist_profile_id uuid`,
+  `genres text[] not null default '{}'`, `creator_settings jsonb not null
+  default '{}'` (raw snapshot of `artist_profiles.settings` — capability
+  derivation stays in TS `extractCreatorCapabilitiesV1`, no SQL parsing drift),
+  and `creator_available_for_hire boolean not null default false` derived as
+  `coalesce(capabilities_v1.availableForHire, preferences.available_for_hire,
+  false)` with JSON-boolean semantics (`jsonb_typeof` guard; false kept,
+  null/missing falls back, non-boolean JSON treated as absent). `subtype` needed
+  NO column: `accounts.metadata.subtype` already exists and is already selected
+  by the canonical projection. Backfill is one change-guarded `UPDATE ... FROM
+  public.artist_profiles` on `profile_table='artist_profiles' AND
+  profile_id=ap.id` (idempotent via `IS DISTINCT FROM` guard; non-artist rows and
+  `updated_at` untouched so `/api/search/enhanced` sort survives). Two partial
+  indexes: `idx_accounts_creator_artist_profile` (btree) and
+  `idx_accounts_creator_genres` (gin), both `where artist_profile_id is not
+  null`. No trigger, constraint, policy, RLS, or DROP — artist_profiles remains
+  the untouched source of truth.
+- Zero-drift contract test `supabase/tests/db005c_creator_search_projection_contract.sql`
+  (SHA-256 `c8674c4363579c058b525d9951668fe4c5660c772ee561626bed693f475e571a`):
+  four columns exist, `artist_profile_id` mirrors `ap.id`, projection mirrors
+  `artist_profiles` (incl. the exact availability formula), empty-safe when no
+  `artist_profiles` exist, no leak onto non-artist rows, identity precondition,
+  both indexes exist, one summary row `creator_search_projection_ready`.
+- Planned manifest
+  `docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json`
+  records both SHA-256s, five assumptions (settings shape, public_profile gate,
+  JSON-boolean availability semantics, projection identity key, freshness
+  deferred), a layered plan, and status planned / manual-apply-pending (CP-051).
+  Pending handoff `HF-DB-005-ARTIST-CREATOR-FIELDS` asks the artist agent to
+  confirm settings/capabilities semantics and the freshness-trigger path before
+  apply; `HF-DISC-002-CREATOR-METADATA` is marked consumed.
+- Freshness is deliberately NOT solved in this wave (a projection trigger on
+  `artist_profiles` or an extension of `refresh_account_display_info` —
+  `20260721120000_venue_profiles_url_slug.sql` — touches the artist-owned write
+  path) and is a forward-fix coordination item pending `HF-DB-005-ARTIST-CREATOR-FIELDS`.
+- Verification: active migration chain PASS (298 files, no duplicate policy
+  creations, new migration in scan); `npm run check:migration-validation` PASS
+  for the new migration (the command exits 1 on a PRE-EXISTING unrelated expired
+  exception — `job-posting-scope-not-null`, HIRING-SCOPED-JOBS-AND-SEATS, owner
+  admin-platform, expiresOn 2026-09-21, committed 59971a9e, untouched —
+  renewal/closure is admin-platform's); `npm run agents:validate` PASS (17
+  agents / 114 tasks / 0 warnings / 0 errors); scoped `git diff --check` PASS
+  (the admin RBAC page trailing whitespace at
+  `app/admin/dashboard/rbac/page.tsx:673` is a pre-existing unrelated dirty-tree
+  change); all four new/updated JSON files parse. Local `supabase db lint
+  --local` and the db005c runtime remain BLOCKED (no approved live target,
+  ECONNREFUSED at 127.0.0.1:54322); `lib/database.types.ts` regen (CP-016)
+  requires the applied target. No apply/reset/replay/push attempted; CP-051/CP-016 honored.
+- Remaining: artist confirmation → operator manual staging apply → db005c
+  postflight → CP-016 types regen → DISC-002 canonical creator filters on
+  `lib/search/canonical-search.ts` + route, then `/api/search/enhanced`
+  retirement; freshness mechanism as a follow-up additive migration.
+
+## DB-010 worker actions scope reconciliation — 2026-09-22
+
+- DB-010 local migration review consolidated the active migration `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` into one forward-only body after a duplicate pasted SQL block was found. The migration now creates append-only worker acknowledgement and check-in event tables with forced RLS, authenticated-only select/insert grants, final policy names, and the private helper `work_mode_security.publication_audience_allows(uuid)` for targeted audience checks that cannot depend on caller-visible rows.
+- Scope model: acknowledgements require the signed-in worker's active assignment, published packet, event/tour identity match, org match when both event and tour identities exist, visible-to compatibility or explicit audience targeting, and any payload-declared required permission. Check-in inserts require the worker's active assignment, `check_in_out` permission, and event identity alignment using the shift and assignment identifiers without forcing an `events_v2` foreign key during identity cutover.
+- Verification: targeted migration validation PASS for `20260922155356_worker_actions_scope_reconciliation.sql`; `npm run check:migration-chain` PASS (299 active migration files, no duplicate policy creates). Full migration validation still exits on the pre-existing unrelated expired `job-posting-scope-not-null` exception dated 2026-09-21; DB-010 itself scans clean. Hosted apply, live denial probes, generated types, and QA-004 worker-action reruns remain pending staging isolation and operator credentials.

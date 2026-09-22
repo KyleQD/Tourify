@@ -6,10 +6,18 @@ vi.mock("server-only", () => ({}))
 vi.mock("@/lib/rebuild/hiring-onboarding-notify", () => ({
   sendOnboardingInviteNotification: vi.fn(),
 }))
+vi.mock("@/lib/services/staff-shift-assignment-sync", () => ({
+  syncEmploymentAssignmentForShift: vi.fn(async () => ({
+    assignmentId: "assignment-1",
+    workerUserId: "worker-1",
+    notified: false,
+  })),
+}))
 
 import { buildTourMemberWrite } from "@/lib/admin/tour-collaboration"
 import {
   assertNoShiftConflict,
+  createEventStaffAssignment,
   StaffingFlowError,
   staffingErrorStatus,
 } from "@/lib/services/staffing-assignment.service"
@@ -42,6 +50,50 @@ describe("event/tour staffing migration contract", () => {
 })
 
 describe("staffing service conflicts", () => {
+  it("persists a confirmed event shift with a schema-supported status", async () => {
+    let insertedShift: Record<string, unknown> | null = null
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "staff_members") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn(async () => ({ data: { id: "staff-1", role: "Stagehand" }, error: null })),
+        }
+        if (table === "staff_shifts") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          not: vi.fn().mockReturnThis(),
+          lt: vi.fn().mockReturnThis(),
+          gt: vi.fn().mockReturnThis(),
+          limit: vi.fn(async () => ({ data: [], error: null })),
+          insert: vi.fn((payload: Record<string, unknown>) => {
+            insertedShift = payload
+            return { select: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: { ...payload, id: "shift-1" }, error: null })),
+            })) }
+          }),
+        }
+        throw new Error(`Unexpected table ${table}`)
+      }),
+    }
+
+    await createEventStaffAssignment({
+      supabase: supabase as never,
+      actorUserId: "manager-1",
+      orgId: "org-1",
+      eventId: "event-1",
+      staffMemberId: "staff-1",
+      shiftDate: "2026-09-23",
+      startTime: "10:00",
+      endTime: "18:00",
+      assignmentStatus: "confirmed",
+    })
+
+    expect(insertedShift).toMatchObject({ status: "confirmed", org_id: "org-1", staff_member_id: "staff-1" })
+  })
+
   it("rejects an invalid window before querying", async () => {
     await expect(assertNoShiftConflict({} as never, {
       staffMemberId: "staff",

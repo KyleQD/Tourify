@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `648d652e93693ee89973858ce96797e622b5aa4b`
-- Branch: `release/clean-snapshot`
-- Working tree: dirty (39 entries)
-- Generated at: 2026-09-22T09:13:53.629Z
+- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Branch: `codex/qa004-staging-campaign`
+- Working tree: dirty (1 entries)
+- Generated at: 2026-09-22T17:00:56.458Z
 - Generator: `control-plane.mjs generate`
 
-## Route handlers (946)
+## Route handlers (947)
 
 | Route | Methods | Source |
 | --- | --- | --- |
@@ -92,6 +92,7 @@
 | `/api/admin/events/[id]/tour-assignments` | DELETE, GET, POST, PUT | `app/api/admin/events/[id]/tour-assignments/route.ts` |
 | `/api/admin/events/[id]/vendor-requests` | GET | `app/api/admin/events/[id]/vendor-requests/route.ts` |
 | `/api/admin/events/[id]/work-mode` | GET, POST | `app/api/admin/events/[id]/work-mode/route.ts` |
+| `/api/admin/events/[id]/work-mode/attendance` | GET | `app/api/admin/events/[id]/work-mode/attendance/route.ts` |
 | `/api/admin/events/export` | GET | `app/api/admin/events/export/route.ts` |
 | `/api/admin/exports/calendar-feeds` | GET | `app/api/admin/exports/calendar-feeds/route.ts` |
 | `/api/admin/exports/jobs` | GET | `app/api/admin/exports/jobs/route.ts` |
@@ -942,7 +943,7 @@
 | `/api/webhooks/supabase/notifications` | POST | `app/api/webhooks/supabase/notifications/route.ts` |
 | `/api/work-mode/assignments` | GET | `app/api/work-mode/assignments/route.ts` |
 | `/api/work-mode/assignments/[id]` | GET | `app/api/work-mode/assignments/[id]/route.ts` |
-| `/api/work-mode/assignments/[id]/actions` | POST | `app/api/work-mode/assignments/[id]/actions/route.ts` |
+| `/api/work-mode/assignments/[id]/actions` | GET, POST | `app/api/work-mode/assignments/[id]/actions/route.ts` |
 | `/api/work-mode/assignments/[id]/respond` | POST | `app/api/work-mode/assignments/[id]/respond/route.ts` |
 | `/api/work-mode/communications/[id]/respond` | POST | `app/api/work-mode/communications/[id]/respond/route.ts` |
 | `/api/work-mode/events/[eventId]` | GET | `app/api/work-mode/events/[eventId]/route.ts` |

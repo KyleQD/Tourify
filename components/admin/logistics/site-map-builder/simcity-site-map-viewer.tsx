@@ -2212,7 +2212,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <h1 className="truncate text-lg font-semibold tracking-tight text-white">{siteMap.name}</h1>
+                  <h1 className="min-w-0 line-clamp-2 break-words text-lg font-semibold tracking-tight text-white" title={siteMap.name}>{siteMap.name}</h1>
                   <Badge
                     variant="secondary"
                     className={cn(

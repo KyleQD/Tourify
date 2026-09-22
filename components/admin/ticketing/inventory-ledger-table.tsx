@@ -156,13 +156,14 @@ export function InventoryLedgerTable({ eventId }: InventoryLedgerTableProps) {
         ) : null}
 
         {!error && data && data.entries.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" role="region" tabIndex={0} aria-label="Ticket inventory ledger, scroll horizontally for all columns">
+            <table className="w-full min-w-[560px] text-sm">
+              <caption className="sr-only">Ticket inventory movements</caption>
               <thead>
                 <tr className="border-b border-slate-700/50 text-xs text-slate-400 uppercase tracking-wide">
                   <th className="py-2 pr-3 text-left font-medium">Type</th>
                   <th className="py-2 pr-3 text-right font-medium">Qty</th>
-                  <th className="py-2 pr-3 text-left font-medium hidden md:table-cell">Reason</th>
+                  <th className="py-2 pr-3 text-left font-medium">Reason</th>
                   <th className="py-2 text-left font-medium">Recorded</th>
                 </tr>
               </thead>
@@ -175,7 +176,7 @@ export function InventoryLedgerTable({ eventId }: InventoryLedgerTableProps) {
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-200 font-medium">
                       {e.quantity > 0 ? `+${e.quantity}` : e.quantity}
                     </td>
-                    <td className="py-2 pr-3 text-slate-400 hidden md:table-cell text-xs">
+                    <td className="py-2 pr-3 text-slate-400 text-xs">
                       {e.reason ?? "—"}
                     </td>
                     <td className="py-2 text-slate-400 text-xs">

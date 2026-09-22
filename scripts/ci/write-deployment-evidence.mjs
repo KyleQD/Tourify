@@ -26,6 +26,7 @@ export function createDeploymentEvidence(input, now = new Date()) {
     if (!String(input[name] || "").trim()) throw new Error(`${name} is required`)
   }
   if (!/^[0-9a-f]{40}$/i.test(input.releaseSha)) throw new Error("releaseSha must be a full 40-character Git SHA")
+  if (!/^dpl_[A-Za-z0-9]+$/.test(input.deploymentId)) throw new Error("deploymentId must be a Vercel-generated dpl_ identifier")
   if (!new Set(["staging", "production"]).has(input.environment)) {
     throw new Error("environment must be staging or production")
   }

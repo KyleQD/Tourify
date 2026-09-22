@@ -195,7 +195,7 @@ export function SiteMapContextDrawer({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Settings2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
+            <h3 className="min-w-0 line-clamp-2 break-words text-sm font-semibold text-white" title={title}>{title}</h3>
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">
             {selectedObject && (

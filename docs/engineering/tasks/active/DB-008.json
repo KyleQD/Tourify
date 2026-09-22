@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-16T19:20:38.326Z",
-  "updated_at": "2026-09-17T01:29:01.343Z",
+  "updated_at": "2026-09-22T16:18:55Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Make staging schema, production migration history, generated types, and the launch migration ledger agree without destructive resets",
@@ -44,21 +44,22 @@
       "npm run check:database-types"
     ],
     "evidence": [
-      "Audit baseline: 294 active migrations exist, most validation manifests are still planned, zero are production-verified, and raw Management API applications created migration-history drift."
+      "Audit baseline: 294 active migrations exist, most validation manifests are still planned, zero are production-verified, and raw Management API applications created migration-history drift.",
+      "2026-09-22 local source refresh: hosted-history ledger matches 299 active migrations (9 classified, 290 explicitly unreconciled), including DB-010 as required before WORK-006 flag enablement. Staging/production history remains unverified.",
+      "2026-09-22 unblock sprint check: Supabase CLI is linked to Tourify Demo project auqddrodjezjlypkzfpi, which is also the origin advertised by both demo and production public health CSP. Do not treat the linked project as isolated staging until RELEASE-007 proves separation."
     ],
     "last_run_sha": null,
     "last_run_at": null,
     "result": "not-run"
   },
   "progress": {
-    "summary": "Partial batch implementation landed: added a hosted-history ledger for all 294 active migrations, launch-required/deferred classification, normal validation, strict release validation, and all-manifest scanning. The ledger honestly reports 287 unclassified migrations and unverified staging/production history.",
+    "summary": "Next-phase unblock check confirms hosted schema reconciliation remains blocked. No staging/production Supabase environment values or protected secrets are present through GitHub environments, and no hosted migration history was queried or reconciled in this session.",
     "completed": [
       "Added hosted-history-ledger.json and check-hosted-migration-ledger.mjs with normal and --require-reconciled modes.",
       "Added active-chain, database-type source, and migration manifest validation tooling without resets or invented hosted evidence."
     ],
     "next_steps": [
-      "Populate the ledger from authorized read-only staging/production history and classify the remaining active migrations under CP-051.",
-      "Regenerate database types from the exact staged schema and make strict ledger validation part of the release gate."
+      "Populate staging and production Supabase environment values, then reconcile hosted migration history and strict ledger state before QA-004 live simulation."
     ],
     "blockers": [
       "Strict release validation currently fails because 287 migrations remain unclassified and both environments default to unverified.",
@@ -80,6 +81,60 @@
         "blockers": [
           "Strict release validation currently fails because 287 migrations remain unclassified and both environments default to unverified.",
           "No authorized hosted schema/history access was available in this batch."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Local hosted-history ledger check passes with 299 active migrations, 9 classified and 290 explicitly unreconciled. No staging target/history snapshot exists; local env files are production-target, so no hosted mutation or parity claim was made.",
+        "completed": [],
+        "next_steps": [
+          "Capture approved staging history/catalog before applying DB-010 or DB-002; reconcile manual psql applications only after schema equivalence proof and record exact migration/app SHAs."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:20:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Started the database lane from the release-readiness unblock sprint packet.",
+        "completed": [
+          "Confirmed the local Supabase link points to Tourify Demo auqddrodjezjlypkzfpi.",
+          "Confirmed that linked project cannot be used as isolated staging while public demo and production advertise the same Supabase origin.",
+          "Linked the database lane to docs/audits/flow-notes/release-readiness-unblock-sprint.md."
+        ],
+        "next_steps": [
+          "After RELEASE-007 provides a verified isolated staging project, capture migration history, run one-at-a-time DB-002 and DB-010 applies if absent, then attach contract, advisor, and denial-probe evidence."
+        ],
+        "blockers": [
+          "No approved isolated staging Supabase target is recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:56.578Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check confirms hosted schema reconciliation remains blocked. No staging/production Supabase environment values or protected secrets are present through GitHub environments, and no hosted migration history was queried or reconciled in this session.",
+        "completed": [],
+        "next_steps": [
+          "Populate staging and production Supabase environment values, then reconcile hosted migration history and strict ledger state before QA-004 live simulation."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:18:55Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Read-only connected-project inventory confirmed no usable isolated staging target. The normal ledger matches 299 active migrations; strict release validation still fails on 290 launch-unclassified versions and unverified staging/production history.",
+        "completed": [
+          "Ran check:migration-chain and check:migration-ledger successfully; source snapshot remains 299 active migrations with 9 classified and 290 explicitly unreconciled.",
+          "Checked connected Supabase projects without reading credentials or mutating either project."
+        ],
+        "next_steps": [
+          "After RELEASE-007 isolation proof, capture read-only supabase_migrations.schema_migrations history and catalog from the exact staging project, classify every active migration, and apply launch migrations one at a time under CP-051.",
+          "Reconcile history only after catalog equivalence; rerun check:migration-ledger:release, advisors, and canonical database-type generation on the staged schema."
+        ],
+        "blockers": [
+          "No independent staging project, protected database URL, or exact deployed SHA is recorded; strict ledger validation fails by design."
         ]
       }
     ]

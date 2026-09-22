@@ -8,6 +8,11 @@ PLAYWRIGHT_BASE_URL=https://demo.tourify.live \
 QA_CERT_EXPECTED_SHA=<40-character-staging-sha> \
 QA_CERT_SUPABASE_URL=<staging-url> \
 QA_CERT_SUPABASE_ANON_KEY=<staging-anon-key> \
+QA_CERT_STAGING_DEPLOYMENT_ID=<staging-dpl-id> \
+QA_CERT_PRODUCTION_DEPLOYMENT_ID=<different-production-dpl-id> \
+QA_CERT_PRODUCTION_URL=https://tourify.live \
+QA_CERT_PRODUCTION_SUPABASE_URL=<production-supabase-url> \
+QA_CERT_STRIPE_SECRET_KEY=<protected-sk_test-key> \
 QA_CERT_MEMBER_EMAIL=<synthetic-member> \
 QA_CERT_MEMBER_PASSWORD=<synthetic-member-password> \
 QA_CERT_OPERATOR_EMAIL=<synthetic-operator> \
@@ -27,6 +32,6 @@ Before a hosted run, validate the fixture without credentials or browsers:
 npm run test:e2e:launch:contract
 ```
 
-Manual workflow dispatch checks out the requested 40-character SHA, requires it to be on `main`, and runs only the protected staging certification job. The harness refuses missing variables, localhost by default, non-HTTPS targets, release-SHA mismatches, placeholder fixture content, and any skipped test.
+Manual workflow dispatch checks out the requested 40-character SHA, requires it to be on `main`, and runs only the protected staging certification job. The harness refuses missing variables, localhost by default, non-HTTPS targets, shared app or Supabase origins, shared or invalid deployment IDs, a non-test Stripe key, health metadata mismatches, placeholder fixture content, and any skipped test.
 
-The `/api/health` response must expose the deployed commit as `x-tourify-release-sha`. The current route does not emit that header, so certification intentionally fails closed until the deployed staging surface provides authoritative release identity.
+The `/api/health` response emits `x-tourify-release-sha` only when Vercel supplies a valid `VERCEL_GIT_COMMIT_SHA`. It also emits `x-tourify-deployment-id` only for a valid Vercel-generated `VERCEL_DEPLOYMENT_ID`. The public demo and production probes on 2026-09-22 did not return a release SHA, so certification still fails closed until the isolated staging deployment exposes and records both identities.

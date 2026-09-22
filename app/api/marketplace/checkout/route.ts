@@ -14,6 +14,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { marketplaceCheckoutRequestSchema } from "@tourify/api-contracts"
 import { hashMarketplaceCheckoutInput, resolveCheckoutAttempt } from "@/lib/marketplace/checkout-idempotency"
+import { marketplaceCheckoutSuccessUrl } from "./success-url"
 
 export const dynamic = "force-dynamic"
 
@@ -449,7 +450,7 @@ export async function POST(request: NextRequest) {
         },
         mode: "payment",
         line_items: checkoutLineItems,
-        success_url: `${siteUrl}/marketplace/order/${guestAccessToken ?? "{CHECKOUT_SESSION_ID}"}?checkout=success`,
+        success_url: marketplaceCheckoutSuccessUrl({ siteUrl, orderId: order.id, guestAccessToken }),
         cancel_url: `${siteUrl}/marketplace?checkout=cancelled&order_id=${order.id}`,
         metadata: {
           source: "marketplace_checkout",

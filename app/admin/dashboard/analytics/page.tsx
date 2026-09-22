@@ -419,40 +419,40 @@ export default function AnalyticsPage() {
         </div>
 
         <Tabs defaultValue="performance" className="w-full">
-          <TabsList className="grid w-full max-w-4xl grid-cols-6 bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
+          <TabsList className="grid h-auto w-full max-w-4xl grid-cols-2 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm sm:grid-cols-3 xl:grid-cols-6">
             <TabsTrigger
               value="performance"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+              className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Performance
             </TabsTrigger>
             <TabsTrigger
               value="revenue"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+              className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Revenue
             </TabsTrigger>
             <TabsTrigger
               value="audience"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+              className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Audience
             </TabsTrigger>
             <TabsTrigger
               value="trends"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+              className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Trends
             </TabsTrigger>
             <TabsTrigger
               value="top-performers"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+              className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Top
             </TabsTrigger>
             <TabsTrigger
               value="real-time"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+              className="min-w-0 whitespace-normal px-2 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Real-time
             </TabsTrigger>

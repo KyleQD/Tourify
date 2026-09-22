@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `648d652e93693ee89973858ce96797e622b5aa4b`
-- Branch: `release/clean-snapshot`
-- Working tree: dirty (39 entries)
-- Generated at: 2026-09-22T09:13:53.629Z
+- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Branch: `codex/qa004-staging-campaign`
+- Working tree: dirty (1 entries)
+- Generated at: 2026-09-22T17:00:56.458Z
 - Generator: `control-plane.mjs generate`
 
 Static detection is a routing aid, not an authorization audit. Missing markers require review; detected markers do not prove correct scope.
@@ -62,7 +62,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 - `lib/supabase/service-role.ts`
 - `lib/supabase/tourify-session-cookie.ts`
 
-## API route indicators (946)
+## API route indicators (947)
 
 | Source | Detected indicators |
 | --- | --- |
@@ -144,6 +144,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/events/[id]/task-messages/route.ts` | service role |
 | `app/api/admin/events/[id]/tour-assignments/route.ts` | admin, entity/RBAC |
 | `app/api/admin/events/[id]/vendor-requests/route.ts` | admin, entity/RBAC |
+| `app/api/admin/events/[id]/work-mode/attendance/route.ts` | admin, entity/RBAC, service role |
 | `app/api/admin/events/[id]/work-mode/route.ts` | admin, entity/RBAC |
 | `app/api/admin/events/export/route.ts` | admin, entity/RBAC |
 | `app/api/admin/events/route.ts` | admin, entity/RBAC |

@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `648d652e93693ee89973858ce96797e622b5aa4b`
-- Branch: `release/clean-snapshot`
-- Working tree: dirty (39 entries)
-- Generated at: 2026-09-22T09:13:53.629Z
+- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Branch: `codex/qa004-staging-campaign`
+- Working tree: dirty (1 entries)
+- Generated at: 2026-09-22T17:00:56.458Z
 - Generator: `control-plane.mjs generate`
 
-## TSX and JSX files (1935)
+## TSX and JSX files (1937)
 
 | Source | Detected exported components |
 | --- | --- |
@@ -1071,6 +1071,7 @@
 | `components/admin/vendors/obligations-panel.tsx` | ObligationsPanel |
 | `components/admin/vendors/vendor-master-panel.tsx` | VendorMasterPanel |
 | `components/admin/workforce/attendance-correction-panel.tsx` | AttendanceCorrectionPanel |
+| `components/admin/workforce/event-worker-attendance.tsx` | EventWorkerAttendance |
 | `components/admin/workforce/hiring-roster-handoff-panel.tsx` | HiringRosterHandoffPanel |
 | `components/admin/workforce/payroll-export-panel.tsx` | PayrollExportPanel |
 | `components/admin/workforce/scheduling-conflicts-panel.tsx` | SchedulingConflictsPanel |
@@ -1901,6 +1902,7 @@
 | `components/venue/virtualized-list.tsx` | VirtualizedList |
 | `components/venues/venue-select.tsx` | VenueSelect |
 | `components/verification/account-verification.tsx` | AccountVerification |
+| `components/work-mode/work-mode-attendance-history.tsx` | WorkModeAttendanceHistory |
 | `components/work-mode/work-mode-event-workspace.tsx` | WorkModeEventWorkspace |
 | `components/work-mode/work-mode-overview.tsx` | WorkModeOverview |
 | `components/work-mode/work-mode-workspace.tsx` | WorkModeWorkspace |

@@ -58,3 +58,24 @@ Update this file only when a task establishes a durable fact future work needs.
 
 - VENUE-002 remains blocked/P2 at the existing ownership boundary and is not a core launch blocker unless QA-003 identifies a live venue caller that depends on the legacy component tree.
 - Venue-facing core journeys remain subject to DB-002 authorization, DB-006 events_v2, and QA-003 staging certification.
+
+## Preserved venue-feature lineage — 2026-09-22 (CP-056)
+
+- `origin/codex/admin-workflow-completion` (HEAD `521a206d`) preserves the beta-era venue
+  feature family not present in master: app/venue (120 files, incl. bookings, create-event
+  wizard, document management, EPK), components/venue (46), styles/venue, context/venue,
+  hooks/use-mobile.tsx, and app/providers.tsx. Port candidate islands additively behind the
+  venue-pages-builder skill into release/clean-snapshot; do not merge the branch wholesale.
+
+## Venue integrations are encrypted-vault only — 2026-09-22 (INTG-007)
+
+- `app/api/venue/integrations/route.ts` reads token material exclusively through the
+  encrypted token vault (`readVenueIntegrationSecrets`/`writeVenueIntegrationSecrets`).
+  The retired `venue_social_integrations.access_token/refresh_token` plaintext columns
+  are never selected, read, or written by venue-domain code (HF-INTG-007-VENUE consumed;
+  migration 20260921000000 nulls the legacy venue plaintext columns once applied).
+- POST refresh fails closed with an intentional 400 when the vault holds no refresh grant
+  (no legacy column fallback); disconnect clears the vault and toggles `is_connected` only.
+- GET health semantics are vault-derived: disconnected / needs_reauth / connected from row
+  connection state plus vault `accessToken` presence. Coverage: `__tests__/venue/venue-integrations-api.test.ts`
+  (9 tests).

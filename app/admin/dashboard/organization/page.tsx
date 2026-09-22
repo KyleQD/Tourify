@@ -165,7 +165,7 @@ export default function OrganizationProfilePage() {
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           {/* ── Grouped workspace navigation — replaces 16 flat tabs with 6 primary groups ── */}
-          <div className="flex items-center gap-1 overflow-x-auto px-1 py-2 border-b border-slate-700/30" role="tablist" aria-label="Organization workspace sections">
+          <nav className="flex items-center gap-1 overflow-x-auto border-b border-slate-700/30 px-1 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" aria-label="Organization workspace sections" tabIndex={0}>
             {ORGANIZATION_WORKSPACE_GROUPS.map((group) => {
               const hasSecondary = group.secondary.length > 0;
               const isGroupActive = group.primaryTab === activeTab || group.secondary.some((s) => s.id === activeTab);
@@ -185,22 +185,17 @@ export default function OrganizationProfilePage() {
                   <DropdownMenu key={group.id}>
                     <DropdownMenuTrigger asChild>
                       <button
+                        type="button"
                         disabled={!groupAllowed}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
                           isGroupActive
                             ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
                             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
                         } ${!groupAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
-                        role="tab"
-                        aria-selected={isGroupActive}
+                        aria-current={isGroupActive ? 'page' : undefined}
                       >
                         <group.icon className="h-3.5 w-3.5 shrink-0" />
                         {displayLabel}
-                        {activeSecondary && (
-                          <span className="text-xs text-slate-400 ml-1">
-                            — {activeSecondary.label}
-                          </span>
-                        )}
                         <ChevronDown className="h-3 w-3" />
                       </button>
                     </DropdownMenuTrigger>
@@ -232,6 +227,7 @@ export default function OrganizationProfilePage() {
 
               return (
                 <button
+                  type="button"
                   key={group.id}
                   disabled={!groupAllowed}
                   onClick={() => handleTabChange(group.primaryTab)}
@@ -240,15 +236,14 @@ export default function OrganizationProfilePage() {
                       ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
                   } ${!groupAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
-                  role="tab"
-                  aria-selected={activeTab === group.primaryTab}
+                  aria-current={activeTab === group.primaryTab ? 'page' : undefined}
                 >
                   <group.icon className="h-3.5 w-3.5 shrink-0" />
                   {group.label}
                 </button>
               );
             })}
-          </div>
+          </nav>
 
           {/* ── Overview ── */}
           <TabsContent value="overview" className="space-y-4">

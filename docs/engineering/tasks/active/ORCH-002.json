@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-16T19:20:36.990Z",
-  "updated_at": "2026-09-21T22:30:00.000Z",
+  "updated_at": "2026-09-22T17:13:45.190Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "Wave 31 committed 648d652e; foreign in-progress admin-dashboard work left uncommitted in the worktree (ADMVIEW-001 files, admin dashboard/components); 0 wave-level unresolved",
+  "working_tree_status": "2026-09-22 ownership snapshot after topology refresh: 75 dirty entries on release/clean-snapshot, including concurrent ADMVIEW-001 admin, INTG-007 admin/venue, and DB-005 creator-projection work; 69 candidate routes, 6 task-record routes, 0 unresolved paths, 0 unexplained deletions. Candidate ownership and a clean deployable release candidate remain open.",
   "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
   "scope": {
     "in": [
@@ -81,14 +81,16 @@
       "2026-09-19 ownership finalization adjudicated the final four concurrent-work paths from DESIGN-035 evidence: components/layout/app-chrome.tsx and components/nav.tsx implement its checkpoint-verified mobile chrome (compact phone header, five-action bottom navigation, content/player spacing), and components/marketing/landing-hero-auth.tsx and tourify-landing-page.tsx are its named working-set files. The manifest is now 1,431 entries with 1,286 candidates, 145 task records, zero unresolved paths, zero unexplained deletions, and zero credential-pattern findings.",
       "2026-09-20 Wave 26 integration at 89b5aa42 on release/clean-snapshot: 66 focused Vitest page/consumer cases pass, check:production-debug (40 covered unsafe routes), check:public-surface, and check:cron-route-inventory pass, and the ownership manifest reports the five new RELEASE-008 layout paths as task-record with zero unresolved paths and zero unexplained deletions.",
       "2026-09-20 Wave 27 integration at cd57bbfb on release/clean-snapshot: DESIGN-035 verified against all acceptance criteria in real Chrome at 320/390/768/1440 and closed — one value prop and one account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed, rectangular clip-path-none radius-16px padded auth card, and usable keyboard focus/reduced-motion; gaps closed (duplicate CTAs, 44px touch targets, /artist/* bottom-nav exclusion). eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to baseline with 0 new errors. Task record moved to completed/; remaining authenticated /artist session and release-mode Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors.",
-      "2026-09-20 Wave 28 closed ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034; focused artist tests passed 3/3 and token-registry tests passed 9/9. agents:generate now refreshes TASK_INDEX before topology generation, reconciling all five moves. The 43-entry wave ownership manifest has zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings. Final control-plane validation passed for 17 agents and 113 tasks with zero warnings and zero errors; focused lint, staged diff, script syntax, and worktree audit passed."
+      "2026-09-20 Wave 28 closed ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034; focused artist tests passed 3/3 and token-registry tests passed 9/9. agents:generate now refreshes TASK_INDEX before topology generation, reconciling all five moves. The 43-entry wave ownership manifest has zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings. Final control-plane validation passed for 17 agents and 113 tasks with zero warnings and zero errors; focused lint, staged diff, script syntax, and worktree audit passed.",
+      "2026-09-22 ownership refresh: node --check passed for the ownership generator; npm run agents:generate refreshed 114 tasks, 946 API routes, 1935 components, and 431 migrations at SHA 623b576b; the regenerated 75-entry ownership manifest has 69 candidate routes, 6 task-record routes, zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings. Final npm run audit:worktree passed at 75 entries with no generated/local artifact candidates; npm run agents:validate passed with 17 agents, 114 tasks, zero warnings, zero errors; scoped git diff --check passed.",
+      "2026-09-22 QA actor lane: eight focused provisioner tests passed; no QA_CAMPAIGN_* variables were present, no hosted Auth request occurred, and no simulation rows were credited."
     ],
     "last_run_sha": "648d652efed0f04f1b8b91f361996f3330aff3df",
     "last_run_at": "2026-09-21T22:30:00Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Wave 31 advanced the four remaining locally-progressable lanes: DB-005 authored the additive distributed purchase-idempotency migration (partial unique index on ticket_sales) closing the TICKET-005 handoff race, RELEASE-004 published the complete recovery and continuity plan (three of four acceptance criteria complete locally), USER-005 resolved the last local type blocker (admin-context identity mismatch) so scoped TypeScript passes, and DISC-002 inventoried all creator-filter callers and precisely recorded the creator-metadata gap needed to retire /api/search/enhanced. Focused tests, scoped tsc, chain/validation, and control-plane checks pass; hosted apply/staging gates remain open.",
+    "summary": "Patched PR check blockers for staging-campaign candidate: production-debug TypeScript import now works under both Node fixture and tsx runtime; retention expiry uses UTC date math with corrected 90-day expectation; post-hardening pgcrypto duplicate install statements removed and org invite hash is schema-qualified for local Supabase migration replay.",
     "completed": [
       "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
       "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
@@ -150,18 +152,19 @@
       "Wave 30 lane DB-006: exact scan classified all 52 remaining legacy events/artist_events callers as 14 compatibility-gated and 38 deferred with named owner + contract rationale (0 migrated among the 52; the six bounded hot paths carry zero legacy reads); no code change was required, adjacent dynamic-table findings recorded for later review.",
       "Wave 30 lane RELEASE-003: new GET/HEAD /readyz redacted readiness route plus loopback-only smoke:readyz and a focused 6-test redaction suite; published the 99.9% monthly web/API SLO and runbooks covering uptime, Redis, auth, checkout, webhook, and elevated-error-rate alerts; real Sentry DSN, uptime provider, on-call routing, and the 24-hour staging soak remain owner-provisioned blockers recorded in HF-RELEASE-003-OWNER.",
       "Wave 30 lane TICKET-005: canonical refund replay is now replay-safe and fail-closed (duplicate refunds return duplicate acknowledgements with zero side effects; ledger reads never infer row-absent from unreachable reads) and purchases are deduped request-scoped via findIdempotentPurchase; ticketing suite grew from 13 files/95 tests to 15 files/120 tests, with the distributed DB-unique idempotency gap handed to DB-005.",
-      "Consolidated Wave 30 verification passed: 20 focused files / 170 tests for ticketing+integrations plus the readyz and events_v2 suites (5 files/54), focused ESLint exit 0, git diff --check clean, check:migration-chain (296 files) and check:migration-validation (INTG-007 planned manifest) green, and agents:generate/agents:validate passed (17 agents, 113 tasks, 0 warnings, 0 errors) at the 946-route / 429-migration topology."
+      "Consolidated Wave 30 verification passed: 20 focused files / 170 tests for ticketing+integrations plus the readyz and events_v2 suites (5 files/54), focused ESLint exit 0, git diff --check clean, check:migration-chain (296 files) and check:migration-validation (INTG-007 planned manifest) green, and agents:generate/agents:validate passed (17 agents, 113 tasks, 0 warnings, 0 errors) at the 946-route / 429-migration topology.",
+      "Mapped the shared organization-social integration service to the completed INTG-007 admin handoff and taught the ownership generator to recognize verified pending-to-completed handoff moves.",
+      "Verified the 74-entry worktree audit and control-plane validation: 17 agents, 114 tasks, 0 warnings, 0 errors.",
+      "QA-004 completion wave: DB-010 authored forward-only worker-action scope reconciliation SQL and postflight contracts; RELEASE-007/QA-003 hardened staging/production gates, same-SHA E2E dependency, and deployed identity evidence; product repair validation re-ran checkout, staffing, worker attendance, social follow, and ticketing suites with no additional local product blockers found."
     ],
     "next_steps": [
-      "Apply the INTG-007 migration + run the MFA check against an approved isolated Supabase staging target, then execute the SOCIAL-004 two-member-plus-outsider Realtime/RLS run and QA-003 exact-SHA certification on that same target once provisioned.",
-      "Sequence DB-005 to add the distributed DB-unique ticket purchase idempotency index; obtain hosted DB-008/DB-002 evidence and DB-006/DB-005 migration postflight evidence.",
-      "Provision hosted Vercel/Supabase credentials and an exact reviewed SHA staging deployment; run RELEASE-006 credentialed build, RELEASE-007 promotion, and QA-003 without skips before any release promotion."
+      "Amend and push the PR branch, then watch PR #14 checks for Vitest, production debug, database types, and migration/RLS matrix reruns."
     ],
     "blockers": [
-      "Hosted gates remain: no approved isolated Supabase target, no exact-SHA Vercel staging deployment, no matching-SHA E2E, no main-branch protection, and no deployed QA-003/DB-008/SOCIAL-004/INTG-003/RELEASE-004-restore evidence.",
-      "ADMIN-003 resumes only after recorded owner decisions and resource predicates; INTG-007's and DB-005's new migrations are unapplied (CP-051 manual apply by operator); DISC-002 is blocked on a creator-metadata search-projection migration in another lane.",
-      "DB-006's 38 deferred legacy callers require the owner-recorded contract rationale before further remediation; DB-009 and DESIGN-033 remain gated on hosted/decision evidence.",
-      "The full repository typecheck still did not finish within a bounded run, so no pass is claimed."
+      "The 69 candidate ownership mappings still require domain confirmation; the shared worktree has uncommitted admin, venue, integrations, and database edits, so this snapshot is not a clean deployable candidate.",
+      "The bounded current-file credential-pattern scan is not a release-grade branch/history attestation.",
+      "No approved isolated Supabase staging target, exact-SHA Vercel staging deployment, matching-SHA E2E, or production branch protection is recorded; CP-051 migrations remain operator-applied only.",
+      "Full migration validation exits on the pre-existing expired job-posting-scope-not-null exception in docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json; the exception owner must renew or close it with fresh evidence."
     ],
     "checkpoints": [
       {
@@ -783,7 +786,7 @@
         ],
         "blockers": []
       },
-{
+      {
         "at": "2026-09-19T02:51:49.807Z",
         "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
         "summary": "Completed Wave 23: added fail-closed server boundaries for cooperative and interoperability-convention pages, and documented five additional tenant/resource-scoped admin prerequisites without unsafe guard migration.",
@@ -828,6 +831,207 @@
         "blockers": [
           "Hosted Vercel/Supabase credentials, the exact-SHA deployment, and QA_CERT values are unavailable in this workspace; migration checksums and supabase-target checks need their documented hosted inputs."
         ]
+      },
+      {
+        "at": "2026-09-22T11:53:00.788Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Reconciled current shared-workspace ownership after DB-005 creator projection, INTG-007 admin and venue handoff, and ADMVIEW-001 edits. The 74-entry manifest has 69 candidate routes, 5 task-record routes, 0 unresolved paths, 0 unexplained deletions, and 0 bounded credential-pattern findings. The release candidate remains uncurated while domain edits and hosted gates remain open.",
+        "completed": [
+          "Mapped the shared organization-social integration service to the completed INTG-007 admin handoff and taught the ownership generator to recognize verified pending-to-completed handoff moves.",
+          "Verified the 74-entry worktree audit and control-plane validation: 17 agents, 114 tasks, 0 warnings, 0 errors."
+        ],
+        "next_steps": [
+          "Obtain owning-domain confirmation for the 69 candidate mappings, then curate atomic release commits only after concurrent domain edits settle; run a release-grade branch/history credential scan.",
+          "Route HF-INTG-007-SOCIAL to the social owner and HF-DB-005-ARTIST-CREATOR-FIELDS to the artist owner before the related manual staging migrations or creator-filter cutover.",
+          "After approved isolated staging and exact-SHA deployment exist, collect DB-002/005/008, INTG-003/007, SOCIAL-004, QA-003, RELEASE-004, and RELEASE-005 hosted evidence in dependency order."
+        ],
+        "blockers": [
+          "The 69 candidate ownership mappings still require domain confirmation; the shared worktree has uncommitted admin, venue, integrations, and database edits, so this snapshot is not a clean deployable candidate.",
+          "The bounded current-file credential-pattern scan is not a release-grade branch/history attestation.",
+          "No approved isolated Supabase staging target, exact-SHA Vercel staging deployment, matching-SHA E2E, or production branch protection is recorded; CP-051 migrations remain operator-applied only."
+        ]
+      },
+      {
+        "at": "2026-09-22T15:51:39.129Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "QA-004 findings wave launched from orchestrator request: release_staging_gate owns RELEASE-007/QA-003 readiness, db_security_worker_actions owns DB-008/DB-002/DB-010 worker action schema and security proof, admin_scope_gate owns ADMIN-003 fixes for SIM-20260922-ADMIN-001/002. Live simulation remains gated until staging isolation, hosted schema/security, actors, and test payment proof exist.",
+        "completed": [],
+        "next_steps": [
+          "Collect lane results, update campaign dependency queue, run focused verification, then launch commerce/ticketing/QA rerun lanes after P0 gates move."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T15:53:23.931Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Launched four QA-004 completion lanes for release staging, database/security, QA simulation, and product repair validation from the 2026-09-22 orchestrator request. Live persona execution remains blocked until RELEASE-007, DB-008, DB-002, QA-003, QA-005, and QA-006 gates provide exact isolated staging proof.",
+        "completed": [],
+        "next_steps": [
+          "Collect lane results, reconcile any worktree patches into bounded task records, then provision campaign actors and rerun the pilot only after isolated staging, hosted schema/security, Stripe test mode, and mobile preview evidence are recorded."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:08:22.255Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "QA-004 findings wave consolidated. Admin scope P0/P1 local fixes landed with focused tests; DB-010 now has an active additive worker-actions migration, contract SQL, and planned validation manifest; release workflows now require exact SHA, retained staging evidence, deployment metadata, topology isolation, and explicit Vercel tokens. Consolidated checks passed: agents:validate, active migration chain, QA-004 coverage validation, public-surface contract, admin focused tests, admin route registry, DB-010 migration-validation scan, release helper Node tests, topology unit tests, and synthetic isolated topology happy paths.",
+        "completed": [],
+        "next_steps": [
+          "Hosted completion remains blocked on operator-provisioned isolated staging/prod Vercel and Supabase values, CP-051 manual DB-010 apply plus DB-002/DB-008 denial probes, Stripe test mode, protected campaign actors, mobile preview builds, and QA-004/QA-003 reruns on the recorded deployed SHA."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:12:16.176Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Unblock sprint launched from user approval. Active operational lanes: release_operator for RELEASE-007/QA-003 isolated staging packet, database_operator for DB-010/DB-002/DB-008 hosted proof/manual packet, qa_fixture_operator for QA-005/QA-006 actor and preview readiness, and qa_simulation_operator for the thin pilot chain script/rerun gate. QA live simulation remains intentionally gated until release and database lanes produce verified isolated staging, DB proof, Stripe test mode, and protected actor inputs.",
+        "completed": [],
+        "next_steps": [
+          "Collect lane outputs, consolidate verification, then allow the QA pilot simulation lane to execute only after staging packet and DB proof are available."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:24:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Started four Codex worktree tasks from the current dirty working tree for the approved unblock sprint: release packet, database proof packet, QA actor provisioning readiness, and QA pilot execution packet. The app returned setup client IDs while worktrees initialize; no hosted deployment, database mutation, actor provisioning, or payment action was performed by the orchestrator.",
+        "completed": [
+          "Release task queued: client-new-thread:52e8b7f8-83cf-442e-9fc9-289205ccdd82.",
+          "Database task queued: client-new-thread:78fd8399-12fe-4380-b016-3544c83d7405.",
+          "QA actor task queued: client-new-thread:c67a8659-e573-41bc-8f65-98d8f31380ba.",
+          "QA pilot task queued: client-new-thread:ba65969a-6338-48dc-b7fe-63dbfa398867."
+        ],
+        "next_steps": [
+          "Resolve queued tasks to normal task IDs when setup finishes, collect their outputs, then run the QA pilot only after RELEASE-007 plus DB-002/DB-008/DB-010 proof and QA-005 actor provisioning pass."
+        ],
+        "blockers": [
+          "Live campaign execution remains blocked on hosted isolated staging evidence, CP-051 database proof, Stripe test mode, protected campaign actors, and mobile preview builds."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Unblock sprint database operator found only registered-production local Supabase credentials, so hosted staging apply was not attempted. DB-010/DB-002/DB-008 local checks pass except unrelated full migration-validation expiry; exact manual packet is in the Work Mode runbook.",
+        "completed": [],
+        "next_steps": [
+          "Obtain verified isolated-staging Supabase target/credentials and deployed SHA; route operator packet through DB-008/DB-002/DB-010 before WORK-006 or QA-004 live actions."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Read-only release lane found an explicit topology failure: demo and production resolve to the same Vercel project/deployment, with shared advertised Supabase origin and no protected environment settings.",
+        "completed": [
+          "Recorded exact field-by-field staging packet at docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md; local deployment/public-surface/coverage checks passed."
+        ],
+        "next_steps": [
+          "Keep release curation and QA pilot gated; provision independent staging, CP-051 database proof, current-main exact-SHA CI/deployment, then QA certification and actor/mobile evidence."
+        ],
+        "blockers": [
+          "Main workspace remains dirty; no clean deployable SHA, isolated staging, protected governance, or hosted database proof exists."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:17:24.834Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Launched the user-approved unblock sprint lanes as separate Tourify project worktree tasks: release isolation, database gates, QA actor provisioning, and QA pilot simulation. Each lane is instructed to preserve unrelated changes, avoid production mutation, avoid actor/payment/database writes until hosted isolation and DB proof exist, and return exact evidence or missing-input packets.",
+        "completed": [],
+        "next_steps": [
+          "Wait for the four lane outputs, consolidate their evidence, and only allow QA live pilot execution after release and database gates prove isolated staging, Stripe test mode, protected actors, and DB denial probes."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:15:24Z",
+        "sha": null,
+        "summary": "QA actor operator prepared exact provisioning checklist and non-secret manifest/evidence contract, hardened known live origin refusal, and confirmed hosted prerequisites absent.",
+        "completed": [
+          "2026-09-22 QA actor lane: eight focused provisioner tests passed; no QA_CAMPAIGN_* variables were present, no hosted Auth request occurred, and no simulation rows were credited."
+        ],
+        "next": "Collect RELEASE-007 isolated deployment/DB/secret proof and DB-008/DB-002 hosted evidence, then supply protected QA_CAMPAIGN_* inputs to the operator before actor provisioning."
+      },
+      {
+        "at": "2026-09-22T16:19:37.116Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Operational unblock sprint started. Added docs/engineering/exec-plans/active/NEXT-PHASE-UNBLOCK-20260922.md and scripts/ci/check-next-phase-readiness.mjs to coordinate release, database, QA actor, and QA simulation lanes. Read-only GitHub inspection found empty staging/production environment vars/secrets and no current exact-SHA staging run.",
+        "completed": [],
+        "next_steps": [
+          "Hold feature agents. Drive the four operational lanes in order: candidate on main, protected env setup, DB staging proof, exact-SHA staging deployment, certification, actor provisioning, then QA pilot."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:21:28.213Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Operational unblock sprint produced concrete next-phase packets instead of running unsafe live mutation. New readiness gate check:next-phase-readiness fails closed because local candidate 623b576b7963d4a2eccb2fbf83f24f2011842a83 is not origin/main (origin/main is 76d8389ebf939cee70f7070abf74a6bacc46f5de) and GitHub staging/production environments lack required vars/secrets. Release readiness packet, DB hosted proof packet, QA actor packet, and thin pilot instructions are recorded. Live checks still show demo/prod sharing Supabase origin auqddrodjezjlypkzfpi with missing health identity headers.",
+        "completed": [],
+        "next_steps": [
+          "Put reviewed candidate on main, populate protected GitHub staging/production environment values, rerun check:next-phase-readiness, dispatch staging DB proof/deploy/e2e, then run QA-005 actor provisioning and QA-004 thin pilot."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:28:33.552Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-step continuation reduced readiness blockers. Branch protection is configured; confirmed Vercel Git integration risk from user note and avoided pushing main. GitHub environment now has known production comparison vars plus non-sensitive project ref secrets; readiness still fails because staging project/origin/token/password/test credentials are absent and candidate 623b576b is not on origin/main.",
+        "completed": [],
+        "next_steps": [
+          "Do not push main while Vercel auto-deploy can pull from GitHub. First create/prove isolated staging resources and secrets, then move a curated candidate through protected main checks."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:35:38.536Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Hardened next-phase readiness after Vercel/Supabase inventory: main is protected, tourifydemo is not accepted as staging, demo alias remains on production, Supabase staging project still needs provisioning, and the readiness gate now compares non-secret staging/prod project IDs and Supabase URLs.",
+        "completed": [],
+        "next_steps": [
+          "Provision or identify an isolated staging Supabase project and clean staging Vercel project values before merging the candidate through protected main and dispatching staging workflows."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:39:15.059Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Set non-secret Vercel staging/prod GitHub environment values and split next-phase readiness into predeploy, certification, production, and campaign phases. Predeploy now waits only on isolated staging Supabase values and deployment/migration tokens, not future QA certification outputs.",
+        "completed": [],
+        "next_steps": [
+          "Create or approve the isolated staging Supabase project, set its project ref/URL and protected secrets, then rerun npm run check:next-phase-readiness -- --phase=predeploy."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:54:35.866Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Created isolated Supabase staging project tourify-staging/dlcqfpabbgltgteqtuko with owner approval, wired staging Supabase ID/URL and generated DB password into GitHub, rewired tourifydemo to staging Supabase/runtime env values, and removed legacy production Postgres/JWT env values from tourifydemo.",
+        "completed": [],
+        "next_steps": [
+          "User/operator must provide protected VERCEL_STAGING_TOKEN and SUPABASE_STAGING_ACCESS_TOKEN, plus real Stripe test-mode values, before protected-main staging dispatch."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:59:23.179Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Stored VERCEL_STAGING_TOKEN and SUPABASE_STAGING_ACCESS_TOKEN in the GitHub staging environment. Predeploy readiness now has no missing environment vars or secrets; the only remaining predeploy gate is placing the candidate SHA on protected main.",
+        "completed": [],
+        "next_steps": [
+          "Prepare a reviewed PR path for the release candidate instead of direct-pushing to main, because Vercel pulls from GitHub."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T17:13:45.190Z",
+        "sha": "fe6e6a32a1fd2b9c55d434910680cc6e1f79ce8e",
+        "summary": "Patched PR check blockers for staging-campaign candidate: production-debug TypeScript import now works under both Node fixture and tsx runtime; retention expiry uses UTC date math with corrected 90-day expectation; post-hardening pgcrypto duplicate install statements removed and org invite hash is schema-qualified for local Supabase migration replay.",
+        "completed": [],
+        "next_steps": [
+          "Amend and push the PR branch, then watch PR #14 checks for Vitest, production debug, database types, and migration/RLS matrix reruns."
+        ],
+        "blockers": []
       }
     ]
   },

@@ -17,6 +17,7 @@ import {
 import { useWorkMode } from "@/hooks/use-work-mode"
 import { WORK_MODE_VIEWS, type WorkModeView } from "@/lib/work-mode/navigation"
 import { WorkModeOverview } from "@/components/work-mode/work-mode-overview"
+import { WorkModeAttendanceHistory } from "@/components/work-mode/work-mode-attendance-history"
 import { trackUxEvent } from "@/lib/ux/client-telemetry"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -193,6 +194,7 @@ export function WorkModeWorkspace({
   const [respondingId, setRespondingId] = useState<string | null>(null)
   const [workerActionId, setWorkerActionId] = useState<string | null>(null)
   const [responseMessage, setResponseMessage] = useState<string | null>(null)
+  const [attendanceRevision, setAttendanceRevision] = useState(0)
 
   useEffect(() => {
     if (
@@ -304,6 +306,7 @@ export function WorkModeWorkspace({
             ? "Check-in recorded."
             : "Check-out recorded.",
       )
+      if (action.action !== "acknowledge") setAttendanceRevision((current) => current + 1)
     }
     setWorkerActionId(null)
   }
@@ -584,7 +587,9 @@ export function WorkModeWorkspace({
               />
             ) : null}
             {view === "check-in" ? (
-              workerActionsAvailable && activeAssignment.permissions.check_in_out ? (
+              workerActionsAvailable &&
+              activeAssignment.permissions.check_in_out &&
+              (activeAssignment.status === "confirmed" || activeAssignment.status === "active") ? (
                 <Card className="border-slate-800 bg-slate-900/70">
                   <CardHeader>
                     <CardTitle className="text-slate-100">Assignment attendance</CardTitle>
@@ -593,36 +598,44 @@ export function WorkModeWorkspace({
                       submitted for reconciliation; the server time is authoritative.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => void runWorkerAction({ action: "check_in" })}
-                      disabled={workerActionId !== null}
-                    >
-                      {workerActionId === "check_in" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Check className="mr-2 h-4 w-4" aria-hidden="true" />
-                      )}
-                      Check in
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => void runWorkerAction({ action: "check_out" })}
-                      disabled={workerActionId !== null}
-                    >
-                      Check out
-                    </Button>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => void runWorkerAction({ action: "check_in" })}
+                        disabled={workerActionId !== null}
+                      >
+                        {workerActionId === "check_in" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Check className="mr-2 h-4 w-4" aria-hidden="true" />
+                        )}
+                        Check in
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void runWorkerAction({ action: "check_out" })}
+                        disabled={workerActionId !== null}
+                      >
+                        Check out
+                      </Button>
+                    </div>
+                    <WorkModeAttendanceHistory
+                      assignmentId={activeAssignment.id}
+                      refreshKey={attendanceRevision}
+                    />
                   </CardContent>
                 </Card>
               ) : (
                 <UnavailablePanel
                   title="Check-in is unavailable"
                   description={
-                    !activeAssignment.permissions.check_in_out
-                      ? "Your employer has not granted check-in access for this assignment."
-                      : "The reviewed worker-actions SQL must be applied and verified before check-in is enabled."
+                    activeAssignment.status !== "confirmed" && activeAssignment.status !== "active"
+                      ? "Accept this assignment before recording attendance."
+                      : !activeAssignment.permissions.check_in_out
+                        ? "Your employer has not granted check-in access for this assignment."
+                        : "The reviewed worker-actions SQL must be applied and verified before check-in is enabled."
                   }
                 />
               )

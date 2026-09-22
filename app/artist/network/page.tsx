@@ -25,6 +25,23 @@ interface NetworkUser {
   isFollowing: boolean
 }
 
+export async function setArtistNetworkFollow(
+  userId: string,
+  action: "follow" | "unfollow",
+  request: typeof fetch = fetch,
+): Promise<void> {
+  const response = await request("/api/social/follow", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ followingId: userId, action }),
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok || result?.success !== true || result?.isFollowing !== (action === "follow")) {
+    throw new Error(result?.error || "Failed to update follow")
+  }
+}
+
 function UserCard({ user, onToggleFollow, isProcessing }: {
   user: NetworkUser
   onToggleFollow: (userId: string, currentlyFollowing: boolean) => void
@@ -232,21 +249,10 @@ export default function ArtistNetworkPage() {
       setProcessingIds((prev) => new Set(prev).add(userId))
       try {
         if (currentlyFollowing) {
-          const { error } = await supabase
-            .from("follows")
-            .delete()
-            .eq("follower_id", currentUserId)
-            .eq("following_id", userId)
-
-          if (error) throw error
+          await setArtistNetworkFollow(userId, "unfollow")
           toast.success("Unfollowed")
         } else {
-          const { error } = await supabase.from("follows").insert({
-            follower_id: currentUserId,
-            following_id: userId,
-          })
-
-          if (error) throw error
+          await setArtistNetworkFollow(userId, "follow")
           toast.success("Followed!")
         }
 

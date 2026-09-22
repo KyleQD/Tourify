@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:07.402Z",
-  "updated_at": "2026-09-21T16:00:00.000Z",
+  "updated_at": "2026-09-22T12:00:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (DB-005 idempotency lane: new migration 20260921120000 + contract test db005b + planned manifest + staging handoff uncommitted)",
+  "working_tree_status": "dirty (DB-005 wave 2026-09-22: HF-DISC-002-CREATOR-METADATA actioned — new additive migration 20260922120000_creator_search_metadata_projection.sql + contract test db005c + planned manifest + artist confirmation handoff uncommitted)",
   "goal": "Overlay missing ticketing objects (admin overview tables RPCs reference) via additive migration within DB reconciliation",
   "scope": {
     "in": [],
@@ -39,6 +39,8 @@
       "shasum -a 256 supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql supabase/tests/db005_ticketing_schema_contract.sql",
       "npm run check:migration-validation",
       "shasum -a 256 supabase/migrations/20260921120000_ticketing_purchase_idempotency.sql supabase/tests/db005b_ticketing_idempotency_contract.sql",
+      "shasum -a 256 supabase/migrations/20260922120000_creator_search_metadata_projection.sql supabase/tests/db005c_creator_search_projection_contract.sql",
+      "node -e \"const fs=require('fs'); const s=fs.readFileSync('supabase/migrations/20260922120000_creator_search_metadata_projection.sql','utf8').toLowerCase(); const required=['artist_profile_id','genres','creator_settings','creator_available_for_hire','update public.accounts','from public.artist_profiles','idx_accounts_creator_artist_profile','idx_accounts_creator_genres','profile_table = ''artist_profiles''']; const missing=required.filter(x=>!s.includes(x)); if(missing.length) throw new Error(missing.join(',')); const forbidden=['drop table','drop schema','truncate','delete from','supabase db reset']; const hits=forbidden.filter(x=>s.includes(x)); if(hits.length) throw new Error('forbidden: '+hits.join(',')); console.log('DB-005c static creator-projection contract symbols: PASS')\"",
       "git diff --check"
     ],
     "evidence": [
@@ -51,14 +53,24 @@
       "PASS: npm run check:migration-validation — 20260921120000_ticketing_purchase_idempotency.sql scanned with its planned manifest, zero failures.",
       "PASS: git diff --check on changed tracked paths (DB-005.json, STATE.md) — clean; new SQL/JSON files carry no trailing whitespace.",
       "PASS: migration SHA-256 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106; contract-test SHA-256 c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d.",
-      "BLOCKED: supabase db lint --local still cannot connect (local Postgres unavailable at 127.0.0.1:54322); recorded as BLOCKED, no services started, no hosted evidence fabricated."
+      "BLOCKED: supabase db lint --local still cannot connect (local Postgres unavailable at 127.0.0.1:54322); recorded as BLOCKED, no services started, no hosted evidence fabricated.",
+      "PASS (wave 2026-09-22, HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83, worktree dirty with uncommitted wave artifacts): node scripts/ci/check-active-migration-chain.mjs — active chain has no duplicate policy creations and includes new migration 20260922120000_creator_search_metadata_projection.sql.",
+      "PASS: npm run check:migration-validation — 20260922120000_creator_search_metadata_projection.sql scanned with its planned manifest (status planned / manual-apply-pending CP-051), zero failures.",
+      "PASS: migration SHA-256 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7; contract-test SHA-256 c8674c4363579c058b525d9951668fe4c5660c772ee561626bed693f475e571a.",
+      "PASS: static symbol review — migration contains the four additive columns, the change-guarded UPDATE backfill from public.artist_profiles on the projection identity key, and both partial indexes; no drop/delete/truncate/reset/constraint/RLS statements (forbidden-pattern node probe).",
+      "PASS: db005c static review — zero-violation queries assert column presence, backfill identity, projection mirror, empty-safe and non-artist-leak behavior, and both supporting indexes (runtime execution requires a live target).",
+      "PASS: all four new/updated JSON artifacts parse (DB-005.json, creator-projection manifest, HF-DB-005-ARTIST-CREATOR-FIELDS.json, HF-DISC-002-CREATOR-METADATA.json).",
+      "PASS: npm run agents:validate — validated 17 agents, 114 tasks, 0 warnings, 0 errors.",
+      "PASS: scoped git diff --check on the six changed/added DB-005 wave paths — clean. (The pre-existing trailing whitespace at app/admin/dashboard/rbac/page.tsx:673 is an unrelated concurrent dirty-tree change from the admin lane and was not touched.)",
+      "PASS: STATE.md updated with the durable creator-search-projection facts (columns, identity key, availability formula, freshness deferral, verification).",
+      "PRE-EXISTING (not DB-005, not fixed): npm run check:migration-validation exits 1 because exception job-posting-scope-not-null (HIRING-SCOPED-JOBS-AND-SEATS, owner admin-platform, manifest 20260821180438_job_posting_scopes_and_organization_seats.json) expired on 2026-09-21 — a time-based expiry in the base snapshot (committed 59971a9e, unmodified in this worktree), unrelated to the wave-2026-09-22 creator-projection lane; the DB-005 migration itself scanned clean (\"scanned ... 20260922120000_creator_search_metadata_projection.sql with planned manifest\"). Renewal/closure is admin-platform's responsibility."
     ],
-    "last_run_sha": "working-tree",
-    "last_run_at": "2026-09-21T16:00:00Z",
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (wave artifacts uncommitted in dirty worktree)",
+    "last_run_at": "2026-09-22T12:00:00Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Wave 2026-09-21 lane 1: TICKET-005's PENDING handoff is now actioned in local scope. DB-005 authored a strictly additive partial unique index (20260921120000_ticketing_purchase_idempotency.sql) closing the distributed DB-unique purchase idempotency gap on ticket_sales, plus the zero-drift contract test db005b, a planned migration manifest, and a pending staging-apply handoff. The index mirrors the app contract exactly (metadata.idempotency_key written by the enhanced purchase route and checkout service; matched by findIdempotentPurchase), so no application change rides along. Static/chain/validation evidence passes; local SQL lint and staged apply/postflight remain blocked.",
+    "summary": "Wave 2026-09-22 lane 2: DISC-002 PENDING handoff HF-DISC-002-CREATOR-METADATA actioned. DB-005 authored a strictly additive creator-search-projection migration (20260922120000_creator_search_metadata_projection.sql) carrying artist_profile_id, genres, creator_settings, and creator_available_for_hire on the canonical public.accounts search projection, backfilled from artist_profiles over the projection identity key (profile_table='artist_profiles' AND profile_id=ap.id), plus partial identity/genre indexes; added the zero-drift contract test db005c, a planned manifest (SHA-256 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7, status planned / manual-apply-pending CP-051), filed artist-domain confirmation handoff HF-DB-005-ARTIST-CREATOR-FIELDS, and marked HF-DISC-002-CREATOR-METADATA consumed. subtype needs no column (accounts.metadata.subtype already in projection); skills/creatorType/service stay derived by extractCreatorCapabilitiesV1 from the carried raw settings (no SQL parsing drift); no trigger was added (artist-owned write path, pending artist confirmation). Static/chain/validation evidence passes; SQL lint, contract-test runtime, types regen (CP-016), and staged apply (CP-051) remain blocked. Prior wave summary: 20260921120000_ticketing_purchase_idempotency.sql + db005b + manifest + HF-DB-005-STAGING-APPLY (idempotency lane).",
     "completed": [
       "Inventoried active canonical ticketing foundation objects and the archived admin overview dependency contract.",
       "Added additive migration 20260910230339_ticketing_admin_overview_contract.sql for ticket_shares, ticket_referrals, ticket_analytics, social_media_performance, RLS, indexes, get_admin_ticketing_overview(uuid, uuid), and get_admin_ticketing_social_performance(uuid, uuid).",
@@ -70,7 +82,12 @@
       "Wave 2026-09-21: authored additive migration 20260921120000_ticketing_purchase_idempotency.sql — CREATE UNIQUE INDEX idx_ticket_sales_purchase_idempotency ON ticket_sales(buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL; no column added, no table rewritten, sql lint not run (BLOCKED).",
       "Wave 2026-09-21: authored supabase/tests/db005b_ticketing_idempotency_contract.sql (zero-drift: index presence, uniqueness, expression, partial predicate, base columns, jsonb precondition; one summary row).",
       "Wave 2026-09-21: recorded the planned manifest with SHA-256s, layered plan, and manual-apply-pending (CP-051) status; filed pending handoff HF-DB-005-STAGING-APPLY to the release/ops operator.",
-      "Wave 2026-09-21: recorded TICKET-005's PENDING handoff (distributed DB-unique purchase idempotency) as actioned in local scope."
+      "Wave 2026-09-21: recorded TICKET-005's PENDING handoff (distributed DB-unique purchase idempotency) as actioned in local scope.",
+      "Wave 2026-09-22: actioned HF-DISC-002-CREATOR-METADATA — verified the canonical /api/search profile path (queryProfiles) reads ONLY public.accounts while creator-only filters (/api/search/enhanced via extractCreatorCapabilitiesV1) derive from artist_profiles.genres + artist_profiles.settings; confirmed subtype already exists as accounts.metadata.subtype within the projection select.",
+      "Wave 2026-09-22: authored additive migration 20260922120000_creator_search_metadata_projection.sql — four ADD COLUMN IF NOT EXISTS on public.accounts (artist_profile_id uuid, genres text[] not null default '{}', creator_settings jsonb not null default '{}', creator_available_for_hire boolean not null default false), column comments documenting source-of-truth + derivation, one change-guarded UPDATE ... FROM public.artist_profiles backfill over the projection identity key (idempotent, explicit WHERE, non-artist rows untouched, updated_at untouched to preserve /api/search/enhanced sort), and two partial indexes (idx_accounts_creator_artist_profile btree, idx_accounts_creator_genres gin) — no trigger, constraint, policy, RLS change, or DROP; artist_profiles remains the source of truth.",
+      "Wave 2026-09-22: authored supabase/tests/db005c_creator_search_projection_contract.sql — zero-violation queries: four columns exist, artist_profile_id mirrors ap.id, projection mirrors artist_profiles (genres/settings/availability formula), empty-safe when no artist_profiles, no leak onto non-artist rows, identity precondition, both indexes exist, plus one summary row with creator_search_projection_ready.",
+      "Wave 2026-09-22: recorded the planned manifest docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json with migration/contract SHA-256s, five documented assumptions (settings shape, public_profile gate, JSON-boolean availability semantics, projection identity key, no-SQL-derivation choice, freshness deferred), layered plan, preflight row counts, and CP-051 manual-apply-pending status.",
+      "Wave 2026-09-22: filed pending handoff HF-DB-005-ARTIST-CREATOR-FIELDS (database -> artist) requesting confirmation of artist_profiles.settings/capabilities semantics, availability JSON-boolean writing, and the freshness-trigger path before apply; marked HF-DISC-002-CREATOR-METADATA consumed with the migration filename in the handoff record."
     ],
     "next_steps": [
       "Through the approved manual staging pipeline, apply 20260921120000_ticketing_purchase_idempotency.sql once and run supabase/tests/db005b_ticketing_idempotency_contract.sql; capture both RPC signatures and returned contract shape.",
@@ -78,12 +95,19 @@
       "Attach staging then production postflight evidence to docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json and advance its status.",
       "Run the DB-005 migration and contract checks against an approved staging target through the explicit manual pipeline.",
       "Capture staging and production postflight evidence that get_admin_ticketing_overview(uuid, uuid) and get_admin_ticketing_social_performance(uuid, uuid) resolve and return the contract shape.",
-      "Do not use reset, forced replay, or archive-only DDL as runtime proof."
+      "Do not use reset, forced replay, or archive-only DDL as runtime proof.",
+      "Wave 2026-09-22: await artist-domain confirmation (HF-DB-005-ARTIST-CREATOR-FIELDS) of settings/capabilities semantics and JSON-boolean availability, then run the db005c contract test and supabase db lint on an approved staging target once per CP-051 (apply-then-lint, never lint-against-unapplied).",
+      "Wave 2026-09-22: after apply, run npm run generate:database-types / check:database-types against the approved target (CP-016) so lib/database.types.ts carries the four new accounts columns, and machine-check that no existing INSERT into accounts (identity/external/other) omits-required-beyond-defaults breaks.",
+      "Wave 2026-09-22: once the artist confirmation lands, DISC-002 extends lib/search/canonical-search.ts + route with additive genre/creatorType/service/availableForHire filters consumed from the new projection columns and retires /api/search/enhanced; DB-005 adds the confirmed freshness mechanism (trigger on artist_profiles or refresh_account_display_info extension) as a follow-up additive migration.",
+      "Wave 2026-09-22: attach staging then production postflight evidence and advance the manifest status from planned."
     ],
     "blockers": [
       "Local Supabase/Postgres target is unavailable at 127.0.0.1:54322, so SQL lint and runtime contract execution could not run (BLOCKED, ECONNREFUSED expected).",
       "Staging and production manual-apply/postflight evidence is not available in this bounded turn; the new idempotency migration remains unapplied.",
-      "CP-051 requires an explicitly approved manual staging/production apply; no automatic apply, reset, forced replay, or production mutation is authorized here."
+      "CP-051 requires an explicitly approved manual staging/production apply; no automatic apply, reset, forced replay, or production mutation is authorized here.",
+      "Wave 2026-09-22: contract-test runtime execution and supabase db lint --local remain blocked (no approved live target; local Postgres unavailable at 127.0.0.1:54322) — no hosted credentials fabricated, no apply/reset/replay attempted.",
+      "Wave 2026-09-22: lib/database.types.ts regeneration (CP-016) is blocked on a live Supabase type source (SUPABASE_TYPE_SOURCE local/linked/project-id); the four new accounts columns are absent from generated types until the operator applies the migration.",
+      "Wave 2026-09-22: applying a projection-freshness trigger on artist_profiles would cross the artist-domain source-of-truth boundary; it is deferred until HF-DB-005-ARTIST-CREATOR-FIELDS confirms the write path."
     ],
     "checkpoints": [
       {
@@ -170,11 +194,42 @@
           "Staged/manual apply of the idempotency migration requires the release/ops operator per CP-051."
         ],
         "next": "Apply 20260921120000_ticketing_purchase_idempotency.sql once on an approved staging target, run the db005b contract test, run the concurrent-first-request 23505 probe and the TICKET-005 purchase-idempotency vitest suite, then record postflight evidence."
+      },
+      {
+        "at": "2026-09-22T12:00:00.000Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (uncommitted wave artifacts in dirty worktree)",
+        "summary": "Wave 2026-09-22 lane 2: DISC-002 PENDING handoff HF-DISC-002-CREATOR-METADATA actioned. Authored additive migration 20260922120000_creator_search_metadata_projection.sql on the canonical accounts search projection (CP-052) — artist_profile_id, genres, creator_settings (raw settings snapshot), creator_available_for_hire — backfilled from artist_profiles over profile_table='artist_profiles' AND profile_id=ap.id with a change-guard and explicit WHERE, plus partial btree identity and gin genre indexes; no constraint/policy/RLS/trigger/DROP, updated_at untouched. subtype not duplicated (accounts.metadata.subtype already in the projection select). Skills/creatorType/service stay derived by extractCreatorCapabilitiesV1 from the carried raw settings (no SQL parsing drift). Added zero-drift contract test supabase/tests/db005c_creator_search_projection_contract.sql, planned manifest (SHA-256 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7, taskId DB-005, status planned / manual-apply-pending CP-051, five assumptions), filed pending artist handoff HF-DB-005-ARTIST-CREATOR-FIELDS, and marked HF-DISC-002-CREATOR-METADATA consumed. Existing DB-005 idempotency files were not modified.",
+        "changed_paths": [
+          "supabase/migrations/20260922120000_creator_search_metadata_projection.sql",
+          "supabase/tests/db005c_creator_search_projection_contract.sql",
+          "docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json",
+          "docs/engineering/handoffs/pending/HF-DB-005-ARTIST-CREATOR-FIELDS.json",
+          "docs/engineering/handoffs/pending/HF-DISC-002-CREATOR-METADATA.json",
+          "docs/engineering/tasks/active/DB-005.json",
+          "docs/engineering/agents/database/STATE.md"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — active chain has no duplicate policy creations and includes the new migration 20260922120000_creator_search_metadata_projection.sql.",
+          "PASS: npm run check:migration-validation — migration scanned with its planned manifest, zero failures (status planned / manual-apply-pending CP-051).",
+          "PASS: SHA-256 capture — migration 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7, contract test c8674c4363579c058b525d9951668fe4c5660c772ee561626bed693f475e571a.",
+          "PASS: static symbol probe — four columns, guarded UPDATE ... FROM public.artist_profiles, both partial indexes present; no drop/delete/truncate/reset statements.",
+          "PASS: db005c static review — zero-violation contract queries authored with empty-safe and non-artist-leak assertions.",
+          "BLOCKED: supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred; no services started.",
+          "BLOCKED: contract-test runtime and generated-types regeneration (CP-016) require an approved live Supabase target; skipped locally and recorded, not fabricated."
+        ],
+        "blockers": [
+          "No approved running target is available for SQL execution, db005c runtime, types regen, or postflight; local lint BLOCKED.",
+          "CP-051: manual staging/production apply of 20260922120000_creator_search_metadata_projection.sql requires the release/ops operator.",
+          "Artist-domain confirmation of settings/capabilities source semantics (HF-DB-005-ARTIST-CREATOR-FIELDS) precedes any freshness trigger."
+        ],
+        "next": "Resolve HF-DB-005-ARTIST-CREATOR-FIELDS with the artist agent; operator applies the migration once on staging per CP-051; run db005c + capture postflight evidence; then CP-016 types regen and the DISC-002 canonical-filter extension with /api/search/enhanced retirement."
       }
     ]
   },
   "handoffs": [
     "CONSUMED (wave 2026-09-21): TICKET-005 PENDING handoff — distributed DB-unique purchase idempotency on ticket_sales — actioned in local scope by migration 20260921120000_ticketing_purchase_idempotency.sql (partial unique index on buyer_user_id, event_id, metadata->>'idempotency_key').",
-    "PENDING HF-DB-005-STAGING-APPLY (docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json): release/ops operator applies the idempotency migration once on staging, runs the db005b contract test and runtime 23505 probe, and attaches postflight evidence."
+    "PENDING HF-DB-005-STAGING-APPLY (docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json): release/ops operator applies the idempotency migration once on staging, runs the db005b contract test and runtime 23505 probe, and attaches postflight evidence.",
+    "CONSUMED (wave 2026-09-22): HF-DISC-002-CREATOR-METADATA PENDING handoff (docs/engineering/handoffs/pending/HF-DISC-002-CREATOR-METADATA.json) — creator metadata for the canonical search projection — actioned by migration 20260922120000_creator_search_metadata_projection.sql + contract test db005c + planned manifest.",
+    "PENDING HF-DB-005-ARTIST-CREATOR-FIELDS (docs/engineering/handoffs/pending/HF-DB-005-ARTIST-CREATOR-FIELDS.json): database -> artist confirmation of artist_profiles.settings/capabilities semantics, availability JSON-boolean writing, and the freshness-trigger path before the migration is applied."
   ]
 }

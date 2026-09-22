@@ -1,0 +1,127 @@
+{
+  "schema_version": "1.0",
+  "id": "WORK-006",
+  "title": "Worker actions staging enablement and denial proof",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-22T15:20:20.910Z",
+  "updated_at": "2026-09-22T16:16:47Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (81 entries)",
+  "goal": "Enable worker check-in, check-out, and packet acknowledgement only after reviewed additive SQL, staging feature flag, and scoped denial probes",
+  "scope": {
+    "in": [
+      "Review and manually apply additive worker-actions SQL to isolated staging.",
+      "Enable FEATURE_WORK_MODE_WORKER_ACTIONS only after postflight and denial probes."
+    ],
+    "out": [
+      "Automatic migration replay or database reset.",
+      "Enabling worker actions before schema and authorization proof."
+    ]
+  },
+  "working_set": [
+    "app/api/work-mode/assignments/",
+    "supabase/migrations/",
+    "docs/implementation/ui-ux-completion/MANUAL_SQL_WORK_MODE_WORKER_ACTIONS.md",
+    "components/work-mode/",
+    "components/admin/workforce/event-worker-attendance.tsx",
+    "app/api/admin/events/[id]/work-mode/attendance/route.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/QA-004.json",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/tasks/active/DB-010.json"
+  ],
+  "acceptance_criteria": [
+    "Reviewed additive SQL is applied one migration at a time with ledger evidence.",
+    "Assigned worker check-in/out and acknowledge events persist idempotently.",
+    "Unassigned and wrong-tenant actors are denied before mutation.",
+    "Worker and manager UI reflect events after reload."
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "Focused work-mode API tests",
+      "Migration validation and staging denial probes",
+      "Staging worker/manager rerun"
+    ],
+    "evidence": [
+      "Local: 18 focused work-mode tests passed; scoped ESLint, admin route registry, and scoped diff checks passed.",
+      "Worker GET is assignment-and-user scoped; manager read requires workforce.view, acting organization/event access, and revalidated allowlisted service-role target before filtering event attendance.",
+      "Scoped typecheck reported pre-existing unrelated errors; global service-role allowlist check is blocked by a stale marketplace reviewed-debt entry in the shared worktree.",
+      "No hosted SQL, feature flag, database, or actor mutation was performed.",
+      "Worker actions and manager attendance Vitest suites passed locally (2 files, 15 tests); broader Work Mode and staffing selection passed (9 files, 47 tests). Focused action-route lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; flag and hosted SQL unchanged.",
+      "QA-004 product repair validation rerun (2026-09-22): Work Mode action/manager attendance Vitest: 2 files, 15 tests passed; DB-010 migration, RLS probes, staging flag, and actor rerun remain open."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T15:56:34Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Worker/manager attendance read-back local contracts reverified; staged SQL, flag activation, and scoped denial proof remain pending.",
+    "completed": [
+      "Worker action retry rejects a request ID reused for another action or packet; publication scope includes its matching event or tour.",
+      "Worker attendance GET returns only the signed-in worker’s owned assignment events; both Work Mode views reload persisted history.",
+      "Manager command center renders event-scoped attendance through workforce.view and revalidated organization/event scope.",
+      "Eighteen focused tests, scoped lint, route registry, and scoped diff checks passed."
+    ],
+    "next_steps": [
+      "Wait for DB-010 to review archived local-only worker-actions SQL, event/tour/audience policy, event identity mapping, and an additive active migration before any application.",
+      "After RELEASE-007, DB-008, and DB-002 proof, apply reviewed migration manually, enable flag in isolated staging, and rerun worker/manager/wrong-tenant actors on exact SHA."
+    ],
+    "blockers": [
+      "Archived SQL is marked local_only_unapplied and lacks hosted ledger proof; its event-only policy needs tour/audience and event identity review.",
+      "Isolated staging, hosted schema/RLS and denial probes, and campaign actors are pending."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:43:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Worker and manager attendance read-back implemented locally, with scoped access tests. Hosted SQL and flag activation remain blocked by database and staging evidence.",
+        "completed": [
+          "Worker action retry rejects a request ID reused for another action or packet; publication scope includes its matching event or tour.",
+          "Worker attendance GET returns only the signed-in worker’s owned assignment events; both Work Mode views reload persisted history.",
+          "Manager command center renders event-scoped attendance through workforce.view and revalidated organization/event scope.",
+          "Eighteen focused tests, scoped lint, route registry, and scoped diff checks passed."
+        ],
+        "next": "Database owner reviews archived local-only worker-actions SQL, event/tour/audience policy, event identity mapping, and additive active migration before any application."
+      },
+      {
+        "at": "2026-09-22T15:55:04Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Worker/manager attendance read-back local contracts reverified; staged SQL, flag activation, and scoped denial proof remain pending.",
+        "completed": [
+          "Worker actions and manager attendance Vitest suites passed locally (2 files, 15 tests); broader Work Mode and staffing selection passed (9 files, 47 tests). Focused action-route lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; flag and hosted SQL unchanged."
+        ],
+        "next": "DB-010 reviews active worker-actions SQL; apply manually only after staging/database gates and rerun exact-deployed-SHA actors."
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Work Mode action/manager attendance Vitest: 2 files, 15 tests passed; DB-010 migration, RLS probes, staging flag, and actor rerun remain open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "DB-010 operator packet is ready and local source checks pass, but hosted catalog/denial evidence is absent. FEATURE_WORK_MODE_WORKER_ACTIONS remains disabled.",
+        "completed": [],
+        "next_steps": [
+          "Wait for DB-010 hosted postflight and exact-SHA persona proof; only then enable the flag on isolated staging and verify worker/manager persistence after reload."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004.",
+    "DB-010 must provide exact-SHA schema and denial proof before staging flag activation."
+  ]
+}

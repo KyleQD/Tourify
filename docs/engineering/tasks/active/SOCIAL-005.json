@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "id": "SOCIAL-005",
+  "title": "Canonical idempotent follow contract",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "social",
+  "created_at": "2026-09-22T15:20:21.465Z",
+  "updated_at": "2026-09-22T15:56:34Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (83 entries)",
+  "goal": "Consolidate follow and unfollow client behavior and side effects across current profile and feed surfaces",
+  "scope": {
+    "in": [
+      "Select one canonical follow/unfollow client contract and make retry idempotent.",
+      "Preserve required notification and achievement side effects across profile and feed clients."
+    ],
+    "out": [
+      "Changing unrelated relationship or moderation policy."
+    ]
+  },
+  "working_set": [
+    "app/api/social/follow/",
+    "app/api/follow/",
+    "components/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/QA-004.json",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    "Profile and feed use the same documented follow/unfollow contract.",
+    "Double follow and retry return consistent successful state without duplicate side effects.",
+    "Reloaded counts and relationship state agree across actors.",
+    "Focused tests cover both clients and unauthorized access."
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "Focused social follow tests",
+      "npm run verify:feature -- --changed",
+      "Staging customer/artist rerun"
+    ],
+    "evidence": [
+      "Local: focused social/artist route and client tests passed (root rerun: 4 files / 16 tests); targeted lint and diff checks passed.",
+      "Full repository typecheck did not complete on the shared dirty tree; mobile typecheck passed. No hosted follow action was run.",
+      "Canonical/legacy follow and artist feed/network Vitest passed locally (4 files, 16 tests); focused follow-route lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no hosted follow action.",
+      "QA-004 product repair validation rerun (2026-09-22): Canonical follow route/client Vitest: 4 files, 16 tests passed; hosted two-actor counts and notification proof remains open.",
+      "Static migration-chain finding: five separately named follows count triggers are declared across 20241220000010, 20250131000004, 20250210000000, and 20250211000000; each migration drops only its own trigger name. Hosted trigger inventory is pending."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T15:56:34Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Follow retry and client contracts reverified locally; cross-actor count/notification proof remains pending.",
+    "completed": [
+      "Canonical follow route accepts retries, runs achievement and direct notification only for a new insert, and returns consistent follow/unfollow state.",
+      "Legacy /api/follow and /api/notifications/social follow branches delegate to canonical route.",
+      "Mobile, artist home feed, and visible artist network clients use canonical API; targeted tests and lint passed."
+    ],
+    "next_steps": [
+      "Run customer/artist follow, retry, notification, count, and unfollow across web and mobile on isolated staging.",
+      "Monitor account-scoped demo service only if mounted in a shipped UI.",
+      "Have Database reconcile the active and hosted follows count triggers, then probe one insert, duplicate retry, and delete with two actors before crediting reloaded counts."
+    ],
+    "blockers": [
+      "Cross-actor staging proof requires isolated staging and campaign actors.",
+      "Active migration chain declares multiple follows count triggers (follow_counts_trigger, trigger_follows_insert/delete, trigger_follows_count_update, trigger_update_follower_counts); hosted presence and counter drift are unverified."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:37:53Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Profile, legacy, mobile, artist home feed, and visible artist network follow paths now use one idempotent route locally; cross-actor staging proof remains pending.",
+        "completed": [
+          "Canonical follow route accepts retries, runs achievement and direct notification only for a new insert, and returns consistent follow/unfollow state.",
+          "Legacy /api/follow and /api/notifications/social follow branches delegate to canonical route.",
+          "Mobile, artist home feed, and visible artist network clients use canonical API; targeted tests and lint passed."
+        ],
+        "next": "Run customer/artist follow, retry, notification, count, and unfollow across web and mobile on isolated staging."
+      },
+      {
+        "at": "2026-09-22T15:55:04Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Follow retry and client contracts reverified locally; cross-actor count/notification proof remains pending.",
+        "completed": [
+          "Canonical/legacy follow and artist feed/network Vitest passed locally (4 files, 16 tests); focused follow-route lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no hosted follow action."
+        ],
+        "next": "Rerun follow, retry, count, notification, and unfollow across isolated-staging actors and mobile previews."
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Canonical follow route/client Vitest: 4 files, 16 tests passed; hosted two-actor counts and notification proof remains open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      }
+    ]
+  },
+  "handoffs": [
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+  ]
+}

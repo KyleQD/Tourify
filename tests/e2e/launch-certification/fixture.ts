@@ -290,6 +290,11 @@ export function requiredEnvironment(fixture: LaunchCertificationFixture) {
     fixture.release.expectedShaEnv,
     fixture.supabase.urlEnv,
     fixture.supabase.anonKeyEnv,
+    "QA_CERT_STAGING_DEPLOYMENT_ID",
+    "QA_CERT_PRODUCTION_DEPLOYMENT_ID",
+    "QA_CERT_PRODUCTION_URL",
+    "QA_CERT_PRODUCTION_SUPABASE_URL",
+    "QA_CERT_STRIPE_SECRET_KEY",
   ])
   for (const actor of Object.values(fixture.actors)) {
     names.add(actor.emailEnv)

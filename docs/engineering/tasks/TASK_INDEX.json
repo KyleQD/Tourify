@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-09-22T09:13:53.494Z",
+  "updated_at": "2026-09-22T17:13:45.234Z",
   "tasks": [
     {
       "id": "ADMIN-001",
@@ -28,7 +28,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "admin",
-      "updated_at": "2026-09-19T02:49:19.000Z",
+      "updated_at": "2026-09-22T15:56:00Z",
       "path": "docs/engineering/tasks/active/ADMIN-003.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -138,7 +138,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "database",
-      "updated_at": "2026-09-17T01:29:01.283Z",
+      "updated_at": "2026-09-22T16:18:55Z",
       "path": "docs/engineering/tasks/active/DB-002.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -168,7 +168,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "database",
-      "updated_at": "2026-09-21T16:00:00.000Z",
+      "updated_at": "2026-09-22T12:00:00.000Z",
       "path": "docs/engineering/tasks/active/DB-005.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -198,7 +198,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "database",
-      "updated_at": "2026-09-17T01:29:01.343Z",
+      "updated_at": "2026-09-22T16:18:55Z",
       "path": "docs/engineering/tasks/active/DB-008.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -211,6 +211,16 @@
       "updated_at": "2026-09-18T23:49:45.000Z",
       "path": "docs/engineering/tasks/active/DB-009.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "DB-010",
+      "title": "Worker action schema and scope reconciliation",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "database",
+      "updated_at": "2026-09-22T16:18:55Z",
+      "path": "docs/engineering/tasks/active/DB-010.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
     },
     {
       "id": "DESIGN-001",
@@ -638,7 +648,7 @@
       "status": "active",
       "priority": "P1",
       "owner_agent": "integrations",
-      "updated_at": "2026-09-21T15:15:00.000Z",
+      "updated_at": "2026-09-22T09:51:45.578Z",
       "path": "docs/engineering/tasks/active/INTG-007.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -678,9 +688,19 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "marketplace",
-      "updated_at": "2026-09-18T04:52:32.433Z",
+      "updated_at": "2026-09-22T15:56:34Z",
       "path": "docs/engineering/tasks/active/MKT-004.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "MKT-005",
+      "title": "Authenticated checkout return and buyer isolation",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "marketplace",
+      "updated_at": "2026-09-22T15:56:34Z",
+      "path": "docs/engineering/tasks/active/MKT-005.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
     },
     {
       "id": "MUSIC-001",
@@ -748,7 +768,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "orchestrator",
-      "updated_at": "2026-09-21T22:30:00.000Z",
+      "updated_at": "2026-09-22T17:13:45.190Z",
       "path": "docs/engineering/tasks/active/ORCH-002.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -838,9 +858,39 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "qa",
-      "updated_at": "2026-09-18T22:02:55.300Z",
+      "updated_at": "2026-09-22T16:19:56.564Z",
       "path": "docs/engineering/tasks/active/QA-003.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "QA-004",
+      "title": "Agent user simulation campaign",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "qa",
+      "updated_at": "2026-09-22T16:21:28.210Z",
+      "path": "docs/engineering/tasks/active/QA-004.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
+    },
+    {
+      "id": "QA-005",
+      "title": "Campaign-safe synthetic actor provisioning",
+      "status": "active",
+      "priority": "P0",
+      "owner_agent": "qa",
+      "updated_at": "2026-09-22T16:21:28.308Z",
+      "path": "docs/engineering/tasks/active/QA-005.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
+    },
+    {
+      "id": "QA-006",
+      "title": "Mobile persona simulation and staging preview gate",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "qa",
+      "updated_at": "2026-09-22T16:20:35Z",
+      "path": "docs/engineering/tasks/active/QA-006.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
     },
     {
       "id": "RELEASE-001",
@@ -908,7 +958,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "release",
-      "updated_at": "2026-09-17T01:29:01.219Z",
+      "updated_at": "2026-09-22T16:59:23.371Z",
       "path": "docs/engineering/tasks/active/RELEASE-007.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -963,6 +1013,16 @@
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
     {
+      "id": "SOCIAL-005",
+      "title": "Canonical idempotent follow contract",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "social",
+      "updated_at": "2026-09-22T15:56:34Z",
+      "path": "docs/engineering/tasks/active/SOCIAL-005.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
+    },
+    {
       "id": "TICKET-001",
       "title": "Audit Ticketing workspace — baseline, gaps, and questions",
       "status": "completed",
@@ -1008,7 +1068,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "ticketing",
-      "updated_at": "2026-09-21T15:10:00.000Z",
+      "updated_at": "2026-09-22T15:56:34Z",
       "path": "docs/engineering/tasks/active/TICKET-005.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -1141,6 +1201,26 @@
       "updated_at": "2026-09-11T02:07:19.549Z",
       "path": "docs/engineering/tasks/completed/WORK-004.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
+    },
+    {
+      "id": "WORK-005",
+      "title": "Canonical staff and shift simulation lifecycle",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "work",
+      "updated_at": "2026-09-22T15:56:34Z",
+      "path": "docs/engineering/tasks/active/WORK-005.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
+    },
+    {
+      "id": "WORK-006",
+      "title": "Worker actions staging enablement and denial proof",
+      "status": "active",
+      "priority": "P1",
+      "owner_agent": "work",
+      "updated_at": "2026-09-22T16:16:47Z",
+      "path": "docs/engineering/tasks/active/WORK-006.json",
+      "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83"
     }
   ]
 }

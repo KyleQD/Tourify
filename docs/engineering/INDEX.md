@@ -44,5 +44,6 @@ When documents conflict, prefer executable code and migrations, then the newest 
 ## Operating constraints (all agents)
 
 - All SQL migrations are applied manually and explicitly — never `supabase db reset`, forced/full-chain replays, or any destructive database reset (CP-051). Apply migrations additively via `supabase migration up`, targeted push, or explicit psql; keep authorization checks server-side and verify org/venue/artist/user scope at the data boundary.
+- This repo on `release/clean-snapshot` is the one master workspace (CP-056). Work only here; adjacent snapshot/myproject folders are not operating workspaces. Divergent lineages live on `origin` as archived branches (`codex/admin-workflow-completion`, `feature/world-of-music`); reconcile best work by additive island port behind the owning domain — never blanket-merge.
 
 Refresh topology with `npm run agents:generate` and validate before handoff with `npm run agents:validate`.

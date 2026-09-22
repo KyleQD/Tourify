@@ -2,7 +2,7 @@
 -- Supabase migrations are the schema source of truth for this flow.
 set client_min_messages = warning;
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
 create schema if not exists private;
 
 alter table public.org_invites
@@ -11,7 +11,7 @@ alter table public.org_invites
   add column if not exists revoked_by uuid references auth.users(id) on delete set null;
 
 update public.org_invites
-set token_hash = encode(digest(token, 'sha256'), 'hex')
+set token_hash = encode(extensions.digest(token, 'sha256'), 'hex')
 where token_hash is null and token is not null;
 
 alter table public.org_invites alter column token drop not null;

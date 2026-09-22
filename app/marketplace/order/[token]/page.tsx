@@ -1,8 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { loadMarketplaceOrder } from "../order-access"
 import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Clock, XCircle, ShoppingBag, ArrowRight } from "lucide-react"
 
@@ -10,7 +9,7 @@ export const dynamic = "force-dynamic"
 
 interface PageProps {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ checkout?: string }>
+  searchParams: Promise<{ checkout?: string; session_id?: string }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -18,65 +17,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!token) return { title: "Order — Tourify Marketplace" }
   return {
     title: "Your Order — Tourify Marketplace",
-    robots: { index: false, follow: false }, // Opaque token URLs must not be indexed
+    robots: { index: false, follow: false }, // Order details must not be indexed
   }
-}
-
-// ---------------------------------------------------------------------------
-// Data loading — server-side via service role (never exposes token to client)
-// ---------------------------------------------------------------------------
-
-async function loadOrderByToken(token: string) {
-  if (!token || token.length < 16) return null
-
-  const supabase = createServiceRoleClient()
-
-  const { data: order } = await supabase
-    .from("marketplace_orders")
-    .select(`
-      id,
-      order_number,
-      status,
-      payment_status,
-      currency,
-      subtotal_amount,
-      platform_fee_amount,
-      tax_amount,
-      total_amount,
-      guest_email,
-      guest_access_token_expires_at,
-      buyer_user_id,
-      seller_user_id,
-      created_at,
-      marketplace_order_items (
-        id,
-        title,
-        quantity,
-        unit_price,
-        line_total,
-        product_type,
-        fulfillment_status
-      )
-    `)
-    .eq("guest_access_token", token)
-    .maybeSingle()
-
-  if (!order) return null
-
-  // Check expiry
-  if (order.guest_access_token_expires_at) {
-    const expires = new Date(order.guest_access_token_expires_at)
-    if (expires < new Date()) return { expired: true as const, order: null }
-  }
-
-  // Load seller profile (safe fields only)
-  const { data: seller } = await supabase
-    .from("profiles")
-    .select("id, username, full_name, avatar_url")
-    .eq("id", order.seller_user_id)
-    .maybeSingle()
-
-  return { expired: false as const, order, seller }
 }
 
 function maskEmail(email: string): string {
@@ -136,7 +78,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
   }
 
   const { token } = await params
-  const { checkout } = await searchParams
+  const { checkout, session_id: sessionId } = await searchParams
 
   if (!token) {
     return (
@@ -146,7 +88,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
     )
   }
 
-  const result = await loadOrderByToken(token)
+  const result = await loadMarketplaceOrder(token, { checkout, sessionId })
 
   // Expired token
   if (result && "expired" in result && result.expired) {
@@ -364,6 +306,13 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
 
         {/* Support footer */}
         <div className="text-center text-slate-500 text-xs space-y-1 pt-4 border-t border-slate-800">
+          {!isGuest && (
+            <p>
+              <Link href="/marketplace/purchases" className="text-slate-400 hover:text-white underline underline-offset-2 transition-colors">
+                View my purchases
+              </Link>
+            </p>
+          )}
           <p>
             Questions about this order?{" "}
             <Link href="/support" className="text-slate-400 hover:text-white underline underline-offset-2 transition-colors">

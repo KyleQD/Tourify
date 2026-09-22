@@ -12,10 +12,16 @@ const valid = {
   supabaseProjectId: "supabase-staging",
   supabaseStagingProjectId: "supabase-staging",
   supabaseProductionProjectId: "supabase-production",
+  supabaseStagingUrl: "https://staging-ref.supabase.co",
+  supabaseProductionUrl: "https://production-ref.supabase.co",
 }
 
 test("accepts isolated staging topology", () => {
   assert.deepEqual(validateDeploymentTopology(valid), [])
+})
+
+test("rejects a shared Supabase origin despite distinct project labels", () => {
+  assert.match(validateDeploymentTopology({ ...valid, supabaseProductionUrl: valid.supabaseStagingUrl }).join("\n"), /different Supabase origins/)
 })
 
 test("accepts the exact production domain set", () => {

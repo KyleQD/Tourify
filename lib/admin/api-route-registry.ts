@@ -736,6 +736,15 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     owner: "ops-events",
   },
   {
+    route: "/api/admin/events/[id]/work-mode/attendance",
+    methods: ["GET"],
+    authClass: "capability_gated",
+    capability: "workforce.view",
+    idempotency: false,
+    audit: false,
+    owner: "workforce",
+  },
+  {
     route: "/api/admin/events/export",
     methods: ["GET"],
     authClass: "capability_gated",
@@ -1789,8 +1798,8 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/team-members",
     methods: ["DELETE", "GET", "PATCH", "POST"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "capability_gated",
+    capability: "workforce.view",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -2320,8 +2329,7 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
   {
     route: "/api/admin/venues/[id]",
     methods: ["GET", "PATCH"],
-    authClass: "legacy_pending_migration",
-    capability: "tour.view",
+    authClass: "platform_admin",
     idempotency: false,
     audit: false,
     owner: "admin-misc",
@@ -2918,6 +2926,7 @@ function auditContract(
 }
 
 const APPROVED_SERVICE_ROLE_ROUTES = new Set([
+  "/api/admin/events/[id]/work-mode/attendance",
   "/api/admin/logistics/comms-thread",
   "/api/admin/staff-operations/channels",
   "/api/admin/staff-operations/channels/[id]",

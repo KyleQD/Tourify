@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:06.653Z",
-  "updated_at": "2026-09-17T01:29:01.283Z",
+  "updated_at": "2026-09-22T16:18:55Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Remove anonymous execution from exposed SECURITY DEFINER and money-path functions and verify the critical hosted authorization migrations in staging and production",
@@ -79,6 +79,7 @@
       "Migration 4 (event-HQ): HTTP 201 — applied successfully. Postflight: zero anon policies on event_resources/event_calendar_items/event_bulletins; all INSERT/UPDATE/DELETE policies scoped to created_by/author_id = auth.uid() OR is_admin; authenticated reads unchanged.",
       "Post-apply venues/RBAC probes: venues relrowsecurity=true; rbac_roles/rbac_permissions/rbac_role_permissions/rbac_user_entity_roles/rbac_user_permission_overrides/rbac_permission_audit_log all relrowsecurity=true. Policies present: venues_public_read (SELECT, anon+authenticated, using slug IS NOT NULL OR account_id=auth.uid() OR created_by=auth.uid()), venues_owner_write (ALL, authenticated), rbac_roles_read_authenticated, rbac_permissions_read_authenticated, rbac_role_permissions_read_authenticated, rbac_user_entity_roles_self_read + rbac_user_entity_roles_manage, rbac_overrides_admin_all, rbac_audit_insert_authenticated + rbac_audit_select_admin. has_entity_permission prosecdef=true proconfig=['search_path=public']. profiles_privilege_guard trigger tgenabled='O'.",
       "RLS behavior probes (transactional, rolled back): anon_visible_published=1 for a slug-published row (anon CAN read via venues_public_read); anon INSERT rejected with 42501 'new row violates row-level security policy for table venues'; probe_rows_remaining=0 after rollback.",
+      "2026-09-22 local static rerun: node scripts/ci/check-db002-security-contract.mjs passed for all four SECURITY DEFINER grant contracts. This does not establish hosted staging or production anonymous-denial after the pending revoke migration.",
       "Manifests: 20260823210100_venues_rbac_rls_baseline.json advanced planned → staging_validated; 20260823221100_venues_add_identity_columns.json added staging_validated; the 3 previously-staged manifests (hiring-PII, money-path, event-HQ) had their isolated-validated artifact fields populated (validator requires them for staging_validated) — 4 of 4 staged migrations now staging_validated."
     ],
     "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
@@ -86,7 +87,7 @@
     "result": "blocked-release-authz"
   },
   "progress": {
-    "summary": "Partial batch implementation landed: the DB-002 migration now revokes EXECUTE from both PUBLIC and anon for all four exposed SECURITY DEFINER functions, grants only authenticated/service_role, and has static migration/postflight contract coverage. Hosted application and probes remain outstanding.",
+    "summary": "Next-phase unblock check confirms DB-002 still needs hosted apply/probe evidence. GitHub staging Supabase secrets are absent and no isolated staging target is recorded, so the anonymous-denial and SECURITY DEFINER postflight probes were not run.",
     "completed": [
       "20260823210000_harden_hiring_onboarding_pii.sql — APPLIED (hiring-PII hardening)",
       "20260823220001_money_path_transactional_rpcs.sql — APPLIED (money-path transactional RPCs)",
@@ -103,8 +104,7 @@
       "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path."
     ],
     "next_steps": [
-      "Apply the additive migration manually in staging, verify anonymous denial and intended authenticated/service_role access, then repeat in production under CP-051.",
-      "Reconcile migration-history metadata and attach advisor, checksum, and forward-repair evidence."
+      "After staging Supabase values exist, apply the reviewed revoke migration under CP-051 and record anonymous denial, authenticated/service-role allowed scope, advisors, and migration-history evidence."
     ],
     "blockers": [
       "No staging or production database mutation/probe was performed in this batch.",
@@ -160,6 +160,44 @@
           "No staging or production database mutation/probe was performed in this batch.",
           "Hosted migration-history drift remains unresolved from prior raw Management API applications.",
           "The task cannot close on static contract evidence alone."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "DB-002 static grant contract passes locally; hosted staging and production revocation/denial evidence remain absent. Current local Supabase env files identify the registered production project and were not used for SQL.",
+        "completed": [],
+        "next_steps": [
+          "On approved isolated staging, verify/apply 20260914090000 explicitly if needed, run db002_security_grants.sql plus anon and scoped-auth negative probes, advisors, and DB-008 history reconciliation."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:56.563Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check confirms DB-002 still needs hosted apply/probe evidence. GitHub staging Supabase secrets are absent and no isolated staging target is recorded, so the anonymous-denial and SECURITY DEFINER postflight probes were not run.",
+        "completed": [],
+        "next_steps": [
+          "After staging Supabase values exist, apply the reviewed revoke migration under CP-051 and record anonymous denial, authenticated/service-role allowed scope, advisors, and migration-history evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:18:55Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "DB-002 static four-function grant contract passes, but the connected account exposes no verified isolated staging project. The 20260914090000 revoke migration was not applied or probed in this run.",
+        "completed": [
+          "Ran node scripts/ci/check-db002-security-contract.mjs successfully and computed the revoke migration SHA-256 3f290ee45aab87b7300128167c200d169d7a2e90201f4bca5a1ae82102c27a98.",
+          "Kept production and Demo untouched; prior production anonymous-execute and migration-history findings remain unresolved."
+        ],
+        "next_steps": [
+          "On a verified isolated staging target, read history/catalog first; apply only the missing reviewed revoke migration under CP-051, run supabase/tests/db002_security_grants.sql and distinct anon/authenticated denial probes, and retain security advisor output.",
+          "Repeat the reviewed production operator gate only after staging evidence and DB-008 history reconciliation; keep DB-002 active until production postflight passes."
+        ],
+        "blockers": [
+          "No isolated staging credentials or exact-SHA deployment; full migration-validation is also red on an unrelated expired job-posting exception."
         ]
       }
     ]

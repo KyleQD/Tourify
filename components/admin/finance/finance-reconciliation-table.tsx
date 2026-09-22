@@ -157,15 +157,16 @@ export function FinanceReconciliationTable() {
         ) : null}
 
         {mismatches.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" role="region" tabIndex={0} aria-label="Finance reconciliation ledger, scroll horizontally for all columns">
+            <table className="w-full min-w-[720px] text-sm">
+              <caption className="sr-only">Finance reconciliation mismatches</caption>
               <thead>
                 <tr className="border-b border-slate-700/50 text-xs text-slate-400 uppercase tracking-wide">
                   <th className="py-2 pr-3 text-left font-medium">Type</th>
                   <th className="py-2 pr-3 text-right font-medium">Source</th>
                   <th className="py-2 pr-3 text-right font-medium">Finance</th>
                   <th className="py-2 pr-3 text-right font-medium">Variance</th>
-                  <th className="py-2 pr-3 text-left font-medium hidden lg:table-cell">Date</th>
+                  <th className="py-2 pr-3 text-left font-medium">Date</th>
                   <th className="py-2 text-left font-medium">Status</th>
                 </tr>
               </thead>
@@ -186,7 +187,7 @@ export function FinanceReconciliationTable() {
                     <td className={`py-2 pr-3 text-right tabular-nums text-xs font-medium ${m.variance > 0 ? "text-red-400" : m.variance < 0 ? "text-orange-400" : "text-green-400"}`}>
                       {m.variance > 0 ? "+" : ""}{fmt(m.variance, m.currency)}
                     </td>
-                    <td className="py-2 pr-3 text-slate-500 text-xs hidden lg:table-cell">
+                    <td className="py-2 pr-3 text-slate-500 text-xs">
                       {m.date ?? "—"}
                     </td>
                     <td className="py-2">

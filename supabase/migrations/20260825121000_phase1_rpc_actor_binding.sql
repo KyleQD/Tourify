@@ -11,7 +11,6 @@
 
 set client_min_messages = warning;
 
-create extension if not exists pgcrypto;
 
 -- ============================================================================
 -- Ensure the session tables these RPCs manage exist in the ACTIVE chain

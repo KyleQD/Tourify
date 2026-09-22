@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { checkAuth } from '@/lib/auth/api-auth'
 import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
+import { POST as canonicalFollowPost } from '@/app/api/social/follow/route'
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -158,62 +159,22 @@ export async function POST(request: NextRequest) {
       }
 
     } else if (action === 'follow') {
-      // Handle follow/unfollow
+      // Legacy envelope: keep old callers working, but make the user-scoped
+      // canonical route the only writer and side-effect owner for follows.
       const validatedData = followActionSchema.parse({
         action: type,
         targetUserId
       })
-
-      if (validatedData.targetUserId === user.id) {
-        return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
-      }
-
-      if (validatedData.action === 'follow') {
-        // Check if already following
-        const { data: existingFollow } = await supabase
-          .from('follows')
-          .select('id')
-          .eq('follower_id', user.id)
-          .eq('following_id', validatedData.targetUserId)
-          .single()
-
-        if (existingFollow) {
-          return NextResponse.json({
-            success: true,
-            message: 'Already following this user'
-          })
-        }
-
-        // Create follow relationship (this will trigger notification)
-        const { error: followError } = await supabase
-          .from('follows')
-          .insert({
-            follower_id: user.id,
-            following_id: validatedData.targetUserId
-          })
-
-        if (followError) throw followError
-
-        return NextResponse.json({
-          success: true,
-          message: 'Followed user and notification sent'
-        })
-
-      } else if (validatedData.action === 'unfollow') {
-        // Remove follow relationship
-        const { error: unfollowError } = await supabase
-          .from('follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', validatedData.targetUserId)
-
-        if (unfollowError) throw unfollowError
-
-        return NextResponse.json({
-          success: true,
-          message: 'Unfollowed user'
-        })
-      }
+      const headers = new Headers(request.headers)
+      headers.delete('content-length')
+      return canonicalFollowPost(new NextRequest(request.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          followingId: validatedData.targetUserId,
+          action: validatedData.action,
+        }),
+      }))
 
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

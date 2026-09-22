@@ -135,6 +135,20 @@ export function MembershipWorkspace() {
 
   const members = data?.members ?? []
   const active = members.filter((m) => m.status === "active")
+  const renderAction = (member: OrgMember) => member.status === "active" && member.role !== "owner" ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-9 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+      onClick={() => setConfirmRevoke(member)}
+      disabled={revoking === member.userId}
+      aria-label={`Revoke membership for ${member.userId}`}
+    >
+      <UserX className="mr-1 h-3.5 w-3.5" />
+      {revoking === member.userId ? "Revoking…" : "Revoke"}
+    </Button>
+  ) : <span className="text-xs text-slate-500">{member.role === "owner" ? "Owner" : member.status}</span>
 
   return (
     <>
@@ -180,15 +194,17 @@ export function MembershipWorkspace() {
           ) : null}
 
           {members.length > 0 ? (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden overflow-x-auto xl:block">
               <table className="w-full text-sm">
+                <caption className="sr-only">Organization members</caption>
                 <thead>
                   <tr className="border-b border-slate-700/50 text-xs text-slate-400 uppercase tracking-wide">
-                    <th className="py-2 pr-3 text-left font-medium">User ID</th>
-                    <th className="py-2 pr-3 text-left font-medium">Role</th>
-                    <th className="py-2 pr-3 text-left font-medium hidden md:table-cell">Status</th>
-                    <th className="py-2 pr-3 text-left font-medium hidden lg:table-cell">Since</th>
-                    <th className="py-2 text-right font-medium">Actions</th>
+                    <th scope="col" className="py-2 pr-3 text-left font-medium">User ID</th>
+                    <th scope="col" className="py-2 pr-3 text-left font-medium">Role</th>
+                    <th scope="col" className="py-2 pr-3 text-left font-medium">Status</th>
+                    <th scope="col" className="py-2 pr-3 text-left font-medium">Since</th>
+                    <th scope="col" className="py-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -202,39 +218,38 @@ export function MembershipWorkspace() {
                           {m.role}
                         </span>
                       </td>
-                      <td className="py-2 pr-3 hidden md:table-cell">
+                      <td className="py-2 pr-3">
                         <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border ${STATUS_BADGE[m.status] ?? "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}>
                           {m.status}
                         </span>
                       </td>
-                      <td className="py-2 pr-3 text-slate-500 text-xs hidden lg:table-cell">
+                      <td className="py-2 pr-3 text-slate-500 text-xs">
                         {m.activatedAt ? new Date(m.activatedAt).toLocaleDateString() : "—"}
                       </td>
                       <td className="py-2 text-right">
-                        {m.status === "active" && m.role !== "owner" ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 text-xs"
-                            onClick={() => setConfirmRevoke(m)}
-                            disabled={revoking === m.userId}
-                            aria-label={`Revoke membership for ${m.userId}`}
-                          >
-                            <UserX className="h-3.5 w-3.5 mr-1" />
-                            {revoking === m.userId ? "Revoking…" : "Revoke"}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-slate-600">
-                            {m.role === "owner" ? "Owner" : m.status}
-                          </span>
-                        )}
+                        {renderAction(m)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <ul className="space-y-3 xl:hidden" aria-label="Organization members">
+              {members.map((member) => (
+                <li key={member.userId} className="min-w-0 rounded-md border border-slate-700/60 bg-slate-800/30 p-4">
+                  <p className="break-all font-mono text-xs text-slate-200" title={member.userId}>{member.userId}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${ROLE_BADGE[member.role] ?? ROLE_BADGE.member}`}>{member.role}</span>
+                    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${STATUS_BADGE[member.status] ?? "border-slate-500/30 bg-slate-500/20 text-slate-300"}`}>{member.status}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs text-slate-400">Since {member.activatedAt ? new Date(member.activatedAt).toLocaleDateString() : "—"}</span>
+                    {renderAction(member)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            </>
           ) : null}
         </CardContent>
       </Card>

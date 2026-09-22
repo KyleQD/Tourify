@@ -348,7 +348,7 @@ function FeedRow({ item }: { item: CommandCenterFeedItem }) {
             ) : null}
             <span className="text-xs text-slate-500">{formatRelative(item.lastActivity)}</span>
           </div>
-          <h4 className="truncate text-sm font-medium text-white">{item.title}</h4>
+          <h4 className="line-clamp-2 break-words text-sm font-medium text-white" title={item.title}>{item.title}</h4>
           {item.summary ? (
             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-400">{item.summary}</p>
           ) : null}

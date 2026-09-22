@@ -5,7 +5,6 @@
 -- defense in depth for this table in the exposed public schema.
 set client_min_messages = warning;
 
-create extension if not exists pgcrypto;
 
 create table if not exists public.mfa_verification_codes (
   id uuid primary key default gen_random_uuid(),

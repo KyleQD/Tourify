@@ -30,6 +30,7 @@ test("creates non-secret, deterministic deployment evidence", () => {
 
 test("rejects incomplete or ambiguous evidence", () => {
   assert.throws(() => createDeploymentEvidence({ ...valid, releaseSha: "main" }), /full 40-character Git SHA/)
+  assert.throws(() => createDeploymentEvidence({ ...valid, deploymentId: valid.deploymentUrl }), /Vercel-generated/)
   assert.throws(() => createDeploymentEvidence({ ...valid, migrationEvidence: "" }), /migrationEvidence is required/)
   assert.throws(() => createDeploymentEvidence({ ...valid, deploymentUrl: "http://tourify.live" }), /must use https/)
 })

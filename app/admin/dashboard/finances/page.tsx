@@ -479,11 +479,11 @@ export default function FinancesPage() {
       <FinanceReconciliationTable />
 
       <Tabs defaultValue="transactions" className="w-full">
-        <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
-          <TabsTrigger value="transactions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Transactions</TabsTrigger>
-          <TabsTrigger value="budgets" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Budgets</TabsTrigger>
-          <TabsTrigger value="settlements" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Settlements</TabsTrigger>
-          <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Summary</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm sm:grid-cols-4">
+          <TabsTrigger value="transactions" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Transactions</TabsTrigger>
+          <TabsTrigger value="budgets" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Budgets</TabsTrigger>
+          <TabsTrigger value="settlements" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Settlements</TabsTrigger>
+          <TabsTrigger value="overview" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Summary</TabsTrigger>
         </TabsList>
 
         <TabsContent value="transactions" className="space-y-4 pt-4">

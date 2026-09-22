@@ -711,3 +711,76 @@ The dated sections below are append-only orchestration checkpoints. Present-tens
   (ADMVIEW-001) in the shared worktree was preserved uncommitted. Hosted
   credential, exact-SHA staging, database-apply, and owner-decision gates
   remain intentionally open.
+## Workspace reconciliation — 2026-09-22 (CP-056)
+
+- This repo on `release/clean-snapshot` is the one master workspace. The adjacent
+  folders (`Tourify-design034/intg007/mkt002` snapshots, `myproject/tourify-work-impl`,
+  `myproject/tourify-beta-K2`, beta zip) are non-operating legacy/duplicate copies;
+  they are archival/deletion candidates, never work targets.
+- Salvage complete: beta-K2's local-only `codex/admin-workflow-completion` branch
+  (45 commits, 2,367 unique files incl. the venue feature family, admin-workflow/lib-admin,
+  music-trust content) was committed WIP at `521a206d` and pushed to `origin`;
+  `origin/feature/world-of-music` was already preserved on origin.
+- Reconcile best work only by additive island port behind the owning domain skill
+  (venue-pages-builder, admin-dashboard-builder, discover), never by blanket merge.
+- Master's 36-entry dirty tree is unrelated in-progress admin ADMVIEW-001 work and stays
+  preserved uncommitted per the working agreement.
+
+## Ownership and dependency checkpoint — 2026-09-22
+
+- The topology-refreshed shared worktree has 75 dirty entries across ongoing
+  ADMVIEW-001, INTG-007, and DB-005 work. The ORCH-002 ownership snapshot has
+  69 candidate routes, 6 task-record routes, zero unresolved paths, and zero unexplained
+  deletions. Candidate routing still needs domain confirmation before curation.
+- The shared Content Hub organization-social integration service is explicitly
+  routed to the completed INTG-007 admin handoff. The ownership generator now
+  recognizes a pending handoff deleted after its verified completed record is
+  created; this explains HF-INTG-007-VENUE without inferring product deletion.
+  This control-plane script entered ORCH-002's working set because the current
+  ownership audit exposed one unresolved shared service and one unexplained
+  handoff move.
+- INTG-007 admin and venue handoffs are complete; HF-INTG-007-SOCIAL remains
+  pending before its plaintext-column retirement can be applied under CP-051.
+  DB-005's creator search projection is authored locally and awaits artist
+  field-semantics confirmation through HF-DB-005-ARTIST-CREATOR-FIELDS plus
+  approved manual staging application. Hosted exact-SHA release and QA gates
+  remain open.
+- The bounded current-file credential-pattern pass found zero categories;
+  branch/history attestation remains a separate release gate. Final worktree
+  audit passed at 75 entries with no generated/local artifact candidates;
+  control-plane validation passed for 17 agents and 114 tasks with zero
+  warnings and zero errors.
+
+## QA-004 completion agent wave — 2026-09-22
+
+- Launched three bounded implementation tasks from the orchestrator request:
+  database/security worker actions, staging/release QA gates, and product
+  journey repairs. All three completed in the shared workspace without hosted
+  mutation or destructive database action.
+- DB-010 authored forward-only migration
+  `20260922155356_worker_actions_scope_reconciliation.sql` plus postflight
+  contracts for worker actions. It preserves existing rows, replaces archived
+  local-only policies if present, and scopes inserts through assignment,
+  canonical event or tour, packet audience, and permission checks. The
+  worker-action flag remains disabled pending isolated staging apply and live
+  denial probes.
+- RELEASE-007 / QA-003 hardened local gates: production deployment now requires
+  manual dispatch tied to same-SHA CI, E2E, security, staging, and launch
+  certification; staging evidence requires the deployed app URL and demo alias
+  to report the same SHA and `dpl_` deployment ID. The E2E workflow now runs on
+  main so the staging gate can require a real same-SHA E2E result.
+- Product repair validation made no additional code changes; the existing local
+  checkout, staffing, worker attendance, social follow, and ticketing repairs
+  passed their focused suites and were recorded back to their active task
+  records and QA-004 campaign ledger.
+- Orchestrator verification after the wave: `npm run agents:validate`,
+  `npm run check:migration-chain`, `npm run qa:simulation:coverage`, and
+  `npm run check:public-surface` passed. Full migration validation still exits
+  on the pre-existing expired `job-posting-scope-not-null` exception in
+  `20260821180438_job_posting_scopes_and_organization_seats.json`; DB-010 and
+  the new campaign migrations scan clean.
+- Remaining hard gates are hosted: separate Vercel/Supabase staging, protected
+  GitHub/Vercel configuration, hosted DB-008/DB-002 ledger and denial evidence,
+  manual CP-051 migration application, Stripe test mode, protected campaign
+  actors, iOS/Android preview builds, and the expired migration exception owner
+  disposition.

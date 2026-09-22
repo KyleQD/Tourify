@@ -401,7 +401,7 @@ export function BandHub({ organizerAccountId, onboarding = false }: BandHubProps
                     {band?.is_public === false ? "Private" : "Public"}
                   </Badge>
                 </div>
-                <h1 className="mt-2 truncate text-2xl font-semibold text-white">
+                <h1 className="mt-2 line-clamp-2 break-words text-2xl font-semibold text-white" title={band?.organization_name || "Band"}>
                   {band?.organization_name || "Band"}
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">

@@ -13,6 +13,7 @@ export const SERVICE_ROLE_MODULES = [
   "admin.publication.share-resolution",
   "admin.command-center.projection",
   "admin.workforce.assignment",
+  "admin.workforce.attendance",
   "admin.workforce.identity-merge",
   "security.audit",
   "admin.logistics.site-map-public-link",

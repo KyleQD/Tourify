@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "ticketing",
   "created_at": "2026-09-16T19:20:39.276Z",
-  "updated_at": "2026-09-21T15:10:00.000Z",
+  "updated_at": "2026-09-22T15:56:34Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Certify the complete ticket transaction lifecycle against the reconciled staged schema without anonymous or cross-tenant money access",
@@ -51,14 +51,16 @@
       "Audit baseline: existing E2E creates and publishes an event but does not complete purchase, payment webhook, transfer, QR/check-in, refund, or settlement as one deployed lifecycle.",
       "Local implementation and focused tests only; no hosted staging claim",
       "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
-      "Canonical refund replay certification (refund-replay.test.ts) and request-scoped purchase idempotency certification (purchase-idempotency.test.ts) pass; DB-005 handoff recorded for distributed DB-unique purchase idempotency"
+      "Canonical refund replay certification (refund-replay.test.ts) and request-scoped purchase idempotency certification (purchase-idempotency.test.ts) pass; DB-005 handoff recorded for distributed DB-unique purchase idempotency",
+      "Focused ticketing Vitest passed locally (15 files, 120 tests), including refund replay and purchase idempotency; scoped diff whitespace check passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no hosted transaction or migration applied.",
+      "QA-004 product repair validation rerun (2026-09-22): Ticketing lifecycle Vitest: 15 files, 120 tests passed; distributed DB-unique purchase idempotency and hosted create-to-settlement proof remain open."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-18T04:52:32.558Z",
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T15:56:34Z",
     "result": "fail"
   },
   "progress": {
-    "summary": "Local deliverable completed: canonical refund replay certification and request-scoped purchase idempotency. npx vitest run __tests__/ticketing = 15 files, 120 tests passed; focused ESLint and git diff --check clean (exit 0); no migration authored and no hosted/webhook/Stripe execution in this lane's diff; scoped typecheck of changed lib+test files clean (route diagnostics pre-existing at HEAD). Distributed DB-unique purchase idempotency requires a DB-005 migration — handoff recorded in this task and STATE.md. Hosted create-to-settlement lifecycle and Stripe execution remain blocked (no credentials).",
+    "summary": "Ticket lifecycle local contracts reverified; distributed first-request idempotency and hosted create-to-settlement proof remain pending.",
     "completed": [
       "Canonical published and enabled sale gate",
       "Reserved inventory and fail-closed reservation consumption",
@@ -125,6 +127,24 @@
           "No reconciled hosted schema, staging credentials, or Stripe lifecycle evidence (hosted deliverable)",
           "Distributed DB-unique purchase idempotency requires DB-005 migration"
         ]
+      },
+      {
+        "at": "2026-09-22T15:55:04Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Ticket lifecycle local contracts reverified; distributed first-request idempotency and hosted create-to-settlement proof remain pending.",
+        "completed": [
+          "Focused ticketing Vitest passed locally (15 files, 120 tests), including refund replay and purchase idempotency; scoped diff whitespace check passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no hosted transaction or migration applied."
+        ],
+        "next": "DB-005 adds distributed purchase uniqueness; then run the deployed Stripe test-mode lifecycle and denial probes."
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Ticketing lifecycle Vitest: 15 files, 120 tests passed; distributed DB-unique purchase idempotency and hosted create-to-settlement proof remain open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
       }
     ]
   },

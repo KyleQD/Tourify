@@ -41,6 +41,7 @@ jobs:
       - name: Require an exact main-branch SHA
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
+          DISPATCH_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
           if ! printf '%s' "$RELEASE_SHA" | grep -Eq '^[0-9a-fA-F]{40}$'; then
@@ -48,7 +49,8 @@ jobs:
             exit 1
           fi
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          git merge-base --is-ancestor "$RELEASE_SHA" origin/main
+          test "$DISPATCH_REF" = refs/heads/main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: Require successful CI, E2E, and security runs for the SHA
         env:
@@ -57,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           for workflow in ci.yml e2e.yml security-scans.yml; do
-            conclusion="$(gh run list --workflow "$workflow" --commit "$RELEASE_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+            conclusion="$(gh run list --workflow "$workflow" --event push --commit "$RELEASE_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
             if [ "$conclusion" != "success" ]; then
               echo "::error::$workflow must have a successful run for $RELEASE_SHA (found: ${conclusion:-none})."
               exit 1
@@ -70,6 +72,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
       - name: Validate isolated staging topology
         env:
           DEPLOYMENT_ENVIRONMENT: staging
@@ -80,6 +84,8 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_STAGING_PROJECT_ID }}
           SUPABASE_STAGING_PROJECT_ID: ${{ vars.SUPABASE_STAGING_PROJECT_ID }}
           SUPABASE_PRODUCTION_PROJECT_ID: ${{ vars.SUPABASE_PRODUCTION_PROJECT_ID }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
         run: npm run check:deployment-topology
 
       - name: Install dependencies
@@ -113,11 +119,21 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_STAGING_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_STAGING_PROJECT_ID }}
 
+      - name: Verify deployment and staging alias
+        id: verify
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          EXPECTED_SUPABASE_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          EXPECTED_STRIPE_MODE: test
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_STAGING_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/ci/verify-deployed-release.mjs staging
+
       - name: Record staging deployment evidence
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
           DEPLOYMENT_ENVIRONMENT: staging
-          DEPLOYMENT_ID: ${{ steps.deploy.outputs.url }}
+          DEPLOYMENT_ID: ${{ steps.verify.outputs.deployment_id }}
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
           MIGRATION_EVIDENCE: ${{ inputs.migration_evidence }}
           RELEASE_APPROVER: ${{ github.actor }}

@@ -1,11 +1,9 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { BriefcaseBusiness, ClipboardCheck, FileText, LayoutDashboard, ScrollText, ShieldCheck, Users, ChevronDown } from "lucide-react"
+import { BriefcaseBusiness, ClipboardCheck, FileText, LayoutDashboard, ScrollText, ShieldCheck, Users } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import type { HiringDashboardProps, HiringDashboardTab } from "@/types/hiring-dashboard"
-import { HIRING_WORKSPACE_GROUPS, type HiringTabId } from "@/lib/admin/hiring-workspace-tabs"
 import { WorkforcePanel } from "./workforce-ui"
 import { WorkforceSLOBanner } from "@/components/admin/workforce/workforce-slo-banner"
 
@@ -74,64 +72,20 @@ export function HiringDashboardShell({
       <WorkforceSLOBanner />
 
       <Tabs defaultValue={initialTab} className="space-y-6">
-        {/* Grouped workspace navigation — replaces 7 flat tabs with 4 primary groups */}
+        {/* Keep every workspace reachable and let Radix manage the tab focus order. */}
         <WorkforcePanel className="p-2">
-          <div className="flex items-center gap-1 overflow-x-auto px-2 py-1" role="tablist" aria-label="Hiring workspace sections">
-            {HIRING_WORKSPACE_GROUPS.map((group) => {
-              const hasSecondary = group.secondary.length > 0;
-
-              if (hasSecondary) {
-                return (
-                  <DropdownMenu key={group.id}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-colors text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent data-[state=active]:border-cyan-400/30 data-[state=active]:bg-cyan-400/10 data-[state=active]:text-white"
-                        role="tab"
-                      >
-                        <group.icon className="h-4 w-4 shrink-0" />
-                        {group.label}
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="bg-slate-800 border-slate-700 min-w-[180px]">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const trigger = document.querySelector(`[data-state][value="${group.primaryTab}"]`) as HTMLButtonElement
-                          if (trigger) trigger.click()
-                        }}
-                        className="text-slate-200"
-                      >
-                        {group.label}
-                      </DropdownMenuItem>
-                      {group.secondary.map((secondary) => (
-                        <DropdownMenuItem
-                          key={secondary.id}
-                          onClick={() => {
-                            const trigger = document.querySelector(`[data-state][value="${secondary.id}"]`) as HTMLButtonElement
-                            if (trigger) trigger.click()
-                          }}
-                          className="text-slate-200"
-                        >
-                          {secondary.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                );
-              }
-
-              return (
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-transparent p-0 sm:grid-cols-4 xl:grid-cols-7" aria-label="Hiring workspace sections">
+            {HIRING_DASHBOARD_TABS.map((tab) => (
                 <TabsTrigger
-                  key={group.id}
-                  value={group.primaryTab}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl border border-transparent text-slate-300 data-[state=active]:border-cyan-400/30 data-[state=active]:bg-cyan-400/10 data-[state=active]:text-white"
+                  key={tab.value}
+                  value={tab.value}
+                  className="min-w-0 gap-1.5 whitespace-normal rounded-xl border border-transparent px-2 py-2 text-sm text-slate-300 data-[state=active]:border-cyan-400/30 data-[state=active]:bg-cyan-400/10 data-[state=active]:text-white"
                 >
-                  <group.icon className="h-4 w-4 shrink-0" />
-                  {group.label}
+                  <tab.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {tab.label}
                 </TabsTrigger>
-              );
-            })}
-          </div>
+            ))}
+          </TabsList>
         </WorkforcePanel>
 
         <TabsContent value="overview">

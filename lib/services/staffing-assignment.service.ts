@@ -200,7 +200,7 @@ export async function createEventStaffAssignment(args: {
       role_assignment: args.role?.trim() || member.role || "Staff",
       zone_assignment: args.zone ?? null,
       notes: args.notes ?? null,
-      status: args.assignmentStatus === "confirmed" ? "assigned" : "scheduled",
+      status: args.assignmentStatus === "confirmed" ? "confirmed" : "scheduled",
       created_by: args.actorUserId,
     })
     .select("*")

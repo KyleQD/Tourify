@@ -457,3 +457,12 @@ Append decisions; do not rewrite history. Domain-only decisions belong in the ow
   governed VoiceOver/TalkBack evidence with WCAG AA as the durable target.
 - Reason: Broad account-type gates and unverified accessibility claims are not
   sufficient for production authorization or launch readiness.
+
+## CP-056 — Single master workspace; divergent lineages preserved as archived branches
+
+- Date: 2026-09-22
+- Status: accepted
+- Task: ORCH-002 / cross-cutting (all agents)
+- Decision: `/Users/kyledaley/Developer/Tourify` on `release/clean-snapshot` is the ONE authoritative master workspace; all agent work happens there. The adjacent folders are not operating workspaces. Divergent lineages from the 2026-09-22 audit are preserved on `origin` as archived branches: `origin/codex/admin-workflow-completion` (salvaged beta-K2 branch, WIP captured at `521a206d`) holds the venue feature family, admin-workflow/lib-admin, and music-trust content; `origin/feature/world-of-music` (merge-base `81448509`) holds the world-geography fork and its 309 unique files; `origin/main` contains nothing that `release/clean-snapshot` lacks (master is 153 ahead, 0 behind). Reconcile best work by ADDITIVE ISLAND PORT ONLY: cherry-pick or vendor a bounded feature behind its owning domain (venue-pages-builder for venue, admin-dashboard-builder for admin/workflow, discover for world data), then let the owning domain run its normal verification.
+- Reason: The beta-K2 45-commit / 2,367-file branch existed only locally and was at risk, so it was pushed as a first safety step. A blanket merge of either lineage is unsafe: master and the lineages evolved roughly 8,704 of the same file paths in parallel, so a sweep would overwrite wave-hardened code with older variants and stall the release critical path.
+- Consequence: Agents never commit to or operate on the duplicate folders (the three wave snapshot clones, `myproject/tourify-work-impl`, `myproject/tourify-beta-K2`, and the beta zip); those are archival/deletion candidates pending per-island port decisions. Preserve-unrelated-changes still governs the master worktree (e.g. the in-progress ADMVIEW-001 admin work). CP-051 manual migration application and the wave orchestration discipline are unchanged.

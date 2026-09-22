@@ -561,8 +561,8 @@ export default function ToursPage() {
           {tours.map((tour) => {
             const isSelected = selectedTourIds.includes(tour.id)
             return (
-              <div key={tour.id} className="relative">
-                <div className="absolute left-3 top-3 z-10">
+              <div key={tour.id} className="min-w-0">
+                <div className="mb-2 flex items-center gap-2 px-1">
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={(checked) => {
@@ -574,6 +574,7 @@ export default function ToursPage() {
                     aria-label={`Select ${tour.name}`}
                     className="border-slate-500 bg-slate-950/80"
                   />
+                  <span className="text-xs text-slate-400">Select tour</span>
                 </div>
                 <div className={isSelected ? "ring-2 ring-violet-500/50 rounded-xl" : undefined}>
                   <TourOperationsCard tour={tour} logistics={logisticsByTour[tour.id]} />

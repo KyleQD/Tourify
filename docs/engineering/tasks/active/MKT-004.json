@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "marketplace",
   "created_at": "2026-09-16T19:20:39.600Z",
-  "updated_at": "2026-09-18T04:52:32.433Z",
+  "updated_at": "2026-09-22T15:56:34Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Complete and certify the marketplace buyer, seller, order, payout, cancellation, refund, and webhook lifecycle",
@@ -48,10 +48,11 @@
     "evidence": [
       "Audit baseline: marketplace implementation and focused tests exist, but no deployed listing-to-payout journey certifies authorization, Stripe replay, refund, payout, or audit behavior.",
       "Local implementation and focused tests only; no hosted staging claim",
-      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim"
+      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
+      "QA-004 product repair validation rerun (2026-09-22): Marketplace lifecycle Vitest: 15 files, 147 tests passed; local only. Hosted Stripe listing-to-payout and replay certification remains open."
     ],
     "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-18T04:52:32.433Z",
+    "last_run_at": "2026-09-22T15:56:34Z",
     "result": "fail"
   },
   "progress": {
@@ -101,6 +102,15 @@
           "Full repository typecheck did not complete within bounded window",
           "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence"
         ]
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Marketplace lifecycle Vitest: 15 files, 147 tests passed; local only. Hosted Stripe listing-to-payout and replay certification remains open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
       }
     ]
   },

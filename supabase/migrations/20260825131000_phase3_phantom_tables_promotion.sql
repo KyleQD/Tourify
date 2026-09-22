@@ -11,7 +11,6 @@
 
 set client_min_messages = warning;
 
-create extension if not exists pgcrypto;
 
 -- ============================================================================
 -- contracts — W16 admin contracts workspace (api/admin/contracts)

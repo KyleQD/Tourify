@@ -34,3 +34,12 @@ Update this file only when a task establishes a durable fact future work needs.
 ## Production launch graph — 2026-09-16
 
 - DISC-002 remains P1 and is a core launch dependency. It requires one canonical search contract, authorization-aware result filtering, Redis-backed rate limiting, and deployed Supabase/429 staging evidence.
+
+## Preserved world-data lineage — 2026-09-22 (CP-056)
+
+- `origin/feature/world-of-music` (merge-base `81448509`, HEAD `00d9f173`) preserves the
+  world-geography fork in the discover domain: app/venue, lib/world, components/venue +
+  world, app/internal console, world APIs, supabase world migrations, data/world, and 24
+  world test files (309 files not in master). Use it as the exclusive source when porting
+  world-data islands into master additively; never blanket-merge it onto
+  release/clean-snapshot.

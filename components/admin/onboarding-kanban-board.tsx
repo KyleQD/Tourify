@@ -277,7 +277,7 @@ export function OnboardingKanbanBoard({
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <h4 className="text-sm font-medium text-white truncate max-w-[120px]">
+                          <h4 className="max-w-[120px] line-clamp-2 break-words text-sm font-medium text-white" title={candidate.name}>
                             {candidate.name}
                           </h4>
                           <p className="text-xs text-slate-400 truncate max-w-[120px]">
@@ -363,4 +363,4 @@ export function OnboardingKanbanBoard({
       </div>
     </div>
   )
-} 
+}

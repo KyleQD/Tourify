@@ -91,7 +91,7 @@ function TemplateCard({
             <LayoutTemplate className="size-4" />
           </span>
           <div className="min-w-0">
-            <CardTitle className="truncate text-sm">{template.name}</CardTitle>
+            <CardTitle className="line-clamp-2 break-words text-sm" title={template.name}>{template.name}</CardTitle>
             <p className="truncate text-[11px] text-muted-foreground">
               {template.role} · {shiftTypeMeta[template.shiftType]}
             </p>

@@ -13,6 +13,14 @@ function normalizedDomains(value) {
     .sort()
 }
 
+function supabaseOrigin(value) {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") return null
+    return url.origin
+  } catch { return null }
+}
+
 export function validateDeploymentTopology(input) {
   const failures = []
   const environment = String(input.environment || "")
@@ -53,6 +61,12 @@ export function validateDeploymentTopology(input) {
   ) {
     failures.push("Staging and production must use different Supabase project IDs")
   }
+  const stagingSupabaseOrigin = supabaseOrigin(input.supabaseStagingUrl)
+  const productionSupabaseOrigin = supabaseOrigin(input.supabaseProductionUrl)
+  if (!stagingSupabaseOrigin) failures.push("SUPABASE_STAGING_URL must be a clean HTTPS origin")
+  if (!productionSupabaseOrigin) failures.push("SUPABASE_PRODUCTION_URL must be a clean HTTPS origin")
+  if (stagingSupabaseOrigin && stagingSupabaseOrigin === productionSupabaseOrigin)
+    failures.push("Staging and production must use different Supabase origins")
 
   const expectedVercelProjectId =
     environment === "staging" ? input.vercelStagingProjectId : input.vercelProductionProjectId
@@ -78,6 +92,8 @@ function main() {
     supabaseProjectId: process.env.SUPABASE_PROJECT_ID,
     supabaseStagingProjectId: process.env.SUPABASE_STAGING_PROJECT_ID,
     supabaseProductionProjectId: process.env.SUPABASE_PRODUCTION_PROJECT_ID,
+    supabaseStagingUrl: process.env.SUPABASE_STAGING_URL,
+    supabaseProductionUrl: process.env.SUPABASE_PRODUCTION_URL,
   })
 
   if (failures.length > 0) {

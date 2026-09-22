@@ -18,9 +18,11 @@ export const dynamic = "force-dynamic"
  *
  *  GET   → provider capability catalog (env-gated) + this Venue's connections
  *          as SAFE DTOs: token columns are never selected; health derives from
- *          expiry/last_sync metadata.
- *  POST  → disconnect (secret deletion first) or refresh (advisory-locked,
- *          generic token grant) — both require manage_integrations.
+ *          row connection state plus encrypted-vault token presence
+ *          (INTG-007: readVenueIntegrationSecrets only, never plaintext).
+ *  POST  → disconnect (vault secret deletion first) or refresh (advisory-locked,
+ *          generic token grant, fail-closed on missing vault refresh token) —
+ *          both require manage_integrations.
  */
 
 const PROVIDER_TOKEN_URLS: Record<string, string> = {
@@ -118,7 +120,7 @@ export async function POST(request: NextRequest) {
   const service = createServiceRoleClient()
   const { data: row } = await service
     .from("venue_social_integrations")
-    .select("id, venue_id, platform, refresh_token")
+    .select("id, venue_id, platform")
     .eq("id", body.connection_id)
     .maybeSingle()
 
@@ -129,13 +131,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown platform on record" }, { status: 400 })
 
   if (body.action === "disconnect") {
-    // VEN-271 — secret deletion precedes any state change.
+    // VEN-271 — vault secret deletion precedes any state change. Legacy
+    // plaintext columns are retired (INTG-007); the row only toggles state.
     await deleteVenueIntegrationSecrets(body.connection_id)
     await service
       .from("venue_social_integrations")
       .update({
-        access_token: null,
-        refresh_token: null,
         is_connected: false,
         updated_at: new Date().toISOString(),
       })
@@ -168,21 +169,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A refresh is already in progress for this connection" }, { status: 409 })
   }
 
+  // INTG-007 — encrypted-only vault. There is no legacy column fallback; a
+  // missing vault refresh grant fails closed and the connection must be
+  // re-connected through the encrypted OAuth callback.
   const secrets = await readVenueIntegrationSecrets(body.connection_id)
-  const refreshToken =
-    secrets.refreshToken ||
-    (typeof row.refresh_token === "string" ? row.refresh_token : null)
+  const refreshToken = secrets.refreshToken
 
   const tokenUrl = PROVIDER_TOKEN_URLS[String(row.platform)]
-  if (!tokenUrl || !refreshToken) {
+  if (!tokenUrl) {
     await logIntegrationEvent({
       venueId: body.venue_id,
       actorId: auth.user.id,
       action: "sync_failed",
       platform: String(row.platform),
-      metadata: { reason: "refresh unsupported for platform or missing refresh token" },
+      metadata: { reason: "refresh unsupported for platform" },
     })
     return NextResponse.json({ error: "Refresh not supported for this connection" }, { status: 400 })
+  }
+
+  if (!refreshToken) {
+    await logIntegrationEvent({
+      venueId: body.venue_id,
+      actorId: auth.user.id,
+      action: "sync_failed",
+      platform: String(row.platform),
+      metadata: { reason: "missing refresh token in encrypted vault; reconnect required" },
+    })
+    return NextResponse.json(
+      { error: "Refresh credentials missing; reconnect this connection" },
+      { status: 400 },
+    )
   }
 
   try {

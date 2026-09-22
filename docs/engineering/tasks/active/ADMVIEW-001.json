@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMVIEW-001",
+  "title": "Admin panel readability and navigation",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-21T22:27:33.122Z",
+  "updated_at": "2026-09-21T22:27:33.122Z",
+  "base_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+  "working_tree_status": "dirty (14 entries)",
+  "goal": "All rendered Admin panels avoid visual overlap and present clear information hierarchy at desktop and mobile sizes",
+  "scope": {
+    "in": [
+      "All rendered app/admin page routes and their mounted panels, tabs, cards, tables, and dialogs",
+      "Readability, responsive layout, clear panel purpose, and direct links to detailed workspaces",
+      "Shared Admin display primitives and route-by-route visual evidence"
+    ],
+    "out": [
+      "API, authorization, and database contract changes",
+      "Unrelated product workflows or visual rebranding"
+    ]
+  },
+  "working_set": [
+    "app/admin/**",
+    "components/admin/**",
+    "__tests__/admin/**",
+    "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md",
+    "docs/admin-audit/registry/ux-audit-program.json",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "acceptance_criteria": [
+    "The dashboard tours and events panels render distinct rows and readable two-line names",
+    "Every rendered Admin route and reachable panel has a route-matrix disposition and phone, tablet, desktop, and 200% zoom evidence",
+    "Record identity, status, and actions do not overlap or disappear on narrow screens",
+    "Shared data tables retain semantic headers, keyboard-reachable links, and mobile access to essential fields",
+    "Repeated information is reduced without removing the authoritative detail or an existing action",
+    "Focused tests, lint, feature verification, Admin audit checks, and control-plane validation are recorded"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/admin/admin-panel-readability.test.tsx",
+      "npx eslint <touched Admin files>",
+      "npm run verify:feature -- --changed",
+      "npm run check:admin-audit",
+      "npm run agents:validate"
+    ],
+    "evidence": [],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Dashboard row collision and initial responsive collection pattern implemented; full route audit and visual verification remain open.",
+    "completed": [
+      "Replaced transform-based virtual row offsets with layout offsets.",
+      "Rendered short overview lists in natural document flow with two-line names and direct links.",
+      "Added a semantic responsive Admin data table and used it for Dashboard Tours and Events.",
+      "Updated Tour and Event collection card titles and scoped Admin card overflow rules."
+    ],
+    "next_steps": [
+      "Review each route and nested panel in the route matrix, repairing any overlap or repeated information found.",
+      "Capture authenticated responsive browser evidence at phone, tablet, desktop, and 200% zoom.",
+      "Run feature and Admin verification, then complete the route matrix before closing this task."
+    ],
+    "blockers": [],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

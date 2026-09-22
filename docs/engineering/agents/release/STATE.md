@@ -428,3 +428,9 @@ required e2e governance remain promotion-scoped.
   deployment gating, and the final go/no-go evidence bundle remain outstanding.
   No deployment, credential, workflow, generated-map, or `TASK_INDEX.json`
   mutation was made.
+
+## RELEASE-007 hosted topology inspection — 2026-09-22
+
+- Read-only Vercel inspection maps both `demo.tourify.live` and `tourify.live` to production deployment `dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK` in project `tourify-beta-k2` (`prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n`). Separate staging deployment/project isolation is disproven for the current aliases.
+- Both public health endpoints return 200 without release SHA, deployment ID, Supabase-origin, or Stripe-mode headers. Both CSPs advertise `https://auqddrodjezjlypkzfpi.supabase.co`; staging runtime database and test-payment mode remain unproven.
+- GitHub staging and production environments have no variables, secrets, or protection rules; main branch protection is absent. The field-by-field packet and operator checklist are at `docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md`. No deployment, database write, actor, or payment action occurred.

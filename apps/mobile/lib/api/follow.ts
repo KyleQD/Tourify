@@ -1,20 +1,27 @@
 import { apiRequest } from "@/lib/api/client"
 
+export interface ProfileFollowResult {
+  success: true
+  action: "followed" | "unfollowed"
+  isFollowing: boolean
+  changed: boolean
+}
+
 export async function followUser(followingId: string) {
-  return apiRequest<{ success: boolean; message?: string }>("/api/follow", {
+  return apiRequest<ProfileFollowResult>("/api/social/follow", {
     method: "POST",
     body: JSON.stringify({
-      following_id: followingId,
+      followingId,
       action: "follow"
     })
   })
 }
 
 export async function unfollowUser(followingId: string) {
-  return apiRequest<{ success: boolean; message?: string }>("/api/follow", {
+  return apiRequest<ProfileFollowResult>("/api/social/follow", {
     method: "POST",
     body: JSON.stringify({
-      following_id: followingId,
+      followingId,
       action: "unfollow"
     })
   })

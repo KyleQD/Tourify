@@ -1206,7 +1206,7 @@ export class HiringRosterService {
     const userId = candidate.user_id ?? candidate.applicant_id
     if (!userId) throw new Error("Completed candidate is missing a user id.")
 
-    return this.upsertRosterFromApproval({
+    const member = await this.upsertRosterFromApproval({
       employer: args.employer,
       actorUserId: args.actorUserId,
       userId,
@@ -1219,5 +1219,21 @@ export class HiringRosterService {
       employmentType: candidate.employment_type ?? null,
       completed: true,
     })
+
+    // Event shifts can be created while onboarding leaves the roster member
+    // pending. The shift bridge deliberately skips pending members, so link
+    // those persisted shifts once this approval activates the worker.
+    if (member) {
+      const shiftSync = await syncActiveStaffMemberShifts({
+        supabase: this.supabase,
+        staffMemberId: member.id,
+        actorUserId: args.actorUserId,
+      })
+      if (shiftSync.errors.length > 0) {
+        throw new Error(`Worker activated, but ${shiftSync.errors.length} shift assignment(s) could not be linked: ${shiftSync.errors.join("; ")}`)
+      }
+    }
+
+    return member
   }
 }

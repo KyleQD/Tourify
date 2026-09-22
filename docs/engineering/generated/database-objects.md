@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `648d652e93693ee89973858ce96797e622b5aa4b`
-- Branch: `release/clean-snapshot`
-- Working tree: dirty (39 entries)
-- Generated at: 2026-09-22T09:13:53.629Z
+- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Branch: `codex/qa004-staging-campaign`
+- Working tree: dirty (1 entries)
+- Generated at: 2026-09-22T17:00:56.458Z
 - Generator: `control-plane.mjs generate`
 
-## Objects (705)
+## Objects (708)
 
 | Type | Name | Latest create evidence |
 | --- | --- | --- |
@@ -275,6 +275,7 @@
 | function | `upsert_account` | `supabase/migrations/archive/COMPREHENSIVE_MULTI_ACCOUNT_SYSTEM.sql` |
 | function | `venue_has_operator_access` | `supabase/migrations/20260823030000_rpc_authorization_hardening.sql` |
 | function | `venue_is_owner` | `supabase/migrations/20260823120000_venue_account_lifecycle.sql` |
+| function | `work_mode_security` | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | function | `worker_shift_check_in` | `supabase/migrations/20260823170000_worker_checkin_contract.sql` |
 | function | `worker_shift_check_out` | `supabase/migrations/20260823170000_worker_checkin_contract.sql` |
 | function | `write_venue_lifecycle_audit` | `supabase/migrations/20260823120000_venue_account_lifecycle.sql` |
@@ -675,6 +676,8 @@
 | table | `venues` | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | table | `venues_v2` | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | table | `vote_kind` | `supabase/migrations/20250815120000_forums_production_schema.sql` |
+| table | `work_mode_check_in_events` | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
+| table | `work_mode_publication_acknowledgements` | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | table | `work_mode_publication_audiences` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 | table | `work_mode_publications` | `supabase/migrations/20260630211500_operations_work_mode_publications.sql` |
 | table | `worker_onboarding_profiles` | `supabase/migrations/20260709210901_worker_onboarding_profiles.sql` |
@@ -718,7 +721,7 @@
 | view | `venue_identity_bridge_audit` | `supabase/migrations/20260823010000_venue_identity_bridge.sql` |
 | view | `work_hub_integrity_issues` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 
-## RLS policies (1299)
+## RLS policies (1303)
 
 | Table | Policy | Latest create evidence |
 | --- | --- | --- |
@@ -1986,6 +1989,10 @@
 | `venues_v2` | venues_v2_update | `supabase/migrations/20260414140000_fix_security_linter_views_and_rls.sql` |
 | `venues_v2` | venues_v2_worker_assignment_select | `supabase/migrations/20260911013017_work_mode_overview_communications.sql` |
 | `vote_kind` | vote_kind_select | `supabase/migrations/20260414140000_fix_security_linter_views_and_rls.sql` |
+| `work_mode_check_in_events` | work_mode_check_in_events_worker_insert | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
+| `work_mode_check_in_events` | work_mode_check_in_events_worker_select | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
+| `work_mode_publication_acknowledgements` | work_mode_publication_ack_worker_insert | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
+| `work_mode_publication_acknowledgements` | work_mode_publication_ack_worker_select | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | `work_mode_publication_audiences` | work_mode_publication_audiences_publisher_manage | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 | `work_mode_publication_audiences` | work_mode_publication_audiences_worker_read | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 | `work_mode_publications` | work_mode_publications_manage | `supabase/migrations/20260630211500_operations_work_mode_publications.sql` |

@@ -11,7 +11,6 @@
 -- =============================================================================
 
 set client_min_messages = warning;
-create extension if not exists pgcrypto;
 
 -- ---------------------------------------------------------------------------
 -- 1. Event ticketing configuration (explicit ownership + policies)

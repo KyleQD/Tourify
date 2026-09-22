@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withPlatformAdmin } from '@/lib/auth/api-auth'
 import { z } from 'zod'
 
 const patchSchema = z.object({
@@ -23,7 +23,7 @@ function extractVenueId(url: string): string | null {
   return idx >= 0 ? segments[idx + 1] || null : null
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withPlatformAdmin(async (request: NextRequest, { supabase }) => {
   const id = extractVenueId(request.url)
   if (!id) return NextResponse.json({ error: 'Missing venue id' }, { status: 400 })
 
@@ -35,13 +35,26 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
 
   if (error || !venue) return NextResponse.json({ error: 'Venue not found' }, { status: 404 })
 
-  // Fetch events at this venue
-  const { data: eventRows } = await supabase
-    .from('events_v2')
-    .select('id, title, start_at, status, capacity')
-    .ilike('venue_name', `%${venue.venue_name}%`)
-    .order('start_at', { ascending: false })
-    .limit(50)
+  const { data: bridge, error: bridgeError } = await supabase
+    .from('venue_identity_bridges')
+    .select('venues_v2_id')
+    .eq('venue_profile_id', id)
+    .maybeSingle()
+
+  if (bridgeError) return NextResponse.json({ error: bridgeError.message }, { status: 500 })
+
+  let eventRows: any[] = []
+  if (bridge?.venues_v2_id) {
+    const { data, error: eventsError } = await supabase
+      .from('events_v2')
+      .select('id, title, start_at, status, capacity')
+      .eq('venue_id', bridge.venues_v2_id)
+      .order('start_at', { ascending: false })
+      .limit(50)
+
+    if (eventsError) return NextResponse.json({ error: eventsError.message }, { status: 500 })
+    eventRows = data || []
+  }
 
   return NextResponse.json({
     venue: {
@@ -70,7 +83,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   })
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const PATCH = withPlatformAdmin(async (request: NextRequest, { supabase }) => {
   const id = extractVenueId(request.url)
   if (!id) return NextResponse.json({ error: 'Missing venue id' }, { status: 400 })
 

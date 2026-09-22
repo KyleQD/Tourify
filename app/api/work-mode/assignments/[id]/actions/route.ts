@@ -31,6 +31,13 @@ interface WorkerActionResult {
   idempotent: boolean
 }
 
+interface WorkerAttendanceEvent {
+  id: string
+  action: "check_in" | "check_out"
+  occurredAt: string
+  deviceOccurredAt: string | null
+}
+
 type WorkerActionsClient = SupabaseClient<Database> & {
   from(table: "work_mode_check_in_events" | "work_mode_publication_acknowledgements"): any
 }
@@ -44,6 +51,62 @@ function unavailable() {
     },
     { status: 503 },
   )
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  if (process.env.FEATURE_WORK_MODE_WORKER_ACTIONS !== "1") return unavailable()
+
+  const { id: assignmentId } = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json(
+      { error: "Sign in to view attendance.", code: "not_authenticated" },
+      { status: 401 },
+    )
+  }
+
+  try {
+    const payload = await getWorkModeAssignments(supabase, user.id)
+    const assignment = findWorkModeAssignment(payload, assignmentId)
+    if (!assignment) {
+      return NextResponse.json(
+        { error: "Assignment not found or no longer available.", code: "not_found" },
+        { status: 404 },
+      )
+    }
+    const db = supabase as WorkerActionsClient
+    const { data, error } = await db
+      .from("work_mode_check_in_events")
+      .select("id, action, occurred_at, device_occurred_at")
+      .eq("assignment_id", assignment.id)
+      .eq("user_id", user.id)
+      .order("occurred_at", { ascending: false })
+      .limit(50)
+    if (error) return unavailable()
+
+    const events: WorkerAttendanceEvent[] = (data ?? []).map((row: {
+      id: string
+      action: "check_in" | "check_out"
+      occurred_at: string
+      device_occurred_at: string | null
+    }) => ({
+      id: row.id,
+      action: row.action,
+      occurredAt: row.occurred_at,
+      deviceOccurredAt: row.device_occurred_at,
+    }))
+    return NextResponse.json(
+      { data: events },
+      { headers: { "Cache-Control": "private, no-store" } },
+    )
+  } catch (error) {
+    if (!(error instanceof WorkModeReadError)) console.error("[work-mode/actions] attendance read failed", error)
+    return unavailable()
+  }
 }
 
 export async function POST(
@@ -94,7 +157,8 @@ export async function POST(
       const publication = payload.publications.find(
         (item) =>
           item.id === input.publicationId &&
-          item.eventId === assignment.eventId,
+          ((item.eventId !== null && item.eventId === assignment.eventId) ||
+            (item.tourId !== null && item.tourId === assignment.tourId)),
       )
       if (!publication) {
         return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
@@ -119,11 +183,14 @@ export async function POST(
       if (error?.code === "23505") {
         const { data: existing } = await db
           .from("work_mode_publication_acknowledgements")
-          .select("id, acknowledged_at")
+          .select("id, assignment_id, publication_id, acknowledged_at")
           .eq("user_id", user.id)
           .eq("client_request_id", input.clientRequestId)
           .maybeSingle()
-        if (existing) {
+        if (
+          existing?.assignment_id === assignment.id &&
+          existing.publication_id === publication.id
+        ) {
           return NextResponse.json({
             data: {
               id: existing.id,
@@ -176,11 +243,11 @@ export async function POST(
     if (error?.code === "23505") {
       const { data: existing } = await db
         .from("work_mode_check_in_events")
-        .select("id, action, occurred_at")
+        .select("id, assignment_id, action, occurred_at")
         .eq("user_id", user.id)
         .eq("client_request_id", input.clientRequestId)
         .maybeSingle()
-      if (existing) {
+      if (existing?.assignment_id === assignment.id && existing.action === input.action) {
         return NextResponse.json({
           data: {
             id: existing.id,
@@ -190,6 +257,10 @@ export async function POST(
           },
         })
       }
+      return NextResponse.json<WorkModeApiResponse<WorkerActionResult>>(
+        { error: "This request id was already used for another worker action.", code: "conflict" },
+        { status: 409 },
+      )
     }
     if (error || !data) return unavailable()
 

@@ -2,8 +2,9 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import launchCapabilityModule from '../lib/config/launch-capabilities.ts'
+import * as launchCapabilityImport from '../lib/config/launch-capabilities.ts'
 
+const launchCapabilityModule = launchCapabilityImport.default ?? launchCapabilityImport
 const { PRODUCTION_DENIED_ROUTE_PREFIXES, routeMatchesPrefix } = launchCapabilityModule
 
 const ROOT = process.cwd()

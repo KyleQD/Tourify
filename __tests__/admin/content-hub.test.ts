@@ -159,3 +159,69 @@ describe("admin content hub org post scoping contract", () => {
     expect(source).toContain("withAdminCapability")
   })
 })
+
+// INTG-007 — post-apply (migration 20260921000000) the client roles have NO
+// SELECT on organization_social_integrations.access_token/refresh_token, so a
+// user-session select of either column fails closed. These route guards keep
+// the admin Content Hub on the encrypted-only envelope surface.
+describe("admin content hub plaintext credential boundary (INTG-007)", () => {
+  const GET_SELECT_ROUTES = [
+    "app/api/admin/content-hub/integrations/route.ts",
+    "app/api/admin/content-hub/overview/route.ts",
+    "app/api/admin/content-hub/analytics/route.ts",
+  ] as const
+
+  for (const path of GET_SELECT_ROUTES) {
+    it(`${path} never selects plaintext credential columns with the user-session client`, async () => {
+      const source = await import("node:fs").then((fs) => fs.readFileSync(path, "utf8"))
+      // The select performed through withAdminCapability's user-session client.
+      expect(source).toContain(".from(\"organization_social_integrations\")")
+      // Plaintext credential columns must not appear as bare identifiers
+      // (the encrypted refresh_token_envelope field is the only "refresh_token"
+      // token allowed to appear, as its envelope form).
+      expect(source).not.toMatch(/\baccess_token\b/)
+      expect(source).not.toMatch(/\brefresh_token\b[^_]/)
+      // The encrypted envelope fields remain the token-presence source.
+      expect(source).toContain("token_envelope")
+      expect(source).toContain("refresh_token_envelope")
+    })
+  }
+
+  it("integrations DELETE clears envelopes and connection state, not plaintext columns", async () => {
+    const source = await import("node:fs").then((fs) =>
+      fs.readFileSync("app/api/admin/content-hub/integrations/route.ts", "utf8"),
+    )
+    expect(source).not.toMatch(/\baccess_token\b/)
+    expect(source).not.toMatch(/\brefresh_token\b[^_]/)
+    expect(source).toContain("token_envelope: null")
+    expect(source).toContain("refresh_token_envelope: null")
+    expect(source).toContain("is_connected: false")
+  })
+
+  it("integrations sync derives eligibility from envelope presence, never plaintext", async () => {
+    const source = await import("node:fs").then((fs) =>
+      fs.readFileSync("app/api/admin/content-hub/integrations/sync/route.ts", "utf8"),
+    )
+    expect(source).not.toContain(".select(\"id, platform, access_token")
+    expect(source).toContain(".select(\"id, platform, token_envelope, token_expires_at, is_connected\")")
+    expect(source).not.toContain("!!row.access_token")
+    expect(source).toContain("!!row.token_envelope")
+    // The user-session JWT (session.access_token) is still required to call
+    // the Edge Function; only the org credential plaintext columns are banned.
+    expect(source).toContain("session?.access_token")
+  })
+
+  it("shared organization social integrations service avoids plaintext selects", async () => {
+    const source = await import("node:fs").then((fs) =>
+      fs.readFileSync("lib/services/organization-social-integrations.service.ts", "utf8"),
+    )
+    // The route-mirroring select must not carry the legacy plaintext columns.
+    expect(source).not.toContain("access_token, refresh_token")
+    expect(source).toContain("account_handle, token_envelope, refresh_token_envelope")
+    // Disconnect clears envelopes only — never writes the plaintext columns.
+    expect(source).not.toContain("access_token: null")
+    expect(source).not.toContain("refresh_token: null")
+    expect(source).toContain("token_envelope: null")
+    expect(source).toContain("refresh_token_envelope: null")
+  })
+})

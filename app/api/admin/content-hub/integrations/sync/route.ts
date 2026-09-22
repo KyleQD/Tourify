@@ -20,10 +20,12 @@ export const POST = withAdminCapability(
       return NextResponse.json({ success: false, error: "Server misconfigured" }, { status: 503 })
     }
 
-    // Ensure at least one connected integration with a token exists before calling Edge
+    // INTG-007 — eligibility derives from encrypted envelope presence, never
+    // from plaintext columns (client SELECT revoked by 20260921000000). The
+    // Edge Function layer performs its own server-side vault decryption.
     let query = supabase
       .from("organization_social_integrations")
-      .select("id, platform, access_token, is_connected")
+      .select("id, platform, token_envelope, token_expires_at, is_connected")
       .eq("organizer_account_id", admin.profileId)
       .eq("is_connected", true)
 
@@ -34,7 +36,9 @@ export const POST = withAdminCapability(
       return NextResponse.json({ success: false, error: listError.message }, { status: 500 })
     }
 
-    const eligible = (rows || []).some((row: { access_token?: string | null }) => !!row.access_token)
+    const eligible = (rows || []).some(
+      (row: { token_envelope?: unknown }) => !!row.token_envelope,
+    )
     if (!eligible) {
       return NextResponse.json(
         { success: false, error: "OAuth required for analytics. Connect a platform first." },

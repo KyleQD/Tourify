@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "sourceDirectory": "supabase/migrations",
   "sourceSnapshot": {
-    "capturedAt": "2026-09-18T21:43:33Z",
-    "activeCount": 295,
+    "capturedAt": "2026-09-22T15:57:33Z",
+    "activeCount": 299,
     "firstMigration": "20240410000000_migration_replay_suppress_notices.sql",
-    "lastMigration": "20260918213707_mfa_verification_code_store.sql",
-    "digestSha256": "af3eb04703a84c7adbe698a9f02cd61a3f631f174bf5db51663f896d6ff73ed3"
+    "lastMigration": "20260922155356_worker_actions_scope_reconciliation.sql",
+    "digestSha256": "ba0ecbbb0453fe31c10fceb6f5d439e66cfc21750d15482e9c4b4a90a097867d"
   },
   "environments": {
     "staging": {
@@ -94,11 +94,17 @@
         "taskId": "INTG-003",
         "rationale": "Persistent, replay-safe MFA verification codes are a P0 authentication launch requirement",
         "nextAction": "Apply one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql plus lifecycle fixtures and advisors, then regenerate canonical database types"
+      },
+      {
+        "migration": "20260922155356_worker_actions_scope_reconciliation.sql",
+        "taskId": "DB-010",
+        "rationale": "Worker action storage and data-boundary authorization must be proven before WORK-006 can enable the feature in isolated staging",
+        "nextAction": "Inspect hosted archive/table history, apply this exact active migration one at a time only to approved isolated staging, then run db010 catalog and distinct-persona denial probes before any flag enablement"
       }
     ],
     "deferred": [],
     "unclassified": {
-      "count": 287,
+      "count": 290,
       "blocker": "No authoritative staging and production migration-history snapshots or owner-approved launch/deferred disposition exist for the remaining active migrations; do not infer application state or deferment from repository presence"
     }
   }

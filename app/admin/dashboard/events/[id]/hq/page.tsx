@@ -487,7 +487,7 @@ export default function EventHQPage() {
                               <TypeIcon className="h-4 w-4 text-purple-400" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-white font-medium truncate">{resource.title}</h4>
+                              <h4 className="line-clamp-2 break-words text-white font-medium" title={resource.title}>{resource.title}</h4>
                               {resource.category && <Badge variant="outline" className="text-xs mt-1 border-slate-600">{resource.category}</Badge>}
                               {resource.url && (
                                 <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-400 hover:text-purple-300 mt-1 flex items-center gap-1 truncate">

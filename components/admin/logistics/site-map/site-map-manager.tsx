@@ -520,7 +520,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate font-semibold text-white">{siteMap.name}</h3>
+                  <h3 className="line-clamp-2 break-words font-semibold text-white" title={siteMap.name}>{siteMap.name}</h3>
                   <p className="mt-1 line-clamp-2 text-xs text-slate-400">
                     {siteMap.description || 'No description'}
                   </p>

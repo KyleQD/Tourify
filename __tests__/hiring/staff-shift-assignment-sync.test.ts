@@ -22,6 +22,7 @@ vi.mock("@/lib/supabase/service-role", () => ({
 import {
   publishStaffShifts,
   respondToShiftAssignment,
+  syncActiveStaffMemberShifts,
   syncEmploymentAssignmentForShift,
 } from "@/lib/services/staff-shift-assignment-sync"
 
@@ -99,6 +100,42 @@ describe("staff-shift-assignment-sync", () => {
   beforeEach(() => {
     createNotification.mockClear()
     resolveHiringEntityDisplayName.mockClear()
+  })
+
+  it("reports an unlinked persisted shift during roster activation", async () => {
+    const shift = { id: "shift_1", staff_member_id: "staff_1", status: "scheduled" }
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "staff_members") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn(async () => ({
+            data: { id: "staff_1", user_id: "worker_1", status: "active" },
+            error: null,
+          })),
+        }
+        if (table === "staff_shifts") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          not: vi.fn(async () => ({ data: [shift], error: null })),
+        }
+        if (table === "employment_assignments") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({ single: vi.fn(async () => ({ data: null, error: { message: "insert rejected" } })) })),
+          })),
+        }
+        return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() }
+      }),
+    } as unknown as import("@supabase/supabase-js").SupabaseClient
+
+    const result = await syncActiveStaffMemberShifts({ supabase, staffMemberId: "staff_1" })
+
+    expect(result.synced).toBe(0)
+    expect(result.errors).toContain("Shift shift_1 could not be linked to a worker assignment.")
   })
 
   it("creates employment_assignments and notifies on sync with notify:true", async () => {

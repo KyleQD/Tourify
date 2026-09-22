@@ -4,7 +4,6 @@
 -- unexposed private schema with an empty search_path.
 
 set client_min_messages = warning;
-create extension if not exists pgcrypto;
 create schema if not exists private;
 
 set search_path = private, public;

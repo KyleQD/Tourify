@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const ROOT = process.cwd()
@@ -406,6 +406,12 @@ const pathEvidence = new Map([
     confirmed: true,
     basis: 'ORG-006 explicitly owns the organization-scoped event, calendar, status, and hold action disposition while preserving object-level authorization.',
   }],
+  ['lib/services/organization-social-integrations.service.ts', {
+    owner: 'admin',
+    taskIds: ['INTG-007'],
+    confirmed: true,
+    basis: 'INTG-007 records the completed admin handoff: this shared Content Hub service now selects encrypted envelope fields without legacy plaintext token columns.',
+  }],
   ['app/lib/actions/contracts.actions.ts', {
     owner: 'artist',
     taskIds: ['ARTIST-003'],
@@ -516,12 +522,24 @@ const entries = rows.map((row) => {
   const activeTaskMove = row.path.match(/^docs\/engineering\/tasks\/active\/([^/]+)\.json$/)
   const movedTask = activeTaskMove ? taskById.get(activeTaskMove[1]) : undefined
   const completedTaskMove = row.status.includes('D') && movedTask?.status === 'completed'
+  const pendingHandoffMove = row.path.match(/^docs\/engineering\/handoffs\/pending\/([^/]+)\.json$/)
+  const completedHandoffPath = pendingHandoffMove
+    ? path.join(ROOT, 'docs/engineering/handoffs/completed', `${pendingHandoffMove[1]}.json`)
+    : null
+  const movedHandoff = row.status.includes('D') && completedHandoffPath && existsSync(completedHandoffPath)
+    ? JSON.parse(readFileSync(completedHandoffPath, 'utf8'))
+    : undefined
+  const completedHandoffMove = movedHandoff?.id === pendingHandoffMove?.[1]
+    && movedHandoff?.status === 'completed'
+    && taskById.has(movedHandoff?.task_id)
   const owner = evidence?.owner ?? (completedTaskMove ? movedTask.owner_agent : classifyOwner(row.path))
   const exact = exactTaskIds(row.path)
   const candidates = exact.length
     ? exact
     : evidence
       ? evidence.taskIds
+      : completedHandoffMove
+        ? [movedHandoff.task_id]
       : owner
         ? (tasksByOwner.get(owner) ?? [])
         : []
@@ -536,14 +554,18 @@ const entries = rows.map((row) => {
     // A clear path-domain match remains useful candidate routing evidence even
     // when that domain currently has no non-completed task. Empty task IDs are
     // not confirmation; the owning domain must still accept the path.
-    ownership_status: exact.length || evidence?.confirmed ? 'task-record' : owner ? 'candidate' : 'unresolved',
+    ownership_status: exact.length || evidence?.confirmed || completedHandoffMove ? 'task-record' : owner ? 'candidate' : 'unresolved',
     ownership_basis: evidence?.basis ?? (completedTaskMove
       ? `${movedTask.id} completed with acceptance and verification evidence; the active-path deletion is paired with its completed task record.`
+      : completedHandoffMove
+        ? `${movedHandoff.id} moved from pending to completed with a resolved handoff record for ${movedHandoff.task_id}.`
       : undefined),
     unresolved_handoff: owner ? undefined : unresolvedHandoffs.get(row.path),
     deletion_explanation: deleted
       ? (evidence?.deletionExplanation ?? (completedTaskMove
           ? `${movedTask.id} moved from active to completed after its recorded acceptance criteria and verification passed.`
+          : completedHandoffMove
+            ? `${movedHandoff.id} moved from pending to completed after its recorded resolution and verification; the completed handoff preserves the record.`
           : null))
       : undefined,
   }

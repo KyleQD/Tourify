@@ -82,4 +82,10 @@ Update this file only when a task establishes a durable fact future work needs.
 - `.github/workflows/e2e.yml` now separates pull-request E2E from protected manual launch certification. Manual dispatch requires a full main-branch SHA, checks out that exact commit, and uses the GitHub `staging` environment for all synthetic actor, fixture, Supabase, and Stripe values.
 - The committed fixture no longer contains placeholder API scenarios: it exercises foreign-organization denial, signed marketplace webhook replay/deduplication, and marketplace checkout idempotency under a two-request race using application-backed contracts.
 - Launch certification fails on placeholder fixture content, unused declared actors, missing protected values, non-HTTPS/localhost targets, SHA mismatch, and any skipped test. Secretless validation discovers 33 tests across lifecycle, desktop, mobile, and tablet projects.
-- Hosted certification remains blocked: the current `/api/health` route does not emit the required `x-tourify-release-sha`, protected staging values are not locally available, and no hosted run or required-check enforcement has been verified.
+- Hosted certification remains blocked: the local `/api/health` route emits `x-tourify-release-sha` and `x-tourify-deployment-id` only when authoritative Vercel system values are available, but public demo/prod probes on 2026-09-22 returned no release SHA. Protected staging values, isolation proof, and a hosted run remain unavailable.
+
+## QA-004 simulation campaign — 2026-09-22
+
+- QA-004 now owns an event/tour persona campaign with a 718-row candidate coverage ledger across web, iOS, and Android. Rows remain unclassified and unrun until visible UI and device evidence is collected.
+- QA-005 locally implements campaign-tagged Auth provisioning with collision refusal; QA-006 locally implements a preview-build mobile evidence gate. Neither has touched hosted staging.
+- Public `demo.tourify.live` and `tourify.live` health responses advertised the same Supabase connection origin and no release SHA. RELEASE-007, DB-008, and DB-002 hosted proof remain prerequisites before synthetic users are created.

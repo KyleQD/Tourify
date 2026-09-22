@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WorkModeAttendanceHistory } from "@/components/work-mode/work-mode-attendance-history";
 import type {
   WorkModeApiResponse,
   WorkModeAssignmentListItem,
@@ -124,6 +125,7 @@ export function WorkModeEventWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [attendanceRevision, setAttendanceRevision] = useState(0);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -201,11 +203,12 @@ export function WorkModeEventWorkspace({
         }),
       },
     );
-    if (response.ok)
+    if (response.ok) {
       setStatusMessage(
         action === "check_in" ? "Check-in recorded." : "Check-out recorded.",
       );
-    else
+      setAttendanceRevision((current) => current + 1);
+    } else
       setError(
         (await response.json().catch(() => null))?.error ||
           "Attendance could not be recorded.",
@@ -421,10 +424,10 @@ export function WorkModeEventWorkspace({
                   time remains authoritative.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
+              <CardContent className="space-y-4">
                 {data.workerActionsAvailable &&
                 selectedAssignment.permissions.check_in_out === true ? (
-                  <>
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       disabled={Boolean(actionId)}
                       onClick={() => void attendanceAction("check_in")}
@@ -443,12 +446,18 @@ export function WorkModeEventWorkspace({
                     >
                       Check out
                     </Button>
-                  </>
+                  </div>
                 ) : (
                   <p className="text-sm text-slate-400">
                     Check-in is not enabled for this position.
                   </p>
                 )}
+                {data.workerActionsAvailable ? (
+                  <WorkModeAttendanceHistory
+                    assignmentId={selectedAssignment.id}
+                    refreshKey={attendanceRevision}
+                  />
+                ) : null}
               </CardContent>
             </Card>
           ) : null}
