@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "orchestrator",
   "created_at": "2026-09-16T19:20:36.990Z",
-  "updated_at": "2026-09-21T15:20:00.000Z",
+  "updated_at": "2026-09-21T22:30:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "clean Wave 30 commit a1ca8603; 0 unresolved; 0 unexplained deletions",
+  "working_tree_status": "Wave 31 committed 648d652e; foreign in-progress admin-dashboard work left uncommitted in the worktree (ADMVIEW-001 files, admin dashboard/components); 0 wave-level unresolved",
   "goal": "Produce a recoverable, owned, clean production-readiness release branch and maintain the cross-domain launch critical path",
   "scope": {
     "in": [
@@ -83,12 +83,12 @@
       "2026-09-20 Wave 27 integration at cd57bbfb on release/clean-snapshot: DESIGN-035 verified against all acceptance criteria in real Chrome at 320/390/768/1440 and closed — one value prop and one account path in the first viewport, >=44px collision-free controls, zero horizontal overflow, duplicate marketing sections/CTAs removed, rectangular clip-path-none radius-16px padded auth card, and usable keyboard focus/reduced-motion; gaps closed (duplicate CTAs, 44px touch targets, /artist/* bottom-nav exclusion). eslint exit 0 on all five working-set files, vitest 2/2 (chrome visibility) + 5/5 (design-system), scoped typecheck byte-identical to baseline with 0 new errors. Task record moved to completed/; remaining authenticated /artist session and release-mode Tab-probe follow-ups recorded as blockers. Maps regenerated; agents:validate reports 17 agents, 113 tasks, 0 warnings, 0 errors.",
       "2026-09-20 Wave 28 closed ADMIN-001, ARTIST-001, ORCH-001, ARTIST-003, and DESIGN-034; focused artist tests passed 3/3 and token-registry tests passed 9/9. agents:generate now refreshes TASK_INDEX before topology generation, reconciling all five moves. The 43-entry wave ownership manifest has zero unresolved paths, zero unexplained deletions, and zero bounded credential-pattern findings. Final control-plane validation passed for 17 agents and 113 tasks with zero warnings and zero errors; focused lint, staged diff, script syntax, and worktree audit passed."
     ],
-    "last_run_sha": "a1ca86032f2bd74e3e32a039a30a680bf9004239",
-    "last_run_at": "2026-09-21T15:20:00Z",
+    "last_run_sha": "648d652efed0f04f1b8b91f361996f3330aff3df",
+    "last_run_at": "2026-09-21T22:30:00Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Wave 30 advanced four non-overlapping locally-progressable lanes on release/clean-snapshot: INTG-007 (encrypted social credential vault, provider remain disabled), DB-006 (all 52 legacy events/artist_events callers classified), RELEASE-003 (redacted /readyz readiness + published 99.9% web/API SLO and runbooks), and TICKET-005 (canonical refund replay certification + request-scoped purchase idempotency). Focused tests, lint, migration-chain/-validation, and control-plane checks all pass; hosted credential-, exact-SHA staging-, database-evidence-, and owner-decision gates remain deliberately open.",
+    "summary": "Wave 31 advanced the four remaining locally-progressable lanes: DB-005 authored the additive distributed purchase-idempotency migration (partial unique index on ticket_sales) closing the TICKET-005 handoff race, RELEASE-004 published the complete recovery and continuity plan (three of four acceptance criteria complete locally), USER-005 resolved the last local type blocker (admin-context identity mismatch) so scoped TypeScript passes, and DISC-002 inventoried all creator-filter callers and precisely recorded the creator-metadata gap needed to retire /api/search/enhanced. Focused tests, scoped tsc, chain/validation, and control-plane checks pass; hosted apply/staging gates remain open.",
     "completed": [
       "Created ORCH-002, RELEASE-006/007/008, DB-008, QA-003, USER-005, TICKET-005, MKT-004, and INTG-007 with audit evidence, blockers, verification, and handoffs.",
       "Promoted the selected existing launch tasks, blocked MUSIC-004 and RELEASE-002, and preserved all other task completion states.",
@@ -158,11 +158,32 @@
       "Provision hosted Vercel/Supabase credentials and an exact reviewed SHA staging deployment; run RELEASE-006 credentialed build, RELEASE-007 promotion, and QA-003 without skips before any release promotion."
     ],
     "blockers": [
-      "Hosted gates remain: no approved isolated Supabase target, no exact-SHA Vercel staging deployment, no matching-SHA E2E, no main-branch protection, and no deployed QA-003/DB-008/SOCIAL-004/INTG-003 evidence.",
-      "ADMIN-003 resumes only after recorded owner decisions and resource predicates; INTG-007's migration is unapplied (CP-051 manual apply by Database); DB-005 lacks the distributed ticket-purchase idempotency index.",
-      "The full repository typecheck still did not finish within a bounded run, so no pass is claimed; RELEASE-006's credentialed build remains blocked on the six absent hosted variables."
+      "Hosted gates remain: no approved isolated Supabase target, no exact-SHA Vercel staging deployment, no matching-SHA E2E, no main-branch protection, and no deployed QA-003/DB-008/SOCIAL-004/INTG-003/RELEASE-004-restore evidence.",
+      "ADMIN-003 resumes only after recorded owner decisions and resource predicates; INTG-007's and DB-005's new migrations are unapplied (CP-051 manual apply by operator); DISC-002 is blocked on a creator-metadata search-projection migration in another lane.",
+      "DB-006's 38 deferred legacy callers require the owner-recorded contract rationale before further remediation; DB-009 and DESIGN-033 remain gated on hosted/decision evidence.",
+      "The full repository typecheck still did not finish within a bounded run, so no pass is claimed."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-21T22:30:00.000Z",
+        "sha": "648d652efed0f04f1b8b91f361996f3330aff3df",
+        "summary": "Completed Wave 31. DB-005 authored a strictly additive, forward-only partial-unique-index migration (20260921120000_ticketing_purchase_idempotency.sql + db005b contract test + planned manifest, SHA-256 70bbe1c7...) giving ticket_sales a distributed DB-unique (buyer_user_id, event_id, metadata->>'idempotency_key') boundary that closes the TICKET-005 concurrent-first-request race without generated-type changes; chain scan 297 files and migration-validation pass, apply stays CP-051 manual. RELEASE-004 published docs/recovery-and-continuity-plan.md (four-isolated-project topology, exact-SHA rollback, forward-only DB repair, incident ownership, SLO-aligned RPO/RTO, PITR checklist, restore-drill runbook) completing criteria 1/3/4 locally; criterion 2 (backup/PITR evidence + live drill) stays blocked on hosted provisioning. USER-005 removed the stale local OrganizationProfileRow interface in lib/auth/admin-context.ts in favor of canonical OrganizerAccountIdentityRow (type-level only); scoped tsc against the auth identity graph passes 0 diagnostics and focused auth+identity suites pass (43 auth tests). DISC-002 inventoried all 7 /api/search/enhanced callers (6 creator-bound), gated the route as an explicit compatibility surface, and recorded handoff HF-DISC-002-CREATOR-METADATA requiring an additive accounts/search-projection migration (CP-052) coordinated with the artist lane. Verification: 12/12 focused search tests, 43/43 auth tests, 3/3 org-identity tests, eslint + git diff --check clean on all changed wave files, agents:generate/agents:validate 17 agents, 114 tasks, 0 warnings, 0 errors at the 430-migration/946-route topology. Committed 648d652e with maps refreshed. Unrelated in-progress admin-dashboard work (ADMVIEW-001) in the shared worktree was preserved uncommitted. No hosted mutation, credential fabrication, or release promotion occurred.",
+        "completed": [
+          "DB-005 distributed purchase-idempotency migration + contract test + planned manifest",
+          "RELEASE-004 recovery and continuity plan (criteria 1/3/4 local; 2 hosted-blocked)",
+          "USER-005 admin-context identity type fix — scoped tsc 0 diagnostics",
+          "DISC-002 creator-filter caller inventory + compatibility gating + metadata-gap handoff",
+          "Control-plane generation and validation at the wave SHA (0 errors)"
+        ],
+        "next_steps": [
+          "Provision the approved isolated Supabase target + exact-SHA Vercel deployment to unblock hosted apply of the DB-005/INTG-007 migrations and the SOCIAL-004/QA-003/DB-008/RELEASE-004-drill gates.",
+          "Database lane: author the additive accounts/search-projection creator metadata check (DISC-002 handoff) and RB-005 residual apply; then DISC-002 adds canonical creator filters and retires /api/search/enhanced.",
+          "Await ADMIN-003 owner decisions and QA/DESIGN-033 governed evidence."
+        ],
+        "blockers": [
+          "All remaining Wave 31 blockers are hosted-credential, exact-SHA staging, database-apply-evidence, decision, or cross-lane projection bound."
+        ]
+      },
       {
         "at": "2026-09-21T15:20:00.000Z",
         "sha": "a1ca86032f2bd74e3e32a039a30a680bf9004239",

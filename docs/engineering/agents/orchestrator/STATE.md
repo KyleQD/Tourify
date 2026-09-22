@@ -684,3 +684,30 @@ The dated sections below are append-only orchestration checkpoints. Present-tens
   0 errors; 946 API routes and 429 migrations. Committed a1ca8603. Hosted
   credential, exact-SHA staging, database-apply, and owner-decision gates
   remain intentionally open.
+
+## Local completion wave 31 — 2026-09-21
+
+- DB-005 actioned the TICKET-005 handoff: additive, forward-only partial
+  unique index 20260921120000 on ticket_sales(buyer_user_id, event_id,
+  metadata->>'idempotency_key') closes the concurrent-first-request race with
+  no column or generated-type change; chain (297 files) and migration
+  validation pass; apply stays CP-051 manual with a full operator manifest.
+- RELEASE-004 published docs/recovery-and-continuity-plan.md: four isolated
+  Vercel/Supabase projects, exact-SHA rollback, forward-only DB repair,
+  incident ownership, SLO-aligned RPO/RTO, PITR checklist, and an isolated
+  restore-drill runbook. Criteria 1/3/4 complete locally; criterion 2 stays
+  blocked on hosted backup/PITR evidence and a completed drill.
+- USER-005 resolved the last local type blocker by replacing the stale local
+  OrganizationProfileRow with canonical OrganizerAccountIdentityRow
+  (type-level only); scoped tsc passes 0 diagnostics and the auth/identity
+  suites stay green (43 auth + 3 identity tests).
+- DISC-002 inventoried all 7 /api/search/enhanced callers (6 creator-bound),
+  gated the route as an explicit compatibility surface, and handed the
+  creator-metadata search-projection gap to the database lane (CP-052) plus
+  artist coordination.
+- Control plane closed at the Wave 31 SHA: 17 agents, 114 tasks, 0 warnings,
+  0 errors; 946 API routes, 430 migrations, 1935 components. Committed
+  648d652e with maps refreshed. Unrelated in-progress admin-dashboard work
+  (ADMVIEW-001) in the shared worktree was preserved uncommitted. Hosted
+  credential, exact-SHA staging, database-apply, and owner-decision gates
+  remain intentionally open.

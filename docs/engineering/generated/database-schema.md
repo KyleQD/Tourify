@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `bf2c5798cbb1ab12153fe18b5bcdc45038b03961`
+- Source SHA: `648d652e93693ee89973858ce96797e622b5aa4b`
 - Branch: `release/clean-snapshot`
-- Working tree: dirty (53 entries)
-- Generated at: 2026-09-22T09:12:12.577Z
+- Working tree: dirty (39 entries)
+- Generated at: 2026-09-22T09:13:53.629Z
 - Generator: `control-plane.mjs generate`
 
 ## Static source scan
