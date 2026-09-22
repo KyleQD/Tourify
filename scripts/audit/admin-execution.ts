@@ -421,9 +421,10 @@ function verifyFocused(batch: AdminExecutionBatch) {
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`
     const file = path.join(batchRoot, `${String(index + 1).padStart(2, "0")}.log`)
     writeFileSync(file, output)
+    const artifactSha256 = createHash("sha256").update(output).digest("hex")
     const passed = result.status === 0
     if (!passed) failures += 1
-    console.log(`${passed ? "PASS" : "FAIL"} ${command} (${path.relative(ROOT, file)})`)
+    console.log(`${passed ? "PASS" : "FAIL"} ${command} (${path.relative(ROOT, file)}; sha256=${artifactSha256})`)
     if (!passed) {
       const lines = output.split("\n").filter(Boolean)
       const actionable = lines.filter((line) => /error|fail|✗|×/i.test(line))

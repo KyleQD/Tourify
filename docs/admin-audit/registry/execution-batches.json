@@ -32,7 +32,7 @@
     "referenceIds": ["ADM-REF-004"],
     "baselineSliceIds": ["ADM-BASE-001", "ADM-BASE-002", "ADM-BASE-003"],
     "gateIds": ["LG-01", "LG-02", "LG-03", "LG-04", "LG-05", "LG-06"],
-    "focusedCommands": ["npm run check:migration-validation", "npm run check:admin-route-registry", "npm run check:service-role-allowlist"],
+    "focusedCommands": ["npm run check:migration-validation", "node scripts/ci/check-active-migration-chain.mjs", "npm run check:admin-route-registry", "npm run check:service-role-allowlist", "npx vitest run __tests__/admin --reporter=dot"],
     "exitCriteria": ["A fresh isolated database and representative legacy upgrade complete with reconciliation evidence.", "The complete baseline command is repeatable and has no unexplained failures."]
   },
   {

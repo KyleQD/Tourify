@@ -220,8 +220,9 @@ CREATE INDEX IF NOT EXISTS idx_artist_job_saves_user ON artist_job_saves(user_id
 
 -- Ensure collaboration is included in job_type constraint
 ALTER TABLE artist_jobs DROP CONSTRAINT IF EXISTS artist_jobs_job_type_check;
+-- Keep this historical replay lock-safe; validate existing legacy rows in a forward migration.
 ALTER TABLE artist_jobs ADD CONSTRAINT artist_jobs_job_type_check 
-CHECK (job_type IN ('one_time', 'recurring', 'tour', 'residency', 'collaboration'));
+CHECK (job_type IN ('one_time', 'recurring', 'tour', 'residency', 'collaboration')) NOT VALID;
 
 -- =============================================================================
 -- CREATE COLLABORATION APPLICATIONS TABLE
@@ -286,6 +287,8 @@ ON collaboration_applications(status);
 ALTER TABLE collaboration_applications ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can view collaboration applications for jobs they posted
+DROP POLICY IF EXISTS "Users can view applications for their collaboration jobs"
+  ON collaboration_applications;
 CREATE POLICY "Users can view applications for their collaboration jobs"
 ON collaboration_applications FOR SELECT
 USING (
@@ -297,11 +300,15 @@ USING (
 );
 
 -- Policy: Users can view their own applications
+DROP POLICY IF EXISTS "Users can view their own collaboration applications"
+  ON collaboration_applications;
 CREATE POLICY "Users can view their own collaboration applications"
 ON collaboration_applications FOR SELECT
 USING (applicant_id = auth.uid());
 
 -- Policy: Authenticated users can apply to collaborations
+DROP POLICY IF EXISTS "Authenticated users can apply to collaborations"
+  ON collaboration_applications;
 CREATE POLICY "Authenticated users can apply to collaborations"
 ON collaboration_applications FOR INSERT
 WITH CHECK (
@@ -316,12 +323,16 @@ WITH CHECK (
 );
 
 -- Policy: Users can update their own applications
+DROP POLICY IF EXISTS "Users can update their own collaboration applications"
+  ON collaboration_applications;
 CREATE POLICY "Users can update their own collaboration applications"
 ON collaboration_applications FOR UPDATE
 USING (applicant_id = auth.uid())
 WITH CHECK (applicant_id = auth.uid());
 
 -- Policy: Job posters can update application status
+DROP POLICY IF EXISTS "Job posters can update collaboration application status"
+  ON collaboration_applications;
 CREATE POLICY "Job posters can update collaboration application status"
 ON collaboration_applications FOR UPDATE
 USING (
