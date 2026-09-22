@@ -1,0 +1,2 @@
+export const CREATOR_TREATY_RENEWAL_DISCLAIMER =
+  "Treaty-system renewal readiness sandbox only — not a live treaty renewal, perpetual institution, privilege, universal identity, future-person legal representation, or irreversible dissolution. Phase 17 treaty-ops records are inputs only. Phase 18 cannot launch from Phase 17 flags. Silence never renews authority. Feature flags are never legal authority."

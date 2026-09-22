@@ -1,28 +1,24 @@
+import { redirect } from "next/navigation"
 import { HiringMissingScope } from "@/components/hiring/hiring-missing-scope"
 import { StaffSchedulingTab } from "@/components/admin/staff-scheduling-tab"
 import { StaffOperationsTabs } from "@/components/hiring/staff-operations-tabs"
-import { WorkforceHero, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { WorkforcePageShell } from "@/components/hiring/workforce-ui"
 import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workforce-employer"
+import { legacyStaffOperationsRedirect } from "@/lib/admin/staff-operations-routing"
 
 export const dynamic = "force-dynamic"
 
 type StaffOperationsTab =
   | "overview"
-  | "roster"
-  | "applications"
-  | "onboarding"
-  | "jobs"
-  | "audit"
   | "scheduling"
+  | "team"
+  | "analytics"
 
 const VALID_TABS = new Set<StaffOperationsTab>([
   "overview",
-  "roster",
-  "applications",
-  "onboarding",
-  "jobs",
-  "audit",
   "scheduling",
+  "team",
+  "analytics",
 ])
 
 interface StaffOperationsPageProps {
@@ -36,6 +32,8 @@ function resolveInitialTab(value: string | string[] | undefined): StaffOperation
 
 export default async function StaffOperationsPage({ searchParams }: StaffOperationsPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {}
+  const legacyRedirect = legacyStaffOperationsRedirect(resolvedSearchParams)
+  if (legacyRedirect) redirect(legacyRedirect)
   const initialTab = resolveInitialTab(resolvedSearchParams.tab)
   const employer = await resolveAdminWorkforceEmployer({
     searchParams: resolvedSearchParams,
@@ -48,12 +46,6 @@ export default async function StaffOperationsPage({ searchParams }: StaffOperati
     if (initialTab === "scheduling") {
       return (
         <WorkforcePageShell>
-          <WorkforceHero
-            eyebrow="Staff Operations"
-            title="Staff Operations HQ"
-            description="Hire, onboard, and schedule crew for your organization. Live mode uses your acting account when scope is missing from the URL."
-            badge="scheduling"
-          />
           <StaffSchedulingTab />
         </WorkforcePageShell>
       )
@@ -71,12 +63,6 @@ export default async function StaffOperationsPage({ searchParams }: StaffOperati
 
   return (
     <WorkforcePageShell>
-      <WorkforceHero
-        eyebrow="Staff Operations"
-        title="Staff Operations HQ"
-        description={`Your command center to hire, onboard, and manage the crew for ${employer.displayName}.`}
-        badge={employer.entityType}
-      />
       <StaffOperationsTabs employer={employer} initialTab={initialTab} />
     </WorkforcePageShell>
   )

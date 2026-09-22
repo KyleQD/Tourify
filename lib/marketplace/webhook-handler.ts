@@ -1,5 +1,5 @@
 import type Stripe from 'stripe'
-import { getFailedPaymentPatch, getPaidLifecycleTransition, getRefundPatch } from '@/lib/marketplace/order-lifecycle'
+import { getFailedPaymentPatch, getPaidLifecycleTransition, getRefundPatch, isFullStripeChargeRefund } from '@/lib/marketplace/order-lifecycle'
 import { ensurePrintfulFulfillmentRequests } from '@/lib/marketplace/printful-fulfillment'
 import { buildInventoryDecrementPatch } from '@/lib/marketplace/inventory'
 import { recordMusicEvent } from '@/lib/music/music-access'
@@ -53,11 +53,12 @@ async function handleCheckoutSessionCompleted({
   const paymentReference = (session.payment_intent as string) || session.id
   const { data: existingOrder } = await supabase
     .from('marketplace_orders')
-    .select('id, payment_status, shipping_address, metadata')
+    .select('id, status, payment_status, shipping_address, metadata')
     .eq('id', orderId)
     .maybeSingle()
 
   const transition = getPaidLifecycleTransition({
+    currentOrderStatus: existingOrder?.status,
     currentPaymentStatus: existingOrder?.payment_status,
     paymentReference,
   })
@@ -390,6 +391,18 @@ async function handleChargeRefunded({
   supabase: any
 }) {
   const paymentReference = charge.payment_intent as string
+  if (!paymentReference) return
+  if (!isFullStripeChargeRefund({
+    amount: charge.amount,
+    amountRefunded: charge.amount_refunded,
+    refunded: charge.refunded,
+  })) {
+    await supabase
+      .from('marketplace_payout_ledger')
+      .update({ payout_status: 'on_hold', payout_reference: paymentReference })
+      .eq('payout_reference', paymentReference)
+    return
+  }
   const patch = getRefundPatch({ paymentReference })
   await supabase
     .from('marketplace_orders')

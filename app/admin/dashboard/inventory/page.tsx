@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Box, Download, FileText, Package, Plus, Search, Truck, Edit, Trash2, UserCheck } from "lucide-react"
 import { AdminPageHeader } from "../components/admin-page-header"
@@ -170,9 +171,14 @@ export default function InventoryPage() {
         icon={Package}
         subtitle="Track and manage all equipment and supplies for your events"
         actions={
-          <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" /> Add Item
-          </Button>
+          <>
+            <Button asChild variant="outline" className="border-slate-600 text-slate-200">
+              <Link href="/admin/dashboard/logistics?tab=equipment">Logistics equipment</Link>
+            </Button>
+            <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" /> Add Item
+            </Button>
+          </>
         }
       />
 
@@ -196,12 +202,12 @@ export default function InventoryPage() {
       </div>
 
       <div className="mb-6">
-        <div className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30 inline-flex">
+        <div className="grid grid-cols-2 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm sm:inline-flex">
           {CATEGORY_TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-sm text-sm transition-all duration-200 ${
+              className={`min-w-0 rounded-sm px-3 py-2 text-sm transition-all duration-200 ${
                 activeTab === tab
                   ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white shadow-lg shadow-purple-500/10"
                   : "text-slate-400 hover:text-slate-200"
@@ -214,8 +220,8 @@ export default function InventoryPage() {
       </div>
 
       <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-slate-100 flex items-center text-base">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2">
+          <CardTitle className="flex min-w-0 items-center text-base text-slate-100">
             <Package className="mr-2 h-5 w-5 text-purple-500" />
             {activeTab === "all" ? "Inventory Items" : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Equipment`}
           </CardTitle>
@@ -224,17 +230,18 @@ export default function InventoryPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-slate-700">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="hidden rounded-md border border-slate-700 xl:block">
+            <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Inventory items table, scroll horizontally for more columns">
+              <table className="w-full min-w-[760px] text-sm">
+                <caption className="sr-only">Inventory items</caption>
                 <thead className="bg-slate-800/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Item ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Item ID</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Name</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Category</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Location</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
@@ -248,16 +255,16 @@ export default function InventoryPage() {
                     filteredItems.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-800/30">
                         <td className="px-4 py-3 text-slate-300 font-mono text-xs">{item.id?.slice(0, 8) ?? "—"}</td>
-                        <td className="px-4 py-3 text-slate-300">{item.title ?? "Untitled"}</td>
+                        <td className="px-4 py-3 text-slate-300"><span className="line-clamp-2 break-words" title={item.title ?? "Untitled"}>{item.title ?? "Untitled"}</span></td>
                         <td className="px-4 py-3 text-slate-300 capitalize">{item.type ?? "—"}</td>
                         <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
                         <td className="px-4 py-3 text-slate-300">{item.notes || item.description || "—"}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => openEdit(item)} className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white rounded">
+                            <button type="button" aria-label={`Edit ${item.title ?? "item"}`} onClick={() => openEdit(item)} className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-white rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400">
                               <Edit className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => setDeleteItemId(item.id)} className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-red-400 rounded">
+                            <button type="button" aria-label={`Delete ${item.title ?? "item"}`} onClick={() => setDeleteItemId(item.id)} className="h-9 w-9 flex items-center justify-center text-slate-400 hover:text-red-400 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -269,6 +276,26 @@ export default function InventoryPage() {
               </table>
             </div>
           </div>
+          <ul className="space-y-3 xl:hidden" aria-label="Inventory items">
+            {filteredItems.length === 0 ? (
+              <li className="rounded-md border border-slate-700 p-6 text-center text-sm text-slate-400">No items found</li>
+            ) : filteredItems.map((item) => (
+              <li key={item.id} className="min-w-0 rounded-md border border-slate-700 bg-slate-800/30 p-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 break-words font-medium text-white" title={item.title ?? "Untitled"}>{item.title ?? "Untitled"}</p>
+                    <p className="mt-1 text-xs text-slate-400">#{item.id?.slice(0, 8) ?? "—"} · {item.type ?? "Uncategorized"}</p>
+                  </div>
+                  <span className="shrink-0">{getStatusBadge(item.status)}</span>
+                </div>
+                {(item.notes || item.description) && <p className="mt-3 break-words text-sm text-slate-300">{item.notes || item.description}</p>}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => openEdit(item)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                  <Button size="sm" variant="outline" onClick={() => setDeleteItemId(item.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
 

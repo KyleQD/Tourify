@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB-005-ARTIST-CREATOR-FIELDS",
+  "task_id": "DB-005",
+  "from_agent": "database",
+  "to_agent": "artist",
+  "status": "pending",
+  "created_at": "2026-09-22T12:00:00.000Z",
+  "source_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "summary": "DB-005 authored the additive creator-search-projection migration 20260922120000_creator_search_metadata_projection.sql (actioned from HF-DISC-002-CREATOR-METADATA) that carries creator metadata onto the canonical accounts search projection, populated from artist_profiles. The migration records documented source-field assumptions about artist_profiles.settings semantics (capabilities_v1.* with professional.*/preferences.* fallbacks per lib/creator/capability-system.ts extractCreatorCapabilitiesV1; settings.public_profile !== false as the public gate) and about the availability derivation (JSON booleans honored, non-boolean JSON falls through to the preference/default). The artist domain owns the artist_profiles surface whose genres/settings are the source fields, so these assumptions need explicit confirmation before the migration is applied under CP-051 and before any later freshness trigger touches the artist_profiles write path.",
+  "working_set": [
+    "supabase/migrations/20260922120000_creator_search_metadata_projection.sql",
+    "supabase/tests/db005c_creator_search_projection_contract.sql",
+    "docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json",
+    "lib/creator/capability-system.ts (source of extractCreatorCapabilitiesV1 semantics; DB lane read-only reference)",
+    "lib/public-artist/get-public-artist-profile.ts (public/private gate reference; DB lane read-only reference)"
+  ],
+  "completed": [
+    "Confirmed genres has a clean mapping: artist_profiles.genres (text[]) is carried onto accounts.genres unchanged.",
+    "Confirmed subtype does not need a new column: accounts.metadata.subtype already exists and is already selected by the canonical profile projection.",
+    "Recorded the settings/capabilities source assumptions in the migration header and the planned manifest assumptions section instead of guessing inside the migration.",
+    "Chose to carry the raw creator_settings snapshot rather than re-implement parseCapabilityList in SQL, so extractCreatorCapabilitiesV1 stays the single derivation point (no SQL/TS drift)."
+  ],
+  "next_steps": [
+    "Artist domain: confirm artist_profiles.settings is the creator-capabilities JSON consumed by extractCreatorCapabilitiesV1 (capabilities_v1.{creatorType, serviceOfferings, productsForSale, credentials, workHighlights, availableForHire, collaborationInterest, availability, preferredContact} with professional.* / preferences.* fallbacks) and that settings.public_profile !== false is the public gate.",
+    "Artist domain: confirm capabilities_v1.availableForHire and preferences.available_for_hire are JSON booleans as written by the creator-profile editor; flag any writer that emits strings ('false'/'no') or other types so the DB derivation can be aligned.",
+    "Artist domain: confirm whether ongoing projection freshness may be provided by a trigger on artist_profiles (DB-lane function, artist-approved) or by extending the existing public.refresh_account_display_info projection refresh; the migration deliberately adds no trigger because it touches the artist-owned write path.",
+    "Release/ops: after confirmation, apply the migration once under CP-051 and run the db005c contract test; then DISC-002 adds canonical creator filters and retires /api/search/enhanced."
+  ],
+  "blockers": [
+    "CP-051: the migration is authored but not applied; hosted apply is the operator's job.",
+    "Applying a freshness trigger on artist_profiles without artist-domain confirmation would cross the source-of-truth boundary the DISC-002 handoff called out, so freshness stays open until this handoff resolves."
+  ],
+  "verification": [
+    "PASS: static contract review — migration adds four additive columns, a change-guarded UPDATE backfill over the projection identity key, and two partial indexes; no constraint/policy/RLS/trigger/DROP statements.",
+    "PASS: npm run check:migration-validation — migration scanned with its planned manifest (status planned / manual-apply-pending CP-051), zero failures.",
+    "PASS: node scripts/ci/check-active-migration-chain.mjs — active chain has no duplicate policy creations and includes the new migration.",
+    "BLOCKED: contract-test runtime execution and supabase db lint require an approved live target (ECONNREFUSED at 127.0.0.1:54322); no apply/reset/replay was attempted."
+  ]
+}

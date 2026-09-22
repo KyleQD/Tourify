@@ -37,14 +37,36 @@ const INCOME_CATS = ['ticket_revenue','merchandise','sponsorship','appearance_fe
 const EXPENSE_CATS = ['venue_rental','equipment','catering','staff_pay','marketing','travel','insurance','permits','production','other_expense']
 const STATUSES = ['pending','paid','overdue','cancelled']
 
-interface Props { tourId: string }
+interface Props {
+  tourId: string
+  /** TOUR-204 — seed from command-center summary; skip duplicate GET on first mount. */
+  initialTransactions?: Transaction[]
+}
 
-export function TourFinanceManager({ tourId }: Props) {
+function normalizeSeedTransactions(rows: Transaction[] | undefined): Transaction[] {
+  if (!Array.isArray(rows)) return []
+  return rows.map((row) => ({
+    id: String(row.id),
+    type: row.type === "income" ? "income" : "expense",
+    category: String(row.category || "other_expense"),
+    amount: Number(row.amount || 0),
+    description: row.description ? String(row.description) : undefined,
+    vendor_name: row.vendor_name ? String(row.vendor_name) : undefined,
+    payment_status: String(row.payment_status || "pending"),
+    event_id: row.event_id ? String(row.event_id) : undefined,
+    created_at: String(row.created_at || ""),
+  }))
+}
+
+export function TourFinanceManager({ tourId, initialTransactions }: Props) {
   const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const requestScopeKey = `${actingContextKey}:${tourId}`
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadedScopeKey, setLoadedScopeKey] = useState('')
+  const hasSummarySeed = initialTransactions !== undefined
+  const [transactions, setTransactions] = useState<Transaction[]>(() =>
+    hasSummarySeed ? normalizeSeedTransactions(initialTransactions) : [],
+  )
+  const [loading, setLoading] = useState(!hasSummarySeed)
+  const [loadedScopeKey, setLoadedScopeKey] = useState(hasSummarySeed ? requestScopeKey : "")
   const [showDialog, setShowDialog] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
@@ -67,7 +89,25 @@ export function TourFinanceManager({ tourId }: Props) {
     }
   }, [actingHeaders, isActingReady, requestScopeKey, tourId])
 
-  useEffect(() => { void fetchData() }, [fetchData])
+  useEffect(() => {
+    if (!isActingReady) return
+    if (loadedScopeKey === requestScopeKey) return
+    // TOUR-204 — prefer summary hydration; avoid duplicate finances GET on tab open.
+    if (hasSummarySeed) {
+      setTransactions(normalizeSeedTransactions(initialTransactions))
+      setLoadedScopeKey(requestScopeKey)
+      setLoading(false)
+      return
+    }
+    void fetchData()
+  }, [
+    fetchData,
+    hasSummarySeed,
+    initialTransactions,
+    isActingReady,
+    loadedScopeKey,
+    requestScopeKey,
+  ])
 
   function openCreate() {
     setEditingTx(null)

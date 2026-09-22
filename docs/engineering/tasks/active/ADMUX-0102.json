@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMUX-0102",
+  "title": "Replace custom mobile and collapsed Admin sidebar behavior",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "created_at": "2026-09-09T01:32:30.266Z",
+  "updated_at": "2026-09-10T18:19:43.155Z",
+  "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+  "working_tree_status": "dirty (400 entries)",
+  "goal": "Deliver one accessible mobile Admin drawer and accessible collapsed navigation without internal full reloads or background body scrolling",
+  "scope": {
+    "in": [
+      "ADMUX-0102 and findings AUX-IA-003, AUX-IA-004, AUX-IA-005, AUX-IA-007",
+      "Admin sidebar mobile, collapsed, focus, navigation, and scope-density behavior"
+    ],
+    "out": [
+      "ADMUX-0103 acting-organization semantics",
+      "W02 and later audit waves",
+      "ADM-B01 external CI/staging evidence"
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/components/optimized-sidebar.tsx",
+    "app/admin/dashboard/layout.tsx",
+    "components/ui/sheet.tsx",
+    "components/ui/tooltip.tsx",
+    "lib/admin/navigation/admin-navigation-model.ts",
+    "__tests__/admin",
+    "docs/admin-audit/registry/ux-audit-program.json",
+    "docs/admin-audit/registry/baselines.json",
+    "docs/admin-audit/generated"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/admin-audit/EXECUTION_MODE.md",
+    "docs/admin-audit/ENGINEERING_CONSTITUTION.md",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md"
+  ],
+  "acceptance_criteria": [
+    "Admin uses one accessible mobile drawer with Escape, focus containment/restoration, and background scroll locking",
+    "Collapsed navigation controls and destinations have accessible names and remain keyboard reachable",
+    "Internal navigation uses Next.js client routing rather than full-page location assignment",
+    "Persistent scope chrome consumes less vertical height without obscuring the acting context",
+    "Focused accessibility, navigation, lint, admin-audit, and control-plane checks pass with evidence recorded",
+    "Canonical audit status is not promoted without its required dependency and immutable evidence"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/admin/admin-navigation-ia.test.ts __tests__/admin/admin-route-state.test.ts",
+      "npx eslint app/admin/dashboard/components/optimized-sidebar.tsx app/admin/dashboard/layout.tsx lib/admin/navigation/admin-navigation-model.ts",
+      "npm run check:admin-audit",
+      "npm run agents:validate",
+      "npx vitest run __tests__/admin/admin-navigation-ia.test.ts __tests__/admin/admin-route-state.test.ts __tests__/admin/admin-navigation-accessibility.test.ts"
+    ],
+    "evidence": [
+      "Focused Vitest: 6/6 tests passed (2026-09-10).",
+      "Scoped ESLint passed (2026-09-10).",
+      "Admin audit registry and execution validation passed: 79 findings, 362 spec tasks, 20 workflows, 18 launch gates, 27 evidence receipts (2026-09-10).",
+      "Control-plane validation passed with pre-existing RELEASE-001 warning and 0 errors (2026-09-10).",
+      "Focused navigation/accessibility Vitest: 10/10 tests passed (2026-09-10)."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T18:19:43.155Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Implemented the accessible mobile Admin drawer and collapsed-navigation hardening; local focused verification passes, while canonical ADM-B13 remains unpromoted pending governed external evidence.",
+    "completed": [
+      "Radix mobile Sheet is explicitly modal and restores focus to its trigger on close.",
+      "Collapsed navigation controls and destinations retain accessible names and Next client routing.",
+      "Admin audit baseline/generated artifacts are refreshed and audit validation passes.",
+      "Accessibility contract coverage passes for the modal drawer, focus restoration, named collapsed controls, and client navigation."
+    ],
+    "next_steps": [
+      "Obtain required VoiceOver/TalkBack and governed ADM-B13 evidence before promoting the task.",
+      "Apply the owner-approved core-flow gate: automated checks, keyboard/focus coverage, and governed assistive-technology evidence, targeting WCAG AA."
+    ],
+    "blockers": [
+      "Canonical ADM-B13/ADMUX-0102 promotion remains gated on dependency-ready immutable and external evidence; local checks alone are insufficient."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T18:18:31.643Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the accessible mobile Admin drawer and collapsed-navigation hardening; local focused verification passes, while canonical ADM-B13 remains unpromoted pending governed external evidence.",
+        "completed": [
+          "Radix mobile Sheet is explicitly modal and restores focus to its trigger on close.",
+          "Collapsed navigation controls and destinations retain accessible names and Next client routing.",
+          "Admin audit baseline/generated artifacts are refreshed and audit validation passes."
+        ],
+        "next_steps": [
+          "Obtain required VoiceOver/TalkBack and governed ADM-B13 evidence before promoting the task."
+        ],
+        "blockers": [
+          "Canonical ADM-B13/ADMUX-0102 promotion remains gated on dependency-ready immutable and external evidence; local checks alone are insufficient."
+        ]
+      },
+      {
+        "at": "2026-09-10T18:19:43.155Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the accessible mobile Admin drawer and collapsed-navigation hardening; local focused verification passes, while canonical ADM-B13 remains unpromoted pending governed external evidence.",
+        "completed": [
+          "Accessibility contract coverage passes for the modal drawer, focus restoration, named collapsed controls, and client navigation."
+        ],
+        "next_steps": [
+          "Obtain required VoiceOver/TalkBack and governed ADM-B13 evidence before promoting the task."
+        ],
+        "blockers": [
+          "Canonical ADM-B13/ADMUX-0102 promotion remains gated on dependency-ready immutable and external evidence; local checks alone are insufficient."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

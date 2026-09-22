@@ -440,7 +440,7 @@ export default function MarketplacePage() {
                 <article key={item.id} className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
                   <div className="aspect-square bg-black/30">
                     {item.cover_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
+
                       <img src={item.cover_image_url} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>

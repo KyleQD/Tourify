@@ -9,18 +9,50 @@ import {
 export const GET = withAdminCapability("event.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const { searchParams } = new URL(request.url)
-    const events = await AdminTourEventOperationsService.listEvents({
+    const { events, orgId, page, summary, attention } = await AdminTourEventOperationsService.listEventPortfolio({
       supabase,
       userId: user.id,
       orgId: admin.orgId,
-      status: searchParams.get("status"),
+      query: searchParams,
+      allowedTourIds: admin.scope === "tour_collaborator" ? admin.allowedTourIds : undefined,
     })
 
-    return NextResponse.json({ success: true, events })
+    return NextResponse.json({ success: true, orgId, events, items: events, page, summary, attention })
   } catch (error: any) {
     const code = error?.code || error?.details?.code
     if (code === "42P01" || code === "PGRST204" || code === "PGRST205") {
-      return NextResponse.json({ success: true, events: [] })
+      return NextResponse.json({
+        success: true,
+        events: [],
+        items: [],
+        page: {
+          totalCount: 0,
+          nextCursor: null,
+          limit: 50,
+          sort: "start_at",
+          order: "asc",
+          filters: {
+            status: "all",
+            q: "",
+            date_from: null,
+            date_to: null,
+            tour_id: null,
+            venue_id: null,
+            route: "all",
+            readiness: "all",
+          },
+        },
+        summary: {
+          totalCount: 0,
+          thisWeekCount: 0,
+          needsAttentionCount: 0,
+          missingVenueCount: 0,
+          staffingGapCount: 0,
+          capacity: 0,
+          ticketsSold: 0,
+        },
+        attention: [],
+      })
     }
     const status = getAdminTourEventErrorStatus(error, 400)
     console.error("[Admin Events API] GET error:", error)
@@ -38,7 +70,15 @@ export const POST = withAdminCapability("event.manage", async (request: NextRequ
       orgId: admin.orgId,
     })
 
-    return NextResponse.json({ success: true, event }, { status: 201 })
+    // EVENT-103 — creation returns explicit setup checklist (no invented ops rows).
+    return NextResponse.json(
+      {
+        success: true,
+        event,
+        setupChecklist: (event as { setup_checklist?: unknown }).setup_checklist ?? null,
+      },
+      { status: 201 },
+    )
   } catch (error: any) {
     const status = getAdminTourEventErrorStatus(error, 500)
     console.error("[Admin Events API] POST error:", error)

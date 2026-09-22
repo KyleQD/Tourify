@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260731233358_premiere_post_styles_v3.sql",
+  "taskId": "POST-STYLES-PREMIERE-V3",
+  "status": "planned",
+  "owner": "post-styles",
+  "reviewer": "security-data",
+  "domains": ["posts", "appearance"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database containing V1 and V2 post appearance rows",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select schema_version, count(*) from public.post_appearances group by schema_version order by schema_version"
+    ],
+    "expectedAffectedRows": "No rows are rewritten; the accepted schema-version set expands from 1/2 to 1/2/3",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the idempotent drop/add/validate sequence before any V3 writer is enabled",
+    "resumeCursor": "post_appearances_schema_version_check constraint definition",
+    "idempotency": "The migration only replaces one named CHECK constraint and performs no data mutation"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant keys or user data are inferred, backfilled, or quarantined"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["public.post_appearances.post_appearances_schema_version_check"],
+    "indexes": [],
+    "validationPlan": "Add the expanded CHECK as NOT VALID, validate it separately, and confirm V1/V2 rows remain accepted before enabling V3 writes"
+  },
+  "recovery": {
+    "rollback": "Before V3 rows exist, restore the prior schema_version IN (1, 2) CHECK in a forward migration",
+    "forwardFix": "After V3 rows exist, correct the renderer or constraint in an additive migration; never rewrite immutable snapshots"
+  },
+  "postflight": {
+    "queries": [
+      "select conname, convalidated, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.post_appearances'::regclass and conname = 'post_appearances_schema_version_check'",
+      "select schema_version, count(*) from public.post_appearances group by schema_version order by schema_version"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

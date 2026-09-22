@@ -1,0 +1,23 @@
+{
+  "evidenceId": "EVD-SEC104-SITEMAP-COLLAB-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:39:41-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "63ff56bd8a9567b6d34599d9afefa1e21780f950",
+  "artifact": "Node 20 route registry, collaborator input/source tests, complete Admin Vitest, touched ESLint, scoped TypeScript, and audit-registry checks recorded in TASK_LOG.md",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Local verification passed: 288 routes at 112/112 legacy; strict collaborator UUID/tamper rejection; active-org plus owner-only removal boundary; 231 active Admin files and 3,223 active tests. Live RLS and staging remain unverified."
+}

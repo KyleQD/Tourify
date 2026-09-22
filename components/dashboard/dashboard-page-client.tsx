@@ -18,17 +18,16 @@ import { UnifiedActivityFeed } from '@/components/dashboard/unified-activity-fee
 import { EnhancedQuickActions } from '@/components/dashboard/enhanced-quick-actions'
 import { DashboardContractsCard } from '@/components/dashboard/dashboard-contracts-card'
 import { DashboardUpcomingEventsCard } from '@/components/dashboard/dashboard-upcoming-events-card'
+import { GeneralActionCenter } from '@/components/dashboard/general-action-center'
 import { JukeboxPlayer } from '@/components/dashboard/jukebox-player'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+import { readJsonResponse } from '@/lib/http/read-json-response'
 import { toast } from 'sonner'
 import {
   User,
-  Award,
   Users,
-  Star,
   CheckCircle,
   ExternalLink,
-  Target,
   TrendingUp,
   Clock,
   ChevronRight,
@@ -161,7 +160,8 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
       const response = await fetch('/api/profile/current')
       
       if (response.ok) {
-        const { profile } = await response.json()
+        const payload = await readJsonResponse<{ profile?: any }>(response)
+        const profile = payload?.profile
         if (profile) {
           // Transform API response to match dashboard interface
           const transformedProfile: UserProfile = {
@@ -402,8 +402,8 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
         <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             
-            {/* Left Column - Account Cards */}
-            <div className="lg:col-span-3 space-y-6">
+            {/* Left Column - Account Cards (desktop only; use top-right switcher on smaller screens) */}
+            <div className="hidden lg:col-span-3 lg:block space-y-6">
               <EnhancedAccountCards />
             </div>
 
@@ -447,62 +447,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                 </TabsList>
                 
                 <TabsContent value="overview" className="mt-6">
-                  <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl">
-                    <CardHeader>
-                      <CardTitle className="text-white">Platform Overview</CardTitle>
-                      <CardDescription className="text-gray-400">
-                        Your creative journey at a glance
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                          <h4 className="font-semibold text-white flex items-center gap-2">
-                            <Target className="h-4 w-4 dashboard-theme-accent-text" />
-                            Your Goals
-                          </h4>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-400">Complete Profile</span>
-                              <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
-                                Complete
-                              </Badge>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-400">First Post</span>
-                              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/50">
-                                In Progress
-                              </Badge>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-400">100 Followers</span>
-                              <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/50">
-                                Pending
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <h4 className="font-semibold text-white flex items-center gap-2">
-                            <Star className="h-4 w-4 text-yellow-400" />
-                            Recent Achievements
-                          </h4>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5">
-                              <div className="w-8 h-8 dashboard-theme-avatar rounded-lg flex items-center justify-center">
-                                <Award className="h-4 w-4 text-white" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-white">Profile Complete</div>
-                                <div className="text-xs text-gray-400">2 days ago</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <GeneralActionCenter />
                 </TabsContent>
                 
                 <TabsContent value="activity" className="mt-6">
@@ -527,7 +472,9 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                               </div>
                               <span className="font-medium text-white">Growing Reach</span>
                             </div>
-                            <p className="text-sm text-green-300">Your content is reaching 23% more people this week</p>
+                            <p className="text-sm text-green-300">
+                              Audience trend details are unavailable until verified analytics are connected.
+                            </p>
                           </div>
                           
                           <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
@@ -537,7 +484,9 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                               </div>
                               <span className="font-medium text-white">Engagement Up</span>
                             </div>
-                            <p className="text-sm text-blue-300">People are interacting more with your posts</p>
+                            <p className="text-sm text-blue-300">
+                              Engagement details are unavailable until verified analytics are connected.
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -589,4 +538,4 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
       `}</style>
     </div>
   )
-} 
+}

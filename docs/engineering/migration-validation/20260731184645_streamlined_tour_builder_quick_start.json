@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260731184645_streamlined_tour_builder_quick_start.sql",
+  "taskId": "OPS-TOURS-QUICK-START",
+  "status": "planned",
+  "owner": "admin-tour-operations",
+  "reviewer": "security-data",
+  "domains": ["tours", "events", "collaboration", "authorization"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with organization owner, organization admin, tour collaborator, invitee, and unrelated-user personas",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count events_v2 rows by org_id, status, and schedule-null state",
+      "Confirm every tour used by quick start has a non-null org_id",
+      "Record grants, RLS policies, and constraint validation state for tours, events_v2, tour_events, tour_team_members, tour_teams, tour_vendors, and tour_artists",
+      "Confirm no existing row has only one of start_at or end_at populated"
+    ],
+    "expectedAffectedRows": "No existing data is rewritten; event rows are created only by explicit authenticated quick-start requests and invitations only by explicit organizer actions",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 50,
+    "resumeStrategy": "All schema objects and policies converge additively; event creation replays by quick_start_batch_id and ordinal; invitation acceptance converges by invitation id and accepted user",
+    "resumeCursor": "quick_start_batch_id plus quick_start_ordinal",
+    "idempotency": "The RPC returns the original ordered batch for the same batch id and count, rejects mismatched reuse, and the partial unique index prevents duplicate ordinals"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant ownership is inferred or backfilled. Quick-start events inherit org_id from an explicitly authorized tour."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Unscheduled rows require both timestamps null and inquiry status",
+      "Scheduled rows require both timestamps and end_at greater than start_at",
+      "Quick-start batch and ordinal must be present together with ordinal between 1 and 50",
+      "Invitation role, channel, state, delivery state, and target binding allowlists"
+    ],
+    "indexes": [
+      "events_v2_quick_start_batch_ordinal_key",
+      "idx_events_v2_org_unscheduled_drafts",
+      "idx_tour_collaboration_invites_tour_status",
+      "idx_tour_collaboration_invites_user_pending"
+    ],
+    "validationPlan": "Validate NOT VALID event constraints after checking legacy schedule integrity, then test batch bounds, replay, mismatched-key conflicts, invitation identity binding, and the collaborator RLS matrix"
+  },
+  "recovery": {
+    "rollback": "Stop mounting the quick-start wizard and stop issuing invitation links; preserve additive columns, event drafts, invitation audit records, and memberships",
+    "forwardFix": "Apply a later reviewed additive function, policy, constraint-validation, or index migration; do not reset or rewrite the database"
+  },
+  "postflight": {
+    "queries": [
+      "Verify new event columns, indexes, and NOT VALID constraints",
+      "Verify quick-start batches contain exactly one row per requested ordinal and one assignment per event",
+      "Verify raw invitation tokens are absent and only SHA-256 hashes are stored",
+      "Verify organizer, collaborator, invitee, expired invite, identity mismatch, and unrelated-user access",
+      "Verify collaborators cannot read unrelated tours, organization finance, billing, or organization settings",
+      "Verify unscheduled inquiry drafts are absent from calendar, upcoming metrics, ticket totals, and logistics queues"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

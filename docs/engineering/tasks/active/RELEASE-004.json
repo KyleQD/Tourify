@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-004",
+  "title": "Isolated prod/demo recovery and continuity plan",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T09:35:23.764Z",
+  "updated_at": "2026-09-21T22:17:32Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (uncommitted docs slice: docs/recovery-and-continuity-plan.md added; RELEASE-004 record updated — Wave 31 lane 2, 2026-09-21)",
+  "goal": "Document and prove recovery for isolated staging and production Vercel and Supabase topology, including PITR, restore drills, ownership, and application rollback",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "docs/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "The recovery and continuity plan reflects separate staging and production Vercel and Supabase projects",
+    "Production backup and PITR settings are evidenced and an isolated restore drill completes successfully",
+    "Application rollback, forward-only database repair, incident ownership, recovery objectives, and escalation paths are documented",
+    "RELEASE-007 topology evidence is linked and no recovery procedure depends on destructive reset or migration-history rewriting"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run check:local-docker",
+      "npm run check:migration-chain"
+    ],
+    "evidence": [
+      "2026-09-09: local Docker readiness passed; active migration-chain validation passed across 279 migrations.",
+      "2026-09-21: npm run check:local-docker PASS (static compose/Dockerfile/standalone inputs; no daemon needed).",
+      "2026-09-21: npm run check:migration-chain PASS (296 active migration files scanned; no duplicate policy creations)."
+    ],
+    "last_run_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+    "last_run_at": "2026-09-21T22:17:32Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Acceptance criteria 1, 3, and 4 are documented locally in docs/recovery-and-continuity-plan.md: required four-project isolated Vercel/Supabase topology (cross-referencing RELEASE-007), application rollback via exact-SHA Vercel redeploy + env-var management, forward-only database repair consistent with CP-051/CP-053 (no destructive reset, no migration-history rewriting, no archive-only DDL as runtime proof), incident ownership, RPO/RTO aligned to the 99.9% monthly web/API SLO and observability runbooks, escalation paths, a PITR/backup evidence checklist, and an operator-executable isolated restore-drill runbook. Criterion 2 remains blocked on hosted Supabase-dashboard PITR/backup evidence and a completed isolated restore drill once the approved isolated target is provisioned.",
+    "completed": [
+      "Added local rollback and Supabase recovery handoff notes in docs/LOCAL_DEPLOYMENT_READINESS.md.",
+      "Created docs/recovery-and-continuity-plan.md as the durable recovery plan: isolated four-project topology, app rollback, forward-only DB repair, incident ownership, SLO-aligned RPO/RTO, escalation, PITR evidence checklist, and isolated restore-drill runbook with rollback, success criteria, and evidence template.",
+      "Linked RELEASE-007 topology evidence and recorded the hosted topology item as a tracked BLOCKED open item rather than fabricated evidence.",
+      "Ran npm run check:local-docker and npm run check:migration-chain; both passed read-only at HEAD (2026-09-21)."
+    ],
+    "next_steps": [
+      "Hosted: provision the four isolated Vercel/Supabase projects (RELEASE-007 blocker), then capture production backup/PITR dashboard evidence into the section 5 checklist.",
+      "Hosted: execute one isolated restore drill against an approved isolated target and fill the section 6 evidence template (achieved RPO/RTO).",
+      "Owner decision OR-RECOVERY-01: whether catastrophic-restore downtime counts against the 99.9% availability SLO."
+    ],
+    "blockers": [
+      "No approved Supabase target confirmation or production restore-drill evidence is available in the local workspace.",
+      "Criterion 2 requires hosted Supabase-dashboard backup/PITR evidence and a completed isolated restore drill; both are BLOCKED on RELEASE-007 hosted provisioning and owner cost approval for PITR."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T19:58:51Z",
+        "summary": "Recorded local rollback boundaries: preserve volumes, never rewrite migration history, and use isolated Supabase recovery targets.",
+        "next": "Attach actual backup and restore-drill evidence in the production-scoped follow-up."
+      },
+      {
+        "at": "2026-09-16T19:24:55.512Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted RELEASE-004 to P0 and reversed the prior split deferral. Recovery planning must cover isolated staging/production Vercel and Supabase projects, PITR, restore drill, ownership, and non-destructive rollback.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-21T22:17:32Z",
+        "sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+        "summary": "Wave 31 lane 2 (local documentation slice): docs/recovery-and-continuity-plan.md now documents acceptance criteria 1, 3, and 4 locally. It states the required four-project isolated topology (staging/production Vercel + staging/production Supabase) cross-referencing RELEASE-007 task evidence and its tracked hosted blocker; documents application rollback via exact-SHA Vercel prebuilt redeploy and env-var management (never destructive reset); documents forward-only database repair consistent with CP-051/CP-053 and the migration-validation ledger (never rewrite migration history, never archive-only DDL as runtime proof); documents incident ownership, RPO/RTO aligned with the RELEASE-003 99.9% monthly web/API SLO (error budget approx. 43 min/month) and the observability runbooks, and the 15-minute escalation path; and includes a PITR/backup evidence checklist plus an operator-executable isolated restore-drill runbook (steps, rollback/stop conditions, success criteria, evidence template) that does not depend on destructive reset or migration-history rewriting. Criterion 2 (backup/PITR evidence + completed drill) is recorded as BLOCKED on hosted Supabase-dashboard evidence and an isolated target provisioned via RELEASE-007, with open item OR-RECOVERY-01 for owner SLO-counting decision. Read-only verification passed: check:local-docker and check:migration-chain (296 files scanned). No code, migrations, or other domains were edited; no git commit was made.",
+        "completed": [
+          "Created docs/recovery-and-continuity-plan.md (topology, rollback, forward-only DB repair, ownership, SLO-aligned RPO/RTO, escalation, PITR checklist, restore-drill runbook).",
+          "Appended a pointers/assembly note to docs/LOCAL_DEPLOYMENT_READINESS.md (no duplication).",
+          "Updated the RELEASE-004 record: checkpoint, summary, completed/next_steps/blockers, verification evidence, last_run_sha, partial-pass result."
+        ],
+        "next_steps": [
+          "Provision hosted isolated topology (RELEASE-007), capture Supabase backup/PITR dashboard evidence into section 5 checklist.",
+          "Execute one isolated restore drill and fill the section 6 evidence template (achieved RPO/RTO).",
+          "Obtain owner decision OR-RECOVERY-01 before final promotion evidence."
+        ],
+        "blockers": [
+          "Hosted Supabase-dashboard backup/PITR settings evidence is not available in this workspace (criterion 2).",
+          "No approved isolated Supabase recovery target is provisioned (gated on RELEASE-007) so no restore drill can execute.",
+          "PITR cost/retention requires account-owner approval; decision status remains PENDING_DASHBOARD_EVIDENCE_AND_COST_APPROVAL."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

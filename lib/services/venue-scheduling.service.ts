@@ -362,6 +362,17 @@ export class VenueSchedulingService {
   // ============================================================================
 
   static async requestShiftSwap(swapData: CreateShiftSwapData): Promise<VenueShiftSwap> {
+    if (typeof window !== 'undefined') {
+      const response = await fetch('/api/venue/shifts/swaps', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(swapData),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || 'Failed to request shift swap')
+      return payload.data
+    }
     const { data, error } = await this.supabase
       .from('venue_shift_swaps')
       .insert([swapData])
@@ -478,6 +489,17 @@ export class VenueSchedulingService {
   // ============================================================================
 
   static async requestShiftChange(requestData: CreateShiftRequestData): Promise<VenueShiftRequest> {
+    if (typeof window !== 'undefined') {
+      const response = await fetch('/api/venue/shifts/requests', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || 'Failed to create shift request')
+      return payload.data
+    }
     const { data, error } = await this.supabase
       .from('venue_shift_requests')
       .insert([requestData])

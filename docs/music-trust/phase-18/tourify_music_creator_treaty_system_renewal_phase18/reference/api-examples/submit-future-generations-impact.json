@@ -1,0 +1,21 @@
+{
+  "renewalPackageId": "uuid",
+  "horizons": [
+    {
+      "horizon": "very_long",
+      "benefits": [
+        "durable access"
+      ],
+      "burdens": [
+        "storage cost"
+      ],
+      "uncertainty": "high",
+      "irreversible": false
+    }
+  ],
+  "alternatives": [
+    "sunset",
+    "narrow renewal"
+  ],
+  "reviewTrigger": "material technology change"
+}

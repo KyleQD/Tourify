@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823200000_platform_webhook_events.sql",
+  "taskId": "SEC-C6-IDEMPOTENCY",
+  "status": "planned",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "payments",
+    "webhooks"
+  ],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "policy/table existence probes via to_regclass; no data reads"
+    ],
+    "expectedAffectedRows": "DDL only \u2014 zero persisted rows changed by this file itself",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Single transactional CREATE TABLE + index + RLS enable; retry-safe as written",
+    "resumeCursor": "supabase migration version 20260823200000",
+    "idempotency": "create table if not exists / create index if not exists \u2014 re-running is a no-op"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Confirm policies/functions exist with expected definitions and grants"
+  },
+  "recovery": {
+    "rollback": "Drop the new table only if no rows have been recorded; otherwise keep table and stop inserting",
+    "forwardFix": "Ship a later additive change preserving ledger history (never delete events)"
+  },
+  "postflight": {
+    "queries": [
+      "table exists with unique(provider, provider_event_id)",
+      "RLS enabled with zero client policies"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

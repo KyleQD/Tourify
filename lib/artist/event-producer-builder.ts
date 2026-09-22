@@ -28,11 +28,14 @@ export interface ArtistEventProducerFormState {
   city: string
   state: string
   country: string
+  postalCode: string
+  website: string
   address: string
   capacity: string
   venueContactName: string
   venueContactEmail: string
   venueContactPhone: string
+  technicalSpecs: string
   supportingArtists: ArtistProducerSelection[]
   lineupNotes: string
   ticketUrl: string
@@ -63,11 +66,14 @@ export const initialArtistEventProducerForm: ArtistEventProducerFormState = {
   city: "",
   state: "",
   country: "USA",
+  postalCode: "",
+  website: "",
   address: "",
   capacity: "",
   venueContactName: "",
   venueContactEmail: "",
   venueContactPhone: "",
+  technicalSpecs: "",
   supportingArtists: [],
   lineupNotes: "",
   ticketUrl: "",
@@ -147,11 +153,14 @@ export function hydrateArtistEventProducerForm(event: any): ArtistEventProducerF
     city: event?.city || "",
     state: event?.state || "",
     country: event?.country || "USA",
+    postalCode: settings.venue_postal_code || "",
+    website: settings.venue_website || "",
     address: event?.address || "",
     capacity: event?.capacity != null ? String(event.capacity) : "",
     venueContactName: settings.venue_contact_name || "",
     venueContactEmail: settings.venue_contact_email || "",
     venueContactPhone: settings.venue_contact_phone || "",
+    technicalSpecs: settings.venue_technical_specs || "",
     supportingArtists: asSelectionList(settings.supporting_artists, "Artist"),
     lineupNotes: settings.lineup_notes || "",
     ticketUrl: event?.ticket_url || settings.ticket_url || "",
@@ -203,6 +212,9 @@ export function buildArtistEventProducerPayload(
       venue_contact_name: form.venueContactName,
       venue_contact_email: form.venueContactEmail,
       venue_contact_phone: form.venueContactPhone,
+      venue_postal_code: form.postalCode,
+      venue_website: form.website,
+      venue_technical_specs: form.technicalSpecs,
       supporting_artists: form.supportingArtists,
       lineup_notes: form.lineupNotes,
       ticket_url: form.ticketUrl,

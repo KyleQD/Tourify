@@ -1,0 +1,198 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-003",
+  "title": "Core web launch certification suite",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "qa",
+  "created_at": "2026-09-16T19:20:38.641Z",
+  "updated_at": "2026-09-22T16:19:56.564Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Certify the exact deployed staging release SHA across every core user, authorization, commerce, realtime, accessibility, and performance journey",
+  "scope": {
+    "in": [
+      "Authentication, personas, discovery, events, ticketing, marketplace, messaging, uploads, and account deletion E2E",
+      "Negative authorization, webhook replay, concurrency, accessibility, responsive browser, and performance scenarios"
+    ],
+    "out": [
+      "Mobile launch certification and deferred advanced music/governance capabilities"
+    ]
+  },
+  "working_set": [
+    "e2e",
+    "playwright.config.ts",
+    ".github/workflows/e2e.yml"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "All core launch journeys pass against the exact staging release SHA using synthetic data and Stripe test mode",
+    "Cross-role, cross-user, and cross-tenant denial scenarios pass with no accidental skips",
+    "Webhook replay, transaction concurrency, accessibility, responsive-browser, and performance gates pass",
+    "No unresolved P0/P1 defect remains and evidence is attached to the certified release SHA"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run test:e2e",
+      "npm run test:e2e:social",
+      "npm run verify:release"
+    ],
+    "evidence": [
+      "Audit baseline: the existing five E2E specs are shallow, can skip critical personas, and do not certify checkout/refund, marketplace, messaging, uploads, authorization negatives, payouts, or webhook replay end to end.",
+      "2026-09-18 local contract evidence: fixture validation passed, Playwright discovery enumerated 33 tests across lifecycle plus desktop/mobile/tablet surface projects, focused ESLint passed, workflow YAML parsed, and a secretless invocation failed closed before browser launch.",
+      "2026-09-22 local: node --import tsx --test scripts/ci/check-public-surface.test.mjs passed 8 tests, including deployment ID fail-closed behavior. Public demo/prod GET /api/health each returned 200 without x-tourify-release-sha and advertised the same Supabase connection origin. No hosted certification run was claimed.",
+      "2026-09-22 local release/QA gate wave: 13 deployment/topology/evidence/workflow Node tests, 7 actor-provisioner tests, 7 mobile gate tests, launch fixture contract, public-surface check, focused ESLint, and workflow YAML parse passed. Hosted deployment, certification, and simulation were not run.",
+      "2026-09-22 certification hold: docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md; no Playwright staging run or actor/payment action occurred.",
+      "2026-09-22 fresh release handoff: Vercel inspect still maps demo and production aliases to dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK; both public health GETs returned 200 without SHA, deployment ID, Supabase-origin, or Stripe-mode headers. GitHub staging environment has no variables, secrets, or protection rules. Launch fixture contract passed locally; no Playwright browser, synthetic actor, webhook, or payment run occurred."
+    ],
+    "last_run_sha": null,
+    "last_run_at": "2026-09-18T22:02:55.300Z",
+    "result": "partial-local-contract-pass; hosted-staging-not-run"
+  },
+  "progress": {
+    "summary": "Next-phase unblock check confirms exact-SHA launch certification cannot run yet. GitHub staging environment has no QA_CERT values, no isolated staging deployment exists for candidate 623b576b7963d4a2eccb2fbf83f24f2011842a83, and the candidate is not on origin/main. No browser certification was attempted.",
+    "completed": [
+      "Added playwright.launch.config.ts and tests/e2e/launch-certification fixture, global setup, helpers, and certification spec.",
+      "Certification refuses incomplete fixtures, localhost by default, non-HTTPS targets, and release-SHA mismatches before tests execute.",
+      "Added test:e2e:launch and fixture.example.json with required core coverage areas, exact-SHA probe, actor env names, and conservative placeholder API scenarios.",
+      "Added launch-certification README with isolated HTTPS staging invocation and refusal conditions.",
+      "Wired workflow_dispatch to checkout and verify one full main-branch SHA, then run only the protected staging certification job with environment-scoped fixture secrets.",
+      "Replaced placeholder API scenarios with application-backed foreign-organization denial, signed marketplace webhook replay/deduplication, and marketplace checkout concurrency contracts.",
+      "Added secretless fixture contract validation, 30-test discovery validation, and a reporter that turns every skipped certification test into a failed run.",
+      "Local health metadata now supports the Vercel-generated deployment ID alongside the authoritative full commit SHA; focused public-surface tests pass.",
+      "Added protected environment inputs for staging/production deployment identity and Stripe mode.",
+      "Staging health preflight verifies exact SHA, deployment ID, Supabase origin, and test mode."
+    ],
+    "next_steps": [
+      "After deploy-demo succeeds for the exact main SHA and QA_CERT protected values exist, run gh workflow run e2e.yml --ref main -f release_sha=<FULL_MAIN_SHA> and retain the report."
+    ],
+    "blockers": [
+      "No staging URL, synthetic actor credentials, Supabase credentials, fixture identifiers, or Stripe test webhook secret are available in this workspace.",
+      "The current /api/health route does not expose the exact deployed commit SHA; the mandatory x-tourify-release-sha probe therefore fails closed until the release surface provides authoritative identity.",
+      "Hosted staging certification, protected environment configuration, CI status, and repository required-check enforcement remain unverified locally."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T01:29:01.405Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: added a fail-closed Playwright launch-certification config, fixture schema, exact release-SHA probe, HTTPS/staging guard, browser/API lifecycle harness, replay/concurrency assertions, Stripe signature support, axe accessibility, responsive overflow, and performance budgets. No staging evidence is claimed.",
+        "completed": [
+          "Added playwright.launch.config.ts and tests/e2e/launch-certification fixture, global setup, helpers, and certification spec.",
+          "Certification refuses incomplete fixtures, localhost by default, non-HTTPS targets, and release-SHA mismatches before tests execute."
+        ],
+        "next_steps": [
+          "Add a committed example fixture/manifest and a manual CI workflow entry that supplies QA_CERT_FIXTURE_PATH and protected staging secrets.",
+          "Run the suite against isolated staging with synthetic actors and Stripe test mode; attach exact-SHA evidence and defect disposition."
+        ],
+        "blockers": [
+          "No QA_CERT_FIXTURE_PATH, staging URL, actor credentials, Supabase credentials, or Stripe test secrets are available in this workspace.",
+          "The current CI workflow still runs the legacy E2E command and does not yet invoke this certification config."
+        ]
+      },
+      {
+        "at": "2026-09-17T01:30:47.249Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch advanced: the fail-closed launch-certification harness is now wired as npm run test:e2e:launch, has a committed non-secret fixture template and operator README, and its fixture/config/helper TypeScript plus contract schema validate. No staging or Stripe evidence is claimed.",
+        "completed": [
+          "Added test:e2e:launch and fixture.example.json with required core coverage areas, exact-SHA probe, actor env names, and conservative placeholder API scenarios.",
+          "Added launch-certification README with isolated HTTPS staging invocation and refusal conditions."
+        ],
+        "next_steps": [
+          "Replace placeholder fixture endpoints and expected contracts with approved staging behavior before certification.",
+          "Run against isolated staging with synthetic actors and Stripe test mode, then attach exact-SHA evidence to QA-003 and RELEASE-005."
+        ],
+        "blockers": [
+          "No staging URL, actor credentials, Supabase credentials, or Stripe test secrets are available in this workspace.",
+          "The existing general E2E workflow still does not run test:e2e:launch; use the explicit protected staging invocation until manual workflow wiring is approved."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:02:55.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Next local slice completed: launch certification is wired to protected manual dispatch for an exact main-branch SHA, placeholder API scenarios were replaced with application-backed contracts, fixture readiness and no-skip gates were added, and all secretless validation passed. No hosted run or release certification is claimed.",
+        "completed": [
+          "Added a staging-environment workflow_dispatch job that verifies the full requested SHA, checks out that exact commit, and requires all QA_CERT_* inputs before browser execution.",
+          "Added locally evidenced foreign-organization denial, signed Stripe webhook replay/deduplication, and marketplace checkout concurrency scenarios.",
+          "Added fixture readiness validation and a fail-on-skipped Playwright reporter; dry discovery enumerates 33 tests across four projects.",
+          "Validated fixture contract, Playwright discovery, focused ESLint, workflow YAML, and missing-secret fail-closed behavior without launching browsers."
+        ],
+        "next_steps": [
+          "Add an authoritative deployed-SHA response contract to the release surface and provision the protected staging QA_CERT_* values.",
+          "Run the exact-SHA suite against isolated staging in Stripe test mode and attach retained reports plus defect disposition."
+        ],
+        "blockers": [
+          "The current /api/health route does not emit x-tourify-release-sha, so the exact-SHA probe intentionally cannot pass.",
+          "Protected staging secrets and synthetic fixture identifiers are not available locally; hosted staging was not invoked."
+        ]
+      },
+      {
+        "at": "2026-09-22T15:33:19Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Local release/deployment metadata contract extended; hosted isolation and SHA exposure remain unverified.",
+        "completed": [
+          "Added Vercel deployment ID health header contract and focused tests; observed public demo/prod health responses read-only."
+        ],
+        "next": "Provision separate staging and expose authoritative SHA/deployment headers before exact-SHA certification."
+      },
+      {
+        "at": "2026-09-22T16:00:00Z",
+        "sha": null,
+        "summary": "Local launch certification preflight now requires distinct staging/production app and Supabase origins, Vercel deployment IDs, protected Stripe test key, and staging health identity before browsers run. No hosted certification occurred.",
+        "completed": [
+          "Added protected environment inputs for staging/production deployment identity and Stripe mode.",
+          "Staging health preflight verifies exact SHA, deployment ID, Supabase origin, and test mode."
+        ],
+        "next": "After RELEASE-007 staging evidence and QA_CERT_* provisioning, run protected exact-SHA launch certification and retain the Playwright report."
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Exact-SHA launch certification remains blocked after read-only hosted inspection; current demo alias is the same production deployment and provides none of the required health identity or Stripe-mode headers.",
+        "completed": [
+          "Captured current alias/deployment and missing health headers in the RELEASE-007 staging packet."
+        ],
+        "next_steps": [
+          "Run protected no-skip launch certification only after a distinct staging project/database, generated deployment ID, full deployed SHA, Stripe test mode, and synthetic fixture inputs are verified."
+        ],
+        "blockers": [
+          "Current demo alias resolves to production deployment; exact deployed SHA and Stripe mode are unknown; protected QA_CERT inputs are absent."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Certification remains on hold because the demo alias is the production deployment and protected staging identity, database, payment, and actor evidence are absent.",
+        "completed": [
+          "Verified public health and Vercel alias identity read-only; confirmed GitHub staging environment has no protected inputs.",
+          "Local launch fixture contract passed; hosted certification was not run."
+        ],
+        "next_steps": [
+          "Wait for RELEASE-007 retained staging-deployment-<sha> evidence and DB-008/DB-002 migration/security postflight, including a distinct staging Supabase origin and test Stripe mode.",
+          "Populate QA_CERT_* protected staging values for synthetic member/operator, foreign organization, listing, webhook signing secret, distinct production identity, and exact staging deployment ID.",
+          "Dispatch e2e.yml workflow_dispatch from main with the identical release_sha; retain the no-skip Playwright report and defect disposition for RELEASE-005."
+        ],
+        "blockers": [
+          "Current demo and production aliases share a Vercel deployment; health omits exact SHA, deployment ID, Supabase origin, and Stripe mode.",
+          "No protected staging variables/secrets/reviewers or verified DB isolation/security evidence; QA actor/payment actions remain unauthorized."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:56.564Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check confirms exact-SHA launch certification cannot run yet. GitHub staging environment has no QA_CERT values, no isolated staging deployment exists for candidate 623b576b7963d4a2eccb2fbf83f24f2011842a83, and the candidate is not on origin/main. No browser certification was attempted.",
+        "completed": [],
+        "next_steps": [
+          "After deploy-demo succeeds for the exact main SHA and QA_CERT protected values exist, run gh workflow run e2e.yml --ref main -f release_sha=<FULL_MAIN_SHA> and retain the report."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide matching-SHA launch certification, defect disposition, performance, and authorization evidence to RELEASE-005 for the final go/no-go decision."
+  ]
+}

@@ -1,0 +1,818 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-22T11:53:36.838Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "source": "git status --porcelain=v1 -z --untracked-files=all",
+  "policy": {
+    "authority": "candidate routing evidence only; task owners must confirm before curation",
+    "no_cleanup_authorized": true,
+    "secret_scan_reports_values": false,
+    "max_scanned_file_bytes": 1000000
+  },
+  "summary": {
+    "total_entries": 75,
+    "by_status": {
+      " D": 1,
+      " M": 62,
+      "??": 11,
+      "RM": 1
+    },
+    "by_owner": {
+      "admin": 40,
+      "database": 5,
+      "discover": 1,
+      "orchestrator": 25,
+      "venue": 3,
+      "work": 1
+    },
+    "by_ownership_status": {
+      "candidate": 69,
+      "task-record": 6
+    },
+    "deleted_without_explanation": 0
+  },
+  "secret_scan": {
+    "finding_count": 0,
+    "findings": [],
+    "exclusion_counts": {
+      "missing-or-deleted": 1
+    }
+  },
+  "entries": [
+    {
+      "status": "??",
+      "path": "__tests__/admin/admin-panel-readability.test.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "__tests__/admin/content-hub.test.ts",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "__tests__/venue/venue-integrations-api.test.ts",
+      "owner_agent": "venue",
+      "candidate_task_ids": [
+        "VENUE-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/analytics/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/components/admin-dashboard-shell.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/components/admin-unified-inbox.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/components/analytics-dashboard.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/components/apple-widgets.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/components/optimized-dashboard-client.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/components/virtual-scroll.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/events/[id]/hq/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/finances/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/inventory/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/organization/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/rbac/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/ticketing/page.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/dashboard/tours/tours-page-client.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/admin/globals.css",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/api/admin/content-hub/analytics/route.ts",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/api/admin/content-hub/integrations/route.ts",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/api/admin/content-hub/integrations/sync/route.ts",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/api/admin/content-hub/overview/route.ts",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "app/api/venue/integrations/route.ts",
+      "owner_agent": "venue",
+      "candidate_task_ids": [
+        "VENUE-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/band-hub.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/enhanced-candidate-manager.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/event-communication-hub.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/finance/finance-reconciliation-table.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/logistics/communications-command-center.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/logistics/site-map-builder/simcity-site-map-viewer.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/logistics/site-map-builder/site-map-context-drawer.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/logistics/site-map/site-map-manager.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/logistics/workspace/logistics-plans-launcher.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/onboarding-kanban-board.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/operations/event-operations-card.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/operations/tour-operations-card.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/rbac/membership-workspace.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/scheduling/views/templates-view.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/ticketing/inventory-ledger-table.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "components/admin/ui/admin-data-table.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/admin/workforce/payroll-export-panel.tsx",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "components/hiring/hiring-dashboard-shell.tsx",
+      "owner_agent": "work",
+      "candidate_task_ids": [],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/agents/admin/STATE.md",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "ADMIN-003",
+        "ADMUX-0102",
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/agents/database/STATE.md",
+      "owner_agent": "database",
+      "candidate_task_ids": [
+        "DB-002",
+        "DB-005",
+        "DB-006",
+        "DB-008",
+        "DB-009"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/agents/discover/STATE.md",
+      "owner_agent": "discover",
+      "candidate_task_ids": [
+        "DISC-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/agents/orchestrator/STATE.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/agents/venue/STATE.md",
+      "owner_agent": "venue",
+      "candidate_task_ids": [
+        "VENUE-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/DECISIONS.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/api-routes.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/components.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/database-objects.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/database-schema.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/integrations.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/permissions.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/project-map.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/generated/routes.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "RM",
+      "path": "docs/engineering/handoffs/completed/HF-INTG-007-ADMIN.json",
+      "original_path": "docs/engineering/handoffs/pending/HF-INTG-007-ADMIN.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "docs/engineering/handoffs/completed/HF-INTG-007-VENUE.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "docs/engineering/handoffs/pending/HF-DB-005-ARTIST-CREATOR-FIELDS.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/handoffs/pending/HF-DISC-002-CREATOR-METADATA.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " D",
+      "path": "docs/engineering/handoffs/pending/HF-INTG-007-VENUE.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "INTG-007"
+      ],
+      "ownership_status": "task-record",
+      "ownership_basis": "HF-INTG-007-VENUE moved from pending to completed with a resolved handoff record for INTG-007.",
+      "deletion_explanation": "HF-INTG-007-VENUE moved from pending to completed after its recorded resolution and verification; the completed handoff preserves the record."
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/INDEX.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json",
+      "owner_agent": "database",
+      "candidate_task_ids": [
+        "DB-002",
+        "DB-005",
+        "DB-006",
+        "DB-008",
+        "DB-009"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/PROJECT_STATE.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "docs/engineering/tasks/active/ADMVIEW-001.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ADMVIEW-001"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/tasks/active/DB-005.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "DB-005"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/tasks/active/INTG-007.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "INTG-007"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/tasks/active/ORCH-002.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "task-record"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/tasks/TASK_INDEX.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "docs/engineering/workspace-ownership/manifest.json",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": " M",
+      "path": "lib/services/organization-social-integrations.service.ts",
+      "owner_agent": "admin",
+      "candidate_task_ids": [
+        "INTG-007"
+      ],
+      "ownership_status": "task-record",
+      "ownership_basis": "INTG-007 records the completed admin handoff: this shared Content Hub service now selects encrypted envelope fields without legacy plaintext token columns."
+    },
+    {
+      "status": " M",
+      "path": "scripts/agent-tools/generate-workspace-ownership.mjs",
+      "owner_agent": "orchestrator",
+      "candidate_task_ids": [
+        "ORCH-002"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "supabase/functions/_shared/envelope.ts",
+      "owner_agent": "database",
+      "candidate_task_ids": [
+        "DB-002",
+        "DB-005",
+        "DB-006",
+        "DB-008",
+        "DB-009"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "supabase/migrations/20260922120000_creator_search_metadata_projection.sql",
+      "owner_agent": "database",
+      "candidate_task_ids": [
+        "DB-002",
+        "DB-005",
+        "DB-006",
+        "DB-008",
+        "DB-009"
+      ],
+      "ownership_status": "candidate"
+    },
+    {
+      "status": "??",
+      "path": "supabase/tests/db005c_creator_search_projection_contract.sql",
+      "owner_agent": "database",
+      "candidate_task_ids": [
+        "DB-002",
+        "DB-005",
+        "DB-006",
+        "DB-008",
+        "DB-009"
+      ],
+      "ownership_status": "candidate"
+    }
+  ]
+}

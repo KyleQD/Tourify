@@ -1,6 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { Building } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { PerformanceAgencyManager } from "@/components/admin/agencies/performance-agency-manager"
@@ -13,6 +15,11 @@ export default function AgenciesDashboardPage() {
         title="Agencies"
         subtitle="Performance and staffing agency management"
         icon={Building}
+        actions={
+          <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-200">
+            <Link href="/admin/dashboard/hiring">Hiring Hub</Link>
+          </Button>
+        }
       />
 
       <Tabs defaultValue="performance" className="space-y-6">

@@ -1,0 +1,130 @@
+{
+  "schema_version": "1.0",
+  "id": "USER-002",
+  "title": "Standardize onboarding API contract",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "general-user",
+  "created_at": "2026-09-09T09:35:16.769Z",
+  "updated_at": "2026-09-11T17:47:54.662Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Standardize the 4 onboarding surfaces on ONE API contract and a single submit endpoint",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/api/onboarding/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/general-user/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "One onboarding API contract + submit endpoint"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/onboarding/onboarding-submit-contract.test.ts __tests__/onboarding/unified-onboarding-api.test.ts",
+      "npx jest app/api/onboarding/create-account/__tests__/route.test.ts --runInBand",
+      "npx eslint app/api/onboarding/_lib/contract.ts app/api/onboarding/_lib/flow-submit.ts app/api/onboarding/_lib/token-submit.ts app/api/onboarding/[token]/route.ts app/api/onboarding/submit/route.ts app/api/onboarding/unified/route.ts __tests__/onboarding/onboarding-submit-contract.test.ts",
+      "npx tsc --noEmit --pretty false --incremental false"
+    ],
+    "evidence": [
+      "vitest: onboarding-submit-contract.test.ts + unified-onboarding-api.test.ts — 7/7 green",
+      "vitest: artist-url-slug.test.ts + artist-public-profile-parity.test.ts — 22/22 green, preserving the prior artist signup url_slug contract",
+      "jest: app/api/onboarding/create-account/__tests__/route.test.ts — 3/3 green; the existing mock logs a non-fatal client.from warning for the prior artist-profile slice",
+      "eslint: exit 0 on all changed onboarding routes, helpers, and contract tests",
+      "tsc: full-program run OOMs at the default 2GB heap; a scoped strict run reaches existing transitive errors in optimized-notification-service.ts, while the changed route/helper files report no own errors. This remains an existing repository baseline outside the bounded onboarding working set.",
+      "Converged onboarding submit contract and preserved artist signup URL slug behavior; 7 onboarding contract tests, 22 artist parity tests, and 3 create-account Jest tests passed; changed onboarding paths lint clean; scoped type diagnostics found no own errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T17:47:54.662Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Standardized onboarding submit behavior across token, direct, and unified flows; focused Vitest/Jest/ESLint evidence is green; repository-wide typecheck remains constrained by the documented baseline.",
+    "completed": [
+      "app/api/onboarding/create-account/route.ts: imported generateUniqueSlug; renamed accountType -> resolvedAccountType; added resolvedAccountType === 'artist' branch that inserts into artist_profiles with url_slug (generateUniqueSlug, table artist_profiles, base fullName, fallback artist-<id8>) and settings { public_profile: true, auto_accept_follows: true }",
+      "Insert is RLS-safe: only runs with a session present (setSession attached); no-session signups (email confirmation) defer creation with non-fatal warning; whole branch wrapped in try/catch so signup response behavior is unchanged (existing jest mock {auth:{signUp}} still passes)",
+      "app/api/artists/route.ts verified already containing generateUniqueSlug import+call, url_slug: urlSlug, and no 'Generate username from display name' comment — no edit required",
+      "Verification: vitest owned assertions pass; eslint clean on both target files",
+      "app/api/onboarding/_lib/contract.ts: added the canonical target/response schema and legacy alias normalizer for invitation, candidate, and flow submissions",
+      "app/api/onboarding/_lib/token-submit.ts + flow-submit.ts: moved token and flow submission logic into shared implementations used by both the canonical endpoint and compatibility routes",
+      "app/api/onboarding/submit/route.ts: dispatches all canonical targets through one authenticated submit endpoint and supports flow drafts/completions",
+      "app/api/onboarding/[token]/route.ts and unified/route.ts: retained existing paths/actions as thin adapters over the shared contract/handlers",
+      "__tests__/onboarding/onboarding-submit-contract.test.ts: added contract normalization plus candidate/flow dispatch coverage"
+    ],
+    "next_steps": [
+      "No further implementation in this bounded task; reopen only for a verified regression."
+    ],
+    "blockers": [
+      "Full-repo tsc does not complete on this machine (default-heap OOM; 6GB run >35 min without output); scoped type-check of changed files is clean, so no new type errors attributable to this work"
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T17:45:00.000Z",
+        "summary": "Implemented artist_profiles creation in onboarding create-account route",
+        "details": [
+          "Added generateUniqueSlug import from '@/lib/accounts/generate-unique-slug' (canonical helper, matches lib/services/account-management.service.ts createArtistAccount pattern)",
+          "resolvedAccountType === 'artist' branch inserts into artist_profiles with url_slug: urlSlug and settings { public_profile: true, auto_accept_follows: true }",
+          "RLS-safe: setSession(authData.session) before insert when session exists; no-session signups defer with warning; try/catch keeps signup response identical",
+          "app/api/artists/route.ts needed no changes (assertions already met at base)"
+        ]
+      },
+      {
+        "at": "2026-09-09T17:50:00.000Z",
+        "summary": "Verification round 1",
+        "details": [
+          "vitest: artist-url-slug 11/11; parity 10/11 — owned it()s pass; pre-existing discover-route assertion is the only failure (out of scope)",
+          "eslint: 0 errors on changed files",
+          "tsc: default-heap OOM; 6GB background run started"
+        ]
+      },
+      {
+        "at": "2026-09-09T18:10:00.000Z",
+        "summary": "Verification finalized; handoff prep",
+        "details": [
+          "Scoped tsc via temp tsconfig (extends repo tsconfig, strict): 0 errors for create-account/route.ts + artists/route.ts and transitive imports",
+          "Full-repo tsc stopped after ~35 min without completing — recorded as environmental blocker",
+          "npm run agents:validate: 0 errors (1 pre-existing RELEASE-001 warning)",
+          "Topology maps need no refresh: create-account route already indexed in generated/api-routes.md + permissions.md; DEPENDENCY_MAP has no edge for this route's imports"
+        ]
+      },
+      {
+        "at": "2026-09-09T18:25:00.000Z",
+        "summary": "Final verification — 22/22 green",
+        "details": [
+          "Both profile test files fully pass: artist-url-slug 11/11, artist-public-profile-parity 11/11 (owned onboarding it()s plus the previously failing discover-route assertion, resolved by concurrent lane edits to app/api/discover/*)",
+          "npm run agents:validate: 0 errors",
+          "verification.result set to pass"
+        ]
+      },
+      {
+        "at": "2026-09-10T18:00:00.000Z",
+        "summary": "Standardized onboarding submissions on one contract and submit implementation",
+        "details": [
+          "Added app/api/onboarding/_lib/contract.ts with target discriminators for invitation, candidate, and flow submissions plus legacy alias normalization",
+          "Moved token and flow submission logic into shared helpers; /api/onboarding/submit is the single authenticated dispatch endpoint",
+          "Retained /api/onboarding/[token] POST and unified complete_flow as compatibility adapters over the shared contract/handlers",
+          "Focused Vitest 7/7, create-account Jest 3/3, and changed-file ESLint pass; full tsc remains blocked by existing repository heap/transitive errors",
+          "No admin, venue, search, feed, release, QA, or migration files were changed"
+        ]
+      },
+      {
+        "at": "2026-09-11T17:47:54.662Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Standardized onboarding submit behavior across token, direct, and unified flows; focused Vitest/Jest/ESLint evidence is green; repository-wide typecheck remains constrained by the documented baseline.",
+        "completed": [],
+        "next_steps": [
+          "No further implementation in this bounded task; reopen only for a verified regression."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

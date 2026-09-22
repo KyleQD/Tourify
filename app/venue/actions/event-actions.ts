@@ -1,11 +1,12 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { EventFormData } from '../components/create-event-modal'
+import type { EventFormData } from '@/lib/venue/event-form'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { ensureVenueOperationalContext, getCurrentVenueContext, getManageableVenueIds } from '@/lib/venue/venue-access'
+import { isVenueBookingLifecycleEnabled } from '@/lib/venue/booking-lifecycle'
 
 // Create Supabase client per function to avoid top-level await issues
 
@@ -207,17 +208,46 @@ export async function deleteEvent(eventId: string) {
 
 export async function uploadEventDocument(eventId: string, file: File) {
   try {
-    // Placeholder: hook to storage later
-    void eventId
-    void file
-    
+    // VEN-100: real storage-backed upload — file goes to the `venue-media`
+    // bucket, metadata lands in event_documents (typed row), then revalidate.
+    if (!file || file.size === 0) {
+      return { success: false, error: 'No file provided' }
+    }
+    if (!file.type.startsWith('application/') && !file.type.startsWith('text/') && !file.type.startsWith('image/')) {
+      return { success: false, error: 'Unsupported file type' }
+    }
+    const MAX_BYTES = 25 * 1024 * 1024
+    if (file.size > MAX_BYTES) {
+      return { success: false, error: 'File exceeds the 25 MB limit' }
+    }
+
+    const service = createServiceRoleClient()
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase()
+    const path = `event-documents/${eventId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+    const { error: storageError } = await service.storage
+      .from('venue-media')
+      .upload(path, file, { upsert: false })
+    if (storageError) return { success: false, error: storageError.message }
+
+    const { data: publicUrl } = service.storage.from('venue-media').getPublicUrl(path)
+
+    const { error: insertError } = await service.from('event_documents').insert({
+      event_id: eventId,
+      title: file.name,
+      document_type: 'attachment',
+      content: publicUrl.publicUrl,
+      visible_to: 'all',
+    })
+    if (insertError) return { success: false, error: insertError.message }
+
     revalidateVenueOperationPaths(eventId)
-    
-    return { success: true }
+    return { success: true as const, url: publicUrl.publicUrl }
   } catch (error) {
-    return { 
-      success: false, 
-      error: 'Failed to upload document' 
+    console.error('[VEN-100] uploadEventDocument failed:', error)
+    return {
+      success: false,
+      error: 'Failed to upload document'
     }
   }
 } 
@@ -226,7 +256,9 @@ export async function uploadEventDocument(eventId: string, file: File) {
 const approveSchema = z.object({
   requestId: z.string().uuid(),
   createEvent: z.boolean().default(true),
-  responseMessage: z.string().optional()
+  responseMessage: z.string().optional(),
+  expectedRevision: z.number().int().positive().optional(),
+  clientRequestId: z.string().uuid().optional(),
 })
 
 const respondVenueBookingSchema = z.object({
@@ -244,10 +276,22 @@ function buildEventSlug(input: string) {
   return `${base || 'event'}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-export async function approveBookingAndMaybeCreateEvent(input: { requestId: string; createEvent?: boolean; responseMessage?: string }) {
+export async function approveBookingAndMaybeCreateEvent(input: {
+  requestId: string
+  createEvent?: boolean
+  responseMessage?: string
+  expectedRevision?: number
+  clientRequestId?: string
+}) {
   const supabase = await createClient()
   const service = createServiceRoleClient()
-  const { requestId, createEvent, responseMessage } = approveSchema.parse(input)
+  const {
+    requestId,
+    createEvent,
+    responseMessage,
+    expectedRevision,
+    clientRequestId,
+  } = approveSchema.parse(input)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Unauthorized' }
 
@@ -260,12 +304,25 @@ export async function approveBookingAndMaybeCreateEvent(input: { requestId: stri
     return { success: false, error: 'You do not have permission to approve this request' }
   }
 
-  // Use RPC to approve
-  const { error: rpcError } = await supabase.rpc('respond_to_booking_request', {
-    p_request_id: requestId,
-    p_status: 'approved',
-    p_response_message: responseMessage || null
-  })
+  const lifecycleAvailable = isVenueBookingLifecycleEnabled()
+  if (lifecycleAvailable && (!expectedRevision || !clientRequestId)) {
+    return { success: false, error: 'Refresh the booking before confirming it' }
+  }
+
+  const { error: rpcError } = lifecycleAvailable
+    ? await service.rpc('transition_venue_booking_lifecycle', {
+        p_booking_request_id: requestId,
+        p_expected_revision: expectedRevision,
+        p_lifecycle_status: 'confirmed',
+        p_actor_user_id: user.id,
+        p_client_request_id: clientRequestId,
+        p_note: responseMessage || null,
+      })
+    : await supabase.rpc('respond_to_booking_request', {
+        p_request_id: requestId,
+        p_status: 'approved',
+        p_response_message: responseMessage || null,
+      })
   if (rpcError) return { success: false, error: rpcError.message }
 
   let createdEventId: string | null = null
@@ -285,9 +342,18 @@ export async function approveBookingAndMaybeCreateEvent(input: { requestId: stri
     endAtDate.setMinutes(endAtDate.getMinutes() + (Number.isNaN(durationMinutes) ? 120 : durationMinutes))
     const slug = buildEventSlug(req.event_name || 'venue-event')
 
-    const { data: v2Event, error: v2Error } = await service
+    const { data: existingEvent } = await service
       .from('events_v2')
-      .insert([{
+      .select('id')
+      .eq('settings->>booking_request_id', req.id)
+      .maybeSingle()
+
+    if (existingEvent?.id) {
+      createdEventV2Id = existingEvent.id
+    } else {
+      const { data: v2Event, error: v2Error } = await service
+        .from('events_v2')
+        .insert([{
         org_id: mappedVenue.operationalOrgId,
         venue_id: mappedVenue.venuesV2Id || null,
         title: req.event_name,
@@ -309,12 +375,13 @@ export async function approveBookingAndMaybeCreateEvent(input: { requestId: stri
           special_requirements: req.special_requirements || null
         },
         created_by: user.id
-      }])
-      .select('id')
-      .single()
+        }])
+        .select('id')
+        .single()
 
-    if (v2Error) return { success: false, error: v2Error.message }
-    createdEventV2Id = v2Event?.id ?? null
+      if (v2Error) return { success: false, error: v2Error.message }
+      createdEventV2Id = v2Event?.id ?? null
+    }
   }
 
   revalidateVenueOperationPaths(createdEventV2Id || createdEventId || undefined)

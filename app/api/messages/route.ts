@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isConversationParticipant, resolveActingAccountIds } from '@/lib/messages/participant-auth'
 import { z } from 'zod'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
 import { checkAdminPermissions } from '@/lib/auth/api-auth'
@@ -299,6 +300,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (conversationId) {
+      // Resolve and verify the acting account before looking up the target so
+      // invalid account hints cannot be used as a conversation-existence oracle.
+      const acting = await resolveActingAccountIds(
+        userId,
+        request.headers.get('x-acting-profile-id') ?? searchParams.get('acting_account_id'),
+      )
+      if (acting.error) return NextResponse.json({ error: acting.error }, { status: 403 })
+
       const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
         .select('participant_1, participant_2')
@@ -309,8 +318,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
       }
 
-      const isParticipant = conversation.participant_1 === userId || conversation.participant_2 === userId
-      if (!isParticipant) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isConversationParticipant(conversation, acting.ids))
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
 
       const rawLimit = Number(searchParams.get('limit') ?? '50')
       const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 100)
@@ -321,6 +330,8 @@ export async function GET(request: NextRequest) {
           content,
           attachments,
           sender_id,
+          is_read,
+          read_at,
           created_at,
           sender:profiles!sender_id (
             id,
@@ -334,6 +345,8 @@ export async function GET(request: NextRequest) {
           content,
           attachment_urls,
           sender_id,
+          is_read,
+          read_at,
           created_at,
           sender:profiles!sender_id (
             id,
@@ -424,7 +437,9 @@ export async function GET(request: NextRequest) {
           id,
           content,
           created_at,
-          sender_id
+          sender_id,
+          is_read,
+          read_at
         )
       `
     const conversationListSelectBase = `
@@ -450,7 +465,9 @@ export async function GET(request: NextRequest) {
           id,
           content,
           created_at,
-          sender_id
+          sender_id,
+          is_read,
+          read_at
         )
       `
 

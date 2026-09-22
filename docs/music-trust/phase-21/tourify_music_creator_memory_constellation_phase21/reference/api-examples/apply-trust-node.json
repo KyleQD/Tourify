@@ -1,0 +1,12 @@
+{
+  "request": {
+    "legalEntityRef": "uuid",
+    "charterVersion": "1.0",
+    "authorityManifestId": "uuid",
+    "idempotencyKey": "unique"
+  },
+  "response": {
+    "applicationId": "uuid",
+    "state": "under_review"
+  }
+}

@@ -40,7 +40,10 @@ import {
   RotateCcw,
   Columns3,
   Sparkles,
+  WandSparkles,
 } from "lucide-react"
+import { EpkAppearanceAiPanel } from "@/components/epk/epk-appearance-ai-panel"
+import type { EpkAppearanceAiPayload } from "@/lib/epk/epk-appearance-ai-prompt"
 import { cn } from "@/lib/utils"
 import {
   epkControlLabel,
@@ -62,6 +65,7 @@ export interface EpkBuilderToolbarProps {
   onUndo: () => void
   canUndo: boolean
   onReset: () => void
+  appearancePrompt?: string
 }
 
 function patchAppearance(
@@ -165,6 +169,7 @@ export function EpkBuilderToolbar({
   onUndo,
   canUndo,
   onReset,
+  appearancePrompt = "",
 }: EpkBuilderToolbarProps) {
   const a = epkData.epkAppearance
   const hasCoverControls = skin === "classic" || skin === "cinema"
@@ -172,6 +177,14 @@ export function EpkBuilderToolbar({
 
   const setA = (partial: Partial<EpkAppearance>) => {
     onCommitStyle({ epkAppearance: patchAppearance(a, partial) })
+  }
+
+  function handleAiApply(payload: EpkAppearanceAiPayload) {
+    onCommitStyle({
+      template: payload.template,
+      epkFont: payload.epkFont,
+      epkAppearance: payload.epkAppearance,
+    })
   }
 
   const hasColorOverrides = Boolean(
@@ -907,6 +920,24 @@ export function EpkBuilderToolbar({
                 <SelectItem value="sunset">Sunset (→ classic)</SelectItem>
               </SelectContent>
             </Select>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className={triggerClass()}>
+              <WandSparkles className="h-3.5 w-3.5" />
+              AI Style
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className={panelClass("w-[22rem]")} align="end">
+            <EpkAppearanceAiPanel
+              prompt={appearancePrompt}
+              onApply={handleAiApply}
+              title="Generate EPK style with AI"
+              description="Copy the prompt into your AI tool, paste the JSON it returns, then apply. Style only — content stays yours."
+              className="border-0 bg-transparent p-0"
+            />
           </PopoverContent>
         </Popover>
 

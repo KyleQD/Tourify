@@ -1,0 +1,42 @@
+schema_version: "1.0"
+updated_at: "2026-09-08"
+startup_protocol:
+  - docs/engineering/INDEX.md
+  - docs/engineering/agents/<agent>/CHARTER.md
+  - docs/engineering/agents/<agent>/STATE.md
+  - docs/engineering/tasks/<status>/<task-id>.json
+agents:
+  - id: orchestrator
+    purpose: Route bounded work, manage dependencies and overlaps, and maintain project-level execution truth.
+  - id: admin
+    purpose: Own admin dashboards, admin operations, authorization gates, and audit registries.
+  - id: artist
+    purpose: Own artist identity, private and public profiles, EPKs, dashboards, and artist workflows.
+  - id: venue
+    purpose: Own venue identity, public profiles, bookings, venue operations, and venue kit.
+  - id: organization
+    purpose: Own organization identity, membership, tours, collaboration, and tenant context.
+  - id: general-user
+    purpose: Own authentication, onboarding, user profiles, settings, accounts, and the general dashboard.
+  - id: work
+    purpose: Own jobs, hiring, workforce, staffing, shifts, onboarding, and work mode.
+  - id: discover
+    purpose: Own search, discovery, world data, directories, news, and recommendations.
+  - id: music
+    purpose: Own music catalog, playback, rights, royalties, ingestion, and music worker flows.
+  - id: marketplace
+    purpose: Own marketplace listings, services, carts, checkout, orders, and commerce workflows.
+  - id: ticketing
+    purpose: Own tickets, allocations, transfers, wallet, guest list, door operations, and settlement interfaces.
+  - id: social
+    purpose: Own feed, posts, follows, friends, groups, messaging, notifications, and collaboration.
+  - id: database
+    purpose: Own Supabase migrations, schema evolution, RLS, RPCs, generated types, and data integrity.
+  - id: design-system
+    purpose: Own shared UI primitives, accessibility, layout, tokens, and interaction consistency.
+  - id: integrations
+    purpose: Own external providers, webhooks, credential boundaries, workers, and integration resilience.
+  - id: qa
+    purpose: Own test strategy, fixtures, end-to-end journeys, regression evidence, and quality gates.
+  - id: release
+    purpose: Own CI, deployment, environment validation, observability, cron, and release readiness.

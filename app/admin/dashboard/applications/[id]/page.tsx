@@ -1,6 +1,9 @@
+import Link from "next/link"
 import { ApplicationReviewPanel } from "@/components/hiring/application-review-panel"
 import { HiringMissingScope } from "@/components/hiring/hiring-missing-scope"
 import { WorkforceHero, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { Button } from "@/components/ui/button"
+import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
 import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workforce-employer"
 
 interface AdminApplicationDetailPageProps {
@@ -26,6 +29,13 @@ export default async function AdminApplicationDetailPage({ params, searchParams 
         title="Review Application"
         description={`Application ${id} is loaded in the scoped review workspace for ${employer.displayName}. Open the candidate drawer to inspect details and record a decision.`}
         badge={employer.entityType}
+        actions={
+          <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-200">
+            <Link href={`/admin/dashboard/candidates?${getEmployerQueryString(employer)}`}>
+              Open candidates
+            </Link>
+          </Button>
+        }
       />
       <ApplicationReviewPanel employer={employer} initialApplicationId={id} />
     </WorkforcePageShell>

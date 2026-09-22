@@ -156,7 +156,7 @@ export function BrandLoadingScreen({
         <div className="relative flex flex-col items-center gap-7 text-center">
           <div className="relative flex w-full items-center justify-center">
             {displayLogoSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element -- custom logo override paths
+
               <img
                 src={displayLogoSrc}
                 alt="Tourify"

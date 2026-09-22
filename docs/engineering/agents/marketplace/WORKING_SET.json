@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "agent": "marketplace",
+  "description": "Own marketplace listings, services, carts, checkout, orders, and commerce workflows.",
+  "paths": [
+    "app/marketplace/**",
+    "app/services/**",
+    "app/api/marketplace/**",
+    "components/marketplace/**",
+    "lib/marketplace/**",
+    "__tests__/marketplace/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

@@ -2,6 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { normalizeVenueSlug } from '@/lib/venue/routing'
+import {
+  isVenueProfileOwner,
+  parseVenueProfileUpdate,
+  toPublicVenueProfile,
+  venueProfileResponse,
+} from '@/lib/venue/venue-profile-contract'
 
 // GET - Get venue profile by ID or slug
 export async function GET(
@@ -21,6 +27,8 @@ export async function GET(
       .select(`
         id,
         user_id,
+        main_profile_id,
+        is_public,
         venue_name,
         description,
         address,
@@ -37,6 +45,11 @@ export async function GET(
         cover_image_url,
         verification_status,
         account_tier,
+        url_slug,
+        amenities,
+        sound_system,
+        lighting_rig,
+        stage_dimensions,
         created_at,
         updated_at
       `)
@@ -80,11 +93,10 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch venue' }, { status: 500 })
     }
 
-    // Check if venue is public (for now, allow all access)
-    // TODO: Implement proper public/private logic when is_public column is added
-    // if (!venue.is_public && (!user || user.id !== venue.user_id)) {
-    //   return NextResponse.json({ error: 'Venue not found' }, { status: 404 })
-    // }
+    const ownerView = isVenueProfileOwner(venue, user?.id)
+    if (venue.is_public === false && !ownerView) {
+      return NextResponse.json({ error: 'Venue not found' }, { status: 404 })
+    }
 
     // Track profile view if requested
     if (track_view) {
@@ -216,16 +228,41 @@ export async function GET(
       eventDate: event.event_date,
     }))
 
-    const enhancedVenue = {
-      ...venue,
-      tagline: venue.description?.split('.')[0] || '',
-      stats,
-      recent_events: recentEvents || [],
-      upcomingEvents,
-      user_profile: userProfile,
-      // Generate a URL-friendly slug
-      url_slug: venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || venue.id
-    }
+    const enhancedVenue = ownerView
+      ? // VEN-010: owners receive the full private contract.
+        venueProfileResponse(
+          {
+            ...venue,
+            tagline: venue.description?.split('.')[0] || '',
+            stats,
+            recent_events: recentEvents || [],
+            upcomingEvents,
+            user_profile: userProfile,
+            url_slug:
+              venue.url_slug ||
+              venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+              venue.id,
+          },
+          true,
+        )
+      : // VEN-009: anonymous/public consumers receive the allowlisted public
+        // contract only — no street address, owner ids, settings, or contacts.
+        {
+          ...toPublicVenueProfile({
+            ...(venue as unknown as Record<string, unknown>),
+            url_slug:
+              venue.url_slug ||
+              venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+              venue.id,
+          }),
+          stats: {
+            average_rating: stats.average_rating,
+            total_reviews: stats.total_reviews,
+            upcoming_events: stats.upcoming_events,
+          },
+          recent_events: recentEvents || [],
+          upcomingEvents,
+        }
 
     return NextResponse.json({ venue: enhancedVenue })
   } catch (error) {
@@ -250,38 +287,58 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
+    const parsedUpdate = parseVenueProfileUpdate(await request.json())
+    if (!parsedUpdate.success) {
+      return NextResponse.json(
+        { error: 'Invalid venue update', details: parsedUpdate.error.issues },
+        { status: 400 },
+      )
+    }
+    const body = parsedUpdate.data
     
     // Verify venue ownership
     const { data: venue, error: ownershipError } = await supabase
       .from('venue_profiles')
-      .select('id, user_id')
+      .select('id, user_id, main_profile_id')
       .eq('id', params.id)
-      .eq('user_id', user.id)
       .single()
 
-    if (ownershipError || !venue) {
+    if (ownershipError || !venue || !isVenueProfileOwner(venue, user.id)) {
       return NextResponse.json({ error: 'Venue not found or access denied' }, { status: 403 })
     }
 
     // Update venue profile
-    const updateFields: any = {
+    const updateFields = {
       ...body,
       updated_at: new Date().toISOString(),
     }
 
-    if (typeof body?.venue_name === 'string' && body.venue_name.trim()) {
-      updateFields.url_slug = body.venue_name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
+    // VEN-255 publish validation: a venue cannot be published without the
+    // minimum public contract (name + stored slug). Unpublishing is always
+    // allowed; publishing is the gated direction.
+    if ((updateFields as { is_public?: boolean }).is_public === true) {
+      const { data: current } = await supabase
+        .from('venue_profiles')
+        .select('venue_name, url_slug')
+        .eq('id', params.id)
+        .single()
+      const name = (updateFields as { venue_name?: string }).venue_name ?? current?.venue_name
+      const slug = (updateFields as { url_slug?: string }).url_slug ?? current?.url_slug
+      if (!name || !slug) {
+        return NextResponse.json(
+          {
+            error:
+              'Cannot publish: a venue name and public URL slug are required before your venue can be listed publicly.',
+          },
+          { status: 422 },
+        )
+      }
     }
 
     const { data: updatedVenue, error: updateError } = await supabase
       .from('venue_profiles')
       .update(updateFields)
       .eq('id', params.id)
-      .eq('user_id', user.id)
       .select()
       .single()
 
@@ -298,8 +355,8 @@ export async function PUT(
           user_id: user.id,
           profile_id: user.id,
           account_type: 'venue',
-          action_type: 'update_profile',
-          action_details: {
+          action: 'update_profile',
+          details: {
             venue_id: updatedVenue.id,
             updated_fields: Object.keys(body),
           },
@@ -333,12 +390,11 @@ export async function DELETE(
     // Verify venue ownership
     const { data: venue, error: ownershipError } = await supabase
       .from('venue_profiles')
-      .select('id, user_id, venue_name')
+      .select('id, user_id, main_profile_id, venue_name')
       .eq('id', params.id)
-      .eq('user_id', user.id)
       .single()
 
-    if (ownershipError || !venue) {
+    if (ownershipError || !venue || !isVenueProfileOwner(venue, user.id)) {
       return NextResponse.json({ error: 'Venue not found or access denied' }, { status: 403 })
     }
 
@@ -361,8 +417,8 @@ export async function DELETE(
           user_id: user.id,
           profile_id: user.id,
           account_type: 'venue',
-          action_type: 'delete_account',
-          action_details: {
+          action: 'delete_account',
+          details: {
             venue_id: venue.id,
             venue_name: venue.venue_name,
           },
@@ -377,4 +433,4 @@ export async function DELETE(
     console.error('Error deleting venue:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}

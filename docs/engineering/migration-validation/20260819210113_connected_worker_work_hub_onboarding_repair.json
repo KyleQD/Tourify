@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260819210113_connected_worker_work_hub_onboarding_repair.sql",
+  "taskId": "CONNECTED-WORKER-ONBOARDING-REPAIR",
+  "status": "planned",
+  "owner": "workforce-platform",
+  "reviewer": "security-data",
+  "domains": ["workforce", "onboarding", "identity"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "legacy-data snapshot with staff members and onboarding candidate lineage",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count staff members with missing worker user ids and enumerate unambiguous onboarding candidate matches"
+    ],
+    "expectedAffectedRows": "Only staff members with one deterministic matching onboarding identity receive a worker user id",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 1000,
+    "resumeStrategy": "Replay the scoped update for rows whose worker user id remains null",
+    "resumeCursor": "Supabase migration version 20260819210113 plus last staff_member id",
+    "idempotency": "The update is limited to unresolved rows and deterministic candidate lineage"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "public.work_hub_integrity_issues",
+    "strategy": "Leave ambiguous or missing identity matches unresolved and visible for review"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Compare pre/post unresolved counts, confirm no ambiguous identity was selected, and test worker access under RLS"
+  },
+  "recovery": {
+    "rollback": "Disable connected worker access and apply a reviewed correction based on preserved onboarding lineage",
+    "forwardFix": "Correct deterministic mappings additively and rerun integrity reconciliation"
+  },
+  "postflight": {
+    "queries": [
+      "Reconcile staff member worker identities against onboarding candidates and work_hub_integrity_issues"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

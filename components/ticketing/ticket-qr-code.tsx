@@ -41,7 +41,7 @@ export function TicketQrCode({ value, size = 280, className }: TicketQrCodeProps
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
+
     <img
       src={dataUrl}
       alt="Ticket QR code"

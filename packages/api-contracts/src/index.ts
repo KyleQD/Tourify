@@ -185,12 +185,19 @@ export const marketplaceCheckoutRequestSchema = z.object({
     .max(50),
   shippingAddress: z.record(z.string(), z.unknown()).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  /** Client-supplied idempotency key (UUID or similar unique string). */
+  idempotencyKey: z.string().min(8).max(128).optional(),
+  /** Required for guest checkout when the buyer is not authenticated. */
+  guestEmail: z.string().email().optional(),
 })
 
 export const marketplaceCheckoutResponseSchema = z.object({
   data: z.object({
     orderId: z.string().uuid(),
-    checkoutUrl: z.string().url(),
+    orderNumber: z.string().nullable().optional(),
+    checkoutUrl: z.string().url().nullable(),
+    /** Only present for guest checkouts — client should store for confirmation page redirect. */
+    guestAccessToken: z.string().optional(),
   }),
 })
 

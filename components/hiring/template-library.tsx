@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Briefcase, Copy, FileText, Loader2, Pencil, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react"
 
@@ -224,7 +225,18 @@ function TemplateSection({ title, description, templates, queryString, busyId, e
       </div>
 
       {templates.length === 0 ? (
-        <WorkforceEmptyState icon={FileText} title="Nothing here yet" description={emptyLabel} />
+        <WorkforceEmptyState
+          icon={FileText}
+          title="Nothing here yet"
+          description={emptyLabel}
+          action={
+            !isGlobal ? (
+              <Button asChild size="sm" className="rounded-xl">
+                <Link href={`/admin/dashboard/hiring/templates/new?${queryString}`}>Create template</Link>
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-[1.15rem] border border-slate-700/60">
           {templates.map((template) => (

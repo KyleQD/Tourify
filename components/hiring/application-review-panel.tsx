@@ -167,7 +167,7 @@ export function ApplicationReviewPanel({
 
   useEffect(() => {
     void fetchApplications()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [employer.entityType, employer.entityId, filters.status, filters.jobId, filters.search, filters.department, filters.starredOnly])
 
   // Deep link: when an application id is provided (e.g. /applications/[id]), open
@@ -179,7 +179,7 @@ export function ApplicationReviewPanel({
       setSelectedApplication(match)
       setIsDetailOpen(true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [initialApplicationId, applications])
 
   function toggleApplicationSelection(applicationId: string) {

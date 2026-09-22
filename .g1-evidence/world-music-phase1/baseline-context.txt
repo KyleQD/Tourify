@@ -1,0 +1,6 @@
+head_sha: f00a43967539c386a3e8db5b3738481558eb588b
+branch: integration/tourify-reconcile-2026-08
+supabase_cli: 2.22.6
+node: v20.20.2
+npm: 10.8.2
+captured_at: 2026-08-22T02:16:28Z

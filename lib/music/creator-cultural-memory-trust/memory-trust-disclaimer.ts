@@ -1,0 +1,2 @@
+export const CREATOR_CULTURAL_MEMORY_TRUST_DISCLAIMER =
+  "Cultural-memory trust readiness sandbox only — not a legal trust, public charity, certified repository, rights registry, universal archive, compulsory deposit system, or perpetual public-law authority. Phase 19 legacy records are inputs only. Phase 20 cannot launch from Phase 19 flags. Age alone does not authorize disclosure or AI reuse. Feature flags are never legal authority."

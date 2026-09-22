@@ -13,7 +13,6 @@ import {
   buildAdminLogisticsHref,
   buildAdminRosterHref,
 } from "@/lib/admin/admin-ops-context"
-import { LifecycleStrip } from "./lifecycle-strip"
 import { LogisticsProgressWidget } from "./logistics-progress-widget"
 
 export interface EventOperationsCardData {
@@ -36,6 +35,7 @@ export interface EventOperationsCardData {
 }
 
 function formatEventDate(value: string) {
+  if (!value) return "TBD"
   try {
     return new Date(value).toLocaleDateString(undefined, {
       month: "short",
@@ -56,6 +56,10 @@ export function EventOperationsCard({
 }) {
   const primaryTour = event.tours?.find((tour) => tour.is_primary) || event.tours?.[0] || event.tour
   const settings = event.settings && typeof event.settings === "object" ? event.settings : {}
+  const isQuickStartPlaceholder = settings.quick_start_placeholder === true
+  const workspaceHref = isQuickStartPlaceholder
+    ? `/admin/dashboard/events/create?draft=${event.id}${primaryTour ? `&tourId=${primaryTour.id}` : ""}`
+    : `/admin/dashboard/events/${event.id}`
   const venueAccountId = typeof settings.venue_account_id === "string" ? settings.venue_account_id : null
   const employer = venueAccountId
     ? { entityType: "venue" as const, entityId: venueAccountId, venueId: venueAccountId }
@@ -69,19 +73,22 @@ export function EventOperationsCard({
     <motion.div layout whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 320, damping: 24 }}>
       <Card className="h-full overflow-hidden border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
         <CardHeader className="space-y-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <CardTitle className="truncate text-lg text-white">{event.name || "Untitled event"}</CardTitle>
-              <LifecycleStrip kind="event" status={event.status} />
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg text-white">
+                <Link href={workspaceHref} title={event.name || "Untitled event"} className="line-clamp-2 break-words rounded-sm hover:underline focus-visible:line-clamp-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400">
+                  {event.name || "Untitled event"}
+                </Link>
+              </CardTitle>
             </div>
-            <Badge className={statusBadgeClass(event.status)}>{event.status}</Badge>
+            <Badge className={`max-w-28 shrink-0 whitespace-normal text-center ${statusBadgeClass(event.status)}`}>{event.status}</Badge>
           </div>
           {primaryTour ? (
             <Link
               href={`/admin/dashboard/tours/${primaryTour.id}`}
-              className="inline-flex w-fit items-center rounded-full border border-purple-400/30 bg-purple-400/10 px-2.5 py-0.5 text-xs text-purple-100 hover:bg-purple-400/20"
+              className="inline-flex max-w-full items-center rounded-full border border-purple-400/30 bg-purple-400/10 px-2.5 py-0.5 text-xs text-purple-100 hover:bg-purple-400/20"
             >
-              {primaryTour.name}
+              <span className="line-clamp-2 break-words" title={primaryTour.name}>{primaryTour.name}</span>
             </Link>
           ) : (
             <span className="text-xs text-slate-500">Standalone show</span>
@@ -98,50 +105,50 @@ export function EventOperationsCard({
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-cyan-300" />
-              <span className="truncate">{event.venue_name || "Venue TBD"}</span>
+              <span className="min-w-0 break-words">{event.venue_name || "Venue TBD"}</span>
             </div>
-            <div className="flex items-center gap-2">
+            {!isQuickStartPlaceholder ? <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-cyan-300" />
               <span>
                 {formatSafeNumber(event.tickets_sold || 0)} / {formatSafeNumber(event.capacity || 0)} capacity
               </span>
-            </div>
-            <div className="flex items-center gap-2">
+            </div> : null}
+            {!isQuickStartPlaceholder ? <div className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-cyan-300" />
               <span>
                 {event.ticket_price != null ? formatSafeCurrency(event.ticket_price) : "Pricing TBD"}
                 {event.expected_revenue != null ? ` · ${formatSafeCurrency(event.expected_revenue)} expected` : ""}
               </span>
-            </div>
+            </div> : null}
           </div>
 
-          <LogisticsProgressWidget
+          {!isQuickStartPlaceholder ? <LogisticsProgressWidget
             percentage={logistics?.percentage ?? 0}
             completed={logistics?.completed ?? 0}
             items={logistics?.items ?? 0}
             href={buildAdminLogisticsHref({ eventId: event.id })}
-          />
+          /> : null}
 
           <div className="flex flex-wrap gap-2 pt-1">
             <Button asChild className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600">
-              <Link href={`/admin/dashboard/events/${event.id}`}>
+              <Link href={workspaceHref}>
                 <Settings className="mr-2 h-4 w-4" />
-                Manage Event
+                {isQuickStartPlaceholder ? "Plan Your Event" : "Manage Event"}
               </Link>
             </Button>
-            <Button asChild variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+            {!isQuickStartPlaceholder ? <Button asChild variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
               <Link href={`/admin/dashboard/events/create?draft=${event.id}`}>Edit</Link>
-            </Button>
-            <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Roster">
+            </Button> : null}
+            {!isQuickStartPlaceholder ? <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Roster">
               <Link href={buildAdminRosterHref({ eventId: event.id, ...employer })}>
                 <Users className="h-4 w-4" />
               </Link>
-            </Button>
-            <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Hiring">
+            </Button> : null}
+            {!isQuickStartPlaceholder ? <Button asChild variant="outline" size="icon" className="border-slate-700 text-slate-300" title="Hiring">
               <Link href={buildAdminHiringHref({ eventId: event.id, ...employer })}>
                 <Briefcase className="h-4 w-4" />
               </Link>
-            </Button>
+            </Button> : null}
           </div>
         </CardContent>
       </Card>

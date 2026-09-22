@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728195837_venue_booking_lifecycle.sql",
+  "taskId": "VEN-04-LIFECYCLE",
+  "status": "planned",
+  "owner": "venue-operations",
+  "reviewer": "security-data",
+  "domains": ["venue", "bookings", "audit"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with venue owner, booking manager, requester, and unrelated personas",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm public.venue_booking_requests and public.venue_profiles exist",
+      "Count booking requests by venue_id and legacy status",
+      "Record grants, RLS state, policies, invalid indexes, and invalid constraints for dependency tables",
+      "Confirm every reviewed backfill venue_id is an existing public.venue_profiles.id"
+    ],
+    "expectedAffectedRows": "Expansion changes no existing row; the concurrent index is applied in a separate one-statement execution; operator-controlled backfill updates only lifecycle-null rows for one explicit venue_id per invocation",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 500,
+    "resumeStrategy": "Schema statements converge additively; run the concurrent-index companion alone; invoke backfill_venue_booking_lifecycle once per reviewed venue and repeat until it returns zero",
+    "resumeCursor": "venue_id plus lifecycle_status is null",
+    "idempotency": "Columns, constraints, policies, and indexes are guarded; the separate concurrent index uses IF NOT EXISTS; lifecycle transitions use booking_request_id plus client_request_id"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No venue ownership is inferred. Unknown legacy statuses map to inquiry only inside an explicitly scoped operator backfill."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "canonical lifecycle status allowlist",
+      "ISO-style three-letter uppercase currency",
+      "non-negative agreed amount",
+      "conflict state allowlist",
+      "positive lifecycle revision",
+      "timeline booking, venue, and actor foreign keys",
+      "timeline metadata must be a JSON object"
+    ],
+    "indexes": [
+      "venue_booking_requests_lifecycle_queue_idx",
+      "venue_booking_request_timeline_request_created_idx",
+      "venue_booking_request_timeline_venue_created_idx",
+      "venue_booking_request_timeline_idempotency_idx"
+    ],
+    "validationPlan": "Validate NOT VALID constraints after scoped backfill, confirm all indexes are valid, then test allowed, denied, duplicate, stale-revision, and invalid lifecycle transitions"
+  },
+  "recovery": {
+    "rollback": "Disable FEATURE_VENUE_BOOKING_LIFECYCLE; keep legacy status compatibility and preserve additive lifecycle evidence",
+    "forwardFix": "Apply a later reviewed additive policy, constraint, function, or indexing migration"
+  },
+  "postflight": {
+    "queries": [
+      "Verify new columns, defaults, and constraints",
+      "Verify lifecycle-null count is zero for each explicitly backfilled venue",
+      "Verify RLS and FORCE RLS on venue_booking_request_timeline",
+      "Verify authenticated has SELECT only, anon has no grants, and the service role alone can execute transition RPC",
+      "Verify all four indexes are valid",
+      "Verify owner and booking manager can read timeline while requester sees only their own and unrelated personas are denied",
+      "Verify duplicate client_request_id converges and stale revisions conflict"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

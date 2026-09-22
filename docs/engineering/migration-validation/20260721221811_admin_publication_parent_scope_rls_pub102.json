@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260721221811_admin_publication_parent_scope_rls_pub102.sql",
+  "taskId": "PUB-102",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["publication", "tenancy", "rls"],
+  "riskLevel": "critical",
+  "representativeSnapshot": { "kind": "isolated production-like Supabase branch", "evidenceArtifact": null },
+  "preflight": { "rowCountQueries": ["publication parent/child rows, null org_id, mismatches, and unresolved parent candidates"], "expectedAffectedRows": "Only deterministically parent-derived org_id rows; unresolved rows copied to quarantine and left unguessed", "artifact": null },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 120000, "batchSize": 1000, "resumeStrategy": "Rerunnable scoped updates select only null/mismatched candidates; constraints and indexes use existence guards", "resumeCursor": "per-table primary key plus supabase migration version 20260721221811", "idempotency": "Quarantine conflict key and deterministic parent derivation make replay convergent" },
+  "quarantine": { "required": true, "table": "public.admin_publication_ownership_quarantine", "strategy": "Record ambiguous or missing parent ownership; preserve source rows and block constraint validation until resolved" },
+  "constraintsAndIndexes": { "constraints": ["composite parent/org foreign keys added NOT VALID then validated"], "indexes": ["unique parent id/org indexes supporting composite foreign keys"], "validationPlan": "Record lock timing, validate every constraint, and execute two-org guessed-parent and protected-read matrix" },
+  "recovery": { "rollback": "Forward-only: do not undo derived ownership or remove quarantine; disable dependent rollout if validation fails", "forwardFix": "Resolve quarantine with verified parent evidence, then ship later scoped update/constraint validation" },
+  "postflight": { "queries": ["row preservation, null org_id, quarantine, parent mismatch, constraints, RLS, grants, and advisors"], "artifact": null, "securityAdvisorArtifact": null, "performanceAdvisorArtifact": null },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

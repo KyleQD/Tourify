@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "id": "VENUE-003",
+  "title": "Build venue booking lifecycle",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "venue",
+  "created_at": "2026-09-09T09:35:22.891Z",
+  "updated_at": "2026-09-10T17:49:52.392Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Build/document the venue booking lifecycle state machine and add tests",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "lib/venue/",
+    "app/api/venues/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/venue/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Booking lifecycle state machine documented and tested"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "./node_modules/.bin/vitest run __tests__/venue/booking-lifecycle.test.ts",
+      "./node_modules/.bin/vitest run __tests__/venue/booking-lifecycle.test.ts lib/venue/__tests__/reservations.test.ts",
+      "./node_modules/.bin/eslint lib/venue/booking-lifecycle.ts __tests__/venue/booking-lifecycle.test.ts",
+      "npm run verify:fast -- --changed (blocked before execution by pre-existing missing components/ui/use-mobile.tsx)",
+      "./node_modules/.bin/eslint lib/venue/booking-lifecycle.ts __tests__/venue/booking-lifecycle.test.ts && ./node_modules/.bin/vitest run __tests__/venue/booking-lifecycle.test.ts"
+    ],
+    "evidence": [
+      "6/6 lifecycle tests passed",
+      "15/15 lifecycle + reservation tests passed",
+      "Focused ESLint passed",
+      "Fast wrapper failure is pre-existing dirty-worktree missing components/ui/use-mobile.tsx; broad typecheck stopped without diagnostics per bounded-task instruction",
+      "Final focused ESLint passed and lifecycle suite passed 6/6 after the final contract-comment correction"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T17:49:52.392Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Final verification complete: canonical six-state venue booking-request lifecycle is documented, explicitly typed, and covered by focused regression tests.",
+    "completed": [
+      "Explicit typed transition matrix and terminal-state contract added to lib/venue/booking-lifecycle.ts",
+      "Legacy status mapping and invalid canonical-value fallback covered",
+      "Every allowed and denied lifecycle transition, forward path, cancellation rule, and terminal state covered by tests"
+    ],
+    "next_steps": [
+      "Hosted migration/RLS/backfill/index/grant acceptance remains with the database and release gates"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T17:48:13.725Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Documented the canonical six-state venue booking-request lifecycle, made the typed transition matrix explicit, and added complete focused regression coverage.",
+        "completed": [
+          "Explicit typed transition matrix and terminal-state contract added to lib/venue/booking-lifecycle.ts",
+          "Legacy status mapping and invalid canonical-value fallback covered",
+          "Every allowed and denied lifecycle transition, forward path, cancellation rule, and terminal state covered by tests"
+        ],
+        "next_steps": [
+          "Hosted migration/RLS/backfill/index/grant acceptance remains with the database and release gates"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T17:49:52.392Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Final verification complete: canonical six-state venue booking-request lifecycle is documented, explicitly typed, and covered by focused regression tests.",
+        "completed": [],
+        "next_steps": [
+          "Hosted migration/RLS/backfill/index/grant acceptance remains with the database and release gates"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

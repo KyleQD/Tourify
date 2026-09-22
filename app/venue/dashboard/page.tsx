@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -36,6 +37,49 @@ function formatCurrency(value?: number | null) {
 
 export default function VenueDashboardPage() {
   const { venue, stats, isLoading, error } = useCurrentVenue()
+  const [openApplications, setOpenApplications] = useState(0)
+  const [hasSiteMap, setHasSiteMap] = useState<boolean | undefined>(undefined)
+
+  useEffect(() => {
+    const venueId = venue?.id
+    if (!venueId) return
+
+    let cancelled = false
+
+    async function loadActionSignals() {
+      try {
+        const [appsRes, mapsRes] = await Promise.all([
+          fetch(
+            `/api/venue/hiring/applications?venue_id=${encodeURIComponent(venueId)}`,
+            { credentials: "include", cache: "no-store" },
+          ),
+          fetch("/api/site-maps/shared", { credentials: "include", cache: "no-store" }),
+        ])
+
+        const appsJson = appsRes.ok ? await appsRes.json() : null
+        const mapsJson = mapsRes.ok ? await mapsRes.json() : null
+
+        if (cancelled) return
+
+        const apps = Array.isArray(appsJson?.data) ? appsJson.data : []
+        const openCount = apps.filter((app: { status?: string }) => {
+          const status = (app.status || "").toLowerCase()
+          return !status || ["new", "pending", "submitted", "in_review", "reviewing"].includes(status)
+        }).length
+        setOpenApplications(openCount)
+
+        const maps = Array.isArray(mapsJson?.data) ? mapsJson.data : []
+        setHasSiteMap(maps.length > 0)
+      } catch {
+        if (!cancelled) setHasSiteMap(undefined)
+      }
+    }
+
+    void loadActionSignals()
+    return () => {
+      cancelled = true
+    }
+  }, [venue?.id])
 
   if (isLoading) return <VenuePageSkeleton />
 
@@ -98,8 +142,8 @@ export default function VenueDashboardPage() {
     },
     pendingBookings: pendingRequests,
     upcomingEvents,
-    openApplications: 0,
-    hasSiteMap: undefined,
+    openApplications,
+    hasSiteMap,
   })
 
   const workflowCards = [

@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "id": "USER-003",
+  "title": "Rewrite unified settings surface",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "general-user",
+  "created_at": "2026-09-09T09:35:17.042Z",
+  "updated_at": "2026-09-16T19:24:56.071Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Rewrite settings as one unified surface from EnhancedSettingsRouter + legacy account-settings families",
+  "scope": {
+    "in": [
+      "Add notifications and profile colors as tabs on the live EnhancedSettingsRouter.",
+      "Redirect the legacy standalone settings URLs into the unified surface."
+    ],
+    "out": [
+      "Other settings sections, settings APIs, migrations, and legacy account-scoped families."
+    ]
+  },
+  "working_set": [
+    "app/settings/",
+    "components/",
+    "__tests__/settings/enhanced-settings-router.test.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/general-user/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Single unified settings surface"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx eslint app/settings/notifications/page.tsx app/settings/profile-colors/page.tsx components/settings/enhanced-settings-router.tsx components/settings/profile-colors-settings.tsx",
+      "npx vitest run __tests__/notifications/account-options.test.ts",
+      "npx vitest run __tests__/settings/enhanced-settings-router.test.tsx",
+      "NODE_OPTIONS='--max-old-space-size=8192' npx tsc --noEmit --pretty false 2>&1 | rg 'components/settings/(enhanced-settings-router|profile-colors-settings)|app/settings/(notifications|profile-colors)' || true",
+      "npm run verify:fast -- --changed",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Focused ESLint passed for the four settings paths and the new router test.",
+      "Notification account-options test passed: 1 file, 4 tests.",
+      "Settings-router test passed: 1 file, 4 tests covering notification deep links, unsupported-tab fallback, unified tab navigation, and the Advanced Colors action.",
+      "Changed-path typecheck filter produced no diagnostics during the bounded repository-wide check; the full check was interrupted after no output.",
+      "Control-plane generation refreshed maps at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b; validation passed: 17 agents, 93 tasks, 0 warnings/errors.",
+      "verify:fast --changed exited before task-specific checks because the dirty shared worktree references missing components/ui/use-mobile.tsx paths."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T18:24:40Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Production-readiness triage keeps USER-003 at P2 and outside the core launch gate. USER-005 owns account lifecycle launch readiness; escalate this settings rewrite only if a certified journey exposes a direct dependency.",
+    "completed": [
+      "Added query-backed notifications and profile-colors tabs to EnhancedSettingsRouter.",
+      "Added ProfileColorsSettings using the authenticated user from useAuth and the existing profile-color hook/customizer contract.",
+      "Redirected /settings/notifications and /settings/profile-colors to the unified surface.",
+      "Normalized unsupported tab query values to the profile tab and kept the Advanced Colors action inside the unified router.",
+      "Added focused EnhancedSettingsRouter coverage for deep links, fallback behavior, and tab navigation.",
+      "Preserved existing Supabase/RLS data boundaries and did not change migrations or settings APIs."
+    ],
+    "next_steps": [
+      "Resolve the owner decision for the remaining canonical settings family before removing or redirecting legacy account-scoped implementations.",
+      "Rerun the fast wrapper from a worktree without the missing pre-existing path.",
+      "Resolve the owner decision for the remaining canonical settings family before removing or redirecting legacy account-scoped implementations."
+    ],
+    "blockers": [
+      "Repository-wide verify:fast --changed cannot complete because unrelated dirty worktree entries include missing components/ui/use-mobile.tsx; it exits before task-specific checks.",
+      "The full repository typecheck did not complete within the bounded verification window; no diagnostics were emitted for changed settings paths.",
+      "USER-003 acceptance remains open pending the owner’s canonical settings-family decision; legacy account-scoped implementations were intentionally preserved."
+    ],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-10T22:41:52Z",
+        "summary": "Completed the bounded unified-settings slice by centralizing notifications and profile colors in EnhancedSettingsRouter and redirecting both standalone routes.",
+        "changed_paths": [
+          "app/settings/notifications/page.tsx",
+          "app/settings/profile-colors/page.tsx",
+          "components/settings/enhanced-settings-router.tsx",
+          "components/settings/profile-colors-settings.tsx",
+          "docs/engineering/tasks/active/USER-003.json"
+        ],
+        "verification": [
+          "Focused ESLint passed.",
+          "npx vitest run __tests__/notifications/account-options.test.ts passed: 4 tests.",
+          "Changed-path typecheck filter emitted no diagnostics.",
+          "npm run agents:validate passed with 0 errors.",
+          "npm run verify:fast -- --changed blocked by missing unrelated dirty-worktree path components/ui/use-mobile.tsx."
+        ],
+        "blockers": [
+          "Full settings acceptance remains open; broader legacy-family consolidation was intentionally not included in this slice.",
+          "Fast wrapper verification is blocked by unrelated dirty-worktree state."
+        ],
+        "next_steps": [
+          "Resolve canonical settings-family owner decision.",
+          "Add settings-router-focused coverage and rerun fast verification when the worktree baseline permits it."
+        ]
+      },
+      {
+        "timestamp": "2026-09-11T18:27:25Z",
+        "summary": "Added focused settings-router coverage and repaired unsupported deep links plus the Advanced Colors detour without touching legacy account-scoped implementations.",
+        "changed_paths": [
+          "components/settings/enhanced-settings-router.tsx",
+          "__tests__/settings/enhanced-settings-router.test.tsx",
+          "docs/engineering/tasks/active/USER-003.json"
+        ],
+        "scope_expansion": "Added the focused router test path because USER-003 explicitly requires settings-router coverage; no production ownership expanded beyond app/settings and components.",
+        "verification": [
+          "npx vitest run __tests__/settings/enhanced-settings-router.test.tsx passed: 4 tests.",
+          "npx vitest run __tests__/notifications/account-options.test.ts passed: 4 tests.",
+          "Focused ESLint passed for all four settings paths and the router test.",
+          "Scoped type diagnostics emitted no settings-path diagnostics before the bounded full check was interrupted.",
+          "npm run verify:fast -- --changed exited before task-specific checks because missing components/ui/use-mobile.tsx paths are present in unrelated dirty worktree state.",
+          "npm run agents:generate and npm run agents:validate passed; 17 agents, 93 tasks, 0 warnings/errors.",
+          "Final scoped diff check passed after removing trailing whitespace from changed router lines."
+        ],
+        "blockers": [
+          "The shared dirty worktree prevents the fast wrapper from reaching task-specific checks.",
+          "Full repository typecheck remains bounded/incomplete despite no changed-path diagnostics.",
+          "The broader settings-family rewrite remains gated by the unresolved owner decision."
+        ],
+        "next_steps": [
+          "Rerun fast verification from a clean or repaired worktree baseline.",
+          "Resolve the canonical settings-family decision before any legacy implementation cleanup."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:56.071Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness triage keeps USER-003 at P2 and outside the core launch gate. USER-005 owns account lifecycle launch readiness; escalate this settings rewrite only if a certified journey exposes a direct dependency.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

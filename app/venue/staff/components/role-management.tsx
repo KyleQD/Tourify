@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import {
   Shield,
@@ -382,7 +384,7 @@ export default function RoleManagement() {
           <Button 
             variant="outline" 
             onClick={() => setShowAssignRole(true)}
-            className="bg-slate-800/50 border-slate-600"
+            className={detailSurfacePattern.input}
           >
             <UserCheck className="h-4 w-4 mr-2" />
             Assign Roles
@@ -422,7 +424,7 @@ export default function RoleManagement() {
             color: "from-orange-500 to-red-500" 
           }
         ].map((stat, i) => (
-          <Card key={i} className="bg-slate-800/30 border-slate-700/50">
+          <Card key={i} className={detailSurfacePattern.panel}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -444,7 +446,7 @@ export default function RoleManagement() {
           const LevelIcon = getRoleLevelIcon(role.level)
           
           return (
-            <Card key={role.id} className="bg-slate-800/30 border-slate-700/50 hover:bg-slate-800/50 transition-all">
+            <Card key={role.id} className={cn(detailSurfacePattern.panel, "transition-all hover:bg-white/[0.06]")}>
               <CardContent className="p-6">
                 {/* Role Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -459,7 +461,7 @@ export default function RoleManagement() {
                         <Badge variant="outline" className={`text-xs ${getRoleLevelColor(role.level)} border-current`}>
                           {role.level}
                         </Badge>
-                        <Badge variant="outline" className="text-xs bg-slate-700/50 border-slate-600">
+                        <Badge variant="outline" className={cn("text-xs", detailSurfacePattern.badgeOutline)}>
                           {role.assignedCount} assigned
                         </Badge>
                       </div>
@@ -542,7 +544,7 @@ export default function RoleManagement() {
                   <Button 
                     size="sm" 
                     onClick={() => setSelectedRole(role)}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className={detailSurfacePattern.btnPrimary}
                   >
                     <Settings className="h-4 w-4 mr-1" />
                     Configure
@@ -556,28 +558,29 @@ export default function RoleManagement() {
 
       {/* Create Role Dialog */}
       <Dialog open={showCreateRole} onOpenChange={setShowCreateRole}>
-        <DialogContent className="max-w-4xl bg-slate-900 border-slate-700 max-h-[90vh] overflow-y-auto">
+        <DialogContent className={cn("max-w-4xl max-h-[90vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-purple-400">Create New Role</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Create New Role</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="role-name">Role Name</Label>
+                <Label htmlFor="role-name" className={detailSurfacePattern.label}>Role Name</Label>
                 <Input
                   id="role-name"
                   value={newRole.name}
                   onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department" className={detailSurfacePattern.label}>Department</Label>
                 <Select value={newRole.department} onValueChange={(value) => setNewRole({ ...newRole, department: value })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="Management">Management</SelectItem>
                     <SelectItem value="Technical">Technical</SelectItem>
                     <SelectItem value="Security">Security</SelectItem>
@@ -589,23 +592,23 @@ export default function RoleManagement() {
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
               <Input
                 id="description"
                 value={newRole.description}
                 onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
-                className="bg-slate-800 border-slate-600"
+                className={detailSurfacePattern.input}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="level">Level</Label>
+                <Label htmlFor="level" className={detailSurfacePattern.label}>Level</Label>
                 <Select value={newRole.level} onValueChange={(value) => setNewRole({ ...newRole, level: value as any })}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600">
+                  <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="entry">Entry Level</SelectItem>
                     <SelectItem value="mid">Mid Level</SelectItem>
                     <SelectItem value="senior">Senior Level</SelectItem>
@@ -615,7 +618,7 @@ export default function RoleManagement() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="min-salary">Min Salary</Label>
+                <Label htmlFor="min-salary" className={detailSurfacePattern.label}>Min Salary</Label>
                 <Input
                   id="min-salary"
                   type="number"
@@ -624,11 +627,11 @@ export default function RoleManagement() {
                     ...newRole, 
                     salaryRange: { ...newRole.salaryRange!, min: parseInt(e.target.value) || 0 }
                   })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
               <div>
-                <Label htmlFor="max-salary">Max Salary</Label>
+                <Label htmlFor="max-salary" className={detailSurfacePattern.label}>Max Salary</Label>
                 <Input
                   id="max-salary"
                   type="number"
@@ -637,18 +640,18 @@ export default function RoleManagement() {
                     ...newRole, 
                     salaryRange: { ...newRole.salaryRange!, max: parseInt(e.target.value) || 0 }
                   })}
-                  className="bg-slate-800 border-slate-600"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
 
             {/* Permissions */}
             <div>
-              <Label className="text-base font-semibold">Permissions</Label>
+              <Label className={cn("text-base font-semibold", detailSurfacePattern.label)}>Permissions</Label>
               <div className="mt-3 space-y-4">
                 {Object.entries(PERMISSION_CATEGORIES).map(([category, permissions]) => (
                   <div key={category}>
-                    <div className="text-sm font-medium text-slate-300 mb-2">{category}</div>
+                    <div className={cn("mb-2 text-sm font-medium", detailSurfacePattern.label)}>{category}</div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       {permissions.map((permission) => (
                         <div key={permission} className="flex items-center space-x-2">
@@ -665,7 +668,7 @@ export default function RoleManagement() {
                           />
                           <Label 
                             htmlFor={permission} 
-                            className="text-sm text-slate-300 capitalize cursor-pointer"
+                            className={cn("cursor-pointer text-sm capitalize", detailSurfacePattern.label)}
                           >
                             {permission.replace('_', ' ')}
                           </Label>
@@ -678,10 +681,10 @@ export default function RoleManagement() {
             </div>
 
             <div className="flex justify-end space-x-3">
-              <Button variant="outline" onClick={() => setShowCreateRole(false)}>
+              <Button variant="outline" onClick={() => setShowCreateRole(false)} className={detailSurfacePattern.btnOutline}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateRole} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={handleCreateRole} className={detailSurfacePattern.btnPrimary}>
                 Create Role
               </Button>
             </div>
@@ -691,18 +694,19 @@ export default function RoleManagement() {
 
       {/* Assign Role Dialog */}
       <Dialog open={showAssignRole} onOpenChange={setShowAssignRole}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+        <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-blue-400">Assign Roles to Staff</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Assign Roles to Staff</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div>
-              <Label>Select Role</Label>
+              <Label className={detailSurfacePattern.label}>Select Role</Label>
               <Select>
-                <SelectTrigger className="bg-slate-800 border-slate-600">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue placeholder="Choose a role to assign" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-900 border-white/10">
                   {roles.filter(r => r.isActive).map((role) => (
                     <SelectItem key={role.id} value={role.id}>
                       {role.name} - {role.department}
@@ -713,10 +717,10 @@ export default function RoleManagement() {
             </div>
 
             <div>
-              <Label>Select Staff Members</Label>
+              <Label className={detailSurfacePattern.label}>Select Staff Members</Label>
               <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
                 {staffMembers.map((staff) => (
-                  <div key={staff.id} className="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-lg">
+                  <div key={staff.id} className={cn("flex items-center space-x-3", detailSurfacePattern.listRow)}>
                     <Checkbox
                       checked={selectedStaff.includes(staff.id)}
                       onCheckedChange={(checked) => {
@@ -727,19 +731,19 @@ export default function RoleManagement() {
                         }
                       }}
                     />
-                    <Avatar className="h-8 w-8">
+                    <Avatar className={cn("h-8 w-8", detailSurfacePattern.avatarRing)}>
                       <AvatarImage src={staff.avatar} />
-                      <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
+                      <AvatarFallback className={cn(detailSurfacePattern.avatarFallback, "text-xs")}>
                         {staff.name.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <div className="text-white font-medium">{staff.name}</div>
-                      <div className="text-slate-400 text-sm">
+                      <div className={cn("font-medium", detailSurfacePattern.title)}>{staff.name}</div>
+                      <div className={detailSurfacePattern.subtleText}>
                         Current: {roles.find(r => r.id === staff.currentRole)?.name} - {staff.department}
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-xs bg-slate-700/50 border-slate-600">
+                    <Badge variant="outline" className={cn("text-xs", detailSurfacePattern.badgeOutline)}>
                       {staff.performance}% performance
                     </Badge>
                   </div>
@@ -748,13 +752,13 @@ export default function RoleManagement() {
             </div>
 
             <div className="flex justify-end space-x-3">
-              <Button variant="outline" onClick={() => setShowAssignRole(false)}>
+              <Button variant="outline" onClick={() => setShowAssignRole(false)} className={detailSurfacePattern.btnOutline}>
                 Cancel
               </Button>
               <Button 
                 onClick={() => handleAssignRole("", selectedStaff)}
                 disabled={selectedStaff.length === 0}
-                className="bg-blue-600 hover:bg-blue-700"
+                className={detailSurfacePattern.btnPrimary}
               >
                 Assign Role ({selectedStaff.length} selected)
               </Button>

@@ -3,8 +3,15 @@
  * Flags remain off; safe no-op when tables empty / service role missing.
  */
 import { createClient } from "@supabase/supabase-js"
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("advanced_music_webhooks")) {
+    console.error("[music-rights-admin-outbox] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260911013017_work_mode_overview_communications.sql",
+  "taskId": "WORK-004",
+  "status": "planned",
+  "owner": "workforce-platform",
+  "reviewer": "security-data",
+  "domains": ["workforce", "communications", "events", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "organization with active and inactive staff, invited and confirmed event assignments, published packets, bulletins, and team communications",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count team communications by event and tour scope, including rows with null org_id",
+      "Count confirmed and active employment assignments by canonical event and organization"
+    ],
+    "expectedAffectedRows": "Existing event- or tour-scoped communications receive only derivable organization IDs; unscoped historical rows remain null",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 300000,
+    "batchSize": 1000,
+    "resumeStrategy": "Re-run the additive migration; columns and indexes are guarded, policy replacements are deterministic, and the backfill touches only null organization scopes",
+    "resumeCursor": "Supabase migration version 20260911013017",
+    "idempotency": "Schema additions and indexes use if-not-exists, policy replacements drop before create, and the backfill updates only null org_id rows"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not guess organization ownership for historical communications without an event or tour; leave them unscoped and unavailable to worker overview reads"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "team_communications.org_id references organizations",
+      "worker reads require recipient or accepted assignment ownership"
+    ],
+    "indexes": [
+      "team communications organization and sent time",
+      "GIN recipient lookup",
+      "partial scheduled reminder index"
+    ],
+    "validationPlan": "Apply to an isolated snapshot, verify recipient and cross-user RLS personas, inspect query plans for recipient/reminder reads, and smoke the worker overview and event workspace"
+  },
+  "recovery": {
+    "rollback": "Disable the overview communications reads and restore the prior named policies only through a reviewed forward migration; retain additive columns and data",
+    "forwardFix": "Correct policy predicates or indexes additively and replay the null-only organization backfill"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect RLS policies for team_communications, event_bulletins, events_v2, venues_v2, organizations, tasks, and work_mode_publications",
+      "Verify a confirmed worker can read assigned event content and a cross-user worker receives zero rows",
+      "Verify reminder recipient and remind_at indexes are used for bounded reads"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

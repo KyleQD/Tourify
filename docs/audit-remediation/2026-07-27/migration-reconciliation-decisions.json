@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-28",
+  "decisions": {
+    "20250120000000": {
+      "domain_owner": "database + feed/social + artist-jobs",
+      "canonical_decision": "PENDING_OBJECT_EFFECT_APPROVAL",
+      "object_effect_review": "IN_PROGRESS",
+      "evidence": [
+        "supabase/migrations/20250120000000_event_social_features.sql",
+        "supabase/migrations_backup/20250120000000_extend_artist_jobs_for_collaborations.sql",
+        "read-only live query confirms both event-social and artist-job object families currently exist"
+      ],
+      "notes": "The local file creates event-social objects while the remote record names an artist-jobs expansion. Filename equivalence is disproven. Preserve both histories and determine lineage from live definitions before selecting any baseline effect."
+    },
+    "20250818122000": {
+      "domain_owner": "database + hiring/logistics",
+      "canonical_decision": "PENDING_OBJECT_EFFECT_APPROVAL",
+      "object_effect_review": "IN_PROGRESS",
+      "evidence": [
+        "supabase/migrations/20250818122000_job_board_core.sql",
+        "supabase/migrations/20250818122010_logistics_tasks_align.sql",
+        "read-only live query confirms job_board_postings, organization_job_postings, and logistics_tasks currently exist"
+      ],
+      "notes": "The remote name matches the purpose of local version 20250818122010 rather than local 20250818122000. Treat this as a confirmed history collision and compare live constraints/triggers before baseline adoption."
+    },
+    "20260718070000": {
+      "domain_owner": "database + security + creator-governance",
+      "canonical_decision": "QUARANTINE_NO_DEPLOYMENT",
+      "object_effect_review": "PENDING",
+      "evidence": [
+        "supabase/migrations/20260718070000_creator_public_entities_participation_identifiers.sql",
+        "supabase/migrations/20260718070000_harden_hiring_onboarding_templates_and_pii.sql"
+      ],
+      "notes": "Two uncommitted local migrations share one version. Do not rename, rewrite, mark applied, or push either file."
+    },
+    "20260728000013": {
+      "domain_owner": "database + marketplace",
+      "canonical_decision": "QUARANTINE_NO_DEPLOYMENT",
+      "object_effect_review": "PENDING",
+      "evidence": [
+        "supabase/migrations/20260728000013_marketplace_listings_fts.sql",
+        "supabase/migrations/20260728000013_marketplace_listings_search_vector.sql"
+      ],
+      "notes": "Two uncommitted local migrations share one version. Do not rename, rewrite, mark applied, or push either file."
+    }
+  }
+}

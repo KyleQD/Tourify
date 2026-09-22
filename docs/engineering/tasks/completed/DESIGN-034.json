@@ -1,0 +1,119 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-034",
+  "title": "Token registry CI regression gate (Phase 6)",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-13T18:57:01.310Z",
+  "updated_at": "2026-09-21T02:49:35Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (concurrent production-readiness lanes preserved)",
+  "goal": "Add a CI regression gate that validates the central TOKEN_REGISTRY.md target authority: every CSS custom property role resolves to a defined runtime value, every Tailwind projection key maps to a registered role, no unregistered token-source files observed - failing the check on drift so the registry stays the authoritative token source of truth.",
+  "scope": {
+    "in": [
+      "Machine-checkable TOKEN_REGISTRY.md runtime-source and exact Tailwind projection contract",
+      "Focused token-registry regression checker and negative fixtures",
+      "Package command and main CI workflow wiring",
+      "DESIGN-034 work packet and design-system durable state"
+    ],
+    "out": [
+      "Runtime token value, CSS cascade, or Tailwind configuration changes",
+      "DESIGN-033 radius visual QA and venue-session work",
+      "Component-local/module custom properties and broader token adoption",
+      "Generated control-plane maps and TASK_INDEX.json"
+    ]
+  },
+  "working_set": [
+    "scripts/ci/check-token-registry.mjs",
+    "scripts/ci/check-token-registry.test.mjs",
+    "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
+    "package.json",
+    ".github/workflows/ci.yml",
+    "docs/work-packets/DESIGN-034.md",
+    "docs/engineering/agents/design-system/STATE.md",
+    "docs/engineering/tasks/completed/DESIGN-034.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md"
+  ],
+  "acceptance_criteria": [
+    "Every live/conflict CSS custom-property role in TOKEN_REGISTRY.md Tables A-I has a definition in a registered global runtime token source.",
+    "Every CSS-variable Tailwind projection key maps exactly to an active registered role and an exact TOKEN_REGISTRY.md Table K alias row.",
+    "Unregistered global token declarations and non-module global token-source files fail the check; component-local/module properties are explicitly outside the global contract.",
+    "Focused negative fixtures prove failure for missing runtime truth, rogue declarations/source files, and Tailwind projection drift.",
+    "The focused checker runs in the main CI workflow, with no runtime token-value, Tailwind-config, DESIGN-033, or venue-session changes."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run test:token-registry",
+      "npm run check:token-registry",
+      "npx eslint scripts/ci/check-token-registry.mjs scripts/ci/check-token-registry.test.mjs",
+      "git diff --check -- package.json .github/workflows/ci.yml scripts/ci/check-token-registry.mjs scripts/ci/check-token-registry.test.mjs docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md docs/work-packets/DESIGN-034.md docs/engineering/agents/design-system/STATE.md docs/engineering/tasks/completed/DESIGN-034.json",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Node fixture suite passed 9/9: exact contract accepted; missing active definition, unregistered declaration/source, Tailwind projection drift, minified CSS blind spots, invalid statuses, malformed rows, source-path escape, and flattened alias collisions covered.",
+      "Repository token check passed: 126 registry role rows, 69 active runtime variables, 41 Tailwind CSS-variable projections, 2 registered global token sources.",
+      "ESLint passed on both new CI files; scoped git diff --check passed.",
+      "agents:validate passed with 17 agents / 113 tasks / 0 errors; 8 expected stale-map warnings remain for root reconciliation (agents:generate intentionally not run).",
+      "Runtime CSS values and tailwind.config.ts are unchanged; DESIGN-033 and venue-session files are untouched."
+    ],
+    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+    "last_run_at": "2026-09-21T02:49:35Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Implemented the Phase 6 token-registry regression gate without changing runtime tokens or Tailwind configuration. TOKEN_REGISTRY.md now exposes its two global CSS sources and Tailwind source as a machine-readable contract and records all 41 projections as exact rows. Focused positive/negative fixtures, the real repository check, lint, and diff checks pass; the gate is wired into main CI.",
+    "completed": [
+      "Added the registry parser and validator for Tables A-I, exact Table K projections, runtime definitions/dependencies, registered global CSS sources, and Tailwind var targets.",
+      "Normalized grouped Table K aliases into 41 exact projection rows and documented the global-vs-component-local source boundary.",
+      "Added four focused fixture tests covering success plus missing runtime truth, rogue declarations/sources, and projection drift.",
+      "Review hardening added five fixtures and corrected the checker to parse minified CSS, reject malformed rows instead of dropping them, validate role/projection statuses and repo-relative source paths, reject flattened alias collisions, and skip filesystem symlinks; six historical removed statuses were normalized to dead.",
+      "Added check:token-registry and test:token-registry package commands and wired both into .github/workflows/ci.yml."
+    ],
+    "next_steps": [
+      "Root orchestrator regenerates shared task maps/TASK_INDEX after integrating concurrent lanes.",
+      "Future global token or Tailwind CSS-variable projection changes update TOKEN_REGISTRY.md in the same change."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-21T02:49:35Z",
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "summary": "Independent review hardened the Phase 6 gate before integration. The checker now parses minified CSS through PostCSS, validates registry statuses and repository-relative source paths, rejects malformed rows and flattened Tailwind alias collisions, and skips filesystem symlinks. Six historical removed rows were normalized to the registry's dead status.",
+        "completed": [
+          "Expanded the focused suite from four to nine tests and reran it successfully.",
+          "Re-ran the repository check, scoped ESLint, and scoped diff check successfully."
+        ],
+        "next_steps": [
+          "Root reconciles generated task maps and records the orchestration wave."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-20T20:01:19Z",
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "summary": "Phase 6 gate implemented and focused verification passed. The registry now has an explicit global-source contract and exact 41-row Tailwind projection table; CI rejects missing active runtime truth, rogue global declarations/sources, and projection drift. Runtime CSS/Tailwind values, DESIGN-033, and venue-session work were untouched.",
+        "completed": [
+          "All five DESIGN-034 acceptance criteria met locally."
+        ],
+        "next_steps": [
+          "Root reconciles generated task maps after integrating concurrent lanes."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-16T19:24:56.201Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness triage keeps DESIGN-034 non-P0. The token-registry regression gate remains useful but is not a launch blocker unless release verification identifies token drift on a core journey.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

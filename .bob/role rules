@@ -1,0 +1,309 @@
+/**
+ * Tourify Event Production Role & Permissions Specification
+ * ---------------------------------------------------------
+ * Everything is a Person, Place, or Thing.
+ *
+ * Person: An Individual account tied to a human being.
+ * Place: A location where an event can occur (physical, virtual, public, private).
+ * Thing: An entity, asset, or organization that is not a Place or a Person.
+ *
+ * Permissions follow a Role-Based Access Control (RBAC) model.
+ * Roles are granted at the entity level and may vary per event.
+ */
+
+//////////////////////////////
+// Core Entity Definitions  //
+//////////////////////////////
+
+export type EntityType =
+  | "Individual"
+  | "Artist"
+  | "Venue"
+  | "Organizer"
+  | "PerformanceAgency"
+  | "StaffingAgency"
+  | "RentalCompany"
+  | "ProductionCompany"
+  | "Promoter"
+  | "PublicLocation"
+  | "PrivateLocation"
+  | "VirtualLocation"
+  | "Event"
+  | "EquipmentAsset"
+  | "EventPackage";
+
+/**
+ * Person: Individual (Primary Account Holder)
+ */
+export interface Individual {
+  type: "Individual";
+  id: string;
+  name: string;
+  aliases?: string[]; // public-facing names, stage names, etc.
+  owns?: string[]; // Entity IDs for owned Artists, Venues, Agencies, etc.
+  memberOf?: string[]; // Entity IDs for Artists, Agencies, Organizations
+}
+
+/**
+ * Thing: Artist (creative identity)
+ */
+export interface Artist {
+  type: "Artist";
+  id: string;
+  name: string;
+  members: string[]; // Individual IDs
+  managers?: string[]; // Individual IDs with admin rights
+  bookings?: string[]; // Event IDs
+}
+
+/**
+ * Thing: Performance Agency
+ * - Represents multiple Artists (e.g., dancers, musicians, specialty acts)
+ */
+export interface PerformanceAgency {
+  type: "PerformanceAgency";
+  id: string;
+  name: string;
+  artists: string[]; // Artist IDs
+  managers?: string[]; // Individual IDs
+}
+
+/**
+ * Thing: Staffing Agency
+ * - Supplies individuals for crew/staff roles
+ */
+export interface StaffingAgency {
+  type: "StaffingAgency";
+  id: string;
+  name: string;
+  staff: string[]; // Individual IDs
+  managers?: string[]; // Individual IDs
+}
+
+/**
+ * Thing: Rental Company
+ * - Provides equipment or materials
+ */
+export interface RentalCompany {
+  type: "RentalCompany";
+  id: string;
+  name: string;
+  assets: string[]; // EquipmentAsset IDs
+  managers?: string[]; // Individual IDs
+}
+
+/**
+ * Thing: Production Company
+ * - Oversees full event execution
+ */
+export interface ProductionCompany {
+  type: "ProductionCompany";
+  id: string;
+  name: string;
+  managedEvents: string[]; // Event IDs
+  managers?: string[]; // Individual IDs
+}
+
+/**
+ * Thing: Promoter
+ * - Markets and sells tickets for events
+ */
+export interface Promoter {
+  type: "Promoter";
+  id: string;
+  name: string;
+  events: string[]; // Event IDs
+  managers?: string[]; // Individual IDs
+}
+
+/**
+ * Place: Venue
+ */
+export interface Venue {
+  type: "Venue";
+  id: string;
+  name: string;
+  location?: string; // address or virtual link
+  managers?: string[];
+  events?: string[];
+}
+
+/**
+ * Place: Public Location
+ * - Non-commercial public space (park, street, plaza)
+ */
+export interface PublicLocation {
+  type: "PublicLocation";
+  id: string;
+  name: string;
+  permitsRequired?: boolean;
+  events?: string[];
+}
+
+/**
+ * Place: Private Location
+ * - Non-venue private property
+ */
+export interface PrivateLocation {
+  type: "PrivateLocation";
+  id: string;
+  name: string;
+  ownerId?: string; // Individual or Organization ID
+  events?: string[];
+}
+
+/**
+ * Place: Virtual Location
+ */
+export interface VirtualLocation {
+  type: "VirtualLocation";
+  id: string;
+  name: string;
+  platform: string; // e.g., Zoom, VRChat, YouTube Live
+  events?: string[];
+}
+
+/**
+ * Thing: Event
+ */
+export interface Event {
+  type: "Event";
+  id: string;
+  name: string;
+  locations: string[]; // Place IDs
+  participants: string[]; // Individual, Artist, or Organization IDs
+}
+
+/**
+ * Thing: Equipment Asset
+ */
+export interface EquipmentAsset {
+  type: "EquipmentAsset";
+  id: string;
+  name: string;
+  ownerId: string; // RentalCompany, Venue, Artist, etc.
+}
+
+/**
+ * Thing: Event Package
+ */
+export interface EventPackage {
+  type: "EventPackage";
+  id: string;
+  name: string;
+  includedAssets: string[]; // EquipmentAsset IDs
+  includedServices: string[]; // Entity IDs (Staffing, Performance, etc.)
+}
+
+//////////////////////////////
+// Permissions              //
+//////////////////////////////
+
+export type Permission =
+  | "CREATE_PROFILE"
+  | "EDIT_PROFILE"
+  | "JOIN_ENTITY"
+  | "MANAGE_MEMBERS"
+  | "BOOK_EVENTS"
+  | "ASSIGN_EVENT_ROLES"
+  | "EDIT_EVENT_LOGISTICS"
+  | "MANAGE_ASSETS"
+  | "PUBLISH_MEDIA"
+  | "MANAGE_TICKETING"
+  | "MANAGE_PERMITS";
+
+export interface RolePermissions {
+  [role: string]: Permission[];
+}
+
+export const ROLE_PERMISSIONS: RolePermissions = {
+  Individual: ["CREATE_PROFILE", "EDIT_PROFILE", "JOIN_ENTITY", "PUBLISH_MEDIA"],
+  Artist: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "MANAGE_MEMBERS",
+    "BOOK_EVENTS",
+    "ASSIGN_EVENT_ROLES",
+    "EDIT_EVENT_LOGISTICS",
+    "PUBLISH_MEDIA"
+  ],
+  Venue: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "MANAGE_MEMBERS",
+    "BOOK_EVENTS",
+    "ASSIGN_EVENT_ROLES",
+    "EDIT_EVENT_LOGISTICS",
+    "MANAGE_ASSETS",
+    "PUBLISH_MEDIA"
+  ],
+  Organizer: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "MANAGE_MEMBERS",
+    "BOOK_EVENTS",
+    "ASSIGN_EVENT_ROLES",
+    "EDIT_EVENT_LOGISTICS",
+    "MANAGE_ASSETS",
+    "PUBLISH_MEDIA",
+    "MANAGE_TICKETING"
+  ],
+  PerformanceAgency: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "MANAGE_MEMBERS",
+    "BOOK_EVENTS",
+    "ASSIGN_EVENT_ROLES",
+    "PUBLISH_MEDIA"
+  ],
+  StaffingAgency: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "MANAGE_MEMBERS",
+    "ASSIGN_EVENT_ROLES"
+  ],
+  RentalCompany: ["CREATE_PROFILE", "EDIT_PROFILE", "MANAGE_ASSETS"],
+  ProductionCompany: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "MANAGE_MEMBERS",
+    "BOOK_EVENTS",
+    "ASSIGN_EVENT_ROLES",
+    "EDIT_EVENT_LOGISTICS",
+    "MANAGE_ASSETS",
+    "PUBLISH_MEDIA"
+  ],
+  Promoter: [
+    "CREATE_PROFILE",
+    "EDIT_PROFILE",
+    "BOOK_EVENTS",
+    "MANAGE_TICKETING",
+    "PUBLISH_MEDIA"
+  ],
+  PublicLocation: ["CREATE_PROFILE", "EDIT_PROFILE", "MANAGE_PERMITS"],
+  PrivateLocation: ["CREATE_PROFILE", "EDIT_PROFILE", "MANAGE_PERMITS"],
+  VirtualLocation: ["CREATE_PROFILE", "EDIT_PROFILE"]
+};
+
+//////////////////////////////
+// Relationship Rules       //
+//////////////////////////////
+
+export const RELATIONSHIP_RULES = {
+  "Individual:Artist":
+    "An Individual can belong to multiple Artists; an Artist can have multiple Individuals.",
+  "Individual:Agency":
+    "An Individual can be part of multiple Performance or Staffing Agencies.",
+  "Artist:PerformanceAgency":
+    "A Performance Agency can represent multiple Artists; an Artist can be represented by multiple agencies.",
+  "StaffingAgency:Staff":
+    "A Staffing Agency can manage multiple staff members; a staff member can belong to multiple agencies.",
+  "RentalCompany:Equipment":
+    "A Rental Company can own multiple Equipment Assets; assets can be rented to multiple events.",
+  "Event:Location":
+    "An Event can occur in multiple Places; a Place can host multiple Events.",
+  "Event:Entity":
+    "An Event can include multiple Individuals, Artists, and Organizations; participants can be in multiple events.",
+  "Venue:Event":
+    "A Venue can host multiple Events; an Event can be hosted at multiple Venues."
+};

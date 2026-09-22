@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -14,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
-import { Loader2, Upload, X } from "lucide-react"
+import { ExternalLink, Loader2, Palette, Upload, X } from "lucide-react"
 import { profileNotifications } from "@/lib/utils/notifications"
 
 const profileFormSchema = z.object({
@@ -260,8 +261,6 @@ export function ProfileSettings() {
     }
 
     setIsLoading(true)
-    console.log('Form data being submitted:', data)
-    
     // Show saving progress
     profileNotifications.saveInProgress()
 
@@ -312,8 +311,6 @@ export function ProfileSettings() {
       })
 
       const result = await response.json()
-      console.log('API response:', result)
-
       if (!response.ok || !result.success) {
         const errorMessage = result.error || result.message || 'Failed to update profile'
         console.error('Update failed:', errorMessage)
@@ -448,9 +445,33 @@ export function ProfileSettings() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription>Update your profile information and control what others can see.</CardDescription>
+        <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Profile Information</CardTitle>
+            <CardDescription>
+              Update your General identity and control what visitors can see.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/settings/profile-colors">
+                <Palette className="mr-2 h-4 w-4" aria-hidden="true" />
+                Appearance
+              </Link>
+            </Button>
+            {userProfile?.username ? (
+              <Button asChild variant="outline" size="sm">
+                <Link
+                  href={`/profile/${encodeURIComponent(userProfile.username)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Public preview
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent>
           {/* Avatar Section */}

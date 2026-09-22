@@ -1,0 +1,127 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-011",
+  "title": "Retire venue drawer primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:38.087Z",
+  "updated_at": "2026-09-11T20:04:08.634Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/drawer.tsx to components/ui/drawer.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/drawer.tsx",
+      "components/ui/drawer.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/drawer.tsx",
+    "components/ui/drawer.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical overlay / dialog preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/drawer|@/components/venue/ui/drawer\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/drawer.tsx components/ui/drawer.tsx",
+      "git diff --check -- components/venue/ui/drawer.tsx components/ui/drawer.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      {
+        "command": "rg -n \"components/venue/ui/drawer|@/components/venue/ui/drawer\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+        "exit_code": 1,
+        "result": "ZERO live consumers. 0 matches across app, components, hooks, lib, apps, __tests__, scripts. The venue twin components/venue/ui/drawer.tsx has no importing surface; consumer migration to the canonical contract is already complete (no code change required).",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      },
+      {
+        "command": "shasum -a 256 components/venue/ui/drawer.tsx components/ui/drawer.tsx && diff components/venue/ui/drawer.tsx components/ui/drawer.tsx",
+        "exit_code": 0,
+        "result": "BYTE-IDENTICAL twin: both files SHA-256 774316527ddc577fc54012a0c898ebcf7cf8f11152126e550828b53004a5b70c; diff produced no output. Public export parity confirmed: 10 exports (Drawer, DrawerPortal, DrawerOverlay, DrawerTrigger, DrawerClose, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription). Prop/ref parity confirmed: identical React.ComponentProps (Root/Trigger/Portal/Close) and React.ComponentPropsWithoutRef + forwardRef (Overlay/Content/Title/Description) typing, identical displayName assignments and classNames.",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      },
+      {
+        "command": "rg -n \"drawer\" docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv",
+        "exit_code": 0,
+        "result": "Register rows: components/ui/drawer.tsx = keep (row 1107, canonical target); components/venue/ui/drawer.tsx = retire later (row 1286, DUP-066, canonicalTarget components/ui/drawer.tsx). Note (register reference only, not audited): row 312 lists app/venue/components/ui/drawer.tsx as retire later DUP-066, but that path does not exist in the working tree.",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      },
+      {
+        "command": "rg -n \"ui/drawer|@/components/ui/drawer\" app components hooks lib --glob \"*.{ts,tsx}\" (canonical import inventory)",
+        "exit_code": 1,
+        "result": "Canonical import inventory: 0 imports of components/ui/drawer in any specifier form (excluded the two drawer files themselves); no barrel re-export found (components/ui has no drawer re-export). Venue-surface consumers under app/venue/** and components/venue/**: 0 files import Drawer from either path; the only Drawer-identifying file in that tree is the twin itself (46 matches all inside components/venue/ui/drawer.tsx). Both drawer twins are currently zero-consumer.",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      },
+      {
+        "command": "./node_modules/.bin/eslint components/venue/ui/drawer.tsx components/ui/drawer.tsx",
+        "exit_code": 0,
+        "result": "Both files pass eslint with no errors or warnings.",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      },
+      {
+        "command": "git diff --check -- components/venue/ui/drawer.tsx components/ui/drawer.tsx docs/engineering",
+        "exit_code": 0,
+        "result": "No whitespace errors; tree is clean for the working set and docs/engineering.",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      },
+      {
+        "command": "npm run agents:validate",
+        "exit_code": 0,
+        "result": "validated 17 agents, 93 tasks, 0 warnings, 0 errors.",
+        "run_at": "2026-09-11T19:47:51.3Z"
+      }
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:04:08.634Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded drawer audit complete. The venue drawer twin has zero live consumers, is byte-identical to the canonical shared primitive (SHA-256 match, full export parity), and the register already classifies it retire-later (DUP-066). Twin retained pending separate cleanup authorization.",
+    "completed": [
+      "Zero-use consumer audit of components/venue/ui/drawer across app, components, hooks, lib, apps, __tests__, scripts: 0 matches.",
+      "Canonical import inventory: 0 imports of components/ui/drawer in any specifier form; 0 venue-surface consumers under app/venue/** and components/venue/**.",
+      "Twin characterization: SHA-256 identical (774316527ddc577fc54012a0c898ebcf7cf8f11152126e550828b53004a5b70c) - byte-identical, not divergent; 10 exported members with matching prop/ref typing and displayNames.",
+      "Register disposition confirmed: canonical keep (row 1107); venue twin retire-later, DUP-066 (row 1286).",
+      "Focused verification: eslint clean on both files, git diff --check clean, agents:validate 17 agents / 93 tasks / 0 warnings / 0 errors."
+    ],
+    "next_steps": [
+      "Orchestrator reconciles DESIGN-011 to completed; deletion of components/venue/ui/drawer.tsx remains an explicit authorized follow-up (not performed in this audit-only pass).",
+      "Optionally reconcile register row 312 (app/venue/components/ui/drawer.tsx) which references a non-existent path - register is reference-only and outside this pass's scope."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T19:47:51.3Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Audit-only pass complete. Zero-use evidence: 0 matches for the venue twin across all app/component dirs. Twin is byte-identical to canonical (matching SHA-256, empty diff), full export parity (10 exports), register already classifies it retire-later DUP-066. Canonical drawer also has 0 live consumers (no barrel re-export). No files changed outside the task record. Scope note: register row 312 references a non-existent app/venue/components/ui/drawer.tsx path - recorded, not acted on."
+      },
+      {
+        "at": "2026-09-11T20:04:08.634Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded drawer audit complete. The venue drawer twin has zero live consumers, is byte-identical to the canonical shared primitive (SHA-256 match, full export parity), and the register already classifies it retire-later (DUP-066). Twin retained pending separate cleanup authorization.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

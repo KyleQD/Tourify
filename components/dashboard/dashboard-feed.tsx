@@ -50,6 +50,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { buildFeedPostsUrl, extractFeedErrorMessage } from '@/lib/feed/feed-client'
+import { readJsonResponse } from '@/lib/http/read-json-response'
 import { ArticleFeedPreview, type ArticlePreviewData } from '@/components/feed/article-feed-preview'
 import { EventFeedPreview, type EventPreviewData } from '@/components/feed/event-feed-preview'
 import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
@@ -60,6 +61,17 @@ import {
 } from '@/lib/feed/music-post-preview'
 import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
 import { toast } from 'sonner'
+import {
+  createPostComment,
+  getPostComments,
+  setPostLike,
+  sharePostExternally,
+  type PostComment,
+} from '@/lib/feed/post-engagement-client'
+import { PostAppearanceBoundary } from '@/components/posts/appearance/post-appearance-boundary'
+import type { RawPostAppearanceRow } from '@/lib/feed/resolve-post-appearance-dto'
+import { usePostStyleFlags } from '@/hooks/use-post-style-flags'
+import type { FeedAuthorDTO } from '@/lib/feed/feed-post-dto'
 
 interface PostData {
   id: string
@@ -84,6 +96,9 @@ interface PostData {
   metadata?: Record<string, unknown> | null
   media_unavailable_count?: number
   viewer_can_manage?: boolean
+  author?: FeedAuthorDTO
+  appearance?: RawPostAppearanceRow | null
+  post_appearances?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
   profiles: {
     username: string
     full_name: string
@@ -100,19 +115,7 @@ interface PostData {
   like_count: number
 }
 
-interface Comment {
-  id: string
-  content: string
-  created_at: string
-  updated_at: string
-  user: {
-    id: string
-    username: string
-    full_name: string
-    avatar_url?: string
-    is_verified: boolean
-  }
-}
+type Comment = PostComment
 
 function getProfileUrl(profile: PostData['profiles']) {
   if (profile?.account_context?.profile_path) return profile.account_context.profile_path
@@ -152,6 +155,7 @@ export function DashboardFeed() {
 
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
+  const { flags: postStyleFlags } = usePostStyleFlags()
   const router = useRouter()
 
   const isPostVisibleInFeed = (post: PostData, feedType: string) => {
@@ -210,25 +214,32 @@ export function DashboardFeed() {
           'Content-Type': 'application/json',
         },
       })
-      const result = await response.json()
+      type FeedResult = {
+        success?: boolean
+        error?: import('@/lib/feed/feed-client').FeedApiError
+        posts?: PostData[]
+        data?: PostData[]
+        message?: string
+      }
+      const result = await readJsonResponse<FeedResult>(response)
 
-      if (!response.ok || result.success === false || result.error) {
+      if (!response.ok || !result || result.success === false || result.error) {
         const errorMessage = extractFeedErrorMessage(
-          result.error,
+          result?.error,
           `Failed to load feed (HTTP ${response.status})`
         )
         console.error('Error loading posts:', errorMessage, {
           status: response.status,
-          error: result.error,
+          error: result?.error,
         })
         setFeedError(
-          extractFeedErrorMessage(result.error, 'Failed to load your feed. Please try again.')
+          extractFeedErrorMessage(result?.error, 'Failed to load your feed. Please try again.')
         )
         return
       }
 
       // Standardize on { posts } but gracefully support { data }
-      const postsData = result.posts || result.data || []
+      const postsData: PostData[] = result.posts || result.data || []
 
       setPosts((prev) => {
         if (append) return dedupePostsById([...prev, ...postsData])
@@ -273,10 +284,13 @@ export function DashboardFeed() {
 
   const handleCopyPostLink = async (postId: string) => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/posts/${postId}`)
-      toast.success('Post link copied')
-    } catch {
-      toast.error('Failed to copy post link')
+      const result = await sharePostExternally(postId, { preferNative: false })
+      setPosts(prev => prev.map(post =>
+        post.id === postId ? { ...post, shares_count: result.shares_count } : post
+      ))
+      toast.success('Post link copied and share saved')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to share post')
     }
   }
 
@@ -377,19 +391,12 @@ export function DashboardFeed() {
           : post
       ))
 
-      // Call the API
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ action })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle like')
-      }
+      const result = await setPostLike(postId, action)
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, is_liked: result.is_liked, like_count: result.likes_count }
+          : post
+      ))
 
     } catch (error) {
       // Revert on error
@@ -410,15 +417,7 @@ export function DashboardFeed() {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }))
 
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        credentials: 'include'
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to load comments')
-      }
-
-      const result = await response.json()
+      const result = await getPostComments(postId)
       const loadedComments = result.comments || []
       setComments(prev => ({ ...prev, [postId]: loadedComments }))
       setPosts(prev => prev.map(post =>
@@ -451,20 +450,7 @@ export function DashboardFeed() {
     if (!user || !content.trim()) return
 
     try {
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ content: content.trim() })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to add comment')
-      }
-
-      const result = await response.json()
+      const result = await createPostComment(postId, content.trim())
 
       // Add the new comment to the local state
       setComments(prev => ({
@@ -477,7 +463,7 @@ export function DashboardFeed() {
         post.id === postId
           ? {
               ...post,
-              comments_count: post.comments_count + 1
+              comments_count: result.comments_count
             }
           : post
       ))
@@ -659,10 +645,16 @@ export function DashboardFeed() {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Card className="bg-white/5 border-white/10 hover:border-white/20 transition-colors">
+                    <PostAppearanceBoundary
+                      postId={post.id}
+                      appearance={post.appearance ?? post.post_appearances}
+                      enabled={postStyleFlags.post_styles_read}
+                      surface="compact"
+                    >
+                    <Card data-slot="card" className="bg-white/5 border-white/10 hover:border-white/20 transition-colors">
                       <CardContent className="p-4">
                         {/* Post Header */}
-                        <div className="flex items-start gap-3 mb-3">
+                        <div data-post-region="header" className="flex items-start gap-3 mb-3">
                           <Link href={getProfileUrl(post.profiles)} className="flex-shrink-0">
                             <Avatar className="cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200 h-10 w-10">
                               <AvatarImage
@@ -760,7 +752,7 @@ export function DashboardFeed() {
                         </div>
 
                         {/* Post Content */}
-                        <div className="mb-3">
+                        <div data-post-region="body" className="mb-3">
                           {post.content_ref_type === 'article' && post.article_preview ? (
                             <ArticleFeedPreview article={post.article_preview} compact />
                           ) : post.content_ref_type === 'event_update' && post.event_preview ? (
@@ -847,7 +839,7 @@ export function DashboardFeed() {
                         <Separator className="bg-white/10 mb-3" />
 
                         {/* Post Actions */}
-                        <div className="flex items-center justify-between">
+                        <div data-post-region="actions" className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             {post.content_ref_type === 'event_update' ? (
                               <Button
@@ -1001,6 +993,7 @@ export function DashboardFeed() {
                         )}
                       </CardContent>
                     </Card>
+                    </PostAppearanceBoundary>
                   </motion.div>
                   )
                 })

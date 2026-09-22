@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "agent": "social",
+  "description": "Own feed, posts, follows, friends, groups, messaging, notifications, and collaboration.",
+  "paths": [
+    "app/feed/**",
+    "app/posts/**",
+    "app/friends/**",
+    "app/groups/**",
+    "app/messages/**",
+    "app/notifications/**",
+    "app/collaboration/**",
+    "components/feed/**",
+    "components/social/**",
+    "components/messaging/**",
+    "lib/social/**",
+    "__tests__/social/**",
+    "__tests__/messaging/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

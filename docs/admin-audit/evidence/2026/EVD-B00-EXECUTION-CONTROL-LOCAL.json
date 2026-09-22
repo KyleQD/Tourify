@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B00-EXECUTION-CONTROL-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-09-05T14:11:29-07:00",
+  "capturedBy": "Codex implementation session",
+  "commitSha": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
+  "artifact": "audit-artifacts/admin-execution/ADM-B00/01.log",
+  "sha256": "e9562e5162d0eca5a88ba857d12cb4d8b63bc8443ed8b2e7485cba79a513f708",
+  "findingIds": ["AOA-001", "AOA-002", "AOA-004", "AOA-005", "AOA-006", "AOA-008", "AOA-009", "AOA-010", "AOA-011", "AOA-014"],
+  "workflowIds": ["ADM-WF-017"],
+  "specTaskIds": [],
+  "launchGateIds": ["LG-04"],
+  "notes": "Focused ADM-B00 validation passed. Exact coverage is 79 findings, 362 specification tasks, 20 workflow completions, and 15 execution batches; every generated context pack is within 32 KiB."
+}

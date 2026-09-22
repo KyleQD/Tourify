@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { withPlatformAdmin } from "@/lib/auth/api-auth"
 import { resolveMusicRightsAdminFlags } from "@/lib/music/rights-admin/music-rights-admin-flags"
 import { getTrustedMusicWriteClient } from "@/lib/music/music-access"
 
@@ -24,26 +25,10 @@ const actionSchema = z.object({
   payload: z.record(z.unknown()).default({}),
 })
 
-async function assertAdmin(supabase: any, userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("admin_level, is_admin")
-    .eq("id", userId)
-    .maybeSingle()
-  if (!data) return false
-  if (data.is_admin === true) return true
-  return Number(data.admin_level || 0) >= 1
-}
-
-export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
-  if (!authResult.success) return authResult.response
-  const { user, supabase } = authResult.auth
+export const GET = withPlatformAdmin(async (_request: NextRequest, { user, supabase }) => {
   const flags = await resolveMusicRightsAdminFlags(supabase, user.id)
   if (!flags.music_rights_admin_admin_ops_enabled)
     return jsonError({ status: 404, code: "feature_disabled", message: "Rights admin ops are not available.", retryable: false })
-  if (!(await assertAdmin(supabase, user.id)))
-    return jsonError({ status: 403, code: "forbidden", message: "Admin access required.", retryable: false })
 
   const trusted = await getTrustedMusicWriteClient(supabase)
   const [{ data: openDeadlines }, { data: flagRows }] = await Promise.all([
@@ -60,18 +45,13 @@ export async function GET(request: NextRequest) {
   ])
 
   return NextResponse.json({ data: { openDeadlines: openDeadlines || [], flags: flagRows || [] }, enabled: true })
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withPlatformAdmin(async (request: NextRequest, { user, supabase }) => {
   try {
-    const authResult = await requireApiUser(request)
-    if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
     const flags = await resolveMusicRightsAdminFlags(supabase, user.id)
     if (!flags.music_rights_admin_admin_ops_enabled)
       return jsonError({ status: 404, code: "feature_disabled", message: "Rights admin ops are not available.", retryable: false })
-    if (!(await assertAdmin(supabase, user.id)))
-      return jsonError({ status: 403, code: "forbidden", message: "Admin access required.", retryable: false })
 
     const payload = actionSchema.parse(await request.json())
     const trusted = await getTrustedMusicWriteClient(supabase)
@@ -106,4 +86,4 @@ export async function POST(request: NextRequest) {
       return jsonError({ status: 400, code: "validation_error", message: "Invalid ops payload.", retryable: false, issues: error.issues })
     return jsonError({ status: 500, code: "ops_action_failed", message: "Unable to execute ops action.", retryable: true })
   }
-}
+})

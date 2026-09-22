@@ -1,0 +1,224 @@
+{
+  "schema_version": "1.0",
+  "id": "INTG-006",
+  "title": "Align webhook idempotency/verification per route",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "integrations",
+  "created_at": "2026-09-09T09:35:09.050Z",
+  "updated_at": "2026-09-18T04:57:40.920Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Certify every enabled launch webhook for signature verification, atomic idempotency, safe retry and replay behavior, and redacted failures while gating deferred providers",
+  "scope": {
+    "in": [
+      "app/api/marketplace/integrations/printful/webhook/route.ts",
+      "app/api/marketplace/integrations/shopify/webhook/route.ts",
+      "app/api/webhooks/music-marketplace/[partner]/route.ts",
+      "app/api/institutional/partners/webhooks/[provider]/route.ts",
+      "app/api/licensing/partners/webhooks/[provider]/route.ts",
+      "app/api/rights-admin/partners/webhooks/[provider]/route.ts",
+      "app/api/webhooks/supabase/notifications/route.ts",
+      "lib/marketplace/webhook-processor.ts"
+    ],
+    "out": []
+  },
+  "working_set": [
+    "app/api/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/integrations/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Stripe, ticketing, marketplace, Supabase notification, and every other enabled launch webhook verifies provider identity before side effects",
+    "Enabled webhook routes use durable atomic receipt claims, duplicate acknowledgements, replay-safe completion, and safe retry semantics",
+    "Invalid payloads and internal failures expose no secrets or sensitive provider data",
+    "Advanced music, institutional, licensing, rights-admin, and other deferred provider routes are disabled unless separately certified",
+    "Focused contract, replay, persistence-failure, and deployed staging tests pass"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npx vitest run __tests__/integrations/webhook-route-contracts.test.ts",
+      "npx eslint app/api/marketplace/integrations/printful/webhook/route.ts app/api/marketplace/integrations/shopify/webhook/route.ts app/api/webhooks/music-marketplace/[partner]/route.ts app/api/institutional/partners/webhooks/[provider]/route.ts app/api/licensing/partners/webhooks/[provider]/route.ts app/api/rights-admin/partners/webhooks/[provider]/route.ts app/api/webhooks/supabase/notifications/route.ts lib/marketplace/webhook-processor.ts __tests__/integrations/webhook-route-contracts.test.ts",
+      "npx tsc --project .codex-intg-006-tsconfig.json",
+      "git diff --check -- app/api/marketplace/integrations/printful/webhook/route.ts app/api/marketplace/integrations/shopify/webhook/route.ts app/api/webhooks/music-marketplace/[partner]/route.ts app/api/institutional/partners/webhooks/[provider]/route.ts app/api/licensing/partners/webhooks/[provider]/route.ts app/api/rights-admin/partners/webhooks/[provider]/route.ts app/api/webhooks/supabase/notifications/route.ts lib/marketplace/webhook-processor.ts __tests__/integrations/webhook-route-contracts.test.ts"
+    ],
+    "evidence": [
+      "Feature-tier route contract suite passed: 1 file, 8 tests.",
+      "Focused ESLint passed for all eight changed webhook/processor implementation paths plus the INTG-006 contract test.",
+      "Narrow scoped TypeScript project check passed with zero diagnostics across the eight changed implementation files; the temporary .codex-intg-006-tsconfig.json was removed after verification.",
+      "Changed-path git diff --check passed for the eight implementation paths and the INTG-006 contract test path.",
+      "No production code or database migrations changed in this verification-only slice."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T11:11:18-0700",
+    "result": "partial"
+  },
+  "progress": {
+    "summary": "Focused launch-hardening verification passed for advanced webhook gating and redacted marketplace failure handling.",
+    "completed": [
+      "Ticketing webhook claims ticket_stripe_webhook_events after signature verification regardless of FEATURE_TICKETING_V2.",
+      "Ticketing webhook claim persistence failures now throw so the route returns its existing 500 retry response instead of processing unclaimed events.",
+      "Added focused contract coverage for feature-flag-independent claims and fail-closed ledger failures.",
+      "Music royalty webhook claims its endpoint event ledger before instruction lookup or status processing; duplicate claims return a duplicate acknowledgement without side effects.",
+      "Music royalty webhook now fails closed on claim, lookup, metadata, payout-status, and completion persistence errors, with focused duplicate and claim-failure coverage.",
+      "Marketplace Shopify and Printful handlers now require stable provider event identity, claim provider receipts before side effects, and record completion only after all handler writes succeed.",
+      "Music marketplace, institutional, licensing, and rights-admin partner handlers now use atomic insert claims, duplicate-safe acknowledgements, explicit invalid-payload responses, and checked handler/completion persistence; provider-specific signature adapters and unsigned sandbox flags remain intact.",
+      "Supabase notification delivery now uses the existing delivery log for duplicate suppression and timing-safe secret comparison.",
+      "Marketplace Stripe completion-update failures now fail the event and enter the existing failed-event path.",
+      "Advanced music, institutional, licensing, rights-admin, and music royalty webhook routes fail closed unless FEATURE_AUDIT_ADVANCED_WEBHOOKS_APPROVED is explicitly enabled.",
+      "Marketplace Stripe webhook returns a generic retryable failure and persists only an internal failure marker rather than provider or database error text."
+    ],
+    "next_steps": [
+      "Database hosted reconciliation and staging replay evidence remain required."
+    ],
+    "blockers": [
+      "Hosted Supabase receipt schemas and notification claim uniqueness remain unverified."
+    ],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-11T11:11:18-0700",
+        "summary": "Completed the INTG-006 feature-tier verification-only slice. No concrete type or contract failures were found and no production code or migrations were changed.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/INTG-006.json",
+          "docs/engineering/agents/integrations/STATE.md"
+        ],
+        "verification": [
+          "npx vitest run __tests__/integrations/webhook-route-contracts.test.ts — passed (1 file, 8 tests).",
+          "Focused ESLint for the eight changed webhook/processor implementation paths plus the contract test — passed.",
+          "Narrow scoped TypeScript project check across the eight changed implementation files — passed with zero diagnostics; temporary config removed after the run.",
+          "Changed-path git diff --check — passed."
+        ],
+        "blockers": [
+          "Marketplace provider and music partner ledger DDL remains in the pre-reconciliation migration archive and requires Database reconciliation plus CP-051 manual application before live delivery.",
+          "Live hosted Supabase schema/RLS evidence is unavailable in this environment.",
+          "INTG-003 MFA DB storage remains blocked by the authoritative schema/access contract and was not touched."
+        ],
+        "next_steps": [
+          "Coordinate with Database for reconciled ledger migration and manual-application evidence, then repeat feature-tier checks."
+        ]
+      },
+      {
+        "timestamp": "2026-09-10T17:13:21-0700",
+        "summary": "Aligned ticketing webhook claim behavior: durable claim is always attempted after signature verification; duplicate event IDs return the existing 200 duplicate response; non-duplicate ledger errors fail through the route's existing 500 path. Added focused tests.",
+        "changed_paths": [
+          "app/api/ticketing/webhook/route.ts",
+          "lib/ticketing/finalize.ts",
+          "__tests__/ticketing/hardening-flows.test.ts",
+          "docs/engineering/tasks/active/INTG-006.json"
+        ],
+        "verification": [
+          "npx vitest run __tests__/ticketing/hardening-flows.test.ts — passed (20 tests).",
+          "npx eslint app/api/ticketing/webhook/route.ts lib/ticketing/finalize.ts __tests__/ticketing/hardening-flows.test.ts — passed.",
+          "npm run typecheck — interrupted after no output/result in the run window; no type errors emitted before interruption.",
+          "git diff --check — blocked by unrelated pre-existing whitespace findings outside the changed paths."
+        ],
+        "blockers": [
+          "INTG-006 remains active; route-wide webhook consistency is incomplete.",
+          "Full typecheck result is pending."
+        ],
+        "next_steps": [
+          "Continue with the next route-local webhook alignment slice and its focused proof."
+        ]
+      },
+      {
+        "timestamp": "2026-09-10T17:27:34-0700",
+        "summary": "Aligned the music royalty payout webhook family: retained STRIPE_WEBHOOK_SECRET_MUSIC_ROYALTIES and local signature verification, changed event persistence to claim-before-process insert semantics, acknowledged duplicate claims without processing, and made lookup/update/completion persistence failures return 500.",
+        "changed_paths": [
+          "app/api/webhooks/music-royalty-payouts/route.ts",
+          "app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts",
+          "docs/engineering/tasks/active/INTG-006.json"
+        ],
+        "verification": [
+          "npx jest --runInBand app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts app/api/webhooks/__tests__/webhook-secret-boundaries.test.ts — passed (2 suites, 10 tests).",
+          "npx eslint app/api/webhooks/music-royalty-payouts/route.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts app/api/webhooks/__tests__/webhook-secret-boundaries.test.ts — passed.",
+          "git diff --check -- app/api/webhooks/music-royalty-payouts/route.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts app/api/webhooks/__tests__/webhook-secret-boundaries.test.ts — passed."
+        ],
+        "blockers": [
+          "INTG-006 remains active; remaining webhook families still need route-local consistency proof.",
+          "Full npm run typecheck remains pending from the prior checkpoint because it did not finish within the available run window.",
+          "Repository-wide git diff --check remains affected by pre-existing whitespace findings outside this task's changed paths."
+        ],
+        "next_steps": [
+          "Continue with one additional remaining route-local webhook family and its focused duplicate/persistence-failure proof."
+        ]
+      },
+      {
+        "timestamp": "2026-09-11T11:03:33-0700",
+        "summary": "Aligned the remaining route-local webhook families: marketplace provider routes now require stable event identities and claim before processing; music marketplace/institutional/licensing/rights partner routes now use atomic receipt inserts with duplicate acknowledgements and checked handler/completion writes; Supabase notification delivery now suppresses delivered duplicates through notification_delivery_log; marketplace Stripe completion persistence now fails closed.",
+        "changed_paths": [
+          "app/api/marketplace/integrations/printful/webhook/route.ts",
+          "app/api/marketplace/integrations/shopify/webhook/route.ts",
+          "app/api/webhooks/music-marketplace/[partner]/route.ts",
+          "app/api/institutional/partners/webhooks/[provider]/route.ts",
+          "app/api/licensing/partners/webhooks/[provider]/route.ts",
+          "app/api/rights-admin/partners/webhooks/[provider]/route.ts",
+          "app/api/webhooks/supabase/notifications/route.ts",
+          "lib/marketplace/webhook-processor.ts",
+          "__tests__/integrations/webhook-route-contracts.test.ts",
+          "docs/engineering/tasks/active/INTG-006.json",
+          "docs/engineering/agents/integrations/STATE.md"
+        ],
+        "verification": [
+          "Jest focused webhook contract, music royalty, Stripe secret-boundary, Shopify adapter, Printful helper, and marketplace processor suites — passed (5 suites, 26 tests).",
+          "Changed-route ESLint plus webhook contract test ESLint — passed.",
+          "Changed-path git diff --check — passed.",
+          "npm run agents:validate — passed (17 agents, 70 tasks, 0 warnings, 0 errors).",
+          "npm run typecheck — observed for 60 seconds with no output or result, then interrupted; no type errors emitted before interruption."
+        ],
+        "blockers": [
+          "Feature-tier typecheck evidence remains pending.",
+          "Provider/music ledger DDL is still in the pre-reconciliation archive and requires Database reconciliation plus CP-051 manual application before live use.",
+          "INTG-003 MFA DB storage remains blocked and was not changed.",
+          "Repository-wide whitespace findings remain outside this task's changed paths."
+        ],
+        "next_steps": [
+          "Run the feature-tier changed-path verification when the typecheck window is available.",
+          "Coordinate with Database on reconciled ledger availability before live webhook enablement."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.392Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted INTG-006 to P0 and narrowed launch certification to enabled commerce, ticketing, marketplace, and notification webhooks. Deferred provider routes must stay disabled until separately certified.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T04:57:12.213Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added explicit advanced-webhook release gating and redacted marketplace failure surfaces. Enabled Stripe/ticketing/marketplace/notification routes remain scoped to existing dedicated signature and receipt boundaries; no hosted systems or migrations were changed.",
+        "completed": [
+          "Advanced music, institutional, licensing, rights-admin, and music royalty webhook routes fail closed unless FEATURE_AUDIT_ADVANCED_WEBHOOKS_APPROVED is explicitly enabled.",
+          "Marketplace Stripe webhook returns a generic retryable failure and persists only an internal failure marker rather than provider or database error text."
+        ],
+        "next_steps": [
+          "Database must reconcile and manually apply hosted receipt ledgers under CP-051, then rerun deployed replay/persistence-failure checks.",
+          "Run the release launch certification suite against isolated staging with Stripe test mode."
+        ],
+        "blockers": [
+          "Hosted Supabase receipt schemas, RLS, and migration-history reconciliation are unavailable in this environment.",
+          "Supabase notification_delivery_log has no local unique notification-id constraint; fully durable concurrent claim proof requires Database schema reconciliation.",
+          "Full repository typecheck remains unproven; targeted lint and contract suites pass."
+        ]
+      },
+      {
+        "at": "2026-09-18T04:57:40.920Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Focused launch-hardening verification passed for advanced webhook gating and redacted marketplace failure handling.",
+        "completed": [],
+        "next_steps": [
+          "Database hosted reconciliation and staging replay evidence remain required."
+        ],
+        "blockers": [
+          "Hosted Supabase receipt schemas and notification claim uniqueness remain unverified."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import {
   Shield,
   Users,
@@ -373,9 +375,10 @@ export function TeamPermissionsEditor({ venueId }: TeamPermissionsEditorProps) {
 
       {/* Permission Editor Dialog */}
       <Dialog open={!!editingMember} onOpenChange={(open) => { if (!open) setEditingMember(null) }}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className={cn(detailSurfacePattern.dialogContent, "max-w-2xl max-h-[80vh] overflow-y-auto")}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center">
+            <DialogTitle className={cn(detailSurfacePattern.title, "flex items-center")}>
               <Shield className="h-5 w-5 mr-2 text-purple-500" />
               Edit Permissions: {editingMember?.profiles?.full_name || 'Team Member'}
             </DialogTitle>
@@ -384,9 +387,9 @@ export function TeamPermissionsEditor({ venueId }: TeamPermissionsEditorProps) {
           <div className="space-y-6 mt-4">
             {/* Role Selection */}
             <div>
-              <Label className="text-sm text-slate-300 mb-2 block">Role</Label>
+              <Label className={cn(detailSurfacePattern.label, "mb-2 block text-sm")}>Role</Label>
               <Select value={editedRole} onValueChange={handleRoleChange}>
-                <SelectTrigger>
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -432,12 +435,12 @@ export function TeamPermissionsEditor({ venueId }: TeamPermissionsEditorProps) {
             ))}
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4 border-t border-slate-700 mt-4">
-            <Button variant="outline" onClick={() => setEditingMember(null)}>
+          <div className={cn(detailSurfacePattern.footer, "mt-4")}>
+            <Button variant="outline" onClick={() => setEditingMember(null)} className={detailSurfacePattern.btnOutline}>
               <X className="h-4 w-4 mr-1" />
               Cancel
             </Button>
-            <Button onClick={savePermissions} disabled={saving} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={savePermissions} disabled={saving} className={detailSurfacePattern.btnPrimary}>
               {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
               Save Permissions
             </Button>

@@ -1,0 +1,523 @@
+{
+  "package": "tourify_music_creator_memory_constellation_phase21",
+  "phase": 21,
+  "manifestScope": "All package files except package-manifest.json and VALIDATION_RESULTS.json",
+  "fileCount": 103,
+  "files": [
+    {
+      "path": "00_PHASE_21_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "sizeBytes": 9788,
+      "sha256": "0889880948b470836a27f6260dd1329a6f0fb5a1984909d8145af890c2c8eeed"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_PARTICIPANT_JOURNEYS.md",
+      "sizeBytes": 9828,
+      "sha256": "f05ada1f4c869127324cd0b497fac010aca2fcd04843a0fac0530defbc0cc99c"
+    },
+    {
+      "path": "02_PHASE_20_EVIDENCE_AND_CONSTELLATION_READINESS.md",
+      "sizeBytes": 9721,
+      "sha256": "323ed81b013bd3602fb1301ab3bfe87d114a3e2fee0d3218b172f3b314ae782d"
+    },
+    {
+      "path": "03_LEGAL_STRUCTURE_CONSTELLATION_AND_NON_CENTRALIZATION_BOUNDARY.md",
+      "sizeBytes": 9756,
+      "sha256": "d5a62e47f66b2dd8df854bd591f61cd048ba7f6c279db8c9c2af9168feabd74e"
+    },
+    {
+      "path": "04_PUBLIC_CHARTER_AND_MUTUAL_AID_COMPACT.md",
+      "sizeBytes": 9556,
+      "sha256": "2542a6d119729a06c6d7ec77f9315f7b1a35b02500abd3bdfb9f1d2ee0664ff6"
+    },
+    {
+      "path": "05_TRUST_NODE_MEMBERSHIP_ACCREDITATION_WITHDRAWAL_AND_SUSPENSION.md",
+      "sizeBytes": 9725,
+      "sha256": "4b615f029a987f123a193d30f5271b5ebc92a92614a9881e0764057d44179049"
+    },
+    {
+      "path": "06_SOVEREIGNTY_SUBSIDIARITY_RESERVED_POWERS_AND_NO_OVERRIDE.md",
+      "sizeBytes": 9568,
+      "sha256": "c1f96e62823a4c02c5d22f84653be9d3d6a853ffe1379c64546cfd19512962bc"
+    },
+    {
+      "path": "07_CULTURAL_AUTHORITY_AND_PORTABLE_RESTRICTION_PROFILES.md",
+      "sizeBytes": 9642,
+      "sha256": "6169da3bda463dd221cc492731aa942f3790a6c090455e489b67781b9d7f9402"
+    },
+    {
+      "path": "08_COMMUNITY_INDIGENOUS_AND_LOCAL_GOVERNANCE_SUSTAINED_CONSENT.md",
+      "sizeBytes": 9674,
+      "sha256": "d2261cf8996b6e74403526b3bcbb5b01f274364269bffe6d20a16a908e34b01f"
+    },
+    {
+      "path": "09_CROSS_TRUST_AGREEMENTS_PURPOSES_AND_EXACT_SCOPE_AUTHORITY.md",
+      "sizeBytes": 9655,
+      "sha256": "f128be94df4db843f89450adb92c8dd5ec65e56259c0077ad499b84c48db4696"
+    },
+    {
+      "path": "10_EMERGENCY_MUTUAL_AID_ACTIVATION_AND_COMMAND_BOUNDARY.md",
+      "sizeBytes": 9731,
+      "sha256": "a81f8505a0553e733d6f8a7cb657991bd6e9c57f8f680484c085162c803be37a"
+    },
+    {
+      "path": "11_PLANETARY_RISK_INTELLIGENCE_AND_PRESERVATION_CAPACITY_MAP.md",
+      "sizeBytes": 9669,
+      "sha256": "a930e69859d8999b9beb9bc89dbed69e4e907dd7912808f6342238777b481ceb"
+    },
+    {
+      "path": "12_CLIMATE_RESILIENCE_ADAPTATION_AND_COMPOUND_RISK_PLANNING.md",
+      "sizeBytes": 9635,
+      "sha256": "866faa29e1ed1e701c35e3a70ae4d8757ab805907bea35dcd6597fb4f6e48b90"
+    },
+    {
+      "path": "13_CONFLICT_CYBER_COERCION_AND_AUTHORITARIAN_SEIZURE_RISK.md",
+      "sizeBytes": 9679,
+      "sha256": "436a3f878748abe146dcca0c3e8bc633c1c4c4fd3ff7852a1f1489aa38a46d78"
+    },
+    {
+      "path": "14_INCIDENT_CLASSIFICATION_SEVERITY_THRESHOLDS_AND_ESCALATION.md",
+      "sizeBytes": 9692,
+      "sha256": "d64b2e5c0b933fe8bec639f734392445ee21f2391fcb72ec49f66b0f47d9b8da"
+    },
+    {
+      "path": "15_EMERGENCY_CUSTODY_EVACUATION_TEMPORARY_HOLDING_AND_RETURN.md",
+      "sizeBytes": 9629,
+      "sha256": "03744d91b9d87e54849f16275400167ec88c45584e95a85c7f9618aa86bf7f40"
+    },
+    {
+      "path": "16_EMERGENCY_REPLICATION_PACKAGES_FIXITY_AND_RECONCILIATION.md",
+      "sizeBytes": 9606,
+      "sha256": "cee922b3b3d79c27c377572cc68c487480748a017a43747cec2d30e77ae13695"
+    },
+    {
+      "path": "17_CROSS_TRUST_TRANSFER_ACCEPTANCE_REJECTION_AND_COMPENSATING_ACTIONS.md",
+      "sizeBytes": 9700,
+      "sha256": "acfa7cf66908f49f0cb311109e7f29e98d56871c00418d302916ed59efced4ab"
+    },
+    {
+      "path": "18_RESTRICTION_PROPAGATION_POLICY_CONFLICTS_AND_STRICTER_RULE_DEFAULT.md",
+      "sizeBytes": 9634,
+      "sha256": "699543d4d2183af705f5336baf22e1db4a7583edb05c37a81e6d55a5554c0a92"
+    },
+    {
+      "path": "19_CROSS_TRUST_PRIVACY_MINIMIZATION_AND_PURPOSE_LIMITATION.md",
+      "sizeBytes": 9630,
+      "sha256": "486a9801b96c4731fd67cdb22657a2129eff0b466ab07f40bebb517c6473508b"
+    },
+    {
+      "path": "20_FEDERATED_FINDING_AIDS_DISCOVERY_AND_NO_UNIVERSAL_CATALOG.md",
+      "sizeBytes": 9585,
+      "sha256": "afceee7e8009508be3b42c7c7d7d83a80fc0b8831932f4d689b3f5cd34c8185e"
+    },
+    {
+      "path": "21_LONG_LIVED_IDENTIFIERS_SCHEMAS_ALIASES_AND_TOMBSTONES.md",
+      "sizeBytes": 9558,
+      "sha256": "aed1f35d5b6e8c426f75fd99cc9c012b518f2fd73b978edd01c92a4dfd665e0f"
+    },
+    {
+      "path": "22_MULTI_ROOT_TRUST_REGISTRIES_RECOGNITION_AND_CONFLICT_RESOLUTION.md",
+      "sizeBytes": 9610,
+      "sha256": "d42327f1707e8fff8687ee18323f0123fe304974ed5a5304f5c2379d4e92222a"
+    },
+    {
+      "path": "23_OPEN_PROTOCOL_PROFILES_PRESERVATION_SPECIFICATIONS_AND_CHANGE_CONTROL.md",
+      "sizeBytes": 9567,
+      "sha256": "75fe461169e49355d59abd3fe1f188a7cdd9d4957a8b081f09a95d1ba1ad53b2"
+    },
+    {
+      "path": "24_CONFORMANCE_TESTING_MUTUAL_RECOGNITION_AND_APPEALS.md",
+      "sizeBytes": 9572,
+      "sha256": "06c4833685707a1ae1819a800dada675a782b4e01ced05a7d6b17bc990621f26"
+    },
+    {
+      "path": "25_GLOBAL_PRESERVATION_CAPACITY_MAPPING_AND_GAP_PRIORITIZATION.md",
+      "sizeBytes": 9551,
+      "sha256": "c9bf8a4146c7d7f195767e95e0d1fc84fe4810f72685edb344c66bf71c822684"
+    },
+    {
+      "path": "26_MUTUAL_AID_ROSTER_RESOURCES_LOGISTICS_AND_DEPLOYMENT.md",
+      "sizeBytes": 9597,
+      "sha256": "135519eee5bb9a50f4427b02017fc6ac6f9667956f3ed03b8adf87d6fc4a1026"
+    },
+    {
+      "path": "27_SHARED_EMERGENCY_PRESERVATION_FUND_AND_RAPID_RESPONSE_GRANTS.md",
+      "sizeBytes": 9622,
+      "sha256": "4a85799c14e24e4d6f2bfc92f5e77fca1c262586e559da204d3f7f4108ed92aa"
+    },
+    {
+      "path": "28_FUNDING_CONCENTRATION_RESERVES_DONOR_INDEPENDENCE_AND_EQUITY.md",
+      "sizeBytes": 9559,
+      "sha256": "a492875947ab70db2fd4b57bb2718f069c9f872fd74dd2b2f485f3e1e5462139"
+    },
+    {
+      "path": "29_PROCUREMENT_VENDOR_OPERATOR_NEUTRALITY_AND_TECHNOLOGY_TRANSFER.md",
+      "sizeBytes": 9620,
+      "sha256": "134924ec0d4acfbedc3066950e4165a9eeac1d3f98eb9fc274f3f093a6ca4bf5"
+    },
+    {
+      "path": "30_CULTURAL_FIRST_AID_WORKFORCE_SAFETY_AND_PROFESSIONAL_ETHICS.md",
+      "sizeBytes": 9523,
+      "sha256": "86f086831ba4cda27b9cf0f4fa1601578c3a8b5805cf175fb5495a8b657b8ed3"
+    },
+    {
+      "path": "31_TRAINING_SIMULATION_MUTUAL_AID_EXERCISES_AND_AFTER_ACTION.md",
+      "sizeBytes": 9602,
+      "sha256": "baf1007e059ee74763ebad5320575439837f22d67082e7b038accee550315f99"
+    },
+    {
+      "path": "32_PUBLIC_STATUS_EMERGENCY_COMMUNICATION_AND_MISINFORMATION_CONTROL.md",
+      "sizeBytes": 9602,
+      "sha256": "e845ba98e67db76e6213a63e40280dfc5596f0e6010333b9d4cb404550f6417c"
+    },
+    {
+      "path": "33_CROSS_TRUST_DISPUTE_PREVENTION_MEDIATION_REVIEW_AND_REMEDY.md",
+      "sizeBytes": 9606,
+      "sha256": "65e487ea01c5a306d6f4ec0fa9e4d47a3338900f11aeb3479d8e93ff301aa63b"
+    },
+    {
+      "path": "34_REPATRIATION_RETURN_SHARED_CUSTODY_ACROSS_TRUSTS.md",
+      "sizeBytes": 9633,
+      "sha256": "7cf35ebb436111f438a0ecd9b0e0705b7dca05e94c554422b28cc7db2c34460d"
+    },
+    {
+      "path": "35_CONTESTED_RECORDS_PLURAL_NARRATIVES_CONTEXT_AND_REMEDIATION.md",
+      "sizeBytes": 9553,
+      "sha256": "12b5dacd8cd31068190c7e64e43191efe12c01b527ff3b420ce7a51bf7d24a01"
+    },
+    {
+      "path": "36_RIGHTS_REFERENCE_INTEROPERABILITY_AND_NON_ADJUDICATION.md",
+      "sizeBytes": 9688,
+      "sha256": "2d7c7ba52993b901559890fef03cc2f509c6299e1c107977f6c0bec9bd511809"
+    },
+    {
+      "path": "37_AI_MODEL_RESEARCH_AND_COMMERCIAL_REUSE_ACROSS_TRUSTS.md",
+      "sizeBytes": 9678,
+      "sha256": "ad348941195953c896656c2e40e2c92fe50b44998740dc2f444ce7983c5dae5e"
+    },
+    {
+      "path": "38_BENEFIT_SHARING_RESEARCH_OUTPUT_REVIEW_AND_COMMUNITY_RETURN.md",
+      "sizeBytes": 9685,
+      "sha256": "558d5823e957c741396bead3f13d423d5f84906985b3dac719e8944739b09bf0"
+    },
+    {
+      "path": "39_PHYSICAL_OFFLINE_REMOTE_AND_AIR_GAPPED_PRESERVATION.md",
+      "sizeBytes": 9578,
+      "sha256": "fa2ff3b40499a661546c29dbf2fd9b24d9bfca2a6260f2e3d059211b3ea2bfac"
+    },
+    {
+      "path": "40_GEOGRAPHICALLY_REMOTE_DEEP_TIME_PRESERVATION_RESEARCH.md",
+      "sizeBytes": 9700,
+      "sha256": "a023f025312e7d8a24421d14bc04d17593347a71141526abcab5216b35db1b54"
+    },
+    {
+      "path": "41_ORBITAL_AND_EXTRATERRITORIAL_PRESERVATION_RESEARCH_BOUNDARY.md",
+      "sizeBytes": 9756,
+      "sha256": "04f57daa262e65c0446a03951845bf30aa4dd4371c987ef72f4926726c10b518"
+    },
+    {
+      "path": "42_SPACE_LAW_SCIENTIFIC_ENVIRONMENTAL_EXPORT_AND_LAUNCH_APPROVALS.md",
+      "sizeBytes": 9721,
+      "sha256": "e95cd6983933757fda682285bc8a7d1c2afcef835c0c4b6aa4e3b3c01bf57e51"
+    },
+    {
+      "path": "43_ENVIRONMENTAL_FOOTPRINT_ENERGY_WATER_MATERIALS_AND_CLIMATE_DUTY.md",
+      "sizeBytes": 9609,
+      "sha256": "6362a4af93450578877b19074d0593d4802e0e30fe0362bf34a547129c8458d6"
+    },
+    {
+      "path": "44_SECURITY_ZERO_TRUST_KEYS_PRIVILEGED_ACCESS_AND_SUPPLY_CHAIN.md",
+      "sizeBytes": 9632,
+      "sha256": "b3f30a0a1c13dd9e4d2e2678344da5d333253147f4cfb1584e056633d56163e9"
+    },
+    {
+      "path": "45_RESILIENCE_REDUNDANCY_FAILOVER_NETWORK_PARTITION_AND_RECONCILIATION.md",
+      "sizeBytes": 9585,
+      "sha256": "74b526f4d29ab2252dc603669611f30d720d4d948fbadf1cd967de6ca873542f"
+    },
+    {
+      "path": "46_POST_DISSOLUTION_MUTUAL_AID_ARCHIVE_SURVIVAL_AND_PUBLIC_DUTIES.md",
+      "sizeBytes": 9580,
+      "sha256": "b53454d973efb72344f8f7d20ff8560d31b03d5522cc98f0c8ccc359f1951d59"
+    },
+    {
+      "path": "47_ANTI_CAPTURE_FUNDER_OPERATOR_TRUST_AND_REGIONAL_CONCENTRATION.md",
+      "sizeBytes": 9608,
+      "sha256": "4f179ca7aa7a330f7d6fec8aa2fe79b2231cfa9199444807ba452c4f5cabb37b"
+    },
+    {
+      "path": "48_FUTURE_GENERATIONS_VOICE_LIMITS_AND_LONG_HORIZON_REVIEW.md",
+      "sizeBytes": 9606,
+      "sha256": "b530b167baa9eeb01fc7418381abb129945c03001a4a398fb34b0a0c34d71f1e"
+    },
+    {
+      "path": "49_MINIMUM_PLANETARY_MEMORY_SERVICE_FLOOR_AND_ESSENTIAL_CONTINUITY.md",
+      "sizeBytes": 9728,
+      "sha256": "0a23b7e339fe16bb2671bf20b5ee3f41637bc19c0bbc10ca2f471758b143ce75"
+    },
+    {
+      "path": "50_EXTERNAL_REVIEW_TRUSTWORTHY_REPOSITORY_ASSURANCE_AND_REASSESSMENT.md",
+      "sizeBytes": 9644,
+      "sha256": "7fd291123b2fa6a1e25e105f577cb98fff8cc092194d98a5ab00dc0149da7417"
+    },
+    {
+      "path": "51_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "sizeBytes": 9617,
+      "sha256": "1b71d171b98d0ff9fbbda70893f45d01232a113f7304e43cc5c107f4e7905b1e"
+    },
+    {
+      "path": "52_API_EVENTS_BACKGROUND_JOBS_AND_EXTERNAL_ADAPTERS.md",
+      "sizeBytes": 9627,
+      "sha256": "5724349247ce5e5700c4760b2c6f651ee0131f8a9ba20949e0bc41bcb1adb4e6"
+    },
+    {
+      "path": "53_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sizeBytes": 9628,
+      "sha256": "3794025d2e8e8a929b05ab0f99c330e23596edde27853d20c967fd33100e0ae8"
+    },
+    {
+      "path": "54_ADMIN_CONSTELLATION_MUTUAL_AID_RISK_AND_APPROVAL_OPERATIONS.md",
+      "sizeBytes": 9599,
+      "sha256": "1d92bc1df632df5b0053e942f0289f4bad8ecf271c74f95c612850b98b177243"
+    },
+    {
+      "path": "55_OBSERVABILITY_PRESERVATION_HEALTH_RISK_AND_PUBLIC_REPORTING.md",
+      "sizeBytes": 9611,
+      "sha256": "c61b64bab43a1448761db3fe1c391b60e757f1523e3f38194c5d9eb876f5d2be"
+    },
+    {
+      "path": "56_TESTING_MULTI_TRUST_PILOT_PLANETARY_RESILIENCE_AND_ROLLOUT.md",
+      "sizeBytes": 9638,
+      "sha256": "132ad051f9465c96f79b31c3899fbcea7fd525f520cfcea279163b30e3912815"
+    },
+    {
+      "path": "57_MODEL_CONSTELLATION_CHARTER_CROSS_TRUST_AND_MUTUAL_AID_PACKAGE.md",
+      "sizeBytes": 9663,
+      "sha256": "ba8d16b653a822b92147c9aeeb519d34298ae803d2fc8011a53036ef865a4f57"
+    },
+    {
+      "path": "58_PUBLIC_CONSULTATION_RATIFICATION_AMENDMENT_WITHDRAWAL_AND_SUNSET.md",
+      "sizeBytes": 9626,
+      "sha256": "e28458ba9c46730ddb80c197eaa7672dffee0cda0fd71ed2ad0761b8e1e3c90f"
+    },
+    {
+      "path": "59_PROVIDER_REPLACEMENT_DATA_PORTABILITY_REIMPLEMENTATION_AND_TOURIFY_EXIT.md",
+      "sizeBytes": 9533,
+      "sha256": "4aba5902c9663df58c3271c58fe74074a2c3d95753144cf77fdf1a6ad41912b8"
+    },
+    {
+      "path": "60_OPEN_SOURCE_REPOSITORY_LICENSING_CONTRIBUTOR_AND_SUPPLY_CHAIN_GOVERNANCE.md",
+      "sizeBytes": 9622,
+      "sha256": "8ba23a375709ae8ca721b7c845672574e829e8e8395dc1c66fb31bec149dc9d3"
+    },
+    {
+      "path": "61_PUBLIC_ASSET_REGISTER_DOMAINS_NAMESPACES_MARKS_KEYS_AND_SPECIFICATIONS.md",
+      "sizeBytes": 9632,
+      "sha256": "6ecd5c624af9f6d43a20ef32ed0af9a07badf705b889ca5f2f389856af87cb46"
+    },
+    {
+      "path": "62_PHASE_21_PUBLIC_APPROVAL_AND_ACTIVATION_GATE.md",
+      "sizeBytes": 9728,
+      "sha256": "00dc5efd19b1a41872ebf6d05e1f7d7972fe2692934e033869d37f30ca09bf44"
+    },
+    {
+      "path": "63_PHASE_22_GLOBAL_CREATOR_PLANETARY_MEMORY_COMMONS_AND_EXTRATERRITORIAL_RESEARCH_HANDOFF.md",
+      "sizeBytes": 11093,
+      "sha256": "9dbe2633009d0fce5565b08bf60cdb3483b00b58a1445802fc51cec60a15b1b6"
+    },
+    {
+      "path": "64_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sizeBytes": 9551,
+      "sha256": "29f6ec3643cf9e249d3fb2cac7be84c403778e5a8ea071ee22ae86bf2ae65e82"
+    },
+    {
+      "path": "65_DEFINITION_OF_DONE.md",
+      "sizeBytes": 9647,
+      "sha256": "fd34fafb68bab25440e78f8b962360e81ca70873e926461e3619a881e9009cd2"
+    },
+    {
+      "path": "66_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sizeBytes": 9654,
+      "sha256": "f0ac560ad8be2838f7a24f7095dfae3b164125918e5a30456930f25c09937862"
+    },
+    {
+      "path": "67_CURRENT_STANDARDS_LEGAL_PRIVACY_DISASTER_AND_PLANETARY_RESILIENCE_REVIEW.md",
+      "sizeBytes": 13617,
+      "sha256": "bf4046d4a88643e6f23d260ddce568699e886ed9783413056dae6c55837fa1ba"
+    },
+    {
+      "path": "68_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "sizeBytes": 9631,
+      "sha256": "9157e953a6eb0c6012feff7dc717375a6e280c0570c6e91b918200f067ca0f04"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "sizeBytes": 894,
+      "sha256": "00b27c20428e5c86e0c9d0bc7d72875c2e10a44aa52c89e08c5f597a96e9f06a"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sizeBytes": 2828,
+      "sha256": "19c28603e3ff6816c18d1aef86ab1706fe37798e95ffa504fb97b476d759cadd"
+    },
+    {
+      "path": "README.md",
+      "sizeBytes": 2106,
+      "sha256": "f9810c96d52fb2bce18de37611d2e5f5d60bd0a313799deb0b898e0196304021"
+    },
+    {
+      "path": "SOURCE_PHASE_20_HANDOFF.md",
+      "sizeBytes": 1911,
+      "sha256": "c94aa6f888fc03165ed5539f588c58a56755bbe0cd9250778951803ae7e13e82"
+    },
+    {
+      "path": "phase-21-execution-plan.schema.json",
+      "sizeBytes": 4358,
+      "sha256": "f94d4eede395ee3844fb223477add8739a1dfd24acd2e660fd6eefdc1a21f624"
+    },
+    {
+      "path": "phase-21-execution-plan.template.json",
+      "sizeBytes": 740999,
+      "sha256": "dce45b53c7b77a3c3234c98a34c75ccd5c00c4646c9346b0b1f53fc77a3224b0"
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "sizeBytes": 944,
+      "sha256": "9d5995153e65cb53060543716f7c1106146c8efac13fae584a9077417f5c1dd4"
+    },
+    {
+      "path": "reference/api-examples/apply-trust-node.json",
+      "sizeBytes": 226,
+      "sha256": "177d273243114701cf46a958c0b2e384a7726b855e0ef29e6f5192d8eaec6f36"
+    },
+    {
+      "path": "reference/api-examples/approve-emergency-custody.json",
+      "sizeBytes": 292,
+      "sha256": "a920430da754e2525cf9abd27ee10e7a3a1df149d73daed933477bbdeacbc3de"
+    },
+    {
+      "path": "reference/api-examples/create-mutual-aid-request.json",
+      "sizeBytes": 388,
+      "sha256": "e7249e263d60d7fcd3dab919304e2fd7fbf9c798f35a76b402ef69a9f6abbd81"
+    },
+    {
+      "path": "reference/api-examples/orbital-research-denied.json",
+      "sizeBytes": 209,
+      "sha256": "845ecb6ec99101b26c6ffbf154eba38b865c1ef9a51b7108c5a4a8ee9a2b91c1"
+    },
+    {
+      "path": "reference/api-examples/publish-risk-capacity-projection.json",
+      "sizeBytes": 279,
+      "sha256": "0af68fd746343ed4b116dbc1c3a8f47bff520a5d7de94e528a28d245a1ee0439"
+    },
+    {
+      "path": "reference/api-examples/remote-research-review.json",
+      "sizeBytes": 298,
+      "sha256": "3f5f536e13b308ca805da7f3a3c4ec240a6938fe8fc3fafffa1620c9039a9b9e"
+    },
+    {
+      "path": "reference/api-examples/withdraw-trust-node.json",
+      "sizeBytes": 211,
+      "sha256": "327e6017ff75545a87da100732101beb47dae4939434dd4364b059721b3e82a3"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/constellation-domain.ts",
+      "sizeBytes": 1358,
+      "sha256": "4fe56108b9054bade23ebbe42194c9a6f89060781e9016f0062e76be6dde4bbb"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/cross-trust-discovery-policy.ts",
+      "sizeBytes": 691,
+      "sha256": "f8e0fe60df2824983b2f1e6ef14c4065c4dc43a0a2e27abe1f318f9e2dfdb8bc"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/cultural-restriction-portability.ts",
+      "sizeBytes": 845,
+      "sha256": "3df16833c1922b0d605282d8e03d8f268e04aa74964caa8c0ad3d525303d8b87"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/emergency-custody-transfer.ts",
+      "sizeBytes": 971,
+      "sha256": "25a0e66208aaff9b646d203742e4bc2dc7d52d1fdb7038a4e5ffea31702b3845"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/funding-allocation-policy.ts",
+      "sizeBytes": 878,
+      "sha256": "20f3069bf0ccc464af2cacc6bfa6c463ecc698fe844cbc5c8870821141e4e624"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/mutual-aid-activation-policy.ts",
+      "sizeBytes": 1038,
+      "sha256": "fa2f84683e8c8d876e180a604c592f15b9d1a1997ccf36f3f5956b475f4684b9"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/orbital-research-approval-gate.ts",
+      "sizeBytes": 1309,
+      "sha256": "a83771474aa664eb9729da55c240b0db02af35c4d5b930c6bc74a0515e3696c7"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/phase21-activation-gate.ts",
+      "sizeBytes": 1367,
+      "sha256": "dfc04a13b2332d8f2846e5cb8506b7211a50565847dfd10332e51dce9e999fc1"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/remote-preservation-research-gate.ts",
+      "sizeBytes": 1131,
+      "sha256": "f56a8411027e576b2ba4dc11984c1a90abeb14e5b06254a333785bb277319f4a"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/risk-capacity-map-policy.ts",
+      "sizeBytes": 543,
+      "sha256": "98d5abaf2fda5a9d9bd2ef0b8f54e48b41896225b2380274b19ab04e8406677f"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/sovereignty-gate.ts",
+      "sizeBytes": 830,
+      "sha256": "426005e4403fa866fd480f0ea74790ef1e120e61789b39310ee3827e576e7084"
+    },
+    {
+      "path": "reference/lib/music/creator-memory-constellation/trust-membership-state-machine.ts",
+      "sizeBytes": 604,
+      "sha256": "dcac35d96065344e57c1224a023a35e310d1a1635d2735994a75037d0c1d4e16"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_constellation_trust_nodes_charters_and_authorities.sql",
+      "sizeBytes": 1499,
+      "sha256": "b57ec791bdf2f88e955359d09cadb12ef2bff45b917004767ab10cdb4ca5fbd5"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_mutual_aid_risk_capacity_and_emergency_custody.sql",
+      "sizeBytes": 1478,
+      "sha256": "a313ce35290abcc558a4f26e0f6c77222192589ad0fc53e488a31f649f21c267"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_protocols_restrictions_funding_and_research.sql",
+      "sizeBytes": 1620,
+      "sha256": "367e29403889b7dd5210104051e00519172dea12501c8597bcc5793d11aeba81"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_public_projections_incidents_audit_and_outbox.sql",
+      "sizeBytes": 1718,
+      "sha256": "cd33f5f2f828a3f11833b17830c9b281b69aa3874e180c12cc64ca7635b43941"
+    },
+    {
+      "path": "reference/tests/mutual-aid-activation-policy.test.ts",
+      "sizeBytes": 834,
+      "sha256": "63495ff5ae6a03f43e58c648c122365feb12baccf8ddd5080a4daedd4491e126"
+    },
+    {
+      "path": "reference/tests/orbital-research-approval-gate.test.ts",
+      "sizeBytes": 522,
+      "sha256": "894d647101d6b4e54945b4a93e9c30bcd432cf8362277ca3f90303012a41e477"
+    },
+    {
+      "path": "reference/tests/phase21-activation-gate.test.ts",
+      "sizeBytes": 492,
+      "sha256": "30d092de3e566bb99ee07ecfd53d893b0d801fcbd79b1cf2e326a999f9fab5bb"
+    },
+    {
+      "path": "reference/tests/sovereignty-gate.test.ts",
+      "sizeBytes": 672,
+      "sha256": "ba6d9b21e54fc23a8b090ec90f8a085a300242c392c2eea4de3f28c35a72221e"
+    }
+  ]
+}

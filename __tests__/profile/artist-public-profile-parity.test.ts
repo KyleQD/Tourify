@@ -94,7 +94,7 @@ describe('artist public profile social + visibility contracts', () => {
     const hero = read('components/public-artist/hero/public-artist-hero.tsx')
     const page = read('components/public-artist/public-artist-page.tsx')
 
-    expect(hero).toContain('/api/social/follow-request')
+    expect(hero).toContain('FollowFriendButton')
     expect(hero).not.toContain('disabled className={`${paBtnRound} px-5`}')
     expect(hero).toContain('Message')
     expect(page).toContain('MessageModal')
@@ -129,7 +129,7 @@ describe('artist public profile social + visibility contracts', () => {
   it('hides empty posts on public artist page without setup CTAs', () => {
     const source = read('components/public-artist/posts/public-artist-posts-section.tsx')
 
-    expect(source).toContain('if (ordered.length === 0) return null')
+    expect(source).toContain('if (feedPosts.length === 0) return null')
     expect(source).not.toContain('href="/artist/feed"')
     expect(source).not.toContain('href="/dashboard"')
     expect(source).not.toContain('Create a post')

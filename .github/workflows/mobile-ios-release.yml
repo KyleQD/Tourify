@@ -15,7 +15,7 @@ on:
         default: ""
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   build-testflight:
@@ -40,6 +40,8 @@ jobs:
             package-lock.json
             apps/mobile/package-lock.json
 
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
       - name: Install root dependencies
         run: npm ci
 
@@ -94,10 +96,14 @@ jobs:
           path: apps/mobile/eas-build-result.json
 
       - name: Optional release webhook notification
-        if: secrets.MOBILE_RELEASE_WEBHOOK_URL != ''
         env:
           WEBHOOK_URL: ${{ secrets.MOBILE_RELEASE_WEBHOOK_URL }}
         run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "No release webhook configured."
+            exit 0
+          fi
+
           curl -sS -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"platform\":\"ios\",\"lane\":\"native-testflight\",\"sha\":\"${GITHUB_SHA}\",\"workflow\":\"mobile-ios-release\"}"
@@ -121,6 +127,8 @@ jobs:
           cache: "npm"
           cache-dependency-path: "apps/mobile/package-lock.json"
 
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
       - name: Install mobile dependencies
         working-directory: apps/mobile
         run: npm ci

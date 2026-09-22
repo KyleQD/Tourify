@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { NextConfig } from 'next'
+import { buildContentSecurityPolicy } from './lib/config/security-headers'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 let supabaseHost: string | undefined
@@ -7,26 +8,11 @@ try {
   supabaseHost = supabaseUrl ? new URL(supabaseUrl).host : undefined
 } catch {}
 
-const csp = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "frame-ancestors 'none'",
-  "img-src 'self' data: blob: https:",
-  "media-src 'self' data: blob: https:",
-  "font-src 'self' data: https:",
-  "style-src 'self' 'unsafe-inline' https:",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
-  [
-    'connect-src',
-    "'self'",
-    'https:',
-    supabaseHost ? `https://${supabaseHost}` : undefined,
-    // Realtime uses wss:; `https:` alone does not permit WebSockets in strict browsers (e.g. Safari).
-    supabaseHost ? `wss://${supabaseHost}` : undefined,
-    '*.upstash.io',
-    process.env.NODE_ENV !== 'production' ? 'http://127.0.0.1:7556' : undefined,
-  ].filter(Boolean).join(' ')
-].join('; ')
+const isDev = process.env.NODE_ENV !== 'production'
+
+// Inline JSON-LD and print bootstraps still require unsafe-inline. Next.js HMR
+// requires unsafe-eval only in development; the production policy omits it.
+const csp = buildContentSecurityPolicy({ development: isDev, supabaseHost })
 
 const securityHeaders = [
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
@@ -38,6 +24,7 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
@@ -105,6 +92,23 @@ const nextConfig: NextConfig = {
         source: '/onboarding/:token((?!hire$|complete$|enhanced-onboarding-flow$)[A-Za-z0-9._~-]{8,})',
         destination: '/onboarding/hire/:token',
         permanent: false,
+      },
+    ]
+  },
+  // RELEASE-003 parity: vercel.json rewrote /healthz -> /api/health for Vercel only.
+  // Mirror it here so the liveness contract (and `npm run smoke:healthz`) resolves
+  // identically in local dev and in the production build. Vercel applies next.config
+  // rewrites too, so the vercel.json entry is now redundant but harmless.
+  // The readiness contract /readyz -> /api/health/readyz follows the same pattern.
+  async rewrites() {
+    return [
+      {
+        source: '/healthz',
+        destination: '/api/health',
+      },
+      {
+        source: '/readyz',
+        destination: '/api/health/readyz',
       },
     ]
   },

@@ -1,0 +1,3086 @@
+{
+  "schemaVersion": "world-place-v0.1",
+  "fixtureVersion": "world-seed-fixture-v0.3",
+  "publicationState": "draft_needs_review_not_deployed",
+  "place": {
+    "id": "3bd603aa-0be2-4615-9cf7-01d1a8ad0cd6",
+    "canonicalPath": "jp/tokyo",
+    "name": "Tokyo",
+    "displayName": "Tokyo",
+    "placeType": "city",
+    "parent": {
+      "id": "b0edc1c9-c164-4282-bf3d-1ee9ae68c0de",
+      "canonicalPath": "jp",
+      "name": "Japan"
+    },
+    "breadcrumb": [
+      {
+        "id": "b0edc1c9-c164-4282-bf3d-1ee9ae68c0de",
+        "canonicalPath": "jp",
+        "name": "Japan",
+        "placeType": "country"
+      },
+      {
+        "id": "3bd603aa-0be2-4615-9cf7-01d1a8ad0cd6",
+        "canonicalPath": "jp/tokyo",
+        "name": "Tokyo",
+        "placeType": "city"
+      }
+    ],
+    "countryCode": "JP",
+    "admin1Code": null,
+    "timezone": null,
+    "languages": [],
+    "center": {
+      "latitude": 35.6894444,
+      "longitude": 139.6916667
+    },
+    "aliases": [
+      "Tokyo, Japan",
+      "東京都"
+    ],
+    "externalRefs": [
+      {
+        "provider": "wikidata",
+        "external_type": "place",
+        "external_id": "Q1490",
+        "canonical_url": "https://www.wikidata.org/wiki/Q1490",
+        "attribution_text": null,
+        "source_key": "wikidata_geo"
+      },
+      {
+        "provider": "musicbrainz",
+        "external_type": "area",
+        "external_id": "8dc97297-ac95-4d33-82bc-e07fab26fb5f",
+        "canonical_url": "https://musicbrainz.org/area/8dc97297-ac95-4d33-82bc-e07fab26fb5f",
+        "attribution_text": null,
+        "source_key": "musicbrainz_geo"
+      }
+    ]
+  },
+  "overview": {
+    "shortDescription": null,
+    "musicalIdentity": "Tokyo’s pilot seed connects late-1970s/1980s city pop and electronic pop to internet-era rediscovery and a later J-pop landmark, while avoiding a false single-line genealogy.",
+    "hero": null,
+    "listenHere": null,
+    "listenHereStatus": {
+      "status": "unavailable",
+      "reason": "Pilot recordings and sound guides are metadata/description-only until playback rights are independently resolved."
+    },
+    "stats": {
+      "publishedClaims": 0,
+      "artists": 4,
+      "tracks": 0,
+      "radioStations": 0,
+      "eventsUpcoming": 0,
+      "culturalEntities": 21
+    },
+    "quality": {
+      "modelVersion": "world-quality-model-v0.1",
+      "averageEntityQuality": 0.8965,
+      "averageRelationshipQuality": 0.9014,
+      "corroboratedEntityRate": 0.5714,
+      "stableArtistIdentityRate": 1,
+      "recordingYearCoverage": 1,
+      "landmarkIdentityCoverage": 1,
+      "sourceDomainCount": 11,
+      "sourceTypeCount": 5,
+      "publicationEligible": false,
+      "gaps": [
+        "1 graph relationships remain below 0.80 confidence",
+        "current popularity signals not seeded",
+        "live event/venue signals not seeded",
+        "radio/playback rights not seeded"
+      ]
+    },
+    "explore": {
+      "basis": "draft_quality_heuristic_not_editorial",
+      "suggestedPath": [
+        {
+          "role": "start_with_history",
+          "id": "tokyo_city_pop",
+          "kind": "genre",
+          "name": "City pop"
+        },
+        {
+          "role": "hear_the_signature",
+          "id": "tokyo_city_pop_sound_signature",
+          "kind": "sound_signature",
+          "name": "City pop listening frame",
+          "qualityScore": 0.828
+        },
+        {
+          "role": "meet_a_key_artist",
+          "id": "tokyo_artist_mariya_takeuchi",
+          "kind": "artist_reference",
+          "name": "Mariya Takeuchi",
+          "qualityScore": 0.9423
+        },
+        {
+          "role": "study_a_recording",
+          "id": "tokyo_plastic_love",
+          "kind": "recording_reference",
+          "name": "Plastic Love",
+          "qualityScore": 0.9543
+        },
+        {
+          "role": "visit_a_landmark",
+          "id": "tokyo_yamaha_rd_tokyo",
+          "kind": "studio_landmark",
+          "name": "Yamaha R&D Tokyo",
+          "qualityScore": 0.83
+        }
+      ]
+    }
+  },
+  "sections": {
+    "fromHere": {
+      "status": "draft_seed_data",
+      "items": [
+        {
+          "id": "tokyo_city_pop",
+          "kind": "genre",
+          "data": {
+            "slug": "tokyo-city-pop",
+            "name": "City pop",
+            "summary": "A Japanese pop style that arose in the late 1970s and peaked in the 1980s, blending disco, soul, R&B, funk and other influences with an urban consumer/technology context.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1970",
+            "end": "1989"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "japan_embassy_city_pop",
+              "jpf_city_pop",
+              "nippon_city_pop"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9487,
+            "band": "strong_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "nippon.com",
+              "sg.emb-japan.go.jp",
+              "sydney.jpf.go.jp"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "editorial"
+            ],
+            "authorities": [
+              "cultural_institution",
+              "government_cultural_information",
+              "japan_public_interest_editorial"
+            ],
+            "authorityScore": 0.8667,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "tokyo_city_pop"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "kind": "scene",
+          "data": {
+            "slug": "tokyo-ymo-electronic-pop",
+            "name": "Yellow Magic Orchestra and Japanese electronic pop",
+            "summary": "YMO’s late-1970s work and international touring made Japanese electronic pop highly visible beyond Japan.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.91,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "sony_ymo_1979",
+              "sony_ymo_archive"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.843,
+            "band": "solid_basis",
+            "confidence": 0.91,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "sonymusic.co.jp"
+            ],
+            "sourceTypes": [
+              "partner"
+            ],
+            "authorities": [
+              "first_party_label"
+            ],
+            "authorityScore": 0.88,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "tokyo_ymo_electronic_pop"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_synthesizer",
+          "kind": "instrument",
+          "data": {
+            "slug": "synthesizer-ymo-japanese-electronic-pop",
+            "name": "Synthesizer — YMO and Japanese electronic pop",
+            "summary": "Yellow Magic Orchestra’s electronic palette relied heavily on synthesizers; Ryuichi Sakamoto later became closely associated with advanced synthesizer programming and Yamaha digital synthesis.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "precise synthetic timbres",
+                "layered electronic bass and lead lines"
+              ],
+              "sound_role": "synthetic melody, bass, harmony and timbral design",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "sony_ymo_archive",
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9575,
+            "band": "strong_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "sonymusic.co.jp",
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive",
+              "partner"
+            ],
+            "authorities": [
+              "first_party_label",
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.89,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_ymo_synthesizer"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_tr808",
+          "kind": "instrument",
+          "data": {
+            "slug": "roland-tr-808-ymo",
+            "name": "Roland TR-808 rhythm machine",
+            "summary": "YMO were among the early high-profile experimental users of the Roland TR-808, exploiting its deliberately electronic kick, clap and programmable rhythm character.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "electronic kick and clap timbres",
+                "machine rhythm used as an expressive texture"
+              ],
+              "sound_role": "programmable drum-machine rhythm",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic_percussion"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "roland_ymo_808"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.86,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "articles.roland.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_ymo_tr808"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_mc8",
+          "kind": "instrument",
+          "data": {
+            "slug": "roland-mc-8-ymo",
+            "name": "Roland MC-8 Microcomposer",
+            "summary": "YMO and Ryuichi Sakamoto used the Roland MC-8 microprocessor sequencer as part of early computer-controlled electronic production.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "precisely sequenced multi-part electronic arrangements"
+              ],
+              "sound_role": "computer-controlled sequencing of electronic parts",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "sequencer"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "roland_ymo_808"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.857,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "articles.roland.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_ymo_mc8"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_dx7_jpop",
+          "kind": "instrument",
+          "data": {
+            "slug": "yamaha-dx7-japanese-pop",
+            "name": "Yamaha DX7 and 1980s Japanese pop production",
+            "summary": "The DX7 arrived in 1983 as MIDI and digital synthesis were reshaping Japanese pop production; Sakamoto adopted it extensively in his post-YMO solo work.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "bright digital FM timbres",
+                "precisely programmed keyboard textures"
+              ],
+              "sound_role": "FM-synthesis timbres and programmable digital keyboard textures",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "digital_synthesizer"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1983",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "yamaha_jpop_synth",
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.863,
+            "band": "solid_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_dx7_jpop"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_mariya_takeuchi",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "mariya-takeuchi",
+            "name": "Mariya Takeuchi",
+            "summary": "External knowledge-graph identity for Mariya Takeuchi; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q1143704",
+                "musicbrainz_artist_mbid": "02bdc7ec-d102-4698-85e2-789a42d40b9c",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q1143704",
+                "musicbrainz_artist_mbid": "02bdc7ec-d102-4698-85e2-789a42d40b9c",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "japan_culture_plastic_love",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9423,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "mediag.bunka.go.jp",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "government_cultural_institution"
+            ],
+            "authorityScore": 0.7933,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_mariya_takeuchi"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_ymo",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "yellow-magic-orchestra",
+            "name": "Yellow Magic Orchestra",
+            "summary": "External knowledge-graph identity for Yellow Magic Orchestra; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q854590",
+                "musicbrainz_artist_mbid": "ac5af671-1df0-4312-8b7b-e61992ecc883",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q854590",
+                "musicbrainz_artist_mbid": "ac5af671-1df0-4312-8b7b-e61992ecc883",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "sony_ymo_archive",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9357,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "musicbrainz.org",
+              "sonymusic.co.jp",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_label"
+            ],
+            "authorityScore": 0.7667,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_ymo"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_ryuichi_sakamoto",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "ryuichi-sakamoto",
+            "name": "Ryuichi Sakamoto",
+            "summary": "External knowledge-graph identity for Ryuichi Sakamoto; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "a7f7df4a-77d8-4f12-8acd-5c60c93f4de8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "a7f7df4a-77d8-4f12-8acd-5c60c93f4de8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9128,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.81,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_ryuichi_sakamoto"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_hikaru_utada",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "hikaru-utada",
+            "name": "Hikaru Utada",
+            "summary": "External knowledge-graph identity for Hikaru Utada; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q234598",
+                "musicbrainz_artist_mbid": "b539e453-c4fe-47e3-8a07-8517eac74429",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q234598",
+                "musicbrainz_artist_mbid": "b539e453-c4fe-47e3-8a07-8517eac74429",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "utada_profile",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.934,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "musicbrainz.org",
+              "utadahikaru.jp",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_artist"
+            ],
+            "authorityScore": 0.76,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_hikaru_utada"
+            }
+          ]
+        }
+      ]
+    },
+    "popularHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No current popularity signal is seeded. Historical prominence must never be represented as current popularity.",
+      "items": []
+    },
+    "happeningHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Live events and venue activity must come from current Tourify operational sources, not historical seed data.",
+      "items": []
+    },
+    "historyHere": {
+      "status": "draft_seed_data",
+      "timeline": [
+        {
+          "id": "tokyo_city_pop",
+          "year": null,
+          "startYear": 1970,
+          "endYear": 1989,
+          "precision": "period",
+          "title": "City pop",
+          "summary": "A Japanese pop style that arose in the late 1970s and peaked in the 1980s, blending disco, soul, R&B, funk and other influences with an urban consumer/technology context.",
+          "entityRefs": [
+            {
+              "id": "tokyo_city_pop",
+              "kind": "genre",
+              "name": "City pop"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "japan_embassy_city_pop",
+            "jpf_city_pop",
+            "nippon_city_pop"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "year": null,
+          "startYear": 1978,
+          "endYear": null,
+          "precision": "period",
+          "title": "Yellow Magic Orchestra and Japanese electronic pop",
+          "summary": "YMO’s late-1970s work and international touring made Japanese electronic pop highly visible beyond Japan.",
+          "entityRefs": [
+            {
+              "id": "tokyo_ymo_electronic_pop",
+              "kind": "scene",
+              "name": "Yellow Magic Orchestra and Japanese electronic pop"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "sony_ymo_1979",
+            "sony_ymo_archive"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "tokyo_mobile_listening_city_pop",
+          "year": null,
+          "startYear": 1979,
+          "endYear": 1989,
+          "precision": "period",
+          "title": "Mobile listening and the city-pop era",
+          "summary": "Japan Foundation links city pop’s urban identity with rapid consumer-technology change, including the Walkman and in-car cassette listening.",
+          "entityRefs": [
+            {
+              "id": "tokyo_mobile_listening_city_pop",
+              "kind": "historical_milestone",
+              "name": "Mobile listening and the city-pop era"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "jpf_city_pop"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "tokyo_jpop_late_1990s",
+          "year": null,
+          "startYear": 1998,
+          "endYear": null,
+          "precision": "period",
+          "title": "Late-1990s Japanese pop transition",
+          "summary": "A pilot educational node for connecting city-pop/electronic precedents to the late-1990s J-pop era without claiming a single direct genre lineage.",
+          "entityRefs": [
+            {
+              "id": "tokyo_jpop_late_1990s",
+              "kind": "educational_topic",
+              "name": "Late-1990s Japanese pop transition"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "utada_profile"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "tokyo_city_pop_internet_revival",
+          "year": null,
+          "startYear": 2010,
+          "endYear": null,
+          "precision": "period",
+          "title": "City pop’s internet-era global revival",
+          "summary": "Online circulation in the 2010s helped reintroduce city pop internationally, with “Plastic Love” becoming a prominent example.",
+          "entityRefs": [
+            {
+              "id": "tokyo_city_pop_internet_revival",
+              "kind": "historical_milestone",
+              "name": "City pop’s internet-era global revival"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "japan_culture_plastic_love",
+            "jpf_city_pop"
+          ],
+          "reviewed": false
+        }
+      ],
+      "genresAndScenes": [
+        {
+          "id": "tokyo_city_pop",
+          "kind": "genre",
+          "data": {
+            "slug": "tokyo-city-pop",
+            "name": "City pop",
+            "summary": "A Japanese pop style that arose in the late 1970s and peaked in the 1980s, blending disco, soul, R&B, funk and other influences with an urban consumer/technology context.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1970",
+            "end": "1989"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "japan_embassy_city_pop",
+              "jpf_city_pop",
+              "nippon_city_pop"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9487,
+            "band": "strong_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "nippon.com",
+              "sg.emb-japan.go.jp",
+              "sydney.jpf.go.jp"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "editorial"
+            ],
+            "authorities": [
+              "cultural_institution",
+              "government_cultural_information",
+              "japan_public_interest_editorial"
+            ],
+            "authorityScore": 0.8667,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "tokyo_city_pop"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "kind": "scene",
+          "data": {
+            "slug": "tokyo-ymo-electronic-pop",
+            "name": "Yellow Magic Orchestra and Japanese electronic pop",
+            "summary": "YMO’s late-1970s work and international touring made Japanese electronic pop highly visible beyond Japan.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.91,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "sony_ymo_1979",
+              "sony_ymo_archive"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.843,
+            "band": "solid_basis",
+            "confidence": 0.91,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "sonymusic.co.jp"
+            ],
+            "sourceTypes": [
+              "partner"
+            ],
+            "authorities": [
+              "first_party_label"
+            ],
+            "authorityScore": 0.88,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "tokyo_ymo_electronic_pop"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_jpop_late_1990s",
+          "kind": "educational_topic",
+          "data": {
+            "slug": "tokyo-jpop-late-1990s",
+            "name": "Late-1990s Japanese pop transition",
+            "summary": "A pilot educational node for connecting city-pop/electronic precedents to the late-1990s J-pop era without claiming a single direct genre lineage.",
+            "entityType": "educational_topic",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.8,
+          "timeScope": {
+            "start": "1998",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "utada_profile"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.805,
+            "band": "solid_basis",
+            "confidence": 0.8,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "utadahikaru.jp"
+            ],
+            "sourceTypes": [
+              "partner"
+            ],
+            "authorities": [
+              "first_party_artist"
+            ],
+            "authorityScore": 0.86,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "educational_topic",
+              "entityId": "tokyo_jpop_late_1990s"
+            }
+          ]
+        }
+      ],
+      "instruments": [
+        {
+          "id": "tokyo_ymo_synthesizer",
+          "kind": "instrument",
+          "data": {
+            "slug": "synthesizer-ymo-japanese-electronic-pop",
+            "name": "Synthesizer — YMO and Japanese electronic pop",
+            "summary": "Yellow Magic Orchestra’s electronic palette relied heavily on synthesizers; Ryuichi Sakamoto later became closely associated with advanced synthesizer programming and Yamaha digital synthesis.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "precise synthetic timbres",
+                "layered electronic bass and lead lines"
+              ],
+              "sound_role": "synthetic melody, bass, harmony and timbral design",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "sony_ymo_archive",
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9575,
+            "band": "strong_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "sonymusic.co.jp",
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive",
+              "partner"
+            ],
+            "authorities": [
+              "first_party_label",
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.89,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_ymo_synthesizer"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_tr808",
+          "kind": "instrument",
+          "data": {
+            "slug": "roland-tr-808-ymo",
+            "name": "Roland TR-808 rhythm machine",
+            "summary": "YMO were among the early high-profile experimental users of the Roland TR-808, exploiting its deliberately electronic kick, clap and programmable rhythm character.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "electronic kick and clap timbres",
+                "machine rhythm used as an expressive texture"
+              ],
+              "sound_role": "programmable drum-machine rhythm",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic_percussion"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "roland_ymo_808"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.86,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "articles.roland.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_ymo_tr808"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_mc8",
+          "kind": "instrument",
+          "data": {
+            "slug": "roland-mc-8-ymo",
+            "name": "Roland MC-8 Microcomposer",
+            "summary": "YMO and Ryuichi Sakamoto used the Roland MC-8 microprocessor sequencer as part of early computer-controlled electronic production.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "precisely sequenced multi-part electronic arrangements"
+              ],
+              "sound_role": "computer-controlled sequencing of electronic parts",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "sequencer"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "roland_ymo_808"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.857,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "articles.roland.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_ymo_mc8"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_dx7_jpop",
+          "kind": "instrument",
+          "data": {
+            "slug": "yamaha-dx7-japanese-pop",
+            "name": "Yamaha DX7 and 1980s Japanese pop production",
+            "summary": "The DX7 arrived in 1983 as MIDI and digital synthesis were reshaping Japanese pop production; Sakamoto adopted it extensively in his post-YMO solo work.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "bright digital FM timbres",
+                "precisely programmed keyboard textures"
+              ],
+              "sound_role": "FM-synthesis timbres and programmable digital keyboard textures",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "digital_synthesizer"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1983",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "yamaha_jpop_synth",
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.863,
+            "band": "solid_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "tokyo_dx7_jpop"
+            }
+          ]
+        }
+      ],
+      "soundSignatures": [
+        {
+          "id": "tokyo_city_pop_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "tokyo-city-pop-sound-signature",
+            "name": "City pop listening frame",
+            "summary": "A broad listening frame based on Japan Foundation’s historical description of the style.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "City pop is a broad retrospective label; not every Japanese urban pop recording of the era fits the same formula."
+              ],
+              "listen_for": [
+                "polished studio production",
+                "disco/funk groove",
+                "soul and R&B influence",
+                "synth and electric-instrument textures",
+                "urban leisure atmosphere"
+              ],
+              "techniques": [],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.86,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jpf_city_pop"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.828,
+            "band": "solid_basis",
+            "confidence": 0.86,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "sydney.jpf.go.jp"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "cultural_institution"
+            ],
+            "authorityScore": 0.88,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "tokyo_city_pop_sound_signature"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_ymo_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "tokyo-ymo-sound-signature",
+            "name": "YMO electronic listening frame",
+            "summary": "A listening frame for YMO’s late-1970s electronic repertoire based on first-party archive documentation.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "This is a listening frame for the seed, not a claim that all Tokyo electronic music shares these traits."
+              ],
+              "listen_for": [
+                "synthesizer-led arrangements",
+                "electronic rhythm",
+                "precise ensemble programming/performance",
+                "futurist pop presentation"
+              ],
+              "techniques": [],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.84,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "sony_ymo_1979",
+              "sony_ymo_archive"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.822,
+            "band": "solid_basis",
+            "confidence": 0.84,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "sonymusic.co.jp"
+            ],
+            "sourceTypes": [
+              "partner"
+            ],
+            "authorities": [
+              "first_party_label"
+            ],
+            "authorityScore": 0.88,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "tokyo_ymo_sound_signature"
+            }
+          ]
+        }
+      ],
+      "notableArtists": [
+        {
+          "id": "tokyo_artist_mariya_takeuchi",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "mariya-takeuchi",
+            "name": "Mariya Takeuchi",
+            "summary": "External knowledge-graph identity for Mariya Takeuchi; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q1143704",
+                "musicbrainz_artist_mbid": "02bdc7ec-d102-4698-85e2-789a42d40b9c",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q1143704",
+                "musicbrainz_artist_mbid": "02bdc7ec-d102-4698-85e2-789a42d40b9c",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "japan_culture_plastic_love",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9423,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "mediag.bunka.go.jp",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "government_cultural_institution"
+            ],
+            "authorityScore": 0.7933,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_mariya_takeuchi"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_ymo",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "yellow-magic-orchestra",
+            "name": "Yellow Magic Orchestra",
+            "summary": "External knowledge-graph identity for Yellow Magic Orchestra; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q854590",
+                "musicbrainz_artist_mbid": "ac5af671-1df0-4312-8b7b-e61992ecc883",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q854590",
+                "musicbrainz_artist_mbid": "ac5af671-1df0-4312-8b7b-e61992ecc883",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "sony_ymo_archive",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9357,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "musicbrainz.org",
+              "sonymusic.co.jp",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_label"
+            ],
+            "authorityScore": 0.7667,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_ymo"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_ryuichi_sakamoto",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "ryuichi-sakamoto",
+            "name": "Ryuichi Sakamoto",
+            "summary": "External knowledge-graph identity for Ryuichi Sakamoto; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "a7f7df4a-77d8-4f12-8acd-5c60c93f4de8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "a7f7df4a-77d8-4f12-8acd-5c60c93f4de8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9128,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.81,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_ryuichi_sakamoto"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_artist_hikaru_utada",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "hikaru-utada",
+            "name": "Hikaru Utada",
+            "summary": "External knowledge-graph identity for Hikaru Utada; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q234598",
+                "musicbrainz_artist_mbid": "b539e453-c4fe-47e3-8a07-8517eac74429",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q234598",
+                "musicbrainz_artist_mbid": "b539e453-c4fe-47e3-8a07-8517eac74429",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "utada_profile",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.934,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "musicbrainz.org",
+              "utadahikaru.jp",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_artist"
+            ],
+            "authorityScore": 0.76,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "tokyo_artist_hikaru_utada"
+            }
+          ]
+        }
+      ],
+      "notableRecordings": [
+        {
+          "id": "tokyo_plastic_love",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "tokyo-plastic-love",
+            "name": "Plastic Love",
+            "summary": "A 1984 city-pop recording that gained a large international second life through internet circulation decades later.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Plastic Love",
+              "artist_name": "Mariya Takeuchi",
+              "release_year": 1984,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "tokyo_artist_mariya_takeuchi"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Mariya Takeuchi Plastic Love"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1984",
+            "end": "1984"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "japan_culture_plastic_love",
+              "musicbrainz_artist_identity",
+              "wmg_plastic_love"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9543,
+            "band": "strong_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "mediag.bunka.go.jp",
+              "musicbrainz.org",
+              "wmg.jp"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_label",
+              "government_cultural_institution"
+            ],
+            "authorityScore": 0.8533,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "tokyo_plastic_love"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_rydeen_ymo",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "tokyo-rydeen-ymo",
+            "name": "Rydeen",
+            "summary": "A widely documented YMO repertoire piece from the 1979 Solid State Survivor era and international live set.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Rydeen",
+              "artist_name": "Yellow Magic Orchestra",
+              "release_year": 1979,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "tokyo_artist_ymo"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Yellow Magic Orchestra Rydeen"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1979",
+            "end": "1979"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "sony_ymo_1979",
+              "sony_ymo_archive"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9387,
+            "band": "strong_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "sonymusic.co.jp"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_label"
+            ],
+            "authorityScore": 0.8267,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "tokyo_rydeen_ymo"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_technopolis_ymo",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "tokyo-technopolis-ymo",
+            "name": "Technopolis",
+            "summary": "A YMO electronic-pop landmark documented in 1979-era live/archive materials.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Technopolis",
+              "artist_name": "Yellow Magic Orchestra",
+              "release_year": 1979,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "tokyo_artist_ymo"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Yellow Magic Orchestra Technopolis"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.93,
+          "timeScope": {
+            "start": "1979",
+            "end": "1979"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "sony_ymo_1979",
+              "sony_ymo_archive"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9357,
+            "band": "strong_basis",
+            "confidence": 0.93,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "sonymusic.co.jp"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_label"
+            ],
+            "authorityScore": 0.8267,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "tokyo_technopolis_ymo"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_automatic_utada",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "tokyo-automatic-utada",
+            "name": "Automatic",
+            "summary": "Hikaru Utada’s debut single, released December 9, 1998, and a major late-1990s Japanese pop landmark.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Automatic",
+              "artist_name": "Hikaru Utada",
+              "release_year": 1998,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "tokyo_artist_hikaru_utada"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Hikaru Utada Automatic"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1998",
+            "end": "1998"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_recording_identity",
+              "utada_automatic",
+              "utada_profile"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9443,
+            "band": "strong_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "utadahikaru.jp"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_artist"
+            ],
+            "authorityScore": 0.8133,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "tokyo_automatic_utada"
+            }
+          ]
+        },
+        {
+          "id": "tokyo_1000_knives",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "tokyo-1000-knives-ryuichi-sakamoto",
+            "name": "1000 Knives",
+            "summary": "Roland documents “1000 Knives” as an early example of YMO/Sakamoto-era experimentation with programmable electronic rhythm and sequencing.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "1000 Knives",
+              "artist_name": "Ryuichi Sakamoto",
+              "release_year": 1978,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "tokyo_artist_ryuichi_sakamoto"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Ryuichi Sakamoto 1000 Knives"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": {
+            "start": "1978",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "roland_ymo_808"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9225,
+            "band": "strong_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "articles.roland.com",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "archive",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.81,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "tokyo_1000_knives"
+            }
+          ]
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "tokyo_yamaha_rd_tokyo",
+          "kind": "studio_landmark",
+          "data": {
+            "slug": "yamaha-rd-tokyo-shibuya",
+            "name": "Yamaha R&D Tokyo",
+            "summary": "Yamaha established an R&D facility in Shibuya in 1985, linking Tokyo directly to the development and artist adoption of later Japanese synthesizer technologies.",
+            "entityType": "studio_landmark",
+            "metadata": {
+              "address_text": "Dogenzaka district, Shibuya, Tokyo, Japan",
+              "media_policy": "link_only_until_cleared",
+              "landmark_type": "music_technology_research_facility",
+              "geocoding_precision": "district_only",
+              "do_not_invent_street_address": true
+            }
+          },
+          "placeRelation": "historically_significant_in",
+          "confidence": 0.85,
+          "timeScope": {
+            "start": "1985",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "yamaha_sakamoto_synth"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.83,
+            "band": "solid_basis",
+            "confidence": 0.85,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "usa.yamaha.com"
+            ],
+            "sourceTypes": [
+              "archive"
+            ],
+            "authorities": [
+              "first_party_manufacturer_archive"
+            ],
+            "authorityScore": 0.9,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "studio_landmark",
+              "entityId": "tokyo_yamaha_rd_tokyo"
+            }
+          ]
+        }
+      ]
+    },
+    "tourifyHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No exact pilot historical artist identities currently match Tourify Demo artist profiles; fake profiles are forbidden.",
+      "items": []
+    },
+    "radio": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Radio station ingestion and stream-rights review are not part of this static history fixture.",
+      "items": []
+    }
+  },
+  "relationships": {
+    "count": 11,
+    "items": [
+      {
+        "subject": {
+          "id": "tokyo_city_pop_internet_revival",
+          "name": "City pop’s internet-era global revival",
+          "kind": "historical_milestone"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "tokyo_city_pop",
+          "name": "City pop",
+          "kind": "genre"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "japan_culture_plastic_love",
+          "jpf_city_pop"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.9625,
+          "band": "strong_basis",
+          "confidence": 0.95,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "mediag.bunka.go.jp",
+            "sydney.jpf.go.jp"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "cultural_institution",
+            "government_cultural_institution"
+          ],
+          "authorityScore": 0.92,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "tokyo_city_pop",
+          "name": "City pop",
+          "kind": "genre"
+        },
+        "confidence": 0.65,
+        "sourceKeys": [
+          "jpf_city_pop",
+          "sony_ymo_1979"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8475,
+          "band": "solid_basis",
+          "confidence": 0.65,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "sonymusic.co.jp",
+            "sydney.jpf.go.jp"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "partner"
+          ],
+          "authorities": [
+            "cultural_institution",
+            "first_party_label"
+          ],
+          "authorityScore": 0.88,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "tokyo_ymo_synthesizer",
+          "name": "Synthesizer — YMO and Japanese electronic pop",
+          "kind": "instrument"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "sony_ymo_archive",
+          "yamaha_sakamoto_synth"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.955,
+          "band": "strong_basis",
+          "confidence": 0.95,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "sonymusic.co.jp",
+            "usa.yamaha.com"
+          ],
+          "sourceTypes": [
+            "archive",
+            "partner"
+          ],
+          "authorities": [
+            "first_party_label",
+            "first_party_manufacturer_archive"
+          ],
+          "authorityScore": 0.89,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "tokyo_ymo_tr808",
+          "name": "Roland TR-808 rhythm machine",
+          "kind": "instrument"
+        },
+        "confidence": 0.93,
+        "sourceKeys": [
+          "roland_ymo_808"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8255,
+          "band": "solid_basis",
+          "confidence": 0.93,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "articles.roland.com"
+          ],
+          "sourceTypes": [
+            "archive"
+          ],
+          "authorities": [
+            "first_party_manufacturer_archive"
+          ],
+          "authorityScore": 0.9,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "tokyo_ymo_mc8",
+          "name": "Roland MC-8 Microcomposer",
+          "kind": "instrument"
+        },
+        "confidence": 0.93,
+        "sourceKeys": [
+          "roland_ymo_808"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8255,
+          "band": "solid_basis",
+          "confidence": 0.93,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "articles.roland.com"
+          ],
+          "sourceTypes": [
+            "archive"
+          ],
+          "authorities": [
+            "first_party_manufacturer_archive"
+          ],
+          "authorityScore": 0.9,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_plastic_love",
+          "name": "Plastic Love",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "tokyo_artist_mariya_takeuchi",
+          "name": "Mariya Takeuchi",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.97,
+        "sourceKeys": [
+          "japan_culture_plastic_love",
+          "musicbrainz_artist_identity",
+          "wikidata_identity",
+          "wmg_plastic_love"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9433,
+          "band": "strong_basis",
+          "confidence": 0.97,
+          "sourceCount": 4,
+          "distinctDomains": 4,
+          "domains": [
+            "mediag.bunka.go.jp",
+            "musicbrainz.org",
+            "wikidata.org",
+            "wmg.jp"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "first_party_label",
+            "government_cultural_institution"
+          ],
+          "authorityScore": 0.815,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_rydeen_ymo",
+          "name": "Rydeen",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "tokyo_artist_ymo",
+          "name": "Yellow Magic Orchestra",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.94,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "sony_ymo_1979",
+          "sony_ymo_archive",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9278,
+          "band": "strong_basis",
+          "confidence": 0.94,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "musicbrainz.org",
+            "sonymusic.co.jp",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "first_party_label"
+          ],
+          "authorityScore": 0.795,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_technopolis_ymo",
+          "name": "Technopolis",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "tokyo_artist_ymo",
+          "name": "Yellow Magic Orchestra",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.93,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "sony_ymo_1979",
+          "sony_ymo_archive",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9243,
+          "band": "strong_basis",
+          "confidence": 0.93,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "musicbrainz.org",
+            "sonymusic.co.jp",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "first_party_label"
+          ],
+          "authorityScore": 0.795,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_automatic_utada",
+          "name": "Automatic",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "tokyo_artist_hikaru_utada",
+          "name": "Hikaru Utada",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.97,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity",
+          "utada_automatic",
+          "utada_profile",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9325,
+          "band": "strong_basis",
+          "confidence": 0.97,
+          "sourceCount": 5,
+          "distinctDomains": 3,
+          "domains": [
+            "musicbrainz.org",
+            "utadahikaru.jp",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "first_party_artist"
+          ],
+          "authorityScore": 0.772,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_1000_knives",
+          "name": "1000 Knives",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "tokyo_artist_ryuichi_sakamoto",
+          "name": "Ryuichi Sakamoto",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.9,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "roland_ymo_808",
+          "yamaha_sakamoto_synth"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.925,
+          "band": "strong_basis",
+          "confidence": 0.9,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "articles.roland.com",
+            "musicbrainz.org",
+            "usa.yamaha.com"
+          ],
+          "sourceTypes": [
+            "archive",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "first_party_manufacturer_archive"
+          ],
+          "authorityScore": 0.84,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "tokyo_yamaha_rd_tokyo",
+          "name": "Yamaha R&D Tokyo",
+          "kind": "studio_landmark"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "tokyo_artist_ryuichi_sakamoto",
+          "name": "Ryuichi Sakamoto",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.99,
+        "sourceKeys": [
+          "yamaha_sakamoto_synth"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "relationship_note": "Yamaha documents Sakamoto visiting R&D Tokyo and advising designers and developers."
+        },
+        "quality": {
+          "score": 0.8465,
+          "band": "solid_basis",
+          "confidence": 0.99,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "usa.yamaha.com"
+          ],
+          "sourceTypes": [
+            "archive"
+          ],
+          "authorities": [
+            "first_party_manufacturer_archive"
+          ],
+          "authorityScore": 0.9,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "reviewed": false,
+    "sourceCount": 15,
+    "sourceTypes": [
+      "archive",
+      "cultural_institution",
+      "editorial",
+      "music_metadata",
+      "partner"
+    ],
+    "sourceRefs": [
+      {
+        "key": "japan_culture_plastic_love",
+        "name": "Agency for Cultural Affairs / Media Arts Current — Plastic Love revival",
+        "canonicalUrl": "https://mediag.bunka.go.jp/article/article-19013/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "government_cultural_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "japan_embassy_city_pop",
+        "name": "Embassy of Japan in Singapore — The Resurgence of City Pop",
+        "canonicalUrl": "https://www.sg.emb-japan.go.jp/JCC/E-Magazine-May-2023-City-Pop.html",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "government_cultural_information",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "jpf_city_pop",
+        "name": "Japan Foundation Sydney — A brief introduction to city pop",
+        "canonicalUrl": "https://sydney.jpf.go.jp/media-releases/hiroshi-nagai-paintings-for-music/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "cultural_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "musicbrainz_artist_identity",
+        "name": "MusicBrainz — core artist identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "musicbrainz_recording_identity",
+        "name": "MusicBrainz — core recording and release identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "nippon_city_pop",
+        "name": "Nippon.com — A Guide to City Pop",
+        "canonicalUrl": "https://www.nippon.com/en/japan-topics/g00631/a-guide-to-city-pop-the-soundtrack-for-japan%E2%80%99s-bubble-era-generation.html",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "japan_public_interest_editorial",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "roland_ymo_808",
+        "name": "Roland — How Yellow Magic Orchestra Launched the 808 Revolution",
+        "canonicalUrl": "https://articles.roland.com/yellow-magic-orchestra-808-revolution/",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_manufacturer_archive",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "sony_ymo_1979",
+        "name": "Sony Music Japan — YMO 1979 live archive",
+        "canonicalUrl": "https://www.sonymusic.co.jp/artist/YellowMagicOrchestra/info/581187",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_label",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "conditional"
+      },
+      {
+        "key": "sony_ymo_archive",
+        "name": "Sony Music Japan — YMO early video/archive note",
+        "canonicalUrl": "https://www.sonymusic.co.jp/artist/YellowMagicOrchestra/info/502976",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_label",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "conditional"
+      },
+      {
+        "key": "utada_automatic",
+        "name": "Hikaru Utada official — Automatic / time will tell",
+        "canonicalUrl": "https://www.utadahikaru.jp/music/sv14gs_6upck/",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_artist",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "conditional"
+      },
+      {
+        "key": "utada_profile",
+        "name": "Hikaru Utada official profile",
+        "canonicalUrl": "https://www.utadahikaru.jp/profile/",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_artist",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "conditional"
+      },
+      {
+        "key": "wikidata_identity",
+        "name": "Wikidata — structured artist and cultural identity data",
+        "canonicalUrl": "https://www.wikidata.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_structured_data",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "wmg_plastic_love",
+        "name": "Warner Music Japan — Plastic Love",
+        "canonicalUrl": "https://wmg.jp/mariya/discography/25074",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_label",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "conditional"
+      },
+      {
+        "key": "yamaha_jpop_synth",
+        "name": "Yamaha — Japanese Pop Music and Yamaha Synthesizers",
+        "canonicalUrl": "https://usa.yamaha.com/products/contents/music_production/synth_50th/anecdotes/012.html",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_manufacturer_archive",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "yamaha_sakamoto_synth",
+        "name": "Yamaha — Sakamoto and Yamaha Synthesizers",
+        "canonicalUrl": "https://usa.yamaha.com/products/contents/music_production/synth_50th/anecdotes/011.html",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_manufacturer_archive",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      }
+    ],
+    "missingSourceKeys": [],
+    "lastReviewedAt": null
+  },
+  "freshness": {
+    "knowledgeSeedRetrievedAt": "2026-08-22T17:25:11.623046+00:00",
+    "historicalDataClass": "long_lived_reviewed_on_publish",
+    "currentSignalDataPresent": false
+  },
+  "permissions": {
+    "previewOnly": true,
+    "publicEligible": false,
+    "playbackEligible": false,
+    "containsPrivateStreamLocators": false,
+    "containsRawIngestionPayloads": false
+  },
+  "generatedAt": "2026-08-22T17:26:11.621Z"
+}

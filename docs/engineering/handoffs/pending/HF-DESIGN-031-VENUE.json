@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DESIGN-031-VENUE",
+  "task_id": "DESIGN-031",
+  "from_agent": "design-system",
+  "to_agent": "venue",
+  "status": "pending",
+  "created_at": "2026-09-11T21:20:00.000Z",
+  "source_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "summary": "hooks/venue/use-mobile.tsx was re-validated as a ZERO-consumer boolean-only copy (category b / intentional surface difference per DESIGN-027) and converted by DESIGN-031 to a pure compatibility re-export of the canonical object-returning hooks/use-mobile.ts. The path remains importable, so no venue code breaks. The owning venue surface now decides whether to keep the shim or delete it; whichever is chosen, no venue behavior change is expected because the file has no importers.",
+  "working_set": [
+    "hooks/venue/use-mobile.tsx"
+  ],
+  "completed": [
+    "Zero-consumer re-validation: bounded rg for 'hooks/venue/use-mobile' across app components hooks lib apps __tests__ scripts returned 0 importer matches; no barrel/alias targets the path.",
+    "Converted hooks/venue/use-mobile.tsx to `export { useIsMobile } from \"@/hooks/use-mobile\"` (alias import resolves under the repo-root tsconfig).",
+    "Contract test __tests__/design-system/use-mobile-contract.test.ts asserts venueUseIsMobile === canonicalUseIsMobile (2/2 tests pass; 5/5 with shared-state suite).",
+    "Secret/safety note: canonical hooks/use-mobile.ts is untouched; consumer files were not modified."
+  ],
+  "next_steps": [
+    "Venue surface decides final disposition of hooks/venue/use-mobile.tsx: KEEP (document why a path-stable boolean adapter is required for a future consumer) or DELETE (per-file zero-use re-validation must precede removal, matching the register's retire-later discipline).",
+    "On any change, update the venue STATE.md note and close this handoff to completed."
+  ],
+  "blockers": [],
+  "verification": [
+    "npx vitest run __tests__/design-system/use-mobile-contract.test.ts __tests__/design-system/shared-state-primitives.test.tsx — 2 files / 5 tests passed",
+    "npx eslint hooks/venue/use-mobile.tsx — exit 0",
+    "scoped tsc over changed files (root-extending tsconfig, @/* paths) — exit 0",
+    "git diff --check on task paths — clean",
+    "npm run agents:validate — 17 agents, 96 tasks, 0 warnings, 0 errors"
+  ]
+}

@@ -154,7 +154,7 @@ describe('artist url_slug create + resolve contracts', () => {
 
 describe('migration presence', () => {
   it('ships artist_profiles.url_slug migration with backfill', () => {
-    const migration = read('supabase/migrations/20260711013130_artist_profiles_url_slug.sql')
+    const migration = read('supabase/migrations/20260711013527_artist_profiles_url_slug.sql')
 
     expect(migration).toContain('ADD COLUMN IF NOT EXISTS url_slug TEXT')
     expect(migration).toContain('idx_artist_profiles_url_slug')

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260910140000_artist_music_trust_columns.sql",
+  "taskId": "artist-music-dashboard",
+  "status": "planned",
+  "owner": "artist",
+  "reviewer": "database",
+  "domains": ["artist", "music"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "existing artist_music catalog with trust rollout disabled",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.artist_music",
+      "select count(*) from public.artist_music where trust_schema_version <> 0"
+    ],
+    "expectedAffectedRows": "No existing catalog rows are rewritten; eleven nullable/defaulted compatibility columns and two indexes are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply the idempotent additive migration or use a later forward-fix",
+    "resumeCursor": "Supabase migration version 20260910140000",
+    "idempotency": "All columns, constraints, and indexes use IF NOT EXISTS or replace the named constraint"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No rows are backfilled or reclassified"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Trust and certification vocabulary checks are added NOT VALID so existing rows are not blocked; they can be validated after catalog cleanup",
+      "No foreign key is added until the declaration tables are promoted from the archived trust foundation"
+    ],
+    "indexes": [
+      "artist_music_trust_status_idx",
+      "artist_music_certification_status_idx"
+    ],
+    "validationPlan": "Verify catalog GET, public profile, EPK, share, and analytics reads after applying the migration; validate checks after trust backfill"
+  },
+  "recovery": {
+    "rollback": "Use a later additive forward-fix; do not remove compatibility columns from a live catalog",
+    "forwardFix": "Promote the complete trust declaration/fingerprint foundation when the rollout is enabled"
+  },
+  "postflight": {
+    "queries": [
+      "Verify all eleven artist_music compatibility columns and two indexes exist",
+      "Verify GET /api/artist/music?limit=300 returns the owner catalog",
+      "Verify public EPK/profile and analytics reads continue to resolve artist_music rows"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "artist",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -5,11 +5,17 @@ import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/adm
 import { withAdminCapability } from "@/lib/auth/api-auth"
 import { EmailDeliveryService } from "@/lib/services/email-delivery.service"
 import { sendSMSNotification } from "@/lib/services/notification-channels"
+import { createStaffingInvitation } from "@/lib/services/staffing-invitation.service"
+import { StaffingFlowError, staffingErrorStatus } from "@/lib/services/staffing-assignment.service"
 
 const createInviteSchema = z.object({
+  name: z.string().trim().min(1).max(160),
   email: z.string().trim().email().optional(),
   phone: z.string().trim().min(6).max(80).optional(),
   role: z.string().trim().min(1).max(160),
+  department: z.string().trim().min(1).max(160),
+  template_id: z.string().uuid(),
+  team_id: z.string().uuid().optional().nullable(),
   positionDetails: z.object({
     title: z.string().trim().min(1).max(160),
     description: z.string().trim().min(1).max(4000),
@@ -26,6 +32,9 @@ function routeError(error: unknown, fallback: string) {
   if (error instanceof z.ZodError) {
     return NextResponse.json({ error: "Validation error", details: error.issues }, { status: 400 })
   }
+  if (error instanceof StaffingFlowError) {
+    return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: staffingErrorStatus(error) })
+  }
   const resolved = adminAccessErrorResponse(error, fallback, 500)
   return NextResponse.json({ error: resolved.message }, { status: resolved.status })
 }
@@ -35,7 +44,7 @@ function onboardingUrl(token: string) {
   const base = configured
     ? `${/^https?:\/\//i.test(configured) ? "" : "https://"}${configured.replace(/\/$/, "")}`
     : ""
-  return `${base}/onboarding/hire/${encodeURIComponent(token)}`
+  return `${base}/staffing/invite/${encodeURIComponent(token)}`
 }
 
 function escapeHtml(value: string) {
@@ -72,25 +81,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     try {
       const tour = await assertAdminTourAccess({ supabase, userId: user.id, tourId: id, orgId: admin.orgId }) as Record<string, unknown>
       const input = createInviteSchema.parse(await request.json())
-      const token = crypto.randomUUID()
-      const { data, error } = await supabase
-        .from("staff_invitations")
-        .insert({
-          email: input.email ?? null,
-          phone: input.phone ?? null,
-          position_details: input.positionDetails,
-          token,
-          status: "pending",
-          tour_id: id,
-          role: input.role,
-          origin: "tour",
-          created_by: user.id,
-          updated_at: new Date().toISOString(),
-        })
-        .select("*")
-        .single()
-      if (error) throw new Error(error.message)
-      const inviteUrl = onboardingUrl(token)
+      const created = await createStaffingInvitation(supabase, {
+        orgId: admin.orgId,
+        actorUserId: user.id,
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        role: input.role,
+        department: input.department,
+        templateId: input.template_id,
+        tourId: id,
+        teamId: input.team_id,
+        notes: input.positionDetails.description,
+      })
+      const inviteUrl = onboardingUrl(created.token)
       const tourName = String(tour.name || "your tour")
       const [emailDelivery, smsDelivery] = await Promise.all([
         input.email
@@ -107,7 +111,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ])
       return NextResponse.json({
         success: true,
-        invite: data,
+        invite: created.invitation,
+        onboardingCandidate: created.candidate,
+        acceptUrl: inviteUrl,
         onboardingUrl: inviteUrl,
         delivery: {
           email: emailDelivery,

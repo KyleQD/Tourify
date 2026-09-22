@@ -1,0 +1,24 @@
+{
+  "evidenceId": "EVD-SEC104-SITEMAP-ACTING-COMMIT",
+  "kind": "commit",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:34:15-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
+  "artifact": "git:codex/admin-workflow-completion@abcf56c864b402f5cd85ecbeea618c8fa7edf89e",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013",
+    "ADM-M-019"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Immutable SEC-104 checkpoint binding linked site maps to the acting organization and replacing the generic activity writer with validated, actor-bound commands."
+}

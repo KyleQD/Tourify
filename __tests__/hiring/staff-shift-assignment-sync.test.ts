@@ -22,6 +22,7 @@ vi.mock("@/lib/supabase/service-role", () => ({
 import {
   publishStaffShifts,
   respondToShiftAssignment,
+  syncActiveStaffMemberShifts,
   syncEmploymentAssignmentForShift,
 } from "@/lib/services/staff-shift-assignment-sync"
 
@@ -32,6 +33,7 @@ function createMockSupabase(handlers: {
   assignmentForRespond?: Record<string, unknown> | null
   shiftForRespond?: Record<string, unknown> | null
   profile?: Record<string, unknown> | null
+  priorInvite?: Record<string, unknown> | null
   shiftsForPublish?: Record<string, unknown>[]
 }) {
   const from = vi.fn((table: string) => {
@@ -41,6 +43,9 @@ function createMockSupabase(handlers: {
     chain.select = vi.fn(self)
     chain.eq = vi.fn(self)
     chain.in = vi.fn(self)
+    chain.not = vi.fn(self)
+    chain.contains = vi.fn(self)
+    chain.limit = vi.fn(self)
     chain.maybeSingle = vi.fn(async () => {
       if (table === "staff_members") return { data: handlers.staffMember ?? null, error: null }
       if (table === "employment_assignments") {
@@ -49,6 +54,7 @@ function createMockSupabase(handlers: {
       }
       if (table === "staff_shifts") return { data: handlers.shiftForRespond ?? null, error: null }
       if (table === "profiles") return { data: handlers.profile ?? null, error: null }
+      if (table === "notifications") return { data: handlers.priorInvite ?? null, error: null }
       return { data: null, error: null }
     })
     chain.single = vi.fn(async () => {
@@ -96,11 +102,48 @@ describe("staff-shift-assignment-sync", () => {
     resolveHiringEntityDisplayName.mockClear()
   })
 
+  it("reports an unlinked persisted shift during roster activation", async () => {
+    const shift = { id: "shift_1", staff_member_id: "staff_1", status: "scheduled" }
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "staff_members") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn(async () => ({
+            data: { id: "staff_1", user_id: "worker_1", status: "active" },
+            error: null,
+          })),
+        }
+        if (table === "staff_shifts") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          not: vi.fn(async () => ({ data: [shift], error: null })),
+        }
+        if (table === "employment_assignments") return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({ single: vi.fn(async () => ({ data: null, error: { message: "insert rejected" } })) })),
+          })),
+        }
+        return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() }
+      }),
+    } as unknown as import("@supabase/supabase-js").SupabaseClient
+
+    const result = await syncActiveStaffMemberShifts({ supabase, staffMemberId: "staff_1" })
+
+    expect(result.synced).toBe(0)
+    expect(result.errors).toContain("Shift shift_1 could not be linked to a worker assignment.")
+  })
+
   it("creates employment_assignments and notifies on sync with notify:true", async () => {
     const supabase = createMockSupabase({
       staffMember: {
         id: "staff_1",
         user_id: "user_1",
+        status: "active",
         position: "Stagehand",
         department: "Production",
         employer_entity_type: "organization",
@@ -215,6 +258,34 @@ describe("staff-shift-assignment-sync", () => {
     expect(createNotification).toHaveBeenCalled()
   })
 
+  it("treats a repeated accept as idempotent", async () => {
+    const supabase = createMockSupabase({
+      assignmentForRespond: {
+        id: "assign_1",
+        user_id: "user_1",
+        status: "confirmed",
+        staff_shift_id: "shift_1",
+        staff_member_id: "staff_1",
+        role_title: "FOH",
+      },
+    })
+
+    const result = await respondToShiftAssignment({
+      supabase,
+      assignmentId: "assign_1",
+      userId: "user_1",
+      action: "accept",
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      assignmentId: "assign_1",
+      shiftId: "shift_1",
+      status: "confirmed",
+    })
+    expect(createNotification).not.toHaveBeenCalled()
+  })
+
   it("publishStaffShifts notifies pending shifts", async () => {
     const supabase = {
       from: vi.fn((table: string) => {
@@ -247,6 +318,7 @@ describe("staff-shift-assignment-sync", () => {
               data: {
                 id: "staff_1",
                 user_id: "user_1",
+                status: "active",
                 position: "Security",
                 department: "Security",
                 employer_entity_type: "venue",
@@ -272,6 +344,15 @@ describe("staff-shift-assignment-sync", () => {
         if (table === "hiring_audit_events") {
           return { insert: vi.fn(async () => ({ error: null })) }
         }
+        if (table === "notifications") {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            contains: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+          }
+        }
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
@@ -290,5 +371,47 @@ describe("staff-shift-assignment-sync", () => {
     expect(result.published).toBe(1)
     expect(result.notified).toBe(1)
     expect(result.errors).toEqual([])
+  })
+
+  it("does not create or notify a shift for inactive staff", async () => {
+    const supabase = createMockSupabase({
+      staffMember: {
+        id: "staff_1",
+        user_id: "user_1",
+        status: "pending",
+        position: "Stagehand",
+      },
+    })
+
+    const result = await syncEmploymentAssignmentForShift({
+      supabase,
+      notify: true,
+      shift: { id: "shift_1", staff_member_id: "staff_1", status: "scheduled" },
+    })
+
+    expect(result).toMatchObject({ workerUserId: "user_1", assignmentId: null, notified: false })
+    expect(createNotification).not.toHaveBeenCalled()
+  })
+
+  it("does not duplicate an existing shift invitation", async () => {
+    const supabase = createMockSupabase({
+      staffMember: {
+        id: "staff_1",
+        user_id: "user_1",
+        status: "active",
+        position: "Stagehand",
+      },
+      existingAssignment: { id: "assign_1", status: "invited" },
+      priorInvite: { id: "notification_1" },
+    })
+
+    const result = await syncEmploymentAssignmentForShift({
+      supabase,
+      notify: true,
+      shift: { id: "shift_1", staff_member_id: "staff_1", status: "scheduled" },
+    })
+
+    expect(result).toMatchObject({ assignmentId: "assign_1", notified: false })
+    expect(createNotification).not.toHaveBeenCalled()
   })
 })

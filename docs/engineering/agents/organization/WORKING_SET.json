@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "agent": "organization",
+  "description": "Own organization identity, membership, tours, collaboration, and tenant context.",
+  "paths": [
+    "app/organization/**",
+    "app/orgs/**",
+    "app/tours/**",
+    "app/api/orgs/**",
+    "app/api/tours/**",
+    "components/public-organization/**",
+    "lib/organization/**",
+    "__tests__/organization/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

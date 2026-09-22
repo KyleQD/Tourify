@@ -21,12 +21,16 @@ export default async function LegacyOnboardingTemplatesRedirect({ searchParams }
   const venueId = firstValue(resolved.venue_id)
   const eventId = firstValue(resolved.event_id)
   const tourId = firstValue(resolved.tour_id)
+  const displayName = firstValue(resolved.display_name)
+  const candidateId = firstValue(resolved.candidateId) || firstValue(resolved.candidate_id)
 
   if (entityType) params.set("entity_type", entityType)
   if (entityId) params.set("entity_id", entityId)
   if (venueId) params.set("venue_id", venueId)
   if (eventId) params.set("event_id", eventId)
   if (tourId) params.set("tour_id", tourId)
+  if (displayName) params.set("display_name", displayName)
+  if (candidateId) params.set("candidateId", candidateId)
 
   const query = params.toString()
   const templateId = firstValue(resolved.template)

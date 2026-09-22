@@ -1,0 +1,360 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-004",
+  "title": "Agent user simulation campaign",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "qa",
+  "created_at": "2026-09-22T12:11:48.761Z",
+  "updated_at": "2026-09-22T16:21:28.210Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (75 entries)",
+  "goal": "Run a continuing non-destructive isolated-staging persona simulation across every shipped core web, iOS, and Android journey, including one complete event and a multi-stop tour, and route verified improvements into bounded domain tasks.",
+  "scope": {
+    "in": [
+      "Create and maintain the isolated-staging runbook for synthetic agent-user simulations.",
+      "Define the worker, artist, venue manager, organization manager, platform admin, and customer journey matrix.",
+      "Record additive fixture rules, campaign-owned identity requirements, finding format, evidence paths, and task-routing rules.",
+      "Pilot one cross-actor chain before expanding to the full matrix.",
+      "Maintain a row-level persona × goal × platform × scenario coverage ledger and visible-shipping inventory.",
+      "Run a single-event and multi-stop tour from creation through completion with cross-actor evidence.",
+      "Route and rerun bounded domain fixes until all shipped core journeys pass with no open P0/P1."
+    ],
+    "out": [
+      "Resetting, deleting, truncating, or destructively cleaning any database or production data.",
+      "Running production payments or using non-test payment provider configuration.",
+      "Granting platform admin access based only on an engineering agent name.",
+      "Implementing product fixes discovered by the campaign; those must become separate bounded tasks.",
+      "Claiming mobile or web pass from static route inspection or local-only tests.",
+      "Using demo.tourify.live before isolation from production is verified."
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agent-user-simulation-runbook.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md",
+    "docs/audits/flow-notes/",
+    ".agents/flows/west-coast-tour/",
+    "docs/qa-account-matrix.md",
+    "docs/audits/flow-notes/agent-user-simulation-coverage.csv",
+    "apps/mobile/simulation/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/agents/qa/CHARTER.md",
+    "docs/engineering/agents/qa/state.md",
+    "docs/engineering/tasks/active/QA-003.json",
+    "docs/qa-account-matrix.md",
+    ".agents/flows/west-coast-tour/README.md",
+    ".agents/flows/west-coast-tour/00-orchestrator.md",
+    "docs/audits/flow-notes/SUMMARY.md",
+    "docs/engineering/tasks/active/RELEASE-007.json",
+    "docs/engineering/tasks/active/DB-008.json",
+    "docs/engineering/tasks/active/DB-002.json",
+    "docs/engineering/tasks/active/QA-006.json",
+    "docs/engineering/tasks/active/DB-010.json"
+  ],
+  "acceptance_criteria": [
+    "Runbook defines isolated staging, synthetic campaign-owned actors, credential handling, additive fixture constraints, and payment test-mode requirements.",
+    "Runbook distinguishes engineering service identities from synthetic app logins and forbids implicit admin grants.",
+    "Runbook covers cross-actor dependency order, per-actor goals, negative/empty/error/mobile/accessibility scenarios, evidence capture, finding IDs, and task routing.",
+    "Campaign evidence template exists under docs/audits/flow-notes/ and can record pilot results, bypasses, defects, and follow-up tasks.",
+    "Simulation agents use a failure loop, learning ledger, and finding-to-fix packets so every roadblock records the optimal outcome, necessary fix, owner, acceptance criteria, and rerun scenario.",
+    "No database reset, destructive cleanup, production payment action, or seed mutation of non-campaign users is introduced.",
+    "Every shipped core web, iOS, and Android actor journey has applicable row-level evidence; no unrun or bypassed row counts as passed.",
+    "A single event and multi-stop tour pass creation, planning, publishing, sales, staffing, execution, and close with both sides of each handoff verified.",
+    "All P0/P1 findings are verified closed, P2/P3 findings have owned bounded tasks, and exact-SHA evidence is linked to QA-003 and QA-006."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "2026-09-22 planning evidence: read engineering index, QA charter/state, QA-003, QA account matrix, West Coast flow runbooks, and existing flow notes summary.",
+      "The campaign deliberately treats the current seven-account West Coast flow and QA-003 harness as starting points, not full coverage evidence.",
+      "2026-09-22 control-plane validation: npm run agents:validate passed with 17 agents, 115 tasks, 0 warnings, 0 errors.",
+      "2026-09-22 launch attempt: artist/customer, worker/organization/venue, and platform-admin/QA slices ran the safe readiness/static-inspection phase. Live UI mutation was blocked because the isolated-staging packet, protected actor credentials, test payment confirmation, and campaign-safe fixture provisioning remain pending. Findings were recorded in docs/audits/flow-notes/agent-user-simulation-campaign.md.",
+      "2026-09-22 finding-to-fix system: runbook now includes the failure loop, agent workflow, fix packet fields, and routing rules; campaign report now includes the finding-to-fix template, per-actor learning ledger, and current SIM-20260922 findings converted into fix packets.",
+      "2026-09-22 finding-to-fix validation: npm run agents:validate passed; QA-004 and TASK_INDEX JSON parsed; all 7 P0/P1 SIM-20260922 findings have a linked existing task or recommended new task.",
+      "2026-09-22 local implementation: 718-row candidate ledger and validator, fixture provisioner, mobile gate, and four bounded product repair tasks have focused passing tests; no web or mobile actor journey is credited as passed.",
+      "2026-09-22 final local control plane: npm run agents:generate refreshed topology maps; npm run agents:validate passed with 17 agents and 122 tasks, no warnings/errors. Coverage inventory validation passed with 718 unclassified/unrun rows.",
+      "Product repair rerun in dirty shared worktree at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83: marketplace checkout 3 Jest suites/11 tests; hiring 4 Vitest files/22 tests; worker action/attendance 2 files/15 tests; social 4 files/16 tests; ticketing 15 files/120 tests; broader Work Mode/staffing selection 9 files/47 tests. Focused lint and scoped diff whitespace checks passed. No hosted actor or payment action; all 718 coverage rows remain unrun.",
+      "2026-09-22 local rerun control checks: npm run qa:simulation:coverage passed (718 valid rows, 0 shipped, 0 passed, 718 awaiting UI classification); npm run agents:validate passed (17 agents, 122 tasks, 0 warnings, 0 errors).",
+      "2026-09-22 orchestrator repair dispatch: ADMIN-003 locally repaired SIM-20260922-ADMIN-001 and SIM-20260922-ADMIN-002 with focused tests, scoped ESLint, and exact admin route registry verification; campaign actor reruns remain pending isolated staging.",
+      "QA-004 product repair validation rerun (2026-09-22): Product repair local rerun: checkout Jest 3/11, hiring Vitest 4/23, Work Mode Vitest 2/15, social Vitest 4/16, marketplace Vitest 15/147, ticketing Vitest 15/120. Focused diff --check passed. No hosted actor journey is credited.",
+      "DB-010 source checkpoint: worker-action forward migration 20260922155356 at SHA-256 bb85462919f773131e89280e73c4fe4c30feeb00d743982cff38999de8c5530c passed focused migration, chain, and ledger consistency checks. No hosted apply or worker-action denial probe occurred; SIM-20260922-WORK-002 stays open.",
+      "2026-09-22 local release/QA gate wave: 13 deployment/topology/evidence/workflow Node tests, 7 actor-provisioner tests, 7 mobile gate tests, launch fixture contract, public-surface check, focused ESLint, and workflow YAML parse passed. Hosted deployment, certification, and simulation were not run.",
+      "2026-09-22 orchestrator DB-010 cleanup: worker-actions active migration was consolidated from duplicate SQL into one reviewed local migration; targeted migration-validation and migration-chain pass; hosted apply and actor probes remain pending.",
+      "2026-09-22 release operator packet: docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md; 718 coverage rows remain unpassed.",
+      "2026-09-22 thin pilot preflight: 8-step script prepared; read-only demo/prod health GET 200 with no release/deployment/database/payment identity headers and same advertised Supabase origin; 718 valid rows, 0 passed. No hosted actor journey run.",
+      "2026-09-22 QA-005 packet: known live origin and secret/header refusal tests passed (8 total); protected variables and hosted release/DB proof absent. No actor bootstrap or simulation credit.",
+      "2026-09-22 thin pilot preflight verification: npm run qa:simulation:coverage passed (718 valid rows, 0 shipped, 0 passed); npm run qa:simulation:gate failed as expected on 718 unclassified/unrun rows; npm run agents:validate passed (17 agents, 122 tasks, 0 warnings/errors).",
+      "2026-09-22 unblock sprint packet created at docs/audits/flow-notes/release-readiness-unblock-sprint.md. Read-only checks show no .vercel project link, Supabase CLI linked to Tourify Demo project auqddrodjezjlypkzfpi, and public demo/prod health both advertise that same Supabase origin while omitting release/deployment/Stripe headers. Live QA remains blocked.",
+      "2026-09-22 QA actor operator pass: docs/audits/flow-notes/qa005-actor-provisioning-packet-2026-09-22.md records all 11 absent QA_CAMPAIGN inputs, twelve manifest actor keys, exact hosted gate dependencies, and first web pilot order. Read-only GET health checks returned 200 but no release/deployment/database/Stripe identity headers; both CSPs advertised the same Supabase origin. No hosted Auth, database, payment, device, or UI action.",
+      "QA-004 thin pilot operator checkpoint: 25 exact web coverage rows and receiving-side evidence checklist prepared; all 718 candidate rows remain not_run and unclassified. Live execution blocked by RELEASE-007 isolation/SHA/Stripe proof, DB-008/DB-002/DB-010 hosted evidence, QA-005 protected actors, and QA-006 preview evidence.",
+      "2026-09-22 final QA check: coverage inventory valid with 718 rows, 0 shipped and 0 passed; final coverage gate correctly fails on 718 missing visible-UI scope decisions. No campaign row was credited."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T16:20:35Z",
+    "result": "local-coverage-valid; campaign-not-run"
+  },
+  "progress": {
+    "summary": "Next-phase QA execution remains blocked safely. QA-005 actor packet and QA-006 mobile packet are prepared, but all eleven QA_CAMPAIGN inputs are absent, public demo/prod health lacks release/deployment/database/Stripe headers, and coverage remains 718 valid rows with zero passed. No actor, payment, mobile preview, database, or UI journey was run.",
+    "completed": [
+      "Created QA-004 as the durable task record for the simulation campaign.",
+      "Confirmed the existing West Coast seed script updates matching users and therefore must not be reused blindly for this campaign.",
+      "Confirmed QA-003 is a separate launch certification gate; QA-004 is exploratory product simulation and finding routing.",
+      "Launched simulation slices for artist/customer, worker/organization/venue, and platform-admin/QA readiness.",
+      "Recorded first findings in docs/audits/flow-notes/agent-user-simulation-campaign.md.",
+      "Added the finding-to-fix failure loop, fix packet fields, per-actor learning ledger, and routing rules.",
+      "Expanded the runbook for web/iOS/Android, single-event and multi-stop production scripts, receiving-side evidence, and a strict completion gate.",
+      "Created 58 web candidate goals and 16 native candidates expanded to 718 persona × goal × platform × scenario rows, awaiting visible UI shipping classification.",
+      "Created QA-005, QA-006, WORK-005, WORK-006, MKT-005, and SOCIAL-005 as bounded follow-up tasks.",
+      "Implemented the campaign-safe actor provisioner and fail-closed mobile preview gate locally.",
+      "Routed and implemented local buyer return, canonical shift bridge, worker attendance read-back, and follow contract fixes in separate active task records.",
+      "Read-only public health check found no deployed SHA and the same advertised Supabase origin on demo and production; no live actor run was made.",
+      "Created DB-010 to own the archived worker-action SQL and RLS reconciliation before WORK-006 staged enablement.",
+      "Dispatched and completed the local ADMIN-003 repair wave for SIM-20260922-ADMIN-001 and SIM-20260922-ADMIN-002; both are ready for isolated-staging actor reruns.",
+      "Recorded release and QA gate checkpoint in the campaign ledger.",
+      "Confirmed no actor provisioning, mobile preview run, or live simulation was credited.",
+      "Advanced SIM-20260922-WORK-002 from SQL-authoring blocker to hosted-apply blocker by reviewing and cleaning DB-010 local migration evidence."
+    ],
+    "next_steps": [
+      "After release and DB packets pass on one deployed SHA, run QA-005 Auth-only provisioning, establish personas through UI, then execute docs/engineering/qa004-thin-pilot.md before expanding to event/tour matrix."
+    ],
+    "blockers": [
+      "RELEASE-007 still lacks hosted proof that staging deployment, Supabase project, and secrets differ from production; demo hostname is not sufficient.",
+      "DB-008/DB-002 hosted schema and authorization evidence is pending.",
+      "Protected actor credentials, iOS/Android preview builds, and Stripe test mode are not available in this workspace."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T12:11:48.761Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Created QA-004 for the additive isolated-staging agent user simulation campaign.",
+        "completed": [
+          "Task record and index entry created through the control-plane task tool."
+        ],
+        "next": "Add the campaign runbook and evidence template."
+      },
+      {
+        "at": "2026-09-22T12:18:00.000Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Added the campaign runbook and evidence template, then validated the engineering control plane.",
+        "completed": [
+          "Created docs/engineering/agent-user-simulation-runbook.md with hard safety rules, actor roster, execution phases, journey matrix, finding format, and task routing.",
+          "Created docs/audits/flow-notes/agent-user-simulation-campaign.md for campaign evidence, actor status, pilot chain, full matrix status, findings, bypasses, and follow-up tasks.",
+          "Ran npm run agents:validate successfully."
+        ],
+        "next": "Fill isolated staging URL, deployed commit, protected actor credential references, and test payment configuration before the first live pilot run."
+      },
+      {
+        "at": "2026-09-22T13:05:00.000Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Launched the simulation agents for safe readiness/static-inspection. Live UI journeys did not run because the isolated-staging packet and campaign-safe actor provisioning are not ready.",
+        "completed": [
+          "Collected reports from artist/customer, worker/organization/venue, and platform-admin/QA slices.",
+          "Recorded confirmed static admin-boundary findings plus missing evidence and harness gaps in the campaign report.",
+          "Preserved the no-reset, no-delete, no-seed, no-payment guardrails during the launch attempt."
+        ],
+        "next": "Provision the isolated-staging packet and safe actor fixtures, then rerun the pilot chain through the UI."
+      },
+      {
+        "at": "2026-09-22T13:32:00.000Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Implemented the finding-to-fix operating system for QA-004 simulation agents.",
+        "completed": [
+          "Extended the runbook with a required failure loop, bounded agent workflow, fix packet fields, and task-routing rules.",
+          "Added a reusable finding-to-fix template and per-actor learning ledger to the campaign report.",
+          "Converted the current SIM-20260922 findings into fix packets with status, failure point, optimal outcome, necessary fix, owner, acceptance criteria, and rerun scenario.",
+          "Validated the control plane and confirmed all P0/P1 findings have task routing."
+        ],
+        "next": "Run validation, then use the system for the next simulation launch after staging readiness is resolved."
+      },
+      {
+        "at": "2026-09-22T15:24:09Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Expanded QA-004 into a web and mobile persona campaign with full event/tour scripts and bounded fix routing.",
+        "completed": [
+          "Added candidate coverage ledger, expanded safety gates and production scripts, and created six follow-up tasks."
+        ],
+        "next": "Finish local fixture/mobile/checkout implementation and validation; obtain isolated-staging prerequisites before live actor runs."
+      },
+      {
+        "at": "2026-09-22T15:43:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Completed a local implementation wave for the simulation system and routed fixes; hosted persona runs remain gated.",
+        "completed": [
+          "Implemented the campaign-safe actor provisioner and fail-closed mobile preview gate locally.",
+          "Routed and implemented local buyer return, canonical shift bridge, worker attendance read-back, and follow contract fixes in separate active task records.",
+          "Read-only public health check found no deployed SHA and the same advertised Supabase origin on demo and production; no live actor run was made."
+        ],
+        "next": "Establish isolated staging and hosted database/security proof, then provision actors and run the dependent pilot chain."
+      },
+      {
+        "at": "2026-09-22T15:55:04Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Product repair paths pass focused local checks; event/tour actor simulation remains gated on isolated staging, database/security proof, protected actors, test payment mode, and preview builds.",
+        "completed": [
+          "Product repair rerun in dirty shared worktree at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83: marketplace checkout 3 Jest suites/11 tests; hiring 4 Vitest files/22 tests; worker action/attendance 2 files/15 tests; social 4 files/16 tests; ticketing 15 files/120 tests; broader Work Mode/staffing selection 9 files/47 tests. Focused lint and scoped diff whitespace checks passed. No hosted actor or payment action; all 718 coverage rows remain unrun."
+        ],
+        "next": "Keep all rows unrun; receive RELEASE-007, DB-008/DB-002, DB-005/DB-010, QA-005/QA-006 evidence, then run the dependent pilot chain."
+      },
+      {
+        "at": "2026-09-22T15:56:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Orchestrated the local admin-scope repair wave for two QA-004 P0/P1 findings.",
+        "completed": [
+          "SIM-20260922-ADMIN-001 is locally fixed in ADMIN-003: team-member PATCH now uses workforce.manage and rejects wrong venue-org scope before mutation.",
+          "SIM-20260922-ADMIN-002 is locally fixed in ADMIN-003: venue detail is platform-admin only and no longer reads events by venue_name text matching.",
+          "Verification evidence recorded in ADMIN-003: focused admin tests, scoped ESLint, and exact admin route registry check all passed."
+        ],
+        "next": "Deploy to isolated staging after RELEASE-007/DB-008/DB-002 gates, then rerun the admin actor scenarios without bypass credit."
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Product repair local rerun: checkout Jest 3/11, hiring Vitest 4/23, Work Mode Vitest 2/15, social Vitest 4/16, marketplace Vitest 15/147, ticketing Vitest 15/120. Focused diff --check passed. No hosted actor journey is credited.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      },
+      {
+        "at": "2026-09-22T16:00:00Z",
+        "sha": null,
+        "summary": "Campaign remains unrun. Local release, actor, and mobile gates now require exact deployment identities and separate Supabase origins; 718 candidate rows remain unclassified/unrun.",
+        "completed": [
+          "Recorded release and QA gate checkpoint in the campaign ledger.",
+          "Confirmed no actor provisioning, mobile preview run, or live simulation was credited."
+        ],
+        "next": "Obtain hosted isolation, DB-008/DB-002 security evidence, protected actors, and preview builds before pilot and full event/tour runs."
+      },
+      {
+        "at": "2026-09-22T16:10:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Advanced DB-010 worker-actions migration readiness for QA-004 reruns.",
+        "completed": [
+          "DB-010 migration file no longer contains duplicate old/revised SQL bodies.",
+          "DB-010 contract test and manifest align with the final worker-action RLS policy names, audience helper, visible_to and required_permission checks.",
+          "Targeted migration validation and migration-chain checks passed locally."
+        ],
+        "next": "After isolated staging is proven, manually apply DB-010, run hosted denial probes, and only then let WORK-006 enable FEATURE_WORK_MODE_WORKER_ACTIONS for actor reruns."
+      },
+      {
+        "at": "2026-09-22T16:24:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Unblock sprint operational lanes were queued from the current dirty working tree: release packet, database proof packet, QA actor provisioning readiness, and QA pilot execution packet. These are dependency-resolution tasks only; no campaign row is credited as run.",
+        "completed": [
+          "Release task queued: client-new-thread:52e8b7f8-83cf-442e-9fc9-289205ccdd82.",
+          "Database task queued: client-new-thread:78fd8399-12fe-4380-b016-3544c83d7405.",
+          "QA actor task queued: client-new-thread:c67a8659-e573-41bc-8f65-98d8f31380ba.",
+          "QA pilot task queued: client-new-thread:ba65969a-6338-48dc-b7fe-63dbfa398867."
+        ],
+        "next": "Collect task outputs, resolve hosted gates in order, then run the thin pilot only after isolated staging, database/security proof, Stripe test mode, and protected actor credentials are present."
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Database lane produced a DB-010 manual isolated-staging operator packet and passed local source checks; no live worker persona or hosted database probe ran. SIM-20260922-WORK-002 remains open.",
+        "completed": [],
+        "next_steps": [
+          "Wait for RELEASE-007 isolation, DB-008/DB-002 hosted proof, DB-010 denial matrix, and protected actors before rerunning the worker simulation on the recorded deployment SHA."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Release operator read-only packet confirms live simulation remains gated: demo and production share one Vercel deployment and Supabase connection origin, with no exact-SHA or test-payment health proof.",
+        "completed": [
+          "Recorded the live topology and governance gap without actor creation, database mutation, or payments.",
+          "Coverage validation remains 718 valid rows, 0 shipped, 0 passed, 718 awaiting UI classification."
+        ],
+        "next_steps": [
+          "Wait for RELEASE-007 isolation and exact-SHA packet, DB-008/DB-002 hosted proof, QA-005 protected actors, and QA-006 preview builds before live rows."
+        ],
+        "blockers": [
+          "Staging isolation is not established; all 718 rows remain unpassed."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:00Z",
+        "sha": null,
+        "summary": "Thin pilot script and evidence checklist prepared; live chain blocked by unverified release, hosted DB/security, worker-action, payment, and actor gates.",
+        "completed": [
+          "Prepared docs/engineering/qa004-thin-pilot.md and linked the 2026-09-22 gate observation in the campaign ledger; no hosted mutation or pass credit."
+        ],
+        "next": "Run eight-step web pilot on a new exact isolated-staging SHA after RELEASE-007, DB-008, DB-002, DB-010/WORK-006, Stripe test mode, and QA-005 actors are evidenced; then classify and expand the matrix."
+      },
+      {
+        "at": "2026-09-22T16:15:24Z",
+        "sha": null,
+        "summary": "Received QA-005 operator packet and local refusal verification. Campaign remains gated on hosted isolation, schema/security evidence, protected actor inputs, and preview builds.",
+        "completed": [
+          "2026-09-22 QA-005 packet: known live origin and secret/header refusal tests passed (8 total); protected variables and hosted release/DB proof absent. No actor bootstrap or simulation credit."
+        ],
+        "next": "After RELEASE-007, DB-008, and DB-002 hosted evidence, run QA-005 bootstrap and then the exact-SHA pilot; retain all existing rows as unrun until UI/device evidence exists."
+      },
+      {
+        "at": "2026-09-22T16:20:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Started the release-readiness unblock sprint with a concrete operator packet and fresh read-only hosted checks.",
+        "completed": [
+          "Added docs/audits/flow-notes/release-readiness-unblock-sprint.md with release, database, QA actor/mobile, and pilot-chain packets.",
+          "Confirmed this workspace has no linked Vercel project identity and is linked by Supabase CLI to Tourify Demo auqddrodjezjlypkzfpi.",
+          "Confirmed public demo and production health still share the same advertised Supabase origin and lack required exact-release headers."
+        ],
+        "next": "Provision separate hosted staging, then complete DB-008/DB-002/DB-010 hosted proof before QA-005 actor provisioning and QA-004 pilot execution."
+      },
+      {
+        "at": "2026-09-22T16:19:23Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty shared tree)",
+        "summary": "Pilot remains not run; operator packet fixes the first-run sequence and keeps all coverage rows uncredited.",
+        "completed": [
+          "Prepared non-secret operator packet and checked current readiness without hosted mutation."
+        ],
+        "next_steps": [
+          "Wait for RELEASE-007, DB-008, DB-002, DB-010/WORK-006, Stripe test mode, and QA-005 actors; then execute the eight-step web pilot with receiving-side UI evidence."
+        ],
+        "blockers": [
+          "Current public demo is production-linked; no hosted DB/security, protected actors, payment, or device evidence."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:37.113Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock packet added. Live persona simulation remains paused: no exact-SHA staging deployment, no protected campaign values, no QA_CERT secrets, and no actor provisioning evidence exist. npm run check:next-phase-readiness now lists the blocking environment items and dispatch order.",
+        "completed": [],
+        "next_steps": [
+          "Once RELEASE-007 and DB-010 hosted proof pass, provision a fresh campaign with qa:simulation:provision, then run the thin pilot chain before expanding to event and tour productions."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:19:41Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 thin pilot operator checkpoint: 25 exact web coverage rows and receiving-side evidence checklist prepared; all 718 candidate rows remain not_run and unclassified. Live execution blocked by RELEASE-007 isolation/SHA/Stripe proof, DB-008/DB-002/DB-010 hosted evidence, QA-005 protected actors, and QA-006 preview evidence.",
+        "completed": [
+          "Prepared docs/engineering/qa004-thin-pilot.md evidence packet and 25-row ordered pilot subset.",
+          "Verified 522 web, 98 iOS, and 98 Android rows are still not_run; no live actor evidence exists."
+        ],
+        "next": "Collect independent hosted gate artifacts, then run the campaign-owned web pilot on one exact staging SHA and record both sides of each handoff."
+      },
+      {
+        "at": "2026-09-22T16:21:28.210Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase QA execution remains blocked safely. QA-005 actor packet and QA-006 mobile packet are prepared, but all eleven QA_CAMPAIGN inputs are absent, public demo/prod health lacks release/deployment/database/Stripe headers, and coverage remains 718 valid rows with zero passed. No actor, payment, mobile preview, database, or UI journey was run.",
+        "completed": [],
+        "next_steps": [
+          "After release and DB packets pass on one deployed SHA, run QA-005 Auth-only provisioning, establish personas through UI, then execute docs/engineering/qa004-thin-pilot.md before expanding to event/tour matrix."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

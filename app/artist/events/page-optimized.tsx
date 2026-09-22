@@ -39,6 +39,8 @@ import { useArtist } from "@/contexts/artist-context"
 import { EventData } from "@/lib/services/artist.service"
 import { toast } from "sonner"
 import Link from "next/link"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -96,30 +98,31 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-slate-900 border-slate-700">
+      <DialogContent className={cn("max-w-2xl", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle className="text-white">Create New Event</DialogTitle>
+          <DialogTitle className={detailSurfacePattern.title}>Create New Event</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-slate-300">Event Name *</Label>
+              <Label htmlFor="name" className={detailSurfacePattern.label}>Event Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
                 placeholder="Enter event name"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="venue" className="text-slate-300">Venue *</Label>
+              <Label htmlFor="venue" className={detailSurfacePattern.label}>Venue *</Label>
               <Input
                 id="venue"
                 value={formData.venue}
                 onChange={(e) => handleInputChange('venue', e.target.value)}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
                 placeholder="Enter venue name"
                 required
               />
@@ -127,12 +130,12 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-slate-300">Description</Label>
+            <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.textarea}
               placeholder="Describe your event..."
               rows={3}
             />
@@ -140,26 +143,26 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date" className="text-slate-300">Date *</Label>
+              <Label htmlFor="date" className={detailSurfacePattern.label}>Date *</Label>
               <Input
                 id="date"
                 type="date"
                 value={formData.date}
                 onChange={(e) => handleInputChange('date', e.target.value)}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="type" className="text-slate-300">Event Type</Label>
+              <Label htmlFor="type" className={detailSurfacePattern.label}>Event Type</Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) => handleInputChange('type', value)}
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-900 border-white/10">
                   <SelectItem value="concert" className="text-white">Concert</SelectItem>
                   <SelectItem value="festival" className="text-white">Festival</SelectItem>
                   <SelectItem value="tour" className="text-white">Tour</SelectItem>
@@ -168,15 +171,15 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status" className="text-slate-300">Status</Label>
+              <Label htmlFor="status" className={detailSurfacePattern.label}>Status</Label>
               <Select
                 value={formData.status}
                 onValueChange={(value) => handleInputChange('status', value)}
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-900 border-white/10">
                   <SelectItem value="draft" className="text-white">Draft</SelectItem>
                   <SelectItem value="published" className="text-white">Published</SelectItem>
                 </SelectContent>
@@ -186,27 +189,27 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="capacity" className="text-slate-300">Capacity</Label>
+              <Label htmlFor="capacity" className={detailSurfacePattern.label}>Capacity</Label>
               <Input
                 id="capacity"
                 type="number"
                 value={formData.capacity}
                 onChange={(e) => handleInputChange('capacity', parseInt(e.target.value) || 0)}
-                className="bg-slate-800 border-slate-700 text-white"
+                className={detailSurfacePattern.input}
                 placeholder="0"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ticket_price" className="text-slate-300">Ticket Price</Label>
+              <Label htmlFor="ticket_price" className={detailSurfacePattern.label}>Ticket Price</Label>
               <div className="flex space-x-2">
                 <Select
                   value={formData.currency}
                   onValueChange={(value) => handleInputChange('currency', value)}
                 >
-                  <SelectTrigger className="w-20 bg-slate-800 border-slate-700 text-white">
+                  <SelectTrigger className={cn("w-20", detailSurfacePattern.selectTrigger)}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="USD" className="text-white">USD</SelectItem>
                     <SelectItem value="EUR" className="text-white">EUR</SelectItem>
                     <SelectItem value="GBP" className="text-white">GBP</SelectItem>
@@ -217,7 +220,7 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
                   type="number"
                   value={formData.ticket_price}
                   onChange={(e) => handleInputChange('ticket_price', parseFloat(e.target.value) || 0)}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className={detailSurfacePattern.input}
                   placeholder="0.00"
                 />
               </div>
@@ -225,13 +228,13 @@ function CreateEventModal({ isOpen, onClose, onEventCreated }: {
           </div>
 
           <div className="flex justify-end space-x-3">
-            <Button type="button" variant="outline" onClick={onClose} className="border-slate-700 text-slate-300">
+            <Button type="button" variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={isCreating}
-              className="bg-purple-600 hover:bg-purple-700"
+              className={detailSurfacePattern.btnPrimary}
             >
               {isCreating ? (
                 <>

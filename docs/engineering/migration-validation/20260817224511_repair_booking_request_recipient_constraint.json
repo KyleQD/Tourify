@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260817224511_repair_booking_request_recipient_constraint.sql",
+  "taskId": "BOOKING-RECIPIENT-CONSTRAINT-REPAIR",
+  "status": "planned",
+  "owner": "booking-platform",
+  "reviewer": "security-data",
+  "domains": ["bookings", "artists", "venues", "organizations"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "checkpoint-pinned legacy snapshot containing every booking recipient shape",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count booking_requests grouped by recipient_type and nullability of artist, venue, and organization recipient identifiers"
+    ],
+    "expectedAffectedRows": "No rows are updated; the pinned migration replaces one recipient validation constraint",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Confirm the checkpoint checksum and resulting constraint definition before any additive repair",
+    "resumeCursor": "Supabase migration version 20260817224511",
+    "idempotency": "The named constraint is dropped conditionally and recreated to one deterministic definition"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "private.booking_request_recipient_issues",
+    "strategy": "Preflight any invalid historical recipient shapes for reviewed repair; never guess a recipient account"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "booking_requests_recipient_check"
+    ],
+    "indexes": [],
+    "validationPlan": "Verify all legitimate recipient types pass, invalid mixed or missing targets fail, and the immutable file checksum matches the checkpoint"
+  },
+  "recovery": {
+    "rollback": "Disable affected booking mutations and apply a reviewed forward constraint repair after quarantining invalid rows",
+    "forwardFix": "Add a NOT VALID replacement, repair quarantined data, validate, then remove the prior constraint additively"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect the constraint definition and validate recipient-shape counts and direct invalid insert rejection"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -21,6 +21,8 @@ export interface AdminEventNormalized {
   actual_revenue?: number
   expected_revenue?: number
   expenses?: number
+  settings?: Record<string, unknown>
+  is_quick_start_placeholder?: boolean
 }
 
 export function mapAdminEventStatus(status?: string): AdminEventStatusUi {
@@ -83,9 +85,13 @@ export function normalizeAdminEvent(input: any): AdminEventNormalized {
     input?.settings && typeof input.settings === "object" ? (input.settings as Record<string, unknown>) : {}
   const startAt = input?.start_at || input?.startAt || null
   const parsedStart = parseIsoDateParts(startAt)
+  const isQuickStartPlaceholder = settings.quick_start_placeholder === true
   return {
     id: input?.id || "",
-    name: input?.name || input?.title || "Event",
+    name:
+      isQuickStartPlaceholder && typeof settings.quick_start_label === "string"
+        ? settings.quick_start_label
+        : input?.name || input?.title || "Event",
     description:
       input?.description || (typeof settings.description === "string" ? settings.description : undefined),
     event_date: input?.event_date || input?.date || parsedStart.date,
@@ -99,6 +105,8 @@ export function normalizeAdminEvent(input: any): AdminEventNormalized {
     actual_revenue: Number(input?.actual_revenue || 0),
     expected_revenue: Number(input?.expected_revenue || 0),
     expenses: Number(input?.expenses || 0),
+    settings,
+    is_quick_start_placeholder: isQuickStartPlaceholder,
   }
 }
 

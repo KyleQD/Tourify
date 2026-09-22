@@ -1,0 +1,25 @@
+ID,Area,Scenario,Expected Result,Automation,Evidence Required
+AT-001,Location,Grant browser location in Las Vegas,"Results are ordered by distance ascending, then date",E2E,Screenshot plus ordered API response
+AT-002,Location,Deny browser location,Manual location input is offered and discovery remains usable,E2E,Video or screenshots
+AT-003,Location,Select Las Vegas manually,URL/search state reflects location and nearby results load,E2E,URL and API response
+AT-004,Filters,Select Today,Only events in the correct search-location day boundary appear,Integration/E2E,Fixture output
+AT-005,Filters,Select custom date range,Only overlapping eligible events appear,Integration/E2E,Fixture output
+AT-006,Filters,Set radius to 25 miles,No result beyond 25 miles appears in primary list,Integration,Distance assertions
+AT-007,Filters,Choose two genres,OR semantics within genre and AND semantics across filter groups match specification,Integration/E2E,Query snapshot
+AT-008,Filters,Refresh filtered URL,All supported filter state persists,E2E,Before/after URL
+AT-009,Canonical,Ingest same Ticketmaster event twice,No duplicate source or canonical record is created,Integration,Row counts
+AT-010,Deduplication,Ingest same show from two providers,One canonical event or one review candidate is produced,Integration,Match report
+AT-011,Deduplication,Ingest matinee and evening performances,Records remain distinct without explicit identity proof,Integration,Match report
+AT-012,Claims,Approved owner edits Tourify description then provider refreshes,Tourify description remains unchanged,Integration/E2E,Before/after record
+AT-013,Tour,Attach imported event to existing tour,Event detail and tour page link to each other,E2E,Screenshots and DB relation
+AT-014,Ticketmaster,Receive 429 response,Jobs pause/back off and do not create a retry storm,Integration,Job and log evidence
+AT-015,Ticketmaster,Disable provider feature flag,Native events continue to display,E2E,Screenshots
+AT-016,Bandsintown,Attempt unrelated artist access in scoped mode,Request is denied or not scheduled,Integration,Authorization assertion
+AT-017,Bandsintown,Disconnect artist connection,Future sync stops and secret reference is revoked,Integration/E2E,Connection and job state
+AT-018,Security,Inspect client bundle,No provider or service-role secret is present,Build check,Secret scan output
+AT-019,Security,Unauthorized user edits claimed event,RLS/API authorization denies mutation,Integration,403 or RLS result
+AT-020,Status,Provider marks event cancelled,Canonical status follows authority/conflict rules and UI communicates cancellation,Integration/E2E,Record and screenshot
+AT-021,Merge,Merge duplicate with existing public URL,Old URL redirects to surviving canonical event,E2E,HTTP redirect evidence
+AT-022,Performance,Nearby search over representative dataset,Query meets approved latency target and uses spatial index,Database,EXPLAIN ANALYZE
+AT-023,Accessibility,Keyboard-only filter workflow,"All controls are reachable, operable and labeled",E2E/manual,Accessibility report
+AT-024,Timezone,Search around DST transition,Date presets and displayed times remain correct,Unit/Integration,Fixture assertions

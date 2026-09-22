@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { normalizeAccountType } from "@/lib/accounts/account-types"
 import { readAccountFromSearch } from "@/lib/navigation/account-context-url"
 import { venueService } from "@/lib/services/venue.service"
 
@@ -72,17 +73,33 @@ const ProfileContext = createContext<ProfileContextType>({
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState(getDefaultProfile())
-  const { currentAccount } = useMultiAccount()
+  const { currentAccount, accounts, isAccountsReady } = useMultiAccount()
   const searchParams = useSearchParams()
 
+  // VEN-035/VEN-004: the sessionStorage hint is never authoritative on its own —
+  // it is honored only when it matches an active venue account in the
+  // server-seeded list; otherwise the context falls back to the RLS-validated
+  // service lookup.
   const resolveVenueId = useCallback((): string | null => {
     if (currentAccount?.account_type === "venue" && currentAccount.profile_id) {
       return currentAccount.profile_id
     }
     const fromUrl = readAccountFromSearch(searchParams.toString())
     if (fromUrl) return fromUrl
-    return venueService.getActiveVenueId()
-  }, [currentAccount?.account_type, currentAccount?.profile_id, searchParams])
+
+    const hint = venueService.getActiveVenueId()
+    if (hint && isAccountsReady) {
+      const belongsToUser = accounts.some(
+        (account) =>
+          account.profile_id === hint &&
+          normalizeAccountType(account.account_type) === "venue" &&
+          account.is_active,
+      )
+      if (belongsToUser) return hint
+      venueService.clearActiveVenueId()
+    }
+    return null
+  }, [currentAccount?.account_type, currentAccount?.profile_id, searchParams, accounts, isAccountsReady])
 
   useEffect(() => {
     async function loadProfile() {
@@ -134,13 +151,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     profile,
+    // VEN-035: no fabricated success. EPK creation/upgrade require a real
+    // server-backed workflow; callers surface the explicit error to users.
     createEPK: async () => {
-      // Simulate EPK creation and return a URL
-      return "https://tourify.com/epk/username"
+      throw new Error("EPK creation is not available yet.")
     },
     upgradeToPremiumEPK: async () => {
-      // Simulate a successful upgrade
-      return true
+      throw new Error("EPK upgrade is not available yet.")
     },
   }
   

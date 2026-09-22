@@ -33,7 +33,7 @@ export function UserCard({
   // Mock implementation since sendConnectionRequest doesn't exist in social context
   const sendConnectionRequest = async (userId: string) => {
     // Mock implementation
-    console.log("Sending connection request to:", userId)
+    
     return { success: true }
   }
 

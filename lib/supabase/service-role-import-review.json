@@ -1,0 +1,272 @@
+[
+  {
+    "file": "app/api/accounts/check-slug/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-018",
+    "findingId": "ADM-M-013",
+    "owner": "identity-platform",
+    "rationale": "Slug availability needs a narrow authenticated lookup RPC instead of a general privileged client.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/events/[id]/claim/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-003",
+    "findingId": "ADM-M-004",
+    "owner": "event-platform",
+    "rationale": "Claim creation and auto-verification must move to the canonical event command with actor binding.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/events/[id]/tour/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-005",
+    "findingId": "ADM-M-004",
+    "owner": "tour-platform",
+    "rationale": "Legacy event-to-tour writes must be replaced by the canonical events_v2 assignment command.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-011",
+    "findingId": "ADM-M-013",
+    "owner": "communications",
+    "rationale": "Reaction writes should run as the authenticated member so thread membership RLS remains authoritative.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/admin/fee-rules/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Platform fee administration requires a named internal module, audit events, and bounded authority.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/admin/moderation/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Marketplace moderation is platform-internal and needs a reviewed module with explicit actor attribution.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/admin/overview/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "The internal marketplace overview must use a bounded read module instead of a bare privileged client.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/admin/webhook-events/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Webhook replay and inspection require an internal reviewed job with idempotency and audit evidence.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/checkout/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Checkout orchestration needs a named transactional module with target validation and durable idempotency.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/order/[token]/claim/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Token claim must be an atomic token-bound RPC that cannot expose or mutate unrelated orders.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/order/[token]/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Public order lookup needs a minimal token-bound projection rather than unrestricted table access.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/ticketing/events/[eventId]/invites/[inviteId]/[action]/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-019",
+    "findingId": "ADM-M-013",
+    "owner": "ticketing",
+    "rationale": "Invite lifecycle actions should be actor-bound transactional commands with event organization checks.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/ticketing/events/[eventId]/sales-orders/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-019",
+    "findingId": "ADM-M-013",
+    "owner": "ticketing",
+    "rationale": "Sales-order commands need a named ticketing module with verified event scope and audit attribution.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/tours/invitations/[token]/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-005",
+    "findingId": "ADM-M-013",
+    "owner": "tour-platform",
+    "rationale": "Invitation preview and expiration need token-bound projections while acceptance stays actor-bound.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/venue/equipment/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-010",
+    "findingId": "ADM-M-013",
+    "owner": "venue-operations",
+    "rationale": "Venue equipment reads and writes should execute as the authenticated venue member under RLS.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/venue/finances/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-014",
+    "findingId": "ADM-M-032",
+    "owner": "finance",
+    "rationale": "Venue finance must become read-only for organization users and use authenticated scoped reads.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/venue/shifts/requests/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-008",
+    "findingId": "ADM-M-013",
+    "owner": "workforce",
+    "rationale": "Shift request decisions must preserve the authenticated venue actor and tenant RLS boundary.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/venue/shifts/swaps/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-008",
+    "findingId": "ADM-M-013",
+    "owner": "workforce",
+    "rationale": "Shift swap operations should use authenticated membership policies and validated state transitions.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/venues/[id]/reviews/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-010",
+    "findingId": "ADM-M-008",
+    "owner": "venue-platform",
+    "rationale": "Review reads and writes should use public or authenticated policies without privileged global access.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/workforce/requests/notify/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-012",
+    "findingId": "ADM-M-063",
+    "owner": "workforce-delivery",
+    "rationale": "Workforce notifications require a named delivery job with recipient validation and retry evidence.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/marketplace/order/[token]/page.tsx",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "The public order page needs a minimal token projection and must not instantiate a privileged client.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "lib/rebuild/workforce-activity-notify.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-012",
+    "findingId": "ADM-M-063",
+    "owner": "workforce-delivery",
+    "rationale": "Activity delivery must run as a named outbox job with organization scope and bounded retries.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "lib/ticketing/guest-list.server.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-019",
+    "findingId": "ADM-M-013",
+    "owner": "ticketing",
+    "rationale": "Guest-list administration needs reviewed ticketing commands with event scope and actor attribution.",
+    "reviewedAt": "2026-08-27"
+  },
+  {
+    "file": "app/api/marketplace/orders/[id]/cancel/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Order cancellation needs a named marketplace command with bounded order scope, audit attribution, and compensating payout writes.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/marketplace/orders/[id]/refund/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Order refunds need a named marketplace command with bounded order scope, idempotent provider actions, and audit attribution.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/messages/[conversationId]/realtime/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-011",
+    "findingId": "ADM-M-030",
+    "owner": "communications",
+    "rationale": "Realtime presence and receipt writes should retain the authenticated participant and enforce conversation membership through RLS.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/music/share-message/route.ts",
+    "disposition": "replace_with_user_rls",
+    "workflowId": "ADM-WF-011",
+    "findingId": "ADM-M-030",
+    "owner": "music-communications",
+    "rationale": "Music share messages should write as the authenticated sender so conversation membership and recipient isolation remain authoritative.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/photos/purchase/webhook/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "photos-commerce",
+    "rationale": "Verified photo purchase events need a named receipt-processing job with durable idempotency, bounded fulfillment, and audit evidence.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/api/webhooks/supabase/notifications/route.ts",
+    "disposition": "migrate_to_job",
+    "workflowId": "ADM-WF-012",
+    "findingId": "ADM-M-031",
+    "owner": "notification-delivery",
+    "rationale": "Notification webhook delivery needs a named outbox job with recipient validation, durable duplicate suppression, and bounded retries.",
+    "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "lib/auth/agent-service.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-001",
+    "findingId": "ADM-M-013",
+    "owner": "identity-platform",
+    "rationale": "Agent credential lookup and audit attribution need a narrow server RPC instead of a generally privileged client boundary.",
+    "reviewedAt": "2026-09-21"
+  }
+]

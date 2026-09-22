@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { aggregateAdminCalendarItems } from '@/lib/admin/calendar/aggregate'
 
+vi.mock('@/lib/admin/workforce-assignment.service', () => ({
+  enrichShiftMetaWithAssignment: vi.fn(async () => ({})),
+}))
+
 function createMockQuery(result: { data: unknown; error: unknown }) {
   const query: Record<string, unknown> = {}
   const chain = () => query
@@ -164,10 +168,8 @@ describe('aggregateAdminCalendarItems', () => {
                 applicant_name: 'Alex Candidate',
                 status: 'in_review',
                 interview_scheduled: true,
-                interview_date: '2026-07-16T15:00:00.000Z',
                 offer_made: false,
-                offer_date: null,
-                offer_details: null,
+                offer_details: { interview_date: '2026-07-16T15:00:00.000Z' },
                 form_responses: null,
               },
             ],
@@ -178,6 +180,66 @@ describe('aggregateAdminCalendarItems', () => {
         if (table === 'organization_job_postings') {
           return createMockQuery({
             data: [],
+            error: null,
+          })
+        }
+
+        if (table === 'flight_coordination') {
+          return createMockQuery({
+            data: [
+              {
+                id: 'flight-1',
+                airline: 'United',
+                flight_number: 'UA100',
+                departure_airport: 'SFO',
+                arrival_airport: 'LAX',
+                departure_time: '2026-07-14T10:00:00.000Z',
+                arrival_time: '2026-07-14T11:30:00.000Z',
+                status: 'scheduled',
+                event_id: 'evt-1',
+                tour_id: 'tour-1',
+                flight_passenger_assignments: [
+                  { travel_group_members: { member_name: 'Alex Traveler' } },
+                ],
+              },
+            ],
+            error: null,
+          })
+        }
+
+        if (table === 'ground_transportation_coordination') {
+          return createMockQuery({
+            data: [
+              {
+                id: 'transport-1',
+                pickup_location: 'SFO',
+                dropoff_location: 'Hotel',
+                pickup_time: '2026-07-14T12:00:00.000Z',
+                estimated_dropoff_time: '2026-07-14T13:00:00.000Z',
+                status: 'scheduled',
+                driver_name: 'Sam Driver',
+                event_id: 'evt-1',
+                tour_id: 'tour-1',
+              },
+            ],
+            error: null,
+          })
+        }
+
+        if (table === 'lodging_bookings') {
+          return createMockQuery({
+            data: [
+              {
+                id: 'lodge-1',
+                primary_guest_name: 'Alex Traveler',
+                confirmation_number: 'HTL-99',
+                check_in_date: '2026-07-14',
+                check_out_date: '2026-07-16',
+                status: 'confirmed',
+                event_id: 'evt-1',
+                tour_id: 'tour-1',
+              },
+            ],
             error: null,
           })
         }
@@ -304,5 +366,126 @@ describe('aggregateAdminCalendarItems', () => {
     expect(logistics).toBeTruthy()
     expect(logistics?.meta?.tourId).toBe('tour-1')
     expect(logistics?.meta?.source).toBe('logistics_tasks')
+  })
+
+  it('emits flights, transport, and lodging as travel kind', async () => {
+    const { items, summary } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'tour',
+        tourId: 'tour-1',
+        types: ['travel'],
+      },
+    })
+
+    expect(items.every((item) => item.kind === 'travel')).toBe(true)
+    expect(items.some((item) => item.id === 'logistics-flight-flight-1')).toBe(true)
+    expect(items.some((item) => item.id === 'logistics-transport-transport-1')).toBe(true)
+    expect(items.some((item) => item.id === 'logistics-lodging-lodge-1')).toBe(true)
+    expect(items.some((item) => item.title.includes('Alex Traveler'))).toBe(true)
+    expect(summary.travel).toBeGreaterThanOrEqual(3)
+    expect(summary.task).toBe(0)
+  })
+
+  it('CAL-101: failed source is degraded while other items remain', async () => {
+    const baseFrom = supabase.from
+    supabase.from = vi.fn((table: string) => {
+      if (table === 'events_v2') {
+        return createMockQuery({
+          data: null,
+          error: { code: 'PGRST204', message: 'column missing' },
+        })
+      }
+      return baseFrom(table)
+    })
+
+    const { items, sources, isDegraded, summary } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'org',
+        types: ['event', 'task'],
+      },
+    })
+
+    expect(isDegraded).toBe(true)
+    expect(sources.some((s) => s.id === 'events_v2' && s.status === 'degraded')).toBe(true)
+    expect(items.some((item) => item.kind === 'task')).toBe(true)
+    expect(summary.task).toBeGreaterThanOrEqual(1)
+  })
+
+  it('CAL-101: applies org_id on travel and catering queries', async () => {
+    const eqSpies: Array<{ table: string; column: string; value: unknown }> = []
+    const baseFrom = supabase.from
+    supabase.from = vi.fn((table: string) => {
+      const query = baseFrom(table) as Record<string, unknown>
+      const originalEq = query.eq as (...args: unknown[]) => unknown
+      query.eq = vi.fn((column: string, value: unknown) => {
+        eqSpies.push({ table, column, value })
+        return originalEq(column, value)
+      })
+      return query
+    })
+
+    await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'org',
+        types: ['travel', 'task'],
+      },
+    })
+
+    expect(eqSpies.some((s) => s.table === 'ground_transportation_coordination' && s.column === 'org_id' && s.value === 'org-1')).toBe(true)
+    expect(eqSpies.some((s) => s.table === 'flight_coordination' && s.column === 'org_id' && s.value === 'org-1')).toBe(true)
+    expect(eqSpies.some((s) => s.table === 'lodging_bookings' && s.column === 'org_id' && s.value === 'org-1')).toBe(true)
+    expect(eqSpies.some((s) => s.table === 'catering_services' && s.column === 'org_id' && s.value === 'org-1')).toBe(true)
+  })
+
+  it('CAL-101: hiring projects interview dates from offer_details JSON', async () => {
+    const { items, sources } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'org',
+        types: ['hiring'],
+      },
+    })
+
+    expect(items.some((item) => item.id === 'hiring-interview-app-1')).toBe(true)
+    expect(sources.some((s) => s.id === 'job_applications' && s.status === 'ok')).toBe(true)
+  })
+
+  it('CAL-102: capabilities skip unauthorized sources', async () => {
+    const { items, sources } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      capabilities: ['event.view'],
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'org',
+      },
+    })
+
+    expect(items.some((item) => item.kind === 'event')).toBe(true)
+    expect(items.some((item) => item.kind === 'travel')).toBe(false)
+    expect(items.some((item) => item.kind === 'hiring')).toBe(false)
+    expect(items.some((item) => item.kind === 'shift')).toBe(false)
+    expect(sources.some((s) => s.id === 'flight_coordination')).toBe(false)
   })
 })

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260822151255_world_pilot_staging_load.sql",
+  "taskId": "WOM-ACT-STAGING",
+  "status": "planned",
+  "owner": "world-of-music",
+  "reviewer": "security-data",
+  "domains": [
+    "ingestion",
+    "staging-private"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "176 staging candidates loaded; double-apply idempotency proven",
+    "evidenceArtifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "candidates table empty/private before load"
+    ],
+    "expectedAffectedRows": "Natural-key upserts; rejected stay staged",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Single transaction; retry from version on interruption",
+    "resumeCursor": "supabase migration version 20260822151255",
+    "idempotency": "Natural-key upserts; rejected stay staged"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Rehearsal-only artifact"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Covered by activation evidence suite"
+  },
+  "recovery": {
+    "rollback": "truncate world_ingestion_candidates where metadata->>'pilot_key' is not null",
+    "forwardFix": "Regenerate from reviewed source artifact via governed conversion"
+  },
+  "postflight": {
+    "queries": [
+      "Row-count and state checks recorded in activation evidence"
+    ],
+    "artifact": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md",
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": ".activation-evidence/detroit-20260822/A7_GO_NO_GO.md",
+    "staging": null,
+    "production": null
+  },
+  "exclusions": {
+    "remoteApplication": "NOT CLEARED FOR REMOTE APPLICATION WITHOUT REVIEW — local rehearsal migration per docs/24 A1-A4"
+  },
+  "exceptions": [
+    {
+      "id": "REL102-WORLD-PILOT-SEED",
+      "type": "scoped-insert-select",
+      "owner": "database-engineering",
+      "rationale": "Source-controlled candidates resolve only reviewed source keys, upsert deterministic natural keys, and the file rolls back by default.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-WORLD-PILOT-SEED",
+      "sourceSha256": "c453aa21d048a95897c3ae9422b4c412f236432f04195cfd5168edb5e20b0d29"
+    }
+  ]
+}

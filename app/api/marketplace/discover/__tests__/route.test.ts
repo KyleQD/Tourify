@@ -30,8 +30,20 @@ function createListingsQuery({
 }
 
 describe("GET /api/marketplace/discover", () => {
+  const originalMarketplace = process.env.FEATURE_MARKETPLACE
+  const originalDiscovery = process.env.FEATURE_MARKETPLACE_PUBLIC_DISCOVERY
+
   beforeEach(() => {
     jest.clearAllMocks()
+    process.env.FEATURE_MARKETPLACE = "true"
+    process.env.FEATURE_MARKETPLACE_PUBLIC_DISCOVERY = "true"
+  })
+
+  afterAll(() => {
+    if (originalMarketplace === undefined) delete process.env.FEATURE_MARKETPLACE
+    else process.env.FEATURE_MARKETPLACE = originalMarketplace
+    if (originalDiscovery === undefined) delete process.env.FEATURE_MARKETPLACE_PUBLIC_DISCOVERY
+    else process.env.FEATURE_MARKETPLACE_PUBLIC_DISCOVERY = originalDiscovery
   })
 
   it("normalizes sellerUsername and scopes listings to the resolved seller", async () => {

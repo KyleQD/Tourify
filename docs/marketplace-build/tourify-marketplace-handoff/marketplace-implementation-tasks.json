@@ -1,0 +1,406 @@
+{
+  "schema_version": "1.0",
+  "project": "Tourify Marketplace",
+  "status": "planning_approved_repository_audit_required",
+  "prepared_at": "2026-07-27",
+  "non_destructive_policy": {
+    "required": true,
+    "rules": [
+      "Never reset a linked, remote, staging, or production database.",
+      "Never drop or truncate existing database objects or production data.",
+      "Never rewrite an applied migration.",
+      "Use reviewed forward-only additive migrations.",
+      "Reuse authoritative Tourify systems and link to them instead of duplicating data.",
+      "Use feature flags and forward corrective migrations for rollback."
+    ],
+    "forbidden_commands_or_patterns": [
+      "supabase db reset --linked",
+      "DROP TABLE",
+      "DROP SCHEMA",
+      "TRUNCATE",
+      "DELETE FROM existing_production_domain",
+      "git reset --hard"
+    ]
+  },
+  "confirmed_product_decisions": {
+    "discovery": "full_marketplace_hub_plus_profile_storefronts_and_feed",
+    "third_party": "imported_presentation_with_external_checkout_redirect",
+    "native_types": [
+      "physical_goods",
+      "services"
+    ],
+    "service_modes": [
+      "fixed_price",
+      "booking_request",
+      "quote_request"
+    ],
+    "guest_checkout": true,
+    "platform_fee": "admin_configurable_percentage_and_or_fixed",
+    "checkout_scope": "single_seller_v1",
+    "account_entitlements": {
+      "general": [
+        "physical_goods",
+        "services",
+        "external_listings"
+      ],
+      "artist": [
+        "merchandise",
+        "services",
+        "external_listings"
+      ],
+      "venue": [
+        "merchandise",
+        "services",
+        "external_listings"
+      ],
+      "organization": [
+        "existing_tickets_only"
+      ]
+    },
+    "music": "existing_music_player_and_distribution_only"
+  },
+  "blocking_decisions": [
+    {
+      "id": "payment_processor",
+      "status": "open",
+      "resolution": "Audit current payment code and configuration."
+    },
+    {
+      "id": "merchant_of_record",
+      "status": "open",
+      "resolution": "Business/legal/finance approval required before native checkout launch."
+    },
+    {
+      "id": "tax_refund_dispute_policy",
+      "status": "open",
+      "resolution": "Document owner and system behavior before payment phase."
+    },
+    {
+      "id": "launch_regions_currencies",
+      "status": "open",
+      "resolution": "Confirm before seller onboarding and checkout activation."
+    }
+  ],
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Repository and system audit",
+      "status": "pending",
+      "gate": "No implementation until ownership, payments, profile, feed, ticket, music, and schema integration maps are approved.",
+      "tasks": [
+        {
+          "id": "P0-T01",
+          "title": "Read repository instructions and preserve worktree state",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T02",
+          "title": "Map account identity, membership, switching, and authorization",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T03",
+          "title": "Map profile modules and public profile rendering",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T04",
+          "title": "Map feed posts, attachments, sharing, and Open Graph paths",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T05",
+          "title": "Map ticketing and music domain sources of truth",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T06",
+          "title": "Map payments, payouts, fees, refunds, webhooks, and finance reporting",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T07",
+          "title": "Map Supabase schema, migrations, grants, RLS, storage, and type generation",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P0-T08",
+          "title": "Produce reuse-extend-new integration matrix and decision log",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Foundation and feature flags",
+      "status": "pending",
+      "depends_on": [
+        "P0"
+      ],
+      "tasks": [
+        {
+          "id": "P1-T01",
+          "title": "Add default-off marketplace feature flags",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P1-T02",
+          "title": "Implement shared account entitlement resolver",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P1-T03",
+          "title": "Create additive storefront and listing migration with RLS, grants, indexes, and constraints",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P1-T04",
+          "title": "Add validation, domain services, generated types, and test factories",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Seller storefront and listings",
+      "status": "pending",
+      "depends_on": [
+        "P1"
+      ],
+      "tasks": [
+        {
+          "id": "P2-T01",
+          "title": "Build shared account-aware seller dashboard",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P2-T02",
+          "title": "Build physical listing, variants, inventory, media, and policies",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P2-T03",
+          "title": "Build service listing definitions and transaction modes",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P2-T04",
+          "title": "Build safe external import and stored-destination redirect",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P2-T05",
+          "title": "Build preview, publish, pause, sold-out, archive, and suspension states",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Public marketplace, profile, and tickets",
+      "status": "pending",
+      "depends_on": [
+        "P2"
+      ],
+      "tasks": [
+        {
+          "id": "P3-T01",
+          "title": "Build public storefront and listing pages",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P3-T02",
+          "title": "Build Marketplace profile module and quick-view modal or mobile sheet",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P3-T03",
+          "title": "Build searchable marketplace hub and public projections",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P3-T04",
+          "title": "Integrate organization ticket collection with existing ticket source",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P3-T05",
+          "title": "Add artist music bridge without marketplace music products",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Feed commerce",
+      "status": "pending",
+      "depends_on": [
+        "P3"
+      ],
+      "tasks": [
+        {
+          "id": "P4-T01",
+          "title": "Add typed marketplace post association",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P4-T02",
+          "title": "Build listing and storefront feed cards with current-state CTAs",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P4-T03",
+          "title": "Preserve seller attribution through reshares and analytics",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Native goods checkout",
+      "status": "pending",
+      "depends_on": [
+        "P4",
+        "payment_processor",
+        "merchant_of_record",
+        "tax_refund_dispute_policy"
+      ],
+      "tasks": [
+        {
+          "id": "P5-T01",
+          "title": "Integrate approved seller payout onboarding and capability checks",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P5-T02",
+          "title": "Implement server-authoritative orders, fee snapshots, and inventory reservation",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P5-T03",
+          "title": "Implement guest and authenticated single-seller checkout",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P5-T04",
+          "title": "Implement verified idempotent payment webhooks",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P5-T05",
+          "title": "Implement confirmation, guest claim, fulfillment, refund, notifications, and finance events",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "Service transactions",
+      "status": "pending",
+      "depends_on": [
+        "P5"
+      ],
+      "tasks": [
+        {
+          "id": "P6-T01",
+          "title": "Implement fixed-price service checkout",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P6-T02",
+          "title": "Implement booking request, counter, acceptance, payment, and calendar flow",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P6-T03",
+          "title": "Implement versioned quote, acceptance, payment, and expiration flow",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P6-T04",
+          "title": "Integrate private messaging, attachments, timeline, cancellation, and notifications",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "Admin, trust, operations, and launch",
+      "status": "pending",
+      "depends_on": [
+        "P6"
+      ],
+      "tasks": [
+        {
+          "id": "P7-T01",
+          "title": "Build admin moderation, categories, fee rules, and exception queues",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P7-T02",
+          "title": "Add monitoring, alerts, audit history, and support runbook",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P7-T03",
+          "title": "Complete security, accessibility, performance, regression, and migration verification",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "id": "P7-T04",
+          "title": "Roll out internal cohort, beta sellers, account cohorts, then public discovery",
+          "status": "pending",
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "global_completion_requirements": [
+    "All permitted and prohibited account/listing combinations have server-side tests.",
+    "Native, external, ticket, fixed service, booking, quote, profile, and feed flows pass.",
+    "All new exposed tables have reviewed grants and RLS.",
+    "Payment webhook processing is signed and idempotent.",
+    "Guest order access is opaque, expiring, and non-enumerable.",
+    "Existing profile, feed, ticket, music, auth, account, notification, messaging, calendar, file, admin, and finance tests pass.",
+    "Production migration dry run contains only expected additive changes.",
+    "Feature-disable rollback is verified without deleting data.",
+    "Every task status includes evidence before it is marked complete."
+  ]
+}

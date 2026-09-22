@@ -1,0 +1,3 @@
+-- migration-validation: intentional-noop
+-- Superseded by 20260720184000_fin105_reversal_adjustment_rules.sql. This
+-- version remains as an explicit no-op so migration history is never rewritten.

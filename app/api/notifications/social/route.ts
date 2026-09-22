@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { SocialNotificationHelpers } from '@/lib/services/optimized-notification-service'
+import { checkAuth } from '@/lib/auth/api-auth'
 import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
+import { POST as canonicalFollowPost } from '@/app/api/social/follow/route'
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -11,7 +12,7 @@ const socialInteractionSchema = z.object({
   type: z.enum(['like', 'comment', 'share']),
   postId: z.string().uuid(),
   content: z.string().optional(), // For comments
-  sharedTo: z.string().optional() // For shares
+  sharedTo: z.enum(['clipboard', 'native', 'feed']).optional() // For shares
 })
 
 const followActionSchema = z.object({
@@ -53,20 +54,6 @@ async function getPostInfo(postId: string) {
   return post
 }
 
-async function getUserInfo(userId: string) {
-  const { data: user, error } = await supabase
-    .from('profiles')
-    .select('full_name, username')
-    .eq('id', userId)
-    .single()
-
-  if (error || !user) {
-    return { full_name: null, username: null }
-  }
-
-  return user
-}
-
 // =============================================================================
 // SOCIAL INTERACTION ENDPOINTS
 // =============================================================================
@@ -74,10 +61,11 @@ async function getUserInfo(userId: string) {
 // POST /api/notifications/social - Handle social interactions
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    const auth = await checkAuth(request)
+    if (!auth?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const { user } = auth
 
     const body = await request.json()
     const { action, type, postId, content, sharedTo, targetUserId } = body
@@ -91,26 +79,12 @@ export async function POST(request: NextRequest) {
         sharedTo
       })
 
-      const post = await getPostInfo(validatedData.postId)
-      
-      // Don't notify if interacting with own post
-      if (post.user_id === user.id) {
-        return NextResponse.json({
-          success: true,
-          message: 'Interaction recorded (no notification sent to self)'
-        })
-      }
-
-      const postContentPreview = post.content.substring(0, 100)
-      const userInfo = await getUserInfo(user.id)
-      const userName = userInfo.full_name || userInfo.username || 'Someone'
-
-      let notification
+      await getPostInfo(validatedData.postId)
       
       switch (validatedData.type) {
         case 'like':
           // Create like record (this will trigger the database trigger)
-          const { error: likeError } = await supabase
+          const { error: likeError } = await auth.supabase
             .from('post_likes')
             .insert({
               post_id: validatedData.postId,
@@ -139,7 +113,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Content is required for comments' }, { status: 400 })
           }
 
-          const { error: commentError } = await supabase
+          const { error: commentError } = await auth.supabase
             .from('post_comments')
             .insert({
               post_id: validatedData.postId,
@@ -156,7 +130,7 @@ export async function POST(request: NextRequest) {
 
         case 'share':
           // Create share record (this will trigger the database trigger)
-          const { error: shareError } = await supabase
+          const { error: shareError } = await auth.supabase
             .from('post_shares')
             .insert({
               post_id: validatedData.postId,
@@ -185,62 +159,22 @@ export async function POST(request: NextRequest) {
       }
 
     } else if (action === 'follow') {
-      // Handle follow/unfollow
+      // Legacy envelope: keep old callers working, but make the user-scoped
+      // canonical route the only writer and side-effect owner for follows.
       const validatedData = followActionSchema.parse({
         action: type,
         targetUserId
       })
-
-      if (validatedData.targetUserId === user.id) {
-        return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
-      }
-
-      if (validatedData.action === 'follow') {
-        // Check if already following
-        const { data: existingFollow } = await supabase
-          .from('follows')
-          .select('id')
-          .eq('follower_id', user.id)
-          .eq('following_id', validatedData.targetUserId)
-          .single()
-
-        if (existingFollow) {
-          return NextResponse.json({
-            success: true,
-            message: 'Already following this user'
-          })
-        }
-
-        // Create follow relationship (this will trigger notification)
-        const { error: followError } = await supabase
-          .from('follows')
-          .insert({
-            follower_id: user.id,
-            following_id: validatedData.targetUserId
-          })
-
-        if (followError) throw followError
-
-        return NextResponse.json({
-          success: true,
-          message: 'Followed user and notification sent'
-        })
-
-      } else if (validatedData.action === 'unfollow') {
-        // Remove follow relationship
-        const { error: unfollowError } = await supabase
-          .from('follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', validatedData.targetUserId)
-
-        if (unfollowError) throw unfollowError
-
-        return NextResponse.json({
-          success: true,
-          message: 'Unfollowed user'
-        })
-      }
+      const headers = new Headers(request.headers)
+      headers.delete('content-length')
+      return canonicalFollowPost(new NextRequest(request.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          followingId: validatedData.targetUserId,
+          action: validatedData.action,
+        }),
+      }))
 
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

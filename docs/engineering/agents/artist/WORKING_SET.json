@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "agent": "artist",
+  "description": "Own artist identity, private and public profiles, EPKs, dashboards, and artist workflows.",
+  "paths": [
+    "app/artist/**",
+    "app/api/artist/**",
+    "components/artist/**",
+    "components/artist-profile/**",
+    "components/public-artist/**",
+    "lib/artist/**",
+    "__tests__/artist/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

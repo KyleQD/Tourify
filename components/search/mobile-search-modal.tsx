@@ -64,10 +64,10 @@ export function MobileSearchModal({ isOpen, onClose }: MobileSearchModalProps) {
           <div className="flex-1 p-4">
             <div className="max-w-2xl mx-auto">
               <EnhancedAccountSearch
-                placeholder="Search artists, venues, and users..."
+                placeholder="Search everything on Tourify…"
                 className="w-full"
                 showRecentSearches={true}
-                onResultSelect={() => onClose()}
+                onNavigate={onClose}
               />
             </div>
 
@@ -80,8 +80,8 @@ export function MobileSearchModal({ isOpen, onClose }: MobileSearchModalProps) {
                   transition={{ delay: 0.1 }}
                   className="p-4 rounded-xl bg-purple-50 border border-purple-100"
                 >
-                  <h3 className="font-medium text-purple-900 mb-2">🎵 Find Artists</h3>
-                  <p className="text-sm text-purple-700">Discover musicians, DJs, and performers</p>
+                  <h3 className="font-medium text-purple-900 mb-2">🎵 Find music</h3>
+                  <p className="text-sm text-purple-700">Discover artists, songs, albums, and EPs</p>
                 </motion.div>
 
                 <motion.div
@@ -90,8 +90,8 @@ export function MobileSearchModal({ isOpen, onClose }: MobileSearchModalProps) {
                   transition={{ delay: 0.2 }}
                   className="p-4 rounded-xl bg-blue-50 border border-blue-100"
                 >
-                  <h3 className="font-medium text-blue-900 mb-2">🏟️ Find Venues</h3>
-                  <p className="text-sm text-blue-700">Explore clubs, theaters, and event spaces</p>
+                  <h3 className="font-medium text-blue-900 mb-2">🗓️ Find what’s live</h3>
+                  <p className="text-sm text-blue-700">Explore public events and active tours</p>
                 </motion.div>
 
                 <motion.div
@@ -100,8 +100,8 @@ export function MobileSearchModal({ isOpen, onClose }: MobileSearchModalProps) {
                   transition={{ delay: 0.3 }}
                   className="p-4 rounded-xl bg-emerald-50 border border-emerald-100"
                 >
-                  <h3 className="font-medium text-emerald-900 mb-2">👥 Find People</h3>
-                  <p className="text-sm text-emerald-700">Connect with music lovers and fans</p>
+                  <h3 className="font-medium text-emerald-900 mb-2">👥 Find profiles</h3>
+                  <p className="text-sm text-emerald-700">People, artists, services, venues, and organizations</p>
                 </motion.div>
 
                 <motion.div

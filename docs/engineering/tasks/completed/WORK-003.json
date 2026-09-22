@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "id": "WORK-003",
+  "title": "Site-map zones event-zone bridge reconciliation",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-10T01:22:03.904Z",
+  "updated_at": "2026-09-10T02:09:38.538Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (441 entries)",
+  "goal": "Restore the event-zone bridge contract in the site-map zones routes so __tests__/logistics/site-map-ops-upgrade.test.ts passes (QA-002 unblock)",
+  "scope": {
+    "in": [
+      "app/api/admin/logistics/site-maps/[id]/zones/route.ts",
+      "app/api/admin/logistics/site-maps/[id]/zones/[zoneId]/route.ts",
+      "lib/site-map/zone-roster-sync.ts",
+      "lib/zones/event-zones.ts"
+    ],
+    "out": [
+      "supabase/migrations/ (owned by database lane)",
+      "components/admin/logistics/**",
+      "app/work/** and app/artist/** site-map surfaces (pass already)"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/logistics/site-maps/[id]/zones/",
+    "lib/site-map/zone-roster-sync.ts",
+    "lib/zones/event-zones.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/work/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/active/QA-002.json"
+  ],
+  "acceptance_criteria": [
+    "__tests__/logistics/site-map-ops-upgrade.test.ts passes (3 tests, incl. 'keeps zone ownership migration and event zone bridge wiring')"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/logistics/site-map-ops-upgrade.test.ts",
+      "npx eslint 'app/api/admin/logistics/site-maps/[id]/zones/route.ts' 'app/api/admin/logistics/site-maps/[id]/zones/[zoneId]/route.ts'",
+      "npx tsc --noEmit --pretty false --incremental false (full repo)",
+      "npx tsc --noEmit --pretty false --incremental false --project <scoped temp tsconfig> (8GB heap)",
+      "npx esbuild <changed routes> --loader=.ts=ts --format=esm (syntax/transform)"
+    ],
+    "evidence": [
+      "vitest: 3/3 tests passed 2026-09-10 (~119ms; 123ms second run); all six string-contract assertions green (resolveOrCreateEventZone, syncZoneOwnershipToRoster, assigned_zone, assigned_staff_count, lead_user_id, assigned_department)",
+      "eslint (next/core-web-vitals + @typescript-eslint): clean on both changed routes",
+      "esbuild transform: OK both changed routes (12ms/2ms)",
+      "tsc full repo: OOM exit 134 on default 2GB heap (machine constraint; documented before this task)",
+      "tsc scoped (2 files + transitive imports, 8GB heap): ran 20+ min at 100% CPU, no diagnostics emitted, terminated; probe file importing only lib/database.types.ts OOMs the default 2GB heap in ~67s -> generated 34k-line type file is the bottleneck, not the changed routes",
+      "Type contracts manually verified against source: withAdminCapability yields supabase/user as any (lib/auth/api-auth.ts:276); resolveOrCreateEventZone(supabase, {eventId: string, name: string, capacity?: number|null}) matches CreateEventZoneInput (lib/zones/event-zones.ts:123); syncZoneOwnershipToRoster args match zone row fields (lib/site-map/zone-roster-sync.ts:26); access.siteMap?.event_v2_id is string|null narrowable to string (lib/site-map/access.ts:31)",
+      "Migration checked independently: 20260908100000_reconcile_archived_logistics_foundation.sql contains lead_user_id and assigned_department (6 matches) - no DB change made"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T02:09:38.538Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Event-zone bridge wired into zones POST (resolveOrCreateEventZone + linkLegacyZone) and roster ownership sync restored in the [zoneId] PUT route (syncZoneOwnershipToRoster); all 3 site-map-ops-upgrade contract tests pass.",
+    "completed": [
+      "zones POST route now imports resolveOrCreateEventZone and linkLegacyZone and wires the event-zone bridge after a successful site_map_zones insert (scoped to siteMap.event_v2_id; non-fatal on bridge failure)",
+      "[zoneId] PUT route restored syncZoneOwnershipToRoster call after update when event_zone_id or lead_user_id is set (non-fatal on sync failure) — the parallel withAdminCapability refactor had dropped the bridge from the working tree",
+      "Verified lib/site-map/zone-roster-sync.ts already exports syncZoneOwnershipToRoster and contains assigned_zone + assigned_staff_count; lib/zones/event-zones.ts already exports resolveOrCreateEventZone; zone-roster-sync.ts and event-zones.ts left untouched",
+      "supabase/migrations/20260908100000_reconcile_archived_logistics_foundation.sql contains lead_user_id + assigned_department (verified; no DB change made)"
+    ],
+    "next_steps": [],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T01:22:03.904Z",
+        "who": "work agent",
+        "what": "Task created from QA-002 handoff: reconcile site-map zones route with event-zone bridge contract."
+      },
+      {
+        "at": "2026-09-10T01:27:00.000Z",
+        "who": "work agent",
+        "what": "Wired resolveOrCreateEventZone + linkLegacyZone into zones POST after insert; restored syncZoneOwnershipToRoster in [zoneId] PUT. Found the working-tree [zoneId] route (parallel refactor to withAdminCapability) had dropped the roster sync bridge that exists at base SHA."
+      },
+      {
+        "at": "2026-09-10T01:30:00.000Z",
+        "who": "work agent",
+        "what": "Verification: vitest 3/3 pass, eslint clean. Full-repo tsc OOMs on this machine (exit 134); scoped tsc with 8GB heap ran 20+ min at 100% CPU without completing; probe proved lib/database.types.ts (34k generated lines) alone OOMs default 2GB heap in ~67s - machine/type-graph constraint, not a defect in the changed routes. esbuild transform OK on both routes; type contracts verified by inspection against helper sources. Marked completed."
+      },
+      {
+        "at": "2026-09-10T02:09:38.538Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Event-zone bridge wired into zones POST (resolveOrCreateEventZone + linkLegacyZone) and roster ownership sync restored in the [zoneId] PUT route (syncZoneOwnershipToRoster); all 3 site-map-ops-upgrade contract tests pass.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

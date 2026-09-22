@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823090000_canonical_location_and_amenities.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "location"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.venue_profiles",
+      "select count(*) from public.venue_profiles where contact_info is not null and jsonb_strip_nulls(contact_info) <> '{}'::jsonb",
+      "select count(*) from public.venue_profiles where settings is not null and jsonb_typeof(settings -> 'amenities') = 'object'"
+    ],
+    "expectedAffectedRows": "Adds the nullable postal_code field when absent, fills only empty canonical location fields from contact_info, and merges only truthy legacy amenity keys into the existing canonical array",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823090000",
+    "idempotency": "Postal-code capture uses IF NOT EXISTS; location updates fill only empty targets; amenity normalization is deterministic and updates only distinct arrays"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "venue_profiles.postal_code remains nullable so absent source data is not fabricated",
+      "venue_profiles top-level location and amenities remain canonical while JSON sources are preserved for rollback"
+    ],
+    "indexes": [],
+    "validationPlan": "Fresh-chain rehearsal, conflict and unmerged-key counts, representative location normalization fixtures, and a second execution yielding no additional updates"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

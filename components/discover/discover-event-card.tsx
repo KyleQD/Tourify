@@ -43,7 +43,7 @@ export function DiscoverEventCard({
       >
         <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950">
           {event.poster_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img
               src={event.poster_url}
               alt={event.title}

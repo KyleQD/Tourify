@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-029",
+  "title": "Retire venue-ui compatibility twins after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T20:30:10.142Z",
+  "updated_at": "2026-09-11T20:39:16.715Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (704 entries)",
+  "goal": "Re-validate each registered retire-later components/venue/ui/** twin (zero live consumers + contract parity per DESIGN-005..027 evidence), delete the zero-consumer twins under accepted CP-037, update the canonical component register (retire/remove rows, fix incorrect DUP-082 separator basis, remove stale app/venue/components/ui/** rows), and record the retire-later family completion.",
+  "scope": {
+    "in": [
+      "components/venue/ui/** retire-later twins (23 registered files)",
+      "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv",
+      "docs/engineering/agents/design-system/STATE.md"
+    ],
+    "out": [
+      "components/venue/ui/ keep files and compatibility exceptions (26 files)",
+      "components/ui/** canonical primitives and their consumers",
+      "venue behavior changes and other domains"
+    ]
+  },
+  "working_set": [
+    "components/venue"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/blocked/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "Every retire-later twin is re-validated: bounded zero-use audit (0 live consumers) and confirmation of its recorded parity disposition before deletion; any file with live consumers is NOT deleted and is recorded as a blocker.",
+    "The 26 keep files and components/ui/** canonical primitives are untouched.",
+    "The canonical component register is updated exactly: retire-later components/venue/ui rows removed/marked retired, DUP-082 separator basis corrected, stale app/venue/components/ui/** rows removed; JSON/CSV integrity preserved.",
+    "Focused verification passes: zero-use rg sweep, eslint on remaining venue-ui files and canonical targets, git diff --check on changed paths, npm run agents:validate with 0 warnings 0 errors."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui|@/components/venue/ui\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "node scripts/ci/check-csv.mjs docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv || true",
+      "./node_modules/.bin/eslint components/venue/ui/ components/ui/ 2>&1 | head -40 || true",
+      "git diff --check -- components/venue/ui docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Per-twin zero-use re-validation PASSED (2026-09-11): for each of the 24 registered retire-later files (alert, alert-dialog, aspect-ratio, avatar, carousel, context-menu, drawer, dropdown-menu, form, hover-card, input-otp, menubar, navigation-menu, pagination, resizable, select, separator, sidebar, sonner, table, toggle, toggle-group, use-mobile, use-toast) the bounded rg sweep for 'components/venue/ui/<name>|@/components/venue/ui/<name>' across app components hooks lib apps __tests__ scripts (glob *.ts,tsx,js,jsx,mjs,cjs) returned 0 matches each (24/24).",
+      "Aggregate zero-use sweep re-confirmed post-deletion: rg for 'components/venue/ui|@/components/venue/ui' across the same roots returns 0 matches (exit 1). No barrel/index re-exports exist under components/venue (rg for ui/... index patterns returned no matches). Separate git status check confirmed no concurrent lane had modified any twin file before deletion.",
+      "Parity dispositions recorded by DESIGN-005..027 re-confirmed before deletion: 20 twins byte-identical to components/ui counterparts (spot-recheck alert-dialog, dropdown-menu + recorded SHA-256 evidence in the audit tasks); avatar.tsx divergent (canonical adds data-slot=avatar, avatar-image, avatar-fallback — DESIGN-008); separator.tsx DIVERGENT (missing data-slot=\"separator\", 1-line diff, SHA-256 canonical f7f35d3360... vs twin 995c54f1c5... — DESIGN-021); use-mobile.tsx boolean-only contract vs canonical hooks/use-mobile.ts (target components/ui/use-mobile.tsx stale — DESIGN-027); use-toast.ts byte-identical to hooks/use-toast.ts (SHA-256 03e892344ad170438ccfc156b4ee7ff0be4e535a2939e038f64556ce03b934ed on both, cmp -s pass).",
+      "Deleted 24 zero-consumer twins with git rm (staged deletions only; no commit): components/venue/ui/{alert.tsx, alert-dialog.tsx, aspect-ratio.tsx, avatar.tsx, carousel.tsx, context-menu.tsx, drawer.tsx, dropdown-menu.tsx, form.tsx, hover-card.tsx, input-otp.tsx, menubar.tsx, navigation-menu.tsx, pagination.tsx, resizable.tsx, select.tsx, separator.tsx, sidebar.tsx, sonner.tsx, table.tsx, toggle.tsx, toggle-group.tsx, use-mobile.tsx, use-toast.ts}.",
+      "Post-deletion tree: rg --files components/venue/ui | wc -l = 26 (only register-authorized keep files: accordion, badge, breadcrumb, button, calendar, card, chart, checkbox, collapsible, command, dialog, input, label, popover, progress, radio-group, scroll-area, sheet, skeleton, slider, switch, tabs, textarea, toast, toaster, tooltip). Directory components/venue/ui not removed because it is not empty.",
+      "Register updated exactly: 49 stale rows pointing at app/venue/components/ui/** (nonexistent on disk) removed; 24 components/venue/ui twin rows marked disposition 'retired' with retirement note in decisionBasis; DUP-082 separator row basis corrected from 'Exact duplicate' to 'Divergent copy omitting the canonical data-slot separator attribute (not an exact duplicate)'; all 26 keep rows and all canonical components/ui/** rows untouched. CSV line count 1389 -> 1340.",
+      "CSV integrity PASSED: header + 1339 data rows, every row exactly 9 columns (Python csv parse; no rows with !=9 columns). Note: the task-referenced node scripts/ci/check-csv.mjs does not exist in the repository (MODULE_NOT_FOUND, tolerated by || true), so the Python csv validation is the effective parse check.",
+      "Focused ESLint PASSED: ./node_modules/.bin/eslint components/ui/ exit 0 (no output); combined ./node_modules/.bin/eslint components/venue/ui/ components/ui/ exit 0.",
+      "git diff --check PASSED (clean) on components/venue, docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv, and docs/engineering.",
+      "npm run agents:validate PASSED: validated 17 agents, 94 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:39:16.715Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Retired the venue-ui compatibility twin under CP-037: all 24 registered retire-later twins (incl. use-toast) re-validated to 0 live consumers and were deleted (3262 deletions); the 26 keep files remain. Register updated exactly: 24 twin rows marked retired, 49 stale app/venue/components/ui rows removed, DUP-082 separator basis corrected. Control plane validates 0 warnings / 0 errors. Complete.",
+    "completed": [
+      "Re-validated zero-use per twin (24/24 files: 0 matches each) plus the aggregate sweep and barrel/index check.",
+      "Re-confirmed the recorded parity dispositions from DESIGN-005..027, including the avatar/separator data-slot divergences and use-mobile stale-target exception before deletion.",
+      "Deleted the 24 zero-consumer twins via git rm (no commit) under CP-037: alert, alert-dialog, aspect-ratio, avatar, carousel, context-menu, drawer, dropdown-menu, form, hover-card, input-otp, menubar, navigation-menu, pagination, resizable, select, separator, sidebar, sonner, table, toggle, toggle-group, use-mobile, use-toast.",
+      "Preserved the 26 keep files and all components/ui/** canonical primitives and consumers.",
+      "Updated CANONICAL_COMPONENT_REGISTER.csv: removed 49 stale app/venue/components/ui/** rows; marked the 24 deleted twin rows 'retired'; corrected the DUP-082 separator basis to divergent (not exact duplicate); left 26 keep rows and canonical rows untouched; kept all lines at 9 quoted columns.",
+      "Updated design-system STATE.md durable facts (retire-later family retired; register corrections; remaining use-mobile domain copies).",
+      "Ran and recorded the full verification suite (zero-use sweeps, tree count 26, ESLint clean, git diff --check clean, CSV parse 9 columns, agents:validate 0 warnings 0 errors)."
+    ],
+    "next_steps": [
+      "Orchestrator reconciles DESIGN-029 to completed and refreshes topology maps if needed.",
+      "Resolve remaining domain use-mobile copies (hooks/venue/use-mobile.tsx, app/admin/dashboard/components/hooks/use-mobile.tsx) against hooks/use-mobile.ts in a separately scoped task.",
+      "Continue the open design-system lanes: token authority, shared-state adoption, i18n/a11y gates."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:37:22.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Retire-later venue-ui family retired under CP-037: re-validated 24/24 twins to zero live consumers, deleted them, updated the canonical component register (stale app/venue/components/ui rows removed, twin rows retired, DUP-082 separator basis corrected), preserved the 26 keep files, and recorded the completion in design-system STATE.md.",
+        "completed": [
+          "Zero-use re-validation per twin and aggregate (0 matches)",
+          "Deletion of 24 twins via git rm",
+          "Register edits (49 rows removed, 24 retired, DUP-082 corrected)",
+          "STATE.md durable facts update",
+          "Verification suite pass (ESLint, diff --check, CSV parse, agents:validate)"
+        ],
+        "next_steps": [
+          "Orchestrator reconciliation to completed",
+          "Separate task for remaining domain use-mobile copies"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T20:39:16.715Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Retired the venue-ui compatibility twin under CP-037: all 24 registered retire-later twins (incl. use-toast) re-validated to 0 live consumers and were deleted (3262 deletions); the 26 keep files remain. Register updated exactly: 24 twin rows marked retired, 49 stale app/venue/components/ui rows removed, DUP-082 separator basis corrected. Control plane validates 0 warnings / 0 errors. Complete.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

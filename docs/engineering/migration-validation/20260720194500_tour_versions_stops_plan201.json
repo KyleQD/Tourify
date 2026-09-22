@@ -1,0 +1,61 @@
+{
+ "schemaVersion": 1,
+ "migration": "20260720194500_tour_versions_stops_plan201.sql",
+ "taskId": "PLAN-201",
+ "status": "planned",
+ "owner": "security-data",
+ "reviewer": "release-engineering",
+ "domains": [
+  "tours",
+  "rls"
+ ],
+ "riskLevel": "high",
+ "representativeSnapshot": {
+  "kind": "isolated production-like Supabase branch",
+  "evidenceArtifact": null
+ },
+ "preflight": {
+  "rowCountQueries": [
+   "to_regclass probes; pg_policies inventory"
+  ],
+  "expectedAffectedRows": "DDL only — no persisted rows changed by this file itself",
+  "artifact": null
+ },
+ "execution": {
+  "lockBudgetMs": 5000,
+  "statementTimeoutMs": 60000,
+  "batchSize": 0,
+  "resumeStrategy": "Transactional DDL re-issue; drop-if-exists before creates where applicable",
+  "resumeCursor": "supabase migration version 20260720194500",
+  "idempotency": "Re-runs converge (IF EXISTS guards / CREATE OR REPLACE / ON CONFLICT)"
+ },
+ "quarantine": {
+  "required": false,
+  "table": null,
+  "strategy": "No data backfill"
+ },
+ "constraintsAndIndexes": {
+  "constraints": [],
+  "indexes": [],
+  "validationPlan": "tour_versions/tour_stops normalized plan DDL promoted from archive"
+ },
+ "recovery": {
+  "rollback": "Restore prior state per source archive or drop new objects (new tables only)",
+  "forwardFix": "Later additive migration"
+ },
+ "postflight": {
+  "queries": [
+   "Objects exist with expected definitions/grants/RLS enabled"
+  ],
+  "artifact": null,
+  "securityAdvisorArtifact": null,
+  "performanceAdvisorArtifact": null
+ },
+ "verificationOwner": "security-data",
+ "evidence": {
+  "isolated": null,
+  "staging": null,
+  "production": null
+ },
+ "exceptions": []
+}

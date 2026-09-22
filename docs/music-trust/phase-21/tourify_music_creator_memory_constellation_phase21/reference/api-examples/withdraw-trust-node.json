@@ -1,0 +1,11 @@
+{
+  "request": {
+    "trustNodeId": "uuid",
+    "effectiveAt": "2026-12-31T00:00:00Z",
+    "continuityPlanId": "uuid",
+    "idempotencyKey": "unique"
+  },
+  "response": {
+    "state": "withdrawal_pending"
+  }
+}

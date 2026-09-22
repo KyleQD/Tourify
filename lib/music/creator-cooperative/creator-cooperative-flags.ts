@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_COOPERATIVE_FLAG_NAMES = [
   "creator_cooperative_readiness_enabled",
   "creator_cooperative_membership_enabled",
@@ -37,6 +39,9 @@ export async function resolveCreatorCooperativeFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorCooperativeFlags> {
+  if (!isLaunchCapabilityAvailable("creator_cooperative"))
+    return { ...DISABLED_CREATOR_COOPERATIVE_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

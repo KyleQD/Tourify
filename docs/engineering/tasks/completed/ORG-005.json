@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "id": "ORG-005",
+  "title": "First-time invitee organizer_account_id visibility",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "organization",
+  "created_at": "2026-09-10T04:02:41.120Z",
+  "updated_at": "2026-09-10T06:00:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (455 entries)",
+  "goal": "Owner decision + optional additive fix: accept_org_invite returns organizer_account_id NULL for first-time recipients when no RLS policy lets a brand-new member read the org's non-public organizer_accounts row (security-definer helper vs new-member visibility policy)",
+  "scope": {
+    "in": [
+      "supabase/migrations/20260910000001_get_active_organizer_account_for_org.sql (new additive file)",
+      "docs/engineering/migration-validation/20260910000001_get_active_organizer_account_for_org.json (REL-102 manifest; required for check:migration-validation to pass)",
+      "lib/database.types.ts (canonical regeneration only)",
+      "__tests__/organization/org-invite-accept-contract.test.ts (focused ORG-005 contract tests)",
+      "docs/engineering/tasks/active/ORG-005.json",
+      "live local Supabase DB (manual apply + DB-boundary probes only)",
+      "/tmp probe scripts (throwaway)"
+    ],
+    "out": [
+      "existing migration history (never edited, incl. 20260909195618_atomic_org_invites.sql and 20260910000000_fix_accept_org_invite_first_recipient_rls.sql)",
+      "production app code / routes (guard-inspected only)",
+      "docs/engineering/handoffs/ (HF-ORG-005 closed by orchestrator)",
+      "docs/engineering/agents/organization/STATE.md (deferred; not in task touch list)"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260910000000_fix_accept_org_invite_first_recipient_rls.sql",
+    "supabase/migrations/20260910000001_get_active_organizer_account_for_org.sql",
+    "supabase/migrations/20260909195618_atomic_org_invites.sql",
+    "__tests__/organization/org-invite-accept-contract.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/organization/QUESTIONS.md",
+    "docs/engineering/tasks/completed/ORG-003.json",
+    "docs/engineering/tasks/completed/ORG-004.json",
+    "docs/engineering/handoffs/pending/HF-ORG-005.json"
+  ],
+  "acceptance_criteria": [
+    "Owner decides: security-definer read helper vs new-member organizer_accounts visibility policy; chosen approach implemented as an additive migration under CP-051 manual-apply and re-probed (P1-P9 remain green)"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "supabase db push --local (single pending migration 20260910000001 only)",
+      "psql live probes against 127.0.0.1:54322 (P1-P9 + NEW N1/N2/N3 + genuine SET ROLE supplementary)",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "MIGRATION_CHECKSUM_BASE_SHA=7cf660ad8422dbd3adbdb77369d94638cdc2231b npm run check:migration-checksums",
+      "npm run generate:database-types && npm run check:database-types",
+      "npx vitest run __tests__/organization"
+    ],
+    "evidence": [
+      "Owner decision recorded: OPTION A — narrow SECURITY DEFINER read helper (from owner response to HF-ORG-005).",
+      "Migration 20260910000001_get_active_organizer_account_for_org.sql adds public.get_active_organizer_account_for_org(p_org_id uuid) (LANGUAGE plpgsql, STABLE, SECURITY DEFINER, set search_path = pg_catalog, public) with the is_org_member(auth.uid(), p_org_id) guard returning NULL for non-members, then resolves the org's single active organizer_accounts row; grants: revoke from public,anon + grant to authenticated. The same migration recreates public.accept_org_invite byte-identical to the ORG-004 version except the inline organizer_accounts SELECT is replaced with v_organizer_id := public.get_active_organizer_account_for_org(v_invite.org_id); security invoker, ON CONFLICT DO NOTHING, all exception codes, and the exact grants preserved.",
+      "Manual apply per CP-051: `supabase db push --local` applied ONLY the pending migration 20260910000001 (schema_migrations 288 -> 289; result: 'Applying migration 20260910000001_get_active_organizer_account_for_org.sql... Finished supabase db push.'). Live pg_proc confirms STABLE SECURITY DEFINER + search_path pg_catalog,public; proacl = EXECUTE for postgres/authenticated/service_role with public/anon revoked (matches accept_org_invite/ORG-004 end state). Migration checksum candidate SHA-256: c4e2136d57e8dc356fd4cf5a401f41175122b1637b14bb4197bfc6dabbb4a1bd.",
+      "P1-P9 live re-probe (2026-09-09/10 local, supabase_db_tourify-beta, port 54322, postgres session with authenticated-role emulation per ORG-003/ORG-004 methodology): P1 acceptance atomic PASS (organizer_account_id=d2f32303-6c8c-4190-a1c7-401beb915d07), P2 no-overwrite PASS, P3 replay denial PASS, P4 revocation flips state PASS, P5 revoked-invite accept denial PASS, P6 cross-user denial PASS, P7 anon denial PASS (accept + revoke + helper all denied), P8 token hashing PASS, P9 guard immutability PASS.",
+      "NEW N1 (regression): first-time recipient accepting an invite to a NON-public org (is_public=false organizer_accounts row) returns organizer_account_id NON-NULL = 50ba2aed-7591-48d0-99f3-f0b06cc85246 (expected fixture account) — the ORG-005 regression is fixed.",
+      "NEW N2: authenticated NON-member (rando, member of nothing) calling public.get_active_organizer_account_for_org directly returns NULL for org A, org B, and org NP even though all three orgs have active organizer_accounts rows.",
+      "NEW N3: member of org A calling the helper with org B's id returns NULL (org B HAS an active account, so the guard is what blocks it); positive control PASS: same member resolves org A's own account (d2f32303-6c8c-4190-a1c7-401beb915d07).",
+      "Supplementary genuine-role probe (SET ROLE authenticated, real non-bypassrls session): member-of-Org-One resolves own org's non-public account 0fccca25-9c31-4135-a6cf-be86a092a8ca; member-of-Org-One calling helper with Org Two id -> NULL; member with invalid org id -> NULL; authenticated non-member -> NULL; SET ROLE anon -> ERROR permission denied for function get_active_organizer_account_for_org (revoked from anon).",
+      "check:migration-chain PASS: 289 files scanned, no duplicate policy creations.",
+      "check:migration-validation PASS: 20260910000001 scanned with planned manifest (REL-102).",
+      "check:migration-checksums PASS: no changed migration SQL files vs MIGRATION_CHECKSUM_BASE_SHA=7cf660ad... (new file untracked in this lane; candidate checksum rendered directly above).",
+      "generate:database-types + check:database-types PASS: lib/database.types.ts regenerated from local public schema (get_active_organizer_account_for_org appears as Functions entry; Args { p_org_id: string } Returns string). NOTE: regeneration rewrite is large (~40k diff lines) and attributable to the installed Supabase CLI v2.115.0 output format change (removal of the old __InternalSupabase / PostgrestVersion header and leaner Row/Insert/Update rendering), not to hand-edits; check:database-types compares the regenerated artifact and PASSES.",
+      "Focused vitest PASS: npx vitest run __tests__/organization -> 7 files / 31 tests pass (includes new ORG-005 contract tests asserting the helper's security definer + is_org_member guard and the accept_org_invite helper call).",
+      "agents:validate: 17 agents / 67 tasks validated, 0 errors, 1 pre-existing warning (RELEASE-001: completed without passing verification — not ORG-005)."
+    ],
+    "last_run_sha": "working-tree",
+    "last_run_at": "2026-09-10T05:12:56.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Owner decision implemented (HF-ORG-005 OPTION A — narrow SECURITY DEFINER read helper). Additive migration 20260910000001_get_active_organizer_account_for_org.sql adds the guarded helper and rewires accept_org_invite to call it; applied manually via supabase db push --local (single migration, 289/289). Full P1-P9 re-probe green AND the regression is fixed (N1: non-public org first-time accept returns NON-NULL organizer_account_id), with N2/N3 proving the guard (non-member -> NULL; member-of-X with Y -> NULL) plus a genuine SET ROLE authenticated corroboration. All repository verification commands pass; focused vitest org suite 7 files / 31 tests green.",
+    "completed": [
+      "Owner decision (HF-ORG-005) recorded: OPTION A — narrow SECURITY DEFINER read helper.",
+      "Wrote additive migration 20260910000001_get_active_organizer_account_for_org.sql (helper + accept_org_invite recreation preserving ORG-004 semantics; REVOKE public,anon / GRANT authenticated replayed; no policies/tables/other objects touched).",
+      "Wrote REL-102 validation manifest docs/engineering/migration-validation/20260910000001_get_active_organizer_account_for_org.json (required for check:migration-validation to pass).",
+      "Manual apply per CP-051: supabase db push --local applied only migration 20260910000001; schema_migrations 288 -> 289, no pending migrations.",
+      "P1-P9 live re-probe all PASS; NEW N1 (non-public org regression) PASS returning NON-NULL organizer_account_id; NEW N2/N3 (guard) PASS; genuine SET ROLE authenticated/anon supplementary probe PASS.",
+      "All verification commands pass: migration-chain, migration-validation, migration-checksums, generate:database-types + check:database-types, vitest org suite (7 files / 31 tests).",
+      "agents:validate: 0 errors, 1 pre-existing warning."
+    ],
+    "next_steps": [
+      "Closed HF-ORG-005 and moved ORG-005 to completed.",
+      "Optional durable-state pass: add the helper + Option A decision to docs/engineering/agents/organization/STATE.md (deferred — not in this task's touch list).",
+      "Release-gate check remains open from ORG-003/ORG-004: observe route-level rate-limit 429 and auth-window live once REST/auth containers are up."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T04:20:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read ORG-003/ORG-004 evidence, HF-ORG-005 owner decision (OPTION A), accept_org_invite current body, is_org_member (SECURITY DEFINER, status='active' filter), organizer_accounts columns/policies (public_read only exposes is_public=true). Stack verified: DB container up (supabase_db_tourify-beta, 288/288 applied), postgres has BYPASSRLS, supabase_admin superuser, migration 20260910000001 pending.",
+        "next": "Write migration + REL-102 manifest; apply via targeted supabase db push --local."
+      },
+      {
+        "at": "2026-09-10T04:32:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wrote supabase/migrations/20260910000001_get_active_organizer_account_for_org.sql (helper: plpgsql STABLE SECURITY DEFINER search_path pg_catalog,public; is_org_member guard; schema-qualified lookups; revoke public,anon/grant authenticated) and the REL-102 manifest. Pre-apply checks green (chain 289 files, validation scanned new manifest, checksums no changed SQL vs base). Applied via `supabase db push --local` (only pending migration; 'Applying migration 20260910000001... Finished supabase db push.'). Live confirm: helper STABLE SECURITY DEFINER + search_path; accept_org_invite body now calls public.get_active_organizer_account_for_org; proacl = postgres/authenticated/service_role execute with public/anon revoked.",
+        "next": "Run P1-P9 + N1/N2/N3 probes; run verification commands."
+      },
+      {
+        "at": "2026-09-10T05:12:56.000Z",
+        "sha": "working-tree",
+        "summary": "Probes all PASS: P1-P9 (authenticated-role emulation, ORG-003/ORG-004 methodology) plus NEW N1 (non-public org first-time accept returns organizer_account_id=50ba2aed-... NON-NULL), N2 (non-member -> NULL for all three orgs), N3 (member-of-A with B id -> NULL while B has an active account; positive control resolves own account). Genuine SET ROLE authenticated probe corroborates (member-own-org resolves non-public account; member-other-org NULL; anon permission denied). Verification commands ALL PASS: migration-chain (289), migration-validation (manifest scanned), migration-checksums (no changed SQL), generate+check:database-types (function appears in canonical types; large diff is CLI v2.115 format change), vitest org 7 files/31 tests. agents:validate 0 errors / 1 pre-existing warning. Task record updated; handoffs untouched; nothing committed.",
+        "next": "Report to orchestrator; orchestrator closes HF-ORG-005 and moves ORG-005 to completed."
+      }
+    ]
+  },
+  "handoffs": [
+      "HF-ORG-005: completed on 2026-09-10 after owner-approved OPTION A implementation, manual migration apply, and green live probes."
+  ]
+}

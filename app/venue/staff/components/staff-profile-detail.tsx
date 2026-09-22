@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import {
   User,
@@ -228,24 +230,25 @@ export default function StaffProfileDetail({
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] bg-slate-900 border-slate-700 overflow-y-auto">
+      <DialogContent className={cn("max-w-6xl max-h-[90vh] overflow-y-auto", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-cyan-400">Staff Profile</DialogTitle>
+            <DialogTitle className={detailSurfacePattern.title}>Staff Profile</DialogTitle>
             <div className="flex items-center space-x-2">
               {isEditing ? (
                 <>
-                  <Button size="sm" onClick={handleSave} className="bg-green-600 hover:bg-green-700">
+                  <Button size="sm" onClick={handleSave} className={detailSurfacePattern.btnPrimary}>
                     <Save className="h-4 w-4 mr-1" />
                     Save
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleCancel} className="border-slate-600">
+                  <Button size="sm" variant="outline" onClick={handleCancel} className={detailSurfacePattern.btnOutline}>
                     <X className="h-4 w-4 mr-1" />
                     Cancel
                   </Button>
                 </>
               ) : (
-                <Button size="sm" onClick={() => setIsEditing(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" onClick={() => setIsEditing(true)} className={detailSurfacePattern.btnPrimary}>
                   <Edit className="h-4 w-4 mr-1" />
                   Edit Profile
                 </Button>
@@ -256,7 +259,7 @@ export default function StaffProfileDetail({
 
         <div className="space-y-6">
           {/* Profile Header */}
-          <Card className="bg-slate-800/30 border-slate-700/50">
+          <Card className={detailSurfacePattern.panel}>
             <CardContent className="p-6">
               <div className="flex items-start space-x-6">
                 <div className="relative">
@@ -280,22 +283,22 @@ export default function StaffProfileDetail({
                         <Input
                           value={editForm.name}
                           onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          className="text-2xl font-bold bg-slate-700 border-slate-600 mb-2"
+                          className={cn("mb-2 text-2xl font-bold", detailSurfacePattern.input)}
                         />
                       ) : (
                         <h1 className="text-2xl font-bold text-white">{staffProfile.name}</h1>
                       )}
                       
                       <div className="flex items-center space-x-3 mb-2">
-                        <span className="text-slate-300">{staffProfile.role}</span>
-                        <Badge variant="outline" className="bg-slate-700/50 border-slate-600">
+                        <span className={detailSurfacePattern.label}>{staffProfile.role}</span>
+                        <Badge variant="outline" className={detailSurfacePattern.badgeOutline}>
                           {staffProfile.department}
                         </Badge>
                         <div className={`w-2 h-2 rounded-full ${getStatusColor(staffProfile.status)}`}></div>
-                        <span className="text-slate-400 text-sm capitalize">{staffProfile.status}</span>
+                        <span className={cn(detailSurfacePattern.subtleText, "capitalize")}>{staffProfile.status}</span>
                       </div>
                       
-                      <div className="flex items-center space-x-4 text-sm text-slate-400">
+                      <div className={cn("flex items-center space-x-4", detailSurfacePattern.subtleText)}>
                         <div className="flex items-center space-x-1">
                           <Mail className="h-4 w-4" />
                           <span>{staffProfile.email}</span>
@@ -315,7 +318,7 @@ export default function StaffProfileDetail({
                       <div className={`text-3xl font-bold ${getPerformanceColor(staffProfile.performance)}`}>
                         {staffProfile.performance}%
                       </div>
-                      <div className="text-slate-400 text-sm">Performance</div>
+                      <div className={detailSurfacePattern.subtleText}>Performance</div>
                     </div>
                   </div>
                 </div>
@@ -331,13 +334,13 @@ export default function StaffProfileDetail({
               { label: "Events", value: staffProfile.eventsCompleted, color: "from-purple-500 to-pink-500" },
               { label: "Hours", value: staffProfile.hoursWorked.toLocaleString(), color: "from-orange-500 to-red-500" }
             ].map((metric, i) => (
-              <Card key={i} className="bg-slate-800/30 border-slate-700/50">
+              <Card key={i} className={detailSurfacePattern.panel}>
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className={`text-2xl font-bold bg-gradient-to-r ${metric.color} bg-clip-text text-transparent`}>
                       {metric.value}
                     </div>
-                    <div className="text-slate-400 text-sm">{metric.label}</div>
+                    <div className={detailSurfacePattern.subtleText}>{metric.label}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -346,7 +349,7 @@ export default function StaffProfileDetail({
 
           {/* Detailed Information Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-slate-800/50 grid w-full grid-cols-5">
+            <TabsList className={cn(detailSurfacePattern.tabsList, "grid grid-cols-5")}>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="goals">Goals</TabsTrigger>
               <TabsTrigger value="skills">Skills</TabsTrigger>
@@ -357,7 +360,7 @@ export default function StaffProfileDetail({
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-slate-800/30 border-slate-700/50">
+                <Card className={detailSurfacePattern.panel}>
                   <CardHeader>
                     <CardTitle className="text-green-400">Current Goals</CardTitle>
                   </CardHeader>
@@ -375,7 +378,7 @@ export default function StaffProfileDetail({
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-800/30 border-slate-700/50">
+                <Card className={detailSurfacePattern.panel}>
                   <CardHeader>
                     <CardTitle className="text-blue-400">Last Performance Review</CardTitle>
                   </CardHeader>
@@ -408,12 +411,12 @@ export default function StaffProfileDetail({
             <TabsContent value="goals" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {staffProfile.currentGoals.map((goal) => (
-                  <Card key={goal.id} className="bg-slate-800/30 border-slate-700/50">
+                  <Card key={goal.id} className={detailSurfacePattern.panel}>
                     <CardContent className="p-6">
                       <div className="space-y-4">
                         <div className="flex items-start justify-between">
                           <h3 className="text-white font-semibold">{goal.title}</h3>
-                          <Badge variant="outline" className="bg-blue-500/20 border-blue-500/30 text-blue-400">
+                          <Badge variant="outline" className={detailSurfacePattern.badge}>
                             Active
                           </Badge>
                         </div>
@@ -440,14 +443,14 @@ export default function StaffProfileDetail({
             {/* Skills Tab */}
             <TabsContent value="skills" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-slate-800/30 border-slate-700/50">
+                <Card className={detailSurfacePattern.panel}>
                   <CardHeader>
                     <CardTitle className="text-purple-400">Skills</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
                       {staffProfile.skills.map((skill, i) => (
-                        <Badge key={i} variant="outline" className="bg-purple-500/20 border-purple-500/30 text-purple-400">
+                        <Badge key={i} variant="outline" className={detailSurfacePattern.badge}>
                           {skill}
                         </Badge>
                       ))}
@@ -455,7 +458,7 @@ export default function StaffProfileDetail({
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-800/30 border-slate-700/50">
+                <Card className={detailSurfacePattern.panel}>
                   <CardHeader>
                     <CardTitle className="text-orange-400">Certifications</CardTitle>
                   </CardHeader>
@@ -469,7 +472,7 @@ export default function StaffProfileDetail({
                             <p className="text-slate-500 text-xs">Issued: {cert.date}</p>
                           </div>
                           {cert.expiry && (
-                            <Badge variant="outline" className="text-xs bg-slate-600/50 border-slate-500">
+                            <Badge variant="outline" className={cn("text-xs", detailSurfacePattern.badgeSoft)}>
                               Expires: {cert.expiry}
                             </Badge>
                           )}
@@ -483,7 +486,7 @@ export default function StaffProfileDetail({
 
             {/* History Tab */}
             <TabsContent value="history" className="space-y-4">
-              <Card className="bg-slate-800/30 border-slate-700/50">
+              <Card className={detailSurfacePattern.panel}>
                 <CardHeader>
                   <CardTitle className="text-green-400">Career History</CardTitle>
                 </CardHeader>
@@ -510,7 +513,7 @@ export default function StaffProfileDetail({
             {/* Personal Tab */}
             <TabsContent value="personal" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-slate-800/30 border-slate-700/50">
+                <Card className={detailSurfacePattern.panel}>
                   <CardHeader>
                     <CardTitle className="text-cyan-400">Contact Information</CardTitle>
                   </CardHeader>
@@ -518,22 +521,22 @@ export default function StaffProfileDetail({
                     {isEditing ? (
                       <>
                         <div>
-                          <Label>Address</Label>
+                          <Label className={detailSurfacePattern.label}>Address</Label>
                           <Textarea
                             value={editForm.address}
                             onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                            className="bg-slate-700 border-slate-600"
+                            className={detailSurfacePattern.textarea}
                           />
                         </div>
                         <div>
-                          <Label>Emergency Contact Name</Label>
+                          <Label className={detailSurfacePattern.label}>Emergency Contact Name</Label>
                           <Input
                             value={editForm.emergencyContact?.name}
                             onChange={(e) => setEditForm({ 
                               ...editForm, 
                               emergencyContact: { ...editForm.emergencyContact!, name: e.target.value }
                             })}
-                            className="bg-slate-700 border-slate-600"
+                            className={detailSurfacePattern.input}
                           />
                         </div>
                       </>
@@ -553,7 +556,7 @@ export default function StaffProfileDetail({
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-800/30 border-slate-700/50">
+                <Card className={detailSurfacePattern.panel}>
                   <CardHeader>
                     <CardTitle className="text-yellow-400">Notes</CardTitle>
                   </CardHeader>
@@ -562,7 +565,7 @@ export default function StaffProfileDetail({
                       <Textarea
                         value={editForm.notes}
                         onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                        className="bg-slate-700 border-slate-600 min-h-32"
+                        className={cn("min-h-32", detailSurfacePattern.textarea)}
                         placeholder="Add notes about this staff member..."
                       />
                     ) : (

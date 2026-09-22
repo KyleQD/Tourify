@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Stub widgets; optimized-dashboard-client is canonical (cmp-customizable-dash wont-fix). */
+
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

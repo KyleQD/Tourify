@@ -1,7 +1,15 @@
 import { supabase } from '@/lib/supabase'
 import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
+import bcrypt from 'bcryptjs'
 import { SMSDeliveryService } from './sms-delivery.service'
+import {
+  InMemoryMfaVerificationCodeStore,
+  MfaVerificationCodeStore,
+} from './mfa-verification-code-store'
+import { SupabaseMfaVerificationCodeStore } from './mfa-verification-code-store.server'
+
+const BACKUP_CODE_HASH_ROUNDS = 12
 
 export interface MFAMethod {
   id: string
@@ -42,7 +50,9 @@ class TwilioSMSProvider implements SMSProvider {
 
 class MockSMSProvider implements SMSProvider {
   async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
-    console.log(`[MockSMS] Sending to ${phoneNumber}: ${message}`)
+    // Never log verification codes. This provider is only a local fallback;
+    // production must configure Twilio and a durable code store.
+    console.info(`[MockSMS] SMS delivery is not configured for ${phoneNumber}`)
     return true
   }
 }
@@ -59,15 +69,11 @@ function createSMSProvider(): SMSProvider {
 export class MFAService {
   private static instance: MFAService
   private smsProvider: SMSProvider
-  private verificationCodes: Map<string, { code: string; expires: number; attempts: number }> = new Map()
+  private verificationCodeStore: MfaVerificationCodeStore
 
-  private constructor() {
-    this.smsProvider = createSMSProvider()
-    
-    // Clean up expired codes every 5 minutes
-    setInterval(() => {
-      this.cleanupExpiredCodes()
-    }, 5 * 60 * 1000)
+  private constructor(options: MFAServiceOptions = {}) {
+    this.smsProvider = options.smsProvider ?? createSMSProvider()
+    this.verificationCodeStore = options.verificationCodeStore ?? new SupabaseMfaVerificationCodeStore()
   }
 
   public static getInstance(): MFAService {
@@ -75,6 +81,21 @@ export class MFAService {
       MFAService.instance = new MFAService()
     }
     return MFAService.instance
+  }
+
+  /**
+   * Factory for deterministic tests. Production composition uses the
+   * server-only durable repository by default; the in-memory store is
+   * intentionally selected only by this explicit testing factory.
+   */
+  public static createForTesting(options: {
+    smsProvider?: SMSProvider
+    verificationCodeStore?: MfaVerificationCodeStore
+  } = {}): MFAService {
+    return new MFAService({
+      ...options,
+      verificationCodeStore: options.verificationCodeStore ?? new InMemoryMfaVerificationCodeStore(),
+    })
   }
 
   // Get user's MFA methods
@@ -220,17 +241,23 @@ export class MFAService {
       const verificationCode = this.generateSMSCode()
       
       // Store verification code temporarily
-      this.verificationCodes.set(`sms_setup_${userId}`, {
+      const challengeId = `sms_setup_${userId}`
+      const issued = await this.verificationCodeStore.issue({
+        challengeId,
+        userId,
+        kind: 'sms_setup',
         code: verificationCode,
-        expires: Date.now() + 5 * 60 * 1000, // 5 minutes
-        attempts: 0
       })
+      if (!issued.accepted) {
+        throw new Error(`SMS verification is rate limited; retry after ${new Date(issued.retryAt ?? Date.now()).toISOString()}`)
+      }
 
       // Send SMS
       const message = `Your Tourify verification code is: ${verificationCode}. This code expires in 5 minutes.`
       const sent = await this.smsProvider.sendSMS(phoneNumber, message)
 
       if (!sent) {
+        await this.verificationCodeStore.revoke(challengeId, userId)
         throw new Error('Failed to send SMS')
       }
 
@@ -261,25 +288,12 @@ export class MFAService {
   // Verify SMS setup and enable it
   public async verifySMSSetup(userId: string, code: string): Promise<boolean> {
     try {
-      const storedData = this.verificationCodes.get(`sms_setup_${userId}`)
-      
-      if (!storedData) {
-        return false
-      }
-
-      if (Date.now() > storedData.expires) {
-        this.verificationCodes.delete(`sms_setup_${userId}`)
-        return false
-      }
-
-      if (storedData.attempts >= 3) {
-        this.verificationCodes.delete(`sms_setup_${userId}`)
-        return false
-      }
-
-      storedData.attempts++
-
-      if (storedData.code !== code) {
+      const result = await this.verificationCodeStore.consume({
+        challengeId: `sms_setup_${userId}`,
+        userId,
+        code,
+      })
+      if (result.status !== 'valid') {
         return false
       }
 
@@ -315,7 +329,7 @@ export class MFAService {
       }
 
       // Clean up
-      this.verificationCodes.delete(`sms_setup_${userId}`)
+      await this.verificationCodeStore.revoke(`sms_setup_${userId}`, userId)
       await supabase
         .from('user_mfa_setup_temp')
         .delete()
@@ -335,11 +349,11 @@ export class MFAService {
       const codes = Array.from({ length: 10 }, () => this.generateBackupCode())
       
       // Hash and store the codes
-      const hashedCodes = codes.map(code => ({
+      const hashedCodes = await Promise.all(codes.map(async code => ({
         user_id: userId,
-        code_hash: this.hashCode(code),
+        code_hash: await this.hashCode(code),
         is_used: false
-      }))
+      })))
 
       const { error } = await supabase
         .from('user_mfa_backup_codes')
@@ -499,38 +513,32 @@ export class MFAService {
   // Private helper methods
   private async sendSMSChallenge(userId: string, challengeId: string, phoneNumber: string): Promise<void> {
     const code = this.generateSMSCode()
-    
-    this.verificationCodes.set(`mfa_${challengeId}`, {
+    const storeChallengeId = `mfa_${challengeId}`
+    const issued = await this.verificationCodeStore.issue({
+      challengeId: storeChallengeId,
+      userId,
+      kind: 'sms_login',
       code,
-      expires: Date.now() + 5 * 60 * 1000, // 5 minutes
-      attempts: 0
     })
+    if (!issued.accepted) {
+      throw new Error(`SMS verification is rate limited; retry after ${new Date(issued.retryAt ?? Date.now()).toISOString()}`)
+    }
 
     const message = `Your Tourify login code is: ${code}. This code expires in 5 minutes.`
-    await this.smsProvider.sendSMS(phoneNumber, message)
+    const sent = await this.smsProvider.sendSMS(phoneNumber, message)
+    if (!sent) {
+      await this.verificationCodeStore.revoke(storeChallengeId, userId)
+      throw new Error('Failed to send SMS')
+    }
   }
 
   private async verifySMSToken(userId: string, challengeId: string, token: string): Promise<boolean> {
-    const storedData = this.verificationCodes.get(`mfa_${challengeId}`)
-    
-    if (!storedData) return false
-    if (Date.now() > storedData.expires) {
-      this.verificationCodes.delete(`mfa_${challengeId}`)
-      return false
-    }
-    if (storedData.attempts >= 3) {
-      this.verificationCodes.delete(`mfa_${challengeId}`)
-      return false
-    }
-
-    storedData.attempts++
-
-    if (storedData.code === token) {
-      this.verificationCodes.delete(`mfa_${challengeId}`)
-      return true
-    }
-
-    return false
+    const result = await this.verificationCodeStore.consume({
+      challengeId: `mfa_${challengeId}`,
+      userId,
+      code: token,
+    })
+    return result.status === 'valid'
   }
 
   private async verifyTOTPToken(userId: string, token: string): Promise<boolean> {
@@ -557,25 +565,34 @@ export class MFAService {
 
   private async verifyBackupCode(userId: string, code: string): Promise<boolean> {
     try {
-      const codeHash = this.hashCode(code)
-      
-      const { data: backupCode, error } = await supabase
+      const { data: backupCodes, error } = await supabase
         .from('user_mfa_backup_codes')
-        .select('id')
+        .select('id, code_hash')
         .eq('user_id', userId)
-        .eq('code_hash', codeHash)
         .eq('is_used', false)
-        .single()
 
-      if (error || !backupCode) return false
+      if (error || !backupCodes?.length) return false
 
-      // Mark the code as used
-      await supabase
+      const matchingCode = await (async () => {
+        for (const backupCode of backupCodes) {
+          if (await bcrypt.compare(code, backupCode.code_hash)) return backupCode
+        }
+        return null
+      })()
+
+      if (!matchingCode) return false
+
+      // Mark the code as used only if another concurrent verification has not
+      // already redeemed it.
+      const { data: redeemedCode, error: redeemError } = await supabase
         .from('user_mfa_backup_codes')
         .update({ is_used: true, used_at: new Date().toISOString() })
-        .eq('id', backupCode.id)
+        .eq('id', matchingCode.id)
+        .eq('is_used', false)
+        .select('id')
+        .maybeSingle()
 
-      return true
+      return !redeemError && Boolean(redeemedCode)
     } catch (error) {
       console.error('Error verifying backup code:', error)
       return false
@@ -583,42 +600,39 @@ export class MFAService {
   }
 
   private generateSMSCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString()
+    return this.generateRandomDigits(6)
   }
 
   private generateBackupCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let result = ''
+    const random = new Uint32Array(8)
+    globalThis.crypto.getRandomValues(random)
     for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
+      result += chars.charAt(random[i] % chars.length)
     }
     return result
   }
 
   private generateChallengeId(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+    return globalThis.crypto.randomUUID()
   }
 
-  private hashCode(code: string): string {
-    // Simple hash function - in production, use a proper crypto library
-    let hash = 0
-    for (let i = 0; i < code.length; i++) {
-      const char = code.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash // Convert to 32-bit integer
-    }
-    return hash.toString()
+  private hashCode(code: string): Promise<string> {
+    return bcrypt.hash(code, BACKUP_CODE_HASH_ROUNDS)
   }
 
-  private cleanupExpiredCodes(): void {
-    const now = Date.now()
-    for (const [key, data] of this.verificationCodes.entries()) {
-      if (now > data.expires) {
-        this.verificationCodes.delete(key)
-      }
-    }
+  private generateRandomDigits(length: number): string {
+    const random = new Uint32Array(length)
+    globalThis.crypto.getRandomValues(random)
+    return Array.from(random, (value) => String(value % 10)).join('').padStart(length, '0')
   }
 }
 
+export interface MFAServiceOptions {
+  smsProvider?: SMSProvider
+  verificationCodeStore?: MfaVerificationCodeStore
+}
+
 // Export singleton instance
-export const mfaService = MFAService.getInstance() 
+export const mfaService = MFAService.getInstance()

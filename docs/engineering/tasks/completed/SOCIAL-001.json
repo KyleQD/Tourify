@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0",
+  "id": "SOCIAL-001",
+  "title": "Audit Social workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "social",
+  "created_at": "2026-09-09T06:17:42.131Z",
+  "updated_at": "2026-09-11T18:19:45.470Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Social area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: feed, posts, follows, friends, groups, messaging, notifications, and collaboration",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/social/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The social default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/social/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/social/BASELINE.md: what the social area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/social/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task SOCIAL-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/social/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/social/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/social/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate",
+      "npm run agents:context -- --task SOCIAL-001"
+    ],
+    "evidence": [
+      "Bounded context packet built with npm run agents:context -- --task SOCIAL-001; packet reported 16/45 candidate files within the 60,000-character budget and recorded all evidence-based scope expansions.",
+      "npm run agents:validate — validated 17 agents, 70 tasks, 0 warnings, 0 errors.",
+      "Static source reconciliation recorded exact paths and line references for feed, groups, messaging, notifications, collaboration, RPC migrations, permission indicators, tests, and E2E coverage.",
+      "No production source or Supabase migration paths were changed; edits were limited to Social audit/state/backlog documents and the SOCIAL-001 control-plane record.",
+      "Final npm run agents:validate — validated 17 agents, 93 tasks, 0 warnings, 0 errors after SOCIAL-001 moved to completed and the task index refreshed.",
+      "Final checkpoint summary surfaces the five highest-priority Social owner/release questions and points to docs/engineering/agents/social/QUESTIONS.md."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T18:19:45.470Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Social audit complete. Top owner/release questions are: (1) require staging two-member plus non-member Realtime/RLS isolation before closing SOCIAL-004; (2) define whether Groups discovery is membership-only or public; (3) confirm collaboration ownership outside Artist; (4) verify should_send_notification and grants on the approved target under CP-051; (5) choose fail-open/fail-closed notification behavior and required Social E2E/security gates. Full detail is in QUESTIONS.md.",
+    "completed": [
+      "Read all startup protocol docs (INDEX.md, CHARTER.md, STATE.md, SOCIAL-001.json)",
+      "Read all social domain files (ARCHITECTURE.md, BACKLOG.md, DECISIONS.md, INTERFACES.md, VERIFICATION.md, WORKING_SET.json)",
+      "Read all generated maps (routes.md, api-routes.md, components.md, database-schema.md, database-objects.md, permissions.md, integrations.md, project-map.md)",
+      "Read named references (DEVELOPMENT_BACKLOG.md, PROJECT_STATE.md, DECISIONS.md, registry.yaml, TA-PH0.md)",
+      "Glob-discovered all social-related files: 16 page routes, 41 components, 50+ API routes, 30+ lib files, 5 test files",
+      "Read all social lib files in detail: lib/feed/ (16), lib/notifications/ (7), lib/messaging/ (6), lib/social/ (2), lib/messages/ (1), lib/polls/ (4)",
+      "Read all social services: optimized-notification-service.ts (916 lines), notification-channels.ts, notification-delivery.ts, social-integrations.service.ts",
+      "Read all social hooks: use-notifications.ts, use-social-integrations.ts",
+      "Read key page routes: feed (redirect), messages, notifications, posts/[id], groups/[id], collaboration (redirect)",
+      "Produced BASELINE.md with full domain inventory",
+      "Produced GAPS.md with 30 triaged gaps (11 MISSING, 10 INCOMPLETE, 9 IMPROVE)",
+      "Produced QUESTIONS.md with 12 prioritized questions (4 P1, 4 P2, 4 P3)",
+      "Updated STATE.md with durable facts, current state, and known risks",
+      "Updated BACKLOG.md with candidate tasks derived from gap analysis",
+      "Reconciled BASELINE.md with current /feed, groups, messaging, notifications, collaboration, social graph, analytics, API, data-boundary, and E2E evidence.",
+      "Replaced stale pre-SOCIAL-002/003/004 gap claims with 17 actionable gaps triaged as verification, product/cross-domain, incomplete, or improve.",
+      "Replaced resolved feed/groups/realtime product questions with current launch, discovery, collaboration, notification-RPC, E2E, rate-limit, moderation, relationship, and entity-settings decisions.",
+      "Updated social STATE.md and BACKLOG.md with current working/partial/redirect-only status and next-batch ordering.",
+      "Confirmed no production code or Supabase migration files were changed by SOCIAL-001."
+    ],
+    "next_steps": [
+      "Run the SOCIAL-004 staging two-member/non-member Realtime and RLS isolation check when an approved Supabase target and credentials are available.",
+      "Verify should_send_notification and grants on the approved target under CP-051, then record fallback behavior and observability decision.",
+      "Create follow-up task records from owner answers for collaboration ownership, group discovery semantics, E2E gates, moderation, and rate limiting."
+    ],
+    "blockers": [
+      "No SOCIAL-001 blocker; unanswered product questions are follow-up inputs, not a task blocker. SOCIAL-004 remains independently pending live validation."
+    ],
+    "checkpoints": [
+      {
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "timestamp": "2026-09-09T14:30:00.000Z",
+        "summary": "Full social domain audit completed. Read all library/service/hook/page files in the social scope. Produced BASELINE.md (comprehensive inventory), GAPS.md (30 gaps triaged), QUESTIONS.md (12 prioritized questions). Key findings: (1) /feed redirects to /news — social feed library has no visible consumer, (2) Groups are shells (CRUD only, no content/members/roles), (3) Messaging has no realtime, (4) Notifications are mature but fragmented across 4 surfaces (Phase 4 unification not started), (5) Collaboration redirects to artist domain. Top 5 blocking questions: Q1 Feed page architecture, Q2 Groups scope, Q3 Messaging realtime, Q4 Collaboration ownership, Q7 should_send_notification RPC verification.",
+        "scope_expansion": [
+          {
+            "path": "lib/services/optimized-notification-service.ts",
+            "reason": "Canonical notification service referenced by re-export; needed to understand full notification lifecycle"
+          },
+          {
+            "path": "lib/notifications/venue-fanout.ts",
+            "reason": "Cross-domain integration point (venue → social notification fanout); needed for integration inventory"
+          },
+          {
+            "path": "lib/messaging/resolve-dm-trust.ts",
+            "reason": "Core messaging authorization logic; needed to understand DM permission model"
+          },
+          {
+            "path": "hooks/use-notifications.ts",
+            "reason": "Client-side notification hook; needed to verify realtime subscription and state management"
+          }
+        ],
+        "files_written": [
+          "docs/engineering/agents/social/BASELINE.md",
+          "docs/engineering/agents/social/GAPS.md",
+          "docs/engineering/agents/social/QUESTIONS.md",
+          "docs/engineering/agents/social/STATE.md",
+          "docs/engineering/agents/social/BACKLOG.md"
+        ]
+      },
+      {
+        "at": "2026-09-11T18:18:03.890Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the read-only Social workspace audit baseline, gaps, questions, state, and sequenced backlog against the current source at 7cf660ad8422dbd3adbdb77369d94638cdc2231b. Reconciled completed feed and groups work plus the active realtime-messaging verification dependency; no production code or migrations changed.",
+        "completed": [
+          "Reconciled BASELINE.md with current /feed, groups, messaging, notifications, collaboration, social graph, analytics, API, data-boundary, and E2E evidence.",
+          "Replaced stale pre-SOCIAL-002/003/004 gap claims with 17 actionable gaps triaged as verification, product/cross-domain, incomplete, or improve.",
+          "Replaced resolved feed/groups/realtime product questions with current launch, discovery, collaboration, notification-RPC, E2E, rate-limit, moderation, relationship, and entity-settings decisions.",
+          "Updated social STATE.md and BACKLOG.md with current working/partial/redirect-only status and next-batch ordering.",
+          "Confirmed no production code or Supabase migration files were changed by SOCIAL-001."
+        ],
+        "next_steps": [
+          "Run the SOCIAL-004 staging two-member/non-member Realtime and RLS isolation check when an approved Supabase target and credentials are available.",
+          "Verify should_send_notification and grants on the approved target under CP-051, then record fallback behavior and observability decision.",
+          "Create follow-up task records from owner answers for collaboration ownership, group discovery semantics, E2E gates, moderation, and rate limiting."
+        ],
+        "blockers": [
+          "No SOCIAL-001 blocker; follow-up questions are intentionally not blockers. SOCIAL-004 remains independently pending live validation."
+        ]
+      },
+      {
+        "at": "2026-09-11T18:19:18.120Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Final post-close control-plane validation is clean. SOCIAL-001 audit artifacts and exact evidence are complete; SOCIAL-004 remains an independent active verification task.",
+        "completed": [],
+        "next_steps": [
+          "Run the SOCIAL-004 staging two-member/non-member Realtime and RLS isolation check when an approved Supabase target and credentials are available.",
+          "Verify should_send_notification and grants on the approved target under CP-051, then record fallback behavior and observability decision.",
+          "Create follow-up task records from owner answers for collaboration ownership, group discovery semantics, E2E gates, moderation, and rate limiting."
+        ],
+        "blockers": [
+          "No SOCIAL-001 blocker; unanswered product questions are follow-up inputs, not a task blocker. SOCIAL-004 remains independently pending live validation."
+        ]
+      },
+      {
+        "at": "2026-09-11T18:19:45.470Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Social audit complete. Top owner/release questions are: (1) require staging two-member plus non-member Realtime/RLS isolation before closing SOCIAL-004; (2) define whether Groups discovery is membership-only or public; (3) confirm collaboration ownership outside Artist; (4) verify should_send_notification and grants on the approved target under CP-051; (5) choose fail-open/fail-closed notification behavior and required Social E2E/security gates. Full detail is in QUESTIONS.md.",
+        "completed": [],
+        "next_steps": [
+          "Run the SOCIAL-004 staging two-member/non-member Realtime and RLS isolation check when an approved Supabase target and credentials are available.",
+          "Verify should_send_notification and grants on the approved target under CP-051, then record fallback behavior and observability decision.",
+          "Create follow-up task records from owner answers for collaboration ownership, group discovery semantics, E2E gates, moderation, and rate limiting."
+        ],
+        "blockers": [
+          "No SOCIAL-001 blocker; unanswered product questions are follow-up inputs, not a task blocker. SOCIAL-004 remains independently pending live validation."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -345,17 +345,7 @@ export function DiscoverPageClient() {
       surface: "discover",
       metadata: { albumId: album.id, artistId: album.artist_id },
     })
-    const handle = album.artist_username || album.artist_id
-    if (!handle) {
-      toast.error("Artist profile unavailable")
-      return
-    }
-    const path = getArtistPublicProfilePath(handle)
-    if (!path) {
-      toast.error("Artist profile unavailable")
-      return
-    }
-    router.push(path)
+    router.push(`/music/${album.id}`)
   }
 
   const filtered = useMemo(() => {

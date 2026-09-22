@@ -3,7 +3,7 @@
 import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -11,10 +11,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
-import { MobileVenueNav } from "@/components/venue/mobile-venue-nav"
+import { MobileVenueNav } from "@/app/venue/components/mobile-venue-nav"
+import { getVenuePublicProfilePath } from "@/lib/utils/public-profile-routes"
 import {
   Activity,
   BarChart3,
+  BookOpen,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -27,13 +29,52 @@ import {
   MessageSquare,
   Package,
   ScanLine,
+  ExternalLink,
   Search,
   Settings,
   ShieldCheck,
+  SquareKanban,
   Ticket,
   Users,
   Wrench,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import {
+  getVenueRoutesByGroup,
+  VENUE_NAV_GROUPS,
+  type VenueRouteDefinition,
+} from "@/lib/venue/route-registry"
+import { VenueCommandMenu } from "./venue-command-menu"
+
+/**
+ * Icon resolution for the canonical route registry (VEN-005/VEN-298).
+ * Registry stays pure data; only this client component maps keys to lucide icons.
+ */
+const ROUTE_ICONS: Record<string, LucideIcon> = {
+  home: Home,
+  clipboard: ClipboardList,
+  calendar: CalendarDays,
+  activity: Activity,
+  message: MessageSquare,
+  ticket: Ticket,
+  scan: ScanLine,
+  dollar: DollarSign,
+  chart: BarChart3,
+  users: Users,
+  briefcase: BriefcaseBusiness,
+  kanban: SquareKanban,
+  shield: ShieldCheck,
+  building: Building2,
+  book: BookOpen,
+  file: FileText,
+  package: Package,
+  wrench: Wrench,
+  settings: Settings,
+}
+
+function iconFor(route: VenueRouteDefinition): LucideIcon {
+  return ROUTE_ICONS[route.iconKey] ?? Building2
+}
 
 interface VenueNavItem {
   label: string
@@ -47,55 +88,30 @@ interface VenueNavGroup {
   items: VenueNavItem[]
 }
 
-function buildNavGroups(venueId?: string | null): VenueNavGroup[] {
-  const rolesHref = venueId
-    ? `/venue/staff/roles-permissions?venueId=${encodeURIComponent(venueId)}`
-    : "/venue/staff/roles-permissions"
-  const hiringBoardHref = venueId
-    ? `/venue/dashboard/hiring-kanban?venue_id=${encodeURIComponent(venueId)}`
-    : "/venue/dashboard/hiring-kanban"
+function resolveRouteHref(route: VenueRouteDefinition, venueId?: string | null): string {
+  if (route.id === "roles") {
+    return venueId
+      ? `/venue/staff/roles-permissions?venueId=${encodeURIComponent(venueId)}`
+      : route.href
+  }
+  if (route.id === "hiring-board") {
+    return venueId
+      ? `/venue/dashboard/hiring-kanban?venue_id=${encodeURIComponent(venueId)}`
+      : route.href
+  }
+  return route.href
+}
 
-  return [
-    {
-      label: "Command",
-      items: [
-        { label: "Dashboard", href: "/venue/dashboard", icon: Home },
-        { label: "Bookings", href: "/venue/bookings", icon: ClipboardList, badgeKey: "pendingRequests" },
-        { label: "Calendar", href: "/venue/dashboard/calendar", icon: CalendarDays },
-        { label: "Events", href: "/venue/events", icon: Activity, badgeKey: "upcomingEvents" },
-        { label: "Messages", href: "/venue/messages", icon: MessageSquare },
-      ],
-    },
-    {
-      label: "Commerce",
-      items: [
-        { label: "Tickets", href: "/venue/dashboard/tickets", icon: Ticket },
-        { label: "Check-In", href: "/venue/dashboard/tickets?view=check-in", icon: ScanLine },
-        { label: "Finances", href: "/venue/finances", icon: DollarSign },
-        { label: "Analytics", href: "/venue/analytics", icon: BarChart3 },
-      ],
-    },
-    {
-      label: "Workforce",
-      items: [
-        { label: "Staff", href: "/venue/staff", icon: Users, badgeKey: "teamMembers" },
-        { label: "Hiring / Jobs", href: "/venue/dashboard/jobs", icon: BriefcaseBusiness },
-        { label: "Hiring Board", href: hiringBoardHref, icon: ClipboardList },
-        { label: "Scheduling", href: "/venue/staff/scheduling", icon: CalendarDays },
-        { label: "Roles", href: rolesHref, icon: ShieldCheck },
-      ],
-    },
-    {
-      label: "Physical Venue",
-      items: [
-        { label: "Profile", href: "/venue/overview", icon: Building2 },
-        { label: "Documents", href: "/venue/documents", icon: FileText },
-        { label: "Equipment", href: "/venue/equipment", icon: Package },
-        { label: "Site Maps", href: "/venue/dashboard/site-maps", icon: Wrench },
-        { label: "Settings", href: "/venue/settings", icon: Settings },
-      ],
-    },
-  ]
+function buildNavGroups(venueId?: string | null): VenueNavGroup[] {
+  return VENUE_NAV_GROUPS.map((group) => ({
+    label: group.label,
+    items: getVenueRoutesByGroup(group.id).map((route) => ({
+      label: route.label,
+      href: resolveRouteHref(route, venueId),
+      icon: iconFor(route),
+      badgeKey: route.badgeKey,
+    })),
+  }))
 }
 
 function isActivePath(pathname: string, href: string) {
@@ -208,11 +224,28 @@ function VenueSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </nav>
       </ScrollArea>
 
-      <div className="border-t border-zinc-800 p-3">
+      <div className="space-y-2 border-t border-zinc-800 p-3">
+        {venue?.id ? (
+          <Button asChild variant="outline" className="w-full justify-start border-zinc-700 bg-zinc-900 text-zinc-200">
+            <Link
+              href={
+                getVenuePublicProfilePath({
+                  id: venue.id,
+                  url_slug: venue.url_slug || venue.username || null,
+                }) || "/venues"
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View public page
+            </Link>
+          </Button>
+        ) : null}
         <Button asChild variant="outline" className="w-full justify-start border-zinc-700 bg-zinc-900 text-zinc-200">
           <Link href="/venues">
             <Search className="mr-2 h-4 w-4" />
-            View Public Directory
+            Venue directory
           </Link>
         </Button>
       </div>
@@ -224,6 +257,7 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname])
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -268,6 +302,19 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCommandOpen(true)}
+                className="hidden justify-start gap-2 border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100 sm:inline-flex"
+                aria-keyshortcuts="Meta+K Control+K"
+              >
+                <Search className="h-4 w-4" />
+                Search…
+                <kbd className="pointer-events-none hidden select-none items-center gap-1 rounded border border-zinc-700 bg-zinc-950 px-1.5 font-mono text-[10px] font-medium text-zinc-400 md:flex">
+                  ⌘K
+                </kbd>
+              </Button>
               <Button asChild variant="ghost" size="sm" className="hidden text-zinc-300 hover:text-zinc-100 sm:inline-flex">
                 <Link href="/venue/messages">Messages</Link>
               </Button>
@@ -288,7 +335,12 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
         </div>
       </div>
       <Separator className="bg-zinc-900" />
-      <MobileVenueNav />
+      <Suspense fallback={null}>
+        <MobileVenueNav />
+      </Suspense>
+      <Suspense fallback={null}>
+        <VenueCommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
+      </Suspense>
     </div>
   )
 }

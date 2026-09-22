@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { createClient } from '@supabase/supabase-js'
 
 function createServiceClient() {
@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS = {
   role_management_roles: ['admin'],
 }
 
-export const GET = withAuth(async (request: NextRequest, { user }) => {
+export const GET = withAdminCapability('event.view', async (request: NextRequest, { user }) => {
   try {
     const eventId = request.nextUrl.pathname.split('/')[5]
     const svc = createServiceClient()
@@ -73,7 +73,7 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
   }
 })
 
-export const PATCH = withAuth(async (request: NextRequest, { user }) => {
+export const PATCH = withAdminCapability('event.view', async (request: NextRequest, { user }) => {
   try {
     const eventId = request.nextUrl.pathname.split('/')[5]
     const svc = createServiceClient()

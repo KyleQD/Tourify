@@ -222,6 +222,13 @@ export function CreateView() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1.5">
+              {data.templates.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">
+                  {data.mode === "live"
+                    ? "No organization templates in live mode. Demo presets stay in Demo preview."
+                    : "No templates available."}
+                </p>
+              ) : null}
               {data.templates.slice(0, 4).map((tpl) => (
                 <button
                   key={tpl.id}
@@ -243,7 +250,9 @@ export function CreateView() {
                   }
                   className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 px-2.5 py-2 text-left text-xs transition-colors hover:border-neon-amber/40 hover:bg-card"
                 >
-                  <span className="truncate font-medium text-foreground">{tpl.name}</span>
+                  <span className="truncate font-medium text-foreground">
+                    {tpl.isDemoFixture ? `[Demo] ${tpl.name}` : tpl.name}
+                  </span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">
                     {tpl.neededStaffCount} crew
                   </span>

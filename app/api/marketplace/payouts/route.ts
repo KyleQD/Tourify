@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const supabase = await createClient()
     const {

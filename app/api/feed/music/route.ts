@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const genre = searchParams.get('genre')
     const sortBy = searchParams.get('sortBy') || 'recent'
     const userId = searchParams.get('userId')
+    const q = (searchParams.get('q') || '').trim().slice(0, 120)
 
     let query = supabase
       .from('music_tracks')
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
       .eq('rights_confirmed', true)
     if (userId) query = query.eq('user_id', userId)
     if (genre && genre !== 'all') query = query.eq('genre', genre)
+    if (q) query = query.ilike('title', `%${q}%`)
 
     switch (sortBy) {
       case 'popular':
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       if (isSchemaCacheMissingError(error)) {
-        return await fallbackFromArtistMusic(supabase, { limit, genre, sortBy, userId })
+        return await fallbackFromArtistMusic(supabase, { limit, genre, sortBy, userId, q })
       }
 
       console.error('Error fetching music tracks:', error)
@@ -57,16 +59,24 @@ export async function GET(request: NextRequest) {
       const trackIds = Array.from(
         new Set((tracks || []).map((t: any) => t.id).filter(Boolean))
       )
+      let artistNameByUserId: Record<string, string> = {}
       let artistSlugByUserId: Record<string, string> = {}
       let listingIdByTrackId: Record<string, string> = {}
       if (userIds.length > 0) {
         const { data: artists } = await supabase
           .from('artist_profiles')
-          .select('user_id, url_slug')
+          .select('user_id, url_slug, artist_name')
           .in('user_id', userIds)
         artistSlugByUserId = (artists || []).reduce(
           (acc: Record<string, string>, a: any) => {
             if (a.url_slug) acc[String(a.user_id)] = String(a.url_slug)
+            return acc
+          },
+          {}
+        )
+        artistNameByUserId = (artists || []).reduce(
+          (acc: Record<string, string>, a: any) => {
+            if (a.artist_name) acc[String(a.user_id)] = String(a.artist_name)
             return acc
           },
           {}
@@ -89,7 +99,7 @@ export async function GET(request: NextRequest) {
       }
 
       return (tracks || []).map((track: any) => {
-        const displayName = track.artist_name || track.artist_username || 'Unknown artist'
+        const displayName = artistNameByUserId[String(track.user_id)] || track.artist_name || track.artist_username || 'Unknown artist'
         const handle =
           artistSlugByUserId[String(track.user_id)] || track.artist_username || null
         return {
@@ -157,7 +167,7 @@ export async function GET(request: NextRequest) {
 
 async function fallbackFromArtistMusic(
   supabase: any,
-  opts: { limit: number; genre: string | null; sortBy: string; userId: string | null }
+  opts: { limit: number; genre: string | null; sortBy: string; userId: string | null; q?: string }
 ) {
   let query = supabase
     .from('artist_music')
@@ -169,6 +179,7 @@ async function fallbackFromArtistMusic(
 
   if (opts.userId) query = query.eq('user_id', opts.userId)
   if (opts.genre && opts.genre !== 'all') query = query.eq('genre', opts.genre)
+  if (opts.q) query = query.ilike('title', `%${opts.q}%`)
 
   query = query.order('created_at', { ascending: false }).limit(Math.min(opts.limit * 2, 100))
 
@@ -184,6 +195,7 @@ async function fallbackFromArtistMusic(
   const userIds = Array.from(new Set((rawTracks || []).map((t: any) => t.user_id)))
   const trackIds = Array.from(new Set((rawTracks || []).map((t: any) => t.id).filter(Boolean)))
   let profileMap: Record<string, { full_name: string | null; avatar_url: string | null; username: string | null }> = {}
+  let artistNameByUserId: Record<string, string> = {}
   let artistSlugByUserId: Record<string, string> = {}
   let listingIdByTrackId: Record<string, string> = {}
   if (userIds.length > 0) {
@@ -211,6 +223,13 @@ async function fallbackFromArtistMusic(
       }),
       {}
     )
+    artistNameByUserId = (artists || []).reduce(
+      (acc: Record<string, string>, a: any) => ({
+        ...acc,
+        [a.user_id]: a.artist_name || null,
+      }),
+      {}
+    )
   }
   if (trackIds.length > 0) {
     const { data: listings } = await supabase
@@ -230,7 +249,7 @@ async function fallbackFromArtistMusic(
 
   let content = (rawTracks || []).map((track: any) => {
     const profile = profileMap[track.user_id]
-    const artistName = profile?.full_name || 'Artist'
+    const artistName = artistNameByUserId[track.user_id] || 'Artist'
     const artistHandle = artistSlugByUserId[track.user_id] || profile?.username || null
     const stats = track.stats || {}
     const likes = Number(stats.likes || 0)

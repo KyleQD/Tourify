@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ caseId: string }> }) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireArtistMusicUser(request)
   if (!authResult.success) return authResult.response
   const { user, supabase } = authResult.auth
   const { caseId } = await context.params

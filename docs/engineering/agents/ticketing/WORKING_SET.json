@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "agent": "ticketing",
+  "description": "Own tickets, allocations, transfers, wallet, guest list, door operations, and settlement interfaces.",
+  "paths": [
+    "app/tickets/**",
+    "app/api/ticketing/**",
+    "components/ticketing/**",
+    "components/ticket-type/**",
+    "lib/ticketing/**",
+    "__tests__/ticketing/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

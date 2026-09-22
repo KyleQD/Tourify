@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823073000_workforce_permission_granularity.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "workforce"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Read-only affected-relation and per-organization row counts must be captured before execution"
+    ],
+    "expectedAffectedRows": "Not yet measured; execution remains blocked until preflight evidence is attached",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823073000",
+    "idempotency": "Must be proven by interrupted replay in an isolated environment before promotion"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Review locks and use expand/validate sequencing for existing relations"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "REL102-WORKFORCE-RBAC-WIRING",
+      "type": "scoped-insert-select",
+      "owner": "database-engineering",
+      "rationale": "Role-permission edges are limited by explicit desired-role arrays and protected by the canonical unique conflict target.",
+      "issue": "REL-102",
+      "expiresOn": "2027-03-01",
+      "evidence": "static-review:REL102-WORKFORCE-RBAC-WIRING",
+      "sourceSha256": "a43725486e052e24eaf023f4c78ba3d91940c3421e4e818a1d6f42801083c0db"
+    }
+  ]
+}

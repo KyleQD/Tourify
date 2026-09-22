@@ -1,8 +1,14 @@
 "use client"
 
 import { motion } from "framer-motion"
+import { Suspense } from "react"
 import { EventsProvider } from "@/context/venue/events-context"
 import { EnhancedDiscoverEvents } from "@/components/events/enhanced-discover-events"
+import { DiscoveryExplorer } from "@/components/events/discovery/discovery-explorer"
+
+const DISCOVERY_V2 =
+  process.env.NEXT_PUBLIC_EVENT_DISCOVERY_V2 === "true" ||
+  process.env.NEXT_PUBLIC_EVENT_DISCOVERY_V2 === "1"
 
 export default function EventsPage() {
   return (
@@ -42,7 +48,13 @@ export default function EventsPage() {
 
         <div className="relative z-10">
           <div className="max-w-7xl mx-auto px-6 py-8">
-            <EnhancedDiscoverEvents />
+            {DISCOVERY_V2 ? (
+              <Suspense fallback={<p className="py-6 text-center text-sm text-slate-400">Loading events…</p>}>
+                <DiscoveryExplorer />
+              </Suspense>
+            ) : (
+              <EnhancedDiscoverEvents />
+            )}
           </div>
         </div>
       </div>

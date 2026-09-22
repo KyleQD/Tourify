@@ -89,7 +89,9 @@ export default function MarketplacePurchasesPage() {
               <article key={order.id} className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium">Order {order.id.slice(0, 8)}</div>
+                    <Link href={`/marketplace/order/${order.id}`} className="text-sm font-medium hover:underline">
+                      Order {order.id.slice(0, 8)}
+                    </Link>
                     <div className="mt-1 text-xs text-slate-400">{new Date(order.created_at).toLocaleString()}</div>
                   </div>
                   <div className="flex items-center gap-2">

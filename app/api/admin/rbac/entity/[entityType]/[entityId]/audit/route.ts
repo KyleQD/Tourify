@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability('org.roles.manage', async (request: NextRequest, { supabase, user }) => {
   try {
     const { pathname, searchParams } = new URL(request.url)
     const parts = pathname.split('/')
@@ -39,5 +39,4 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     return NextResponse.json({ error: err?.message || 'Failed to load audit' }, { status: 500 })
   }
 })
-
 

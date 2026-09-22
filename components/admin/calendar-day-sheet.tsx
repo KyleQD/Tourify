@@ -66,6 +66,7 @@ const KIND_CHIP: Record<AdminCalendarKind, string> = {
   shift: 'bg-neon-cyan/10 text-neon-cyan',
   production: 'bg-neon-green/15 text-neon-green',
   hiring: 'bg-neon-pink/15 text-neon-pink',
+  travel: 'bg-sky-500/15 text-sky-300',
 }
 
 const CREATE_OPTIONS: Array<{
@@ -408,6 +409,17 @@ export function CalendarDaySheet({
     || Boolean(scopeMode === 'event' && scopeId)
     || Boolean(scopeMode === 'tour' && scopeId)
     || eventOptions.length > 0
+  // CAL-103 — shifts require event + assignee (no placeholder rows)
+  const shiftEventId = createKind === 'shift'
+    ? (scopeMode === 'event'
+      ? scopeId
+      : eventId && eventId !== TOUR_LEVEL_VALUE
+        ? eventId
+        : undefined)
+    : undefined
+  const canSubmitShift = createKind !== 'shift'
+    || Boolean(shiftEventId && assigneeId)
+  const canSubmitInline = canSubmitTask && canSubmitShift
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -679,7 +691,7 @@ export function CalendarDaySheet({
             {isInlineCreate ? (
               <Button
                 className="flex-1 bg-neon-purple text-primary-foreground hover:bg-neon-purple/85 shadow-[0_0_20px_-6px_var(--color-neon-purple)]"
-                disabled={isSubmitting || !canSubmitTask}
+                disabled={isSubmitting || !canSubmitInline}
                 onClick={() => void createInlineItem()}
               >
                 <Plus className="size-3.5" />

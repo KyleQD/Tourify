@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-FRESH-MIGRATION-ATTENDANCE-SHAPE-FAIL",
+  "kind": "migration_apply",
+  "result": "fail",
+  "environment": "local",
+  "capturedAt": "2026-09-08T01:33:29-07:00",
+  "capturedBy": "User-provided pinned Supabase CLI transcript",
+  "commitSha": null,
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-FRESH-MIGRATION-ATTENDANCE-SHAPE-FAIL.md",
+  "sha256": "9e0d5a13fda2648f1dbe8ceee42136af44933c254c5db72622bc97b4aa652be4",
+  "findingIds": ["ADM-M-010", "AOA-003"],
+  "workflowIds": ["ADM-WF-019"],
+  "specTaskIds": ["REL-101", "REL-102"],
+  "launchGateIds": [],
+  "notes": "The chain passed the ticketing foundation and failed because the dependent migration assumed event_attendance.event_table. An additive compatibility migration has been added before the dependent migration."
+}

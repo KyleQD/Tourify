@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 const threadIdSchema = z.string().uuid({ message: 'Invalid thread id' })
 const messageBodySchema = z.object({
@@ -56,7 +56,8 @@ function extractMentionUsernames(content: string): string[] {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const rawThreadId = getThreadIdFromPath(request)
@@ -98,8 +99,35 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
     if (error) return NextResponse.json({ error: 'Failed to load messages' }, { status: 500 })
 
-    const messages = (data || []).slice().reverse()
+    const rawMessages = (data || []).slice().reverse()
     const nextCursor = data && data.length === limit ? data[data.length - 1].created_at : null
+
+    // Fetch and aggregate reactions for all messages in one query
+    const messageIds = rawMessages.map((m: { id: string }) => m.id)
+    const reactionsMap: Record<string, { emoji: string; count: number; user_ids: string[] }[]> = {}
+
+    if (messageIds.length > 0) {
+      const { data: rawReactions } = await supabase
+        .from('group_message_reactions')
+        .select('message_id, emoji, user_id')
+        .in('message_id', messageIds)
+
+      for (const r of rawReactions ?? []) {
+        if (!reactionsMap[r.message_id]) reactionsMap[r.message_id] = []
+        const existing = reactionsMap[r.message_id].find((x) => x.emoji === r.emoji)
+        if (existing) {
+          existing.count++
+          existing.user_ids.push(r.user_id)
+        } else {
+          reactionsMap[r.message_id].push({ emoji: r.emoji, count: 1, user_ids: [r.user_id] })
+        }
+      }
+    }
+
+    const messages = rawMessages.map((m: { id: string }) => ({
+      ...m,
+      reactions: reactionsMap[m.id] ?? [],
+    }))
 
     return NextResponse.json({ messages, nextCursor })
   } catch (error) {
@@ -110,7 +138,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const rawThreadId = getThreadIdFromPath(request)

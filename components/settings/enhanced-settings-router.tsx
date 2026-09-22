@@ -45,6 +45,8 @@ import { PortfolioSettings } from "./portfolio-settings"
 import { ExperienceSettings } from "./experience-settings"
 import { CertificationsSettings } from "./certifications-settings"
 import { AboutSettings } from "./about-settings"
+import { NotificationSettings } from "@/components/notifications/notification-settings"
+import { ProfileColorsSettings } from "./profile-colors-settings"
 import { ResetEducationButton } from "@/components/product-education/reset-education-button"
 import { isOrganizationType } from "@/lib/accounts/account-types"
 import Link from "next/link"
@@ -58,13 +60,35 @@ interface AccountInfo {
   settings?: any
 }
 
+const SETTINGS_TABS = [
+  'profile',
+  'about',
+  'skills',
+  'portfolio',
+  'experience',
+  'certs',
+  'appearance',
+  'notifications',
+  'profile-colors',
+  'legal',
+] as const
+
+type SettingsTab = (typeof SETTINGS_TABS)[number]
+
+function getSettingsTab(value: string | null) : SettingsTab {
+  return SETTINGS_TABS.includes(value as SettingsTab) ? (value as SettingsTab) : 'profile'
+}
+
 export function EnhancedSettingsRouter() {
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
   const router = useRouter()
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("profile")
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === "undefined") return "profile"
+    return getSettingsTab(new URLSearchParams(window.location.search).get("tab"))
+  })
   const [saving, setSaving] = useState(false)
   
   // Use the appearance settings hook
@@ -177,6 +201,12 @@ export function EnhancedSettingsRouter() {
     { id: 'sunset', name: 'Sunset', gradient: 'from-rose-900 to-slate-900', colors: { primary: '#f43f5e', secondary: '#e11d48', accent: '#fb7185' } }
   ]
 
+  const handleTabChange = (tab: string) => {
+    const nextTab = getSettingsTab(tab)
+    setActiveTab(nextTab)
+    router.replace(nextTab === "profile" ? "/settings" : `/settings?tab=${nextTab}`, { scroll: false })
+  }
+
   if (loading) {
     return (
       <SettingsThemeShell themeId={appearanceSettings.dashboardTheme}>
@@ -253,16 +283,16 @@ export function EnhancedSettingsRouter() {
       </Card>
 
       {/* Settings Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="bg-white/10 backdrop-blur border border-white/20 p-1 rounded-2xl">
-          <TabsTrigger 
+          <TabsTrigger
             value="profile" 
             className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
           >
             <User className="h-4 w-4 mr-2" />
             Profile
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="about" 
             className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
           >
@@ -297,14 +327,28 @@ export function EnhancedSettingsRouter() {
             <Settings className="h-4 w-4 mr-2" />
             Certifications
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="appearance" 
             className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
           >
             <Palette className="h-4 w-4 mr-2" />
             Appearance
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
+            value="notifications"
+            className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Notifications
+          </TabsTrigger>
+          <TabsTrigger
+            value="profile-colors"
+            className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
+          >
+            <Palette className="h-4 w-4 mr-2" />
+            Profile Colors
+          </TabsTrigger>
+          <TabsTrigger
             value="legal" 
             className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
           >
@@ -368,6 +412,14 @@ export function EnhancedSettingsRouter() {
           <CertificationsSettings />
         </TabsContent>
 
+        <TabsContent value="notifications" className="space-y-6">
+          <NotificationSettings />
+        </TabsContent>
+
+        <TabsContent value="profile-colors" className="space-y-6">
+          <ProfileColorsSettings />
+        </TabsContent>
+
         <TabsContent value="appearance" className="space-y-6">
           <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
             <CardHeader>
@@ -401,7 +453,7 @@ export function EnhancedSettingsRouter() {
                       </p>
                     </div>
                     <Button 
-                      onClick={() => router.push('/settings/profile-colors')}
+                      onClick={() => handleTabChange('profile-colors')}
                       className="dashboard-theme-cta text-white rounded-xl px-6 py-2 transition-all duration-200 shadow-lg"
                     >
                       <Palette className="h-4 w-4 mr-2" />
@@ -517,33 +569,11 @@ export function EnhancedSettingsRouter() {
                 {/* Profile Images */}
                 <div className="space-y-6">
                   <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-white font-semibold text-xl">Profile Images</h3>
-                        <p className="text-white/70 text-sm">
-                          Upload your profile picture and header photo
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const response = await fetch('/api/setup-storage', { method: 'POST' })
-                            const result = await response.json()
-                            if (result.success) {
-                              toast.success('Storage setup completed!')
-                            } else {
-                              toast.error(`Setup failed: ${result.error}`)
-                            }
-                          } catch (error) {
-                            toast.error('Failed to setup storage')
-                          }
-                        }}
-                        className="border-white/30 text-white hover:bg-white/10 rounded-xl px-4 py-2 transition-all duration-200"
-                      >
-                        Setup Storage
-                      </Button>
+                    <div className="mb-6">
+                      <h3 className="text-white font-semibold text-xl">Profile Images</h3>
+                      <p className="text-white/70 text-sm">
+                        Upload your profile picture and header photo
+                      </p>
                     </div>
                     
                     <div className="space-y-6">
@@ -827,4 +857,4 @@ export function EnhancedSettingsRouter() {
       </div>
     </SettingsThemeShell>
   )
-} 
+}

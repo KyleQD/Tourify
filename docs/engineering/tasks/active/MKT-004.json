@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "id": "MKT-004",
+  "title": "Marketplace transaction launch readiness",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "marketplace",
+  "created_at": "2026-09-16T19:20:39.600Z",
+  "updated_at": "2026-09-22T15:56:34Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Complete and certify the marketplace buyer, seller, order, payout, cancellation, refund, and webhook lifecycle",
+  "scope": {
+    "in": [
+      "Listings, storefronts, carts, checkout, orders, seller onboarding, payouts, cancellation, refunds, webhooks, audit trails, and authorization"
+    ],
+    "out": [
+      "Advanced music rights and institutional commerce integrations"
+    ]
+  },
+  "working_set": [
+    "app/api/marketplace",
+    "lib/marketplace",
+    "__tests__/marketplace",
+    "e2e"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "The deployed staging listing-to-payout lifecycle passes in Stripe test mode",
+    "Buyer, seller, and tenant authorization denials pass at the server boundary",
+    "Money mutations and webhooks are idempotent, replay-safe, auditable, and produce safe error states",
+    "Deferred marketplace variants are gated and cannot bypass the canonical launch flow"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npx vitest run lib/marketplace/__tests__ __tests__/marketplace",
+      "npm run test:e2e",
+      "npm run verify:release",
+      "Marketplace Vitest: 15 files, 147 tests passed",
+      "Marketplace route Jest: 4 suites, 10 tests passed",
+      "npx vitest run lib/marketplace/__tests__ __tests__/marketplace: 16 files, 157 tests passed",
+      "Focused marketplace route Jest: 3 suites, 8 tests passed"
+    ],
+    "evidence": [
+      "Audit baseline: marketplace implementation and focused tests exist, but no deployed listing-to-payout journey certifies authorization, Stripe replay, refund, payout, or audit behavior.",
+      "Local implementation and focused tests only; no hosted staging claim",
+      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
+      "QA-004 product repair validation rerun (2026-09-22): Marketplace lifecycle Vitest: 15 files, 147 tests passed; local only. Hosted Stripe listing-to-payout and replay certification remains open."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-22T15:56:34Z",
+    "result": "fail"
+  },
+  "progress": {
+    "summary": "Focused shared-worktree verification passed: marketplace Vitest 16 files/157 tests and marketplace route Jest 3 suites/8 tests. Full typecheck was bounded and interrupted after no diagnostics; hosted Stripe lifecycle remains unverified.",
+    "completed": [
+      "Fail-closed checkout idempotency with payload conflict protection",
+      "Canonical per-account and per-variant launch gates",
+      "Refund, payout hold, cancellation, and seller authorization hardening"
+    ],
+    "next_steps": [
+      "Run deployed Stripe test-mode listing-to-payout lifecycle and replay certification",
+      "Reconcile canonical storefront with MKT-002 and hosted schema truth"
+    ],
+    "blockers": [
+      "Full repository typecheck did not complete within bounded window",
+      "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence"
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T04:41:34.835Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented marketplace checkout idempotency and launch gates, Stripe refund/payout safety, pending-order cancellation, seller refund request authorization, and audit transitions. Marketplace Vitest passed (15 files, 147 tests); route Jest passed (4 suites, 10 tests); hosted Stripe lifecycle remains unverified.",
+        "completed": [
+          "Fail-closed checkout idempotency with payload conflict protection",
+          "Canonical per-account and per-variant launch gates",
+          "Refund, payout hold, cancellation, and seller authorization hardening"
+        ],
+        "next_steps": [
+          "Run deployed Stripe test-mode listing-to-payout lifecycle and replay certification",
+          "Reconcile canonical storefront with MKT-002 and hosted schema truth"
+        ],
+        "blockers": [
+          "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence",
+          "Distributed database uniqueness and canonical refund replay semantics still require staging verification"
+        ]
+      },
+      {
+        "at": "2026-09-18T04:52:32.433Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Focused shared-worktree verification passed: marketplace Vitest 16 files/157 tests and marketplace route Jest 3 suites/8 tests. Full typecheck was bounded and interrupted after no diagnostics; hosted Stripe lifecycle remains unverified.",
+        "completed": [],
+        "next_steps": [
+          "Run deployed Stripe test-mode listing-to-payout lifecycle and replay certification",
+          "Reconcile canonical storefront with MKT-002 and hosted schema truth"
+        ],
+        "blockers": [
+          "Full repository typecheck did not complete within bounded window",
+          "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence"
+        ]
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Marketplace lifecycle Vitest: 15 files, 147 tests passed; local only. Hosted Stripe listing-to-payout and replay certification remains open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      }
+    ]
+  },
+  "handoffs": [
+    "Consume MKT-002, DB-008, and INTG-006 contracts; provide the deployed Stripe test-mode transaction certification to QA-003 and RELEASE-005."
+  ]
+}

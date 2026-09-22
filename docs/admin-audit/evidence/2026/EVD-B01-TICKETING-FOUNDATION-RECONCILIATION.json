@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-TICKETING-FOUNDATION-RECONCILIATION",
+  "kind": "schema_diff",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-09-07T23:05:00-07:00",
+  "capturedBy": "Codex implementation session",
+  "commitSha": null,
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-TICKETING-FOUNDATION-RECONCILIATION.md",
+  "sha256": "c621f2a51f2152ff47a9a0732076ad5aa46d84e314a4140bb5eab5e5f2f577d8",
+  "findingIds": ["ADM-M-010", "AOA-003"],
+  "workflowIds": ["ADM-WF-019"],
+  "specTaskIds": ["REL-101", "REL-102"],
+  "launchGateIds": [],
+  "notes": "The missing ticketing foundation is now represented by an additive active migration before the dependent unified guest-list migration. This is source-level reconciliation only; pinned fresh migration apply and staging schema review remain required."
+}

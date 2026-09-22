@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,7 +27,6 @@ import {
   Image, 
   Video, 
   MapPin, 
-  Hash, 
   Send,
   X,
   Globe,
@@ -37,7 +37,8 @@ import {
   Loader2,
   Calendar,
   Settings,
-  BarChart3
+  BarChart3,
+  Palette,
 } from 'lucide-react'
 import { MediaPreview } from '@/components/ui/media-preview'
 import { DragDropIndicator } from '@/components/ui/drag-drop-indicator'
@@ -48,11 +49,19 @@ import {
 import { useDragAndDrop } from '@/hooks/use-drag-and-drop'
 import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
-import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import type { AppearancePreviewColors } from '@/components/posts/appearance/appearance-editor'
+import type { PostAppearanceInput } from '@/lib/appearance/contracts'
 import { PollOptionEditor } from '@/components/polls/poll-option-editor'
 import type { PollDuration } from '@/lib/polls/poll-duration'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import {
   ARTIST_CARD,
   ARTIST_GHOST_CHIP,
@@ -63,6 +72,14 @@ import {
   ARTIST_TEXTAREA,
 } from '@/components/dashboard/artist-tokens'
 
+const AppearanceEditor = dynamic(
+  () => import('@/components/posts/appearance/appearance-editor').then((module) => module.AppearanceEditor),
+  {
+    ssr: false,
+    loading: () => <div className="py-12 text-center text-sm text-slate-400">Loading Style Studio…</div>,
+  },
+)
+
 interface CleanPostCreatorProps {
   onPostCreated?: (post: any) => void
   placeholder?: string
@@ -70,19 +87,11 @@ interface CleanPostCreatorProps {
   className?: string
   defaultVisibility?: 'public' | 'followers' | 'private'
   showAdvancedOptions?: boolean
-  enableTagging?: boolean
-  enableCollaborators?: boolean
   user?: {
     id: string
     username?: string
     avatar_url?: string
   }
-}
-
-interface TaggedPerson {
-  id: string
-  username: string
-  avatar_url?: string | null
 }
 
 interface PostData {
@@ -94,8 +103,6 @@ interface PostData {
   scheduledFor?: Date
   allowComments: boolean
   allowSharing: boolean
-  taggedUsers: TaggedPerson[]
-  collaborators: TaggedPerson[]
 }
 
 export function CleanPostCreator({
@@ -105,12 +112,10 @@ export function CleanPostCreator({
   className,
   defaultVisibility = 'public',
   showAdvancedOptions = true,
-  enableTagging = false,
-  enableCollaborators = false,
   user: propUser
 }: CleanPostCreatorProps) {
   const { user: authUser } = useAuth()
-  const { actingHeaders } = useActingContext()
+  const { actingAccount, actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const user = propUser || authUser
   const [postData, setPostData] = useState<PostData>({
     content: '',
@@ -120,27 +125,27 @@ export function CleanPostCreator({
     mediaItems: [],
     allowComments: true,
     allowSharing: true,
-    taggedUsers: [],
-    collaborators: [],
   })
   
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [hashtagInput, setHashtagInput] = useState('')
-  const [tagSearch, setTagSearch] = useState('')
-  const [collabSearch, setCollabSearch] = useState('')
-  const [tagResults, setTagResults] = useState<TaggedPerson[]>([])
-  const [collabResults, setCollabResults] = useState<TaggedPerson[]>([])
-  const [isSearchingTags, setIsSearchingTags] = useState(false)
-  const [isSearchingCollabs, setIsSearchingCollabs] = useState(false)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [scheduledTime, setScheduledTime] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
   const [showMediaUpload, setShowMediaUpload] = useState(false)
   const [isPollMode, setIsPollMode] = useState(false)
+  const [appearanceInput, setAppearanceInput] = useState<PostAppearanceInput | null>(null)
+  const [showStylePanel, setShowStylePanel] = useState(false)
+  const [previewColors, setPreviewColors] = useState<AppearancePreviewColors | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
   const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
+
+  useEffect(() => {
+    setAppearanceInput(null)
+    setPreviewColors(null)
+    setShowStylePanel(false)
+  }, [actingContextKey])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -237,103 +242,6 @@ export function CleanPostCreator({
     setPostData(prev => ({ ...prev, hashtags: allHashtags }))
   }, [postData.hashtags])
 
-  // Add hashtag
-  const addHashtag = useCallback((tag: string) => {
-    const cleanTag = tag.replace('#', '').trim().toLowerCase()
-    if (cleanTag && !postData.hashtags.includes(cleanTag)) {
-      setPostData(prev => ({
-        ...prev,
-        hashtags: [...prev.hashtags, cleanTag]
-      }))
-    }
-    setHashtagInput('')
-  }, [postData.hashtags])
-
-  // Remove hashtag
-  const removeHashtag = useCallback((tag: string) => {
-    setPostData(prev => ({
-      ...prev,
-      hashtags: prev.hashtags.filter(t => t !== tag)
-    }))
-  }, [])
-
-  // Handle hashtag input
-  const handleHashtagKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      addHashtag(hashtagInput)
-    }
-  }, [hashtagInput, addHashtag])
-
-  const searchPeople = useCallback(async (query: string): Promise<TaggedPerson[]> => {
-    const q = query.trim()
-    if (q.length < 2) return []
-
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url')
-        .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
-        .neq('id', user?.id || '')
-        .limit(8)
-
-      return (data || []).map((row: any) => ({
-        id: row.id,
-        username: row.full_name || row.username || 'User',
-        avatar_url: row.avatar_url || null,
-      }))
-    } catch {
-      return []
-    }
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!enableTagging) return
-    const handle = setTimeout(async () => {
-      if (tagSearch.trim().length < 2) {
-        setTagResults([])
-        return
-      }
-      setIsSearchingTags(true)
-      setTagResults(await searchPeople(tagSearch))
-      setIsSearchingTags(false)
-    }, 250)
-    return () => clearTimeout(handle)
-  }, [tagSearch, enableTagging, searchPeople])
-
-  useEffect(() => {
-    if (!enableCollaborators) return
-    const handle = setTimeout(async () => {
-      if (collabSearch.trim().length < 2) {
-        setCollabResults([])
-        return
-      }
-      setIsSearchingCollabs(true)
-      setCollabResults(await searchPeople(collabSearch))
-      setIsSearchingCollabs(false)
-    }, 250)
-    return () => clearTimeout(handle)
-  }, [collabSearch, enableCollaborators, searchPeople])
-
-  function addTaggedUser(person: TaggedPerson) {
-    setPostData((prev) => {
-      if (prev.taggedUsers.some((p) => p.id === person.id)) return prev
-      return { ...prev, taggedUsers: [...prev.taggedUsers, person] }
-    })
-    setTagSearch('')
-    setTagResults([])
-  }
-
-  function addCollaborator(person: TaggedPerson) {
-    setPostData((prev) => {
-      if (prev.collaborators.some((p) => p.id === person.id)) return prev
-      return { ...prev, collaborators: [...prev.collaborators, person] }
-    })
-    setCollabSearch('')
-    setCollabResults([])
-  }
-
   // Remove media item
   const removeMediaItem = useCallback((id: string) => {
     setPostData(prev => ({
@@ -406,6 +314,7 @@ export function CleanPostCreator({
       }
 
       const postPayload: Record<string, unknown> = {
+        appearance: appearanceInput ?? { mode: "standard" },
         content: postData.content.trim() || (postData.mediaItems.length > 0 ? 'Shared media' : ''),
         type: isPollMode ? 'poll' : (postData.mediaItems.length > 0 ? 'media' : 'text'),
         visibility: isPollMode
@@ -417,10 +326,6 @@ export function CleanPostCreator({
         scheduled_for: postData.scheduledFor?.toISOString(),
         allow_comments: postData.allowComments,
         allow_sharing: postData.allowSharing,
-        tagged_users: postData.taggedUsers.map((person) => person.id),
-        collaborators: postData.collaborators.map((person) => ({
-          userId: person.id,
-        })),
       }
 
       if (isPollMode) {
@@ -439,8 +344,15 @@ export function CleanPostCreator({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create post')
+        // Guard against non-JSON error responses (e.g. Next.js HTML 500 pages)
+        const contentType = response.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to create post (${response.status})`)
+        }
+        const rawText = await response.text()
+        console.error('[CleanPostCreator] Non-JSON error response:', response.status, rawText.slice(0, 300))
+        throw new Error(`Server error (${response.status}) — check console for details`)
       }
 
       const result = await response.json()
@@ -453,15 +365,13 @@ export function CleanPostCreator({
         mediaItems: [],
         allowComments: true,
         allowSharing: true,
-        taggedUsers: [],
-        collaborators: [],
       })
-      setHashtagInput('')
-      setTagSearch('')
-      setCollabSearch('')
       setIsExpanded(false)
       setShowMediaUpload(false)
       setIsPollMode(false)
+      setAppearanceInput(null)
+      setPreviewColors(null)
+      setShowStylePanel(false)
       setUploadProgress(0)
       setPollOptions(['', ''])
       setPollDuration('7d')
@@ -477,7 +387,7 @@ export function CleanPostCreator({
       setIsSubmitting(false)
       setUploadProgress(0)
     }
-  }, [user, postData, defaultVisibility, onPostCreated, actingHeaders, isPollMode, pollOptions, pollDuration])
+  }, [user, postData, defaultVisibility, onPostCreated, actingHeaders, isPollMode, pollOptions, pollDuration, appearanceInput])
 
 
 
@@ -497,48 +407,90 @@ export function CleanPostCreator({
         className
       )}>
         <CardContent className="p-5 sm:p-6">
-          <PostingAccountSelector className="mb-4 rounded-xl border-white/10 bg-black/25" />
-          {/* User header */}
-          <div className="flex items-start gap-4 mb-4">
-            <Avatar className="h-12 w-12 ring-2 ring-purple-500/25">
-              <AvatarImage src={user ? (user as any).avatar_url || (user as any).avatar : undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
-                {(user as any)?.username?.charAt(0).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1">
-              <div className="font-semibold text-white mb-0.5">
-                {(user as any)?.username || 'User'}
-              </div>
-              <div className="text-sm text-slate-400">
-                {postData.scheduledFor ? 'Scheduled post' : isPollMode ? 'Create a poll' : 'Create a post'}
-              </div>
-            </div>
-          </div>
-
-          {/* Main content area with drag and drop */}
-          <DragDropIndicator
-            isDragOver={isDragOver}
-            isDragValid={isDragValid}
-            errorMessage={errorMessage}
-            allowedTypes={['image', 'video']}
-            className="transition-all duration-300"
+          {/* Live style preview wrapper — colors animate when a style is selected */}
+          <div
+            data-composer-preview={previewColors ? previewColors.skinId : undefined}
+            style={previewColors ? {
+              backgroundColor: previewColors.bg,
+              color: previewColors.text,
+              borderColor: previewColors.border,
+              borderWidth: '2px',
+              borderStyle: 'solid',
+              borderRadius: '1rem',
+              padding: '16px',
+              marginBottom: '4px',
+              transition: 'background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease',
+            } : {
+              transition: 'background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease',
+            }}
           >
-            <div {...dragHandlers}>
-              <Textarea
-                ref={textareaRef}
-                placeholder={isPollMode ? 'Ask your followers a question...' : placeholder}
-                value={postData.content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                className={cn(
-                  ARTIST_TEXTAREA,
-                  isDragOver && 'border-purple-400/50 bg-purple-500/10'
-                )}
-                maxLength={maxCharacters}
-              />
+            {/* Style active label */}
+            {previewColors && (
+              <div
+                className="flex items-center gap-1.5 mb-3 text-xs font-medium opacity-75"
+                style={{ color: previewColors.accent }}
+              >
+                <Palette className="h-3 w-3" />
+                <span className="capitalize">{previewColors.skinId} style — live preview</span>
+              </div>
+            )}
+
+            {/* User header */}
+            <div className="flex items-start gap-4 mb-4">
+              <Avatar className="h-12 w-12 ring-2 ring-purple-500/25">
+                <AvatarImage src={user ? (user as any).avatar_url || (user as any).avatar : undefined} />
+                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
+                  {(user as any)?.username?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="flex-1">
+                <div
+                  className="font-semibold mb-0.5"
+                  style={previewColors ? { color: previewColors.text } : undefined}
+                >
+                  {(user as any)?.username || 'User'}
+                </div>
+                <div
+                  className="text-sm"
+                  style={previewColors ? { color: previewColors.text, opacity: 0.6 } : { color: undefined }}
+                >
+                  {postData.scheduledFor ? 'Scheduled post' : isPollMode ? 'Create a poll' : 'Create a post'}
+                </div>
+              </div>
             </div>
-          </DragDropIndicator>
+
+            {/* Main content area with drag and drop */}
+            <DragDropIndicator
+              isDragOver={isDragOver}
+              isDragValid={isDragValid}
+              errorMessage={errorMessage}
+              allowedTypes={['image', 'video']}
+              className="transition-all duration-300"
+            >
+              <div {...dragHandlers}>
+                <Textarea
+                  ref={textareaRef}
+                  placeholder={isPollMode ? 'Ask your followers a question...' : placeholder}
+                  value={postData.content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  className={cn(
+                    // Strip bg-black/40 when a style preview is active — inline style backgroundColor wins
+                    previewColors
+                      ? ARTIST_TEXTAREA.replace('bg-black/40', 'bg-transparent')
+                      : ARTIST_TEXTAREA,
+                    isDragOver && 'border-purple-400/50 bg-purple-500/10'
+                  )}
+                  style={previewColors ? {
+                    backgroundColor: 'transparent',
+                    color: previewColors.text,
+                    borderColor: previewColors.border,
+                  } : undefined}
+                  maxLength={maxCharacters}
+                />
+              </div>
+            </DragDropIndicator>
+          </div>
 
           {isPollMode && (
             <PollOptionEditor
@@ -632,171 +584,6 @@ export function CleanPostCreator({
             </div>
           )}
 
-          {/* Hashtags */}
-          {postData.hashtags.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4"
-            >
-              <div className="flex flex-wrap gap-2">
-                {postData.hashtags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="secondary"
-                    className="rounded-full border border-purple-400/25 bg-purple-500/15 text-purple-200 hover:bg-purple-500/25"
-                  >
-                    #{tag}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeHashtag(tag)}
-                      className="h-auto p-0 ml-1 text-purple-300 hover:text-white"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Hashtag input */}
-          <div className="mt-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-purple-300">
-                <Hash className="h-4 w-4" />
-              </div>
-              <Input
-                placeholder="Add hashtags..."
-                value={hashtagInput}
-                onChange={(e) => setHashtagInput(e.target.value)}
-                onKeyDown={handleHashtagKeyPress}
-                className={cn(ARTIST_INPUT, 'flex-1')}
-              />
-              <Button
-                size="sm"
-                onClick={() => addHashtag(hashtagInput)}
-                disabled={!hashtagInput.trim()}
-                className={cn(ARTIST_SECONDARY_BTN, 'h-10 px-4')}
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-
-          {(enableTagging || enableCollaborators) && (
-            <div className="mt-4 space-y-4">
-              {enableTagging && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Tag people</p>
-                  {postData.taggedUsers.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {postData.taggedUsers.map((person) => (
-                        <Badge
-                          key={person.id}
-                          variant="secondary"
-                          className="rounded-full border border-blue-400/25 bg-blue-500/15 text-blue-200"
-                        >
-                          {person.username}
-                          <button
-                            type="button"
-                            className="ml-1"
-                            onClick={() => setPostData((prev) => ({
-                              ...prev,
-                              taggedUsers: prev.taggedUsers.filter((p) => p.id !== person.id),
-                            }))}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <Input
-                    placeholder="Search people to tag..."
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    className={ARTIST_INPUT}
-                  />
-                  {(isSearchingTags || tagResults.length > 0) && (
-                    <div className="rounded-xl border border-white/10 bg-black/40 p-2">
-                      {isSearchingTags ? (
-                        <p className="px-2 py-1 text-xs text-slate-400">Searching...</p>
-                      ) : (
-                        tagResults.map((person) => (
-                          <button
-                            key={person.id}
-                            type="button"
-                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-white/10"
-                            onClick={() => addTaggedUser(person)}
-                          >
-                            {person.username}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {enableCollaborators && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Invite collaborators (share through their network)
-                  </p>
-                  {postData.collaborators.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {postData.collaborators.map((person) => (
-                        <Badge
-                          key={person.id}
-                          variant="secondary"
-                          className="rounded-full border border-emerald-400/25 bg-emerald-500/15 text-emerald-200"
-                        >
-                          {person.username}
-                          <button
-                            type="button"
-                            className="ml-1"
-                            onClick={() => setPostData((prev) => ({
-                              ...prev,
-                              collaborators: prev.collaborators.filter((p) => p.id !== person.id),
-                            }))}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <Input
-                    placeholder="Search collaborators to invite..."
-                    value={collabSearch}
-                    onChange={(e) => setCollabSearch(e.target.value)}
-                    className={ARTIST_INPUT}
-                  />
-                  {(isSearchingCollabs || collabResults.length > 0) && (
-                    <div className="rounded-xl border border-white/10 bg-black/40 p-2">
-                      {isSearchingCollabs ? (
-                        <p className="px-2 py-1 text-xs text-slate-400">Searching...</p>
-                      ) : (
-                        collabResults.map((person) => (
-                          <button
-                            key={person.id}
-                            type="button"
-                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-white/10"
-                            onClick={() => addCollaborator(person)}
-                          >
-                            {person.username}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Error message */}
           {errorMessage && (
             <motion.div
@@ -861,6 +648,24 @@ export function CleanPostCreator({
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => setShowStylePanel((prev) => !prev)}
+                className={cn(
+                  ARTIST_GHOST_CHIP,
+                  'h-9 px-3',
+                  (showStylePanel || (appearanceInput && appearanceInput.mode !== 'standard')) &&
+                    'border-purple-400/40 bg-purple-500/15 text-purple-100 shadow-[0_0_16px_-8px_rgba(168,85,247,0.55)]'
+                )}
+              >
+                <Palette className="h-4 w-4 mr-1.5" />
+                Style
+                {appearanceInput && appearanceInput.mode === 'profile' && (
+                  <span className="ml-1 text-[10px] opacity-70">●</span>
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setIsPollMode((prev) => !prev)
                   if (!isPollMode && postData.visibility === 'public')
@@ -916,6 +721,7 @@ export function CleanPostCreator({
                     data-submit-post
                     disabled={
                       isSubmitting
+                      || !isActingReady
                       || isOverLimit
                       || (!postData.content.trim() && postData.mediaItems.length === 0)
                       || (isPollMode && pollOptions.filter((option) => option.trim()).length < 2)
@@ -926,6 +732,11 @@ export function CleanPostCreator({
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         {isUploadingMedia ? 'Uploading...' : isPollMode ? 'Creating...' : (postData.scheduledFor ? 'Scheduling...' : 'Posting...')}
+                      </>
+                    ) : !isActingReady ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
                       </>
                     ) : (
                       <>
@@ -1006,6 +817,43 @@ export function CleanPostCreator({
           />
         </CardContent>
       </Card>
+
+      <Sheet open={showStylePanel} onOpenChange={setShowStylePanel}>
+        <SheetContent
+          side="right"
+          className="h-dvh w-screen max-w-none overflow-y-auto border-white/10 bg-slate-950 p-4 text-white sm:w-[92vw] sm:max-w-6xl sm:p-6"
+        >
+          <SheetHeader className="mb-6 pr-10">
+            <SheetTitle className="text-white">Post Style Studio</SheetTitle>
+            <SheetDescription className="text-slate-400">
+              Choose a template, tune its post-safe controls, and preview the exact published card.
+            </SheetDescription>
+          </SheetHeader>
+          <AppearanceEditor
+            value={appearanceInput}
+            onChange={setAppearanceInput}
+            onClose={() => setShowStylePanel(false)}
+            onPreviewChange={setPreviewColors}
+            preview={{
+              authorName:
+                actingAccount?.profile_data?.display_name ||
+                actingAccount?.profile_data?.artist_name ||
+                actingAccount?.profile_data?.venue_name ||
+                actingAccount?.profile_data?.organization_name ||
+                (user as any)?.username ||
+                'Your account',
+              handle:
+                actingAccount?.profile_data?.url_slug ||
+                actingAccount?.profile_data?.username ||
+                (user as any)?.username ||
+                'tourify',
+              content: postData.content,
+              mediaCount: postData.mediaItems.length,
+              pollOptions: isPollMode ? pollOptions : undefined,
+            }}
+          />
+        </SheetContent>
+      </Sheet>
 
       {showScheduleDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

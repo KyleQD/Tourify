@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-006",
+  "title": "Mobile persona simulation and staging preview gate",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "qa",
+  "created_at": "2026-09-22T15:20:20.365Z",
+  "updated_at": "2026-09-22T16:20:35Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (79 entries)",
+  "goal": "Exercise every shipped iOS and Android journey against a matching isolated staging release and retain cross-actor evidence",
+  "scope": {
+    "in": [
+      "Build a fail-closed mobile preview simulation gate for shipped iOS and Android journeys.",
+      "Record preview build IDs, staging API target and release SHA, actor references, and per-platform evidence."
+    ],
+    "out": [
+      "Production mobile release or store submission.",
+      "Marking a route as shipped based solely on source files."
+    ]
+  },
+  "working_set": [
+    "apps/mobile/",
+    "docs/audits/flow-notes/agent-user-simulation-coverage.csv"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/QA-004.json",
+    "docs/mobile-architecture-decision-memo.md",
+    "docs/engineering/agent-user-simulation-runbook.md"
+  ],
+  "acceptance_criteria": [
+    "iOS and Android preview builds refuse non-isolated or mismatched staging targets.",
+    "Every shipped mobile action and web/API handoff has an actor-level result and retained evidence.",
+    "Both platforms cover authorization, empty/error/retry, accessibility, and persistence scenarios where applicable.",
+    "No mobile result is claimed from local contract validation alone."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "Mobile focused tests and typecheck",
+      "Preview build and actor run against recorded staging SHA",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Local: npm run simulation:test in apps/mobile passed (7 tests).",
+      "No EAS build, device run, or hosted backend request was made.",
+      "2026-09-22 local release/QA gate wave: 13 deployment/topology/evidence/workflow Node tests, 7 actor-provisioner tests, 7 mobile gate tests, launch fixture contract, public-surface check, focused ESLint, and workflow YAML parse passed. Hosted deployment, certification, and simulation were not run.",
+      "2026-09-22 dependency check: QA-005 operator packet prepared; all campaign variables absent and no hosted actors provisioned. No mobile journey credit.",
+      "2026-09-22 thin pilot preflight: npm run simulation:test in apps/mobile passed (7 tests); no preview build, device observation, or mobile pass was claimed.",
+      "2026-09-22 QA actor operator pass: docs/audits/flow-notes/qa005-actor-provisioning-packet-2026-09-22.md records all 11 absent QA_CAMPAIGN inputs, twelve manifest actor keys, exact hosted gate dependencies, and first web pilot order. Read-only GET health checks returned 200 but no release/deployment/database/Stripe identity headers; both CSPs advertised the same Supabase origin. No hosted Auth, database, payment, device, or UI action.",
+      "2026-09-22 final QA check: npm --prefix apps/mobile run simulation:test passed 7/7; mobile typecheck passed. No EAS preview build, device observation, or mobile coverage pass."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T16:20:35Z",
+    "result": "local-contract-pass; preview-not-run"
+  },
+  "progress": {
+    "summary": "Mobile preview gate remains blocked; the QA-005 actor packet is ready but no actor or device evidence exists.",
+    "completed": [
+      "Cataloged 16 candidate native journeys and actor mapping.",
+      "Added exact-SHA preview, isolation, test-payment, actor, scope-decision, observation, cross-actor, and no-bypass gate.",
+      "Seven gate tests pass; unavailable shipped journeys remain blockers.",
+      "Seven focused gate tests pass, including shared-deployment-ID refusal."
+    ],
+    "next_steps": [
+      "After staging/DB proof and actor bootstrap, obtain matching-SHA iOS and Android previews and device observations before mobile pass claims.",
+      "After isolated staging and exact SHA are established, record iOS and Android preview build IDs, targets, actor manifests, and device observations before mobile coverage or the full matrix.",
+      "Record iOS and Android preview build IDs and device observations against an isolated staging release, then rerun the gate.",
+      "Produce iOS/Android preview builds against isolated staging and classify every candidate with owner-approved scope evidence.",
+      "Run shipped journeys on devices and submit retained observation files to the gate."
+    ],
+    "blockers": [
+      "Isolated staging, preview builds, and protected synthetic actor credentials are not yet available."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:30:36Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Mobile journey catalog and fail-closed evidence gate implemented locally; no iOS/Android preview run or hosted pass is claimed.",
+        "completed": [
+          "Cataloged 16 candidate native journeys and actor mapping.",
+          "Added exact-SHA preview, isolation, test-payment, actor, scope-decision, observation, cross-actor, and no-bypass gate.",
+          "Seven gate tests pass; unavailable shipped journeys remain blockers."
+        ],
+        "next": "Produce iOS/Android preview builds against isolated staging and classify every candidate with owner-approved scope evidence."
+      },
+      {
+        "at": "2026-09-22T16:00:00Z",
+        "sha": null,
+        "summary": "Mobile evidence gate now requires distinct Vercel-generated staging and production deployment IDs as well as separate HTTPS API/Supabase origins and matching preview SHAs. No device evidence exists.",
+        "completed": [
+          "Seven focused gate tests pass, including shared-deployment-ID refusal."
+        ],
+        "next": "Record iOS and Android preview build IDs and device observations against an isolated staging release, then rerun the gate."
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Mobile preview evidence remains blocked because isolated staging and an exact deployed SHA/deployment identity do not exist for the current demo alias.",
+        "completed": [
+          "Confirmed no preview build, device run, or mobile result was credited during release inspection."
+        ],
+        "next_steps": [
+          "Build and run iOS/Android previews only against the independently verified staging deployment and retain matching-SHA device observations."
+        ],
+        "blockers": [
+          "Current demo alias shares production deployment; preview build IDs and protected actors remain unavailable."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:00Z",
+        "sha": null,
+        "summary": "Web-first thin pilot prepared; no preview build or device observation exists and no mobile row is credited.",
+        "completed": [
+          "Prepared docs/engineering/qa004-thin-pilot.md and linked the 2026-09-22 gate observation in the campaign ledger; no hosted mutation or pass credit."
+        ],
+        "next": "After isolated staging and exact SHA are established, record iOS and Android preview build IDs, targets, actor manifests, and device observations before mobile coverage or the full matrix."
+      },
+      {
+        "at": "2026-09-22T16:15:24Z",
+        "sha": null,
+        "summary": "Recorded QA-005 actor dependency. iOS/Android previews and device observations still require isolated staging and protected campaign actors.",
+        "completed": [
+          "2026-09-22 dependency check: QA-005 operator packet prepared; all campaign variables absent and no hosted actors provisioned. No mobile journey credit."
+        ],
+        "next": "After staging/DB proof and actor bootstrap, obtain matching-SHA iOS and Android previews and device observations before mobile pass claims."
+      },
+      {
+        "at": "2026-09-22T16:19:23Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty shared tree)",
+        "summary": "Mobile preview and device observations are absent; exact-SHA iOS/Android evidence packet prepared, with no mobile pass claimed.",
+        "completed": [
+          "Prepared non-secret operator packet and checked current readiness without hosted mutation."
+        ],
+        "next_steps": [
+          "After matching-SHA iOS/Android preview builds exist, classify all 32 platform journeys from visible builds and collect device/receiving-actor observations before running the gate."
+        ],
+        "blockers": [
+          "No verified staging target, preview build IDs, campaign actors, or device observations."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+  ]
+}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { AlertCircle, Loader2, RefreshCcw, UserCheck } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -100,7 +101,7 @@ export function OnboardingKanban({ employer, initialCandidates = [], initialCand
 
   useEffect(() => {
     void fetchCandidates()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [employer.entityType, employer.entityId, employer.scope?.eventId, employer.scope?.tourId, employer.scope?.venueId])
 
   // Refresh when the admin returns to this tab so newly submitted onboarding appears without a full reload.
@@ -111,7 +112,7 @@ export function OnboardingKanban({ employer, initialCandidates = [], initialCand
 
     document.addEventListener("visibilitychange", handleVisibilityChange)
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [employer.entityType, employer.entityId])
 
   const filteredCandidates = useMemo(() => filterCandidates({ candidates, filters }), [candidates, filters])
@@ -206,6 +207,13 @@ export function OnboardingKanban({ employer, initialCandidates = [], initialCand
           icon={UserCheck}
           title="No onboarding candidates yet"
           description="Candidates appear here after an application is approved or a direct invite is created."
+          action={
+            <Button asChild size="sm" className="rounded-xl">
+              <Link href={`/admin/dashboard/hiring?tab=applications&${buildCandidateQuery(employer)}`}>
+                Review applications
+              </Link>
+            </Button>
+          }
         />
       ) : (
         <div className="grid gap-4 overflow-x-auto pb-2 lg:grid-cols-7">

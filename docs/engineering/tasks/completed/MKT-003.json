@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "id": "MKT-003",
+  "title": "Marketplace side of music commerce split",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "marketplace",
+  "created_at": "2026-09-09T09:35:15.947Z",
+  "updated_at": "2026-09-10T19:58:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Implement marketplace ownership of music orders/checkout/transfers/portfolios per CP-013",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "lib/marketplace/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/marketplace/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Marketplace owns music commerce routes with verified auth"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run lib/marketplace/__tests__/music-commerce-boundary.test.ts",
+      "npx vitest run lib/marketplace/__tests__",
+      "npx eslint lib/marketplace/music-commerce-boundary.ts lib/marketplace/music-commerce-auth.ts lib/marketplace/__tests__/music-commerce-boundary.test.ts",
+      "npm run agents:validate",
+      "npx tsc --noEmit --pretty false --incremental false"
+    ],
+    "evidence": [
+      "Marketplace music commerce boundary suite: 1 file, 8 tests passed",
+      "All existing lib/marketplace unit suites: 12 files, 133 tests passed",
+      "Changed-file ESLint: clean",
+      "agents:validate: 0 errors, 1 pre-existing RELEASE-001 verification warning",
+      "Project TypeScript check attempted but pre-existing repository-wide heap OOMed before diagnostics"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T19:58:00.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Added requiresMarketplaceAccountAuth route-adoption predicate; focused boundary tests 7/7 and changed-file lint pass.",
+    "completed": [
+      "Added lib/marketplace/music-commerce-boundary.ts for checkout, orders, transfers, portfolios, and music-marketplace operations.",
+      "Added lib/marketplace/music-commerce-auth.ts backed by server-side acting-context identity and persona ownership checks.",
+      "Added focused ownership, route-resolution, guest-checkout exception, auth, and account-scope tests.",
+      "Added requiresMarketplaceAccountAuth route-adoption predicate with fail-closed coverage.",
+      "Added exact API adoption manifest mapping commerce prefixes to app/api handler files without editing those handlers.",
+      "Recorded work-packet and verification evidence."
+    ],
+    "next_steps": [
+      "Route adoption completed by MUSIC-005; preserve guest checkout optional auth in future changes."
+    ],
+    "blockers": [
+      "Route-handler adoption was completed by MUSIC-005 in the owning API lane.",
+      "Project-wide TypeScript verification is resource-blocked by heap OOM before diagnostics.",
+      "Marketplace schema reconciliation remains outside this task and is tracked by database work."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T12:24:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented Marketplace-side music commerce ownership and server-verified account auth adapter. Focused boundary suite (6/6), all lib/marketplace suites (133/133), changed-file ESLint, and agents:validate passed. Project tsc OOMed before diagnostics.",
+        "completed": [
+          "lib/marketplace/music-commerce-boundary.ts",
+          "lib/marketplace/music-commerce-auth.ts",
+          "lib/marketplace/__tests__/music-commerce-boundary.test.ts",
+          "docs/work-packets/MKT-003.md"
+        ],
+        "next": "Coordinate route-handler adoption with Music; keep MKT-003 active until required-auth financial handlers use the Marketplace gate."
+      },
+      {
+        "at": "2026-09-10T19:23:00.587Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented Marketplace music-commerce ownership and server-verified account auth; focused tests/lint pass and project tsc remains heap-OOM blocked.",
+        "completed": [],
+        "next_steps": [
+          "Coordinate route-handler adoption with Music/Artist lanes; keep MKT-003 active until required-auth financial handlers adopt the Marketplace gate."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T19:45:21.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added the Marketplace route-adoption predicate requiresMarketplaceAccountAuth. Focused boundary suite passed 7/7, changed-file ESLint passed, and agents:validate remains at 0 errors with the existing RELEASE-001 warning.",
+        "completed": [
+          "requiresMarketplaceAccountAuth route policy helper",
+          "Required/optional/unknown route regression coverage"
+        ],
+        "next": "Coordinate API handler adoption with Music/Artist lanes; preserve guest checkout's optional-auth contract."
+      },
+      {
+        "at": "2026-09-10T19:46:03.477Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added requiresMarketplaceAccountAuth route-adoption predicate; focused boundary tests 7/7 and changed-file lint pass.",
+        "completed": [],
+        "next_steps": [
+          "Coordinate API handler adoption with Music/Artist lanes; preserve guest checkout optional auth."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T19:58:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Finalized the Marketplace-to-API adoption note as a typed route manifest. It maps checkout, orders, transfers, portfolio, and the music-marketplace route tree to owning handler files and auth contracts. Focused suite passed 8/8 and changed-file ESLint passed.",
+        "completed": [
+          "MARKETPLACE_MUSIC_COMMERCE_ROUTE_ADOPTION_TARGETS",
+          "resolveMarketplaceMusicCommerceRouteAdoptionTarget",
+          "Exact route-file regression coverage"
+        ],
+        "next": "Adopt the Marketplace contract in the listed app/api handlers in a coordinated Music/Artist route batch; do not change migrations in this task."
+      }
+    ]
+  },
+  "handoffs": []
+}

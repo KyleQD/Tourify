@@ -21,6 +21,27 @@ export async function GET(request: NextRequest) {
       return hiringResultToResponse(result)
     }
 
+    if (view === "overview") {
+      const [overviewResult, activityResult] = await Promise.all([
+        HiringOnboardingService.getHiringOverview({
+          supabase,
+          actor: actorResult.data,
+        }),
+        HiringOnboardingService.listAuditEvents({
+          supabase,
+          actor: actorResult.data,
+          limit: 12,
+        }),
+      ])
+
+      if (!overviewResult.ok) return hiringResultToResponse(overviewResult)
+
+      return hiringResultToResponse(ok({
+        ...overviewResult.data,
+        recentActivity: activityResult.ok ? activityResult.data : [],
+      }))
+    }
+
     const [statsResult, activityResult] = await Promise.all([
       HiringOnboardingService.getDashboardStats({
         supabase,

@@ -1,0 +1,209 @@
+{
+  "schema_version": "1.0",
+  "id": "MUSIC-004",
+  "title": "Music worker deployment framework",
+  "status": "blocked",
+  "priority": "P2",
+  "owner_agent": "music",
+  "created_at": "2026-09-09T09:35:14.835Z",
+  "updated_at": "2026-09-16T19:24:55.885Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Build worker deployment/scheduling framework (retry/DLQ/health + registration) for the current 21 registered Music outbox/processing worker candidates",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "scripts/",
+    "app/api/cron/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/music/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Worker framework with retry/DLQ/health built; scheduling gated on reconciliation"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run lib/music/__tests__/worker-framework.test.ts",
+      "npx eslint lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
+      "git diff --check -- lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
+      "npm run agents:validate",
+      "npx tsc --noEmit --pretty false --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM lib/music/worker-framework.ts"
+    ],
+    "evidence": [
+      "Focused framework tests passed: 1 test file, 5 tests.",
+      "Changed-file lint and diff check passed.",
+      "The framework-only TypeScript validation passed with skipLibCheck and explicit ES2022/NodeNext settings.",
+      "Control-plane validation passed: 17 agents, 70 tasks, 0 warnings, 0 errors.",
+      "The repository-wide typecheck was intentionally not run; this bounded task used the narrowest feasible validation."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T18:03:09.000Z",
+    "result": "passed-focused; framework-typecheck-passed"
+  },
+  "progress": {
+    "summary": "Core-web launch scoping blocks production music-worker scheduling. The framework evidence is preserved, but advanced music workers remain disabled until the core release is stable and product/operations approve the launch subset.",
+    "completed": [
+      "Added mandatory idempotency, retry, DLQ, health, and unscheduled registration contracts for the current worker entrypoint inventory.",
+      "Added retry/DLQ classification and health snapshot helpers with no database or scheduler side effects.",
+      "Added focused framework tests covering hybrid registration, idempotency/DLQ requirements, retry terminal behavior, and degraded health.",
+      "Adopted the shared contract across the 11 existing creator outbox entrypoints through one runner implementation.",
+      "Reconciled inventory counts and classified the trust reconciler and smoke scripts outside the 21 worker registrations.",
+      "Codified the pending-approval cadence policy, five-attempt exponential retry baseline, and operator-reviewed no-auto-replay DLQ policy.",
+      "Reserved pg_cron maintenance for the future trust reconciliation path while keeping all current registrations on durable runtime and unscheduled.",
+      "Verified no migrations, Vercel schedules, pg_cron schedules, or production worker launches were added."
+    ],
+    "next_steps": [
+      "Resume only after RELEASE-005 records a stable core-web launch and operations approves worker inventory, cadence, stale-work windows, retry, DLQ, and monitoring."
+    ],
+    "blockers": [
+      "Core web production launch is not yet stable or certified.",
+      "Advanced music capabilities and their dependent schemas are outside the initial launch scope and must remain disabled."
+    ],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-11T00:13:31.000Z",
+        "summary": "Built the framework-first deployment contract and left scheduling disabled.",
+        "exact_changed_paths": [
+          "lib/music/worker-framework.ts",
+          "lib/music/__tests__/worker-framework.test.ts",
+          "docs/engineering/tasks/active/MUSIC-004.json"
+        ],
+        "verification": [
+          {
+            "command": "npx vitest run lib/music/__tests__/worker-framework.test.ts",
+            "result": "passed: 1 test file, 4 tests"
+          },
+          {
+            "command": "npx eslint lib/music/worker-framework.ts lib/music/__tests__/worker-framework.test.ts",
+            "result": "passed"
+          },
+          {
+            "command": "git diff --check -- lib/music/worker-framework.ts lib/music/__tests__/worker-framework.test.ts",
+            "result": "passed"
+          },
+          {
+            "command": "npx tsc --noEmit --pretty false",
+            "result": "not completed within the run window; no pass or failure claimed"
+          }
+        ],
+        "blockers": [
+          "Schema reconciliation and worker-count/cadence approval remain open, so production scheduling stays disabled."
+        ],
+        "next_steps": [
+          "Integrate the shared contract into the existing worker runners without changing their domain behavior.",
+          "Reconcile worker inventory and runtime policy before adding any scheduler registration."
+        ]
+      },
+      {
+        "timestamp": "2026-09-11T00:29:06.000Z",
+        "summary": "Adopted the hybrid worker contract in the creator outbox runner family without enabling scheduling.",
+        "exact_changed_paths": [
+          "lib/music/creator-outbox-runner.ts",
+          "scripts/music-creator-cooperative-outbox-worker.ts",
+          "scripts/music-creator-digital-commons-outbox-worker.ts",
+          "scripts/music-creator-federation-outbox-worker.ts",
+          "scripts/music-creator-interoperability-convention-outbox-worker.ts",
+          "scripts/music-creator-interoperability-institution-outbox-worker.ts",
+          "scripts/music-creator-interoperability-organization-outbox-worker.ts",
+          "scripts/music-creator-multilateral-treaty-operations-outbox-worker.ts",
+          "scripts/music-creator-protocol-constitution-outbox-worker.ts",
+          "scripts/music-creator-public-infrastructure-outbox-worker.ts",
+          "scripts/music-creator-treaty-system-legacy-outbox-worker.ts",
+          "scripts/music-creator-treaty-system-renewal-outbox-worker.ts",
+          "docs/engineering/tasks/active/MUSIC-004.json"
+        ],
+        "verification": [
+          {
+            "command": "npx vitest run lib/music/__tests__/worker-framework.test.ts",
+            "result": "passed: 1 test file, 4 tests"
+          },
+          {
+            "command": "npx eslint lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
+            "result": "passed"
+          },
+          {
+            "command": "git diff --check -- lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
+            "result": "passed"
+          },
+          {
+            "command": "npm run agents:validate",
+            "result": "passed: 17 agents, 69 tasks, 0 errors; pre-existing RELEASE-001 warning"
+          },
+          {
+            "command": "npx tsc --noEmit --pretty false",
+            "result": "not completed within the run window; no pass or failure claimed"
+          }
+        ],
+        "blockers": [
+          "Rights, royalty, trust, and certification schema reconciliation remains required before dependent workers can run.",
+          "The 16/21/24 worker-count discrepancy, launch subset, cadence, retry/DLQ limits, stale-work target, and production scheduling approval remain unresolved; no production scheduling was added."
+        ],
+        "next_steps": [
+          "Keep the creator runner family unscheduled until schema and worker-count reconciliation is approved.",
+          "Apply the same contract to another worker family only after the reconciliation follow-up defines its schema and launch scope."
+        ]
+      },
+      {
+        "timestamp": "2026-09-11T18:03:09.000Z",
+        "summary": "Reconciled the 24-script Music worker inventory and corrected registration queue mappings; completed the pending-approval cadence/DLQ policy contract without scheduling workers.",
+        "exact_changed_paths": [
+          "lib/music/worker-framework.ts",
+          "lib/music/__tests__/worker-framework.test.ts",
+          "docs/engineering/agents/music/STATE.md",
+          "docs/engineering/agents/music/BACKLOG.md",
+          "docs/engineering/tasks/active/MUSIC-004.json"
+        ],
+        "verification": [
+          {
+            "command": "npx vitest run lib/music/__tests__/worker-framework.test.ts",
+            "result": "passed: 1 test file, 5 tests"
+          },
+          {
+            "command": "npx eslint lib/music/worker-framework.ts lib/music/__tests__/worker-framework.test.ts lib/music/creator-outbox-runner.ts scripts/music-creator-*-outbox-worker.ts",
+            "result": "passed"
+          },
+          {
+            "command": "git diff --check -- lib/music/worker-framework.ts lib/music/__tests__/worker-framework.test.ts lib/music/creator-outbox-runner.ts scripts/music-creator-*-outbox-worker.ts docs/engineering/agents/music/STATE.md docs/engineering/agents/music/BACKLOG.md docs/engineering/tasks/active/MUSIC-004.json",
+            "result": "passed"
+          },
+          {
+            "command": "npx tsc --noEmit --pretty false --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM lib/music/worker-framework.ts",
+            "result": "passed: framework-only type validation"
+          },
+          {
+            "command": "npm run agents:validate",
+            "result": "passed: 17 agents, 70 tasks, 0 warnings, 0 errors"
+          }
+        ],
+        "blockers": [
+          "Rights, royalty, trust, and certification schema reconciliation remains required before dependent workers can run.",
+          "Product/operations approval is still required for the launch subset, cadence, stale-work windows, and adoption of local non-creator retry/quarantine variants."
+        ],
+        "next_steps": [
+          "Keep all 21 framework registrations unscheduled until schema reconciliation and launch-policy approval are recorded.",
+          "Adopt the shared runner contract in another worker family only after its schema and launch scope are approved."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.885Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Core-web launch scoping blocks production music-worker scheduling. The framework evidence is preserved, but advanced music workers remain disabled until the core release is stable and product/operations approve the launch subset.",
+        "completed": [],
+        "next_steps": [
+          "Resume only after RELEASE-005 records a stable core-web launch and operations approves worker inventory, cadence, stale-work windows, retry, DLQ, and monitoring."
+        ],
+        "blockers": [
+          "Core web production launch is not yet stable or certified.",
+          "Advanced music capabilities and their dependent schemas are outside the initial launch scope and must remain disabled."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

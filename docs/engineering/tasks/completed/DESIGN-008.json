@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-008",
+  "title": "Retire venue avatar primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:35.274Z",
+  "updated_at": "2026-09-11T19:46:10.760Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/avatar.tsx to components/ui/avatar.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/avatar.tsx",
+      "components/ui/avatar.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/avatar.tsx",
+    "components/ui/avatar.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "The venue avatar copy lacks data-slot attributes; compare and approve parity before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/avatar|@/components/venue/ui/avatar\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/avatar.tsx components/ui/avatar.tsx",
+      "git diff --check -- components/venue/ui/avatar.tsx components/ui/avatar.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Scoped exact-path and alias import audit across app/, components/, hooks/, lib/, apps/, __tests__/, and scripts/ found 0 references to components/venue/ui/avatar or @/components/venue/ui/avatar; no live consumer requires an in-scope import migration.",
+      "Canonical register evidence lists components/venue/ui/avatar.tsx as retire-later with components/ui/avatar.tsx as its target and 0 detected consumers.",
+      "Public/export parity confirmed: both modules export exactly Avatar, AvatarImage, and AvatarFallback, each backed by the same @radix-ui/react-avatar element and ComponentPropsWithoutRef/ref contract, class defaults, and displayName assignments.",
+      "Implementation comparison found one intentional parity difference: components/ui/avatar.tsx adds data-slot=avatar, data-slot=avatar-image, and data-slot=avatar-fallback; components/venue/ui/avatar.tsx has none. These are non-behavioral DOM metadata attributes and do not change the Radix behavior, styling defaults, or public component API. Future import migration is safe with this approved difference; exact DOM-selector or snapshot consumers would need to account for the added attributes.",
+      "Focused ESLint passed for components/venue/ui/avatar.tsx and components/ui/avatar.tsx.",
+      "git diff --check passed for the two avatar files and docs/engineering.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:10.760Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the bounded avatar audit. No live consumers resolve to the venue twin, and the canonical module has exact public/export and Radix prop/ref parity. Disposition recorded; venue twin retained.",
+    "completed": [
+      "Read the engineering index, design-system charter/state, DESIGN-008, and the canonical component register.",
+      "Audited exact, alias, and scoped source references and found zero live consumers of components/venue/ui/avatar.tsx.",
+      "Confirmed public/export parity with components/ui/avatar.tsx: Avatar, AvatarImage, and AvatarFallback expose the same Radix-derived contracts and defaults.",
+      "Compared the data-slot difference and approved it as non-behavioral canonical DOM metadata; the venue twin intentionally lacks data-slot attributes.",
+      "Ran focused import audit, ESLint, diff validation, and agents:validate successfully without changing venue behavior or source files."
+    ],
+    "next_steps": [
+      "Retain the venue twin until the separately governed registry/retirement action is approved; do not delete it in this task.",
+      "If a future consumer appears, migrate its import to components/ui/avatar.tsx and re-run the scoped audit and checks before retirement."
+    ],
+    "blockers": [
+      "There are no approved consumers to migrate in scope; retirement is deferred to the owner-governed register/deletion step, which is outside this audit-only change."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:31:14Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the avatar consumer and parity audit. Zero venue-twin consumers were found; public/export parity is exact, with only canonical data-slot metadata differing. Future migration is safe, while the twin remains retained because no consumer migration or deletion was authorized.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-008.json"
+        ],
+        "verification": [
+          "Scoped rg audit: 0 venue-avatar references",
+          "Focused ESLint: passed",
+          "git diff --check: passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No approved consumer migration exists; retirement requires a separately governed registry/deletion action."
+        ],
+        "next_steps": [
+          "Retain the venue twin and revisit only if a consumer or explicit retirement approval is introduced."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:10.760Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded avatar audit. No live consumers resolve to the venue twin, and the canonical module has exact public/export and Radix prop/ref parity. Disposition recorded; venue twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

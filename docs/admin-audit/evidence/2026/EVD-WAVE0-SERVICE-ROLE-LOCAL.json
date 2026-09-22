@@ -1,0 +1,21 @@
+{
+  "evidenceId": "EVD-WAVE0-SERVICE-ROLE-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:09:27-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "/Users/kyledaley/.nvm/versions/node/v20.20.2/bin/node scripts/ci/check-service-role-allowlist.mjs",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013"
+  ],
+  "workflowIds": [
+    "ADM-WF-017",
+    "ADM-WF-019"
+  ],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Local classification gate passed for 168 production files: 144 historical entries, 23 reviewed remediation-debt entries, and 1 low-level factory. This does not close the underlying migration debt or prove live actor binding."
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
@@ -20,7 +20,7 @@ async function getEventContext(supabase: any, userId: string, eventId: string) {
   return { event, orgId }
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability("event.view", async (request: NextRequest, { supabase, user }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })
@@ -38,7 +38,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const PUT = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PUT = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })
@@ -58,7 +58,7 @@ export const PUT = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })
@@ -77,7 +77,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })

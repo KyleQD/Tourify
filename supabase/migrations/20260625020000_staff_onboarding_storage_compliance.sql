@@ -90,6 +90,7 @@ create table if not exists public.staff_documents (
 
 alter table public.staff_documents
   add column if not exists user_id uuid references auth.users(id) on delete cascade,
+  add column if not exists venue_id uuid,
   add column if not exists employer_entity_type text check (employer_entity_type in ('venue', 'organization', 'artist')),
   add column if not exists employer_entity_id uuid,
   add column if not exists candidate_id uuid,
@@ -272,7 +273,21 @@ end $$;
 -- the private staff buckets. Tighten path-specific rules if the app later supports
 -- direct browser-to-storage uploads.
 do $$
+declare
+  v_storage_objects_owned_by_current_role boolean := false;
 begin
+  select pg_get_userbyid(c.relowner) = current_user
+  into v_storage_objects_owned_by_current_role
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'storage'
+    and c.relname = 'objects';
+
+  if not coalesce(v_storage_objects_owned_by_current_role, false) then
+    raise notice 'Skipping staff_onboarding_storage_authenticated_write because %.% is not owned by %', 'storage', 'objects', current_user;
+    return;
+  end if;
+
   if not exists (
     select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'staff_onboarding_storage_authenticated_write'
   ) then
@@ -282,6 +297,9 @@ begin
     to authenticated
     with check (bucket_id in ('staff-documents', 'staff-certifications', 'staff-id-documents', 'staff-waivers'));
   end if;
+exception
+  when insufficient_privilege then
+    raise notice 'Skipping staff_onboarding_storage_authenticated_write because % cannot create policies on %.%', current_user, 'storage', 'objects';
 end $$;
 
 commit;

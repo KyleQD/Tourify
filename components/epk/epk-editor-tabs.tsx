@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import React from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
   Rocket,
   Save,
   Share2,
+  Sparkles,
   Star,
   TrendingUp,
   Upload,
@@ -662,6 +664,28 @@ export function EpkEditorTabs({
                   className={epkInput}
                   placeholder="One sentence summary for bookers and press"
                 />
+              </CardContent>
+            </Card>
+
+            <Card className={`${epkSurface} border-white/10`}>
+              <CardHeader className="p-4 pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight text-white">
+                  <Sparkles className="h-4 w-4 shrink-0 text-purple-400" />
+                  Public profile design
+                </CardTitle>
+                <CardDescription className="text-xs text-gray-400">
+                  EPK and public-profile appearances are managed separately so saving one never overwrites the other.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs text-gray-300">
+                    Choose and publish full-page themes from the artist Appearance settings.
+                  </span>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link href="/settings?tab=appearance">Open Profile Studio</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

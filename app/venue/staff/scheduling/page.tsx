@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -11,14 +12,12 @@ import {
   Settings, 
   BarChart3, 
   RefreshCw,
-  Download,
-  Upload
 } from 'lucide-react'
-import { ShiftCalendar } from '@/components/venue/staff/shift-calendar'
-import { ShiftManagement } from '@/components/venue/staff/shift-management'
-import { ShiftTemplates } from '@/components/venue/staff/shift-templates'
-import { ShiftAnalytics } from '@/components/venue/staff/shift-analytics'
-import { ShiftRequests } from '@/components/venue/staff/shift-requests'
+import { VenueStaffSchedulerShell } from '@/app/venue/components/staff/venue-staff-scheduler-shell'
+import { ScheduleExportButton } from './schedule-export-button'
+import { resolveShiftWindow } from '@/lib/venue/shift-time'
+import { ShiftTemplates } from '@/app/venue/components/staff/shift-templates'
+import { ShiftRequests } from '@/app/venue/components/staff/shift-requests'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { ensureVenueOperationalContext, getCurrentVenueContext } from '@/lib/venue/venue-access'
@@ -67,7 +66,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               Please select a venue to access the scheduling system.
             </p>
             <Button asChild>
-              <a href="/venue">Select Venue</a>
+              <Link href="/venue">Select Venue</Link>
             </Button>
           </CardContent>
         </Card>
@@ -87,7 +86,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               You do not have access to that venue scheduling workspace.
             </p>
             <Button asChild>
-              <a href="/venue">Select Venue</a>
+              <Link href="/venue">Select Venue</Link>
             </Button>
           </CardContent>
         </Card>
@@ -101,19 +100,14 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
   const weekEnd = new Date()
   weekEnd.setDate(today.getDate() + 7)
 
-  const shiftQuery = mappedVenue?.venuesV2Id
-    ? service
-        .from('staff_shifts')
-        .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
-        .or(`venue_id.eq.${venueId},adhoc_venue_id.eq.${mappedVenue.venuesV2Id}`)
-        .gte('shift_date', today.toISOString().slice(0, 10))
-        .lte('shift_date', weekEnd.toISOString().slice(0, 10))
-    : service
-        .from('staff_shifts')
-        .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
-        .eq('venue_id', venueId)
-        .gte('shift_date', today.toISOString().slice(0, 10))
-        .lte('shift_date', weekEnd.toISOString().slice(0, 10))
+  const shiftBaseQuery = service
+    .from('staff_shifts')
+    .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
+    .is('deleted_at', null)
+  const shiftQuery =
+    mappedVenue?.venuesV2Id
+      ? shiftBaseQuery.or(`venue_id.eq.${venueId},adhoc_venue_id.eq.${mappedVenue.venuesV2Id}`)
+      : shiftBaseQuery.eq('venue_id', venueId)
 
   const [shiftResult, staffResult] = await Promise.all([
     shiftQuery,
@@ -128,11 +122,20 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
   const shifts = shiftResult.data || []
   const assignedShiftCount = shifts.filter((shift: any) => Boolean(shift.staff_member_id)).length
   const completedShiftCount = shifts.filter((shift: any) => shift.status === 'completed').length
+  // VEN-113: timezone/DST-safe duration via the canonical shift-window helper.
+  const venueTimeZone = (venue as { timezone?: string } | null)?.timezone || "UTC"
   const totalScheduledHours = shifts.reduce((sum: number, shift: any) => {
-    const start = Date.parse(`1970-01-01T${shift.start_time || '00:00'}Z`)
-    const end = Date.parse(`1970-01-01T${shift.end_time || '00:00'}Z`)
-    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return sum
-    return sum + (end - start) / (1000 * 60 * 60)
+    try {
+      const window = resolveShiftWindow({
+        shiftDate: String(shift.shift_date || ""),
+        startTime: String(shift.start_time || "00:00"),
+        endTime: String(shift.end_time || "00:00"),
+        timeZone: venueTimeZone,
+      })
+      return sum + window.durationMinutes / 60
+    } catch {
+      return sum
+    }
   }, 0)
   const completionRate = shifts.length ? Math.round((completedShiftCount / shifts.length) * 100) : 0
 
@@ -143,22 +146,18 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Staff Scheduling</h1>
           <p className="text-muted-foreground break-words">
-            Manage shifts, assignments, and scheduling for your venue
+            {venue?.venue_name
+              ? `Shifts and assignments for ${venue.venue_name}`
+              : "Manage shifts, assignments, and scheduling for your venue"}
           </p>
+          <Button asChild variant="link" className="mt-1 h-auto px-0 text-emerald-400">
+            <Link href="/venue/staff">Back to staff hub</Link>
+          </Button>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Shift
-          </Button>
+          {/* VEN-118: Import removed (no import contract exists); Export emits
+              the authorized week snapshot via a client island. */}
+          <ScheduleExportButton rows={shifts as Array<Record<string, unknown>>} />
         </div>
       </div>
 
@@ -212,8 +211,8 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
 
       {/* Main Content */}
       <Tabs defaultValue="calendar" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="calendar" className="flex items-center space-x-2">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="calendar" id="calendar-trigger" className="flex items-center space-x-2">
             <Calendar className="h-4 w-4" />
             <span>Calendar</span>
           </TabsTrigger>
@@ -229,10 +228,6 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
             <RefreshCw className="h-4 w-4" />
             <span>Requests</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center space-x-2">
-            <BarChart3 className="h-4 w-4" />
-            <span>Analytics</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="space-y-4">
@@ -245,24 +240,33 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
             </CardHeader>
             <CardContent>
               <Suspense fallback={<div>Loading calendar...</div>}>
-                <ShiftCalendar venueId={venueId} />
+                {/* VEN-109: canonical scheduler shell (VenueStaffShiftsPanel) replaces the
+                    ShiftCalendar contract, which sent incompatible date params and payloads. */}
+                <VenueStaffSchedulerShell venueId={venueId} />
               </Suspense>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="shifts" className="space-y-4">
+          {/* VEN-114: the mock ShiftManagement component (setTimeout + hardcoded
+              roster) is retired. Shift creation/editing lives in the canonical
+              scheduler shell, which owns staff_shifts CRUD. */}
           <Card>
             <CardHeader>
               <CardTitle>Shift Management</CardTitle>
               <CardDescription>
-                Create, edit, and manage individual shifts
+                Create and manage individual shifts from the scheduler
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Suspense fallback={<div>Loading shifts...</div>}>
-                <ShiftManagement />
-              </Suspense>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Shift creation and editing live inside the scheduler calendar — open it to add,
+                edit, or assign shifts. Requests (swaps/drops/pickups) have their own tab.
+              </p>
+              <p className="text-sm">
+                <a href="#calendar-trigger" className="text-emerald-400 underline">Jump to scheduler →</a>
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -299,21 +303,6 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scheduling Analytics</CardTitle>
-              <CardDescription>
-                View insights and performance metrics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Suspense fallback={<div>Loading analytics...</div>}>
-                <ShiftAnalytics venueId={venueId} />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   )

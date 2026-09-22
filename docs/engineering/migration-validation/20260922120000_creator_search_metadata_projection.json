@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260922120000_creator_search_metadata_projection.sql",
+  "taskId": "DB-005",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["search", "artist-profile", "data-integrity"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "Static source review of the accounts search projection and its creator metadata sources: public.accounts (20260711182530_organization_personas_integration.sql — id/owner_user_id/account_type/profile_table/profile_id/display_name/username/avatar_url/is_verified/is_active/metadata/updated_at; unique(profile_table, profile_id) polymorphic identity; accounts_public_active_read RLS read gate) is the CP-052 search projection read by the canonical /api/search profile path (lib/search/global-search-service.ts queryProfiles selects table accounts with profile_table/profile_id and metadata.subtype already carried). Creator-only fields currently derive from public.artist_profiles (20240415000000_create_profiles.sql genres text[]; 20260801221454_global_search_indexes.sql settings jsonb not null default '{}') via lib/creator/capability-system.ts extractCreatorCapabilitiesV1 (capabilities_v1.* with professional.* / preferences.* fallbacks) — the same sources /api/search/enhanced (app/api/search/enhanced/route.ts) reads. The migration adds four additive columns to public.accounts and backfills them from artist_profiles over profile_table='artist_profiles' AND profile_id=ap.id. subtype is not duplicated (accounts.metadata.subtype already exists). Contract-test SHA-256 c8674c4363579c058b525d9951668fe4c5660c772ee561626bed693f475e571a",
+    "evidenceArtifact": "static-review:DB-005-CREATOR-SEARCH-PROJECTION-2026-09-22 (migration SHA-256 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7)"
+  },
+  "assumptions": [
+    "artist_profiles.settings is the creator-capabilities JSON consumed by lib/creator/capability-system.ts extractCreatorCapabilitiesV1: capabilities_v1.{creatorType, serviceOfferings, productsForSale, credentials, workHighlights, availableForHire, collaborationInterest, availability, preferredContact} with professional.* / preferences.* fallbacks; settings.public_profile !== false is the public gate (same gate as /api/search/enhanced and lib/public-artist/get-public-artist-profile.ts).",
+    "capabilities_v1.availableForHire and preferences.available_for_hire are JSON booleans as written by the creator-profile editor. The DB derivation honors JSON booleans exactly (false is kept, null/missing falls back to the next source/default) and treats non-boolean JSON (object/array/string) under those keys as absent via a defensive jsonb_typeof guard — diverging from TS Boolean() coercion only for malformed data.",
+    "The projection join identity is accounts.profile_table='artist_profiles' AND accounts.profile_id=artist_profiles.id (the unique(profile_table, profile_id) polymorphic identity the projection and the archived upsert_account convention use). Artist profiles without an accounts row stay outside the projection exactly as today.",
+    "Creator skills/creatorType/service are NOT re-derived in SQL: the migration carries the raw creator_settings snapshot so the canonical extractCreatorCapabilitiesV1 is the single derivation point at read time (no parseCapabilityList drift).",
+    "Freshness after the one-time backfill requires an artist-domain-approved refresh mechanism (projection trigger on artist_profiles or an extension of refresh_account_display_info); intentionally not added here because it touches the artist-domain-owned write path — confirmation handoff HF-DB-005-ARTIST-CREATOR-FIELDS."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): count public.accounts rows with profile_table = 'artist_profiles' (the backfill upper bound), count public.artist_profiles rows, and confirm no accounts row already carries artist_profile_id (absent before apply).",
+    "Layer 1 (apply, single run, operator): ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS artist_profile_id uuid / genres text[] not null default '{}' / creator_settings jsonb not null default '{}' / creator_available_for_hire boolean not null default false (fast metadata-only defaults on PG11+); one UPDATE ... FROM public.artist_profiles backfill over the projection identity key with an explicit WHERE + change-guard (idempotent, non-artist rows untouched); CREATE INDEX IF NOT EXISTS idx_accounts_creator_artist_profile (partial btree) and idx_accounts_creator_genres (partial gin). No constraint, policy, RLS, trigger, or DROP statement is included.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db005c_creator_search_projection_contract.sql; expect zero violation rows and the single summary row with creator_search_projection_ready = true. Capture indexdef for both new indexes and row counts of populated creator columns.",
+    "Layer 3 (runtime certification, release/ops + discover): regenerated canonical types (npm run generate:database-types against the applied target, CP-016) then DISC-002 adds backward-compatible additive genre/creatorType/service/availableForHire filters to lib/search/canonical-search.ts + canonical-search-route.ts consuming the new projection columns, and retires /api/search/enhanced. Artist-domain confirmation of source fields (HF-DB-005-ARTIST-CREATOR-FIELDS) precedes any later freshness trigger."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT count(*) FROM public.accounts WHERE profile_table = 'artist_profiles'",
+      "SELECT count(*) FROM public.artist_profiles",
+      "SELECT count(*) FROM public.accounts WHERE artist_profile_id IS NOT NULL",
+      "SELECT count(*) FROM public.accounts WHERE profile_table = 'artist_profiles' AND profile_id IS NULL"
+    ],
+    "expectedAffectedRows": "DDL only plus one UPDATE backfill: up to the number of artist accounts already present in the projection (Layer 0 count) get non-null creator columns; zero rows changed when no artist_profiles/accounts rows exist; non-artist accounts untouched",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with the exact file or a targeted psql apply; a partial or failed apply is corrected with a later additive forward fix, never a replay or reset",
+    "resumeCursor": "Supabase migration version 20260922120000",
+    "idempotency": "ADD COLUMN IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, comments, and the change-guarded UPDATE are deterministic and repeatable; a re-run updates only rows that differ from the source (guard on the four projection values), so the backfill converges to the snapshot and no duplicate or non-artist writes occur"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement or quarantine. Orphan artist accounts (profile_table='artist_profiles' whose profile_id has no artist_profiles row) are left with the column defaults and do not fail the backfill; unexpected non-boolean JSON under the availability keys falls through defensively to the preference/default instead of aborting the UPDATE"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No CHECK, FK, or NOT NULL constraints are added or changed on existing relations; accounts.profile_table/profile_id nullability and the polymorphic identity are untouched (artist_profile_id is a plain uuid pointer, consistent with accounts' existing unconstrained profile_id style)"
+    ],
+    "indexes": [
+      "Adds partial index idx_accounts_creator_artist_profile on public.accounts(artist_profile_id) where artist_profile_id is not null for identity/artistProfileId filter resolution",
+      "Adds partial gin index idx_accounts_creator_genres on public.accounts(genres) where artist_profile_id is not null for genre-filter resolution on creator rows only",
+      "Existing accounts indexes (idx_accounts_owner, idx_accounts_type, idx_accounts_profile_lookup, idx_accounts_active) remain untouched"
+    ],
+    "validationPlan": "Post-apply catalog probes (pg_indexes indexdef) plus supabase/tests/db005c_creator_search_projection_contract.sql assert the four columns exist, the backfill mirrors artist_profiles for every present artist account, artist_profile_id equals the source id, non-artist rows stay untouched, and both supporting indexes exist; empty-source behavior is asserted by the empty-safe query (zero violations when no artist_profiles rows exist)"
+  },
+  "recovery": {
+    "rollback": "Columns and indexes are purely additive projection state duplicated from artist_profiles, so rollback means dropping the two partial indexes and the four columns through an explicit reviewed additive migration (or operator rollback) — artist_profiles remains the untouched source of truth and no data loss occurs",
+    "forwardFix": "Add an artist-domain-approved freshness mechanism (trigger on artist_profiles or extension of refresh_account_display_info) in a follow-up additive migration once HF-DB-005-ARTIST-CREATOR-FIELDS confirms semantics; widen the availability derivation only after artist confirmation; regenerate canonical types and extend canonical filters in the DISC-002 follow-up"
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/db005c_creator_search_projection_contract.sql and confirm zero violation rows plus creator_search_projection_ready = true",
+      "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'accounts' AND indexname IN ('idx_accounts_creator_artist_profile', 'idx_accounts_creator_genres')",
+      "SELECT profile_table, account_type, count(*) FILTER (WHERE artist_profile_id IS NOT NULL) AS populated, count(*) AS total FROM public.accounts GROUP BY profile_table, account_type ORDER BY profile_table, account_type",
+      "Sampled review: SELECT a.id, a.profile_id, a.artist_profile_id, a.genres, a.creator_settings ->> 'public_profile' AS public_profile, a.creator_available_for_hire FROM public.accounts a WHERE a.profile_table = 'artist_profiles' ORDER BY a.updated_at DESC LIMIT 20",
+      "After apply: npm run check:database-types (against the approved target) then npm run generate:database-types so lib/database.types.ts carries the four new accounts columns (CP-016)"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

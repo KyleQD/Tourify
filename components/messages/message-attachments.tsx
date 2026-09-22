@@ -18,7 +18,6 @@ export function MessageAttachments({ attachments, className }: MessageAttachment
         if (attachment.type === 'image') {
           return (
             <a key={attachment.url} href={attachment.url} target="_blank" rel="noopener noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={attachment.url}
                 alt={attachment.name}

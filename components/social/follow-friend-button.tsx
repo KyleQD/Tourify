@@ -26,6 +26,7 @@ interface FollowFriendButtonProps {
   initialRelationship?: FollowFriendRelationship
   className?: string
   size?: "default" | "sm" | "lg" | "icon"
+  statusResolved?: boolean
   onChanged?: (relationship: FollowFriendRelationship, kind: RelationshipKind) => void
 }
 
@@ -37,6 +38,7 @@ export function FollowFriendButton({
   initialRelationship = "none",
   className,
   size = "sm",
+  statusResolved = false,
   onChanged,
 }: FollowFriendButtonProps) {
   const resolvedKind =
@@ -55,6 +57,7 @@ export function FollowFriendButton({
   }, [initialRelationship])
 
   useEffect(() => {
+    if (statusResolved) return
     if (!targetAccountId && !targetUserId) return
 
     let cancelled = false
@@ -79,7 +82,7 @@ export function FollowFriendButton({
     return () => {
       cancelled = true
     }
-  }, [resolvedKind, targetAccountId, targetUserId])
+  }, [resolvedKind, statusResolved, targetAccountId, targetUserId])
 
   async function handleClick() {
     if (!targetAccountId && !targetUserId) {

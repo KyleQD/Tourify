@@ -55,6 +55,19 @@ export async function finalizeInventory(params: {
   return Boolean(data)
 }
 
+/**
+ * Paid/complimentary fulfillment must never issue admission after a missing,
+ * released, or otherwise unconsumable reservation.
+ */
+export async function requireFinalizedInventory(params: {
+  supabase: InventoryClient
+  reservationId: string
+}): Promise<void> {
+  const finalized = await finalizeInventory(params)
+  if (!finalized)
+    throw new Error('Inventory reservation is no longer active')
+}
+
 export async function getAvailableQuantity(params: {
   supabase: InventoryClient
   ticketTypeId: string

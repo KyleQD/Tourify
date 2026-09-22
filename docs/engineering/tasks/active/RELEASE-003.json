@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-003",
+  "title": "Full observability: Sentry + uptime + alerting",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T09:35:23.493Z",
+  "updated_at": "2026-09-16T19:24:55.452Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Operate production web observability with Sentry, Redis monitoring, correct liveness and readiness contracts, actionable alerts, release metadata, and a successful staging soak",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "instrumentation.ts",
+    ".github/workflows/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Web Sentry errors and traces are release-tagged and verified in isolated staging and production; mobile observability is explicitly deferred",
+    "GET and HEAD /healthz return consistent unauthenticated liveness and /readyz reports redacted Supabase, Redis, and required-service readiness",
+    "Uptime, Redis, authentication, checkout, webhook, and elevated error-rate alerts route to an acknowledged on-call owner",
+    "A 99.9% monthly web/API SLO and runbooks are published",
+    "A 24-hour staging soak completes without unresolved P0/P1 operational defects"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run validate:env:local",
+      "npm run smoke:healthz"
+    ],
+    "evidence": [
+      "2026-09-09: local validator reports Sentry absence as explicit disabled state without emitting DSN values.",
+      "2026-09-09: health smoke is loopback-only and did not contact a remote environment.",
+      "2026-09-10: /healthz parity gap fixed in next.config.ts (additive rewrites /healthz -> /api/health); npm run smoke:healthz PASS (exit 0) against booted local app; /api/health returned 200 {\"status\":\"ok\"}."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T19:58:51Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Production-readiness audit promoted RELEASE-003 to P0. Web launch requires release-tagged Sentry, Redis and key-flow monitoring, consistent GET/HEAD liveness, redacted readiness, owned alerts/SLOs, and a 24-hour staging soak; mobile remains deferred.",
+    "completed": [
+      "Added local validation output that explicitly identifies disabled Sentry and rate limiting.",
+      "Added a loopback-only /healthz smoke script."
+    ],
+    "next_steps": [
+      "Provision web/mobile Sentry, uptime for /healthz plus auth/session and checkout, separate auth/checkout alerts, a 99.9% monthly web/API target, and the on-call destination."
+    ],
+    "blockers": [
+      "No local application is running; real Sentry DSN, uptime provider, alert routing, and SLO values are outside the local pass."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T19:58:51Z",
+        "summary": "Local Sentry stays disabled unless a non-production DSN is supplied; /healthz smoke rejects all non-loopback targets.",
+        "next": "Collect runtime health evidence after local configuration is complete."
+      },
+      {
+        "at": "2026-09-10T04:39:06.197Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Local /healthz parity gap fixed: added additive rewrites() in next.config.ts mapping /healthz -> /api/health (vercel.json was Vercel-only). Smoke now passes against a booted local app: 200 {status:ok}; /api/health identical at 200. Sentry/uptime/SLO remain unprovisioned and env-dependent.",
+        "completed": [],
+        "next_steps": [
+          "Provision non-production Sentry project + uptime/SLO config for the observability acceptance gate."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-16T19:24:55.452Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted RELEASE-003 to P0. Web launch requires release-tagged Sentry, Redis and key-flow monitoring, consistent GET/HEAD liveness, redacted readiness, owned alerts/SLOs, and a 24-hour staging soak; mobile remains deferred.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-21T15:10:00.000Z",
+        "sha": "untracked-worktree",
+        "summary": "Readiness + SLO/runbook acceptance published. /readyz (app/api/health/readyz/route.ts) is READY: redacted GET+HEAD (supabase/redis/required-services statuses, never DSN/URL/token/stack), loopback-only smoke scripts/ci/smoke-readyz.mjs guards all non-loopback targets, package.json grows smoke:readyz, additive /readyz -> /api/health/readyz rewrites in next.config.ts + vercel.json mirror the existing RELEASE-008 health-sha contract. Focused suite __tests__/api/readyz-readiness.test.ts green (6/6). HTTP smoke healthz+readyz green (200 {status:ok}).",
+        "completed": [
+          "Ready-state GET/HEAD parity and redacted readiness for supabase, redis, and required services (blockers: RELEASE-008 health-sha release-tag parity)."
+        ],
+        "next_steps": [
+          "Record runbook + hosted blocker handoff HF-RELEASE-003-OWNER.json (Sentry DSN, uptime provider, on-call ack routing, staging soak) as the next gate."
+        ],
+        "blockers": [
+          "99.9% monthly web/API SLO and runbooks are published in docs/observability-slo-and-runbooks.md; uptime provider probing and real Sentry DSN remain owner-provisioned."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

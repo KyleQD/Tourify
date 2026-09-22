@@ -98,43 +98,23 @@ async function sumPostEngagementForUser(
 
 export class DashboardService {
   private static async getUserEventCount(userId: string): Promise<number> {
-    // Live legacy events use created_by; avoid organizer_id/user_id filters that 400 in production.
-    const [legacyCreatedBy, v2] = await Promise.allSettled([
-      supabase.from('events').select('*', { count: 'exact', head: true }).eq('created_by', userId),
-      supabase.from('events_v2').select('*', { count: 'exact', head: true }).eq('created_by', userId),
-    ])
-    const legacyCount = legacyCreatedBy.status === 'fulfilled' && !legacyCreatedBy.value.error
-      ? (legacyCreatedBy.value.count ?? 0) : 0
-    const v2Count = v2.status === 'fulfilled' ? (v2.value.count ?? 0) : 0
-    return legacyCount + v2Count
+    const { count, error } = await supabase
+      .from('events_v2')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', userId)
+    if (error) throw error
+    return count ?? 0
   }
 
   private static async getRecentUserEvents(userId: string) {
-    const [legacyResult, v2Result] = await Promise.allSettled([
-      supabase
-        .from('events')
-        .select('id, title, created_at, capacity')
-        .eq('created_by', userId)
-        .order('created_at', { ascending: false })
-        .limit(3),
-      supabase
-        .from('events_v2')
-        .select('id, title, created_at, capacity')
-        .eq('created_by', userId)
-        .order('created_at', { ascending: false })
-        .limit(3),
-    ])
-
-    const legacy = legacyResult.status === 'fulfilled' && !legacyResult.value.error
-      ? (legacyResult.value.data ?? []) : []
-    const modern = (v2Result.status === 'fulfilled' ? (v2Result.value.data ?? []) : []).map(e => ({
-      ...e,
-      title: e.title || 'Event',
-    }))
-
-    return [...legacy, ...modern]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 3)
+    const { data, error } = await supabase
+      .from('events_v2')
+      .select('id, title, created_at, capacity')
+      .eq('created_by', userId)
+      .order('created_at', { ascending: false })
+      .limit(3)
+    if (error) throw error
+    return (data ?? []).map(event => ({ ...event, title: event.title || 'Event' }))
   }
 
   static async getDashboardStats(

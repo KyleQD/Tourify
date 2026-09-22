@@ -1,0 +1,678 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-008",
+  "title": "Production capability and public surface controls",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-16T19:20:38.019Z",
+  "updated_at": "2026-09-20T11:07:10.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (922 entries)",
+  "goal": "Expose only launch-certified capabilities and public routes while publishing correct production security, crawler, and release metadata",
+  "scope": {
+    "in": [
+      "Canonical enabled, pilot, and disabled capability manifest",
+      "Navigation, page, API, cron, worker, debug-route, header, CSP, canonical, sitemap, robots, and staging noindex controls"
+    ],
+    "out": ["Implementing deferred capability internals"]
+  },
+  "working_set": ["lib/config", "app", "next.config.ts", "vercel.json"],
+  "references": ["docs/DEVELOPMENT_WORKFLOW.md", "docs/DEPLOYMENT_ROUTINE.md"],
+  "acceptance_criteria": [
+    "Disabled capabilities are inaccessible through UI, direct routes, APIs, crons, and workers",
+    "Debug, seed, migration, and test routes are denied in production by an automated registry check",
+    "Production canonical, sitemap, robots, CSP, health metadata, and staging noindex checks pass",
+    "Unsubstantiated public metrics are removed or backed by approved evidence and legal-review findings are routed to an owner"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run check:production-debug",
+      "npm run check:public-surface",
+      "npm run check:cron-route-inventory",
+      "npx vitest run __tests__/config/launch-capability-consumers.test.ts __tests__/config/launch-capability-pages.test.ts",
+      "npm run verify:release"
+    ],
+    "evidence": [
+      "Audit baseline: live production metadata, robots, sitemap, and Open Graph canonical URLs point at demo.tourify.live; staging is not isolated or noindex.",
+      "Audit baseline: live CSP includes unsafe-eval and broad sources, public claims are unsubstantiated, and route/feature gating is scattered.",
+      "2026-09-18 local contract: check:production-debug passed with all 40 discovered debug/test/seed/migration routes covered by the canonical production deny registry.",
+      "2026-09-18 local contract: check:public-surface passed for exact production canonical, staging noindex/no-sitemap, metadata robots, production CSP without unsafe-eval, and /healthz/public health metadata wiring.",
+      "2026-09-18 focused tests: 11 Node contract tests and 25 Vitest capability/route-denial tests passed; focused ESLint passed with no findings; cron inventory passed with 7 scheduled and 1 explicitly deferred.",
+      "2026-09-18 cross-lane health identity: check:public-surface and 7 focused Node tests passed; 5 health-route Vitest cases proved valid full-SHA emission and fail-closed missing/short/non-hex behavior; focused ESLint passed.",
+      "2026-09-18 server-consumer slice: 13 focused Vitest cases and focused ESLint passed; direct poll analytics, authorized external-provider cron, and deferred marketplace-finance worker access now fail closed before auth/data, queue/provider, and credential/queue work respectively. check:public-surface, check:production-debug (40 covered routes), and check:cron-route-inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 institutional-family slice: the provider webhook rejects disabled advanced webhooks before consuming its body and the finance outbox worker rejects disabled offerings before secrets/database/queue access. Sixteen focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 licensing-family slice: provider ingress and the payment/partner outbox worker consume disabled advanced_music_webhooks before request-body, signature, secret, database, network, or queue work. Eighteen focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 rights-admin-family slice: provider ingress and registration/claim outbox work consume disabled advanced_music_webhooks before request-body, signature, secret, database, network, or queue work. Twenty-one focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 rights-intelligence-family slice: added a dedicated disabled music_rights_intelligence capability; flag resolution returns the all-disabled contract before database access and the outbox worker stops before secrets/queue access. No rights-intelligence ingress route exists. Twenty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-cooperative-family slice: added a dedicated disabled creator_cooperative capability based on the existing readiness-only disclaimer and all-flags-disabled contract; flag resolution stops before database access and the configured shared-runner worker stops before secrets/queue access. No provider ingress route exists. Twenty-eight focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-digital-commons-family slice: added a dedicated disabled creator_digital_commons capability based on the existing sandbox-only disclaimer and hard-disabled transfer/mandate/tokenization contracts; flag resolution stops before database access and the configured shared-runner worker stops before secrets/queue access. No provider ingress route exists. Twenty-seven focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-federation-family slice: added a dedicated disabled creator_federation capability based on the existing readiness-sandbox, local-sovereignty, and no-automatic-representation contracts; flag resolution stops before database access and the configured shared-runner worker stops before secrets/queue access. Thirty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-interoperability-convention-family slice: added a dedicated disabled creator_interoperability_convention capability based on the existing readiness-sandbox, separate-approval-package, and no-treaty/no-universal-representation contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Thirty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-interoperability-institution-family slice: added a dedicated disabled creator_interoperability_institution capability based on the existing readiness-sandbox, separate-institution-approval, and default-deny public-law contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Thirty-four focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-interoperability-organization-family slice: added a dedicated disabled creator_interoperability_organization capability based on the existing readiness-sandbox, separate-organization-approval, and no-inferred-membership/default-deny public-law contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-protocol-constitution-family slice: added a dedicated disabled creator_protocol_constitution capability based on the existing readiness-sandbox, separate-ratification/independent-stewardship, and hard-disabled authority contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-public-infrastructure-family slice: added a dedicated disabled creator_public_infrastructure capability based on the existing readiness-sandbox, separate-public-interest-steward/approval, and hard-disabled authority contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-multilateral-treaty-operations-family slice: added a dedicated disabled creator_multilateral_treaty_operations capability based on the existing readiness-sandbox, separate-approval/real-multi-year-evidence, and hard-disabled authority contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Forty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-treaty-system-legacy-family slice: added a dedicated disabled creator_treaty_system_legacy capability based on the existing readiness-sandbox, separate-century-scale-approval, non-perpetuity/local-exit, and hard-disabled authority contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Forty-four focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator-treaty-system-renewal-family slice: added a dedicated disabled creator_treaty_system_renewal capability based on the existing readiness-sandbox, affirmative-renewal/authority-expiry, and hard-disabled activation contracts; flag resolution stops before trusted-client/database access and the configured shared-runner worker stops before secrets/queue access. Forty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 music-preview worker slice: added a dedicated disabled music_preview_processing capability based on the documented absence of a scheduler and health contract while leaving existing preview upload/access behavior unchanged; worker execution stops before worker configuration, service credentials, database queues, signed-object network access, or ffmpeg work. Forty-one focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 artist music marketplace page/navigation slice: the shared music-marketplace flag resolver now consumes disabled music_finance_offerings before trusted-client or feature_flags access; a nested server layout returns notFound for /artist/music/marketplace and /portfolio before client hydration, while the existing artist-music navigation remains conditional on the canonical-backed discoverability response. General /marketplace pilot behavior is unchanged. Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 music-origin worker slice: added a dedicated disabled music_origin_processing capability based on its separate rollout flag, missing active-schema evidence, and unapproved production activation; worker execution stops before configuration, service credentials, queue recovery/claims, signed downloads, temp files, fingerprint tooling, or origin persistence. Fifty-four focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 music protected-derivative worker slice: added a dedicated disabled music_protected_derivatives capability based on the default-off C2PA derivative policy and explicitly stubbed, unscheduled implementation; execution stops before batch configuration, worker identity, service credentials, queue claims, hashing, watermark/C2PA adapters, or persistence. The worker has no temporary-file path. Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 rights-intelligence page slice: server layouts now return notFound for both /rights-intelligence and /artist/music/intelligence while music_rights_intelligence is disabled, preventing client hydration, seven discovery API requests, and the enterprise-to-creator link from becoming reachable. The already-correct shared resolver and every page/API implementation remain unchanged. Forty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 music testnet-anchor worker slice: added a dedicated disabled music_testnet_anchoring capability based on its default-off testnet-only policy, explicit mainnet prohibition, and stubbed unscheduled implementation; execution stops before batch configuration, worker identity, service credentials, outbox claims, Sepolia network/key checks, anchor processing, or persistence. Fifty-seven focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator digital commons page slice: a server layout now returns notFound for /creator-commons while creator_digital_commons is disabled, preventing client hydration and seven discovery API requests. The already canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Forty-four focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 music royalty-ingestion worker slice: added a dedicated disabled music_royalty_ingestion capability based on its default-off ingestion policy, missing active-schema evidence, unscheduled runtime, and absent import-to-payout receipt; execution stops before batch configuration, service credentials, import claims, statement download, text/CSV parsing, normalization, reconciliation, or persistence. The worker performs no allocation. Seventy focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator federation page slice: a server layout now returns notFound for /federation while creator_federation is disabled, preventing client hydration and three discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, cooperative link, and unrelated navigation remain unchanged. Forty-seven focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 music trust-reconciliation slice: the private repair entrypoint now reuses disabled music_origin_processing because its sole rollout input is music_origin_processing_enabled and it repairs the same origin/trust state; no separate launch policy exists. Execution stops before environment credentials, trusted-client creation, feature or track queries, fingerprint queue upserts, or artist_music updates. Fifty-eight focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator cooperative page slice: a server layout now returns notFound for /cooperative while creator_cooperative is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, inbound education/federation links, and unrelated navigation remain unchanged. Fifty focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-18 creator interoperability convention page slice: a server layout now returns notFound for /interop-convention while creator_interoperability_convention is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-two focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-19 creator public infrastructure page slice: a server layout now returns notFound for /public-infrastructure while creator_public_infrastructure is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-19 creator multilateral treaty operations page slice: a server layout now returns notFound for /treaty-operations while creator_multilateral_treaty_operations is disabled, preventing client hydration and four discovery API requests. The canonical-backed resolver, page, APIs, admin surface, worker, and unrelated navigation remain unchanged. Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed.",
+      "2026-09-20 Wave 26 direct-page closeout: server layouts now return notFound for interop-institution, interop-organization, protocol-constitution, treaty-legacy, and treaty-renewal before client hydration or their 5/5/5/6/5 discovery requests while those capabilities remain disabled; each layout matches the canonical denial pattern exactly. Sixty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron inventory (7 scheduled, 1 deferred) passed. agents:generate refreshed all maps at 59971a9e and agents:validate reported 17 agents, 113 tasks, 0 warnings, 0 errors with the ownership manifest reporting the five layouts as task-record for RELEASE-008."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-19T02:50:34.000Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Closed the final five launch-disabled direct-page families (interop institution, interop organization, protocol constitution, treaty legacy, treaty renewal) at canonical server layout boundaries before client hydration or API discovery, completing the direct-page enforcement inventory at the curated release snapshot; only hosted exact-SHA staging verification remains.",
+    "completed": [
+      "Added the canonical enabled/pilot/disabled launch capability manifest and prevented legacy approval variables from enabling launch-disabled API capabilities.",
+      "Made the existing middleware request-boundary adapter consume the canonical production deny registry with exact-or-child matching; added uncovered admin-test and notification-test APIs.",
+      "Extended check:production-debug to inventory App Router page/API debug, test, seed, and migration routes and require registry coverage.",
+      "Added fail-closed crawler policy: only the explicit https://tourify.live production deployment is indexable; staging publishes no sitemap and disallows all crawlers.",
+      "Added root canonical/robots metadata and a tested CSP builder that excludes unsafe-eval in production while preserving development HMR support.",
+      "Added check:public-surface to release verification for canonical, robots, sitemap, CSP, health metadata, and Vercel /healthz wiring.",
+      "Added x-tourify-release-sha to public, internal, and HEAD health responses only when VERCEL_GIT_COMMIT_SHA is a full 40-character hexadecimal SHA; unavailable or malformed identity is omitted.",
+      "Routed external event-provider environment flags and explicit Bandsintown mode through the disabled external_event_providers launch capability.",
+      "Denied direct poll analytics and authorized external-provider cron requests before authentication/data and queue/provider access, and guarded the deferred marketplace-finance worker before credential or queue access.",
+      "Added focused consumer-contract coverage for API, cron, and worker fail-closed ordering.",
+      "Closed the institutional provider family: advanced webhook ingress stops before request processing, while NAV/partner/report outbox work stops before service-role credentials or queue access.",
+      "Closed the licensing provider family: webhook ingress and payment/partner outbox work both consume advanced_music_webhooks before privileged or external work.",
+      "Closed the rights-admin provider family: webhook ingress and registration/claim outbox work both consume advanced_music_webhooks before privileged or external work.",
+      "Closed the rights-intelligence worker family with a dedicated music_rights_intelligence capability before feature-flag database access and outbox credentials/queue access; confirmed no ingress route exists.",
+      "Closed the creator-cooperative family with a dedicated creator_cooperative capability before feature-flag database access and shared-runner credentials/queue access; confirmed no provider ingress route exists.",
+      "Closed the creator-digital-commons family with a dedicated creator_digital_commons capability before feature-flag database access and shared-runner credentials/queue access; confirmed no provider ingress route exists.",
+      "Closed the creator-federation family with a dedicated creator_federation capability before feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-interoperability-convention family with a dedicated creator_interoperability_convention capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-interoperability-institution family with a dedicated creator_interoperability_institution capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-interoperability-organization family with a dedicated creator_interoperability_organization capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-protocol-constitution family with a dedicated creator_protocol_constitution capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-public-infrastructure family with a dedicated creator_public_infrastructure capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-multilateral-treaty-operations family with a dedicated creator_multilateral_treaty_operations capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-treaty-system-legacy family with a dedicated creator_treaty_system_legacy capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed the creator-treaty-system-renewal family with a dedicated creator_treaty_system_renewal capability before trusted-client/feature-flag database access and shared-runner credentials/queue access.",
+      "Closed automatic music-preview processing with a dedicated music_preview_processing capability before worker configuration, service credentials, database queues, signed-object network access, and ffmpeg execution while preserving existing preview upload and access semantics.",
+      "Closed the artist music issuer/investor marketplace page and navigation family at its shared flag resolver and nested server boundary while preserving the general marketplace pilot.",
+      "Closed music-origin processing with a dedicated music_origin_processing capability before worker configuration, service credentials, queue recovery/claims, signed-object network access, temporary files, fingerprint tooling, and origin-record persistence while preserving enabled retry, evidence, and manifest semantics.",
+      "Closed protected-derivative processing with a dedicated music_protected_derivatives capability before batch configuration, worker identity, service credentials, derivative queue claims, hash/adapter compute, or rights persistence while preserving enabled clean-master, retry, watermark, and C2PA semantics.",
+      "Closed both direct rights-intelligence page roots at canonical server layout boundaries before client hydration or discovery requests while preserving their already fail-closed APIs and resolver.",
+      "Closed music-rights testnet anchoring with a dedicated music_testnet_anchoring capability before batch configuration, worker identity, service credentials, outbox claims, Sepolia network/signer checks, anchor processing, or persistence while preserving enabled off-chain-passport and idempotency semantics.",
+      "Closed the /creator-commons direct page at a server layout boundary before client hydration and seven creator-digital-commons discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
+      "Closed royalty-statement ingestion with a dedicated music_royalty_ingestion capability before batch configuration, service credentials, import claims, statement download, text/CSV parsing, normalization, reconciliation, or persistence while preserving enabled quarantine and idempotent normalized-event semantics.",
+      "Closed the /federation direct page at a server layout boundary before client hydration and three creator-federation discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, cooperative link, and unrelated navigation.",
+      "Closed private music trust reconciliation through the existing music_origin_processing capability before environment credential reads, trusted-client creation, feature/track queries, fingerprint queue writes, or artist_music updates while preserving enabled repair semantics.",
+      "Closed the /cooperative direct page at a server layout boundary before client hydration and four creator-cooperative discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, inbound links, and unrelated navigation.",
+      "Closed the /interop-convention direct page at a server layout boundary before client hydration and four convention discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
+      "Closed the /public-infrastructure direct page at a server layout boundary before client hydration and four public-infrastructure discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
+      "Closed the /treaty-operations direct page at a server layout boundary before client hydration and four treaty-operations discovery requests while preserving the canonical-backed resolver, API routes, worker, admin surface, and unrelated navigation.",
+      "Closed the /interop-institution, /interop-organization, /protocol-constitution, /treaty-legacy, and /treaty-renewal direct pages at canonical server layout boundaries before client hydration and their 5/5/5/6/5 discovery requests while preserving every canonical-backed resolver, API route, worker, admin surface, and unrelated navigation."
+    ],
+    "next_steps": [
+      "All launch-disabled direct-page families identified in the RELEASE-008 inventory are now closed at canonical server layout boundaries; remaining work is hosted exact-SHA staging verification for QA-003 and owner review of public metrics/legal findings."
+    ],
+    "blockers": [
+      "Hosted staging/production crawler, canonical, headers, and route-denial behavior remains unverified and requires an exact reviewed SHA deployed to isolated staging for QA-003; this slice did not mutate or query hosted deployment state.",
+      "Public metrics/evidence and legal-review findings remain outside this local enforcement slice and require an owner review.",
+      "Full verify:release was not rerun: RELEASE-006 already records the non-HTTPS local site URL build blocker and a bounded full typecheck timeout."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-20T11:07:10.000Z",
+        "sha": "59971a9eeba217a635b47d5c667450cd40082f0d",
+        "summary": "Closed the five remaining launch-disabled direct-page families at canonical server layout boundaries before client hydration or API discovery (Wave 26).",
+        "completed": [
+          "Added canonical denial-pattern server layouts for app/interop-institution (creator_interoperability_institution), app/interop-organization (creator_interoperability_organization), app/protocol-constitution (creator_protocol_constitution), app/treaty-legacy (creator_treaty_system_legacy), and app/treaty-renewal (creator_treaty_system_renewal), each returning notFound while its capability is disabled.",
+          "Extended launch-capability-pages coverage with ten new cases: a denial assertion per family and an API-discovery assertion per family proving the real 5/5/5/6/5 /api discovery routes extracted from each page.tsx are still called.",
+          "Added confirmatory RELEASE-008 ownership rules for all five layout paths; regenerated the ownership manifest at the current SHA reports them task-record for RELEASE-008.",
+          "Sixty-six focused Vitest cases, focused ESLint, check:public-surface, check:production-debug (40 covered routes), and check:cron-route-inventory (7 scheduled, 1 deferred) all passed; agents:generate refreshed all maps at 59971a9e and agents:validate reported 17 agents, 113 tasks, 0 warnings, 0 errors."
+        ],
+        "next_steps": [
+          "Remaining RELEASE-008 work is hosted exact-SHA staging verification for QA-003 after an approved deployment, plus owner review of public metrics/legal findings."
+        ],
+        "blockers": [
+          "Hosted staging/production crawler, canonical, headers, and route-denial behavior requires an exact reviewed SHA deployed to isolated staging (QA-003).",
+          "Public metrics/evidence and legal-review findings require owner review."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:04:56.434Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Landed canonical launch capability and production route-deny contracts plus fail-closed public crawler/canonical/CSP checks; focused checks pass.",
+        "completed": [
+          "Canonical capability manifest and production request-boundary deny registry",
+          "Automated unsafe App Router route inventory covering 40 routes",
+          "Fail-closed canonical, crawler, sitemap, CSP, and health metadata contracts"
+        ],
+        "next_steps": [
+          "Wire remaining navigation/page/cron/worker capability consumers and route owner evidence, then verify hosted staging/production surfaces without changing deployment state."
+        ],
+        "blockers": [
+          "Remaining capability consumers and hosted evidence are still required for task completion."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:09:50.310Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added fail-closed deployment identity metadata to /api/health using only validated VERCEL_GIT_COMMIT_SHA; focused route and contract tests pass.",
+        "completed": [
+          "Documented VERCEL_GIT_COMMIT_SHA as the sole supported runtime release identity source.",
+          "Added normalized x-tourify-release-sha health headers with strict full-SHA validation and omission on invalid input.",
+          "Added focused route and contract coverage for authoritative, missing, shortened, non-hex, and unsupported fallback values."
+        ],
+        "next_steps": [
+          "Deploy an exact reviewed SHA to isolated staging and let QA-003 verify the health header matches its expected SHA; continue remaining capability-consumer wiring separately."
+        ],
+        "blockers": [
+          "QA-003 still requires an exact-SHA isolated staging deployment to verify the application header against its protected expected SHA."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:17:10.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wired a bounded server-side API/cron/worker consumer slice to the canonical launch manifest with fail-closed ordering contracts.",
+        "completed": [
+          "Poll analytics rejects direct access before authentication or data access while polls remain launch-disabled.",
+          "External event-provider flags, explicit Bandsintown mode, and the authorized provider-sync cron fail closed before provider or queue work.",
+          "Marketplace-finance outbox worker rejects execution before reading service credentials or its queue.",
+          "Thirteen focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Wire the remaining navigation/direct-page consumers and deferred music worker families in separate bounded slices, then obtain exact-SHA hosted staging evidence."
+        ],
+        "blockers": [
+          "Other worker families and public UI/page consumers remain outside this bounded slice; hosted behavior remains unverified."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:23:02.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wired the deferred institutional provider family to canonical launch capabilities before all request, secret, database, network, and queue work.",
+        "completed": [
+          "Verified institutional webhook ingress returns the canonical disabled advanced-webhook response without consuming the request body.",
+          "Guarded institutional NAV/partner/report outbox work with music_finance_offerings before service-role credential or queue access.",
+          "Sixteen focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with a separate licensing or rights worker-family slice, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:32:33.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wired the deferred licensing provider family to advanced_music_webhooks before request, signature, secret, database, network, and queue work.",
+        "completed": [
+          "Verified licensing provider ingress returns the canonical disabled advanced-webhook response without consuming the request body.",
+          "Guarded licensing payment-reconciliation and partner outbox work before service-role credentials or queue access.",
+          "Eighteen focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with a separate rights worker-family slice, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:39:45.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wired the deferred rights-admin provider family to advanced_music_webhooks before request, signature, secret, database, network, and queue work.",
+        "completed": [
+          "Verified rights-admin provider ingress returns the canonical disabled advanced-webhook response without consuming the request body.",
+          "Guarded rights registration/claim retry outbox work before service-role credentials or queue access.",
+          "Twenty-one focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with a separate rights-intelligence or creator worker-family slice, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:59:31.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled rights-intelligence capability and wired feature resolution plus the outbox worker before database, secret, network, or queue access.",
+        "completed": [
+          "Confirmed no rights-intelligence provider ingress route exists; dormant partner-adapter helpers remain unreachable through an ingress entry point.",
+          "Returned all-disabled rights-intelligence flags before trusted-client or database access.",
+          "Guarded consent-revocation, opt-out, and benchmark-revocation outbox work before service-role credentials or queue access.",
+          "Twenty-two focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:04:11.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-cooperative capability from the documented readiness-only policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Confirmed no creator-cooperative provider ingress route exists and avoided mapping the family to unrelated finance or webhook capabilities.",
+          "Returned all-disabled cooperative flags before trusted-client or database access.",
+          "Added an optional shared-runner capability guard and configured only creator-cooperative, preserving every other creator worker's behavior.",
+          "Twenty-eight focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one non-cooperative creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:08:16.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-digital-commons capability from its documented sandbox-only policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Confirmed no creator-digital-commons provider ingress route exists and kept the family separate from unrelated capability categories.",
+          "Returned all-disabled digital-commons flags before trusted-client or database access, retaining its hard-disabled transfer, mandate, collective-action, and tokenization contract.",
+          "Configured only creator-digital-commons on the optional shared-runner capability guard, preserving all other creator workers.",
+          "Twenty-seven focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:12:43.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-federation capability from its documented readiness-sandbox and local-sovereignty policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator federation separate from cooperative, digital-commons, finance, and webhook capability categories.",
+          "Returned all-disabled federation flags before trusted-client or database access, retaining default-deny representation, collective licensing, bargaining, finance, public API, and tokenized membership.",
+          "Configured only creator-federation on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Thirty-two focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:17:10.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-interoperability-convention capability from its documented readiness-sandbox and separate-approval policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator interoperability convention separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled convention flags before trusted-client or database access, retaining hard-disabled treaty, universal-representation, state/IO, collective-action, asset-transfer, and emergency-authority contracts.",
+          "Configured only creator-interoperability-convention on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Thirty-two focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:22:03.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-interoperability-institution capability from its documented readiness-sandbox and separate-approval policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator interoperability institution separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled institution flags before trusted-client or database access, retaining hard-disabled depositary, UN-relationship, privileges, contributions, collective-action, global-representation, regulatory-power, and production contracts.",
+          "Configured only creator-interoperability-institution on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Thirty-four focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:30:37.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-interoperability-organization capability from its documented readiness-sandbox and separate-approval policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator interoperability organization separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled organization flags before trusted-client or database access, retaining hard-disabled privilege, state/IO/treaty status, depositary, UN relationship, contributions, collective action, regulatory power, diplomatic status, and production contracts.",
+          "Configured only creator-interoperability-organization on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:46:38.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-protocol-constitution capability from its documented readiness-sandbox and separate-ratification policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator protocol constitution separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled constitutional flags before trusted-client or database access, retaining hard-disabled irreversible transfer, universal identifier, global mandate, collective action, tokenized governance, and emergency override contracts.",
+          "Configured only creator-protocol-constitution on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-18T23:54:05.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-public-infrastructure capability from its documented readiness-sandbox and separate-public-interest-steward policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator public infrastructure separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled infrastructure flags before trusted-client or database access, retaining hard-disabled universal identifier, global mandate, collective action, and tokenized identity contracts.",
+          "Configured only creator-public-infrastructure on the optional shared-runner capability guard, preserving every other creator worker and the existing attempt_count retry field.",
+          "Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T00:07:29.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-multilateral-treaty-operations capability from its documented readiness-sandbox and separate-approval policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator multilateral treaty operations separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled treaty-operations flags before trusted-client or database access, retaining hard-disabled depositary, Article 102, privilege, assessed-contribution, competence-change, universal-identity, collective-authority, and external-public-activation contracts.",
+          "Configured only creator-multilateral-treaty-operations on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Forty-two focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:18:46.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-treaty-system-legacy capability from its documented readiness-sandbox, non-perpetuity, and separate-century-scale-approval policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator treaty-system legacy separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled legacy flags before trusted-client or database access, retaining hard-disabled public activation, perpetual authority, future-person representation, privacy override, universal identity, ownership adjudication, local-exit block, sensitive public dump, century-scale launch, and Phase 20 handoff contracts.",
+          "Configured only creator-treaty-system-legacy on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Forty-four focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:20:58.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled creator-treaty-system-renewal capability from its documented readiness-sandbox, affirmative-renewal, and authority-expiry policy and wired flag resolution plus its shared-runner worker before privileged access.",
+        "completed": [
+          "Kept creator treaty-system renewal separate from preceding creator families and unrelated finance or webhook capability categories.",
+          "Returned all-disabled renewal flags before trusted-client or database access, retaining hard-disabled public activation, privilege revalidation, dissolution, endowment, arrangements review, archive public access, conference, and Phase 19 handoff contracts.",
+          "Configured only creator-treaty-system-renewal on the optional shared-runner capability guard, preserving every other creator worker.",
+          "Forty-six focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:25:12.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled music-preview-processing capability from the recorded missing scheduler and health contract, guarding the preview worker before privileged or external work without disabling existing preview product behavior.",
+        "completed": [
+          "Kept automatic preview processing separate from enabled artist operations so existing preview upload, access, and publication-readiness semantics remain unchanged.",
+          "Stopped scripts/music-preview-worker.ts before worker configuration, service-role credentials, database queue claims, signed-object network access, temporary files, or ffmpeg execution.",
+          "Added a focused consumer contract for the disabled manifest decision and entrypoint ordering while preserving every unrelated music worker.",
+          "Forty-one focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address navigation/direct-page consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:26:57.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Canonical-disabled only the artist music issuer/investor marketplace family at its shared flag resolver and nested server page boundary while preserving the general marketplace pilot.",
+        "completed": [
+          "Returned the all-disabled music-marketplace flag contract before trusted-client import or feature_flags access whenever music_finance_offerings is unavailable.",
+          "Added a server layout that returns notFound for /artist/music/marketplace and its /portfolio child before either client page hydrates or fetches APIs.",
+          "Preserved the existing /artist/music navigation condition on the canonical-backed /api/music-marketplace/flags discoverability response without changing general /marketplace behavior.",
+          "Thirty-eight focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining direct-page/navigation or deferred worker family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:27:27.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled music-origin-processing capability from the documented staged rollout and missing schema/runtime evidence, guarding the origin worker before privileged, external, filesystem, or persistence work.",
+        "completed": [
+          "Kept origin processing distinct from preview and enabled artist operations because the source policy defines its own music_origin_processing_enabled rollout flag and requires separate production authorization.",
+          "Stopped scripts/music-origin-worker.ts before worker configuration, service-role credentials, stale-lock recovery, queue claims, signed downloads, temporary files, ffprobe/fpcalc work, fingerprint matching, or origin persistence.",
+          "Preserved the existing enabled-path retry, dead-letter, optional acoustic fingerprint, private match-signal, versioned manifest, and event semantics while leaving every unrelated worker unchanged.",
+          "Fifty-four focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address remaining direct-page/navigation consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:31:39.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled music-protected-derivatives capability from the documented default-off rollout and stub/runtime gaps, guarding the derivative worker before privileged, compute, adapter, or persistence work.",
+        "completed": [
+          "Kept protected derivatives distinct from testnet anchoring and royalties because the source policy defines its own default-off music_c2pa_derivatives_enabled contract and clean-master boundary.",
+          "Stopped scripts/music-rights-derivative-worker.ts before batch configuration, worker identity generation, service-role credentials, queue claims, hashing, watermark/C2PA adapter work, or derivative/outbox persistence; confirmed the worker has no temporary-file path.",
+          "Preserved the enabled-path retry, adversarial-audio prohibition, clean-master isolation, optional watermark, C2PA failure, unpublished fallback, and deduplicated outbox semantics while leaving every unrelated worker unchanged.",
+          "Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or media-processing worker family, then address remaining direct-page/navigation consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:32:03.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added canonical server page boundaries for both rights-intelligence roots, denying direct enterprise and artist access before client rendering while preserving the existing API/resolver contract.",
+        "completed": [
+          "Returned notFound from /rights-intelligence before its client page could issue metrics, alerts, or collective discovery requests or expose its artist-intelligence link.",
+          "Returned notFound from /artist/music/intelligence before its client page could issue consent, benchmark, education, or group discovery requests.",
+          "Preserved the existing music_rights_intelligence all-disabled resolver, API routes, page contents, workers, admin routes, and unrelated launch capabilities.",
+          "Forty-two focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining direct-page/navigation or deferred worker family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T01:33:46.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled music-testnet-anchoring capability from the documented default-off testnet policy and stub/runtime gaps, guarding the anchor worker before privileged, network, signer, provider, or persistence work.",
+        "completed": [
+          "Kept testnet anchoring distinct from protected derivatives and royalties because the source policy defines its own default-off music_testnet_anchor_enabled contract, explicit mainnet prohibition, and off-chain-passport invariant.",
+          "Stopped scripts/music-rights-anchor-worker.ts before batch configuration, worker identity generation, service-role credentials, outbox claims, network selection, Sepolia RPC/signer reads, anchor processing, or anchor/outbox persistence.",
+          "Preserved the enabled-path eight-attempt policy, mainnet-disabled behavior, missing-testnet-credential failure, stub-confirmation flow, idempotent dedupe keys, and passport-valid-on-failure semantics while leaving every unrelated worker unchanged.",
+          "Fifty-seven focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator or royalty-import worker family, then address remaining direct-page/navigation consumers and exact-SHA hosted evidence."
+        ],
+        "blockers": [
+          "Remaining deferred worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:38:31.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a canonical server boundary for the creator digital commons page, denying direct access before client rendering while preserving its existing resolver and API contracts.",
+        "completed": [
+          "Selected /creator-commons as the smallest unambiguous remaining direct-page family: one client root, no discovered navigation link, and seven API discovery calls already backed by creator_digital_commons.",
+          "Returned notFound before the page can hydrate or issue steward, participation, asset, protocol, registry, transition, or gated discovery requests.",
+          "Preserved the page, all API routes, admin surface, worker, canonical flag resolver, and unrelated pilots/navigation.",
+          "Forty-four focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining direct-page/navigation or deferred worker family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families, deferred workers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:39:33.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a dedicated disabled music-royalty-ingestion capability from the documented default-off rollout and missing schema/runtime/end-to-end evidence, guarding the import worker before privileged, file, parser, normalization, or persistence work.",
+        "completed": [
+          "Kept royalty ingestion distinct from finance offerings because the source policy defines its own default-off music_royalties_ingestion_enabled accounting contract, user-authorization boundary, and review-before-ledger lifecycle.",
+          "Stopped scripts/music-royalties-import-worker.ts before batch configuration, service-role credentials, import claims, statement-storage download, file text decoding, generic CSV parsing, normalization, reconciliation, quarantine, or normalized-event persistence.",
+          "Preserved the enabled-path private-storage download, source-row idempotency, minor-unit arithmetic, variance quarantine, review-required transition, normalization metrics, and deduplicated outbox semantics; confirmed the worker performs no allocation and left every unrelated worker unchanged.",
+          "Seventy focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining creator worker or direct-page/navigation family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining creator worker families, UI/page consumers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:40:43.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a canonical server boundary for the creator federation page, denying direct access before client rendering while preserving its existing resolver and API contracts.",
+        "completed": [
+          "Selected /federation as the next smallest unambiguous direct-page family: one client root, three API discovery calls, and direct creator_federation resolver ownership.",
+          "Returned notFound before the page can hydrate or issue entity, membership, or collective discovery requests.",
+          "Preserved the page, all API routes, admin surface, worker, canonical flag resolver, cooperative link, and unrelated pilots/navigation.",
+          "Forty-seven focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining direct-page/navigation or creator worker family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families, deferred creator workers, and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:44:27.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Routed private music trust reconciliation through the existing disabled music-origin capability before credentials, trusted data, queries, queue writes, or persistence, closing the executable music-worker inventory gap.",
+        "completed": [
+          "Reused music_origin_processing because reconciliation reads only music_origin_processing_enabled and repairs the same origin/trust state; no direct policy evidence establishes a separate launch capability.",
+          "Stopped scripts/music-trust-reconcile.ts before Supabase environment credentials, client creation, feature_flags or artist_music reads, music_file_fingerprints upserts, or artist_music updates.",
+          "Preserved enabled reconciliation scanning, unresolved accounting, idempotent fingerprint enqueue, private-track update, and metric behavior while leaving every other worker unchanged.",
+          "Fifty-eight focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue remaining direct-page/navigation families, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families and hosted verification are outside this slice; no unguarded executable music-worker entrypoint remains in the audited inventory."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:49:02.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a canonical server boundary for the creator cooperative page, denying direct access before client rendering while preserving its existing resolver and API contracts.",
+        "completed": [
+          "Selected /cooperative as the next smallest unambiguous direct-page family: one client root, four API discovery calls, and direct creator_cooperative resolver ownership.",
+          "Returned notFound before the page can hydrate or issue entity, membership, policy, or collective discovery requests.",
+          "Preserved the page, all API routes, admin surface, worker, canonical flag resolver, inbound education/federation links, and unrelated pilots/navigation.",
+          "Fifty focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining direct-page/navigation family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T02:50:34.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a canonical server boundary for the creator interoperability convention page, denying direct access before client rendering while preserving its existing resolver and API contracts.",
+        "completed": [
+          "Selected /interop-convention as the next smallest unambiguous direct-page family: one client root, four API discovery calls, and direct creator_interoperability_convention resolver ownership.",
+          "Returned notFound before the page can hydrate or issue network, approval-package, recognition, or gated discovery requests.",
+          "Preserved the page, all API routes, admin surface, worker, canonical flag resolver, and unrelated pilots/navigation.",
+          "Fifty-two focused Vitest cases, focused ESLint, public-surface, production-debug, and cron-inventory checks passed."
+        ],
+        "next_steps": [
+          "Continue with one remaining direct-page/navigation family, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families and hosted verification are outside this slice."
+        ]
+      },
+      {
+        "at": "2026-09-19T23:15:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added canonical server boundaries for the creator public infrastructure and creator multilateral treaty operations pages, denying direct access before client rendering while preserving their existing resolver and API contracts.",
+        "completed": [
+          "Selected /public-infrastructure and /treaty-operations as the next two smallest unambiguous direct-page families, each with one client root, four API discovery calls, and direct canonical resolver ownership.",
+          "Returned notFound before either page can hydrate or issue its entity/identifier/participation/gated or status/readiness/review/gated discovery requests.",
+          "Preserved both pages, their API routes, admin surfaces, workers, canonical flag resolvers, and unrelated pilots/navigation.",
+          "Fifty-six focused Vitest cases, focused ESLint, public-surface, production-debug (40 covered routes), and cron-inventory (7 scheduled, 1 deferred) checks passed."
+        ],
+        "next_steps": [
+          "Continue with the next remaining direct-page/navigation families, then obtain exact-SHA isolated-staging evidence."
+        ],
+        "blockers": [
+          "Remaining disabled direct-page/navigation families (interop institution/organization, protocol constitution, treaty legacy/renewal) and hosted verification are outside this slice."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide the launch capability matrix, route-deny registry, and public-surface checks to QA-003 and RELEASE-005."
+  ]
+}

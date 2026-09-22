@@ -11,6 +11,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Equipment } from "./event-operations"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 const equipmentSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -47,19 +49,20 @@ export function EquipmentModal({ isOpen, onClose, onSubmit, initialData }: Equip
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-700">
+      <DialogContent className={cn("sm:max-w-[425px]", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle className="text-slate-100">
+          <DialogTitle className={detailSurfacePattern.title}>
             {initialData ? "Edit Equipment" : "Add Equipment"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-slate-300">Name</Label>
+            <Label htmlFor="name" className={detailSurfacePattern.label}>Name</Label>
             <Input
               id="name"
               {...form.register("name")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.name && (
               <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
@@ -67,22 +70,22 @@ export function EquipmentModal({ isOpen, onClose, onSubmit, initialData }: Equip
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-slate-300">Description</Label>
+            <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
             <Textarea
               id="description"
               {...form.register("description")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.textarea}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="quantity" className="text-slate-300">Quantity</Label>
+            <Label htmlFor="quantity" className={detailSurfacePattern.label}>Quantity</Label>
             <Input
               id="quantity"
               type="number"
               min="1"
               {...form.register("quantity", { valueAsNumber: true })}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.quantity && (
               <p className="text-sm text-red-500">{form.formState.errors.quantity.message}</p>
@@ -90,15 +93,15 @@ export function EquipmentModal({ isOpen, onClose, onSubmit, initialData }: Equip
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="status" className="text-slate-300">Status</Label>
+            <Label htmlFor="status" className={detailSurfacePattern.label}>Status</Label>
             <Select
               value={form.watch("status")}
               onValueChange={(value) => form.setValue("status", value as any)}
             >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectContent className="bg-slate-900 border-white/10">
                 <SelectItem value="available" className="text-white">Available</SelectItem>
                 <SelectItem value="in_use" className="text-white">In Use</SelectItem>
                 <SelectItem value="maintenance" className="text-white">Maintenance</SelectItem>
@@ -110,20 +113,20 @@ export function EquipmentModal({ isOpen, onClose, onSubmit, initialData }: Equip
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-slate-300">Notes</Label>
+            <Label htmlFor="notes" className={detailSurfacePattern.label}>Notes</Label>
             <Textarea
               id="notes"
               {...form.register("notes")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.textarea}
               placeholder="Any additional information about the equipment..."
             />
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="border-slate-700">
+            <Button type="button" variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+            <Button type="submit" className={detailSurfacePattern.btnPrimary}>
               {initialData ? "Save Changes" : "Add Equipment"}
             </Button>
           </div>
@@ -131,4 +134,4 @@ export function EquipmentModal({ isOpen, onClose, onSubmit, initialData }: Equip
       </DialogContent>
     </Dialog>
   )
-} 
+}

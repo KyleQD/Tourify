@@ -47,6 +47,7 @@ export default function VenueOnboardingPage() {
   const { venue, stats, isLoading, error } = useCurrentVenue()
   const [documentCount, setDocumentCount] = useState(0)
   const [equipmentCount, setEquipmentCount] = useState(0)
+  const [hasSiteMap, setHasSiteMap] = useState<boolean | undefined>(undefined)
   const [isCountsLoading, setIsCountsLoading] = useState(true)
 
   useEffect(() => {
@@ -60,17 +61,26 @@ export default function VenueOnboardingPage() {
     async function loadCounts() {
       setIsCountsLoading(true)
       try {
-        const [documents, equipment] = await Promise.all([
+        const [documents, equipment, mapsRes] = await Promise.all([
           venueService.getVenueDocuments(venue.id),
           venueService.getVenueEquipment(venue.id),
+          fetch("/api/site-maps/shared", { credentials: "include", cache: "no-store" }),
         ])
         if (cancelled) return
         setDocumentCount(documents.length)
         setEquipmentCount(equipment.length)
+        if (mapsRes.ok) {
+          const mapsJson = await mapsRes.json()
+          const maps = Array.isArray(mapsJson?.data) ? mapsJson.data : []
+          setHasSiteMap(maps.length > 0)
+        } else {
+          setHasSiteMap(undefined)
+        }
       } catch {
         if (!cancelled) {
           setDocumentCount(0)
           setEquipmentCount(0)
+          setHasSiteMap(undefined)
         }
       } finally {
         if (!cancelled) setIsCountsLoading(false)
@@ -119,7 +129,7 @@ export default function VenueOnboardingPage() {
     openApplications: 0,
     documentCount,
     equipmentCount,
-    hasSiteMap: undefined,
+    hasSiteMap,
   })
 
   const completedSteps = TOTAL_CHECKLIST_STEPS - actionItems.length

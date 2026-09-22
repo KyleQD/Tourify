@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { AccountManagementService, UserAccount } from '@/lib/services/account-management.service'
 import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
+import { useToast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
@@ -85,6 +86,7 @@ function getTypeLabel(type: string): string {
 export function AccountManagementSettings({ activeTab }: AccountManagementSettingsProps) {
   const { currentAccount } = useMultiAccount()
   const { user } = useAuth()
+  const { toast } = useToast()
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -312,19 +314,40 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
       setDeletingAccountId(account.profile_id)
       console.log('🗑️ [Account Management] Deleting account:', account.account_type, account.profile_data.display_name)
 
-      // For venue accounts, delete the venue profile directly
+      // For venue accounts, deletion runs through the audited server-side
+      // lifecycle (VEN-256): owner-only, dependency preflight, typed
+      // confirmation and archive-first recovery window. Direct client
+      // venue_profiles.delete() is no longer permitted.
       if (account.account_type === 'venue') {
-        const { error } = await supabase
-          .from('venue_profiles')
-          .delete()
-          .eq('id', account.profile_id)
-          .eq('user_id', user.id) // Security check
-        
-        if (error) {
-          console.error('❌ [Account Management] Failed to delete venue:', error)
-          throw new Error('Failed to delete venue profile')
+        // Lifecycle RPCs ship with migration 20260823120000 — call loosely.
+        const rpc = supabase.rpc as unknown as (
+          fn: string,
+          args?: Record<string, unknown>,
+        ) => PromiseLike<{ data: unknown; error: { message: string } | null }>
+        const { data: preflight, error: preflightError } = await rpc(
+          'preflight_venue_archive',
+          { p_venue_id: account.profile_id },
+        )
+        if (!preflightError && Array.isArray(preflight) && preflight.length > 0) {
+          const list = (preflight as Array<{ dependency: string; detail: string }>)
+            .map((b) => `• ${b.dependency.replace(/_/g, ' ')}: ${b.detail}`)
+            .join('\n')
+          throw new Error(`Unresolved dependencies — resolve them first:\n${list}`)
         }
-        console.log('✅ [Account Management] Venue deleted successfully')
+
+        // Archive first (idempotent), then delete — both server-verified.
+        const { error: archiveError } = await rpc('archive_venue_profile', {
+          p_venue_id: account.profile_id,
+          p_confirm_name: getAccountDisplayName(account),
+        })
+        if (archiveError) throw new Error(archiveError.message)
+        const { error: deleteError } = await rpc('delete_venue_profile', {
+          p_venue_id: account.profile_id,
+          p_confirm_name: getAccountDisplayName(account),
+        })
+        if (deleteError) throw new Error(deleteError.message)
+
+        console.log('✅ [Account Management] Venue deleted via lifecycle RPC')
       }
       
       // For artist accounts, delete the artist profile directly
@@ -371,7 +394,12 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
 
     } catch (error) {
       console.error('❌ [Account Management] Error deleting account:', error)
-      // You could add a toast notification here
+      toast({
+        title: 'Could not delete account',
+        description:
+          error instanceof Error ? error.message : 'Unexpected error — please try again.',
+        variant: 'destructive',
+      })
     } finally {
       setDeletingAccountId(null)
     }

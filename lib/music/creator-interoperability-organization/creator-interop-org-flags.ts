@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_INTEROP_ORG_FLAG_NAMES = [
   "creator_interop_org_readiness_enabled",
   "creator_interop_org_entity_options_enabled",
@@ -63,6 +65,9 @@ export async function resolveCreatorInteropOrgFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorInteropOrgFlags> {
+  if (!isLaunchCapabilityAvailable("creator_interoperability_organization"))
+    return { ...DISABLED_CREATOR_INTEROP_ORG_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

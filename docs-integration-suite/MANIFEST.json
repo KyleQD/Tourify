@@ -1,0 +1,80 @@
+{
+  "files": [
+    {
+      "path": "00_README.md",
+      "bytes": 3977
+    },
+    {
+      "path": "01_EXECUTIVE_OVERVIEW.md",
+      "bytes": 3650
+    },
+    {
+      "path": "02_SCOPE_AND_PRODUCT_REQUIREMENTS.md",
+      "bytes": 6224
+    },
+    {
+      "path": "03_TARGET_ARCHITECTURE.md",
+      "bytes": 5467
+    },
+    {
+      "path": "04_TICKETMASTER_INTEGRATION.md",
+      "bytes": 4923
+    },
+    {
+      "path": "05_BANDSINTOWN_INTEGRATION.md",
+      "bytes": 4307
+    },
+    {
+      "path": "06_DATABASE_AND_SUPABASE.md",
+      "bytes": 8034
+    },
+    {
+      "path": "07_GEOLOCATION_RANKING_AND_PERSONALIZATION.md",
+      "bytes": 4695
+    },
+    {
+      "path": "08_SEARCH_FILTERING_AND_DISCOVERY_UI.md",
+      "bytes": 4497
+    },
+    {
+      "path": "09_INGESTION_DEDUPLICATION_CLAIMING.md",
+      "bytes": 4861
+    },
+    {
+      "path": "10_BACKEND_JOBS_CACHING_OBSERVABILITY.md",
+      "bytes": 4339
+    },
+    {
+      "path": "11_SECURITY_PRIVACY_COMPLIANCE.md",
+      "bytes": 3807
+    },
+    {
+      "path": "12_TESTING_ROLLOUT_DEFINITION_OF_DONE.md",
+      "bytes": 4769
+    },
+    {
+      "path": "13_EXPANSION_ROADMAP.md",
+      "bytes": 3455
+    },
+    {
+      "path": "14_FILE_TARGET_MAP.md",
+      "bytes": 3290
+    },
+    {
+      "path": "15_KIMI_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 13568
+    },
+    {
+      "path": "16_IMPLEMENTATION_TRACKER.json",
+      "bytes": 12370
+    },
+    {
+      "path": "17_ACCEPTANCE_TEST_MATRIX.csv",
+      "bytes": 3212
+    },
+    {
+      "path": "18_OFFICIAL_REFERENCES.md",
+      "bytes": 3709
+    }
+  ]
+}

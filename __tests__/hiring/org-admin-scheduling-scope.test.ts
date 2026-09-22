@@ -114,14 +114,14 @@ describe("org live venue needs", () => {
     ).toBe("22222222-2222-2222-2222-222222222222")
   })
 
-  it("Live + org employer without venue → needsVenue true, needsEmployer false", () => {
+  it("Live + org employer without venue → needsVenue false, needsEmployer false", () => {
     expect(
       getLiveSchedulingScopeFlags({
         mode: "live",
         employer: orgEmployer,
         venueId: null,
       }),
-    ).toEqual({ needsEmployer: false, needsVenue: true })
+    ).toEqual({ needsEmployer: false, needsVenue: false })
   })
 
   it("Live without employer → needsEmployer true", () => {

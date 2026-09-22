@@ -40,6 +40,11 @@ interface DiscoverPost {
   }
 }
 
+interface RawMusicContentItem {
+  id?: string | number
+  author?: { username?: string | null } | null
+}
+
 interface DiscoverResponse {
   success: boolean
   sections: {
@@ -196,6 +201,28 @@ function normalizeSuggestions(payload: any): DiscoverProfile[] {
       }
     })
     .filter((profile: DiscoverProfile) => profile.id && profile.username)
+}
+
+/**
+ * The raw /api/feed/music payload carries the artist handle on author.username.
+ * Re-derive it at the discover data boundary so music cards link by
+ * username/handle instead of a bare track-owner UUID.
+ */
+function attachMusicArtistHandles(
+  tracks: DiscoverMusicTrack[],
+  payload: unknown
+): DiscoverMusicTrack[] {
+  const content = (payload as { content?: RawMusicContentItem[] })?.content
+  if (!Array.isArray(content)) return tracks
+  const rawByTrackId = new Map(content.map((item) => [String(item.id), item]))
+  return tracks.map((track) => {
+    const item = rawByTrackId.get(String(track.id))
+    if (!item) return track
+    return {
+      ...track,
+      artist_username: item.author?.username || null,
+    }
+  })
 }
 
 function rankForYou({
@@ -377,9 +404,9 @@ export async function GET(request: NextRequest) {
         .slice(0, sectionLimit)
     : platformEvents.slice(0, sectionLimit)
 
-  const newMusic = normalizeMusicTracks(newMusicPayload)
-  const trendingMusic = normalizeMusicTracks(trendingMusicPayload)
-  const popularMusic = normalizeMusicTracks(popularMusicPayload)
+  const newMusic = attachMusicArtistHandles(normalizeMusicTracks(newMusicPayload), newMusicPayload)
+  const trendingMusic = attachMusicArtistHandles(normalizeMusicTracks(trendingMusicPayload), trendingMusicPayload)
+  const popularMusic = attachMusicArtistHandles(normalizeMusicTracks(popularMusicPayload), popularMusicPayload)
   const topSongs = rankTopSongs(
     [...newMusic, ...trendingMusic, ...popularMusic],
     sectionLimit

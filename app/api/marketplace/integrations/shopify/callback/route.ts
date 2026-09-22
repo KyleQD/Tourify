@@ -9,10 +9,16 @@ import {
   syncShopifyCatalog,
   verifyShopifyOAuthHmac,
 } from "@/lib/marketplace/shopify-adapter"
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from "@/lib/config/audit-feature-gates"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
+  if (!isAuditFeatureApproved("marketplace_integrations"))
+    return auditFeatureUnavailable("marketplace_integrations")
   const redirectBase = `${request.nextUrl.origin}/artist/store?tab=integrations`
   try {
     const supabase = await createClient()

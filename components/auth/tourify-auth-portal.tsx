@@ -39,6 +39,8 @@ export interface TourifyAuthPortalProps {
   className?: string
   wrapperClassName?: string
   showSecurityFooter?: boolean
+  /** Keep the decorative clipped-card silhouette used by the standalone login page. */
+  shardShape?: boolean
   cardTitle?: string
   cardDescription?: string
 }
@@ -49,6 +51,7 @@ export function TourifyAuthPortal({
   className,
   wrapperClassName,
   showSecurityFooter = true,
+  shardShape = true,
   cardTitle = "Create your Tourify account",
   cardDescription = "Start free in minutes and activate your profile fast.",
 }: TourifyAuthPortalProps) {
@@ -220,7 +223,7 @@ export function TourifyAuthPortal({
     if (!pendingConfirmationEmail || resendCooldownSec > 0 || isResendingConfirmation) return false
     setIsResendingConfirmation(true)
     setError(null)
-    const { error: resendError } = await resendSignupConfirmation(pendingConfirmationEmail)
+    const { error: resendError } = await resendSignupConfirmation(pendingConfirmationEmail, redirectTo)
     setIsResendingConfirmation(false)
     if (resendError) {
       setError(mapAuthError(resendError))
@@ -234,6 +237,7 @@ export function TourifyAuthPortal({
     resendCooldownSec,
     isResendingConfirmation,
     resendSignupConfirmation,
+    redirectTo,
   ])
 
   useEffect(() => {
@@ -381,7 +385,7 @@ export function TourifyAuthPortal({
         full_name: signUpData.name,
         username: normalizedUsernameToUse,
         account_type: signUpData.accountType,
-      })
+      }, redirectTo)
 
       if (result.error) {
         setPendingConfirmationEmail(null)
@@ -453,19 +457,19 @@ export function TourifyAuthPortal({
 
       <Card
         className={`login-auth-shard bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden ${className ?? ""}`}
-        style={{ clipPath: "polygon(3% 0, 100% 1%, 97% 100%, 0 96%, 1% 18%)" }}
+        style={shardShape ? { clipPath: "polygon(3% 0, 100% 1%, 97% 100%, 0 96%, 1% 18%)" } : undefined}
       >
-        <CardHeader className="text-center pb-4 pt-6">
-          <div className="flex justify-center mb-3">
+        <CardHeader className="px-4 pb-3 pt-5 text-center sm:px-6 sm:pb-4 sm:pt-6">
+          <div className="mb-3 flex justify-center">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-white font-bold">{cardTitle}</CardTitle>
+          <CardTitle role="heading" aria-level={2} className="text-xl font-bold leading-tight text-white sm:text-2xl">{cardTitle}</CardTitle>
           <CardDescription className="text-gray-300">{cardDescription}</CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-4 pb-5 sm:px-6 sm:pb-6">
           {inviteToken ? (
             <div className="mb-6 p-4 rounded-lg bg-purple-500/20 border border-purple-500/50 backdrop-blur-sm">
               <div className="flex items-center space-x-2">
@@ -535,11 +539,11 @@ export function TourifyAuthPortal({
           ) : null}
 
           <Tabs value={activeAuthTab} onValueChange={(value) => handleAuthTabChange(value as AuthTab)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-sm">
-              <TabsTrigger value="signup" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
+            <TabsList className="grid h-auto w-full grid-cols-2 bg-white/10 p-1 backdrop-blur-sm">
+              <TabsTrigger value="signup" className="min-h-11 md:min-h-11 data-[state=active]:bg-purple-700 data-[state=active]:text-white">
                 Sign Up
               </TabsTrigger>
-              <TabsTrigger value="signin" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
+              <TabsTrigger value="signin" className="min-h-11 md:min-h-11 data-[state=active]:bg-purple-700 data-[state=active]:text-white">
                 Sign In
               </TabsTrigger>
             </TabsList>
@@ -549,7 +553,7 @@ export function TourifyAuthPortal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  className="min-h-11 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                   onClick={() => void handleSocialSignIn("google")}
                   disabled={isSubmitting || !!isSocialSubmitting}
                 >
@@ -559,7 +563,7 @@ export function TourifyAuthPortal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  className="min-h-11 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                   onClick={() => void handleSocialSignIn("apple")}
                   disabled={isSubmitting || !!isSocialSubmitting}
                 >
@@ -569,7 +573,7 @@ export function TourifyAuthPortal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  className="min-h-11 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                   onClick={() => void handleSocialSignIn("facebook")}
                   disabled={isSubmitting || !!isSocialSubmitting}
                 >
@@ -602,7 +606,7 @@ export function TourifyAuthPortal({
                     placeholder="Enter your email"
                     value={signInData.email}
                     onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
+                    className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
                     required
                     disabled={isSubmitting}
                   />
@@ -621,15 +625,17 @@ export function TourifyAuthPortal({
                       placeholder="Enter your password"
                       value={signInData.password}
                       onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50 pr-10"
+                      className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50 pr-11"
                       required
                       disabled={isSubmitting}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-white"
                       disabled={isSubmitting}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -687,7 +693,7 @@ export function TourifyAuthPortal({
                       placeholder="John Doe"
                       value={signUpData.name}
                       onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
+                      className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
                       required
                       disabled={isSubmitting}
                     />
@@ -711,7 +717,7 @@ export function TourifyAuthPortal({
                         setIsUsernameEditedManually(true)
                         setSignUpData({ ...signUpData, username: normalizeUsername(e.target.value) })
                       }}
-                      className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
+                      className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
                       disabled={isSubmitting}
                     />
                     {signUpData.username ? (
@@ -750,7 +756,7 @@ export function TourifyAuthPortal({
                     placeholder="john@example.com"
                     value={signUpData.email}
                     onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                    className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
+                    className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
                     required
                     disabled={isSubmitting}
                   />
@@ -769,7 +775,7 @@ export function TourifyAuthPortal({
                       placeholder="Create a strong password"
                       value={signUpData.password}
                       onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50 pr-10"
+                      className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50 pr-11"
                       required
                       minLength={6}
                       disabled={isSubmitting}
@@ -777,8 +783,10 @@ export function TourifyAuthPortal({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-white"
                       disabled={isSubmitting}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -798,15 +806,17 @@ export function TourifyAuthPortal({
                       placeholder="Confirm your password"
                       value={signUpData.confirmPassword}
                       onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50 pr-10"
+                      className="min-h-11 bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50 pr-11"
                       required
                       disabled={isSubmitting}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-white"
                       disabled={isSubmitting}
+                      aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+                      aria-pressed={showConfirmPassword}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -846,7 +856,7 @@ export function TourifyAuthPortal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  className="min-h-11 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                   onClick={() => void handleSocialSignIn("google")}
                   disabled={isSubmitting || !!isSocialSubmitting}
                 >
@@ -856,7 +866,7 @@ export function TourifyAuthPortal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  className="min-h-11 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                   onClick={() => void handleSocialSignIn("apple")}
                   disabled={isSubmitting || !!isSocialSubmitting}
                 >
@@ -866,7 +876,7 @@ export function TourifyAuthPortal({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  className="min-h-11 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                   onClick={() => void handleSocialSignIn("facebook")}
                   disabled={isSubmitting || !!isSocialSubmitting}
                 >

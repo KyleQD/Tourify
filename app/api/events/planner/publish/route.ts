@@ -7,6 +7,7 @@ import {
   verifyEventsV2Row,
 } from '../../_lib/admin-event-persistence'
 import { logAuditEvent } from '@/lib/audit'
+import { normalizeExplicitTicketTypeDrafts } from '@/lib/admin/event-ticketing-setup'
 
 function combineDateTimeToIso(date?: string, time?: string): string {
   if (!date?.trim()) return new Date().toISOString()
@@ -32,8 +33,15 @@ export async function POST(request: NextRequest) {
     const firstVenue = Array.isArray(plannerData.venues) ? plannerData.venues[0] : null
     if (!firstVenue?.name) missingItems.push('Venue')
     if (!firstVenue?.selectedDate) missingItems.push('Event date')
-    if (!Array.isArray(plannerData.ticketTypes) || plannerData.ticketTypes.length === 0) {
-      missingItems.push('At least one ticket type')
+    const ticketingSetup =
+      plannerData.ticketing_setup === 'not_ticketed'
+      || plannerData.ticketingSetup === 'not_ticketed'
+        ? 'not_ticketed'
+        : 'explicit_setup'
+    const hasTicketTypes =
+      Array.isArray(plannerData.ticketTypes) && plannerData.ticketTypes.length > 0
+    if (ticketingSetup !== 'not_ticketed' && !hasTicketTypes) {
+      missingItems.push('At least one ticket type (or mark ticketing_setup=not_ticketed)')
     }
 
     if (missingItems.length > 0) {
@@ -57,6 +65,7 @@ export async function POST(request: NextRequest) {
       venue_label: firstVenue?.name ?? '',
       venue_address: firstVenue?.address ?? '',
       description: plannerData.description ?? '',
+      ticketing_setup: ticketingSetup,
     }
 
     let eventRecord: any
@@ -136,8 +145,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create ticket types in ticket_types table
-    if (Array.isArray(plannerData.ticketTypes) && plannerData.ticketTypes.length > 0) {
+    // TIX-105: never invent GA/VIP names or default quantities
+    if (ticketingSetup !== 'not_ticketed' && hasTicketTypes) {
+      const normalized = normalizeExplicitTicketTypeDrafts(plannerData.ticketTypes)
+      if (!normalized.ok) {
+        return NextResponse.json(
+          { error: normalized.error, code: 'explicit_ticket_required' },
+          { status: 422 },
+        )
+      }
+
       const { data: existingTicketTypes, error: ticketLookupError } = await auth.supabase
         .from('ticket_types')
         .select('id')
@@ -147,14 +164,14 @@ export async function POST(request: NextRequest) {
       if (ticketLookupError) {
         console.error('[Event Planner Publish] ticket_types lookup error:', ticketLookupError)
       } else if (!existingTicketTypes || existingTicketTypes.length === 0) {
-        const ticketInserts = plannerData.ticketTypes.map((t: any) => ({
+        const ticketInserts = normalized.data.map((t) => ({
           event_id: eventRecord.id,
-          name: t.name || 'General Admission',
-          description: t.description ?? null,
-          price: Number(t.price) || 0,
-          quantity_available: Number(t.quantity) || 100,
+          name: t.name,
+          description: t.description,
+          price: t.price,
+          quantity_available: t.quantity_available,
           quantity_sold: 0,
-          category: t.type ?? 'general',
+          category: t.category,
           is_active: true,
         }))
 
@@ -164,6 +181,10 @@ export async function POST(request: NextRequest) {
 
         if (ticketError) {
           console.error('[Event Planner Publish] ticket_types insert error:', ticketError)
+          return NextResponse.json(
+            { error: 'Failed to create explicit ticket types', code: 'ticket_insert_failed' },
+            { status: 503 },
+          )
         }
       }
     }

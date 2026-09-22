@@ -8,6 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -32,17 +34,20 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-gray-900 text-white border-gray-800">
+      <DialogContent className={detailSurfacePattern.dialogContent}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="text-gray-400">{description}</DialogDescription>
+          <DialogTitle className={detailSurfacePattern.title}>{title}</DialogTitle>
+          <DialogDescription className={detailSurfacePattern.description}>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex justify-end space-x-2 mt-4">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
             {cancelText}
           </Button>
           <Button
-            className={variant === "destructive" ? "bg-red-600 hover:bg-red-700" : "bg-purple-600 hover:bg-purple-700"}
+            className={cn(
+              variant === "destructive" ? detailSurfacePattern.btnDestructive : detailSurfacePattern.btnPrimary
+            )}
             onClick={() => {
               onConfirm()
               onClose()

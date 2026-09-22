@@ -1,7 +1,11 @@
 "use client"
 
 import { useCallback, useState, useEffect, useMemo } from 'react'
-import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings, Tag, RotateCcw, Plus, Edit, Trash2 } from "lucide-react"
+import Link from "next/link"
+import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings, Tag, RotateCcw, Plus, Edit, Trash2, ChevronDown } from "lucide-react"
+import { TICKETING_WORKSPACE_GROUPS, type TicketingTabId } from "@/lib/admin/ticketing-workspace-tabs"
+import { Button as UIButton } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -22,6 +26,13 @@ import { type TicketingMetrics, type TicketType, type TicketSale, type TicketCam
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 import { useActingContext } from "@/hooks/use-acting-context"
 import { mapAdminScopeError, readAdminErrorMessage } from "@/lib/admin/admin-request"
+import { TicketingReadModelPanel } from "@/components/admin/ticketing/ticketing-read-model-panel"
+import { InventoryLedgerTable } from "@/components/admin/ticketing/inventory-ledger-table"
+import { TicketingSetupPanel } from "@/components/admin/ticketing/ticketing-setup-panel"
+import { AllocationMatrixPanel } from "@/components/admin/ticketing/allocation-matrix-panel"
+import { GuestApprovalsPanel } from "@/components/admin/ticketing/guest-approvals-panel"
+import { AdmissionsDevicesPanel } from "@/components/admin/ticketing/admissions-devices-panel"
+import { EventTicketingWorkspace } from "@/components/ticketing/event-ticketing-workspace"
 
 /** API aggregates use `clicks`, `conversions`, `revenue`; UI uses ticketing types. */
 function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] {
@@ -71,7 +82,7 @@ function buildNoStoreInit(
 type AdminRequestBuilder = (input?: RequestInit) => RequestInit
 
 export default function TicketingPage() {
-  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const { actingAccount, actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const adminRequest = useCallback(
     (input?: RequestInit) => buildNoStoreInit(actingHeaders, input),
     [actingHeaders],
@@ -89,10 +100,9 @@ export default function TicketingPage() {
   const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string }>>([])
   const [activeTab, setActiveTab] = useState('overview')
   const { toast } = useToast()
-  const actingOrgLabel =
-    typeof actingHeaders['x-acting-org-id'] === 'string' && actingHeaders['x-acting-org-id']
-      ? `Showing organization ${actingHeaders['x-acting-org-id'].slice(0, 8)}…`
-      : 'Showing the selected organization account only'
+  const actingOrgLabel = actingAccount?.profile_data?.display_name
+    ? `Showing ${actingAccount.profile_data.display_name}`
+    : 'Showing the selected organization account only'
 
   const fetchEvents = useCallback(async () => {
     if (!isActingReady) return
@@ -188,14 +198,14 @@ export default function TicketingPage() {
       ])
 
       setMetrics({
-        total_tickets_sold: overviewData.metrics?.total_tickets_sold || 0,
-        revenue_generated: overviewData.metrics?.total_revenue || 0,
-        average_ticket_price: overviewData.metrics?.average_ticket_price || 0,
-        weekly_trend: overviewData.metrics?.weekly_trend || 0,
-        revenue_trend: overviewData.metrics?.revenue_trend || 0,
-        conversion_rate: overviewData.metrics?.conversion_rate || 0,
-        social_shares: overviewData.metrics?.social_shares || 0,
-        referral_revenue: overviewData.metrics?.referral_revenue || 0
+        total_tickets_sold: overviewData.metrics.total_tickets_sold,
+        revenue_generated: overviewData.metrics.total_revenue,
+        average_ticket_price: overviewData.metrics.average_ticket_price,
+        weekly_trend: overviewData.metrics.weekly_trend,
+        revenue_trend: overviewData.metrics.revenue_trend,
+        conversion_rate: overviewData.metrics.conversion_rate,
+        social_shares: overviewData.metrics.social_shares,
+        referral_revenue: overviewData.metrics.referral_revenue
       })
 
       setTicketTypes(ticketTypesResponse.ok ? (ticketTypesData.ticket_types || []) : [])
@@ -298,42 +308,105 @@ export default function TicketingPage() {
         </div>
       ) : null}
 
+      <Card className="rounded-sm border-slate-700/50 bg-slate-900/60">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">Ticketing scope</p>
+            <p className="text-xs text-slate-400">Select an event to open its unified sales, guest-list, crew, attendee, and admissions workspace.</p>
+          </div>
+          <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+            <SelectTrigger className="w-full bg-slate-800/70 sm:w-[300px]"><SelectValue placeholder="Select event" /></SelectTrigger>
+            <SelectContent className="bg-slate-900 text-white">
+              <SelectItem value="all">All events overview</SelectItem>
+              {events.map((event) => <SelectItem key={event.id} value={event.id}>{event.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {selectedEvent !== 'all' ? (
+        <EventTicketingWorkspace eventId={selectedEvent} />
+      ) : (
+        <>
+
+      <TicketingReadModelPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+
+      {/* TIX-502 — Canonical inventory ledger */}
+      <InventoryLedgerTable eventId={selectedEvent !== "all" ? selectedEvent : null} />
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm flex flex-wrap gap-0.5">
-          <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <BarChart3 className="h-4 w-4" />Overview
-          </TabsTrigger>
-          <TabsTrigger value="ticket-types" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Ticket className="h-4 w-4" />Ticket Types
-          </TabsTrigger>
-          <TabsTrigger value="promo-codes" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Tag className="h-4 w-4" />Promo Codes
-          </TabsTrigger>
-          <TabsTrigger value="refunds" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <RotateCcw className="h-4 w-4" />Refunds
-          </TabsTrigger>
-          <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Target className="h-4 w-4" />Campaigns
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <TrendingUp className="h-4 w-4" />Analytics
-          </TabsTrigger>
-          <TabsTrigger value="sharing" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Share2 className="h-4 w-4" />Sharing
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
-            <Settings className="h-4 w-4" />Settings
-          </TabsTrigger>
-        </TabsList>
+        {/* Grouped workspace navigation — replaces 12 flat tabs with 5 primary groups */}
+        <nav className="flex items-center gap-1 overflow-x-auto border-b border-slate-700/30 px-1 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Ticketing workspace sections">
+          {TICKETING_WORKSPACE_GROUPS.map((group) => {
+            const hasSecondary = group.secondary.length > 0;
+            const isGroupActive = group.primaryTab === activeTab || group.secondary.some((s) => s.id === activeTab);
+            const activeSecondary = group.secondary.find((s) => s.id === activeTab);
+            const displayLabel = activeSecondary?.label ?? group.label;
+
+            if (hasSecondary) {
+              return (
+                <DropdownMenu key={group.id}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
+                        isGroupActive
+                          ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      }`}
+                      aria-current={isGroupActive ? 'page' : undefined}
+                    >
+                      {displayLabel}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="bg-slate-800 border-slate-700 min-w-[180px]">
+                    <DropdownMenuItem
+                      onClick={() => setActiveTab(group.primaryTab)}
+                      className={`text-slate-200 ${activeTab === group.primaryTab ? "bg-slate-700" : ""}`}
+                    >
+                      {group.label}
+                    </DropdownMenuItem>
+                    {group.secondary.map((secondary) => (
+                      <DropdownMenuItem
+                        key={secondary.id}
+                        onClick={() => setActiveTab(secondary.id)}
+                        className={`text-slate-200 ${activeTab === secondary.id ? "bg-slate-700" : ""}`}
+                      >
+                        {secondary.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <button
+                type="button"
+                key={group.id}
+                onClick={() => setActiveTab(group.primaryTab)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${
+                  activeTab === group.primaryTab
+                    ? "bg-gradient-to-r from-purple-600/80 to-blue-600/80 text-white"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+                aria-current={activeTab === group.primaryTab ? 'page' : undefined}
+              >
+                {group.label}
+              </button>
+            );
+          })}
+        </nav>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Enhanced Metrics Cards — never show zero KPIs for a failed org-scoped load */}
           {!loadError && metrics ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics.total_tickets_sold || 0)} icon={Ticket} color="purple" size="lg" change={metrics.weekly_trend || undefined} trend={(metrics.weekly_trend ?? 0) > 0 ? 'up' : (metrics.weekly_trend ?? 0) < 0 ? 'down' : 'neutral'} />
-            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics.revenue_generated || 0)} icon={DollarSign} color="green" size="lg" change={metrics.revenue_trend || undefined} trend={(metrics.revenue_trend ?? 0) > 0 ? 'up' : (metrics.revenue_trend ?? 0) < 0 ? 'down' : 'neutral'} />
-            <AdminStatCard title="Conversion Rate" value={`${metrics.conversion_rate || 0}%`} icon={TrendingUp} color="blue" size="lg" />
-            <AdminStatCard title="Social Shares" value={formatNumber(metrics.social_shares || 0)} icon={Share2} color="cyan" size="lg" />
+            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics.total_tickets_sold)} icon={Ticket} color="purple" size="lg" change={metrics.weekly_trend || undefined} trend={metrics.weekly_trend > 0 ? 'up' : metrics.weekly_trend < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics.revenue_generated)} icon={DollarSign} color="green" size="lg" change={metrics.revenue_trend || undefined} trend={metrics.revenue_trend > 0 ? 'up' : metrics.revenue_trend < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Conversion Rate" value={`${metrics.conversion_rate}%`} icon={TrendingUp} color="blue" size="lg" />
+            <AdminStatCard title="Social Shares" value={formatNumber(metrics.social_shares)} icon={Share2} color="cyan" size="lg" />
           </div>
           ) : null}
 
@@ -342,14 +415,14 @@ export default function TicketingPage() {
             <div className="lg:col-span-2">
               <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                 <CardHeader className="space-y-2 pb-2">
-                  <div className="flex flex-row items-center justify-between gap-4">
-                    <CardTitle className="text-lg font-semibold text-white flex items-center">
-                      <BarChart3 className="mr-2 h-5 w-5 text-purple-500" />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle className="flex min-w-0 items-center text-lg font-semibold text-white">
+                      <BarChart3 className="mr-2 h-5 w-5 shrink-0 text-purple-500" />
                       Ticket Sales Overview
                     </CardTitle>
-                    <div className="flex items-center space-x-2 shrink-0">
+                    <div className="flex max-w-full flex-wrap items-center gap-2">
                       <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-                        <SelectTrigger className="w-[180px] h-8 text-xs bg-slate-800/70 border-slate-700">
+                        <SelectTrigger className="h-8 w-[180px] max-w-full border-slate-700 bg-slate-800/70 text-xs">
                           <SelectValue placeholder="Select Event" />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
@@ -396,7 +469,12 @@ export default function TicketingPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {ticketTypes.length === 0 ? (
-                      <p className="text-slate-400 text-center py-4">No ticket types available</p>
+                      <div className="space-y-3 py-4 text-center">
+                        <p className="text-slate-400">No ticket types available</p>
+                        <Button asChild size="sm" variant="outline" className="border-slate-600 text-slate-200">
+                          <Link href="/admin/dashboard/events">Open events</Link>
+                        </Button>
+                      </div>
                     ) : (
                       ticketTypes.map((ticketType) => (
                         <TicketTypeItem
@@ -427,22 +505,22 @@ export default function TicketingPage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="all" className="w-full">
-                <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm mb-4">
+                <TabsList className="mb-4 grid h-auto w-full grid-cols-3 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm">
                   <TabsTrigger
                     value="all"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
+                    className="min-w-0 whitespace-normal px-1 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     All Transactions
                   </TabsTrigger>
                   <TabsTrigger
                     value="completed"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
+                    className="min-w-0 whitespace-normal px-1 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     Completed
                   </TabsTrigger>
                   <TabsTrigger
                     value="refunded"
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
+                    className="min-w-0 whitespace-normal px-1 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     Refunded
                   </TabsTrigger>
@@ -450,32 +528,33 @@ export default function TicketingPage() {
 
                 <TabsContent value="all" className="mt-0">
                   <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="All transactions table, scroll horizontally for more columns">
+                      <table className="w-full min-w-[920px] table-fixed text-sm">
+                        <caption className="sr-only">All recent transactions</caption>
                         <thead className="bg-slate-800/50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Event
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Ticket Type
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Amount
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Date
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Actions
                             </th>
                           </tr>
@@ -511,35 +590,39 @@ export default function TicketingPage() {
 
                 <TabsContent value="completed" className="mt-0">
                   <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Completed transactions table, scroll horizontally for more columns">
+                      <table className="w-full min-w-[920px] table-fixed text-sm">
+                        <caption className="sr-only">Completed recent transactions</caption>
                         <thead className="bg-slate-800/50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Event
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Ticket Type
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Amount
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Date
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
-                          {sales.filter(sale => sale.payment_status === 'paid').slice(0, 10).map((sale) => (
+                          {sales.filter(sale => sale.payment_status === 'paid').length === 0 ? (
+                            <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No completed transactions</td></tr>
+                          ) : sales.filter(sale => sale.payment_status === 'paid').slice(0, 10).map((sale) => (
                             <TransactionRow
                               key={sale.id}
                               id={sale.order_number}
@@ -559,35 +642,39 @@ export default function TicketingPage() {
 
                 <TabsContent value="refunded" className="mt-0">
                   <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400" tabIndex={0} aria-label="Refunded transactions table, scroll horizontally for more columns">
+                      <table className="w-full min-w-[920px] table-fixed text-sm">
+                        <caption className="sr-only">Refunded recent transactions</caption>
                         <thead className="bg-slate-800/50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Order #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Customer
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Event
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Ticket Type
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Amount
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Date
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
-                          {sales.filter(sale => sale.payment_status === 'refunded').slice(0, 10).map((sale) => (
+                          {sales.filter(sale => sale.payment_status === 'refunded').length === 0 ? (
+                            <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No refunded transactions</td></tr>
+                          ) : sales.filter(sale => sale.payment_status === 'refunded').slice(0, 10).map((sale) => (
                             <TransactionRow
                               key={sale.id}
                               id={sale.order_number}
@@ -770,7 +857,29 @@ export default function TicketingPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* TIX-501 — Ticketing Setup */}
+        <TabsContent value="setup" className="space-y-6">
+          <TicketingSetupPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
+
+        {/* TIX-503 — Allocation Matrix */}
+        <TabsContent value="allocations" className="space-y-6">
+          <AllocationMatrixPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
+
+        {/* TIX-504 — Guest & Comp Approvals */}
+        <TabsContent value="guests" className="space-y-6">
+          <GuestApprovalsPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
+
+        {/* TIX-509 / TIX-511 — Admissions & Devices */}
+        <TabsContent value="admissions" className="space-y-6">
+          <AdmissionsDevicesPanel eventId={selectedEvent !== "all" ? selectedEvent : null} />
+        </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   )
 }
@@ -1159,10 +1268,10 @@ function TransactionRow({ id, saleId, customer, event, ticketType, amount, date,
 
   return (
     <tr className="hover:bg-slate-800/30">
-      <td className="px-4 py-3 text-slate-300">{id}</td>
-      <td className="px-4 py-3 text-slate-300">{customer}</td>
-      <td className="px-4 py-3 text-slate-300">{event}</td>
-      <td className="px-4 py-3 text-slate-300">{ticketType}</td>
+      <td className="break-words px-4 py-3 text-slate-300">{id}</td>
+      <td className="break-words px-4 py-3 text-slate-300">{customer}</td>
+      <td className="break-words px-4 py-3 text-slate-300"><span className="line-clamp-2" title={event}>{event}</span></td>
+      <td className="break-words px-4 py-3 text-slate-300"><span className="line-clamp-2" title={ticketType}>{ticketType}</span></td>
       <td className="px-4 py-3 text-slate-300">{amount}</td>
       <td className="px-4 py-3 text-slate-400">{date}</td>
       <td className="px-4 py-3">{getStatusBadge()}</td>

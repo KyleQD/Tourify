@@ -67,7 +67,7 @@ export function ArtistProfileIdentityCard({
         >
           <div className="relative aspect-[21/9] min-h-[120px] w-full bg-gradient-to-br from-purple-950/80 via-slate-900 to-black">
             {coverImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
+
               <img
                 src={coverImageUrl}
                 alt=""

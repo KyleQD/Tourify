@@ -6,6 +6,10 @@ import { canAcceptOfferingOrder } from "@/lib/music/finance/offerings"
 import { resolveMusicRoyaltiesFlags } from "@/lib/music/royalties/music-royalties-flags"
 import { parseMinorUnits } from "@/lib/music/royalties/money"
 import { minorUnitsToDb } from "@/lib/music/royalties/royalties-access"
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from "@/lib/config/audit-feature-gates"
 
 export const dynamic = "force-dynamic"
 
@@ -19,6 +23,8 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  if (!isAuditFeatureApproved("music_finance_offerings"))
+    return auditFeatureUnavailable("music_finance_offerings")
   try {
     const authResult = await requireApiUser(request)
     if (!authResult.success) return authResult.response

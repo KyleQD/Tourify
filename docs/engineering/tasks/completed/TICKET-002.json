@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.0",
+  "id": "TICKET-002",
+  "title": "Versioned ticket settlement",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "ticketing",
+  "created_at": "2026-09-09T09:35:09.801Z",
+  "updated_at": "2026-09-11T17:55:39Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Make ticket-revenue settlement append-only/versioned instead of delete+reinsert on active allocations",
+  "scope": {
+    "in": [
+      "app/api/ticketing/settlements/route.ts",
+      "supabase/migrations/20260910150000_version_ticket_revenue_allocations.sql",
+      "docs/engineering/migration-validation/20260910150000_version_ticket_revenue_allocations.json",
+      "__tests__/ticketing/settlement-versioning-contract.test.ts"
+    ],
+    "out": [
+      "TICKET-003 and unrelated migration validation records",
+      "production or hosted database writes",
+      "finance receiving-table/schema design"
+    ]
+  },
+  "working_set": [
+    "lib/ticketing/",
+    "app/api/ticketing/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/ticketing/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Settlement is append-only/versioned before finance handoff"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/ticketing/settlements.test.ts __tests__/ticketing/settlement-versioning-contract.test.ts",
+      "npx vitest run __tests__/ticketing/unified-guest-list.test.ts __tests__/ticketing/ticketing-read-auth-contract.test.ts",
+      "npx eslint app/api/ticketing/settlements/route.ts __tests__/ticketing/settlement-versioning-contract.test.ts",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npx tsc --project tsconfig.ticketing-check.json --noEmit --pretty false",
+      "npm run typecheck"
+    ],
+    "evidence": [
+      "Focused settlement Vitest passed: 2 files, 3 tests.",
+      "Focused settlement ESLint passed.",
+      "Migration-chain check passed: active migration chain has no duplicate policy creations; 293 files scanned.",
+      "Migration-validation check passed and recognized 20260910150000_version_ticket_revenue_allocations.sql; the previously reported 20260910230339 admin-overview manifest issue is not present in the current tree and is not a TICKET-002 failure.",
+      "Scoped TypeScript diagnostic completed with no diagnostics in the changed settlement write block; it reported only the pre-existing settlements-table/generated-type drift at app/api/ticketing/settlements/route.ts:68, plus unrelated errors in lib/auth/admin-context.ts and lib/venue/door-check-in-state.ts.",
+      "Repository-wide npm run typecheck was started and stopped after 30 seconds with no output because the 386-entry dirty worktree is resource-constrained; this is release-level follow-up, not a failure of the focused settlement acceptance check.",
+      "The settlement route no longer has a delete+insert fallback: the versioned RPC appends revisions, retires active rows, no-ops identical retries, and returns 503 when unavailable."
+    ],
+    "last_run_sha": "working-tree",
+    "last_run_at": "2026-09-11T17:55:39Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Settlement allocation writes use the existing RPC contract with append-only historical revisions, active-row retirement, identical-retry no-op behavior, and no destructive route fallback.",
+    "completed": [
+      "Preserved existing authorization, beneficiary ownership checks, percentage cap, RPC name, and table contract.",
+      "Added additive CREATE OR REPLACE migration that locks the event, no-ops identical payloads, retires active rows, and inserts new revisions without deleting history.",
+      "Removed the delete+insert fallback and fail closed with 503 when the versioned RPC is unavailable.",
+      "Added focused contract coverage and migration validation manifest.",
+      "Re-ran focused settlement tests, lint, migration-chain validation, migration-validation, and a bounded TypeScript diagnostic."
+    ],
+    "next_steps": [
+      "Apply and rehearse migration 20260910150000 in an isolated/staging Supabase environment with read-only preflight and postflight evidence.",
+      "Coordinate the versioned settlement handoff contract with finance before enabling production writes."
+    ],
+    "blockers": [
+      "No production or hosted database writes were performed by this task; isolated/staging rehearsal remains a release follow-up.",
+      "The current generated database types omit the pre-existing settlements table used by the settlement read path; this concurrent schema/type drift is outside the append-only implementation and must be reconciled by the database owner before a repository-wide typecheck can be green."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T17:55:39Z",
+        "sha": "working-tree",
+        "summary": "Closed the bounded TICKET-002 verification gap. Focused settlement tests and lint passed; migration-chain and migration-validation checks passed. The bounded TypeScript diagnostic found only pre-existing generated-type drift at the unchanged settlements read query and unrelated errors outside the task.",
+        "changed_paths": [
+          "app/api/ticketing/settlements/route.ts",
+          "supabase/migrations/20260910150000_version_ticket_revenue_allocations.sql",
+          "docs/engineering/migration-validation/20260910150000_version_ticket_revenue_allocations.json",
+          "__tests__/ticketing/settlement-versioning-contract.test.ts",
+          "docs/engineering/tasks/completed/TICKET-002.json"
+        ],
+        "verification": [
+          "npx vitest run __tests__/ticketing/settlements.test.ts __tests__/ticketing/settlement-versioning-contract.test.ts — passed, 3 tests",
+          "npx eslint app/api/ticketing/settlements/route.ts __tests__/ticketing/settlement-versioning-contract.test.ts — passed",
+          "npm run check:migration-chain — passed, 293 files scanned",
+          "npm run check:migration-validation — passed",
+          "npx tsc --project tsconfig.ticketing-check.json --noEmit --pretty false — reported pre-existing settlements-table/generated-type drift and unrelated errors; no diagnostics in the changed settlement write block",
+          "npm run typecheck — stopped after 30 seconds without output in the resource-constrained dirty worktree"
+        ],
+        "blockers": [
+          "Staging/isolated migration rehearsal and finance handoff remain required before production writes.",
+          "Repository-wide typecheck remains pending because of concurrent generated-type drift and workspace resource constraints."
+        ],
+        "next": "No further implementation in this bounded task; database rehearsal and finance handoff are release follow-ups."
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { NotificationService } from '@/lib/services/notification-service'
 import { resolveActingContext } from '@/lib/auth/acting-context'
 import { generalNotificationTarget } from '@/lib/notifications/notification-target'
+import { WORKFORCE_NOTIFICATION_TYPES } from '@/lib/notifications/workforce-notification-types'
 
 /**
  * Auth model: bearer/cookie via `resolveActingContext` → `authenticateApiRequest` (user-scoped).
@@ -37,12 +38,18 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
     const type = searchParams.get('type') || undefined
+    const category = searchParams.get('category') || undefined
+
+    if (category && category !== 'workforce') {
+      return NextResponse.json({ error: 'Unsupported notification category' }, { status: 400 })
+    }
 
     const result = await NotificationService.getUserNotifications(ctx.userId, {
       limit,
       offset,
       unreadOnly,
       type,
+      types: !type && category === 'workforce' ? [...WORKFORCE_NOTIFICATION_TYPES] : undefined,
       targetProfileId: ctx.profileId,
       accountType: ctx.accountType,
     })

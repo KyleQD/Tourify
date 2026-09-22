@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260921120000_ticketing_purchase_idempotency.sql",
+  "taskId": "DB-005",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["ticketing", "money-path", "data-integrity"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "static source review of the active ticketing chain: ticket_sales (20260328130000_ticketing_v2.sql) carries metadata jsonb not null default '{}', buyer_user_id uuid nullable, event_id uuid not null; reconcile_ticketing_foundation (20260821000000) added order_number / stripe_checkout_session_id / webhook_event_id with three partial unique indexes but no buyer-scoped idempotency key; contract-test SHA-256 c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d",
+    "evidenceArtifact": "static-review:DB-005-PURCHASE-IDEMPOTENCY-2026-09-21 (migration SHA-256 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106)"
+  },
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): count existing duplicate (buyer_user_id, event_id, metadata->>'idempotency_key') combinations on public.ticket_sales; must be zero (or quarantined) before the index build, because CREATE UNIQUE INDEX fails if duplicates exist",
+    "Layer 1 (apply, single statement, operator): CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_sales_purchase_idempotency ON public.ticket_sales (buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL — no table rewrite, no column added, no data touched; ShareLock held only across the partial index build",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db005b_ticketing_idempotency_contract.sql; expect zero violation rows and the single summary row with purchase_idempotency_index_ready = true",
+    "Layer 3 (runtime certification, release/ops): rerun the TICKET-005 purchase-idempotency vitest suite (__tests__/ticketing/purchase-idempotency.test.ts) against the staged target and run a two-concurrent-first-request probe proving exactly one row is created per (buyer, event, key); the second insert must surface the unique violation instead of a duplicate row"
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT count(*) FROM (SELECT buyer_user_id, event_id, metadata->>'idempotency_key' AS k FROM public.ticket_sales WHERE metadata->>'idempotency_key' IS NOT NULL GROUP BY buyer_user_id, event_id, metadata->>'idempotency_key' HAVING count(*) > 1) d",
+      "SELECT count(*) FROM public.ticket_sales WHERE metadata->>'idempotency_key' IS NOT NULL",
+      "Confirm the partial unique indexes idx_ticket_sales_order_number, idx_ticket_sales_stripe_session, and idx_ticket_sales_webhook_event exist untouched"
+    ],
+    "expectedAffectedRows": "DDL only: one unique index plus one comment; zero rows changed",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with the exact file or a targeted psql apply; a partial or failed apply is corrected with a later additive forward fix, never a replay or reset",
+    "resumeCursor": "Supabase migration version 20260921120000",
+    "idempotency": "CREATE UNIQUE INDEX IF NOT EXISTS and COMMENT ON INDEX are deterministic and repeatable; no object creation requires a pre-check, and no DML is executed"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement or quarantine; if Layer 0 finds pre-existing duplicate key combinations, the operator quarantines or reconciles those rows before applying"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No CHECK, FK, or NOT NULL constraints are added or changed; nullability of buyer_user_id, event_id, and metadata is untouched"
+    ],
+    "indexes": [
+      "Adds partial unique index idx_ticket_sales_purchase_idempotency on ticket_sales(buyer_user_id, event_id, (metadata ->> 'idempotency_key')) where metadata ->> 'idempotency_key' is not null",
+      "Existing partial unique indexes idx_ticket_sales_order_number, idx_ticket_sales_stripe_session, and idx_ticket_sales_webhook_event remain untouched"
+    ],
+    "validationPlan": "Post-apply catalog probes via supabase/tests/db005b_ticketing_idempotency_contract.sql assert the index exists, is unique, carries the metadata->>'idempotency_key' expression and partial predicate, and indexes buyer_user_id plus event_id; runtime behavior is certified by the TICKET-005 concurrent-first-request probe in Layer 3"
+  },
+  "recovery": {
+    "rollback": "No objects are dropped and no data is rewritten, so rollback means accepting the constraint: if the unique index must be removed, drop idx_ticket_sales_purchase_idempotency through an explicit reviewed additive migration",
+    "forwardFix": "Extend scope (e.g., a dedicated idempotency_key column or payment_status-aware predicate) through a later additive migration; never re-apply or replay the chain"
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/db005b_ticketing_idempotency_contract.sql and confirm zero violation rows",
+      "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'ticket_sales' AND indexname = 'idx_ticket_sales_purchase_idempotency'",
+      "Re-run npx vitest run __tests__/ticketing/purchase-idempotency.test.ts",
+      "Probe: in a rolled-back transaction, INSERT two rows with the same (buyer_user_id, event_id, metadata.idempotency_key) and confirm the second raises a unique_violation (SQLSTATE 23505)"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

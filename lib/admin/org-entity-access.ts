@@ -15,7 +15,7 @@ interface OrgEntityReferences {
   requireEventTourRelation?: boolean
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type SupabaseClient = any
 
 async function requireOrgRecord(

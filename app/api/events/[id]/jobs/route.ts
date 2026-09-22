@@ -96,9 +96,6 @@ export async function GET(
         .order('created_at', { ascending: false })
 
       if (error) {
-        if (error.code === '42P01') {
-          return NextResponse.json({ success: true, jobs: [] })
-        }
         // Fallback to templates table used by older staffing path
         const { data: templates, error: templateError } = await supabase
           .from('job_posting_templates')
@@ -213,9 +210,15 @@ export async function POST(
         const { data: template, error: templateError } = await supabase
           .from('job_posting_templates')
           .insert({
-            venue_id: eventRow?.venue_id,
+            venue_id: eventRow?.venue_id || null,
             event_id: reference.id,
+            tour_id: null,
             created_by: user.id,
+            employer_entity_type: insertRow.employer_entity_type,
+            employer_entity_id: insertRow.employer_entity_id,
+            assignment_scope: 'event',
+            seat_role: null,
+            seat_permissions: [],
             title: insertRow.title,
             description: insertRow.description,
             department: insertRow.department,
@@ -231,6 +234,9 @@ export async function POST(
             remote: false,
             urgent: insertRow.urgent,
             role_type: 'other',
+            event_date: insertRow.event_date,
+            salary_range: insertRow.salary_range,
+            allow_applicant_messages: false,
             status: status === 'published' ? 'published' : 'draft',
           })
           .select()

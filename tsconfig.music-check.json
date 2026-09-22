@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "components/music/page/**/*",
+    "app/music/page.tsx",
+    "app/api/music/history/route.ts",
+    "app/api/feed/music/route.ts",
+    "lib/services/jukebox.service.ts",
+    "contexts/jukebox-context.tsx",
+    "components/jukebox/**/*",
+    "components/music/provider-badge.tsx",
+    "hooks/use-multi-account.tsx",
+    "**/*.d.ts"
+  ]
+}

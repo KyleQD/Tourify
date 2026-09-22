@@ -1,0 +1,491 @@
+[
+  {
+    "function": "extensions.st_findextent",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "8",
+          "text": "FOR over EXECUTE statement"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },
+      {
+        "level": "error",
+        "message": "record \"myrec\" is not assigned yet",
+        "statement": {
+          "lineNumber": "9",
+          "text": "RETURN"
+        },
+        "detail": "The tuple structure of a not-yet-assigned record is indeterminate.",
+        "context": "SQL expression \"myrec.extent\"",
+        "sqlState": "55000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.st_findextent",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "8",
+          "text": "FOR over EXECUTE statement"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },
+      {
+        "level": "error",
+        "message": "record \"myrec\" is not assigned yet",
+        "statement": {
+          "lineNumber": "9",
+          "text": "RETURN"
+        },
+        "detail": "The tuple structure of a not-yet-assigned record is indeterminate.",
+        "context": "SQL expression \"myrec.extent\"",
+        "sqlState": "55000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.populate_geometry_columns",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"gc\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gsrid\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gndims\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gtype\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"query\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"gc_is_valid\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"stale\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.populate_geometry_columns",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "cannot determinate a result of dynamic SQL",
+        "statement": {
+          "lineNumber": "47",
+          "text": "EXECUTE"
+        },
+        "hint": "Don't use dynamic SQL and record type together, when you would check function.",
+        "detail": "There is a risk of related false alarms.",
+        "sqlState": "00000"
+      },
+      {
+        "level": "error",
+        "message": "record \"gc\" is not assigned yet",
+        "statement": {
+          "lineNumber": "55",
+          "text": "assignment"
+        },
+        "detail": "The tuple structure of a not-yet-assigned record is indeterminate.",
+        "context": "PL/pgSQL assignment \"gsrid := gc.srid\"",
+        "sqlState": "55000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.addgeometrycolumn",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "28",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "34",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "39",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "51",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "70",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "88",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"rec\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"sr\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalog_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.dropgeometrycolumn",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "34",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"myrec\"",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalog_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.dropgeometrytable",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalog_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.updategeometrysrid",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "36",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unreachable code",
+        "statement": {
+          "lineNumber": "43",
+          "text": "RETURN"
+        },
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning extra",
+        "message": "unused parameter \"catalogn_name\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.postgis_full_version",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function extensions.postgis_gdal_version() does not exist",
+        "statement": {
+          "lineNumber": "35",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "8",
+          "text": "SELECT extensions.postgis_gdal_version()"
+        },
+        "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
+        "sqlState": "42883"
+      }
+    ]
+  },
+  {
+    "function": "extensions.lockrow",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"authorization_table\" does not exist",
+        "statement": {
+          "lineNumber": "18",
+          "text": "EXECUTE"
+        },
+        "query": {
+          "position": "13",
+          "text": "DELETE FROM authorization_table WHERE expires \u003c now()"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "extensions.addauth",
+    "issues": [
+      {
+        "level": "error",
+        "message": "relation \"temp_lock_have_table\" does not exist",
+        "statement": {
+          "lineNumber": "24",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "13",
+          "text": "INSERT INTO temp_lock_have_table VALUES (getTransactionID(), lockid)"
+        },
+        "sqlState": "42P01"
+      }
+    ]
+  },
+  {
+    "function": "extensions.enablelongtransactions",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "never read variable \"rec\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.longtransactionsenabled",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "7",
+          "text": "RETURN"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"boolean\" type",
+        "sqlState": "42804"
+      },
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "9",
+          "text": "RETURN"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"boolean\" type",
+        "sqlState": "42804"
+      },
+      {
+        "level": "warning extra",
+        "message": "never read variable \"rec\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "extensions.st_letters",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "target type is different type than source type",
+        "statement": {
+          "lineNumber": "98",
+          "text": "statement block"
+        },
+        "hint": "The input expression type does not have an assignment cast to the target type.",
+        "detail": "cast \"text\" value to \"json\" type",
+        "context": "during statement block local variable \"font_default\" initialization on line 18",
+        "sqlState": "42804"
+      }
+    ]
+  },
+  {
+    "function": "private.accept_tour_collaboration_invitation",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"contact_email\" of relation \"tour_team_members\" does not exist",
+        "statement": {
+          "lineNumber": "88",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "148",
+          "text": "insert into public.tour_team_members (\n      tour_id,\n      team_id,\n      user_id,\n      role,\n      role_in_team,\n      name,\n      email,\n      contact_email,\n      status,\n      is_active,\n      assigned_by,\n      assigned_at\n    ) values (\n      v_invitation.tour_id,\n      v_team_id,\n      auth.uid(),\n      'admin',\n      'admin',\n      v_display_name,\n      coalesce(v_user.email, ''),\n      coalesce(v_user.email, ''),\n      'confirmed',\n      true,\n      v_invitation.invited_by,\n      now()\n    )"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "private.create_tour_quick_start_events",
+    "issues": [
+      {
+        "level": "warning extra",
+        "message": "auto variable \"v_ordinal\" shadows a previously defined variable",
+        "statement": {
+          "lineNumber": "60",
+          "text": "FOR with integer loop variable"
+        },
+        "hint": "SET plpgsql.extra_warnings TO 'shadowed_variables'",
+        "sqlState": "00000"
+      },
+      {
+        "level": "warning",
+        "message": "unused variable \"v_ordinal\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.get_artist_storage_stats",
+    "issues": [
+      {
+        "level": "error",
+        "message": "function sum(text) does not exist",
+        "statement": {
+          "lineNumber": "3",
+          "text": "RETURN QUERY"
+        },
+        "query": {
+          "position": "289",
+          "text": "SELECT \n    COALESCE(music.file_count, 0) as music_files_count,\n    COALESCE(music.total_size, 0) as music_total_size,\n    COALESCE(photos.file_count, 0) as photo_files_count,\n    COALESCE(photos.total_size, 0) as photo_total_size\n  FROM (\n    SELECT \n      COUNT(*) as file_count,\n      SUM(metadata-\u003e\u003e'size')::BIGINT as total_size\n    FROM storage.objects \n    WHERE bucket_id = 'artist-music' \n    AND (storage.foldername(name))[1] = user_id::text\n  ) music\n  CROSS JOIN (\n    SELECT \n      COUNT(*) as file_count,\n      SUM(metadata-\u003e\u003e'size')::BIGINT as total_size\n    FROM storage.objects \n    WHERE bucket_id = 'artist-photos' \n    AND (storage.foldername(name))[1] = user_id::text\n  ) photos"
+        },
+        "hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
+        "sqlState": "42883"
+      }
+    ]
+  },
+  {
+    "function": "public.should_send_notification",
+    "issues": [
+      {
+        "level": "error",
+        "message": "record \"prefs\" has no field \"enable_shares\"",
+        "statement": {
+          "lineNumber": "20",
+          "text": "IF"
+        },
+        "context": "SQL expression \"not prefs.enable_shares\"",
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.can_manage_hiring",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"owner_id\" does not exist",
+        "statement": {
+          "lineNumber": "116",
+          "text": "EXECUTE"
+        },
+        "query": {
+          "position": "62",
+          "text": "select exists (select 1 from public.venues where id = $1 and owner_id = $2)"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  },
+  {
+    "function": "public.create_organizer_account",
+    "issues": [
+      {
+        "level": "warning",
+        "message": "unused variable \"slug_attempt\"",
+        "sqlState": "00000"
+      }
+    ]
+  },
+  {
+    "function": "public.refresh_account_display_info",
+    "issues": [
+      {
+        "level": "error",
+        "message": "column \"profile_image_url\" does not exist",
+        "statement": {
+          "lineNumber": "34",
+          "text": "SQL statement"
+        },
+        "query": {
+          "position": "152",
+          "text": "SELECT\n          COALESCE(artist_name, 'Artist'),\n          LOWER(REGEXP_REPLACE(COALESCE(artist_name, 'artist'), '[^a-zA-Z0-9]', '', 'g')),\n          profile_image_url,\n          COALESCE(is_verified, false)\n                                                                                     FROM artist_profiles\n        WHERE id = account_record.profile_id"
+        },
+        "sqlState": "42703"
+      }
+    ]
+  }
+]

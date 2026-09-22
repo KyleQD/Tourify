@@ -46,7 +46,7 @@ export function HashtagGroupsPanel({ onUseInComposer }: HashtagGroupsPanelProps)
     }
   }
 
-  function useGroup(groupTags: string[]) {
+  function applyGroup(groupTags: string[]) {
     if (onUseInComposer) {
       onUseInComposer(groupTags)
       return
@@ -133,7 +133,7 @@ export function HashtagGroupsPanel({ onUseInComposer }: HashtagGroupsPanelProps)
                       size="sm"
                       variant="outline"
                       className="mt-3 rounded-xl border-slate-700"
-                      onClick={() => useGroup(g.hashtags)}
+                      onClick={() => applyGroup(g.hashtags)}
                     >
                       Use in composer
                     </Button>

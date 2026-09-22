@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
-import { getAccountAuthor, getAccountAuthorPath, type AccountAuthor } from '@/lib/accounts/account-author'
+import type { AccountAuthor } from '@/lib/accounts/account-author'
 import {
   resolveAccountAuthorSnapshotsBatch,
   resolveActingAccountSnapshot,
@@ -14,10 +14,11 @@ import {
 } from '@/lib/feed/music-post-preview'
 import { hydratePostsWithPolls } from '@/lib/polls/hydrate-polls'
 import { startRouteTiming } from '@/lib/observability/route-timing'
-import { countUnavailableFeedMediaUrls, normalizeFeedMediaUrls } from '@/lib/feed/media-url-utils'
+import { normalizeFeedMediaUrls } from '@/lib/feed/media-url-utils'
+import { normalizeFeedPostDTO } from '@/lib/feed/feed-post-dto'
 import { getManageablePostIds } from '@/lib/feed/post-management'
-
-const GENERIC_AUTHOR_NAMES = new Set(['Community Member', 'Artist', 'Venue', 'Organization'])
+import { POST as createPost } from '@/app/api/posts/create/route'
+import { decodeFeedCursor, encodeFeedCursor } from '@/lib/feed/feed-cursor'
 
 const ARTICLE_PREVIEW_SELECT = `
   id,
@@ -160,7 +161,8 @@ async function resolveProfileFeedVisibilityAccess({
 
   return {
     viewerOwnsProfile,
-    viewerCanSeeFollowersPosts: viewerOwnsProfile || viewerFollowsProfileOwner || profileIsPublic,
+    viewerCanSeeFollowersPosts: viewerOwnsProfile || viewerFollowsProfileOwner,
+    profileIsPublic,
   }
 }
 
@@ -177,16 +179,6 @@ async function createFeedReadClient(authResult: Awaited<ReturnType<typeof authen
     console.warn('[Feed Posts API] Service read client unavailable; using request-scoped Supabase client.', error)
     return fallbackSupabase
   }
-}
-
-function authorNeedsRefresh(post: any) {
-  const ownerProfile = firstRelated(post.profiles)
-  return (
-    !post.account_display_name ||
-    GENERIC_AUTHOR_NAMES.has(post.account_display_name) ||
-    !post.account_username ||
-    !ownerProfile
-  )
 }
 
 async function fetchOwnerProfiles(supabase: any, posts: any[]) {
@@ -213,7 +205,6 @@ async function resolveAuthorsForPosts(supabase: any, posts: any[]) {
   const keys = Array.from(
     new Set(
       posts
-        .filter(authorNeedsRefresh)
         .map(post => {
           const profileId = post.posted_as_profile_id || post.user_id
           const accountType = post.posted_as_type || 'general'
@@ -351,19 +342,6 @@ function getStoredEventPreview(post: any) {
   }
 }
 
-function getMediaUnavailableCount(post: any) {
-  const metadata = post?.metadata && typeof post.metadata === 'object'
-    ? post.metadata as Record<string, any>
-    : {}
-  const explicitCount = Number(metadata.media_unavailable_count || metadata.mediaUnavailableCount || 0)
-  const invalidUrlCount = countUnavailableFeedMediaUrls(post?.media_urls)
-
-  if (explicitCount > 0) return explicitCount
-  if (metadata.media_unavailable === true || metadata.mediaUnavailable === true)
-    return Math.max(1, invalidUrlCount)
-  return invalidUrlCount
-}
-
 async function fetchAcceptedCollaborators(supabase: any, posts: any[]) {
   const postIds = unique(posts.map((post: any) => post?.id))
   if (postIds.length === 0) return new Map<string, any[]>()
@@ -408,6 +386,56 @@ async function fetchAcceptedCollaborators(supabase: any, posts: any[]) {
   }
 }
 
+/**
+ * Appearance snapshots are hydrated separately from the posts select so a
+ * missing optional posts column cannot silently strip styles from older feed
+ * rows when the query falls back to a compatibility select.
+ */
+async function fetchPostAppearances(supabase: any, posts: any[]) {
+  const postIds = unique(posts.map((post) => post?.id))
+  if (postIds.length === 0) return new Map<string, any>()
+
+  try {
+    const { data, error } = await supabase
+      .from('post_appearances')
+      .select('post_id, template_id, template_version, schema_version, snapshot, snapshot_hash, status')
+      .in('post_id', postIds)
+
+    if (error) {
+      console.warn('[Feed Posts API] Failed to hydrate post appearances:', error)
+      return new Map<string, any>()
+    }
+
+    return new Map((data || []).map((appearance: any) => [appearance.post_id, appearance]))
+  } catch (error) {
+    console.warn('[Feed Posts API] Post appearance hydration unavailable:', error)
+    return new Map<string, any>()
+  }
+}
+
+async function fetchViewerLikedPostIds(
+  supabase: any,
+  posts: any[],
+  viewerUserId?: string | null,
+) {
+  if (!viewerUserId) return new Set<string>()
+  const postIds = unique(posts.map((post) => post?.id))
+  if (postIds.length === 0) return new Set<string>()
+
+  try {
+    const { data, error } = await supabase
+      .from('post_likes')
+      .select('post_id')
+      .eq('user_id', viewerUserId)
+      .in('post_id', postIds)
+
+    if (error) return new Set<string>()
+    return new Set<string>((data || []).map((row: any) => row.post_id).filter(Boolean))
+  } catch {
+    return new Set<string>()
+  }
+}
+
 async function enrichFeedPosts(
   supabase: any,
   posts: any[] | null | undefined,
@@ -416,7 +444,7 @@ async function enrichFeedPosts(
   const safePosts = posts || []
   if (safePosts.length === 0) return []
 
-  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls, actualCommentCounts, manageablePostIds, collaboratorsByPost] = await Promise.all([
+  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls, actualCommentCounts, manageablePostIds, collaboratorsByPost, appearancesByPost, viewerLikedPostIds] = await Promise.all([
     fetchOwnerProfiles(supabase, safePosts),
     resolveAuthorsForPosts(supabase, safePosts),
     fetchArticlePreviews(supabase, safePosts),
@@ -425,6 +453,8 @@ async function enrichFeedPosts(
     fetchActualCommentCounts(supabase, safePosts),
     getManageablePostIds({ supabase, posts: safePosts, userId: viewerUserId }),
     fetchAcceptedCollaborators(supabase, safePosts),
+    fetchPostAppearances(supabase, safePosts),
+    fetchViewerLikedPostIds(supabase, safePosts, viewerUserId),
   ])
 
   return withPolls.map(post => {
@@ -450,7 +480,6 @@ async function enrichFeedPosts(
     return {
       ...post,
       media_urls: normalizeFeedMediaUrls(post.media_urls),
-      media_unavailable_count: getMediaUnavailableCount(post),
       comments_count: actualCommentCounts.get(post.id) ?? Number(post.comments_count || 0),
       viewer_can_manage: manageablePostIds.has(post.id),
       profiles: post.profiles || profile,
@@ -461,99 +490,35 @@ async function enrichFeedPosts(
       track_preview: trackPreview,
       collaborators: collaboratorsByPost.get(post.id) || [],
       tagged_users: Array.isArray(post.tagged_users) ? post.tagged_users : [],
+      post_appearances:
+        appearancesByPost.get(post.id) || firstRelated(post.post_appearances) || null,
+      is_liked: viewerLikedPostIds.has(post.id),
     }
   })
 }
 
-function normalizeFeedPost(post: any) {
-  const author = getAccountAuthor(post)
-  const ownerProfile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
-  const mediaUrls = normalizeFeedMediaUrls(post.media_urls)
-  const commentsCount = Number(post.comments_count || 0)
-  const mediaUnavailableCount = Number(post.media_unavailable_count || getMediaUnavailableCount(post) || 0)
-  const profile = {
-    id: author.id || post.user_id,
-    username: author.username || ownerProfile?.username || 'user',
-    full_name: author.name,
-    avatar_url: author.avatarUrl || ownerProfile?.avatar_url || '',
-    is_verified: author.isVerified || Boolean(ownerProfile?.is_verified),
-    account_context: {
-      type: author.type,
-      profile_id: author.id || post.user_id,
-      display_name: author.name,
-      profile_path: getAccountAuthorPath(author),
-    },
-  }
-
-  return {
-    id: post.id,
-    user_id: post.user_id,
-    content: post.content,
-    type: post.type || 'text',
-    visibility: post.visibility || 'public',
-    location: post.location || null,
-    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
-    tagged_users: Array.isArray(post.tagged_users) ? post.tagged_users : [],
-    collaborators: Array.isArray(post.collaborators) ? post.collaborators : [],
-    media_urls: mediaUrls,
-    media_unavailable_count: mediaUnavailableCount > 0 ? mediaUnavailableCount : undefined,
-    likes_count: post.likes_count || 0,
-    comments_count: commentsCount,
-    shares_count: post.shares_count || 0,
-    is_pinned: Boolean(post.is_pinned),
-    created_at: post.created_at,
-    updated_at: post.updated_at,
-    posted_as_profile_id: author.id || post.posted_as_profile_id || post.user_id,
-    posted_as_type: author.type,
-    account_display_name: author.name,
-    account_username: author.username,
-    account_avatar_url: author.avatarUrl,
-    content_ref_type: post.content_ref_type || null,
-    content_ref_id: post.content_ref_id || null,
-    article_preview: post.article_preview || null,
-    listing_preview: post.listing_preview || null,
-    event_preview: post.event_preview || null,
-    track_preview: post.track_preview || null,
-    metadata: post.metadata || null,
-    viewer_can_manage: Boolean(post.viewer_can_manage),
-    poll_ends_at: post.poll_ends_at || null,
-    poll_total_votes: post.poll_total_votes || post.poll?.totalVotes || 0,
-    poll: post.poll || null,
-    profiles: profile,
-    user: profile,
-    is_liked: false,
-    like_count: post.likes_count || 0,
-  }
-}
-
 export async function GET(request: NextRequest) {
   const endTiming = startRouteTiming('/api/feed/posts')
-  // #region agent log
-  const __dbgT0 = Date.now()
-  const __dbgStage = (stage: string, hypothesisId: string, data: Record<string, unknown> = {}) => {
-    const elapsedMs = Date.now() - __dbgT0
-    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'881a75'},body:JSON.stringify({sessionId:'881a75',runId:'post-fix',hypothesisId,location:'app/api/feed/posts/route.ts:GET',message:stage,data:{...data,elapsedMs,stageMs:data.stageMs},timestamp:Date.now()})}).catch(()=>{})
-  }
-  __dbgStage('handler_enter', 'A', {})
-  // #endregion
   try {
-
-    const __authStart = Date.now()
     const authResult = await authenticateApiRequest(request)
-    // #region agent log
-    __dbgStage('auth_done', 'E', { stageMs: Date.now() - __authStart, hasUser: Boolean(authResult?.user) })
-    // #endregion
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'all'
     const user_id = searchParams.get('user_id')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '20', 10)
+    const limit = Number.isFinite(requestedLimit) ? Math.min(50, Math.max(1, requestedLimit)) : 20
+    const cursorParam = searchParams.get('cursor')
+    const decodedCursor = decodeFeedCursor(cursorParam)
+    if (cursorParam && decodedCursor === null) {
+      return NextResponse.json(
+        { success: false, error: { code: 'invalid_cursor', message: 'The feed cursor is invalid.' }, data: [] },
+        { status: 400 },
+      )
+    }
+    const legacyOffset = Number.parseInt(searchParams.get('offset') || '0', 10)
+    const offset = decodedCursor ?? (Number.isFinite(legacyOffset) ? Math.max(0, legacyOffset) : 0)
+    const excludePinned = searchParams.get('exclude_pinned') === 'true'
 
-    const __clientStart = Date.now()
     const supabase = await createFeedReadClient(authResult)
-    // #region agent log
-    __dbgStage('client_done', 'E', { stageMs: Date.now() - __clientStart })
-    // #endregion
 
     // Fetch feed posts (profiles hydrated in enrichFeedPosts; no table probe round-trip).
     try {
@@ -575,7 +540,6 @@ export async function GET(request: NextRequest) {
 
       // Handle following feed - friends (user follows) + account follows (persona updates)
       if (type === 'following' && authResult?.user) {
-        const __scopeStart = Date.now()
         const [{ data: followingData, error: followingError }, { data: accountFollowRows }] =
           await Promise.all([
             supabase
@@ -620,14 +584,6 @@ export async function GET(request: NextRequest) {
 
         // Persona posts come from account_follows only (not expand-all-personas from user follows).
         followingProfileIds = unique([...accountProfileIds, ...(ownedProfileIds || [])])
-        // #region agent log
-        __dbgStage('following_scope_done', 'C', {
-          stageMs: Date.now() - __scopeStart,
-          followingUserCount: followingUserIds?.length || 0,
-          followingProfileCount: followingProfileIds?.length || 0,
-          followedAccountCount: followedAccountIds.length,
-        })
-        // #endregion
       }
 
       // Personalized home: follows + pages + band/org membership + tags + accepted collabs
@@ -665,6 +621,10 @@ export async function GET(request: NextRequest) {
           profileId: profileIdFilter,
         })
 
+        if (!profileFeedVisibilityAccess.profileIsPublic && !profileFeedVisibilityAccess.viewerOwnsProfile) {
+          return NextResponse.json({ success: true, data: [], next_cursor: null })
+        }
+
         const {
           resolveAcceptedCollabPostIdsForProfile,
         } = await import('@/lib/feed/resolve-home-feed-scope')
@@ -676,8 +636,7 @@ export async function GET(request: NextRequest) {
 
       // Ignore non-post "types" like 'network' to avoid bad filters
 
-      const __fetchStart = Date.now()
-      const { data: basePosts, error: baseError, variantName } = await fetchFeedPostsWithFallback(
+      const { data: basePosts, error: baseError } = await fetchFeedPostsWithFallback(
         supabase,
         {
           type,
@@ -693,18 +652,11 @@ export async function GET(request: NextRequest) {
           viewerOwnsProfile: profileFeedVisibilityAccess?.viewerOwnsProfile,
           viewerCanSeeFollowersPosts: profileFeedVisibilityAccess?.viewerCanSeeFollowersPosts,
           attribution,
+          excludePinned,
         },
         limit,
         offset
       )
-      // #region agent log
-      __dbgStage('fetch_posts_done', 'B', {
-        stageMs: Date.now() - __fetchStart,
-        variantName,
-        basePostCount: basePosts?.length || 0,
-        hasError: Boolean(baseError),
-      })
-      // #endregion
 
       if (baseError) {
         console.error('[Feed Posts API] Error fetching base posts:', baseError)
@@ -714,15 +666,8 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      const __enrichStart = Date.now()
       const enrichedPosts = await enrichFeedPosts(supabase, basePosts, authResult?.user?.id || null)
-      let normalized = enrichedPosts.map(normalizeFeedPost)
-      // #region agent log
-      __dbgStage('enrich_done', 'D', {
-        stageMs: Date.now() - __enrichStart,
-        enrichedCount: enrichedPosts.length,
-      })
-      // #endregion
+      let normalized = enrichedPosts.map(normalizeFeedPostDTO)
 
       // Additive: merge organizer event updates for attending users (not Your Posts).
       const canMergeAttendingUpdates =
@@ -732,7 +677,6 @@ export async function GET(request: NextRequest) {
 
       if (canMergeAttendingUpdates && authResult?.user) {
         try {
-          const __mergeStart = Date.now()
           const {
             fetchAttendingEventFeedPosts,
             mergeAttendingEventPostsIntoFeed,
@@ -753,37 +697,21 @@ export async function GET(request: NextRequest) {
 
           normalized = merged.map((post) =>
             post.content_ref_type === 'event_update'
-              ? normalizeFeedPost(post)
+              ? normalizeFeedPostDTO(post)
               : post
           )
-          // #region agent log
-          __dbgStage('attending_merge_done', 'D', {
-            stageMs: Date.now() - __mergeStart,
-            attendingCount: attendingUpdates.length,
-            mergedCount: normalized.length,
-          })
-          // #endregion
         } catch (mergeError) {
           console.warn('[Feed Posts API] Attending event merge skipped:', mergeError)
         }
       }
 
-      // #region agent log
-      __dbgStage('handler_complete', 'A', {
-        stageMs: Date.now() - __dbgT0,
-        type,
-        limit,
-        offset,
-        rowCount: normalized.length,
-        variantName,
-      })
-      // #endregion
       endTiming({
         userId: authResult?.user?.id,
         rowCount: normalized.length,
         metadata: { type, limit, offset },
       })
-      return NextResponse.json({ success: true, data: normalized })
+      const nextCursor = normalized.length === limit ? encodeFeedCursor(offset + normalized.length) : null
+      return NextResponse.json({ success: true, data: normalized, next_cursor: nextCursor })
     } catch (error) {
       console.error('[Feed Posts API] Posts table error:', error)
       endTiming({ metadata: { error: true, stage: 'table' } })
@@ -804,6 +732,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const createRequest = new NextRequest(request.clone())
     const authResult = await authenticateApiRequest(request)
 
     if (!authResult) {
@@ -816,6 +745,10 @@ export async function POST(request: NextRequest) {
     const { user, supabase } = authResult
     const body = await request.json()
 
+    // Keep the legacy network-post lookup below, but route every post mutation
+    // through the canonical creator so appearance and attribution are identical
+    // on all composer surfaces.
+    if (!body.following_ids) return createPost(createRequest)
 
     // Handle network posts request
     if (body.following_ids) {
@@ -849,7 +782,7 @@ export async function POST(request: NextRequest) {
       }
 
       const enrichedPosts = await enrichFeedPosts(supabase, posts, authResult?.user?.id || null)
-      return NextResponse.json({ success: true, data: enrichedPosts.map(normalizeFeedPost), error: null })
+      return NextResponse.json({ success: true, data: enrichedPosts.map(normalizeFeedPostDTO), error: null })
     }
 
     // Handle post creation — resolve acting entity from session/headers
@@ -1012,7 +945,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const normalizedPost = normalizeFeedPost({
+    const normalizedPost = normalizeFeedPostDTO({
       ...post,
       tagged_users: taggedUsers,
       collaborators: insertedCollaborators,

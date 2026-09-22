@@ -8,7 +8,21 @@ import {
   tourMemberInputSchema,
   tourMemberPatchSchema,
 } from "@/lib/admin/tour-collaboration"
+import {
+  validateTeamParent,
+  validateWorkforceAssignmentParents,
+  workforceAuthorityErrorResponse,
+} from "@/lib/admin/workforce-authority.service"
+import { presentTourMemberAssignmentStatus } from "@/lib/admin/workforce-assignment-status"
+import { projectWorkforceRecord } from "@/lib/admin/workforce-field-projections"
 import { withAdminCapability } from "@/lib/auth/api-auth"
+import type { AdminCapability } from "@/lib/auth/admin-capabilities"
+import {
+  ensureOrgStaffMember,
+  StaffingFlowError,
+  staffingErrorStatus,
+  syncTourEmploymentAssignment,
+} from "@/lib/services/staffing-assignment.service"
 
 const idSchema = z.string().uuid()
 
@@ -16,8 +30,35 @@ function errorResponse(error: unknown, fallback: string) {
   if (error instanceof z.ZodError) {
     return NextResponse.json({ error: "Validation error", details: error.issues }, { status: 400 })
   }
+  if (error instanceof StaffingFlowError) {
+    return NextResponse.json(
+      { error: error.message, code: error.code, details: error.details },
+      { status: staffingErrorStatus(error) },
+    )
+  }
+  const authority = workforceAuthorityErrorResponse(error, "")
+  if (authority.code) {
+    return NextResponse.json(
+      { error: authority.message, code: authority.code },
+      { status: authority.status },
+    )
+  }
   const resolved = adminAccessErrorResponse(error, fallback, 500)
   return NextResponse.json({ error: resolved.message }, { status: resolved.status })
+}
+
+function presentProjectedMember(row: Record<string, unknown>, capabilities: readonly AdminCapability[]) {
+  const presented = presentTourMember(row) as Record<string, unknown>
+  const statusBridge = presentTourMemberAssignmentStatus(
+    typeof presented.status === "string" ? presented.status : null,
+  )
+  return projectWorkforceRecord(
+    {
+      ...presented,
+      assignment_status: statusBridge.assignmentStatus,
+    },
+    { capabilities },
+  )
 }
 
 async function loadTeam(supabase: any, teamId: string) {
@@ -32,9 +73,8 @@ async function loadTeam(supabase: any, teamId: string) {
 
 async function ensureTeam(supabase: any, tourId: string, teamId: string | null | undefined, userId: string) {
   if (teamId) {
-    const team = await loadTeam(supabase, teamId)
-    if (!team || team.tour_id !== tourId) throw new Error("Team does not belong to this tour.")
-    return team.id
+    await validateTeamParent({ supabase, tourId, teamId })
+    return teamId
   }
 
   const { data: existing, error: lookupError } = await supabase
@@ -89,13 +129,25 @@ export const GET = withAdminCapability("workforce.view", async (request: NextReq
       tourId = team.tour_id
     }
     if (!tourId) return NextResponse.json({ error: "tour_id or team_id required" }, { status: 400 })
+
+    await validateWorkforceAssignmentParents({
+      supabase,
+      userId: user.id,
+      orgId: admin.orgId,
+      tourId,
+      teamId: teamId ? idSchema.parse(teamId) : null,
+    })
     await assertAdminTourAccess({ supabase, userId: user.id, tourId, orgId: admin.orgId })
 
     let query = supabase.from("tour_team_members").select("*").eq("tour_id", tourId)
     if (teamId) query = query.eq("team_id", teamId)
     const { data, error } = await query.order("created_at", { ascending: true })
     if (error) throw new Error(error.message)
-    return NextResponse.json({ data: (data ?? []).map((row: Record<string, unknown>) => presentTourMember(row)) })
+    return NextResponse.json({
+      data: (data ?? []).map((row: Record<string, unknown>) =>
+        presentProjectedMember(row, admin.capabilities),
+      ),
+    })
   } catch (error) {
     return errorResponse(error, "Failed to load team members")
   }
@@ -104,20 +156,67 @@ export const GET = withAdminCapability("workforce.view", async (request: NextReq
 export const POST = withAdminCapability("workforce.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     let input = tourMemberInputSchema.parse(await request.json())
+    await validateWorkforceAssignmentParents({
+      supabase,
+      userId: user.id,
+      orgId: admin.orgId,
+      tourId: input.tour_id,
+      teamId: input.team_id ?? null,
+      role: input.role,
+      requireRole: true,
+    })
     await assertAdminTourAccess({ supabase, userId: user.id, tourId: input.tour_id, orgId: admin.orgId })
     const teamId = await ensureTeam(supabase, input.tour_id, input.team_id, user.id)
 
-    if (input.user_id && (!input.name || !input.email)) {
-      const { data: profile } = await supabase
+    if (input.user_id) {
+      const { data: duplicate, error: duplicateError } = await supabase
+        .from("tour_team_members")
+        .select("id")
+        .eq("tour_id", input.tour_id)
+        .eq("team_id", teamId)
+        .eq("user_id", input.user_id)
+        .eq("role", input.role)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle()
+      if (duplicateError) throw new StaffingFlowError("database", "Unable to check the existing tour assignment.", duplicateError)
+      if (duplicate) throw new StaffingFlowError("conflict", "This person already has that role on this tour team.")
+    }
+
+    let staffMember: Record<string, unknown> | null = null
+    if (input.user_id) {
+      const selectedUserId = input.user_id
+      const [{ data: profile, error: profileError }, { data: orgMember }, { data: existingStaff }] = await Promise.all([
+        supabase
         .from("profiles")
         .select("id, full_name, email")
         .eq("id", input.user_id)
-        .maybeSingle()
+        .maybeSingle(),
+        supabase.from("org_members").select("user_id").eq("org_id", admin.orgId).eq("user_id", input.user_id).maybeSingle(),
+        supabase.from("staff_members").select("id").eq("org_id", admin.orgId).eq("user_id", input.user_id).maybeSingle(),
+      ])
+      if (profileError || !profile) throw new StaffingFlowError("not_found", "The selected user profile could not be loaded.", profileError)
+      if (!orgMember && !existingStaff) {
+        throw new StaffingFlowError("forbidden", "That person is not connected to the active organization.")
+      }
       input = {
         ...input,
         name: input.name || profile?.full_name || undefined,
         email: input.email || profile?.email || undefined,
       }
+      if (!input.name || !input.email) {
+        throw new StaffingFlowError("validation", "The selected person needs a name and email before they can be assigned.")
+      }
+      staffMember = await ensureOrgStaffMember(supabase, {
+        orgId: admin.orgId,
+        userId: selectedUserId,
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        role: input.role,
+        department: "Tour",
+        status: "active",
+      }) as Record<string, unknown>
     }
 
     const { data, error } = await supabase
@@ -125,8 +224,31 @@ export const POST = withAdminCapability("workforce.manage", async (request: Next
       .insert(buildTourMemberWrite(input, user.id, teamId))
       .select("*")
       .single()
-    if (error) throw new Error(error.message)
-    return NextResponse.json({ data: presentTourMember(data) }, { status: 201 })
+    if (error) {
+      if (error.code === "23505") throw new StaffingFlowError("conflict", "This exact tour assignment already exists.", error)
+      throw new StaffingFlowError("database", "Unable to add this person to the tour.", error)
+    }
+    const workModeAssignment = input.user_id && staffMember
+      ? await syncTourEmploymentAssignment({
+          supabase,
+          orgId: admin.orgId,
+          tourId: input.tour_id,
+          userId: input.user_id,
+          staffMemberId: String(staffMember.id),
+          role: input.role,
+          department: "Tour",
+          status: input.status === "confirmed" ? "confirmed" : input.status === "declined" ? "declined" : "invited",
+        })
+      : null
+    return NextResponse.json(
+      {
+        data: presentProjectedMember(data as Record<string, unknown>, admin.capabilities),
+        staffMember,
+        workModeAssignment,
+        syncWarnings: input.user_id && !workModeAssignment ? ["Work Mode could not be synchronized."] : [],
+      },
+      { status: 201 },
+    )
   } catch (error) {
     return errorResponse(error, "Failed to add team member")
   }
@@ -139,10 +261,20 @@ export const PATCH = withAdminCapability("workforce.manage", async (request: Nex
     const existing = await loadMember(supabase, id)
     if (!existing) return NextResponse.json({ error: "Member not found" }, { status: 404 })
     const tourId = idSchema.parse(existing.tour_id)
+    await validateWorkforceAssignmentParents({
+      supabase,
+      userId: user.id,
+      orgId: admin.orgId,
+      tourId,
+      teamId: typeof body.team_id === "string" ? body.team_id : null,
+      role: typeof body.role === "string" ? body.role : null,
+    })
     await assertAdminTourAccess({ supabase, userId: user.id, tourId, orgId: admin.orgId })
     const input = tourMemberPatchSchema.parse(body)
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    }
     if (input.team_id !== undefined) patch.team_id = await ensureTeam(supabase, tourId, input.team_id, user.id)
     for (const field of ["user_id", "name", "role", "email", "phone", "status", "arrival_date", "departure_date", "responsibilities"] as const) {
       if (input[field] !== undefined) patch[field] = input[field]
@@ -167,7 +299,30 @@ export const PATCH = withAdminCapability("workforce.manage", async (request: Nex
       .select("*")
       .single()
     if (error) throw new Error(error.message)
-    return NextResponse.json({ data: presentTourMember(data) })
+    const memberUserId = typeof data.user_id === "string" ? data.user_id : null
+    if (memberUserId) {
+      const { data: staffMember } = await supabase
+        .from("staff_members")
+        .select("id")
+        .eq("org_id", admin.orgId)
+        .eq("user_id", memberUserId)
+        .maybeSingle()
+      if (staffMember?.id) {
+        await syncTourEmploymentAssignment({
+          supabase,
+          orgId: admin.orgId,
+          tourId,
+          userId: memberUserId,
+          staffMemberId: staffMember.id,
+          role: String(data.role || "Crew"),
+          department: "Tour",
+          status: data.status === "confirmed" ? "confirmed" : data.status === "declined" ? "declined" : "invited",
+        })
+      }
+    }
+    return NextResponse.json({
+      data: presentProjectedMember(data as Record<string, unknown>, admin.capabilities),
+    })
   } catch (error) {
     return errorResponse(error, "Failed to update team member")
   }
@@ -179,6 +334,12 @@ export const DELETE = withAdminCapability("workforce.manage", async (request: Ne
     const existing = await loadMember(supabase, id)
     if (!existing) return NextResponse.json({ error: "Member not found" }, { status: 404 })
     const tourId = idSchema.parse(existing.tour_id)
+    await validateWorkforceAssignmentParents({
+      supabase,
+      userId: user.id,
+      orgId: admin.orgId,
+      tourId,
+    })
     await assertAdminTourAccess({ supabase, userId: user.id, tourId, orgId: admin.orgId })
 
     const { error } = await supabase
@@ -187,6 +348,25 @@ export const DELETE = withAdminCapability("workforce.manage", async (request: Ne
       .eq("id", id)
       .eq("tour_id", tourId)
     if (error) throw new Error(error.message)
+    const memberUserId = typeof existing.user_id === "string" ? existing.user_id : null
+    if (memberUserId) {
+      const { count } = await supabase
+        .from("tour_team_members")
+        .select("id", { count: "exact", head: true })
+        .eq("tour_id", tourId)
+        .eq("user_id", memberUserId)
+        .eq("is_active", true)
+      if (!count) {
+        await supabase
+          .from("employment_assignments")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("employer_entity_type", "organization")
+          .eq("employer_entity_id", admin.orgId)
+          .eq("tour_id", tourId)
+          .eq("user_id", memberUserId)
+          .in("status", ["invited", "confirmed", "active"])
+      }
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     return errorResponse(error, "Failed to remove team member")

@@ -5,6 +5,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import {
+  assertAssignmentTransition,
+  mapAssignmentStatusToShift,
+  mapShiftStatusToAssignment,
+} from "@/lib/admin/workforce-assignment-status"
 import { resolveHiringEntityDisplayName } from "@/lib/auth/hiring-entity-resolver"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
 import {
@@ -14,9 +19,11 @@ import {
   sendShiftUpdateNotification,
 } from "@/lib/rebuild/shift-assignment-notify"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import type { EmploymentAssignmentStatus } from "@/types/hiring-roster-work-mode"
 
 export interface StaffShiftRow {
   id: string
+  org_id?: string | null
   venue_id?: string | null
   event_id?: string | null
   staff_member_id?: string | null
@@ -36,7 +43,7 @@ export interface SyncShiftAssignmentOptions {
   /** When true, send invite/update notification to the worker. */
   notify?: boolean
   /** Force assignment status (defaults from shift.status). */
-  assignmentStatus?: "invited" | "confirmed" | "cancelled"
+  assignmentStatus?: "invited" | "confirmed" | "declined" | "cancelled"
   actorUserId?: string | null
   changeSummary?: string | null
   /** Treat as cancellation (cancel assignment + notify). */
@@ -52,6 +59,7 @@ export interface SyncShiftAssignmentResult {
 interface StaffMemberRow {
   id: string
   user_id: string | null
+  status?: string | null
   position?: string | null
   department?: string | null
   employer_entity_type?: string | null
@@ -69,10 +77,14 @@ function assignmentStatusFromShift(
   shiftStatus: string | null | undefined,
   override?: SyncShiftAssignmentOptions["assignmentStatus"],
   cancelled?: boolean
-): "invited" | "confirmed" | "cancelled" {
-  if (override) return override
-  if (cancelled || shiftStatus === "cancelled") return "cancelled"
-  if (shiftStatus === "confirmed" || shiftStatus === "completed") return "confirmed"
+): EmploymentAssignmentStatus {
+  const mapped = mapShiftStatusToAssignment(shiftStatus, {
+    override: override as EmploymentAssignmentStatus | undefined,
+    cancelled,
+  })
+  if (mapped === "cancelled") return "cancelled"
+  if (mapped === "declined") return "declined"
+  if (mapped === "confirmed" || mapped === "active" || mapped === "completed") return "confirmed"
   return "invited"
 }
 
@@ -91,7 +103,7 @@ export async function syncEmploymentAssignmentForShift(
 
   const { data: member, error: memberError } = await db
     .from("staff_members")
-    .select("id, user_id, position, department, employer_entity_type, employer_entity_id")
+    .select("id, user_id, status, position, department, employer_entity_type, employer_entity_id")
     .eq("id", shift.staff_member_id)
     .maybeSingle()
 
@@ -102,6 +114,13 @@ export async function syncEmploymentAssignmentForShift(
 
   const staffMember = member as StaffMemberRow
   const workerUserId = staffMember.user_id!
+
+  // A worker must be active before a shift can become actionable in Work Mode.
+  // Cancellation remains allowed so an already-linked assignment can be closed
+  // and the worker can be informed when their shift is removed.
+  if (staffMember.status !== "active" && !options.cancelled) {
+    return { ...empty, workerUserId }
+  }
   const roleTitle = shift.role_assignment?.trim() || staffMember.position?.trim() || "Staff"
   const department = staffMember.department ?? null
   const permissions = resolveWorkModePermissions({ position: roleTitle, department })
@@ -127,12 +146,20 @@ export async function syncEmploymentAssignmentForShift(
     ends_at: endsAt,
     status,
     source: "staff_shift",
+    assignment_kind: "shift",
     updated_at: now,
   }
 
-  // Only attach event_id when it looks like a classic events row; events_v2 IDs
-  // can violate the employment_assignments_event_id_fkey. Prefer staff_shift_id link.
-  if (shift.event_id) payload.event_id = shift.event_id
+  // employment_assignments.event_id still targets the legacy `events` table.
+  // Current admin events live in events_v2, so only attach a verified legacy id.
+  if (shift.event_id) {
+    const { data: legacyEvent } = await db
+      .from("events")
+      .select("id")
+      .eq("id", shift.event_id)
+      .maybeSingle()
+    if (legacyEvent?.id) payload.event_id = legacyEvent.id
+  }
 
   const { data: existing } = await db
     .from("employment_assignments")
@@ -154,6 +181,7 @@ export async function syncEmploymentAssignmentForShift(
     updated_at: now,
     employer_entity_type: staffMember.employer_entity_type ?? null,
     employer_entity_id: staffMember.employer_entity_id ?? null,
+    assignment_kind: "shift",
   }
 
   if (existing?.id) {
@@ -254,11 +282,79 @@ export async function syncEmploymentAssignmentForShift(
     } else if (existing?.id && options.changeSummary) {
       notified = (await sendShiftUpdateNotification({ ...notifyBase, changeSummary: options.changeSummary })).sent
     } else {
-      notified = (await sendShiftAssignmentNotification(notifyBase)).sent
+      // An existing linked assignment may be synchronized by several callers
+      // during one scheduling operation. Only the first invite should reach the
+      // worker; later syncs are still allowed to update the assignment itself.
+      const { data: priorInvite, error: priorInviteError } = await db
+        .from("notifications")
+        .select("id")
+        .eq("user_id", workerUserId)
+        .eq("type", "shift_assignment_invite")
+        .contains("metadata", {
+          shift_id: shift.id,
+          assignment_id: assignmentId,
+        })
+        .limit(1)
+        .maybeSingle()
+
+      if (priorInviteError) {
+        console.warn("[staff-shift-assignment-sync] invite dedupe lookup failed:", priorInviteError.message)
+      }
+      notified = priorInvite
+        ? false
+        : (await sendShiftAssignmentNotification(notifyBase)).sent
     }
   }
 
   return { assignmentId, workerUserId, notified }
+}
+
+export async function syncActiveStaffMemberShifts(args: {
+  supabase?: SupabaseClient
+  staffMemberId: string
+  actorUserId?: string | null
+}): Promise<{ synced: number; notified: number; errors: string[] }> {
+  const db = getDb(args.supabase)
+  const errors: string[] = []
+  let synced = 0
+  let notified = 0
+
+  const { data: member, error: memberError } = await db
+    .from("staff_members")
+    .select("id, user_id, status")
+    .eq("id", args.staffMemberId)
+    .maybeSingle()
+
+  if (memberError) return { synced, notified, errors: [memberError.message] }
+  if (!member?.user_id || member.status !== "active") return { synced, notified, errors }
+
+  const { data: shifts, error: shiftError } = await db
+    .from("staff_shifts")
+    .select("*")
+    .eq("staff_member_id", args.staffMemberId)
+    .is("deleted_at", null)
+    .not("status", "in", "(cancelled,declined,completed)")
+
+  if (shiftError) return { synced, notified, errors: [shiftError.message] }
+
+  for (const shift of shifts ?? []) {
+    try {
+      const result = await syncEmploymentAssignmentForShift({
+        supabase: db,
+        shift: shift as StaffShiftRow,
+        notify: true,
+        assignmentStatus: shift.status === "confirmed" ? "confirmed" : "invited",
+        actorUserId: args.actorUserId,
+      })
+      if (result.assignmentId) synced += 1
+      else errors.push(`Shift ${shift.id} could not be linked to a worker assignment.`)
+      if (result.notified) notified += 1
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : `Failed to sync ${shift.id}`)
+    }
+  }
+
+  return { synced, notified, errors }
 }
 
 export async function cancelEmploymentAssignmentForShift(args: {
@@ -297,7 +393,7 @@ export async function respondToShiftAssignment(
 
   const { data: assignment, error: fetchError } = await db
     .from("employment_assignments")
-    .select("id, user_id, status, staff_shift_id, staff_member_id, role_title, starts_at")
+    .select("id, user_id, status, staff_shift_id, staff_member_id, role_title, starts_at, tour_id")
     .eq("id", args.assignmentId)
     .eq("user_id", args.userId)
     .maybeSingle()
@@ -306,14 +402,30 @@ export async function respondToShiftAssignment(
     return { ok: false, error: "Assignment not found" }
   }
 
+  const requestedStatus: EmploymentAssignmentStatus = args.action === "accept" ? "confirmed" : "declined"
+  if (assignment.status === requestedStatus) {
+    return {
+      ok: true,
+      assignmentId: assignment.id,
+      shiftId: (assignment.staff_shift_id as string | null) ?? null,
+      status: requestedStatus,
+    }
+  }
+
   if (assignment.status !== "invited" && assignment.status !== "confirmed") {
     return { ok: false, error: "This assignment can no longer be updated" }
   }
 
-  const nextAssignmentStatus = args.action === "accept" ? "confirmed" : "cancelled"
-  const nextShiftStatus = args.action === "accept" ? "confirmed" : "cancelled"
-  const now = new Date().toISOString()
+  const nextAssignmentStatus = requestedStatus
+  const fromStatus = String(assignment.status || "invited") as EmploymentAssignmentStatus
 
+  try {
+    assertAssignmentTransition(fromStatus, nextAssignmentStatus)
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Illegal assignment transition" }
+  }
+
+  const now = new Date().toISOString()
   const { error: updateError } = await db
     .from("employment_assignments")
     .update({ status: nextAssignmentStatus, updated_at: now })
@@ -336,8 +448,23 @@ export async function respondToShiftAssignment(
     if (shift) {
       shiftCreatedBy = shift.created_by ?? null
       shiftDate = shift.shift_date ?? null
-      await db.from("staff_shifts").update({ status: nextShiftStatus, updated_at: now }).eq("id", shiftId)
+      await db
+        .from("staff_shifts")
+        .update({ status: mapAssignmentStatusToShift(nextAssignmentStatus), updated_at: now })
+        .eq("id", shiftId)
     }
+  }
+
+  if (assignment.tour_id) {
+    await db
+      .from("tour_team_members")
+      .update({
+        status: args.action === "accept" ? "confirmed" : "declined",
+        is_active: args.action === "accept",
+        updated_at: now,
+      })
+      .eq("tour_id", assignment.tour_id)
+      .eq("user_id", args.userId)
   }
 
   // Resolve worker display name for admin notification
@@ -398,7 +525,7 @@ export async function publishStaffShifts(args: {
   for (const shift of shifts ?? []) {
     try {
       // Keep scheduled (pending) so workers must still confirm; confirmed stays confirmed
-      if (shift.status === "cancelled") continue
+      if (shift.status === "cancelled" || shift.status === "declined") continue
 
       const result = await syncEmploymentAssignmentForShift({
         supabase: db,

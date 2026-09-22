@@ -2,44 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { achievementEngine } from "@/lib/services/achievement-engine.service"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
-import { createClient as createServerClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { createBookingRequestSchema } from "@/lib/public-artist/booking-request-schema"
+import { resolveActingContext } from "@/lib/auth/acting-context"
+import {
+  getInitialArtistBookingStatus,
+  getArtistBookingParticipantRole,
+  serializeArtistBooking,
+  serializeArtistBookings,
+  shouldIncludeArtistBookingForView,
+} from "@/lib/bookings/artist-booking-server"
+import type { ArtistBookingView } from "@/lib/bookings/artist-booking-types"
 
 // Validation schemas
-const bookingDetailsSchema = z.object({
-  performanceType: z.string().min(1, "Performance type is required"),
-  description: z.string().min(1, "Description is required"),
-  performanceDate: z.string().min(1, "Performance date is required"),
-  soundcheckTime: z.string().optional(),
-  performanceTime: z.string().optional(),
-  duration: z.string().optional(),
-  venue: z.string().min(1, "Venue is required"),
-  location: z.string().min(1, "Location is required"),
-  compensation: z.string().min(1, "Compensation is required"),
-  requirements: z.string().optional(),
-  additionalNotes: z.string().optional()
-})
-
-const createBookingRequestSchema = z.object({
-  artistId: z.string().uuid().optional(),
-  venueId: z.string().uuid().optional(),
-  requesterId: z.string().uuid().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  eventId: z.string().uuid().optional(),
-  tourId: z.string().uuid().optional(),
-  eventName: z.string().optional(),
-  eventType: z.string().optional(),
-  eventDate: z.string().optional(),
-  eventDuration: z.number().int().positive().optional(),
-  expectedAttendance: z.number().int().nonnegative().optional(),
-  budgetRange: z.string().optional(),
-  bookingDetails: bookingDetailsSchema,
-  token: z.string().optional(),
-  status: z.enum(["pending", "accepted", "declined", "approved", "rejected"]).default("pending"),
-  requestType: z.enum(["performance", "collaboration"]).default("performance")
-})
-
 const updateBookingRequestSchema = z.object({
   token: z.string().optional(),
   requestId: z.string().uuid().optional(),
@@ -69,6 +44,42 @@ function parseEventDurationMinutes(durationText?: string) {
   const endDate = Date.parse(`1970-01-01T${end}:00Z`)
   if (Number.isNaN(startDate) || Number.isNaN(endDate) || endDate <= startDate) return 120
   return Math.max(30, Math.round((endDate - startDate) / (1000 * 60)))
+}
+
+// ── VEN-081: typed, server-enforced booking policies ────────────────────────
+const LEAD_TIME_DAYS: Record<string, number> = {
+  '1day': 1, '3days': 3, '1week': 7, '2weeks': 14, '1month': 30,
+}
+const MAX_ADVANCE_DAYS: Record<string, number> = {
+  '3months': 90, '6months': 180, '1year': 365, '2years': 730,
+}
+const AUTO_APPROVE_MODES = ['manual', 'trusted', 'small', 'all'] as const
+
+interface VenueBookingPolicies {
+  allowBookings: boolean
+  leadTimeDays: number
+  maxAdvanceDays: number | null
+  autoApprove: (typeof AUTO_APPROVE_MODES)[number]
+}
+
+function pickEnum<T extends string>(v: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : fallback
+}
+
+function readVenueBookingPolicies(settings: unknown): VenueBookingPolicies {
+  const rawSettings: unknown = settings
+  const s: Record<string, unknown> =
+    typeof rawSettings === "object" && rawSettings !== null ? (rawSettings as Record<string, unknown>) : {}
+  const rawPolicies: unknown = s.booking_policies
+  const p: Record<string, unknown> =
+    typeof rawPolicies === "object" && rawPolicies !== null ? (rawPolicies as Record<string, unknown>) : {}
+  return {
+    // VEN-255 canonical switch; default open.
+    allowBookings: s.allow_bookings !== false,
+    leadTimeDays: LEAD_TIME_DAYS[String(p.lead_time ?? '')] ?? 0,
+    maxAdvanceDays: MAX_ADVANCE_DAYS[String(p.max_advance ?? '')] ?? null,
+    autoApprove: pickEnum(p.auto_approve, AUTO_APPROVE_MODES, 'manual'),
+  }
 }
 
 async function validateVenueAvailability(input: {
@@ -137,28 +148,27 @@ async function getManageableVenueIds(supabase: any, userId: string) {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authenticateApiRequest(req)
-    if (!auth) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
+    const context = await resolveActingContext(req)
+    if (context instanceof NextResponse) return context
 
-    const { supabase, user } = auth
+    const { supabase, userId } = context
     const { searchParams } = new URL(req.url)
     const token = searchParams.get("token")
     const eventId = searchParams.get("eventId")
     const tourId = searchParams.get("tourId")
     const artistId = searchParams.get("artistId")
     const venueId = searchParams.get("venueId")
+    const requestedView = searchParams.get("view") as ArtistBookingView | null
+    const view: ArtistBookingView = requestedView && ["incoming", "sent", "active", "history"].includes(requestedView)
+      ? requestedView
+      : ["artist", "service"].includes(context.accountType) ? "incoming" : "sent"
 
     if (venueId) {
       const { data: venueRequests, error: venueError } = await supabase
         .from("venue_booking_requests")
         .select("*")
         .eq("venue_id", venueId)
-        .eq("requester_id", user.id)
+        .eq("requester_id", userId)
         .order("requested_at", { ascending: false })
 
       if (venueError) throw venueError
@@ -171,11 +181,15 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    let query = supabase
+    const service = createServiceRoleClient()
+    const isLegacyLookup = Boolean(token || eventId || tourId || artistId)
+    let query = service
       .from("booking_requests")
       .select("*")
-      .eq("artist_id", user.id)
       .order("created_at", { ascending: false })
+
+    if (isLegacyLookup) query = query.eq("artist_id", userId)
+    else query = query.or(`artist_id.eq.${userId},requester_id.eq.${userId}`)
 
     if (token) {
       query = query.eq("token", token)
@@ -203,21 +217,23 @@ export async function GET(req: NextRequest) {
           { status: 404 }
         )
       }
-      return NextResponse.json({
-        success: true,
-        data: {
-          ...booking,
-          status: toUnifiedBookingStatus(booking.status),
-        },
-      })
+      const serialized = await serializeArtistBooking(booking, context)
+      if (!serialized) return NextResponse.json({ error: "Booking request not found" }, { status: 404 })
+      return NextResponse.json({ success: true, data: serialized })
     }
+
+    const scopedRows = isLegacyLookup
+      ? (bookingRequests || [])
+      : (bookingRequests || []).filter((request: any) => {
+          const role = getArtistBookingParticipantRole(request, context)
+          if (!role) return false
+          return shouldIncludeArtistBookingForView(role, request.status, view)
+        })
 
     return NextResponse.json({
       success: true,
-      data: (bookingRequests || []).map((request: any) => ({
-        ...request,
-        status: toUnifiedBookingStatus(request.status),
-      })),
+      data: await serializeArtistBookings(scopedRows, context),
+      view,
     })
   } catch (error) {
     console.error("Error fetching booking requests:", error)
@@ -232,11 +248,15 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const validatedData = createBookingRequestSchema.parse(body)
+    const context = await resolveActingContext(req)
+    if (context instanceof NextResponse) return context
+
     const auth = await authenticateApiRequest(req)
-    const fallbackSupabase = await createServerClient()
-    const supabase = auth?.supabase || fallbackSupabase
-    const requesterId = auth?.user?.id || validatedData.requesterId || null
-    const requesterEmail = validatedData.email || auth?.user?.email || null
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const supabase = context.supabase
+    const service = createServiceRoleClient()
+    const requesterId = context.userId
+    const requesterEmail = validatedData.email || auth.user.email || null
     const hasLegacyTarget = Boolean(validatedData.eventId || validatedData.tourId)
 
     if (!hasLegacyTarget && !validatedData.venueId && !validatedData.artistId) {
@@ -250,17 +270,61 @@ export async function POST(req: NextRequest) {
 
     let bookingRequest: any = null
     if (hasLegacyTarget || validatedData.artistId) {
-      const { data, error } = await supabase
+      if (validatedData.artistId && validatedData.artistId === requesterId) {
+        return NextResponse.json({ error: "You cannot send a booking request to yourself." }, { status: 400 })
+      }
+
+      let artistProfile: { id: string; user_id: string } | null = null
+      let recipientAccountType = "artist"
+      if (validatedData.artistId) {
+        let artistQuery = service
+          .from("artist_profiles")
+          .select("id, user_id")
+          .eq("user_id", validatedData.artistId)
+        if (validatedData.artistProfileId) artistQuery = artistQuery.eq("id", validatedData.artistProfileId)
+        const { data: artistRows, error: artistError } = await artistQuery.limit(1)
+        if (artistError || !artistRows?.[0]) {
+          return NextResponse.json({ error: "Artist profile not found." }, { status: 404 })
+        }
+        artistProfile = artistRows[0]
+
+        const { data: account } = await service
+          .from("accounts")
+          .select("account_type")
+          .eq("profile_id", artistProfile.id)
+          .in("account_type", ["artist", "service"])
+          .limit(1)
+          .maybeSingle()
+        if (account?.account_type === "service") recipientAccountType = "service"
+      }
+
+      const isPublicProfileRequest = Boolean(validatedData.artistId && !hasLegacyTarget)
+      const bookingDetails = isPublicProfileRequest ? {
+        performanceType: validatedData.bookingDetails.performanceType,
+        performanceDate: validatedData.bookingDetails.performanceDate,
+        venue: validatedData.bookingDetails.venue,
+        location: validatedData.bookingDetails.location,
+        description: "",
+        compensation: "",
+        additionalNotes: "",
+      } : validatedData.bookingDetails
+
+      const { data, error } = await service
         .from("booking_requests")
         .insert({
           artist_id: validatedData.artistId,
-          email: validatedData.email,
-          phone: validatedData.phone,
+          artist_profile_id: artistProfile?.id || null,
+          recipient_account_type: artistProfile ? recipientAccountType : null,
+          requester_id: requesterId,
+          requester_profile_id: context.profileId,
+          requester_account_type: context.accountType,
+          email: isPublicProfileRequest ? null : validatedData.email,
+          phone: isPublicProfileRequest ? null : validatedData.phone,
           event_id: validatedData.eventId,
           tour_id: validatedData.tourId,
-          booking_details: validatedData.bookingDetails,
+          booking_details: bookingDetails,
           token: validatedData.token,
-          status: normalizedCreateStatus,
+          status: getInitialArtistBookingStatus(normalizedCreateStatus, isPublicProfileRequest),
           request_type: validatedData.requestType,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -291,11 +355,56 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // ── VEN-081: enforce the venue's saved policies server-side ───────────
+      const { data: venueRow } = await service
+        .from("venue_profiles")
+        .select("settings")
+        .eq("id", validatedData.venueId)
+        .maybeSingle()
+      const policies = readVenueBookingPolicies(venueRow?.settings)
+
+      if (!policies.allowBookings) {
+        return NextResponse.json(
+          { error: "This venue is not accepting booking requests right now." },
+          { status: 422 }
+        )
+      }
+
+      const eventStart = eventDate ? new Date(eventDate) : null
+      if (eventStart && !Number.isNaN(eventStart.getTime())) {
+        if (policies.leadTimeDays > 0) {
+          const cutoff = new Date(Date.now() + policies.leadTimeDays * 86_400_000)
+          if (eventStart < cutoff) {
+            return NextResponse.json(
+              { error: `This venue requires at least ${policies.leadTimeDays} day(s) of lead time.` },
+              { status: 422 }
+            )
+          }
+        }
+        if (policies.maxAdvanceDays != null) {
+          const horizon = new Date(Date.now() + policies.maxAdvanceDays * 86_400_000)
+          if (eventStart > horizon) {
+            return NextResponse.json(
+              { error: `This venue accepts events up to ${policies.maxAdvanceDays} days in advance.` },
+              { status: 422 }
+            )
+          }
+        }
+      }
+
+      // 'all' mirrors instant approval; trusted/small stay manual until trust
+      // signals exist server-side (never auto-approve on unverifiable claims).
+      const initialStatus =
+        policies.autoApprove === "all" && eventStart ? "approved" : "pending"
+
       const { data, error } = await supabase
         .from("venue_booking_requests")
         .insert({
           venue_id: validatedData.venueId,
           requester_id: requesterId,
+          // VEN-085/050: acting account identity alongside human actor.
+          requester_profile_id: context.profileId || null,
+          requester_account_type: context.accountType || null,
           event_name:
             validatedData.eventName ||
             validatedData.bookingDetails.performanceType ||
@@ -314,7 +423,7 @@ export async function POST(req: NextRequest) {
             null,
           contact_email: requesterEmail,
           contact_phone: validatedData.phone || null,
-          status: "pending"
+          status: initialStatus
         })
         .select()
         .single()
@@ -328,7 +437,7 @@ export async function POST(req: NextRequest) {
 
     if (bookingRequest?.artist_id) {
       await achievementEngine.recordMetricEvent({
-        supabase: supabase as any,
+        supabase: service as any,
         userId: bookingRequest.artist_id,
         metricKey: 'booking_requests_total',
         eventType: 'booking_request_created',
@@ -338,10 +447,14 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const serializedBooking = bookingRequest
+      ? await serializeArtistBooking(bookingRequest, context)
+      : null
+
     return NextResponse.json({
       success: true,
-      data: bookingRequest || venueBookingRequest,
-      legacyBookingRequest: bookingRequest,
+      data: serializedBooking || venueBookingRequest,
+      legacyBookingRequest: serializedBooking,
       venueBookingRequest
     })
   } catch (error) {
@@ -432,20 +545,34 @@ export async function PATCH(req: NextRequest) {
     }
 
     const normalizedUpdateStatus = toUnifiedBookingStatus(validatedData.status)
+    const service = createServiceRoleClient()
     const updateData = {
       status: normalizedUpdateStatus,
-      artist_id: validatedData.userId,
+      ...(validatedData.userId ? { artist_id: validatedData.userId } : {}),
       response_message: validatedData.responseMessage,
-      updated_at: new Date().toISOString()
+      accepted_at: normalizedUpdateStatus === "accepted" ? new Date().toISOString() : null,
+      declined_at: normalizedUpdateStatus === "declined" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
     }
 
-    let query = supabase
+    let query = service
       .from("booking_requests")
       .update(updateData)
 
     if (validatedData.token) {
+      const { data: tokenRequest } = await service
+        .from("booking_requests")
+        .select("id, artist_id")
+        .eq("token", validatedData.token)
+        .maybeSingle()
+      if (!tokenRequest || (tokenRequest.artist_id && tokenRequest.artist_id !== user.id)) {
+        return NextResponse.json({ error: "Booking request not found" }, { status: 404 })
+      }
+      if (!tokenRequest.artist_id && validatedData.userId !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
       query = query.eq("token", validatedData.token)
-      query = query.eq("artist_id", user.id)
+      query = query.eq("status", "pending")
     } else {
       return NextResponse.json(
         { error: "Token is required for booking request updates" },
@@ -467,7 +594,7 @@ export async function PATCH(req: NextRequest) {
 
     if (bookingRequest.artist_id && normalizedUpdateStatus === "accepted") {
       await achievementEngine.recordMetricEvent({
-        supabase: supabase as any,
+        supabase: service as any,
         userId: bookingRequest.artist_id,
         metricKey: 'bookings_accepted_total',
         eventType: 'booking_request_accepted',
@@ -475,25 +602,6 @@ export async function PATCH(req: NextRequest) {
         eventSource: 'api_booking_requests',
         eventData: { booking_request_id: bookingRequest.id }
       })
-    }
-
-    // Create notification for admin when booking is accepted/declined
-    if (normalizedUpdateStatus === "accepted" || normalizedUpdateStatus === "declined") {
-      await supabase
-        .from("notifications")
-        .insert({
-          type: "booking_response",
-          content: `An artist has ${normalizedUpdateStatus} your booking request`,
-          metadata: {
-            bookingRequestId: bookingRequest.id,
-            artistId: bookingRequest.artist_id,
-            eventId: bookingRequest.event_id,
-            tourId: bookingRequest.tour_id,
-            status: normalizedUpdateStatus,
-            responseMessage: validatedData.responseMessage
-          },
-          created_at: new Date().toISOString()
-        })
     }
 
     return NextResponse.json({ success: true, data: bookingRequest })

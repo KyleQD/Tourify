@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260825121000_phase1_rpc_actor_binding.sql",
+  "taskId": "ADM-M-051",
+  "status": "planned",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "rpc",
+    "accounts",
+    "messaging",
+    "artist_profiles"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "pg_proc inventory of switch_active_account / get_user_accounts_adaptive / create_artist_account / send_dm_request / get_or_create_conversation overloads and their EXECUTE grants",
+      "to_regclass probes for user_sessions, account_activity_log, dm_request_rate_limits, resolve_message_context"
+    ],
+    "expectedAffectedRows": "DDL + grant changes only; user_sessions/account_activity_log created only when absent (empty on fresh envs)",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "CREATE OR REPLACE for all functions; legacy switch_active_account(uuid,uuid,text) signature preserved as identity-bound wrapper so existing call sites continue without impersonation; retry-safe",
+    "resumeCursor": "supabase migration version 20260825121000",
+    "idempotency": "All bodies CREATE OR REPLACE; grants re-issued with IF EXISTS revokes; converges on re-run"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "has_function_privilege checks: anon has no EXECUTE on any touched function; authenticated cannot pass foreign user_id to switch/get_user_accounts_adaptive/create_artist_account"
+  },
+  "recovery": {
+    "rollback": "Restore prior definitions from migrations_backup/20241220000003_multi_account_system.sql, migrations/archive/APPLY_TO_SUPABASE_DASHBOARD.sql, 20250121000001_messaging_system.sql, archive 20260719210918_messaging_account_scope.sql (restores cross-user identity trust — emergency use only)",
+    "forwardFix": "Phase 2 migrates remaining caller-supplied-identity RPCs (organizer discovery, hiring permission lookups) to the same pattern"
+  },
+  "postflight": {
+    "queries": [
+      "switch_active_account('00000000-0000-0000-0000-000000000000', ...) as non-owner raises cannot_switch_account_for_other_user",
+      "get_user_accounts_adaptive(foreign_uuid) as authenticated raises cannot_enumerate_other_user_accounts",
+      "create_artist_account(foreign_uuid, 'x') raises cannot_create_account_for_other_user",
+      "send_dm_request(foreign_uuid, ...) raises sender_must_be_caller; get_or_create_conversation(a,b) with non-participant caller raises caller_must_be_participant",
+      "anon EXECUTE revoked on all five functions"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

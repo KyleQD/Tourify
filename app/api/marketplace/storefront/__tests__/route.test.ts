@@ -11,8 +11,16 @@ jest.mock("@/lib/supabase/server", () => ({
 const mockedCreateClient = createClient as jest.MockedFunction<typeof createClient>
 
 describe("GET /api/marketplace/storefront", () => {
+  const originalMarketplace = process.env.FEATURE_MARKETPLACE
+
   beforeEach(() => {
     jest.clearAllMocks()
+    process.env.FEATURE_MARKETPLACE = "true"
+  })
+
+  afterAll(() => {
+    if (originalMarketplace === undefined) delete process.env.FEATURE_MARKETPLACE
+    else process.env.FEATURE_MARKETPLACE = originalMarketplace
   })
 
   it("normalizes username and includes seller profile fields", async () => {

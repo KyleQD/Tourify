@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Mock context; shell breadcrumbs suffice (cmp-contextual-nav wont-fix). */
+
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"

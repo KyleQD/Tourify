@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 export type VenueData = {
   id: string
@@ -106,21 +108,22 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] bg-[#1a1d29] text-white border-[#2a2d39]">
+      <DialogContent className={cn("sm:max-w-[600px]", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-white">Edit Venue Profile</DialogTitle>
-          <DialogDescription className="text-white/60">Update your venue information and details</DialogDescription>
+          <DialogTitle className={cn(detailSurfacePattern.title, "text-xl font-bold")}>Edit Venue Profile</DialogTitle>
+          <DialogDescription className={detailSurfacePattern.description}>Update your venue information and details</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="bg-[#0f1117] p-1">
-            <TabsTrigger value="general" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+          <TabsList className={cn(detailSurfacePattern.tabsList, "p-1")}>
+            <TabsTrigger value="general" className={detailSurfacePattern.tabsTrigger}>
               General
             </TabsTrigger>
-            <TabsTrigger value="contact" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="contact" className={detailSurfacePattern.tabsTrigger}>
               Contact
             </TabsTrigger>
-            <TabsTrigger value="amenities" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="amenities" className={detailSurfacePattern.tabsTrigger}>
               Amenities
             </TabsTrigger>
           </TabsList>
@@ -128,7 +131,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-white">
+                <Label htmlFor="name" className={detailSurfacePattern.label}>
                   Venue Name
                 </Label>
                 <div className="relative">
@@ -138,12 +141,12 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="name"
                     value={venueData.name}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type" className="text-white">
+                <Label htmlFor="type" className={detailSurfacePattern.label}>
                   Venue Type
                 </Label>
                 <Input
@@ -151,14 +154,14 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                   name="type"
                   value={venueData.type}
                   onChange={handleInputChange}
-                  className="bg-[#0f1117] border-[#2a2d39] text-white"
+                  className={detailSurfacePattern.input}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="location" className="text-white">
+                <Label htmlFor="location" className={detailSurfacePattern.label}>
                   Location
                 </Label>
                 <div className="relative">
@@ -168,12 +171,12 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="location"
                     value={venueData.location}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="capacity" className="text-white">
+                <Label htmlFor="capacity" className={detailSurfacePattern.label}>
                   Capacity
                 </Label>
                 <div className="relative">
@@ -184,14 +187,14 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     type="number"
                     value={venueData.capacity}
                     onChange={handleNumberChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-white">
+              <Label htmlFor="description" className={detailSurfacePattern.label}>
                 Description
               </Label>
               <Textarea
@@ -199,7 +202,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                 name="description"
                 value={venueData.description}
                 onChange={handleInputChange}
-                className="min-h-[120px] bg-[#0f1117] border-[#2a2d39] text-white"
+                className={cn(detailSurfacePattern.textarea, "min-h-[120px]")}
               />
             </div>
           </TabsContent>
@@ -207,7 +210,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
           <TabsContent value="contact" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contactEmail" className="text-white">
+                <Label htmlFor="contactEmail" className={detailSurfacePattern.label}>
                   Email
                 </Label>
                 <div className="relative">
@@ -217,12 +220,12 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="contactEmail"
                     value={venueData.contactEmail}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contactPhone" className="text-white">
+                <Label htmlFor="contactPhone" className={detailSurfacePattern.label}>
                   Phone
                 </Label>
                 <div className="relative">
@@ -232,14 +235,14 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="contactPhone"
                     value={venueData.contactPhone}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="website" className="text-white">
+              <Label htmlFor="website" className={detailSurfacePattern.label}>
                 Website
               </Label>
               <div className="relative">
@@ -249,16 +252,16 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                   name="website"
                   value={venueData.website}
                   onChange={handleInputChange}
-                  className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                  className={cn(detailSurfacePattern.input, "pl-8")}
                 />
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-white">Social Media</h3>
+              <h3 className={cn(detailSurfacePattern.label, "text-sm font-medium")}>Social Media</h3>
 
               <div className="space-y-2">
-                <Label htmlFor="instagram" className="text-white">
+                <Label htmlFor="instagram" className={detailSurfacePattern.label}>
                   Instagram
                 </Label>
                 <div className="relative">
@@ -268,13 +271,13 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="socialMedia.instagram"
                     value={venueData.socialMedia.instagram}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="twitter" className="text-white">
+                <Label htmlFor="twitter" className={detailSurfacePattern.label}>
                   Twitter
                 </Label>
                 <div className="relative">
@@ -284,13 +287,13 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="socialMedia.twitter"
                     value={venueData.socialMedia.twitter}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="facebook" className="text-white">
+                <Label htmlFor="facebook" className={detailSurfacePattern.label}>
                   Facebook
                 </Label>
                 <div className="relative">
@@ -300,7 +303,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     name="socialMedia.facebook"
                     value={venueData.socialMedia.facebook}
                     onChange={handleInputChange}
-                    className="pl-8 bg-[#0f1117] border-[#2a2d39] text-white"
+                    className={cn(detailSurfacePattern.input, "pl-8")}
                   />
                 </div>
               </div>
@@ -309,11 +312,11 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
 
           <TabsContent value="amenities" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label className="text-white">Current Amenities</Label>
-              <div className="flex flex-wrap gap-2 p-4 bg-[#0f1117] rounded-md min-h-[100px]">
+              <Label className={detailSurfacePattern.label}>Current Amenities</Label>
+              <div className={cn(detailSurfacePattern.panelMuted, "flex flex-wrap gap-2 p-4 min-h-[100px]")}>
                 {venueData.amenities.length > 0 ? (
                   venueData.amenities.map((amenity, index) => (
-                    <Badge key={index} className="bg-purple-600/20 text-purple-200 hover:bg-purple-600/30 px-3 py-1">
+                    <Badge key={index} className={cn(detailSurfacePattern.badge, "px-3 py-1")}>
                       {amenity}
                       <button
                         onClick={() => handleRemoveAmenity(index)}
@@ -324,7 +327,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                     </Badge>
                   ))
                 ) : (
-                  <div className="text-white/40 text-sm">No amenities added yet</div>
+                  <div className={cn(detailSurfacePattern.description, "text-sm")}>No amenities added yet</div>
                 )}
               </div>
             </div>
@@ -335,7 +338,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                   placeholder="Add new amenity..."
                   value={newAmenity}
                   onChange={(e) => setNewAmenity(e.target.value)}
-                  className="bg-[#0f1117] border-[#2a2d39] text-white"
+                  className={detailSurfacePattern.input}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault()
@@ -344,7 +347,7 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
                   }}
                 />
               </div>
-              <Button onClick={handleAddAmenity} className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Button onClick={handleAddAmenity} className={detailSurfacePattern.btnPrimary}>
                 Add
               </Button>
             </div>
@@ -355,11 +358,11 @@ export function EditVenueDialog({ venue, open, onOpenChange, onSave }: EditVenue
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-[#2a2d39] text-white hover:bg-[#2a2d39]"
+            className={detailSurfacePattern.btnOutline}
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700 text-white">
+          <Button onClick={handleSave} className={detailSurfacePattern.btnPrimary}>
             <Save className="mr-2 h-4 w-4" />
             Save Changes
           </Button>

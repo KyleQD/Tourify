@@ -1,0 +1,77 @@
+{
+ "schema_version": "1.0",
+ "id": "DB-004",
+ "title": "Regenerate canonical database types + CI drift check",
+  "status": "completed",
+ "priority": "P1",
+ "owner_agent": "database",
+ "created_at": "2026-09-09T09:35:07.135Z",
+  "updated_at": "2026-09-10T06:00:00.000Z",
+ "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+ "working_tree_status": "dirty (386 entries)",
+ "goal": "Generate types from reconciled schema into one canonical lib/database.types.ts, add CI regen/type-drift check, drop divergent duplicates",
+ "scope": {
+  "in": [],
+  "out": []
+ },
+ "working_set": [
+  "lib/database.types.ts",
+  "types/"
+ ],
+ "references": [
+  "docs/DEVELOPMENT_WORKFLOW.md",
+  "docs/engineering/agents/database/QUESTIONS.md",
+  "docs/engineering/DECISIONS.md"
+ ],
+ "acceptance_criteria": [
+  "Single canonical types file; CI type-drift check added"
+ ],
+ "verification": {
+  "tier": "fast",
+  "commands": [
+   "npm run generate:database-types -> generated lib/database.types.ts (25,457 lines) from live local public schema",
+   "npm run check:database-types -> '✓ lib/database.types.ts matches the local Supabase public schema'",
+   "npx tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler lib/database.types.ts -> clean (full-repo tsc >10min; scoped is the verification path)"
+  ],
+  "evidence": [
+   "lib/database.types.ts regenerated (M in worktree)",
+   "check:database-types pass output"
+  ],
+  "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "last_run_at": "2026-09-09T20:45:00.000Z",
+  "result": "pass"
+ },
+ "progress": {
+      "summary": "Completed. Canonical lib/database.types.ts was regenerated from the fully-applied local chain; the CI drift check passes against the same live schema and scoped strict tsc is clean.",
+  "completed": [
+   "lib/database.types.ts regenerated from live local public schema",
+   "CI type-drift check passes (check:database-types)"
+  ],
+  "next_steps": [],
+  "blockers": [],
+  "checkpoints": [
+   {
+    "at": "2026-09-09T19:59:58.218Z",
+    "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "summary": "Added canonical local-schema type generation, a drift check, CI coverage, and a compatibility re-export for the former duplicate types/supabase.ts file.",
+    "completed": [],
+    "next_steps": [
+     "After a Docker-backed fresh local replay, regenerate lib/database.types.ts and run the new type drift check."
+    ],
+    "blockers": []
+   },
+   {
+    "at": "2026-09-09T20:45:00.000Z",
+    "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "summary": "Types regenerated + drift gate green after DB-003 manual bring-up.",
+    "completed": [
+     "lib/database.types.ts regenerated from live local public schema",
+     "CI type-drift check passes (check:database-types)"
+    ],
+    "next_steps": [],
+    "blockers": []
+   }
+  ]
+ },
+ "handoffs": []
+}

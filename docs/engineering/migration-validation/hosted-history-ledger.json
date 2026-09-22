@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "sourceDirectory": "supabase/migrations",
+  "sourceSnapshot": {
+    "capturedAt": "2026-09-22T15:57:33Z",
+    "activeCount": 299,
+    "firstMigration": "20240410000000_migration_replay_suppress_notices.sql",
+    "lastMigration": "20260922155356_worker_actions_scope_reconciliation.sql",
+    "digestSha256": "ba0ecbbb0453fe31c10fceb6f5d439e66cfc21750d15482e9c4b4a90a097867d"
+  },
+  "environments": {
+    "staging": {
+      "capturedAt": null,
+      "target": null,
+      "evidence": null,
+      "defaultHistoryStatus": "unverified",
+      "entries": {}
+    },
+    "production": {
+      "capturedAt": "2026-09-13T20:18:00Z",
+      "target": "registered production target (identifier intentionally omitted)",
+      "evidence": "docs/engineering/tasks/active/DB-002.json checkpoint 2026-09-13T20:18:00Z",
+      "defaultHistoryStatus": "unverified",
+      "entries": {
+        "20260823210000_harden_hiring_onboarding_pii.sql": {
+          "historyStatus": "absent_schema_observed",
+          "evidence": "DB-002 production catalog probe found the object contract present but the version absent from supabase_migrations.schema_migrations"
+        },
+        "20260823210100_venues_rbac_rls_baseline.sql": {
+          "historyStatus": "absent_schema_observed",
+          "evidence": "DB-002 production catalog probe found the object contract present but the version absent from supabase_migrations.schema_migrations"
+        },
+        "20260823220001_money_path_transactional_rpcs.sql": {
+          "historyStatus": "absent_schema_observed",
+          "evidence": "DB-002 production catalog probe found the object contract present but the version absent from supabase_migrations.schema_migrations"
+        },
+        "20260823221000_event_hq_rls_tighten.sql": {
+          "historyStatus": "absent_schema_observed",
+          "evidence": "DB-002 production catalog probe found the object contract present but the version absent from supabase_migrations.schema_migrations"
+        },
+        "20260823221100_venues_add_identity_columns.sql": {
+          "historyStatus": "absent_schema_observed",
+          "evidence": "DB-002 production catalog probe found the object contract present but the version absent from supabase_migrations.schema_migrations"
+        }
+      }
+    }
+  },
+  "launch": {
+    "required": [
+      {
+        "migration": "20260823210000_harden_hiring_onboarding_pii.sql",
+        "taskId": "DB-002",
+        "rationale": "Hiring PII authorization hardening is part of the P0 database release gate",
+        "nextAction": "Verify staging history, then reconcile production history only after catalog equivalence is reviewed"
+      },
+      {
+        "migration": "20260823210100_venues_rbac_rls_baseline.sql",
+        "taskId": "DB-002",
+        "rationale": "Venue and RBAC RLS baseline is part of the P0 database release gate",
+        "nextAction": "Verify staging history, then reconcile production history only after catalog equivalence is reviewed"
+      },
+      {
+        "migration": "20260823220001_money_path_transactional_rpcs.sql",
+        "taskId": "DB-002",
+        "rationale": "Money-path transactional functions are part of the P0 database release gate",
+        "nextAction": "Verify staging history, then reconcile production history only after catalog equivalence is reviewed"
+      },
+      {
+        "migration": "20260823221000_event_hq_rls_tighten.sql",
+        "taskId": "DB-002",
+        "rationale": "Event HQ anonymous-write closure is part of the P0 database release gate",
+        "nextAction": "Verify staging history, then reconcile production history only after catalog equivalence is reviewed"
+      },
+      {
+        "migration": "20260823221100_venues_add_identity_columns.sql",
+        "taskId": "DB-002",
+        "rationale": "The additive venue identity bridge is a prerequisite of the venue RBAC baseline",
+        "nextAction": "Verify staging history, then reconcile production history only after catalog equivalence is reviewed"
+      },
+      {
+        "migration": "20260910230339_ticketing_admin_overview_contract.sql",
+        "taskId": "DB-005",
+        "rationale": "The ticketing admin schema is a declared P0 launch blocker",
+        "nextAction": "Apply one-at-a-time to approved staging and attach schema, RLS, advisor, and type evidence"
+      },
+      {
+        "migration": "20260914090000_revoke_public_execute_db002.sql",
+        "taskId": "DB-002",
+        "rationale": "PUBLIC and anon execution of four SECURITY DEFINER functions is a release-blocking authorization exposure",
+        "nextAction": "Apply one-at-a-time to approved staging, run supabase/tests/db002_security_grants.sql and advisors, then repeat through the approved production operator"
+      },
+      {
+        "migration": "20260918213707_mfa_verification_code_store.sql",
+        "taskId": "INTG-003",
+        "rationale": "Persistent, replay-safe MFA verification codes are a P0 authentication launch requirement",
+        "nextAction": "Apply one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql plus lifecycle fixtures and advisors, then regenerate canonical database types"
+      },
+      {
+        "migration": "20260922155356_worker_actions_scope_reconciliation.sql",
+        "taskId": "DB-010",
+        "rationale": "Worker action storage and data-boundary authorization must be proven before WORK-006 can enable the feature in isolated staging",
+        "nextAction": "Inspect hosted archive/table history, apply this exact active migration one at a time only to approved isolated staging, then run db010 catalog and distinct-persona denial probes before any flag enablement"
+      }
+    ],
+    "deferred": [],
+    "unclassified": {
+      "count": 290,
+      "blocker": "No authoritative staging and production migration-history snapshots or owner-approved launch/deferred disposition exist for the remaining active migrations; do not infer application state or deferment from repository presence"
+    }
+  }
+}

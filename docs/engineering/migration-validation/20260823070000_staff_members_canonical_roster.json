@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823070000_staff_members_canonical_roster.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "staff"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.venue_team_members",
+      "select venue_id, count(*) from public.venue_team_members group by venue_id order by venue_id",
+      "select count(*) from public.staff_members where employer_entity_type = 'venue'"
+    ],
+    "expectedAffectedRows": "Adds nullable legacy compatibility attributes and links each legacy Venue roster row to one canonical staff member in the same venue scope; unmatched rows create additive canonical records without deleting legacy data",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823070000",
+    "idempotency": "Compatibility columns and index use IF NOT EXISTS; canonical_staff_member_id prevents repeat inserts; matching requires the same employer_entity_id and converges on the oldest canonical identity"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "venue_team_members.canonical_staff_member_id references staff_members(id) on delete set null",
+      "canonical staff status mapping emits only active, on_leave, or terminated values allowed by the active staff_members constraint"
+    ],
+    "indexes": [
+      "idx_venue_team_members_canonical"
+    ],
+    "validationPlan": "Fresh-chain rehearsal plus postflight proof that every mapped identity remains inside its venue employer scope and a second execution does not change canonical counts"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

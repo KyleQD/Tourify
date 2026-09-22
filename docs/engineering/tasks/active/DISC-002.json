@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "id": "DISC-002",
+  "title": "Consolidate search to one endpoint",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "discover",
+  "created_at": "2026-09-09T09:35:21.320Z",
+  "updated_at": "2026-09-21T22:22:16.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (Wave 31 lane 4: /api/search/enhanced compatibility gating, caller inventory + creator-metadata gap handoff to database; no schema change)",
+  "goal": "Collapse the 4+ search implementations into one canonical search endpoint/contract with FTS backend and rate limiting",
+  "scope": {
+    "in": [
+      "app/api/search/**",
+      "lib/search/**",
+      "hooks/use-global-search.ts",
+      "components/search/global-search-results.tsx",
+      "direct /api/search clients requiring the canonical response shape",
+      "__tests__/search/**"
+    ],
+    "out": []
+  },
+  "working_set": [
+    "lib/search/",
+    "app/api/search/",
+    "hooks/use-global-search.ts",
+    "components/search/global-search-results.tsx",
+    "__tests__/search/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/discover/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Canonical search endpoint adopted by core launch clients and incompatible legacy paths are retired or explicitly compatibility-gated",
+    "Server-side distributed rate limiting is verified against configured Redis",
+    "Search results enforce authorization and tenant visibility before returning records",
+    "Supabase-backed deployed staging search, authorization-negative, and 429 behavior pass"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/search/canonical-search.test.ts __tests__/search/global-search-ranking.test.ts __tests__/search/global-search-results.test.ts",
+      "npx eslint app/api/search/route.ts app/api/search/global/route.ts app/api/search/unified/route.ts app/api/search/enhanced/route.ts lib/search/canonical-search.ts lib/search/canonical-search-route.ts app/admin/dashboard/venues/page.tsx components/admin/enhanced-global-search.tsx __tests__/search/canonical-search.test.ts",
+      "git diff --check -- <task-owned changed files>",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "3 focused Vitest files passed: 12 tests (re-run green on Wave 31 lane 4).",
+      "Focused ESLint and task-owned diff whitespace check passed.",
+      "agents:validate passed with the pre-existing RELEASE-001 warning only."
+    ],
+    "last_run_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+    "last_run_at": "2026-09-21T22:22:16Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Production-readiness audit confirms DISC-002 as a P1 core launch dependency. Closure requires Redis-backed rate-limit evidence, authorization-aware results, and deployed Supabase staging and 429 verification.",
+    "completed": [
+      "Promoted the FTS-backed GlobalSearchResponse to the canonical /api/search endpoint.",
+      "Shared a single 60 requests/minute limiter across canonical and compatibility routes.",
+      "Migrated internal global-search clients and retained /global and /unified compatibility routes.",
+      "Wave 31 lane 4: inventoried all 7 direct /api/search/enhanced callers (6 creator-filter-bound, 1 migratable now), marked the route as an explicit compatibility surface sharing the canonical 60/min bucket, and precisely recorded the creator-metadata gap with a database handoff (HF-DISC-002-CREATOR-METADATA) for additive accounts/search-projection support."
+    ],
+    "next_steps": [
+      "Database lane: add creator metadata to the canonical search projection via additive migration (accounts projection or a search projection view) carrying artist_profiles.genres, capability-derived skills/availability, artist_profiles.id (artistProfileId), and metadata.subtype; coordinate source fields with the artist agent before applying (CP-051 manual apply).",
+      "Once the projection carries creator metadata, extend lib/search/canonical-search.ts + canonical-search-route.ts with backward-compatible additive genre/creatorType/service/availableForHire filters (no GlobalSearchResponse shape change), then migrate the 6 creator-filter callers off /api/search/enhanced and retire the compatibility surface.",
+      "Release/QA: run local Supabase-backed /api/search smoke and configured-Redis 429 smoke."
+    ],
+    "blockers": [
+      "Canonical profile metadata lacks creator-only fields (artistProfileId, genres, skills/creatorType/service, availability, subtype) because accounts has no equivalent columns — schema/projection change required, owned by the database lane (CP-052) and coordinated with the artist agent.",
+      "Configured Redis 429 behavior and Supabase-backed local search smoke remain release-gate checks."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-21T22:22:16.000Z",
+        "sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+        "summary": "Wave 31 lane 4 (creator-filter migration assessment): documented that canonical /api/search profile metadata cannot yet express creator filters — profile union is {kind:'profile', handle, profileType, location} sourced from accounts, while creator-only fields derive from artist_profiles.genres (string[]), artist_profiles.settings (Json via extractCreatorCapabilitiesV1), and accounts.metadata.subtype. Seven direct /api/search/enhanced callers confirmed; one (app/discover/users/page.tsx) needs only response.ok and could migrate today, six are creator-bound. /api/search/enhanced now carries an explicit compatibility-gated header comment and shares the canonical 60/min bucket; no behavior or contract change. Focused search tests pass 12/12, eslint on the changed route passes, git diff --check clean. Handoff HF-DISC-002-CREATOR-METADATA records the additive accounts/search-projection migration needed (CP-052, CP-051 manual apply) with artist-agent coordination.",
+        "completed": [
+          "Full /api/search/enhanced caller inventory and creator-dependency classification",
+          "Compatibility-gated route banner + canonical rate-limit bucket sharing",
+          "Precise creator-metadata gap + database/artist coordination handoff"
+        ],
+        "next_steps": [
+          "Database adds creator metadata to the canonical search projection (additive migration, CP-051), then discover adds additive canonical filters and retires /api/search/enhanced",
+          "Release/QA run Supabase-backed search + configured-Redis 429 smoke"
+        ],
+        "blockers": [
+          "Schema/projection change for creator metadata is owned by the database lane (CP-052) and requires artist-agent source-field agreement",
+          "No Redis/hosted evidence in this workspace"
+        ]
+      },
+      {
+        "at": "2026-09-09T20:00:29.794Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Promoted the FTS GlobalSearchResponse to /api/search with one 60/min shared limiter; /api/search/global is an alias and /api/search/unified adapts the canonical response. Updated direct legacy consumers.",
+        "completed": [],
+        "next_steps": [
+          "Run local Supabase-backed search and configured-Redis 429 smoke checks; keep enhanced search only for creator-filter compatibility until those callers migrate."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-09T20:05:20.761Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Expanded the task working set because direct global-search clients and admin consumers required a response-shape migration. Generated maps refreshed; internal callers now use /api/search, with /global retained only as a compatibility alias.",
+        "completed": [],
+        "next_steps": [
+          "Release/QA should run local Supabase and configured-Redis 429 smoke checks."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T17:45:34.775Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Re-verified canonical search consolidation: 12 focused tests passed, focused ESLint passed, scoped diff check passed, and agents:validate passed with the pre-existing RELEASE-001 warning.",
+        "completed": [],
+        "next_steps": [
+          "Release/QA should run local Supabase-backed /api/search smoke and configured-Redis 429 smoke; migrate creator-filter callers from /api/search/enhanced when canonical profile metadata supports equivalent filters."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-16T19:24:55.639Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+"summary": "Wave 31 lane 4 assessed the creator-filter migration: canonical profile metadata (lib/search/global-search-types.ts profile union) still lacks artistProfileId, genres, skills/creatorType/service, availability, and subtype, which live on artist_profiles (genres, settings) and accounts.metadata — so equivalent canonical filters are not yet expressible without contract drift or a schema/projection change. The lane recorded the 7-caller inventory (6 creator-bound, 1 migratable now), marked /api/search/enhanced as an explicit compatibility surface in the route header, and handed the additive accounts/search-projection change to the database lane (CP-052) with the artist agent coordination note. No behavior or contract change; 12/12 focused search tests and eslint pass. Redis 429 and Supabase-backed search smoke remain release-gate checks.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Release/QA: run /api/search against the intended local Supabase target and prove a 429 with a configured Upstash-compatible Redis target.",
+    "Discover follow-up: migrate creator-filter callers from /api/search/enhanced only after equivalent canonical profile metadata is available.",
+    "PENDING DATABASE (HF-DISC-002-CREATOR-METADATA): add creator metadata to the canonical accounts/search projection via additive migration (CP-051 manual apply, CP-052 projection discipline), coordinating source fields with the artist agent; then DISC-002 adds additive canonical filters and retires /api/search/enhanced."
+  ]
+}

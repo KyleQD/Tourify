@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "id": "CTRL-001",
+  "title": "Bootstrap Tourify engineering control plane",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "orchestrator",
+  "created_at": "2026-09-09T01:00:59.229Z",
+  "updated_at": "2026-09-09T01:05:05.075Z",
+  "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+  "working_tree_status": "dirty (399 entries)",
+  "goal": "Create and verify bounded engineering memory, domain agents, task lifecycle, handoffs, plans, and generated maps",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "AGENTS.md",
+    "ARCHITECTURE.md",
+    "docs/engineering",
+    "scripts/agent-tools/control-plane.mjs",
+    "package.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/work-packets/TEMPLATE.md"
+  ],
+  "acceptance_criteria": [
+    "All requested control-plane directories and records exist",
+    "Generated maps are SHA-stamped and refresh successfully",
+    "Task lifecycle and validation commands succeed"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:generate",
+      "npm run agents:validate",
+      "node --check scripts/agent-tools/control-plane.mjs",
+      "npx eslint scripts/agent-tools/control-plane.mjs"
+    ],
+    "evidence": [
+      "Validator reported 17 agents, 1 task, 0 errors",
+      "Generated 368 web pages, 24 mobile screens, 938 API handlers, 1927 component files, 676 database objects, and 1261 policies",
+      "Validator reported 17 agents, 1 task, 0 warnings, 0 errors"
+    ],
+    "last_run_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+    "last_run_at": "2026-09-09T01:05:05.075Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Control plane implemented and verified against the current Tourify repository",
+    "completed": [
+      "Created root guidance, architecture, engineering index, schemas, templates, and 17 domain agent records",
+      "Generated route, API, component, database, permissions, integration, and project maps at the current SHA",
+      "Exact context character cap verified after directory expansion support"
+    ],
+    "next_steps": [
+      "Create bounded task records for the highest-priority current Tourify work"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T01:00:59.516Z",
+        "sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+        "summary": "Control plane scaffolded; maps generated; task lifecycle and validator exercised",
+        "completed": [
+          "Created root guidance, architecture, engineering index, schemas, templates, and 17 domain agent records",
+          "Generated route, API, component, database, permissions, integration, and project maps at the current SHA"
+        ],
+        "next_steps": [
+          "Create bounded records for the highest-priority current Tourify work"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-09T01:05:05.075Z",
+        "sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+        "summary": "Control plane implemented and verified against the current Tourify repository",
+        "completed": [
+          "Exact context character cap verified after directory expansion support"
+        ],
+        "next_steps": [
+          "Create bounded task records for the highest-priority current Tourify work"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

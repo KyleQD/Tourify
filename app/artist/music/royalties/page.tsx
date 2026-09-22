@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { artistMusicApiFetch } from "@/lib/artist/artist-music"
 
 interface FlagAwareResponse {
   enabled?: boolean
@@ -56,8 +57,7 @@ export default function ArtistMusicRoyaltiesPage() {
   const [provider, setProvider] = useState("generic_csv")
 
   const loadTab = useCallback(async (path: string) => {
-    const response = await fetch(path, { credentials: "include", cache: "no-store" })
-    const body = (await response.json().catch(() => ({}))) as FlagAwareResponse
+    const { response, body } = await artistMusicApiFetch<FlagAwareResponse>(path)
     if (response.status === 404 && body?.error?.code === "feature_disabled")
       return { enabled: false, data: [] as any[] }
     if (!response.ok)
@@ -101,7 +101,7 @@ export default function ArtistMusicRoyaltiesPage() {
   async function createPilotImport() {
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/royalties/imports", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/royalties/imports", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -112,7 +112,6 @@ export default function ArtistMusicRoyaltiesPage() {
           original_filename: "pilot.csv",
         }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Import failed")
       toast.success("Import created")
       await loadAll()
@@ -126,13 +125,12 @@ export default function ArtistMusicRoyaltiesPage() {
   async function decideMatch(candidateId: string, action: "accept" | "reject") {
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/royalties/matches", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/royalties/matches", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, candidate_id: candidateId }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Match update failed")
       toast.success(action === "accept" ? "Match accepted" : "Candidate rejected")
       await loadAll()

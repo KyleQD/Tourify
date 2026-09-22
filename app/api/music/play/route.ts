@@ -6,7 +6,7 @@ import { getTrustedMusicWriteClient, recordMusicEvent, resolveMusicAccess, syncM
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { musicId: bodyMusicId, trackId, completed = false, listenSeconds, eventType, source } = await request.json()
+    const { musicId: bodyMusicId, trackId, completed = false, listenSeconds, eventType, source, provider, playback_session_id } = await request.json()
     const musicId = bodyMusicId || trackId
     
     if (!musicId)
@@ -74,6 +74,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Provider analytics context — flows through metadata JSONB, never the stream URL
+    const providerMeta = provider ? {
+      provider: String(provider),
+      ...(playback_session_id ? { playback_session_id: String(playback_session_id) } : {}),
+    } : {}
+
     if (eventType === 'play_progress') {
       await recordMusicEvent({
         supabase,
@@ -83,7 +89,7 @@ export async function POST(request: NextRequest) {
         eventType: 'play_progress',
         accessLevel: access.accessLevel,
         source: source || 'api_music_play',
-        metadata: { listen_seconds: listenSeconds ?? null },
+        metadata: { listen_seconds: listenSeconds ?? null, ...providerMeta },
       })
     } else if (!completed) {
       await recordMusicEvent({
@@ -94,7 +100,7 @@ export async function POST(request: NextRequest) {
         eventType: 'play_started',
         accessLevel: access.accessLevel,
         source: source || 'api_music_play',
-        metadata: { listen_seconds: listenSeconds ?? null },
+        metadata: { listen_seconds: listenSeconds ?? null, ...providerMeta },
       })
       await recordMusicEvent({
         supabase,
@@ -104,6 +110,7 @@ export async function POST(request: NextRequest) {
         eventType: access.accessLevel === 'full' ? 'full_play' : 'preview_play',
         accessLevel: access.accessLevel,
         source: source || 'api_music_play',
+        metadata: providerMeta,
       })
     }
 
@@ -116,6 +123,7 @@ export async function POST(request: NextRequest) {
         eventType: 'play_completed',
         accessLevel: access.accessLevel,
         source: source || 'api_music_play',
+        metadata: providerMeta,
       })
     }
 

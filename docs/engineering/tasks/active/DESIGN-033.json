@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-033",
+  "title": "Apply owner-approved --radius token (C-03 gate)",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-13T18:57:01.004Z",
+  "updated_at": "2026-09-16T19:24:56.135Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Apply the owner-approved C-03 --radius change: establish --radius at app/globals.css :root (0.5rem) so the tailwind radius aliases resolve to 0.25/0.375/0.5rem (4/6/8px), updating the token registry and recording that the app-wide visual corner change (blasthing ~3068 rounded utilities / 923 files) is owner-accepted with a QA visual-check handoff.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/globals.css",
+    "tailwind.config.ts (verify-only; unchanged)",
+    "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
+    "docs/implementation/ui-ux-completion/TOKEN_AUTHORITY_INVENTORY.md",
+    "docs/engineering/agents/design-system/STATE.md",
+    "docs/engineering/handoffs/pending/HF-DESIGN-033-QA.json (new)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    "--radius: 0.5rem present at app/globals.css :root (semantic radius block) and tailwind.config.ts extend.borderRadius maps lg/md/sm exactly to 0.5/0.375/0.25rem (verified, no correction required).",
+    "Scoped Tailwind build proof: .rounded-lg/.rounded-md/.rounded-sm utilities resolve to the owner-accepted values.",
+    "TOKEN_REGISTRY.md Table C rows flipped from conflict/gated to live/applied; TOKEN_AUTHORITY_INVENTORY.md roadmap marks C-03 applied; QA visual-check handoff recorded.",
+    "STATE.md durable facts + task record updated (checkpoint, evidence, verification, last_run_sha/at); status stays active with result pass for the code change (QA visual check is the final gate)."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "Scoped Tailwind build: ./node_modules/.bin/tailwindcss -i <probe input.css> -o <probe output.css> -c tailwind.config.ts --content <probe.html> (probe html: rounded-lg/md/sm) -> emitted utilities captured",
+      "Node numeric resolution: --radius 0.5rem (8px base) -> lg var(--radius) = 0.5rem/8px; md calc(0.5rem - 2px) = 0.375rem/6px; sm calc(0.5rem - 4px) = 0.25rem/4px",
+      "npx eslint app/globals.css tailwind.config.ts",
+      "npx tsc --noEmit --pretty false --esModuleInterop --skipLibCheck --target es2020 --module esnext --moduleResolution bundler tailwind.config.ts (scoped; repo-wide tsc resource-constrained)",
+      "git diff --check -- app/globals.css",
+      "npx vitest run __tests__/design-system (2 files / 5 tests) + theme/style-adjacent (__tests__/dashboard/dashboard-themes.test.ts, __tests__/post-styles/post-style-boundary.test.ts, __tests__/post-styles/premiere-styles-v3.test.ts) (22 tests)",
+      "Point-in-time rg sweeps: new -- declarations vs HEAD (only --radius added by DESIGN-033, all registered); zero test files assert border-radius/rounded-*/--radius (rg)",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "SCOPED BUILD PROOF (tailwindcss v3.4.17 CLI, tailwind.config.ts, probe content 'rounded-lg rounded-md rounded-sm', exit 0): output.css emits exactly `.rounded-lg { border-radius: var(--radius) }`, `.rounded-md { border-radius: calc(var(--radius) - 2px) }`, `.rounded-sm { border-radius: calc(var(--radius) - 4px) }` (plus tailwindcss-animate enter/exit keyframes). RUNTIME RESOLUTION with the applied `--radius: 0.5rem` at :root (node proof): lg = 0.5rem (8px), md = 0.375rem (6px), sm = 0.25rem (4px) — the owner-accepted values. Before DESIGN-033 these computed to 0 (border-radius initial: var(--radius) undefined at :root -> invalid at computed-value time).",
+      "TAILWIND FORMULA VERIFICATION (tailwind.config.ts extend.borderRadius, lines 80-84, UNCHANGED): lg = 'var(--radius)', md = 'calc(var(--radius) - 2px)', sm = 'calc(var(--radius) - 4px)' -> with --radius: 0.5rem exactly 0.5/0.375/0.25rem. No correction needed.",
+      "APPLIED DIFF (app/globals.css): +13 lines — semantic radius comment block + '--radius: 0.5rem;' appended inside :root after the chart ramp. Git diff vs HEAD also shows pre-existing other-lane dirt in the same file (epk-font-* utilities, DESIGN-032 sidebar/chart block, DESIGN-030 Phase 5 neon composite removals) — preserved unmodified. Point-in-time var sweep vs HEAD: 13 DESIGN-032 sidebar/chart declarations + 1 DESIGN-033 --radius = 14 new -- declarations total, all registered; no unregistered token introduced.",
+      "ESLINT app/globals.css tailwind.config.ts: 0 errors, exit 0 (app/globals.css reports the standard 'File ignored because no matching configuration was supplied' warning — flat config ignores CSS, same as DESIGN-030 Phase 5 recorded; tailwind.config.ts clean).",
+      "SCOPED TSC tailwind.config.ts: 0 errors, exit 0 (config unchanged by this task but integrity-checked; repository-wide tsc remains resource-constrained in this dirty 754-entry tree — reported honestly, not claimed to pass repo-wide).",
+      "git diff --check -- app/globals.css: clean, exit 0.",
+      "TESTS: __tests__/design-system 2 files / 5 tests PASSED; theme/style-adjacent dashboard-themes + post-style-boundary + premiere-styles-v3 = 3 files / 22 tests PASSED. Rounding failures: NONE possible and none observed — rg across all test files proves ZERO assertions on border-radius|rounded-*|--radius; the app-wide visual delta 0 -> 8/6/4px is the owner-accepted intended behavior and is recorded as expected (QA visual check owns the final gate).",
+      "npm run agents:validate: validated 17 agents, 99 tasks, 0 warnings, 0 errors (exit 0) — matches the expected 17/99/0/0 (99 = 97 prior + DESIGN-033 + the sibling task created in the same control-plane batch).",
+      "QA RUNTIME GATE (2026-09-13): primary checkout served on localhost:3000. Public `/` rendered with root `--radius: .5rem`; sampled `rounded-md` computed to 6px and the primary `rounded-2xl` card to 16px. Protected `/admin`, `/artist`, `/venue`, `/dashboard`, and `/settings` all redirected to `/login?redirectTo=...` in the available unauthenticated session, so those authenticated visual surfaces were not accepted. `/staffing` did not exercise `.staff-scheduling-prototype`; static CSS proof still confirms its scoped `--radius: 0.625rem`. The scripted agent-browser launcher was blocked by the desktop Chrome Crashpad/profile permission boundary; the existing Codex in-app browser was used as fallback.",
+      "QA FOCUSED VERIFICATION (2026-09-13): `npx vitest run __tests__/design-system __tests__/dashboard/dashboard-themes.test.ts __tests__/post-styles/post-style-boundary.test.ts __tests__/post-styles/premiere-styles-v3.test.ts` passed 5 files / 27 tests; static Node proof passed root 0.5rem, staff 0.625rem, and Tailwind lg/md/sm formulas; `npm run agents:validate` passed 17 agents / 99 tasks / 0 warnings / 0 errors.",
+      "QA AUTHENTICATED VISUAL GATE (2026-09-13, localhost:3000 via Codex in-app browser fallback): general `/dashboard` rendered for `qa-multi-a@tourify.test`; `/settings` rendered the Account Settings profile surface; organization `qa-flow-org@tourify.test` rendered `/admin/dashboard?account=b06240db-f9dd-4bb0-892f-083078914867` with organization command center, tours, events, workforce, logistics, ticketing, finance, calendar, and activity surfaces; `/admin/dashboard/staff?account=b06240db-f9dd-4bb0-892f-083078914867&tab=scheduling` rendered Scheduling & Shifts, filters, week board, staff pool, conflicts, publish, and empty states. `/artist/overview` rendered River Quinn's artist command center with action items, workflows, content performance, insights, analytics, and navigation. Runtime readback confirmed root `--radius` `.5rem`, sampled app `rounded-md` 6px and `rounded-lg` 8px, and `.staff-scheduling-prototype` `--radius` `.625rem` with sampled staff `rounded-lg` 10px. No framework error overlay appeared. Existing warnings: `account_relationships.owner_user_id` is unavailable; org active-session upsert reports an existing `user_sessions_active_account_type_check` warning but the admin surface rendered.",
+      "QA BLOCKERS (2026-09-13): direct `/artist` remained on its Loading screen in this session; `/artist/overview` is the rendered artist command-center evidence. QA B venue context resolved `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` and its underlying Venue workspace rendered, but the required terms save failed with `duplicate key value violates unique constraint \"accounts_account_type_display_name_key\"`; the terms modal remained open and repeated `Error fetching venue stats: Object` console errors, so venue visual acceptance is not claimed. Scripted `agent-browser` was attempted but blocked by the desktop Crashpad/profile socket permission boundary; the Codex in-app browser fallback supplied the evidence above.",
+      "QA VALIDATION RERUN (2026-09-13): `npx vitest run __tests__/design-system __tests__/dashboard/dashboard-themes.test.ts __tests__/post-styles/post-style-boundary.test.ts __tests__/post-styles/premiere-styles-v3.test.ts` passed 5 files / 27 tests; static root/staff/formula proof passed; `git diff --check -- app/globals.css` passed; `npm run agents:validate` passed 17 agents / 99 tasks / 0 warnings / 0 errors.",
+      "DOC REGISTRY UPDATES: TOKEN_REGISTRY.md — header amended note; Table C preamble + delta table rewritten (applied columns, owner-acceptance paragraph, QA gate); 4 rows conflict -> live (radius scale, radius-lg/md/sm); Table K 3 radius rows conflict -> live; §2a/§4e/§5g historical 'NOT applied' markers marked SUPERSEDED; new §6 execution notes (6a applied change, 6b verification evidence, 6c QA handoff, 6d status transitions). TOKEN_AUTHORITY_INVENTORY.md — header DESIGN-033 note; C-03 conflicts row RESOLVED/APPLIED; §2.2 radius registry updated (root truth + resolved delta); §8 radius row resolved; Phase roadmap Phase-5 radius bullet superseded + Phase 6 opener now records C-03 applied. STATE.md — header review block, durable facts bullet (first owner-approved intentional visual change), known-risk C-03 row RESOLVED, current-focus bullets updated.",
+      "QA HANDOFF: docs/engineering/handoffs/pending/HF-DESIGN-033-QA.json created (to_agent qa, status pending) — QA visual check of critical surfaces (main app, admin, artist, venue, dashboard, settings; staff scope expected unchanged at 0.625rem) is the final gate before DESIGN-033 closes.",
+      "QA BLOCKER FOLLOW-UP (2026-09-13, localhost:3000 via Codex in-app browser fallback after scripted agent-browser was blocked by the read-only Crashpad socket): clean seeded artist persona qa-flow-artist1@tourify.test rendered direct `/artist` with the post composer, quiet-feed loading/empty state, artist primary navigation, and Overview link; no page-level ArtistLoading screen or new artist console error was observed. QA Multi B venue `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` rendered the Venue workspace underneath the mandatory terms gate; attempting the required terms save reproduced the visible `duplicate key value violates unique constraint \"accounts_account_type_display_name_key\"` error, and the route emitted repeated `Error fetching venue stats: Object` errors. A clean venue session could not be provisioned without bypassing or mutating the hosted account state, so venue visual acceptance is not claimed.",
+      "QA STAFF RUNTIME FOLLOW-UP (2026-09-13): organization `/admin/dashboard/staff?account=b06240db-f9dd-4bb0-892f-083078914867&tab=scheduling` rendered Scheduling & Shifts with week board, filters, staff pool, conflicts, publish, and empty states. Browser readback: root `--radius` `.5rem`, app `rounded-lg` 8px / `rounded-md` 6px, and `.staff-scheduling-prototype` `--radius` `.625rem` with sampled `.rounded-lg` at 10px; the staff scope remains unchanged.",
+      "QA VERIFICATION FOLLOW-UP (2026-09-13): `npx vitest run __tests__/design-system __tests__/dashboard/dashboard-themes.test.ts __tests__/post-styles/post-style-boundary.test.ts __tests__/post-styles/premiere-styles-v3.test.ts` passed 5 files / 27 tests; static Node proof passed root `.5rem`, staff `.625rem`, and Tailwind lg/md/sm formulas; `npm run agents:validate` passed 17 agents / 99 tasks / 0 warnings / 0 errors. No source change was made by this QA follow-up; the owner-approved radius decision remains unchanged."
+    ],
+    "last_run_sha": "working-tree",
+    "last_run_at": "2026-09-13T20:31:29.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Production-readiness triage keeps DESIGN-033 non-P0. The remaining venue visual gate is not a production blocker unless QA-003 identifies a core accessibility or usability failure caused by the radius change.",
+    "completed": [
+      "APPLY: --radius: 0.5rem added to app/globals.css :root (semantic radius comment block after the chart ramp; only token added by this task).",
+      "VERIFY: tailwind.config.ts borderRadius formulas confirmed 1:1 (lg var(--radius) -> 0.5rem, md calc(-2px) -> 0.375rem, sm calc(-4px) -> 0.25rem); NO config correction needed (formulas already produce owner-accepted values).",
+      "BUILD PROOF: scoped tailwindcss build emits .rounded-lg/.rounded-md/.rounded-sm resolving verbatim; node numeric proof 8/6/4px with the applied :root value.",
+      "DOCS: TOKEN_REGISTRY.md Table C 4 rows + Table K 3 rows conflict -> live, gate history + owner-acceptance recorded, §2a/§4e/§5g superseded markers, new §6 execution notes; TOKEN_AUTHORITY_INVENTORY.md C-03 row resolved, §2.2/§8/roadmap updated; STATE.md durable facts + known risks + current focus updated.",
+      "QA HANDOFF: HF-DESIGN-033-QA created (pending, to_agent qa) — QA visual check of critical surfaces is the final gate.",
+      "VERIFICATION SUITE: all commands run and evidence recorded (result: pass) — eslint 0, scoped tsc 0, git diff --check clean, design-system 5/5 + theme/style 22/22 tests pass, agents:validate 17/99/0/0, point-in-time rg clean."
+    ],
+    "next_steps": [
+      "Resolve or provision a clean venue QA session so `/venue/dashboard` can be inspected without the terms-save duplicate-key modal and venue-stats errors; then rerun the venue visual check before closing HF-DESIGN-033-QA and moving DESIGN-033 to completed.",
+      "Token program remainder: D-02 live form-override replacement (owner-reviewed; registry §5d) and Phase 6 adoption + regressions."
+    ],
+    "blockers": [
+      "The final QA visual gate is incomplete only for venue: QA Multi B's `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` is behind the required terms gate because save fails with `duplicate key value violates unique constraint \"accounts_account_type_display_name_key\"`, and repeated `Error fetching venue stats: Object` errors are observed. Direct `/artist` is now verified with the clean seeded artist persona and no page-level Loading screen. The owner-accepted app-wide 0 -> 8/6/4px delta remains intentionally non-zero-regression (blast radius ~3,068 rounded-{lg,md,sm} usages / 923 files)."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-13T19:11:36.605Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "C-03 radius APPLIED: --radius: 0.5rem at app/globals.css :root (owner-approved 0->8/6/4px app-wide delta). tailwind.config.ts extend.borderRadius formulas verified 1:1 and unchanged: rounded-lg = var(--radius) -> 0.5rem (8px), rounded-md = calc(var(--radius) - 2px) -> 0.375rem (6px), rounded-sm = calc(var(--radius) - 4px) -> 0.25rem (4px). Scoped Tailwind build (v3.4.17 CLI) emits all three utilities; numeric resolution confirmed. Registry Table C (4 rows) + Table K (3 rows) flipped conflict->live; inventory C-03 row + §2.2/§8/roadmap updated; STATE.md durable facts + risks updated; QA visual-check handoff HF-DESIGN-033-QA created (final gate). Verification: eslint 0, scoped tsc 0, git diff --check clean, design-system 5/5 + theme/style 22/22 pass, agents:validate 17/99/0/0, point-in-time rg: only --radius added (registered). Status stays active (QA final gate). Other-lane worktree dirt preserved.",
+        "completed": [
+          "APPLY",
+          "VERIFY",
+          "BUILD PROOF",
+          "DOCS",
+          "QA HANDOFF",
+          "VERIFICATION SUITE"
+        ],
+        "next_steps": [
+          "Re-run the visual check with authenticated access to admin, artist, venue, dashboard, settings, and an exercised staff-scheduling prototype; close the handoff only after those surfaces are accepted."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T20:31:29.000Z",
+        "sha": "working-tree",
+        "summary": "QA partial pass recorded: public `/` confirms root --radius .5rem with sampled rounded-md 6px and rounded-2xl 16px; protected admin, artist, venue, dashboard, and settings routes redirect to login without an authenticated session; /staffing does not exercise the staff prototype. Focused tests pass 5 files / 27 tests, static root/staff/formula proof passes, and agents:validate reports 17 agents / 99 tasks / 0 warnings / 0 errors.",
+        "completed": [
+          "Public runtime surface inspected",
+          "Protected-route blocker recorded",
+          "Staff-scope static proof recorded",
+          "Focused verification rerun"
+        ],
+        "next_steps": [
+          "Obtain authenticated QA access for admin, artist, venue, dashboard, and settings; exercise the staff-scheduling prototype; then close the pending QA handoff only after visual acceptance."
+        ],
+        "blockers": [
+          "Protected surfaces were not visually accessible in the available unauthenticated runtime session; staff prototype was not exercised."
+        ]
+      },
+      {
+        "at": "2026-09-13T21:05:00.000Z",
+        "sha": "working-tree",
+        "summary": "Authenticated visual QA rerun via Codex in-app browser fallback: general dashboard and settings, organization admin dashboard and staff Scheduling tab, and artist overview rendered; runtime root radius .5rem, app rounded-md 6px/rounded-lg 8px, and staff scope .625rem/10px confirmed. Direct /artist stayed Loading; venue workspace underlying route rendered but required terms save failed with accounts_account_type_display_name_key duplicate-key error and venue stats console errors. Focused 27 tests, static proof, diff check, and agents:validate 17/99/0/0 passed. Status remains active.",
+        "completed": [
+          "Authenticated dashboard/settings visual pass",
+          "Authenticated organization admin visual pass",
+          "Authenticated staff Scheduling visual pass",
+          "Authenticated artist overview visual pass",
+          "Staff scoped radius runtime proof",
+          "Focused validation rerun"
+        ],
+        "next_steps": [
+          "Obtain a clean venue QA session and resolve the direct artist Loading route or narrow acceptance explicitly before closing the handoff."
+        ],
+        "blockers": [
+          "Venue terms save duplicate-key error with repeated venue-stats fetch errors; direct /artist remains Loading."
+        ]
+      },
+      {
+        "at": "2026-09-13T21:20:00.000Z",
+        "sha": "working-tree",
+        "summary": "Focused blocker follow-up via Codex in-app browser fallback: clean seeded artist persona rendered direct `/artist` with the post composer, quiet-feed loading/empty state, artist navigation, and Overview link; no page-level Loading screen or new artist console error. QA Multi B venue `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` rendered the Venue workspace underneath the mandatory terms gate, but the required save reproduced the accounts_account_type_display_name_key duplicate-key error and repeated `Error fetching venue stats: Object` errors. Organization Scheduling rendered normally; runtime confirmed root .5rem, app 8px/6px, and staff scope .625rem with a 10px sample. Focused 27 tests, static proof, and agents:validate 17/99/0/0 passed. DESIGN-033 remains active because venue acceptance is blocked.",
+        "completed": [
+          "Direct `/artist` route rechecked with clean artist persona",
+          "Venue blocker reproduced with exact route and console evidence",
+          "Staff-scheduling scoped radius rechecked at runtime",
+          "Focused verification rerun"
+        ],
+        "next_steps": [
+          "Provision or repair a clean venue QA context, then rerun the venue visual gate before closing HF-DESIGN-033-QA."
+        ],
+        "blockers": [
+          "QA Multi B venue terms save fails with accounts_account_type_display_name_key duplicate-key error and repeated venue-stats errors; no clean venue session was available without bypassing or mutating hosted account state."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:56.135Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness triage keeps DESIGN-033 non-P0. The remaining venue visual gate is not a production blocker unless QA-003 identifies a core accessibility or usability failure caused by the radius change.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DESIGN-033-QA (pending, to_agent qa) — QA visual-check regression pass over the owner-accepted 0 -> 8/6/4px corner delta (critical surfaces: main app, admin, artist, venue, dashboard, settings; staff scope expected unchanged); closes DESIGN-033 when accepted."
+  ]
+}

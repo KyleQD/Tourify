@@ -109,25 +109,32 @@ export async function GET(request: NextRequest) {
     const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0)
 
     const supabase = await createClient()
-    // Basic venue search - using only columns that exist
+    // VEN-067/282/283: canonical directory card DTO. Only published venues are
+    // visible to the public directory; stored url_slug + verification travel
+    // with the row so links never regenerate from the name.
     let venueQuery = supabase
       .from('venue_profiles')
       .select(`
         id,
         venue_name,
+        url_slug,
         description,
         city,
         state,
         country,
         capacity,
         venue_types,
+        amenities,
+        avatar_url,
+        cover_image_url,
+        verification_status,
+        is_public,
         created_at,
         updated_at
       `)
+      .eq('is_public', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
-
-    // Note: is_public column doesn't exist yet, so showing all venues for now
 
     // Apply basic filters
     if (query) {
@@ -148,8 +155,30 @@ export async function GET(request: NextRequest) {
     if (venue_type) {
       venueQuery = venueQuery.contains('venue_types', [venue_type])
     }
+    if (amenities && amenities.length) {
+      // VEN-279: amenity filter executes server-side across the full result set.
+      venueQuery = venueQuery.contains('amenities', amenities)
+    }
 
     const { data: venues, error } = await venueQuery
+
+    // VEN-281: true total for the same filtered set (not page length).
+    let total = venues?.length || 0
+    {
+      let countQuery = supabase
+        .from('venue_profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_public', true)
+      if (query) countQuery = countQuery.or(`venue_name.ilike.%${query}%,description.ilike.%${query}%,city.ilike.%${query}%`)
+      if (city) countQuery = countQuery.ilike('city', `%${city}%`)
+      if (state) countQuery = countQuery.ilike('state', `%${state}%`)
+      if (min_capacity) countQuery = countQuery.gte('capacity', min_capacity)
+      if (max_capacity) countQuery = countQuery.lte('capacity', max_capacity)
+      if (venue_type) countQuery = countQuery.contains('venue_types', [venue_type])
+      if (amenities && amenities.length) countQuery = countQuery.contains('amenities', amenities)
+      const { count } = await countQuery
+      total = count ?? total
+    }
 
     if (error) {
       console.error('Error searching venues:', error)
@@ -166,7 +195,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         limit,
         offset,
-        total: venues?.length || 0,
+        total,
+        has_more: offset + (venues?.length || 0) < total,
       },
       filters: {
         query,

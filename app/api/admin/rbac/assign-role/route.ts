@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('org.roles.manage', async (request: NextRequest, { supabase, user }) => {
   try {
     const isEntityRbacEnabled = process.env.FEATURE_ENTITY_RBAC === '1'
     if (!isEntityRbacEnabled) return NextResponse.json({ success: false, error: 'RBAC disabled' }, { status: 400 })
@@ -61,5 +61,4 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     return NextResponse.json({ error: err?.message || 'Failed to assign role' }, { status: 500 })
   }
 })
-
 

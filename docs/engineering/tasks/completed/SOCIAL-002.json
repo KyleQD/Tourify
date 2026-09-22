@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "id": "SOCIAL-002",
+  "title": "Build standalone feed",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "social",
+  "created_at": "2026-09-09T09:35:17.568Z",
+  "updated_at": "2026-09-10T17:48:25.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Build /feed as its own destination page exposing the built feed engine",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/feed/",
+    "components/feed/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/social/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Standalone feed page live"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/feed/feed-posts-route.test.ts",
+      "npx eslint app/feed/page.tsx components/feed/social-feed.tsx __tests__/feed/feed-posts-route.test.ts",
+      "npm run verify:fast -- --changed"
+    ],
+    "evidence": [
+      "Focused feed suite passed 32/32 tests.",
+      "Scoped ESLint passed with no output/errors.",
+      "The repository fast wrapper is blocked before checks because its dirty-worktree inventory includes missing components/ui/use-mobile.tsx; this is unrelated to SOCIAL-002.",
+      "A repository-wide typecheck exceeded the default Node heap before completion and was not used as the gate."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T17:48:25.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed standalone social feed destination by replacing the /feed redirect with the existing auth-aware SocialFeed component.",
+    "completed": [
+      "Replaced app/feed/page.tsx redirect with the existing SocialFeed destination.",
+      "Updated the focused feed route assertion to require the standalone destination and preserve /news separately.",
+      "Ran focused feed tests and scoped ESLint successfully."
+    ],
+    "next_steps": [
+      "Start SOCIAL-003 (full community groups) when scheduled."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T17:48:25.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Standalone /feed route now renders SocialFeed; focused feed tests and scoped ESLint pass. The broad verification wrapper remains blocked by unrelated missing dirty-worktree path components/ui/use-mobile.tsx.",
+        "next": "Start SOCIAL-003 when scheduled."
+      }
+    ]
+  },
+  "handoffs": []
+}

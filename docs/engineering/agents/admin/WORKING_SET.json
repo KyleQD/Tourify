@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "agent": "admin",
+  "description": "Own admin dashboards, admin operations, authorization gates, and audit registries.",
+  "paths": [
+    "app/admin/**",
+    "app/api/admin/**",
+    "components/admin/**",
+    "lib/admin/**",
+    "__tests__/admin/**",
+    ".agents/admin-*/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

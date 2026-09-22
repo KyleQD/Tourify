@@ -24,7 +24,17 @@ export interface TravelGroup {
   dietary_restrictions: string[]
   accessibility_needs: string[]
   status: 'planning' | 'confirmed' | 'in_transit' | 'arrived' | 'departed' | 'cancelled'
-  coordination_status: 'pending' | 'flights_booked' | 'hotels_booked' | 'transport_arranged' | 'complete'
+  coordination_status:
+    | 'pending'
+    | 'flights_booked'
+    | 'hotels_booked'
+    | 'transport_arranged'
+    | 'complete'
+    | 'suggestion'
+    | 'review'
+    | 'request'
+    | 'hold'
+    | 'confirmed'
   event_id?: string
   tour_id?: string
   created_by?: string
@@ -1029,27 +1039,40 @@ export function useTravelCoordination(scope?: {
       }
 
       const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to open coordination review')
+      }
+
+      const drafts: string[] = Array.isArray(result.data?.drafts_created)
+        ? result.data.drafts_created
+        : []
+      const description =
+        result.message
+        || result.data?.message
+        || (drafts.length > 0
+          ? `Opened coordination review. Created ${drafts.length} draft item(s) — not confirmed bookings.`
+          : 'Opened coordination review. No bookings were created.')
+
       toast({
-        title: "Success",
-        description: result.message || "Group auto-coordinated successfully",
-        variant: "default"
+        title: 'Coordination review',
+        description,
+        variant: 'default',
       })
 
-      // Refresh all data
       await Promise.all([
         fetchGroups(),
         fetchFlights(),
         fetchTransportation(),
-        fetchHotelAssignments()
+        fetchHotelAssignments(),
       ])
-      
+
       return result.data
     } catch (error: any) {
-      console.error('[useTravelCoordination] Error auto-coordinating group:', error)
+      console.error('[useTravelCoordination] Error opening coordination review:', error)
       toast({
-        title: "Error",
-        description: error.message || "Failed to auto-coordinate group",
-        variant: "destructive"
+        title: 'Error',
+        description: error.message || 'Failed to open coordination review',
+        variant: 'destructive',
       })
       throw error
     }

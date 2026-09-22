@@ -1,9 +1,54 @@
 export type AuthTab = "signup" | "signin"
 
-export function normalizePostLoginRedirect(target: string): string {
-  if (!target.startsWith("/")) return "/dashboard"
-  if (target === "/" || target.startsWith("/login") || target.startsWith("/auth")) return "/dashboard"
-  return target
+const AUTH_REDIRECT_FALLBACK = "/dashboard"
+const AUTH_REDIRECT_DENIED_PREFIXES = [
+  "/api",
+  "/auth",
+  "/debug",
+  "/login",
+  "/reset-password",
+  "/signup",
+  "/_next",
+] as const
+
+/**
+ * Allow only a same-site application path after an auth transition.
+ *
+ * URL parsing is intentionally performed against a fixed sentinel origin so
+ * scheme-relative paths, backslashes, encoded separators and absolute URLs
+ * cannot become an off-site redirect in a browser or proxy runtime.
+ */
+export function normalizePostLoginRedirect(
+  target: string | null | undefined,
+  fallback = AUTH_REDIRECT_FALLBACK,
+): string {
+  const candidate = target?.trim()
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) {
+    return fallback
+  }
+  if (candidate.includes("\\") || /[\u0000-\u001f\u007f]/.test(candidate)) {
+    return fallback
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(candidate, "https://tourify.invalid")
+  } catch {
+    return fallback
+  }
+
+  if (parsed.origin !== "https://tourify.invalid") return fallback
+  const lowerPath = parsed.pathname.toLowerCase()
+  if (lowerPath === "/") return fallback
+  if (
+    AUTH_REDIRECT_DENIED_PREFIXES.some(
+      (prefix) => lowerPath === prefix || lowerPath.startsWith(`${prefix}/`),
+    )
+  ) {
+    return fallback
+  }
+
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`
 }
 
 export function generateUsername({

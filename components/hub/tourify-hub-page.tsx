@@ -162,7 +162,7 @@ export function TourifyHubPage() {
                   className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
                 >
                   <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topics?.[0] || "Signal"}</span>
-                  {item.sourceName} // {item.title}
+                  {item.sourceName} {"//"} {item.title}
                 </a>
               ))}
             </div>
@@ -178,7 +178,7 @@ export function TourifyHubPage() {
                   className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
                 >
                   <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topics?.[0] || "Signal"}</span>
-                  {item.sourceName} // {item.title}
+                  {item.sourceName} {"//"} {item.title}
                 </a>
               ))}
             </div>
@@ -307,7 +307,7 @@ export function TourifyHubPage() {
                   className="hub-ticker-chip shrink-0 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.12em] text-slate-100"
                 >
                   <span className="mr-2 rounded-full bg-black/30 px-1.5 py-0.5 text-[10px]">{item.topics?.[0] || "Signal"}</span>
-                  {item.sourceName} // {item.title}
+                  {item.sourceName} {"//"} {item.title}
                 </a>
               ))}
             </div>

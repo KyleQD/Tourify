@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { requireApiUser } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
+import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireMarketplaceAccount(request)
     if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
+    const { userId, supabase } = authResult.account
 
     const role = request.nextUrl.searchParams.get("role") || "buyer"
     let query = supabase
@@ -17,8 +21,8 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(100)
 
-    if (role === "seller") query = query.eq("seller_user_id", user.id)
-    else query = query.eq("buyer_user_id", user.id)
+    if (role === "seller") query = query.eq("seller_user_id", userId)
+    else query = query.eq("buyer_user_id", userId)
 
     const { data, error } = await query
     if (error) {

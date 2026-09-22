@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   applyNotificationAccountScope,
+  applyNotificationAccountScopes,
   type NotificationAccountScope,
 } from '@/lib/notifications/account-scope'
 import {
@@ -19,6 +20,8 @@ export interface FetchUserNotificationsParams {
   /** Acting-entity profile UUID when not on personal/general */
   targetProfileId?: string | null
   accountType?: string | null
+  /** Allowed inboxes for a combined account feed; takes precedence over active-account fields. */
+  accountScopes?: NotificationAccountScope[]
 }
 
 export interface FetchUserNotificationsResult {
@@ -40,21 +43,42 @@ function toScope(params: {
   }
 }
 
+function applyRequestedAccountScope<T>(
+  query: T,
+  params: {
+    userId: string
+    targetProfileId?: string | null
+    accountType?: string | null
+    accountScopes?: NotificationAccountScope[]
+  },
+): T {
+  if (params.accountScopes)
+    return applyNotificationAccountScopes(query, params.userId, params.accountScopes)
+
+  return applyNotificationAccountScope(query, toScope(params))
+}
+
 /** Cheap unread badge query — does not load the full notification list. */
 export async function fetchUnreadNotificationCount(args: {
   supabase: SupabaseClient
   userId: string
   targetProfileId?: string | null
   accountType?: string | null
+  accountScopes?: NotificationAccountScope[]
 }): Promise<number> {
-  const { supabase, userId, targetProfileId, accountType } = args
+  const { supabase, userId, targetProfileId, accountType, accountScopes } = args
   let query = supabase
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('is_read', false)
 
-  query = applyNotificationAccountScope(query, toScope({ userId, targetProfileId, accountType }))
+  query = applyRequestedAccountScope(query, {
+    userId,
+    targetProfileId,
+    accountType,
+    accountScopes,
+  })
 
   const { count } = await query
   return count ?? 0
@@ -66,8 +90,9 @@ export async function markAccountNotificationsAsRead(args: {
   userId: string
   targetProfileId?: string | null
   accountType?: string | null
+  accountScopes?: NotificationAccountScope[]
 }): Promise<{ error: string | null }> {
-  const { supabase, userId, targetProfileId, accountType } = args
+  const { supabase, userId, targetProfileId, accountType, accountScopes } = args
   const readAt = new Date().toISOString()
 
   let query = supabase
@@ -79,7 +104,12 @@ export async function markAccountNotificationsAsRead(args: {
     .eq('user_id', userId)
     .eq('is_read', false)
 
-  query = applyNotificationAccountScope(query, toScope({ userId, targetProfileId, accountType }))
+  query = applyRequestedAccountScope(query, {
+    userId,
+    targetProfileId,
+    accountType,
+    accountScopes,
+  })
 
   const { error } = await query
   if (error) return { error: error.message || 'Failed to mark notifications as read' }
@@ -97,9 +127,8 @@ export async function fetchUserNotifications(
     type,
     targetProfileId,
     accountType,
+    accountScopes,
   } = params
-
-  const scope = toScope({ userId, targetProfileId, accountType })
 
   const { data: prefsRow } = await supabase
     .from('notification_preferences')
@@ -129,7 +158,12 @@ export async function fetchUserNotifications(
   if (type)
     notifQuery = notifQuery.eq('type', type)
 
-  notifQuery = applyNotificationAccountScope(notifQuery, scope)
+  notifQuery = applyRequestedAccountScope(notifQuery, {
+    userId,
+    targetProfileId,
+    accountType,
+    accountScopes,
+  })
 
   const { data, error } = await notifQuery
 
@@ -147,7 +181,7 @@ export async function fetchUserNotifications(
   let profiles: Array<{
     id: string
     full_name: string | null
-    username: string
+    username: string | null
     avatar_url: string | null
   }> = []
 
@@ -170,6 +204,7 @@ export async function fetchUserNotifications(
     userId,
     targetProfileId,
     accountType,
+    accountScopes,
   })
 
   return {

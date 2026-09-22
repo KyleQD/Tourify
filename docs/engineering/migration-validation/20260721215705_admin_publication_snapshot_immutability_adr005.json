@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260721215705_admin_publication_snapshot_immutability_adr005.sql",
+  "taskId": "ADR-005",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["publication", "audit"],
+  "riskLevel": "high",
+  "representativeSnapshot": { "kind": "isolated production-like Supabase branch", "evidenceArtifact": null },
+  "preflight": { "rowCountQueries": ["snapshots and children grouped by status and org_id"], "expectedAffectedRows": "Trigger and policy replacement only; zero publication rows changed", "artifact": null },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 60000, "batchSize": 0, "resumeStrategy": "Transactional function, trigger, and same-table policy replacement; retry whole migration", "resumeCursor": "supabase migration version 20260721215705", "idempotency": "CREATE OR REPLACE plus DROP/CREATE trigger and policy pairs converge to one definition" },
+  "quarantine": { "required": false, "table": null, "strategy": "No data movement; unresolved ownership blocks isolated acceptance" },
+  "constraintsAndIndexes": { "constraints": [], "indexes": [], "validationPlan": "Verify committed snapshots and children reject mutation while drafts retain authorized edits" },
+  "recovery": { "rollback": "Replace guards/policies with the last reviewed definitions; never remove publication rows", "forwardFix": "Ship narrower corrected guards in a later additive migration" },
+  "postflight": { "queries": ["trigger/policy inventory and draft-versus-committed mutation matrix"], "artifact": null, "securityAdvisorArtifact": null, "performanceAdvisorArtifact": null },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

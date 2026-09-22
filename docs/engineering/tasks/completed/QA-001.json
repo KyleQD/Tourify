@@ -1,0 +1,165 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-001",
+  "title": "Audit QA workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "qa",
+  "created_at": "2026-09-09T06:17:43.191Z",
+  "updated_at": "2026-09-10T20:45:08.625Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the QA area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: test strategy, fixtures, end-to-end journeys, regression evidence, and quality gates",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/qa/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The qa default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/qa/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/qa/BASELINE.md: what the qa area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/qa/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task QA-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/qa/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/qa/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/qa/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "npm run agents:validate → 0 errors, 1 pre-existing RELEASE-001 warning.",
+      "npm run agents:validate -> 17 agents, 67 tasks validated, 0 errors, 1 pre-existing RELEASE-001 warning.",
+      "Current generated maps are SHA-matched at 7cf660ad; routes 369, API handlers 939, components 1939, database objects 693 across 422 migrations / 1287 policies.",
+      "QA-002 completion record: Vitest 4891 passed, 0 failed, 8 intentional skips across 512 files and 1881 suites; migration-chain and migration-validation passed.",
+      "Direct package.json audit: every QA command referenced by docs/qa-account-matrix.md and docs/qa-artist-store-completion.md is present.",
+      "Final validation -> 17 agents, 67 tasks validated, 0 errors, 1 pre-existing RELEASE-001 warning.",
+      "Current final validation reports 0 errors and 1 pre-existing RELEASE-001 warning.",
+      "Final QA-001 record and task index remain valid after normalization."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T20:45:08.625Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "QA-001 final record normalized: historical pre-correction counts are marked superseded and current completion summaries now match the reconciled QA documents.",
+    "completed": [
+      "BASELINE.md — current inventory of QA infrastructure and surrounding surfaces (433 __tests__ files, 88 library test files, 13 API test files, 5 Playwright specs, verification tiers, QA scripts, regression evidence, and remaining gaps)",
+      "GAPS.md — 20 findings triaged across P0–P3: 8 MISSING, 6 INCOMPLETE, 4 IMPROVE active; GAP-005 and GAP-019 resolved with traceability",
+      "QUESTIONS.md — 15 prioritized product-owner questions (P1–P4), with Q2 and Q12 resolved and remaining questions mapped to follow-up gaps",
+      "STATE.md — updated with SHA, durable facts table (test infra status, critical gaps, regression evidence, known risks), current focus, next planned tasks",
+      "BACKLOG.md — 16 candidate follow-up tasks organized P0–P3, each mapped to a gap ID and blocking question",
+      "Read the bounded QA context via npm run agents:context -- --task QA-001.",
+      "Updated BASELINE.md with current QA infrastructure and route/API/component/database surface inventory.",
+      "Reconciled GAPS.md and QUESTIONS.md with QA-002 green-suite evidence and direct QA alias verification.",
+      "Updated STATE.md and BACKLOG.md; removed stale CI/Vitest claims and preserved remaining prioritized work.",
+      "No production code or migration files changed.",
+      "Final wording review completed; generated permission-map claims are limited to static indicators/manual-review status.",
+      "Normalized the task verification record to the current agents:validate result.",
+      "Marked the initial pre-correction audit snapshot as superseded in the completed task history."
+    ],
+    "next_steps": [
+      "Owner answers to QUESTIONS.md should become bounded QA follow-up task records; first Q1 (hosted CI/required checks), Q3 (transactional E2E depth), and Q4 (XSS E2E scope)."
+    ],
+    "blockers": [
+      "None for QA-001; remaining gaps are recorded as follow-up work."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T07:15:00.000Z",
+        "sha": "7cf660ad",
+        "summary": "Initial audit snapshot (superseded by the 2026-09-10 reconciliation): produced the first QA baseline, gap list, questions, state, and candidate backlog. Its CI absence and Vitest-failure counts were later corrected against tracked workflows and QA-002 evidence.",
+        "next": "Reconcile the QA records against current generated maps, QA-002 completion evidence, and direct package-script checks before handoff."
+      },
+      {
+        "at": "2026-09-10T20:43:43.175Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "QA-001 complete: reconciled the QA baseline, gaps, questions, backlog, and state against current generated maps and QA-002 evidence; resolved stale Vitest/alias findings and recorded remaining QA follow-ups.",
+        "completed": [
+          "Read the bounded QA context via npm run agents:context -- --task QA-001.",
+          "Updated BASELINE.md with current QA infrastructure and route/API/component/database surface inventory.",
+          "Reconciled GAPS.md and QUESTIONS.md with QA-002 green-suite evidence and direct QA alias verification.",
+          "Updated STATE.md and BACKLOG.md; removed stale CI/Vitest claims and preserved remaining prioritized work.",
+          "No production code or migration files changed."
+        ],
+        "next_steps": [
+          "Owner answers to QUESTIONS.md should become bounded QA follow-up task records; prioritize Q1, Q3, and Q4."
+        ],
+        "blockers": [
+          "None for QA-001; unanswered owner questions are follow-up planning inputs, not a task blocker."
+        ]
+      },
+      {
+        "at": "2026-09-10T20:44:17.454Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Final QA-001 handoff: QA baseline and gap triage are internally consistent with current maps and QA-002; unresolved owner decisions are explicitly prioritized for follow-up.",
+        "completed": [
+          "Final wording review completed; generated permission-map claims are limited to static indicators/manual-review status."
+        ],
+        "next_steps": [
+          "Owner answers to QUESTIONS.md should become bounded QA follow-up task records; first Q1 (hosted CI/required checks), Q3 (transactional E2E depth), and Q4 (XSS E2E scope)."
+        ],
+        "blockers": [
+          "None for QA-001; remaining gaps are recorded as follow-up work."
+        ]
+      },
+      {
+        "at": "2026-09-10T20:44:33.705Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "QA-001 completed with final verification evidence normalized to the current control-plane warning count.",
+        "completed": [
+          "Normalized the task verification record to the current agents:validate result."
+        ],
+        "next_steps": [
+          "Owner answers to QUESTIONS.md should become bounded QA follow-up task records; first Q1 (hosted CI/required checks), Q3 (transactional E2E depth), and Q4 (XSS E2E scope)."
+        ],
+        "blockers": [
+          "None for QA-001; remaining gaps are recorded as follow-up work."
+        ]
+      },
+      {
+        "at": "2026-09-10T20:45:08.625Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "QA-001 final record normalized: historical pre-correction counts are marked superseded and current completion summaries now match the reconciled QA documents.",
+        "completed": [
+          "Marked the initial pre-correction audit snapshot as superseded in the completed task history."
+        ],
+        "next_steps": [
+          "Owner answers to QUESTIONS.md should become bounded QA follow-up task records; first Q1 (hosted CI/required checks), Q3 (transactional E2E depth), and Q4 (XSS E2E scope)."
+        ],
+        "blockers": [
+          "None for QA-001; remaining gaps are recorded as follow-up work."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

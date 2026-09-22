@@ -1,0 +1,52 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: docker/local/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../../.env.local
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tourify}:${POSTGRES_PASSWORD:-tourify}@postgres:5432/${POSTGRES_DB:-tourify}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../..:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tourify}
+      POSTGRES_USER: ${POSTGRES_USER:-tourify}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tourify}
+    ports:
+      - "5432:5432"
+    volumes:
+      - tourify-local-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  tourify-local-postgres:

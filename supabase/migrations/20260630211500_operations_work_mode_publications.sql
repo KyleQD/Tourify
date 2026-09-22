@@ -1,6 +1,5 @@
 -- Operations tab completion: Work Mode publications, day sheet receipts, and logistics storage policy foundations.
 
-create extension if not exists "pgcrypto";
 
 alter table if exists public.day_sheets
   add column if not exists version integer not null default 1;
@@ -11,6 +10,9 @@ alter table if exists public.day_sheets
 alter table if exists public.event_bulletins
   add column if not exists moderation_status text not null default 'approved'
   check (moderation_status in ('pending', 'approved', 'rejected'));
+
+alter table if exists public.tours
+  add column if not exists org_id uuid references public.organizations(id) on delete cascade;
 
 create table if not exists public.work_mode_publications (
   id uuid primary key default gen_random_uuid(),
@@ -174,34 +176,54 @@ values
   ('rental-attachments', 'rental-attachments', false)
 on conflict (id) do update set public = excluded.public;
 
-drop policy if exists "operations logistics read" on storage.objects;
-create policy "operations logistics read" on storage.objects
-  for select using (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+do $$
+declare
+  v_storage_objects_owned_by_current_role boolean := false;
+begin
+  select pg_get_userbyid(c.relowner) = current_user
+  into v_storage_objects_owned_by_current_role
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'storage'
+    and c.relname = 'objects';
 
-drop policy if exists "operations logistics upload" on storage.objects;
-create policy "operations logistics upload" on storage.objects
-  for insert with check (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+  if not coalesce(v_storage_objects_owned_by_current_role, false) then
+    raise notice 'Skipping operations logistics storage policies because %.% is not owned by %', 'storage', 'objects', current_user;
+    return;
+  end if;
 
-drop policy if exists "operations logistics update" on storage.objects;
-create policy "operations logistics update" on storage.objects
-  for update using (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  )
-  with check (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+  drop policy if exists "operations logistics read" on storage.objects;
+  create policy "operations logistics read" on storage.objects
+    for select using (
+      bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+      and auth.uid() is not null
+    );
 
-drop policy if exists "operations logistics delete" on storage.objects;
-create policy "operations logistics delete" on storage.objects
-  for delete using (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+  drop policy if exists "operations logistics upload" on storage.objects;
+  create policy "operations logistics upload" on storage.objects
+    for insert with check (
+      bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+      and auth.uid() is not null
+    );
+
+  drop policy if exists "operations logistics update" on storage.objects;
+  create policy "operations logistics update" on storage.objects
+    for update using (
+      bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+      and auth.uid() is not null
+    )
+    with check (
+      bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+      and auth.uid() is not null
+    );
+
+  drop policy if exists "operations logistics delete" on storage.objects;
+  create policy "operations logistics delete" on storage.objects
+    for delete using (
+      bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+      and auth.uid() is not null
+    );
+exception
+  when insufficient_privilege then
+    raise notice 'Skipping operations logistics storage policies because % cannot manage policies on %.%', current_user, 'storage', 'objects';
+end $$;

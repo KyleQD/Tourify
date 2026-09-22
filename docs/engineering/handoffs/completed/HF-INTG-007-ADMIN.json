@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-INTG-007-ADMIN",
+  "task_id": "INTG-007",
+  "from_agent": "integrations",
+  "to_agent": "admin",
+  "status": "completed",
+  "created_at": "2026-09-21T15:00:00.000Z",
+  "resolved_at": "2026-09-22T09:54:00.000Z",
+  "source_sha": "b93967752b4262a2d7441755843eb886514fef26",
+  "summary": "INTG-007 makes encrypted envelopes the only persisted/decodable copy of organization social OAuth credentials. The organization OAuth callback now writes encrypted-only rows (no access_token/refresh_token), the token vault is encrypted-only and fail-closed, and the additive migration 20260921000000 (authored, NOT applied) revokes client column SELECT on organization_social_integrations.access_token/refresh_token and nulls existing plaintext. Admin Content Hub routes still SELECT those plaintext columns with a user-session client, so they must drop them before the migration is applied or the selects fail closed (permission denied), and the org social-analytics Edge Function still reads row.access_token directly.",
+  "working_set": [
+    "app/api/admin/content-hub/integrations/route.ts",
+    "app/api/admin/content-hub/overview/route.ts",
+    "app/api/admin/content-hub/analytics/route.ts",
+    "app/api/admin/content-hub/integrations/sync/route.ts"
+  ],
+  "completed": [
+    "INTG-007 encrypted-only org persistence is implemented in app/api/social/oauth/callback/route.ts via buildOrganizationCredentialPayload (plaintext never part of the row).",
+    "Additive migration authored (unapplied, CP-051) revoking client SELECT on the org plaintext columns and nulling existing plaintext values; sanitizeOrganizationSocialIntegrations already strips both token columns from responses.",
+    "Inventory recorded: these four admin routes read the legacy plaintext columns through the user-session client and derive state from them.",
+    "ADMIN LANE (2026-09-22): all four content-hub routes now select encrypted envelope fields only; plaintext access_token/refresh_token are never selected by a user-session client. The org social-analytics Edge Function reads were routed to the SEPARATED social lane handoff (HF-INTG-007-SOCIAL); supabase/functions/social-analytics and social-oauth were NOT edited here."
+  ],
+  "next_steps": [
+    "Drop access_token and refresh_token from the four SELECT lists; keep token_envelope/refresh_token_envelope presence or token_expires_at/is_connected as the source of has_token and sync eligibility.",
+    "sync/route.ts must stop using `!!row.access_token` as eligibility; use is_connected plus envelope/expiry presence instead.",
+    "Coordinate with database lane so this cleanup lands before migration 20260921000000 is applied on any environment.",
+    "ADMIN LANE (2026-09-22): DONE — the four routes and the shared OrganizationSocialIntegrationsService select envelope fields only; sync eligibility uses token_envelope presence. Edge Function cleanup (social-analytics/social-oauth) belongs to the separate social lane (HF-INTG-007-SOCIAL)."
+  ],
+  "blockers": [
+    "Hosted Edge Function and migration apply are out of band (CP-051); providers remain disabled through RELEASE-008."
+  ],
+  "verification": [
+    "npx vitest run __tests__/integrations/intg007-credential-vault.test.ts — 16/16 passed (full __tests__/integrations: 5 files / 50 tests passed)",
+    "npx eslint lib/integrations/token-vault.ts app/api/social/oauth/callback/route.ts __tests__/integrations/intg007-credential-vault.test.ts — exit 0",
+    "npm run check:migration-validation — exit 0 (new migration scanned with planned manifest)",
+    "npm run check:migration-chain — exit 0 (296 files)",
+    "git diff --check — clean; rg plaintext-fragment scan over changed paths — 0 matches",
+    "ADMIN LANE (2026-09-22): npx vitest run __tests__/admin/content-hub.test.ts — 14/14 passed (includes 5 new plaintext-boundary guard tests); npx tsc -p scoped INTG-007 admin slice — 0 diagnostics; npx eslint on the six changed files — exit 0; rg access_token|refresh_token over app/api/admin/content-hub shows only session JWT (session?.access_token) + envelope fields."
+  ]
+}

@@ -1,7 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { normalizeAccountTypeForProfile } from '@/lib/auth/normalize-account-type'
-import { getAuthSignUpEmailRedirectTo } from '@/lib/auth/auth-email-redirect'
+import {
+  getAuthPasswordResetRedirectTo,
+  getAuthSignUpEmailRedirectTo,
+} from '@/lib/auth/auth-email-redirect'
 
 export interface SignupData {
   email: string
@@ -253,15 +256,8 @@ export class AuthService {
         }
       }
 
-      // Use the current host so reset flow works for tourify.live and demo.
-      const baseOrigin =
-        typeof window !== 'undefined'
-          ? window.location.origin
-          : (process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live')
-      const redirectUrl = `${baseOrigin}/reset-password`
-
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl
+        redirectTo: getAuthPasswordResetRedirectTo()
       })
 
       if (error) {

@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Superseded by hiring onboarding panels (cmp-onboarding-mgmt wont-fix). */
+
 import { useState, useEffect } from "react"
 import { UnifiedOnboardingService, OnboardingTemplate } from "@/lib/services/unified-onboarding.service"
 import { Button } from "@/components/ui/button"

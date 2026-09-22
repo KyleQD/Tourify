@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useMemo } from "react"
+import { useActingContext } from "@/hooks/use-acting-context"
 import { Plus, ChevronLeft, ChevronRight, Trash2, RefreshCw, AlertTriangle, Calendar, MapPin } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -88,6 +89,7 @@ function normalizeZone(row: Record<string, unknown>): Zone {
 }
 
 export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
+  const { actingHeaders } = useActingContext()
   const venueId = useMemo(() => resolveSchedulingVenueId(employer), [employer])
   const employerQuery = useMemo(() => getEmployerQueryString(employer), [employer])
   const eventId = employer.scope?.eventId
@@ -132,12 +134,13 @@ export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
       const [shiftsRes, zonesRes, rosterRes] = await Promise.allSettled([
         fetch(
           `/api/admin/staffing/shifts?venueId=${encodeURIComponent(venueId)}&date_from=${isoDate(weekStart)}&date_to=${isoDate(weekEnd)}${eventQs}`,
-          { credentials: "include" },
+          { credentials: "include", headers: actingHeaders },
         ),
         fetch(`/api/admin/staffing/zones?venue_id=${encodeURIComponent(venueId)}${eventQs}`, {
           credentials: "include",
+          headers: actingHeaders,
         }),
-        fetch(`/api/hiring/roster?${employerQuery}&status=active`, { credentials: "include" }),
+        fetch(`/api/hiring/roster?${employerQuery}&status=active`, { credentials: "include", headers: actingHeaders }),
       ])
 
       if (shiftsRes.status === "fulfilled" && shiftsRes.value.ok) {
@@ -182,7 +185,7 @@ export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
       } else {
         const staffRes = await fetch(
           `/api/admin/staff?${employerQuery}&status=active&limit=100`,
-          { credentials: "include" },
+          { credentials: "include", headers: actingHeaders },
         )
         if (staffRes.ok) {
           const d = await staffRes.json()
@@ -194,7 +197,7 @@ export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
     } finally {
       setLoading(false)
     }
-  }, [weekStart, venueId, employerQuery, eventId])
+  }, [weekStart, venueId, employerQuery, eventId, actingHeaders])
 
   useEffect(() => {
     void fetchData()
@@ -244,7 +247,7 @@ export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
       const res = await fetch("/api/admin/staffing/shifts", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...actingHeaders },
         body: JSON.stringify({
           venue_id: venueId,
           event_id: eventId,
@@ -272,6 +275,7 @@ export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
       const res = await fetch(`/api/admin/staffing/shifts/${s.id}`, {
         method: "DELETE",
         credentials: "include",
+        headers: actingHeaders,
       })
       if (!res.ok) throw new Error("Delete failed")
       toast.success("Shift removed")
@@ -302,7 +306,7 @@ export function StaffSchedulingTab({ employer }: StaffSchedulingTabProps) {
           return fetch("/api/admin/staffing/shifts", {
             method: "POST",
             credentials: "include",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...actingHeaders },
             body: JSON.stringify({
               venue_id: venueId,
               event_id: eventId,

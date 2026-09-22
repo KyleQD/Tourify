@@ -1,10 +1,13 @@
 "use client"
 
+import { capabilitiesFor, type MediaCapabilities } from "@/lib/playback/capabilities"
+import { kindOf, resolveViaPlaybackApi } from "@/lib/playback/client-resolve"
 import React, {
   createContext,
   useContext,
   useCallback,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -28,6 +31,16 @@ export interface JukeboxTrack {
   allow_library_add?: boolean
   access_mode?: "free" | "paid"
   in_library?: boolean
+  /** Provider that owns the audio source. Omitting or setting to 'tourify' uses native Supabase storage. */
+  provider?: "tourify" | "audius"
+  /** External provider track ID (e.g. Audius track id). Undefined for native tracks. */
+  provider_track_id?: string
+  /**
+   * Generic playable-media support (plan §8 Step A). Absent ⇒ "track".
+   * Live radio items carry stationId and are capability-gated end-to-end.
+   */
+  mediaKind?: "track" | "radio_stream"
+  stationId?: string
 }
 
 export type JukeboxTab =
@@ -86,6 +99,7 @@ const MAX_PERSISTED_QUEUE = 50
 const PROGRESS_THROTTLE_MS = 250
 
 function stripTrackForPersist(track: JukeboxTrack): JukeboxTrack {
+  const isAudius = track.provider === "audius"
   return {
     id: track.id,
     title: track.title,
@@ -93,7 +107,9 @@ function stripTrackForPersist(track: JukeboxTrack): JukeboxTrack {
     artist_id: track.artist_id,
     artist_avatar_url: track.artist_avatar_url,
     duration: track.duration,
-    file_url: `/api/music/stream?trackId=${track.id}`,
+    // Audius stream URLs are temporary and must never be persisted.
+    // On session restore the player will re-resolve on play via /api/music/playback/resolve.
+    file_url: isAudius ? "" : `/api/music/stream?trackId=${track.id}`,
     cover_art_url: track.cover_art_url,
     genre: track.genre,
     tags: track.tags,
@@ -103,11 +119,15 @@ function stripTrackForPersist(track: JukeboxTrack): JukeboxTrack {
     allow_library_add: track.allow_library_add,
     access_mode: track.access_mode,
     in_library: track.in_library,
+    provider: track.provider,
+    provider_track_id: track.provider_track_id,
   }
 }
 
 function isApiStreamPath(url: string | undefined | null): boolean {
   if (!url) return true
+  // An empty file_url means the track needs re-resolution (used for persisted Audius tracks).
+  if (url === "") return true
   return url.startsWith("/api/music/stream") || url.includes("/api/music/stream?")
 }
 
@@ -304,6 +324,8 @@ interface JukeboxContextValue {
   clearInitialTab: () => void
   setVisualTheme: (theme: string) => void
   getAudioElement: () => HTMLAudioElement | null
+  /** Capability matrix of the current item — UI renders controls from this. */
+  activeCapabilities: MediaCapabilities
 }
 
 const JukeboxContext = createContext<JukeboxContextValue | undefined>(
@@ -330,6 +352,11 @@ function streamErrorMessage(status: number): string {
 
 export function JukeboxProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const liveRetryRef = useRef<{ key: string; count: number; lastAt: number }>({
+    key: "",
+    count: 0,
+    lastAt: 0,
+  })
   const playRecordedRef = useRef<string | null>(null)
   const playSourceRef = useRef<string>('jukebox')
   const playGenerationRef = useRef(0)
@@ -353,6 +380,12 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
   })
 
   stateRef.current = state
+
+  // Capability matrix for the current item (plan §7/§8 Step C).
+  const activeCapabilities = useMemo(
+    () => capabilitiesFor(state.currentTrack?.mediaKind ?? "track"),
+    [state.currentTrack],
+  )
 
   const [audioReady, setAudioReady] = useState(false)
 
@@ -399,9 +432,13 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "SET_DURATION", duration: audio!.duration || 0 })
     }
     function onEnded() {
+      // Live streams can fire `ended` when the upstream connection drops;
+      // reconnect instead of advancing the queue (plan §8 Step C).
+      if (handleLiveInterruptedRef.current()) return
       handleTrackEndedRef.current()
     }
     function onError() {
+      if (handleLiveInterruptedRef.current()) return
       dispatch({
         type: "SET_PLAYBACK_ERROR",
         error: "Playback failed. Try another track.",
@@ -421,7 +458,10 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [audioReady])
 
-  const recordPlay = useCallback(async (musicId: string, source = "jukebox") => {
+  // Stable ref for the playback session ID, regenerated per track start
+  const playbackSessionIdRef = useRef<string | null>(null)
+
+  const recordPlay = useCallback(async (musicId: string, source = "jukebox", provider?: string) => {
     if (playRecordedRef.current === musicId) return
     playRecordedRef.current = musicId
     try {
@@ -429,7 +469,11 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ musicId, source }),
+        body: JSON.stringify({
+          musicId,
+          source,
+          ...(provider ? { provider, playback_session_id: playbackSessionIdRef.current } : {}),
+        }),
       })
     } catch {}
   }, [])
@@ -439,6 +483,57 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
       track: JukeboxTrack,
       signal: AbortSignal
     ): Promise<{ url: string | null; error?: string }> => {
+      // ── Generic media branch (Step B central door) ────────────────────────
+      if (kindOf(track) !== "track") {
+        if (kindOf(track) === "radio_stream" && track.stationId) {
+          return resolveViaPlaybackApi(
+            {
+              kind: "radio_stream",
+              stationId: track.stationId,
+              playbackSessionId: playbackSessionIdRef.current,
+              sourceSurface: playSourceRef.current || "jukebox",
+            },
+            signal,
+          )
+        }
+        return { url: null, error: "Unsupported media kind" }
+      }
+
+      // ── Audius branch ────────────────────────────────────────────────────
+      if (track.provider === "audius") {
+        try {
+          const sessionId = playbackSessionIdRef.current
+          // UUID regex — canonical artist_music IDs are UUIDs; raw Audius IDs are not
+          const isCanonicalId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(track.id)
+          const endpoint = isCanonicalId
+            ? "/api/music/playback/resolve"
+            : "/api/music/providers/audius/stream"
+          const body = isCanonicalId
+            ? { trackId: track.id, playbackSessionId: sessionId, sourceSurface: "global_player" }
+            : { externalTrackId: track.provider_track_id ?? track.id, playbackSessionId: sessionId }
+
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            signal,
+            body: JSON.stringify(body),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const url = data?.data?.sourceUrl
+            if (url) return { url }
+            return { url: null, error: "Playback URL missing" }
+          }
+          const errorBody = await res.json().catch(() => ({}))
+          return { url: null, error: errorBody?.error?.message || streamErrorMessage(res.status) }
+        } catch (error) {
+          if ((error as Error)?.name === "AbortError") return { url: null }
+          return { url: null, error: "Unable to load Audius stream" }
+        }
+      }
+
+      // ── Native Tourify branch ────────────────────────────────────────────
       try {
         const res = await fetch(`/api/music/stream?trackId=${track.id}`, {
           credentials: "include",
@@ -470,11 +565,18 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
       const abortController = new AbortController()
       streamAbortRef.current = abortController
       playSourceRef.current = options?.source || "jukebox"
+      // Generate a new playback session ID for each track start
+      playbackSessionIdRef.current = crypto.randomUUID()
 
       audio.pause()
+      const isLiveItem = kindOf(track) !== "track"
       dispatch({ type: "SET_TRACK", track })
-      dispatch({ type: "ADD_TO_HISTORY", track })
-      dispatch({ type: "ADD_TO_QUEUE", track })
+      if (!isLiveItem) {
+        // Capability matrix: live radio has no queue/history semantics.
+        dispatch({ type: "ADD_TO_HISTORY", track })
+        dispatch({ type: "ADD_TO_QUEUE", track })
+      }
+      liveRetryRef.current = { key: "", count: 0, lastAt: 0 }
       playRecordedRef.current = null
 
       const result = await resolveStreamUrl(track, abortController.signal)
@@ -497,7 +599,9 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
           return
         }
         dispatch({ type: "SET_PLAYING", isPlaying: true })
-        recordPlay(track.id, playSourceRef.current)
+        if (kindOf(track) === "track") {
+          recordPlay(track.id, playSourceRef.current, track.provider)
+        }
       } catch {
         if (generation !== playGenerationRef.current) return
         dispatch({
@@ -510,6 +614,38 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
   )
 
   playTrackRef.current = playTrack
+
+  /**
+   * Step C live semantics: stream stop/error triggers bounded reconnects
+   * instead of queue advance. Returns true when the event was consumed as a
+   * live interruption.
+   */
+  const handleLiveInterrupted = useCallback((): boolean => {
+    const track = stateRef.current.currentTrack
+    if (!track || kindOf(track) !== "radio_stream" || !track.stationId) return false
+    const now = Date.now()
+    const retry = liveRetryRef.current
+    if (retry.key !== track.stationId || now - retry.lastAt > 60000) {
+      retry.count = 0
+    }
+    if (retry.count >= 2) {
+      dispatch({
+        type: "SET_PLAYBACK_ERROR",
+        error: "Live stream unavailable right now.",
+      })
+      return true
+    }
+    retry.key = track.stationId
+    retry.count += 1
+    retry.lastAt = now
+    window.setTimeout(() => {
+      const current = stateRef.current.currentTrack
+      if (current?.stationId === track.stationId) {
+        void playTrackRef.current(current)
+      }
+    }, 1200 * retry.count)
+    return true
+  }, [])
 
   const pause = useCallback(() => {
     audioRef.current?.pause()
@@ -608,13 +744,17 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
 
   handleTrackEndedRef.current = handleTrackEnded
 
+  const handleLiveInterruptedRef = useRef<() => boolean>(() => false)
+  handleLiveInterruptedRef.current = handleLiveInterrupted
+
   const seekTo = useCallback((time: number) => {
+    if (!activeCapabilities.seek) return // live: no seeking (plan §7)
     const audio = audioRef.current
     if (!audio) return
     audio.currentTime = time
     lastProgressDispatchRef.current = 0
     dispatch({ type: "SET_CURRENT_TIME", time })
-  }, [])
+  }, [activeCapabilities])
 
   const setVolume = useCallback((volume: number) => {
     dispatch({ type: "SET_VOLUME", volume })
@@ -625,14 +765,16 @@ export function JukeboxProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggleShuffle = useCallback(() => {
+    if (!activeCapabilities.shuffle) return
     dispatch({ type: "TOGGLE_SHUFFLE" })
-  }, [])
+  }, [activeCapabilities])
 
   const cycleRepeatMode = useCallback(() => {
+    if (!activeCapabilities.repeat) return
     const modes: Array<"none" | "one" | "all"> = ["none", "one", "all"]
     const idx = modes.indexOf(stateRef.current.repeatMode)
     dispatch({ type: "SET_REPEAT_MODE", mode: modes[(idx + 1) % 3] })
-  }, [])
+  }, [activeCapabilities])
 
   const addToQueue = useCallback((track: JukeboxTrack) => {
     dispatch({ type: "ADD_TO_QUEUE", track })

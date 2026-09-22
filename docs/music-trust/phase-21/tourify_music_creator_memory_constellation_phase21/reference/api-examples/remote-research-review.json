@@ -1,0 +1,16 @@
+{
+  "request": {
+    "researchType": "geographically_remote",
+    "productionDeploymentRequested": false,
+    "scientificProtocolId": "uuid",
+    "communityApprovalIds": [
+      "uuid"
+    ],
+    "environmentalReviewIds": [
+      "uuid"
+    ]
+  },
+  "response": {
+    "state": "under_review"
+  }
+}

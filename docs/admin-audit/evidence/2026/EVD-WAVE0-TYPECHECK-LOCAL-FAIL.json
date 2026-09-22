@@ -1,0 +1,21 @@
+{
+  "evidenceId": "EVD-WAVE0-TYPECHECK-LOCAL-FAIL",
+  "kind": "test_run",
+  "result": "fail",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:02:36-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "/Users/kyledaley/.nvm/versions/node/v20.20.2/bin/node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit --pretty false --incremental false --diagnostics",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-001",
+    "AOA-003"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Pinned Node 20 full-repository typecheck exited 2 after 2,652.36 seconds. It checked 7,456 files, used about 6.3 GB, and reported type/schema drift across Admin and non-Admin code; the captured command output contained 3,005 lines. LG-01 remains not verified and the production build was not attempted."
+}

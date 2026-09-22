@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_PUBLIC_INFRASTRUCTURE_FLAG_NAMES = [
   "creator_public_infrastructure_readiness_enabled",
   "creator_public_infrastructure_entity_enabled",
@@ -49,6 +51,9 @@ export async function resolveCreatorPublicInfrastructureFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorPublicInfrastructureFlags> {
+  if (!isLaunchCapabilityAvailable("creator_public_infrastructure"))
+    return { ...DISABLED_CREATOR_PUBLIC_INFRASTRUCTURE_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

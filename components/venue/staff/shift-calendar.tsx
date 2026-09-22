@@ -102,7 +102,7 @@ export function ShiftCalendar({ venueId }: ShiftCalendarProps) {
       
       if (response.ok) {
         const data = await response.json()
-        setShifts(data.shifts || [])
+        setShifts(data.data || [])
       }
     } catch (error) {
       console.error('Error fetching shifts:', error)

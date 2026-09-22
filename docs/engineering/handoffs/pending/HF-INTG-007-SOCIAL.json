@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-INTG-007-SOCIAL",
+  "task_id": "INTG-007",
+  "from_agent": "integrations",
+  "to_agent": "social",
+  "status": "pending",
+  "created_at": "2026-09-21T15:10:00.000Z",
+  "source_sha": "b93967752b4262a2d7441755843eb886514fef26",
+  "summary": "The two social OAuth Edge Functions still exchange and persist plaintext access/refresh tokens. supabase/functions/social-oauth persists plaintext to artist_social_integrations (artist scope) and returns plaintext tokens to the org callback; supabase/functions/social-analytics reads row.access_token plaintext from organization_social_integrations/artist_social_integrations and clears plaintext columns on token failure. INTG-007 stops the Next.js side from writing/reading plaintext: the org callback persists encrypted envelopes only and the token vault is encrypted-only/fail-closed. These Edge Functions must move to envelope persistence plus server-side decryption, or they become the only remaining plaintext surfaces once social OAuth is enabled.",
+  "working_set": [
+    "supabase/functions/social-oauth/index.ts",
+    "supabase/functions/social-analytics/index.ts"
+  ],
+  "completed": [
+    "Inventory recorded: social-oauth artist-scope persist writes access_token/refresh_token plaintext into artist_social_integrations; org scope returns plaintext tokens to the (now encrypted-only) callback.",
+    "Inventory recorded: social-analytics reads row.access_token plaintext for provider calls and clears access_token/refresh_token/token_envelope columns on auth-style analytics errors.",
+    "Encrypted-at-rest boundary (lib/integrations/token-vault.ts) and encrypted-only org callback are implemented with fail-closed reads."
+  ],
+  "next_steps": [
+    "Move artist_social_integrations persistence to the same encrypted-envelope contract (token_envelope/jsonb — the column set already exists on the org table; confirm artist table column set).",
+    "Decrypt server-side through the vault codec (encryptIntegrationSecret/decryptIntegrationSecret or decodeVaultSecret) before any provider API call; never emit plaintext tokens to logs or function responses.",
+    "Coordinate hosted Edge Function redeploy with the database lane when ready; org analytics stays disabled through RELEASE-008."
+  ],
+  "blockers": [
+    "Hosted Edge Function deployment and migration applies are out of band (CP-051); providers remain disabled through RELEASE-008."
+  ],
+  "verification": [
+    "npx vitest run __tests__/integrations/intg007-credential-vault.test.ts — 16/16 passed",
+    "rg plaintext-fragment scan over changed Next.js paths — 0 matches"
+  ]
+}

@@ -2,30 +2,42 @@ import { Resend } from 'resend'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
+export interface NotificationChannelResult {
+  success: boolean
+  error?: string
+  providerId?: string
+  providerRef?: string
+}
+
 export async function sendEmailNotification(params: {
   to: string
   subject: string
   body: string
   fromName?: string
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<NotificationChannelResult> {
   if (!resend) return { success: false, error: 'Email not configured' }
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: `${params.fromName || 'Tourify'} <notifications@tourify.app>`,
       to: params.to,
       subject: params.subject,
       html: params.body,
     })
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    if (result.error) return { success: false, error: result.error.message }
+    return {
+      success: true,
+      providerId: 'resend',
+      providerRef: result.data?.id,
+    }
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 
 export async function sendSMSNotification(params: {
   to: string
   body: string
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<NotificationChannelResult> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
   const fromNumber = process.env.TWILIO_PHONE_NUMBER
@@ -51,12 +63,17 @@ export async function sendSMSNotification(params: {
       }
     )
     if (!response.ok) {
-      const err = await response.json()
+      const err = await response.json() as { message?: string }
       return { success: false, error: err.message || 'SMS send failed' }
     }
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    const receipt = await response.json() as { sid?: string }
+    return {
+      success: true,
+      providerId: 'twilio',
+      providerRef: receipt.sid,
+    }
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -65,7 +82,7 @@ export async function sendPushNotification(params: {
   title: string
   body: string
   data?: Record<string, string>
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<NotificationChannelResult> {
   try {
     const response = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
@@ -79,8 +96,23 @@ export async function sendPushNotification(params: {
       }),
     })
     if (!response.ok) return { success: false, error: 'Push send failed' }
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    const payload = await response.json() as {
+      data?: { id?: string; status?: string; message?: string } | Array<{
+        id?: string
+        status?: string
+        message?: string
+      }>
+    }
+    const ticket = Array.isArray(payload.data) ? payload.data[0] : payload.data
+    if (ticket?.status === 'error') {
+      return { success: false, error: ticket.message || 'Push provider rejected message' }
+    }
+    return {
+      success: true,
+      providerId: 'expo',
+      providerRef: ticket?.id,
+    }
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }

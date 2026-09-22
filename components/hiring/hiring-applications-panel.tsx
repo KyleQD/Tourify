@@ -38,9 +38,9 @@ export function HiringApplicationsPanel({ employer }: HiringApplicationsPanelPro
           />
         ) : null}
         {applications.length > 0 ? (
-          <div className="overflow-hidden rounded-[1.15rem] border border-slate-700/60">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
             {applications.map((application) => (
-              <div key={application.id} className="flex flex-col gap-3 border-b border-slate-800/80 bg-slate-900/35 p-4 last:border-0 lg:flex-row lg:items-center lg:justify-between">
+              <div key={application.id} className="flex flex-col gap-3 border-b border-white/10 bg-transparent p-4 last:border-0 transition hover:bg-white/[0.04] lg:flex-row lg:items-center lg:justify-between">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-medium text-white">{application.applicantName}</h3>

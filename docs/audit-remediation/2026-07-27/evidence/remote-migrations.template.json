@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "captured_at": null,
+  "project_ref": "auqddrodjezjlypkzfpi",
+  "source": "supabase migration list --linked -o json",
+  "expected_count": 180,
+  "migrations": []
+}

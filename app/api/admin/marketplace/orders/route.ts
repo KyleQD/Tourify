@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withPlatformAdmin } from '@/lib/auth/api-auth'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withPlatformAdmin(async (request: NextRequest, { supabase }) => {
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200)

@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-010",
+  "title": "Worker action schema and scope reconciliation",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-22T15:46:20.728Z",
+  "updated_at": "2026-09-22T16:18:55Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (137 entries)",
+  "goal": "Review archived worker-action SQL, add a safe active additive migration, and prove staging schema and authorization before WORK-006 enables actions",
+  "scope": {
+    "in": [
+      "Reconcile archived local_only_unapplied worker-action SQL with active migrations and the hosted migration ledger.",
+      "Author an additive active migration for check-in and acknowledgement tables/policies only after event/tour/audience, event identity, and staff-shift reference review.",
+      "Validate owner, wrong-worker, foreign-org, and unrelated event/tour denial in isolated staging."
+    ],
+    "out": [
+      "Apply archived SQL blindly or replay migrations automatically.",
+      "Enable FEATURE_WORK_MODE_WORKER_ACTIONS or change worker UI; WORK-006 owns that staged handoff.",
+      "Reset, truncate, delete, or alter production data."
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/",
+    "supabase/tests/",
+    "docs/implementation/ui-ux-completion/MANUAL_SQL_WORK_MODE_WORKER_ACTIONS.md",
+    "docs/engineering/tasks/active/WORK-006.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/agents/database/CHARTER.md",
+    "docs/engineering/agents/database/STATE.md",
+    "docs/engineering/tasks/active/DB-008.json",
+    "docs/engineering/tasks/active/DB-002.json",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    "The worker-action schema is represented by reviewed, additive active migration(s), with no archived SQL applied blindly.",
+    "RLS and grants enforce user, assignment, organization, event/tour, and publication audience scope as appropriate.",
+    "Hosted staging ledger and schema parity are recorded against the exact deployed SHA.",
+    "Denial probes cover wrong worker, wrong organization, unrelated event/tour, and packet audience; allowed action and retry paths are verified.",
+    "WORK-006 receives postflight evidence before its feature flag can be enabled."
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npm run check:migration-validation",
+      "Focused Supabase RLS and scope tests",
+      "Hosted ledger and denial probes on isolated staging",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Active migration 20260922155356_worker_actions_scope_reconciliation.sql SHA-256 bb85462919f773131e89280e73c4fe4c30feeb00d743982cff38999de8c5530c; no hosted apply.",
+      "Local focused migration validation passed for the new planned manifest; active chain passed with 299 migrations; hosted ledger check passed with 9 classified and 290 explicitly unreconciled.",
+      "Catalog postflight authored at supabase/tests/db010_worker_actions_contract.sql; distinct-persona SQL and API denial probes remain unrun.",
+      "Local Supabase db lint could not connect to 127.0.0.1:54322 (ECONNREFUSED); Docker daemon unavailable.",
+      "2026-09-22 review cleanup: consolidated supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql into a single forward-only migration after finding duplicate old/revised SQL blocks in the worktree.",
+      "2026-09-22 DB-010 local verification: targeted npm run check:migration-validation -- supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql docs/engineering/migration-validation/20260922155356_worker_actions_scope_reconciliation.json passed; npm run check:migration-chain passed with 299 files scanned and no duplicate policy creations.",
+      "2026-09-22 full npm run check:migration-validation scanned DB-010 clean and failed only on pre-existing expired exception docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json, unrelated to DB-010.",
+      "2026-09-22 unblock sprint check: Supabase CLI is linked to Tourify Demo auqddrodjezjlypkzfpi and public demo/prod advertise that same origin, so DB-010 must not be applied there as isolated staging until RELEASE-007 proves separation."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T16:08:00Z",
+    "result": "partial-pass"
+  },
+  "progress": {
+    "summary": "Next-phase unblock check confirms DB-010 remains hosted-blocked. The active migration and SQL contract are local, but staging Supabase environment values and secrets are absent, Supabase CLI telemetry writes are blocked in this sandbox, and no isolated staging target has been proven.",
+    "completed": [
+      "Reviewed archived local-only SQL against canonical Work Mode event resolution and active publication/audience schema.",
+      "Authored forward-only active migration, private audience predicate, exact-SHA planned manifest, and catalog postflight checks.",
+      "Local focused migration validation, active-chain check, and hosted-ledger consistency check passed.",
+      "Consolidated duplicate worker-actions SQL into one active migration and aligned db010_worker_actions_scope_contract.sql plus the migration-validation manifest."
+    ],
+    "next_steps": [
+      "After RELEASE-007 staging values exist, apply 20260922155356_worker_actions_scope_reconciliation.sql under CP-051 and run db010_worker_actions_scope_contract.sql plus persona denial probes before WORK-006 flag enablement."
+    ],
+    "blockers": [
+      "RELEASE-007 staging isolation and DB-008 hosted ledger are not yet proven.",
+      "No local Supabase database is running; SQL execution and persona denial probes are pending an approved isolated-staging target."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:57:02.338Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Authored reviewed active additive worker-actions migration 20260922155356 plus DB-010 contract test and migration-validation manifest. The migration creates append-only acknowledgement and check-in/out evidence tables with authenticated-only SELECT/INSERT grants and RLS scoped to confirmed/active assignment, check_in_out permission, event/tour identity, and publication audience. No hosted apply or feature-flag enablement occurred.",
+        "completed": [],
+        "next_steps": [
+          "Run local migration validation, then after RELEASE-007/DB-008/DB-002 proof manually apply the migration to isolated staging, run db010 contract plus denial probes, and hand evidence to WORK-006 before enabling FEATURE_WORK_MODE_WORKER_ACTIONS."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T15:58:41.216Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Reviewed forward migration and catalog postflight; local migration checks passed, hosted apply remains pending",
+        "completed": [],
+        "next_steps": [
+          "Verify isolated staging and hosted ledger, apply exact SHA manually, run catalog and distinct-persona denial probes before flag enablement"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T15:59:26.189Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Verified DB-010 local migration package after reconciliation: active migration chain passes across 298 files, DB-010 manifest parses, agents:validate passes with 17 agents and 122 tasks, and QA-004 coverage validation remains valid. Full check:migration-validation scans DB-010 clean but still exits 1 on the pre-existing expired job-posting-scope-not-null exception owned by admin-platform.",
+        "completed": [],
+        "next_steps": [
+          "After RELEASE-007, DB-008, and DB-002 prove isolated staging, manually apply 20260922155356_worker_actions_scope_reconciliation.sql, run supabase/tests/db010_worker_actions_scope_contract.sql plus actor denial probes, then hand exact-SHA evidence to WORK-006 before enabling the worker-actions feature flag."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:08:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Cleaned DB-010 active worker-actions migration and reran local migration checks.",
+        "completed": [
+          "Removed the duplicate old/revised SQL body from 20260922155356_worker_actions_scope_reconciliation.sql and kept one append-only RLS contract.",
+          "Aligned supabase/tests/db010_worker_actions_scope_contract.sql with the final policy names, audience helper, visible_to, required_permission, and unique constraint contract.",
+          "Updated the migration-validation manifest with the final helper and indexes.",
+          "Targeted migration validation passed for DB-010 and migration-chain passed with no duplicate policy creations."
+        ],
+        "next_steps": [
+          "Apply the reviewed migration only after RELEASE-007/DB-008/DB-002 isolated-staging proof, then run hosted contract and persona denial probes before WORK-006 enables the feature flag."
+        ],
+        "blockers": [
+          "Full migration-validation still fails on pre-existing expired job-posting exception unrelated to DB-010.",
+          "Hosted staging proof and Supabase credentials are unavailable in this workspace."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:08:22.254Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "DB-010 active package is now present: forward-only migration 20260922155356_worker_actions_scope_reconciliation.sql creates/guards worker action append tables, RLS, authenticated select/insert grants, audience helper, idempotency constraints, and event/tour/audience/permission insert scope. SQL contract and planned migration-validation manifest are present and locally validated.",
+        "completed": [],
+        "next_steps": [
+          "Apply manually to verified isolated staging under CP-051, run supabase/tests/db010_worker_actions_scope_contract.sql and live worker/manager/wrong-tenant denial probes, then enable WORK-006 staging flag only after proof is attached."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Operator packet finalized without hosted apply: production-target env files cannot be used as isolated staging; DB-010 exact-SHA source, local chain, targeted manifest, ledger, DB-002 static contract, and agents validation pass. Full migration-validation remains blocked by the unrelated expired job-posting exception.",
+        "completed": [],
+        "next_steps": [
+          "Receive approved isolated-staging target and exact deployed SHA; run DB-008 history preflight, manual DB-010 apply if absent, both catalog contracts, DB-002 grants, advisors, and rollback-only persona denial/idempotency probes before WORK-006 flag enablement."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:20:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Linked DB-010 execution to the release-readiness unblock sprint packet and confirmed hosted apply is still blocked.",
+        "completed": [
+          "Confirmed the currently linked Supabase project is Tourify Demo auqddrodjezjlypkzfpi.",
+          "Confirmed public demo and production still advertise that same Supabase origin, so the linked project is not acceptable as isolated staging proof.",
+          "Recorded the exact DB-010 apply and denial-probe packet in docs/audits/flow-notes/release-readiness-unblock-sprint.md."
+        ],
+        "next_steps": [
+          "Apply DB-010 only to the verified isolated staging target after DB-008 history capture, then run db010_worker_actions_scope_contract.sql and the worker/manager/wrong-tenant probes before WORK-006 flag enablement."
+        ],
+        "blockers": [
+          "Approved isolated staging Supabase target is not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:37.111Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check confirms DB-010 remains hosted-blocked. The active migration and SQL contract are local, but staging Supabase environment values and secrets are absent, Supabase CLI telemetry writes are blocked in this sandbox, and no isolated staging target has been proven.",
+        "completed": [],
+        "next_steps": [
+          "After RELEASE-007 staging values exist, apply 20260922155356_worker_actions_scope_reconciliation.sql under CP-051 and run db010_worker_actions_scope_contract.sql plus persona denial probes before WORK-006 flag enablement."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:18:55Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Read-only Supabase inventory found no verified isolated staging project: Tourify Demo is active, Tourify-dev is inactive, and no separate staging branch is present. DB-010 source checks pass; hosted apply and persona proof remain pending.",
+        "completed": [
+          "Confirmed migration SHA-256 bb85462919f773131e89280e73c4fe4c30feeb00d743982cff38999de8c5530c and passing 299-file active chain, targeted manifest, hosted-ledger consistency, and DB-002 static grant checks.",
+          "Verified the DB-010 operator packet and catalog contract paths without using production-target environment files or executing hosted SQL."
+        ],
+        "next_steps": [
+          "After RELEASE-007 records an isolated staging ref, protected database URL, and exact deployed app SHA, run the gated DB-008/DB-002 preflight and the DB-010 commands in docs/implementation/ui-ux-completion/MANUAL_SQL_WORK_MODE_WORKER_ACTIONS.md.",
+          "Record catalog, advisor, and distinct-persona rollback-only denial/idempotency evidence before WORK-006 enables FEATURE_WORK_MODE_WORKER_ACTIONS."
+        ],
+        "blockers": [
+          "No approved, credentialed isolated staging target or exact-SHA deployment exists; no hosted migration or denial probe was run."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide reviewed migration, exact-SHA schema parity, and authorization probes to WORK-006 and QA-004."
+  ]
+}

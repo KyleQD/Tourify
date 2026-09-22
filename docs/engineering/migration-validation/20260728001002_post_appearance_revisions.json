@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728001002_post_appearance_revisions.sql",
+  "taskId": "DB-007",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": ["posts", "appearance"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with public.posts present and empty",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.post_appearance_revisions"
+    ],
+    "expectedAffectedRows": "New table created empty; no rows are touched in any existing table",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 1000,
+    "statementTimeoutMs": 30000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the idempotent create-table/create-index sequence; every object uses IF NOT EXISTS",
+    "resumeCursor": "post_appearance_revisions_unique_revision UNIQUE constraint definition",
+    "idempotency": "CREATE TABLE IF NOT EXISTS and CREATE INDEX IF NOT EXISTS only; append-only table has no default rows"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant keys or user data are inferred, backfilled, or quarantined; the table starts empty"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["public.post_appearance_revisions.post_appearance_revisions_unique_revision"],
+    "indexes": ["public.post_appearance_revisions.post_appearance_revisions_post_idx"],
+    "validationPlan": "Unique constraint and index are declared on a brand-new empty table; nothing to validate against existing rows"
+  },
+  "recovery": {
+    "rollback": "Drop the new table in a forward migration if the family is rolled back",
+    "forwardFix": "Any further revision-shape changes are additive migrations"
+  },
+  "postflight": {
+    "queries": [
+      "select to_regclass('public.post_appearance_revisions')",
+      "select count(*) from pg_policies where schemaname = 'public' and tablename = 'post_appearance_revisions'"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

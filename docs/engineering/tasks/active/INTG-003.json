@@ -1,0 +1,169 @@
+{
+  "schema_version": "1.0",
+  "id": "INTG-003",
+  "title": "MFA hardening: hash backup codes + DB code store",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "integrations",
+  "created_at": "2026-09-09T09:35:08.272Z",
+  "updated_at": "2026-09-18T21:50:57.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Deliver deterministic, persistent, rate-limited MFA backup and verification-code behavior that remains correct across deploys and replays",
+  "scope": {
+    "in": [
+      "MFA backup-code hashing and one-time redemption",
+      "Authoritative additive verification-code schema, server-only repository, RLS/ACL boundary, and deterministic focused verification"
+    ],
+    "out": [
+      "Hosted migration application, destructive reset/replay, and production changes",
+      "Canonical database type regeneration before the migration is staged",
+      "Unrelated authentication redesign"
+    ]
+  },
+  "working_set": [
+    "lib/services/mfa.service.ts",
+    "lib/services/mfa-verification-code-store.ts",
+    "lib/services/mfa-verification-code-store.server.ts",
+    "supabase/migrations/20260918213707_mfa_verification_code_store.sql",
+    "supabase/tests/intg003_mfa_verification_code_security.sql",
+    "__tests__/integrations/mfa.service.test.ts",
+    "__tests__/integrations/mfa-verification-code-migration.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/integrations/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Backup codes are cryptographically hashed and redeemed exactly once using production-safe timing",
+    "Verification codes use the approved server-only database store and survive process restarts and deploys",
+    "Expiry, attempt limits, rate limits, replay prevention, user scoping, and cleanup behavior have deterministic tests",
+    "Focused MFA tests complete without timing flakes and the account lifecycle staging suite passes"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "./node_modules/.bin/vitest run __tests__/integrations/mfa.service.test.ts",
+      "./node_modules/.bin/eslint lib/services/mfa.service.ts __tests__/integrations/mfa.service.test.ts",
+      "npm run verify:fast -- --changed",
+      "npm run agents:validate",
+      "NODE_OPTIONS='--max-old-space-size=8192' ./node_modules/.bin/tsc --noEmit --pretty false --incremental false",
+      "./node_modules/.bin/vitest run __tests__/integrations/mfa.service.test.ts --pool=forks --maxWorkers=1",
+      "./node_modules/.bin/eslint lib/services/mfa.service.ts lib/services/mfa-verification-code-store.ts __tests__/integrations/mfa.service.test.ts",
+      "./node_modules/.bin/vitest run __tests__/integrations/mfa.service.test.ts __tests__/integrations/mfa-verification-code-migration.test.ts --pool=forks --maxWorkers=1",
+      "./node_modules/.bin/eslint lib/services/mfa.service.ts lib/services/mfa-verification-code-store.ts lib/services/mfa-verification-code-store.server.ts __tests__/integrations/mfa.service.test.ts __tests__/integrations/mfa-verification-code-migration.test.ts",
+      "npm run check:migration-validation -- supabase/migrations/20260918213707_mfa_verification_code_store.sql",
+      "npm run check:migration-chain",
+      "npm run check:migration-ledger",
+      "npm run check:service-role-allowlist",
+      "./node_modules/.bin/tsc --project /private/tmp/tsconfig.intg003.json --noEmit --pretty false"
+    ],
+    "evidence": [
+      "Focused MFA suite passed 2/2.",
+      "Changed-file ESLint passed.",
+      "agents:validate passed with the pre-existing RELEASE-001 warning.",
+      "verify:fast -- --changed stopped during repository-wide changed-file lint because the pre-existing components/ui/use-mobile.tsx path is missing; the focused MFA lint passed independently.",
+      "The bounded project typecheck emitted no diagnostics but was interrupted before completion after no output.",
+      "Focused MFA suite passed 5/5 on 2026-09-17.",
+      "Targeted ESLint passed on 2026-09-17.",
+      "git diff --check passed for the bounded MFA files.",
+      "Focused MFA and migration-contract suites passed 2 files / 11 tests in 15.39 seconds on the final 2026-09-18 run; bcrypt-heavy tests have explicit bounded timeouts.",
+      "Focused ESLint passed for the changed MFA service, store, repository, and tests.",
+      "The new migration passed targeted validation with its planned manifest; active-chain validation passed across 295 migrations; the hosted ledger matches all 295 with the MFA migration classified as launch-required.",
+      "Repository-wide migration validation still reports pre-existing historical migration findings; no new INTG-003 finding was reported.",
+      "The service-role allowlist reports seven unrelated dirty-tree imports; the new MFA repository is classified and was not reported.",
+      "The focused TypeScript slice exhausted the default 2 GB heap, so no typecheck pass is claimed.",
+      "Migration checksum rendering was not available because MIGRATION_CHECKSUM_BASE_SHA is not set in this local task environment.",
+      "Local database-type drift could not be certified because there is no reconciled local Supabase target and the CLI could not write its sandboxed telemetry file; DB-008 owns type regeneration from staged schema.",
+      "No hosted Supabase environment was mutated and no staged account-lifecycle evidence is claimed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-18T21:50:57.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Implemented the authoritative additive MFA verification-code schema and wired the production MFA singleton to a server-only Supabase repository. Codes are bcrypt-hashed before persistence; service-role-only atomic RPCs enforce issue limits, user scoping, expiry, three-attempt lockout, replay prevention, revocation, and retention-aware cleanup behind an RLS/default-deny table boundary.",
+    "completed": [
+      "Replaced the djb2 backup-code hash with bcryptjs hashing at cost factor 12.",
+      "Changed backup-code verification to compare against stored bcrypt hashes and conditionally mark a matching unused row as used.",
+      "Added focused tests covering bcrypt storage, successful redemption, and one-time use.",
+      "Replaced process-local verification-code storage with an explicit repository contract and fail-closed production default.",
+      "Added deterministic verification-code contract tests covering scope, expiry, lockout, replay, cooldown, and issuance limits.",
+      "Removed insecure Math.random SMS/challenge generation and verification-code logging.",
+      "Created the forward-only mfa_verification_codes migration through the Supabase CLI with RLS/default-deny grants and service-role-only atomic functions.",
+      "Wired the production singleton to the server-only Supabase repository; plaintext verification codes never reach Postgres.",
+      "Added repository, migration-contract, security-probe, migration-manifest, and hosted-ledger evidence."
+    ],
+    "next_steps": [
+      "DB-008 must apply the additive migration one-at-a-time to approved isolated staging, run the SQL security probe plus lifecycle/concurrency fixtures and advisors, update hosted evidence, and regenerate canonical database types.",
+      "USER-005 and QA-003 must run the staged account lifecycle and restart/deploy persistence certification."
+    ],
+    "blockers": [
+      "No isolated-staging migration, advisor, generated-type, restart/deploy persistence, or account-lifecycle evidence is available in this environment.",
+      "The focused TypeScript slice exhausted the default 2 GB heap; focused tests, lint, and static migration checks passed."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T20:04:58Z",
+        "summary": "Confirmed the DB portion is outside the authorized service-only working set and lacks repository schema evidence; implemented bcrypt backup-code hashing and conditional one-time redemption.",
+        "verification": "Focused Vitest 2/2 and changed-file ESLint passed; bounded project typecheck produced no diagnostics before interruption.",
+        "next": "Keep INTG-003 active pending the additive schema/access contract and follow-up DB-backed store implementation."
+      },
+      {
+        "at": "2026-09-10T20:06:32Z",
+        "summary": "Completed fast verification evidence and validated task-control records. The repository fast wrapper remains blocked by the pre-existing missing components/ui/use-mobile.tsx path; no production or migration changes were made.",
+        "verification": "Focused MFA Vitest 2/2, changed-file ESLint, diff check, and agents:validate passed. Full typecheck was bounded and interrupted without diagnostics.",
+        "next": "Keep INTG-003 active until Database/Auth owners provide and validate the additive schema and server-only access contract."
+      },
+      {
+        "at": "2026-09-16T19:24:55.330Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted INTG-003 to P0. Closure now requires a persistent server-only verification-code store, deterministic timing, expiry, attempt/rate limits, replay prevention, and isolated-staging lifecycle evidence in addition to bcrypt backup codes.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-18T04:58:29.907Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented a fail-closed MFA verification-code store contract and replaced the process-local Map. Test-only in-memory storage hashes codes, enforces user scoping, expiry, three-attempt lockout, replay prevention, resend cooldown, and per-user issue-window limits; SMS code/challenge generation now uses Web Crypto and codes are never logged.",
+        "completed": [
+          "Replaced process-local verification-code storage with an explicit repository contract and fail-closed production default.",
+          "Added deterministic verification-code contract tests covering scope, expiry, lockout, replay, cooldown, and issuance limits.",
+          "Removed insecure Math.random SMS/challenge generation and verification-code logging."
+        ],
+        "next_steps": [
+          "Database/Auth must publish and wire the additive mfa_verification_codes schema and server-only repository implementation.",
+          "Run isolated staging account lifecycle and restart/deploy persistence evidence after repository wiring."
+        ],
+        "blockers": [
+          "No authoritative mfa_verification_codes migration, generated type, or server-only access boundary exists yet; production default intentionally fails closed.",
+          "Full repository typecheck did not complete within the bounded run; focused tests and lint passed."
+        ]
+      },
+      {
+        "at": "2026-09-18T21:44:06.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added the authoritative forward-only mfa_verification_codes migration and wired the production MFA singleton to a server-only Supabase repository with RLS/default-deny storage and service-role-only atomic issue/attempt/consume/revoke/cleanup RPCs.",
+        "completed": [
+          "Created the migration with supabase migration new and added its validation manifest, security SQL probe, launch-ledger classification, and deterministic migration contract tests.",
+          "Persisted only bcrypt cost-12 hashes and implemented atomic database locking for resend/issue windows, attempt limits, and one-time consumption.",
+          "Passed focused Vitest 2 files / 11 tests, focused ESLint, targeted migration validation, active-chain validation, hosted-ledger validation, and changed-path diff checks."
+        ],
+        "next_steps": [
+          "DB-008: apply one-at-a-time in approved isolated staging; run the SQL security and lifecycle/concurrency fixtures plus advisors; attach ledger evidence and regenerate canonical types.",
+          "USER-005/QA-003: certify staged account lifecycle and restart/deploy persistence after DB-008 handoff."
+        ],
+        "blockers": [
+          "No hosted staging access or deployed evidence was available; INTG-003 cannot close without the staged lifecycle acceptance criterion.",
+          "The focused TypeScript slice exhausted the default 2 GB heap; the release lane owns the shared full typecheck/build."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "DB-008 must apply 20260918213707_mfa_verification_code_store.sql one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql and deterministic lifecycle/concurrency fixtures, capture security/performance advisor evidence, update the hosted ledger, and regenerate lib/database.types.ts from that exact staged schema.",
+    "USER-005 and QA-003 must run the deployed MFA account-lifecycle suite, including restart/deploy persistence and negative user-scope/replay cases, before INTG-003 can close."
+  ]
+}

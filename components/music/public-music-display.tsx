@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +21,8 @@ import {
   ExternalLink,
   Headphones
 } from 'lucide-react'
-import Image from 'next/image'
+import { TrackCoverImage } from '@/components/jukebox/track-cover-image'
+import { getMusicTrackPath } from '@/lib/music/routes'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
@@ -61,6 +63,7 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
   const [activeTab, setActiveTab] = useState('all')
   const [currentPlaying, setCurrentPlaying] = useState<string | null>(null)
   const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set())
+  const router = useRouter()
 
   useEffect(() => {
     loadMusic()
@@ -294,17 +297,29 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
         <TabsContent value={activeTab} className="mt-6">
           <div className="space-y-4">
             {filteredTracks.map((track) => (
-              <Card key={track.id} className="bg-slate-900/50 border-slate-700/50 hover:border-purple-500/50 transition-all duration-200 group">
+              <Card
+                key={track.id}
+                role="link"
+                tabIndex={0}
+                onClick={() => router.push(getMusicTrackPath(track.id) || '/music')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    router.push(getMusicTrackPath(track.id) || '/music')
+                  }
+                }}
+                className="bg-slate-900/50 border-slate-700/50 hover:border-purple-500/50 transition-all duration-200 group"
+              >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     {/* Cover Art */}
                     <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0">
                       {track.cover_art_url ? (
-                        <Image
+                        <TrackCoverImage
+                          trackId={track.id}
                           src={track.cover_art_url}
                           alt={track.title}
-                          fill
-                          className="object-cover"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center">
@@ -317,7 +332,10 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handlePlay(track.id)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handlePlay(track.id)
+                          }}
                           className="text-white hover:text-white hover:bg-white/20"
                         >
                           {currentPlaying === track.id ? (
@@ -400,7 +418,10 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleLike(track.id)}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleLike(track.id)
+                            }}
                             className={`text-gray-400 hover:text-red-400 ${
                               likedTracks.has(track.id) ? 'text-red-400' : ''
                             }`}
@@ -411,7 +432,10 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleShare(track)}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleShare(track)
+                            }}
                             className="text-gray-400 hover:text-white"
                           >
                             <Share2 className="h-4 w-4" />
@@ -447,7 +471,7 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
                   
                   {/* Music Player */}
                   {currentPlaying === track.id && (
-                    <div className="mt-4 pt-4 border-t border-slate-700/50">
+                    <div className="mt-4 pt-4 border-t border-slate-700/50" onClick={(event) => event.stopPropagation()}>
                       <MusicPlayer
                         track={{
                           id: track.id,
@@ -485,4 +509,4 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
       </Tabs>
     </div>
   )
-} 
+}

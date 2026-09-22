@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-28",
+  "observation_policy": {
+    "ordinary_hours": 24,
+    "authorization_storage_hours": 72,
+    "auth_finance_rights_hiring_pii_hours": 168
+  },
+  "signatures": [
+    {
+      "id": "AUDIT-RUN-MISSING-RELATION",
+      "category": "missing_relation",
+      "status": "OPEN",
+      "owner_role": "backend-domain-owner",
+      "containment": "server_feature_gate",
+      "alert_required": true,
+      "resolution": "Active relation exists in the approved baseline or the route remains inaccessible"
+    },
+    {
+      "id": "AUDIT-RUN-MISSING-COLUMN",
+      "category": "missing_column",
+      "status": "OPEN",
+      "owner_role": "backend-domain-owner",
+      "containment": "server_feature_gate",
+      "alert_required": true,
+      "resolution": "Active column exists in the approved baseline or the route remains inaccessible"
+    },
+    {
+      "id": "AUDIT-RUN-PERMISSION-DENIED",
+      "category": "permission_denied",
+      "status": "OPEN",
+      "owner_role": "security",
+      "containment": "fail_closed_and_preserve_correlation_id",
+      "alert_required": true,
+      "resolution": "Approved personas pass and denied personas remain denied through the observation window"
+    },
+    {
+      "id": "AUDIT-RUN-RPC-SHAPE",
+      "category": "function_return_mismatch",
+      "status": "OPEN",
+      "owner_role": "database-backend",
+      "containment": "gate_or_version_rpc",
+      "alert_required": true,
+      "resolution": "Typed RPC contract tests pass through the observation window"
+    },
+    {
+      "id": "AUDIT-RUN-SCHEMA-CACHE",
+      "category": "schema_cache_mismatch",
+      "status": "OPEN",
+      "owner_role": "platform",
+      "containment": "stop_rollout",
+      "alert_required": true,
+      "resolution": "Cache and live schema converge with zero recurrence"
+    },
+    {
+      "id": "AUDIT-RUN-STORAGE-DENIAL",
+      "category": "storage_policy_denial_spike",
+      "status": "OPEN",
+      "owner_role": "security-storage",
+      "containment": "disable_affected_upload_capability",
+      "alert_required": true,
+      "resolution": "Bucket manifest and allowed/denied CRUD personas pass"
+    },
+    {
+      "id": "AUDIT-RUN-BACKFILL",
+      "category": "backfill_failure_or_stall",
+      "status": "OPEN",
+      "owner_role": "database",
+      "containment": "stop_at_checkpoint_and_quarantine",
+      "alert_required": true,
+      "resolution": "Bounded batches reconcile with zero unexplained exceptions"
+    }
+  ]
+}
+

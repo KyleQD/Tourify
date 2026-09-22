@@ -1,0 +1,240 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-007",
+  "title": "Isolated staging and controlled production promotion",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-16T19:20:37.723Z",
+  "updated_at": "2026-09-22T16:59:23.371Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Separate staging and production infrastructure and allow production promotion only for an approved, fully verified release SHA",
+  "scope": {
+    "in": [
+      "Separate Vercel and Supabase staging and production projects",
+      "Domain aliases, GitHub environments, scoped secrets, protected promotion, and deployment evidence"
+    ],
+    "out": [
+      "Automatic database migration application"
+    ]
+  },
+  "working_set": [
+    ".github/workflows",
+    "vercel.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    "demo.tourify.live resolves only to isolated staging and tourify.live/www resolve only to production",
+    "Staging and production databases, credentials, deployment IDs, and release SHA are demonstrably isolated",
+    "Production deployment cannot bypass required CI, E2E, security, or manual approval gates",
+    "Each deployment records its Git SHA, environment, migration evidence, deployment ID, and approver"
+  ],
+  "verification": {
+    "tier": "release",
+    "commands": [
+      "npm run verify:release",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Audit baseline: tourify.live and demo.tourify.live resolve to the same Vercel production deployment and project.",
+      "Audit baseline: GitHub environments have no scoped secrets or protection and main has no branch protection; Vercel deployed the live main SHA despite failing CI.",
+      "2026-09-22 read-only GET /api/health on demo.tourify.live and tourify.live: both returned 200 without x-tourify-release-sha and advertised the same Supabase connection origin in Content-Security-Policy. This does not prove separate staging deployment/database; no hosted mutation or credential access was attempted.",
+      "2026-09-22 local release/QA gate wave: 13 deployment/topology/evidence/workflow Node tests, 7 actor-provisioner tests, 7 mobile gate tests, launch fixture contract, public-surface check, focused ESLint, and workflow YAML parse passed. Hosted deployment, certification, and simulation were not run.",
+      "2026-09-22 read-only hosted packet: docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md. Both aliases currently map to dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK; isolation is disproven, not merely unverified.",
+      "2026-09-22 unblock sprint packet: docs/audits/flow-notes/release-readiness-unblock-sprint.md. This workspace has no .vercel/project.json, and current public health still lacks exact-SHA/deployment/Supabase-origin/Stripe-mode headers.",
+      "2026-09-22 fresh read-only verification: Vercel inspect resolves demo.tourify.live and tourify.live to the same production deployment dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK (tourify-beta-k2). Public GET /api/health returned 200 on both; neither advertised release SHA, deployment ID, Supabase origin, or Stripe mode. Both CSPs allow auqddrodjezjlypkzfpi.supabase.co; CSP alone is not runtime DB-target proof. GitHub staging/production environments have 0 variables, 0 secrets, 0 protection rules; main branch protection returned 404. No deployment or database mutation occurred.",
+      "Focused local validation: 13/13 deployment/topology/evidence/workflow Node tests passed; npm run check:public-surface passed; npm run test:e2e:launch:contract passed. Full release verification and hosted staging run were not attempted."
+    ],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Predeploy gate is environment-ready after staging Vercel and Supabase automation tokens were added. Staging dispatch remains blocked until the reviewed candidate is on protected main.",
+    "completed": [
+      "Removed automatic workflow_run staging deployment and made staging dispatch require release SHA, migration evidence, and approval reference.",
+      "Added exact-SHA, matching workflow-run, topology, prebuilt deployment, and evidence-artifact steps.",
+      "Production workflow is manual and requires matching successful CI, E2E, security, staging, and launch-certification run IDs plus retained staging evidence.",
+      "Main-branch E2E now runs on push, allowing a matching-SHA pre-staging gate.",
+      "Deployment verifier checks SHA, deployment ID, Supabase origin, Stripe mode, and exact alias binding."
+    ],
+    "next_steps": [
+      "Move the candidate through protected main, run staging migrations against dlcqfpabbgltgteqtuko, then deploy exact-SHA staging evidence."
+    ],
+    "blockers": [
+      "No authorized Vercel, Supabase, DNS, or GitHub environment credentials are available in this workspace; hosted isolation is unverified.",
+      "The current live production/demo domains still share the existing deployment until the workflow is run against separate projects.",
+      "The 2026-09-22 public health probe still provides no deployed SHA and advertises the same Supabase origin on demo and production. QA-004 must not provision actors until distinct deployment, database, and secret-scope evidence is recorded."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T01:29:01.219Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: deploy-demo was converted to an explicit exact-SHA staging workflow with environment-scoped project variables, successful CI/E2E/security checks, topology validation, prebuilt deployment, and deployment evidence artifacts. Hosted projects and credentials were not provisioned.",
+        "completed": [
+          "Removed automatic workflow_run staging deployment and made staging dispatch require release SHA, migration evidence, and approval reference.",
+          "Added exact-SHA, matching workflow-run, topology, prebuilt deployment, and evidence-artifact steps."
+        ],
+        "next_steps": [
+          "Provision separate Vercel/Supabase staging and production projects, domains, scoped secrets, and protected GitHub environments.",
+          "Run the staging workflow with real credentials and record deployment ID, release SHA, migration evidence, and approver."
+        ],
+        "blockers": [
+          "No authorized Vercel, Supabase, DNS, or GitHub environment credentials are available in this workspace; hosted isolation is unverified.",
+          "The current live production/demo domains still share the existing deployment until the workflow is run against separate projects."
+        ]
+      },
+      {
+        "at": "2026-09-22T15:38:40Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Read-only QA-004 readiness probe reinforced the staging isolation blocker.",
+        "completed": [
+          "Compared public demo and production health responses without authentication or mutation."
+        ],
+        "next": "Provision distinct hosted staging resources, expose Vercel release/deployment IDs, and record topology evidence before campaign actor creation."
+      },
+      {
+        "at": "2026-09-22T16:00:00Z",
+        "sha": null,
+        "summary": "Local release gate hardened: production auto-deploy removed, exact-SHA staging/production checks added, topology now rejects shared Supabase origins, and deployment evidence requires a Vercel-generated ID observed at the deployment URL and alias. Hosted isolation and Git/Vercel environment governance remain unverified.",
+        "completed": [
+          "Production workflow is manual and requires matching successful CI, E2E, security, staging, and launch-certification run IDs plus retained staging evidence.",
+          "Main-branch E2E now runs on push, allowing a matching-SHA pre-staging gate.",
+          "Deployment verifier checks SHA, deployment ID, Supabase origin, Stripe mode, and exact alias binding."
+        ],
+        "next": "Provision separate Vercel/Supabase projects and environment-scoped values; disable Vercel Git auto-deploy paths, protect staging/production GitHub environments, then run an exact-SHA staging deployment and record hosted evidence."
+      },
+      {
+        "at": "2026-09-22T16:08:22.255Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Deployment workflows hardened for the simulation campaign gate: staging verifies exact main SHA, CI/E2E/security push runs, isolated topology, Vercel generated deployment id, health release SHA, Supabase origin, Stripe mode, and retained evidence; production now requires reviewed staging and launch-certification run ids plus matching retained staging evidence before deploying. Vercel CLI calls use explicit scoped tokens.",
+        "completed": [],
+        "next_steps": [
+          "Provision real GitHub environment vars/secrets for separate staging and production Vercel/Supabase projects, then run staging dispatch and attach exact-SHA deployment evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Read-only Vercel/GitHub/public-health inspection proves demo and production currently share one production deployment; isolated staging remains blocked. Captured the exact evidence and operator checklist in the release staging packet.",
+        "completed": [
+          "Vercel inspect maps both aliases to production deployment dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK in project prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n.",
+          "Both public health endpoints return 200 without release SHA, deployment ID, Supabase-origin, or Stripe-mode headers; both CSPs advertise the same Supabase origin.",
+          "GitHub staging/production environments have no variables, secrets, or protection rules, and main has no branch protection.",
+          "Eleven focused deployment tests and the public-surface contract passed."
+        ],
+        "next_steps": [
+          "Provision separate Vercel/Supabase staging resources and protected GitHub values, then collect exact-SHA deployment and health evidence through the manual staging workflow."
+        ],
+        "blockers": [
+          "No distinct staging deployment/project, database origin/ref, Stripe test-mode runtime proof, exact deployed SHA, or protected release governance exists."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:20:00Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Started the release-readiness unblock sprint packet from the current workspace state.",
+        "completed": [
+          "Confirmed no local .vercel project link exists in this checkout.",
+          "Confirmed public demo and production health still omit exact-release headers and advertise the same Supabase origin.",
+          "Linked the release lane to docs/audits/flow-notes/release-readiness-unblock-sprint.md."
+        ],
+        "next_steps": [
+          "Create or link the isolated staging Vercel project, configure protected staging variables/secrets, deploy the exact SHA, and attach health/evidence artifacts before DB or QA mutation."
+        ],
+        "blockers": [
+          "No distinct hosted staging project or exact-SHA deployment identity is recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Fresh public, Vercel, GitHub, and local credential checks confirm the demo alias still serves the production deployment. Isolated staging is not established; no hosted operation was performed.",
+        "completed": [
+          "Read-only Vercel inspect confirmed the same production dpl_ ID on demo and production aliases.",
+          "Public health responses are 200 but omit all four release identity, database-origin, and payment-mode headers; both CSPs advertise the same Supabase origin.",
+          "GitHub staging and production environments contain no scoped variables/secrets/protection; main has no branch protection. Local process has no staging Vercel/Supabase token or project IDs; no .vercel/project.json exists.",
+          "13 focused Node tests, public-surface contract, and launch fixture contract passed."
+        ],
+        "next_steps": [
+          "Provision and independently read back distinct Vercel/Supabase staging and production projects; bind demo only to staging, configure Stripe test mode, protected GitHub environments/reviewers, main required checks, and prevent Vercel Git auto-deploy around production gates.",
+          "Hand DB-008/DB-002 the approved staging Supabase ref and access; under CP-051 collect read-only migration history, manually apply only reviewed additive migrations one at a time, and retain ledger, checksum, advisor, anonymous-denial, and forward-repair evidence.",
+          "Commit a clean current-main candidate; require same-SHA ci.yml, e2e.yml, security-scans.yml push success; dispatch deploy-demo.yml from main with release_sha, migration_evidence, approval_reference; download staging-deployment-<sha> and verify deployment URL plus demo alias return the same staging dpl_ ID, exact SHA, distinct Supabase origin, and Stripe test mode.",
+          "Then hand the verified SHA/deployment ID, isolated URL, database origin, and protected QA_CERT_* values to QA-003 for exact-SHA no-skip certification."
+        ],
+        "blockers": [
+          "No isolated staging project/alias/database or scoped credentials; demo and production currently serve the same production deployment.",
+          "No hosted exact-SHA health identity, database target, Stripe test mode, protected release governance, or DB-008/DB-002 staging evidence."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:37.112Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check added and run. GitHub/Vercel CLIs are authenticated locally, but origin/main is 76d8389ebf939cee70f7070abf74a6bacc46f5de while the current candidate is 623b576b7963d4a2eccb2fbf83f24f2011842a83; deploy-demo requires a full SHA already on main. GitHub staging and production environments exist but list no required vars or secrets through gh, so isolated staging dispatch is not ready.",
+        "completed": [],
+        "next_steps": [
+          "Merge or otherwise place the reviewed candidate on main, populate protected staging/production GitHub environment vars and secrets, then rerun npm run check:next-phase-readiness before dispatch."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:28:33.553Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Continued next-phase unblock. Main branch protection is now configured with strict required checks for CI, E2E, and security contexts, one approving review, stale review dismissal, admin enforcement, linear history, no force pushes, no deletions, and conversation resolution. Because Vercel pulls from GitHub, direct main push remains unsafe; the candidate must move through protected main/PR flow after Vercel auto-deploy behavior is controlled. Confirmed production Vercel project tourify-beta-k2/prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n and deployment dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK; confirmed only active healthy linked Supabase project is Tourify Demo/auqddrodjezjlypkzfpi. Set known non-secret production comparison vars and project-ref secrets in GitHub environments.",
+        "completed": [],
+        "next_steps": [
+          "Provision or designate an isolated staging Vercel project and active staging Supabase project, add the remaining staging vars/secrets and protected production tokens, then rerun check:next-phase-readiness."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:35:38.797Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Read-only hosted inventory confirms tourifydemo is a separate Vercel project but unsafe as staging: demo.tourify.live remains on production project tourify-beta-k2, tourifydemo has production-scoped Supabase/Postgres variables, and no distinct staging Supabase origin is active.",
+        "completed": [],
+        "next_steps": [
+          "Provision isolated staging resources, replace staging project env values, and rerun deployment topology proof before any QA actor or DB mutation."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:39:15.253Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Configured non-secret Vercel staging shell values for tourifydemo and added phase-aware readiness gates. The staging project is still not accepted until old production-scoped env values are replaced and a distinct Supabase origin plus Stripe test mode are proven.",
+        "completed": [],
+        "next_steps": [
+          "Provision the isolated staging Supabase target, clean Vercel staging env values, deploy exact SHA, and verify health headers and topology evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:54:36.060Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Staging resource creation advanced: Supabase staging project dlcqfpabbgltgteqtuko is active healthy and tourifydemo now points at staging Supabase values. Predeploy gate now lacks only Vercel/Supabase automation tokens plus main SHA placement.",
+        "completed": [],
+        "next_steps": [
+          "Set automation tokens, add Stripe test key/webhook values, merge candidate through protected main, then run staging migration and deployment evidence workflows."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:59:23.371Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Predeploy gate is environment-ready after staging Vercel and Supabase automation tokens were added. Staging dispatch remains blocked until the reviewed candidate is on protected main.",
+        "completed": [],
+        "next_steps": [
+          "Move the candidate through protected main, run staging migrations against dlcqfpabbgltgteqtuko, then deploy exact-SHA staging evidence."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide isolated staging targets to DB-008 and QA-003, topology evidence to RELEASE-004, and protected-promotion evidence to RELEASE-005."
+  ]
+}

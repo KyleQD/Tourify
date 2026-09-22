@@ -23,10 +23,17 @@ function resolveInitialTab(value: string | string[] | undefined): HiringDashboar
   return "overview"
 }
 
+function resolveFirstString(value: string | string[] | undefined): string | null {
+  const resolved = Array.isArray(value) ? value[0] : value
+  return resolved?.trim() || null
+}
+
 export default async function UniversalHiringDashboardPage({ searchParams }: PageProps) {
   const resolvedSearchParams = (await searchParams) ?? {}
   const employer = await resolveAdminWorkforceEmployer({ searchParams: resolvedSearchParams })
   const initialTab = resolveInitialTab(resolvedSearchParams.tab)
+  const initialCandidateId = resolveFirstString(resolvedSearchParams.candidateId)
+  const initialMemberId = resolveFirstString(resolvedSearchParams.memberId)
 
   if (!employer) {
     return (
@@ -38,7 +45,12 @@ export default async function UniversalHiringDashboardPage({ searchParams }: Pag
 
   return (
     <WorkforcePageShell>
-      <HiringDashboard employer={employer} initialTab={initialTab} />
+      <HiringDashboard
+        employer={employer}
+        initialTab={initialTab}
+        initialCandidateId={initialCandidateId}
+        initialMemberId={initialMemberId}
+      />
     </WorkforcePageShell>
   )
 }

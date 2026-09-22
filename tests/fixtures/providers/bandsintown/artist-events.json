@@ -1,0 +1,35 @@
+[
+  {
+    "id": "1023456789",
+    "artist_id": "98765",
+    "url": "https://www.bandsintown.com/e/1023456789",
+    "on_sale_datetime": "2026-06-15T17:00:00",
+    "datetime": "2026-09-12T19:30:00",
+    "description": "Example Artist fall tour stop.",
+    "venue": {
+      "name": "Brooklyn Steel",
+      "city": "Brooklyn",
+      "region": "NY",
+      "country": "United States",
+      "latitude": "40.7224",
+      "longitude": "-73.9508"
+    },
+    "offers": [
+      { "type": "Tickets", "url": "https://www.bandsintown.com/t/1023456789", "status": "available" }
+    ],
+    "lineup": ["DJ Example Artist (feat. Guest MC)", "Opening Act"]
+  },
+  {
+    "id": "1023456790",
+    "datetime": "2026-09-19T20:00:00",
+    "venue": {
+      "name": "The Wiltern",
+      "city": "Los Angeles",
+      "region": "CA",
+      "country": "United States",
+      "latitude": "34.0616",
+      "longitude": "-118.3091"
+    },
+    "lineup": ["Example Artist"]
+  }
+]

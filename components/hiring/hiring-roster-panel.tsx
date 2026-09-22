@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RosterAssignmentDialog } from "@/components/hiring/roster-assignment-dialog"
 import { RosterMemberDetailDrawer } from "@/components/hiring/roster-member-detail-drawer"
+import { RosterTaskAssignmentDialog } from "@/components/hiring/roster-task-assignment-dialog"
 import type { HiringEntity } from "@/types/hiring-entity"
 import type { HiringRosterMemberListItem } from "@/types/hiring-dashboard"
 import type { ListRosterMembersResult, RosterMember, RosterMemberStatus } from "@/types/hiring-roster-work-mode"
@@ -16,6 +17,7 @@ import { WorkforceEmptyState, WorkforcePanel } from "./workforce-ui"
 
 interface HiringRosterPanelProps {
   employer: HiringEntity
+  initialMemberId?: string | null
 }
 
 function toListItems(payload: ListRosterMembersResult | HiringRosterMemberListItem[] | null | undefined): HiringRosterMemberListItem[] {
@@ -40,7 +42,7 @@ function toRosterMembers(payload: ListRosterMembersResult | HiringRosterMemberLi
   return payload.members
 }
 
-export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
+export function HiringRosterPanel({ employer, initialMemberId }: HiringRosterPanelProps) {
   const queryString = getEmployerQueryString(employer)
   const { data, isLoading, error, refetch } = useHiringDashboardFetch<ListRosterMembersResult | HiringRosterMemberListItem[]>({
     url: `/api/hiring/roster?${queryString}`,
@@ -52,7 +54,18 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
   const [selectedMember, setSelectedMember] = useState<RosterMember | null>(null)
   const [assignmentMember, setAssignmentMember] = useState<RosterMember | null>(null)
   const [isAssignmentOpen, setIsAssignmentOpen] = useState(false)
+  const [taskMember, setTaskMember] = useState<RosterMember | null>(null)
+  const [isTaskOpen, setIsTaskOpen] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const openedInitialMemberRef = useRef(false)
+
+  useEffect(() => {
+    if (!initialMemberId || isLoading || openedInitialMemberRef.current) return
+    const member = members.find((item) => item.id === initialMemberId)
+    if (!member) return
+    openedInitialMemberRef.current = true
+    setSelectedMember(member)
+  }, [initialMemberId, isLoading, members])
 
   function openMember(memberId: string) {
     const member = members.find((item) => item.id === memberId) ?? null
@@ -67,6 +80,11 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
   function handleAssigned(member: RosterMember) {
     setSelectedMember(member)
     void refetch()
+  }
+
+  function handleAssignTask(member: RosterMember) {
+    setTaskMember(member)
+    setIsTaskOpen(true)
   }
 
   async function handleStatusChange(member: RosterMember, nextStatus: RosterMemberStatus) {
@@ -119,8 +137,8 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
             />
           ) : null}
           {roster.length > 0 ? (
-            <div className="overflow-hidden rounded-[1.15rem] border border-slate-700/60">
-              <div className="grid grid-cols-12 border-b border-slate-800 bg-slate-900/70 px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+              <div className="grid grid-cols-12 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
                 <div className="col-span-4">Worker</div>
                 <div className="col-span-3">Role</div>
                 <div className="col-span-2">Status</div>
@@ -131,7 +149,7 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
                   key={member.id}
                   type="button"
                   onClick={() => openMember(member.id)}
-                  className="grid w-full grid-cols-12 gap-2 border-b border-slate-800/80 bg-slate-900/35 px-4 py-4 text-left text-sm transition hover:bg-slate-800/50 last:border-0"
+                  className="grid w-full grid-cols-12 gap-2 border-b border-white/10 bg-transparent px-4 py-4 text-left text-sm transition hover:bg-white/[0.06] last:border-0"
                 >
                   <div className="col-span-4">
                     <p className="font-medium text-white">{member.name}</p>
@@ -158,6 +176,7 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
           if (!open) setSelectedMember(null)
         }}
         onAssign={handleAssign}
+        onAssignTask={handleAssignTask}
         onStatusChange={handleStatusChange}
       />
 
@@ -167,6 +186,12 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
         open={isAssignmentOpen}
         onOpenChange={setIsAssignmentOpen}
         onAssigned={handleAssigned}
+      />
+
+      <RosterTaskAssignmentDialog
+        member={taskMember}
+        open={isTaskOpen}
+        onOpenChange={setIsTaskOpen}
       />
     </>
   )

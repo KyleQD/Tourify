@@ -3,9 +3,9 @@ import { z } from "zod"
 
 import {
   adminAccessErrorResponse,
-  assertAdminTourAccess,
+  assertTourAuthority,
 } from "@/lib/admin/admin-tour-event-access"
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
 const bodySchema = z.object({
   user_ids: z.array(z.string().uuid()).min(1).max(50),
@@ -55,7 +55,7 @@ async function ensureCoreTeam(
   return data.id as string
 }
 
-export const POST = withAdminAuth(async (req: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("tour.manage", async (req: NextRequest, { supabase, user }) => {
   try {
     const tourId = extractTourId(req.url)
     if (!tourId) return NextResponse.json({ error: "tour id required" }, { status: 400 })
@@ -64,7 +64,8 @@ export const POST = withAdminAuth(async (req: NextRequest, { supabase, user }) =
     if (!parsed.success)
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-    await assertAdminTourAccess({ supabase, userId: user.id, tourId })
+    // TOUR-102: authority-only gate via canonical tour access service
+    await assertTourAuthority({ supabase, userId: user.id, tourId })
 
     const { data: tourRow } = await supabase
       .from("tours")

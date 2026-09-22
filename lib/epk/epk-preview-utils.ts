@@ -56,6 +56,8 @@ export const EPK_DEFAULT_SECTION_ORDER = [
   "contact",
   "social",
   "booking",
+  // P4 — marketplace storefront module (off by default until seller enables it)
+  "marketplace",
 ] as const
 
 const DEFAULT_VISIBILITY: Record<string, boolean> = {
@@ -70,7 +72,16 @@ const DEFAULT_VISIBILITY: Record<string, boolean> = {
   contact: true,
   social: true,
   booking: true,
+  // Marketplace module is off by default — seller opts in via EPK settings
+  marketplace: false,
 }
+
+/**
+ * The marketplace section key used in EPK sectionOrder / sectionVisibility.
+ * Sellers opt in by toggling this section visible in their EPK settings.
+ * When enabled, the profile page renders the ProfileMarketplaceModule component.
+ */
+export const EPK_MARKETPLACE_SECTION_ID = "marketplace" as const
 
 export function normalizeEpkLayout(layout: EPKData["layout"] | undefined): EPKData["layout"] {
   const base = layout ?? {

@@ -1,0 +1,398 @@
+{
+  "schema_version": "1.0",
+  "id": "VENUE-002",
+  "title": "Venue component tree consolidation",
+  "status": "blocked",
+  "priority": "P2",
+  "owner_agent": "venue",
+  "created_at": "2026-09-09T09:35:22.617Z",
+  "updated_at": "2026-09-16T19:24:56.264Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Consolidate dual venue component trees (app/venue/components canonical vs components/venue legacy) + delete dead venue/ui twin",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/venue/components/",
+    "components/venue/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/venue/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Single venue component tree"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "./node_modules/.bin/eslint app/venue/components/mobile-venue-nav.tsx app/venue/components/operations/venue-operations-shell.tsx components/venue/mobile-venue-nav.tsx",
+      "npm run verify:fast -- --changed",
+      "NODE_OPTIONS=--max-old-space-size=8192 ./node_modules/.bin/tsc --noEmit --pretty false",
+      "./node_modules/.bin/eslint app/venue/components/site-map-viewer.tsx app/venue/dashboard/site-maps/page.tsx components/venue/site-map-viewer.tsx",
+      "./node_modules/.bin/eslint app/venue/components/event-details/delete-event-dialog.tsx components/venue/venue/delete-event-dialog.tsx app/venue/components/event-details/event-header.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/venue-staff-scheduler-shell.tsx app/venue/staff/scheduling/page.tsx components/venue/staff/venue-staff-scheduler-shell.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/shift-templates.tsx app/venue/staff/scheduling/page.tsx components/venue/staff/shift-templates.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/shift-requests.tsx app/venue/staff/scheduling/page.tsx components/venue/staff/shift-requests.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/venue-staff-shifts-panel.tsx app/venue/components/staff/venue-staff-scheduler-shell.tsx components/venue/staff/venue-staff-shifts-panel.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/role-management.tsx app/venue/staff/roles-permissions/page.tsx components/venue/staff/role-management.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/user-role-assignment.tsx app/venue/staff/roles-permissions/page.tsx components/venue/staff/user-role-assignment.tsx",
+      "./node_modules/.bin/eslint app/venue/components/staff/role-management.tsx app/venue/components/staff/user-role-assignment.tsx components/venue/staff/role-management.tsx components/venue/staff/user-role-assignment.tsx",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Focused ESLint exited 0",
+      "Fast wrapper exited 2 on pre-existing missing components/ui/use-mobile.tsx",
+      "Typecheck was interrupted after no diagnostics within the bounded window",
+      "Focused ESLint exited 0 for the site-map seam",
+      "Canonical venue site-maps route no longer imports from components/venue",
+      "Focused ESLint exited 0 for the event-details seam",
+      "Canonical event-details dialog no longer imports its implementation from components/venue",
+      "Focused ESLint exited 0 for the staff-scheduling seam",
+      "Canonical venue scheduling page no longer imports VenueStaffSchedulerShell from components/venue",
+      "Focused ESLint exited 0 for the shift-templates seam",
+      "Canonical venue scheduling page no longer imports ShiftTemplates from components/venue",
+      "Focused ESLint exited 0 for the shift-requests seam",
+      "Canonical venue scheduling page no longer imports ShiftRequests from components/venue",
+      "Focused ESLint exited 0 for the staff-shifts seam",
+      "Canonical scheduler shell no longer imports VenueStaffShiftsPanel from components/venue",
+      "Focused ESLint exited 0 for the role-management seam",
+      "Canonical venue roles-permissions page no longer imports RoleManagement from components/venue",
+      "Focused ESLint exited 0 for the user-role-assignment seam",
+      "Canonical venue roles-permissions page no longer imports UserRoleAssignment from components/venue",
+      "No remaining @/components/venue/* imports under app/venue/**",
+      "agents:validate exited 0 with only the pre-existing RELEASE-001 warning",
+      "Bounded import audit found no @/components/venue or components/venue imports under app/venue/**",
+      "Remaining legacy consumers are outside app/venue/**, including shared analytics, bookings, events, documents, team, messaging, groups, and a logistics test",
+      "components/venue/ui/** contains 50 files and no live application imports; deletion remains outside this venue-owned lane",
+      "DESIGN-004 returned the compatibility disposition: 26 components/venue/ui/** files are keep, 23 are registered retire-later, and components/venue/ui/use-toast.ts is an unregistered byte-identical hook; no venue behavior changes are required",
+      "DESIGN-004 handoff registered DESIGN-005 through DESIGN-027 for the 23 retire-later primitive families.",
+      "use-toast is explicitly registered as retire-later with hooks/use-toast.ts canonical target.",
+      "26 keep files and compatibility exceptions remain preserved."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:39:41.089Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Production-readiness triage preserves VENUE-002 as blocked/P2 at its documented ownership boundary. It is not a core launch blocker unless QA-003 identifies a failing live venue caller that depends on the legacy tree.",
+    "changed_paths": [
+      "docs/engineering/tasks/active/VENUE-002.json"
+    ],
+    "completed": [
+      "app/venue/components/mobile-venue-nav.tsx is the sole implementation",
+      "app/venue/components/operations/venue-operations-shell.tsx imports the canonical implementation",
+      "components/venue/mobile-venue-nav.tsx preserves the legacy export path",
+      "app/venue/components/site-map-viewer.tsx is the sole site-map viewer implementation",
+      "app/venue/dashboard/site-maps/page.tsx imports the canonical site-map viewer",
+      "components/venue/site-map-viewer.tsx preserves the legacy export path",
+      "app/venue/components/event-details/delete-event-dialog.tsx is the sole DeleteEventDialog implementation",
+      "app/venue/components/event-details/event-header.tsx continues using the canonical local dialog path",
+      "components/venue/venue/delete-event-dialog.tsx preserves the legacy export path",
+      "app/venue/components/staff/venue-staff-scheduler-shell.tsx is the sole VenueStaffSchedulerShell implementation",
+      "app/venue/staff/scheduling/page.tsx imports the canonical scheduler shell",
+      "components/venue/staff/venue-staff-scheduler-shell.tsx preserves the legacy export path",
+      "app/venue/components/staff/shift-templates.tsx is the sole ShiftTemplates implementation",
+      "app/venue/staff/scheduling/page.tsx imports canonical ShiftTemplates",
+      "components/venue/staff/shift-templates.tsx preserves the legacy export path",
+      "app/venue/components/staff/shift-requests.tsx is the sole ShiftRequests implementation",
+      "app/venue/staff/scheduling/page.tsx imports canonical ShiftRequests",
+      "components/venue/staff/shift-requests.tsx preserves the legacy export path",
+      "app/venue/components/staff/venue-staff-shifts-panel.tsx is the sole VenueStaffShiftsPanel implementation",
+      "app/venue/components/staff/venue-staff-scheduler-shell.tsx imports the canonical shifts panel",
+      "components/venue/staff/venue-staff-shifts-panel.tsx preserves the legacy export path",
+      "app/venue/components/staff/role-management.tsx is the sole RoleManagement implementation",
+      "app/venue/staff/roles-permissions/page.tsx imports canonical RoleManagement",
+      "components/venue/staff/role-management.tsx preserves the legacy export path",
+      "app/venue/components/staff/user-role-assignment.tsx is the sole UserRoleAssignment implementation",
+      "app/venue/staff/roles-permissions/page.tsx imports canonical UserRoleAssignment",
+      "components/venue/staff/user-role-assignment.tsx preserves the legacy export path",
+      "Recorded the design-system follow-up task boundary DESIGN-005 through DESIGN-027.",
+      "Confirmed use-toast registry disposition is owned by the design-system cleanup lane, not venue behavior work."
+    ],
+    "next_steps": [
+      "Keep VENUE-002 blocked to additional venue-only cleanup unless a new venue caller seam is introduced.",
+      "Venue may participate only when a scoped follow-up task identifies an approved venue consumer migration."
+    ],
+    "blockers": [
+      "Global components/venue/ui cleanup requires the new design-system task records and their owner-scoped evidence.",
+      "No venue behavior changes or compatibility-file deletions are authorized in VENUE-002."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T17:22:37.380Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Moved MobileVenueNav into the canonical app/venue/components tree and kept the legacy path as a compatibility re-export. Focused lint passed; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/mobile-venue-nav.tsx is the sole implementation",
+          "app/venue/components/operations/venue-operations-shell.tsx imports the canonical implementation",
+          "components/venue/mobile-venue-nav.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T17:25:31.937Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated two venue-domain seams: MobileVenueNav and VenueSiteMapViewer now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passed; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/site-map-viewer.tsx is the sole site-map viewer implementation",
+          "app/venue/dashboard/site-maps/page.tsx imports the canonical site-map viewer",
+          "components/venue/site-map-viewer.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T17:28:25.931Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated three venue-domain seams: MobileVenueNav, VenueSiteMapViewer, and DeleteEventDialog now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/event-details/delete-event-dialog.tsx is the sole DeleteEventDialog implementation",
+          "app/venue/components/event-details/event-header.tsx continues using the canonical local dialog path",
+          "components/venue/venue/delete-event-dialog.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T17:36:56.125Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated four venue-domain seams: MobileVenueNav, VenueSiteMapViewer, DeleteEventDialog, and VenueStaffSchedulerShell now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/staff/venue-staff-scheduler-shell.tsx is the sole VenueStaffSchedulerShell implementation",
+          "app/venue/staff/scheduling/page.tsx imports the canonical scheduler shell",
+          "components/venue/staff/venue-staff-scheduler-shell.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T17:40:05.327Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated five venue-domain seams: MobileVenueNav, VenueSiteMapViewer, DeleteEventDialog, VenueStaffSchedulerShell, and ShiftTemplates now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/staff/shift-templates.tsx is the sole ShiftTemplates implementation",
+          "app/venue/staff/scheduling/page.tsx imports canonical ShiftTemplates",
+          "components/venue/staff/shift-templates.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T18:16:48.532Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated six venue-domain seams: MobileVenueNav, VenueSiteMapViewer, DeleteEventDialog, VenueStaffSchedulerShell, ShiftTemplates, and ShiftRequests now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/staff/shift-requests.tsx is the sole ShiftRequests implementation",
+          "app/venue/staff/scheduling/page.tsx imports canonical ShiftRequests",
+          "components/venue/staff/shift-requests.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T18:29:02.997Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated seven venue-domain seams: MobileVenueNav, VenueSiteMapViewer, DeleteEventDialog, VenueStaffSchedulerShell, ShiftTemplates, ShiftRequests, and VenueStaffShiftsPanel now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/staff/venue-staff-shifts-panel.tsx is the sole VenueStaffShiftsPanel implementation",
+          "app/venue/components/staff/venue-staff-scheduler-shell.tsx imports the canonical shifts panel",
+          "components/venue/staff/venue-staff-shifts-panel.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T18:53:21.668Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated eight venue-domain seams: MobileVenueNav, VenueSiteMapViewer, DeleteEventDialog, VenueStaffSchedulerShell, ShiftTemplates, ShiftRequests, VenueStaffShiftsPanel, and RoleManagement now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/staff/role-management.tsx is the sole RoleManagement implementation",
+          "app/venue/staff/roles-permissions/page.tsx imports canonical RoleManagement",
+          "components/venue/staff/role-management.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T19:06:23.023Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consolidated nine venue-domain seams: MobileVenueNav, VenueSiteMapViewer, DeleteEventDialog, VenueStaffSchedulerShell, ShiftTemplates, ShiftRequests, VenueStaffShiftsPanel, RoleManagement, and UserRoleAssignment now have canonical implementations under app/venue/components, with legacy paths preserved as compatibility re-exports. Focused lint passes; repository-wide verification remains blocked by unrelated dirty-tree inputs and resource limits.",
+        "completed": [
+          "app/venue/components/staff/user-role-assignment.tsx is the sole UserRoleAssignment implementation",
+          "app/venue/staff/roles-permissions/page.tsx imports canonical UserRoleAssignment",
+          "components/venue/staff/user-role-assignment.tsx preserves the legacy export path"
+        ],
+        "next_steps": [
+          "Continue staged consolidation only where direct import evidence identifies a safe venue-domain seam",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-10T19:19:12.229Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Import-boundary audit complete: no remaining @/components/venue/* imports exist under app/venue/**. Remaining legacy consumers are non-venue shared surfaces and were left unchanged because migrating them would expand this bounded venue-only task. Focused lint and agents:validate pass; repository-wide verification remains blocked by pre-existing dirty-tree inputs and resource limits.",
+        "completed": [],
+        "next_steps": [
+          "Handle remaining non-venue shared consumers only in a separately scoped cross-surface decision/task",
+          "Handle components/venue/ui deletion in a separate explicitly approved cleanup task"
+        ],
+        "blockers": [
+          "No remaining direct imports under app/venue/** provide a safe additional venue-only consolidation seam; remaining consumers are outside the venue caller boundary",
+          "npm run verify:fast -- --changed cannot run because the pre-existing dirty tree includes deleted components/ui/use-mobile.tsx, which the wrapper still passes to ESLint",
+          "NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit produced no diagnostics but exceeded the bounded verification window and was interrupted"
+        ]
+      },
+      {
+        "at": "2026-09-11T00:26:09.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Confirmed the venue-only boundary is exhausted. No app/venue/** caller imports components/venue/**; remaining consumers are shared or non-venue, and components/venue/ui/** has no live application imports but is explicitly outside this lane. Recorded a precise handoff to DESIGN-004 and blocked VENUE-002 pending an approved cross-surface/design-system action.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/VENUE-002.json"
+        ],
+        "verification": [
+          "Bounded rg audit: no @/components/venue or components/venue imports under app/venue/**",
+          "Bounded rg audit: components/venue/ui/** has 50 files and no live application imports",
+          "Existing focused ESLint evidence remains passing for all nine canonicalized seams",
+          "Existing agents:validate evidence remains passing with only the pre-existing RELEASE-001 warning"
+        ],
+        "blockers": [
+          "Remaining legacy consumers are outside venue ownership and require a separately scoped cross-surface migration",
+          "components/venue/ui/** deletion requires the DESIGN-004 design-system/shared-owner handoff and is not authorized in VENUE-002",
+          "Repository-wide verify:fast and bounded typecheck limitations remain as previously recorded"
+        ],
+        "next_steps": [
+          "DESIGN-004 owner to perform compatibility review and decide the safe disposition of components/venue/ui/**",
+          "Create or approve a separate cross-surface task before migrating non-venue consumers",
+          "Keep VENUE-002 blocked for the unchanged global acceptance criterion; do not modify venue behavior or delete the compatibility tree in this lane"
+        ]
+      },
+      {
+        "at": "2026-09-11T17:55:39.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Design-system compatibility handoff completed. The venue-owned dependency is resolved: no app/venue/** caller imports components/venue/**, and shared primitive cleanup is now bounded by 26 keep files, 23 registered retire-later files, and one unregistered use-toast.ts hook.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/VENUE-002.json",
+          "docs/engineering/tasks/active/DESIGN-004.json"
+        ],
+        "verification": [
+          "Design-system resolved-module import audit: 0 consumers of components/venue/ui/**",
+          "Design-system exact source reference audit: 0 components/venue/ui references",
+          "Design-system focused ESLint passed for compatibility exceptions",
+          "npm run agents:validate: validated 17 agents, 70 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "The unchanged global single-tree acceptance criterion still requires separately scoped cross-surface migration and registry cleanup; no venue behavior change or deletion is authorized here."
+        ],
+        "next_steps": [
+          "Keep VENUE-002 closed to additional venue-only consolidation; create owner-scoped follow-up tasks if global primitive retirement is approved."
+        ]
+      },
+      {
+        "at": "2026-09-11T18:12:43.828Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Venue-owned consolidation is complete at the documented boundary. DESIGN-004 returned 23 separately scoped design-system follow-up tasks and an explicit registry disposition for use-toast; venue behavior and compatibility files remain unchanged.",
+        "completed": [
+          "Recorded the design-system follow-up task boundary DESIGN-005 through DESIGN-027.",
+          "Confirmed use-toast registry disposition is owned by the design-system cleanup lane, not venue behavior work."
+        ],
+        "next_steps": [
+          "Keep VENUE-002 blocked to additional venue-only cleanup unless a new venue caller seam is introduced.",
+          "Venue may participate only when a scoped follow-up task identifies an approved venue consumer migration."
+        ],
+        "blockers": [
+          "Global components/venue/ui cleanup requires the new design-system task records and their owner-scoped evidence.",
+          "No venue behavior changes or compatibility-file deletions are authorized in VENUE-002."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:39:41.089Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dependency cleared: the design-system retire-later family is complete (DESIGN-005..029) and the dead components/venue/ui twins are deleted under CP-037. Venue-owned consolidation remains exhausted and the keep boundary is preserved; per recorded policy this task stays blocked unless a new venue caller seam is introduced.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-16T19:24:56.264Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness triage preserves VENUE-002 as blocked/P2 at its documented ownership boundary. It is not a core launch blocker unless QA-003 identifies a failing live venue caller that depends on the legacy tree.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "to_task": "DESIGN-004",
+      "owner_agent": "design-system",
+      "at": "2026-09-11T00:26:09.300Z",
+      "scope": "Review and decide the compatibility-safe disposition of components/venue/ui/**; venue lane made no changes outside its ownership.",
+      "evidence": "No live application imports found for components/venue/ui/**; deletion remains outside VENUE-002 scope and requires explicit compatibility review."
+    },
+    {
+      "to_task": "VENUE-002",
+      "owner_agent": "venue",
+      "at": "2026-09-11T17:55:39.000Z",
+      "scope": "Dependency resolution from DESIGN-004: close the venue-owned consolidation boundary and leave shared primitive disposition to separately scoped cross-surface tasks.",
+      "evidence": "Design-system audit resolved 0 source consumers, 26 keep files, 23 registered retire-later files, and one unregistered use-toast.ts. No venue domain behavior changes are needed; global single-tree acceptance remains blocked pending owner-scoped migrations."
+    }
+  ]
+}

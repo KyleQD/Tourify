@@ -1,0 +1,64 @@
+name: Venue catalog import
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Overture release date, or latest
+        required: false
+        default: latest
+  schedule:
+    - cron: "17 9 3 * *"
+
+concurrency:
+  group: venue-catalog-import
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install extractor
+        run: python -m pip install --disable-pip-version-check duckdb==1.3.2
+
+      - name: Extract newest qualifying U.S. venues
+        env:
+          REQUESTED_RELEASE: ${{ inputs.release || 'latest' }}
+        run: |
+          python scripts/venue-catalog/extract-overture.py \
+            --release "$REQUESTED_RELEASE" \
+            --output "$RUNNER_TEMP/venue-catalog.csv" \
+            --release-output "$RUNNER_TEMP/overture-release.txt"
+
+      - name: Validate and atomically apply catalog
+        run: |
+          test -n "$DATABASE_URL"
+          RELEASE="$(tr -d '\n' < "$RUNNER_TEMP/overture-release.txt")"
+          ROWS="$(($(wc -l < "$RUNNER_TEMP/venue-catalog.csv") - 1))"
+          test "$ROWS" -ge 1000
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v release="$RELEASE" <<SQL
+          begin;
+          delete from private.venue_catalog_places_staging;
+          \copy private.venue_catalog_places_staging (overture_id,name,primary_category,categories,address,city,state,postal_code,country,latitude,longitude,website,email,phone,operating_status,confidence,source_updated_at) from '$RUNNER_TEMP/venue-catalog.csv' with (format csv, header true)
+          select * from private.apply_venue_catalog_import(:'release', 1000);
+          commit;
+          SQL
+
+      - name: Record import summary
+        run: |
+          RELEASE="$(tr -d '\n' < "$RUNNER_TEMP/overture-release.txt")"
+          ROWS="$(($(wc -l < "$RUNNER_TEMP/venue-catalog.csv") - 1))"
+          echo "### Venue catalog" >> "$GITHUB_STEP_SUMMARY"
+          echo "Imported **$ROWS** qualifying places from Overture **$RELEASE**." >> "$GITHUB_STEP_SUMMARY"

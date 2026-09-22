@@ -593,6 +593,7 @@ export default function ArtistsPage() {
             icon={Music}
             title="No artists found"
             description="Artists will appear when your search returns results"
+            action={{ label: "Add artist", href: "/admin/dashboard/artists/new" }}
           />
         )}
           </>

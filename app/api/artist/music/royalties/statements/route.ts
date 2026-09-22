@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 import { getTrustedMusicWriteClient } from "@/lib/music/music-access"
 import { resolveMusicRoyaltiesFlags } from "@/lib/music/royalties/music-royalties-flags"
 import { enqueueRoyaltyOutboxEvent, minorUnitsToDb, sha256Hex } from "@/lib/music/royalties/royalties-access"
@@ -17,7 +18,7 @@ const issueSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireArtistMusicUser(request)
   if (!authResult.success) return authResult.response
   const { user, supabase } = authResult.auth
   const flags = await resolveMusicRoyaltiesFlags(supabase, user.id)
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
     const flags = await resolveMusicRoyaltiesFlags(supabase, user.id)

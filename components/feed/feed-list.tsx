@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { useFeed } from '@/hooks/use-feed'
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
+import { usePostStyleFlags } from '@/hooks/use-post-style-flags'
 import type { Json } from '@/lib/database.types'
 
 function asPostMetadata(metadata: unknown): { [key: string]: Json | undefined } | null {
@@ -24,6 +25,7 @@ interface FeedListProps {
 }
 
 export function FeedList({ feedType = 'all', showPostCreator = true }: FeedListProps) {
+  const { flags } = usePostStyleFlags()
   const {
     posts,
     loading,
@@ -145,13 +147,9 @@ export function FeedList({ feedType = 'all', showPostCreator = true }: FeedListP
                     metadata: asPostMetadata(post.metadata),
                     media_urls: post.media_urls || null
                   }}
-                  onCommentClick={() => {
-                    // TODO: Open comments modal or navigate to post detail
-                  }}
-                  onShareClick={() => {
-                    // TODO: Open share modal
-                  }}
+                  onCommentClick={() => window.location.assign(`/posts/${post.id}`)}
                   onDelete={deletePost}
+                  enablePostStyles={flags.post_styles_read}
                 />
               </motion.div>
             ))}

@@ -149,13 +149,14 @@ export function CandidateDetailDrawer({
 
       if (action === "approve") {
         const query = getEmployerQueryString(employer)
-        const rosterHref = `/admin/dashboard/hiring?${query}&tab=roster`
+        const rosterMemberId = typeof payload?.data?.rosterMember?.id === "string" ? payload.data.rosterMember.id : null
+        const rosterHref = `/admin/dashboard/hiring?${query}&tab=roster${rosterMemberId ? `&memberId=${encodeURIComponent(rosterMemberId)}` : ""}`
         toast({
           title: "Approved — added to roster",
-          description: `${candidate.name} was notified and is ready for role and team assignment.`,
+          description: `${candidate.name} was notified and is ready for a first shift or task.`,
           action: (
-            <ToastAction altText="Open roster" onClick={() => router.push(rosterHref)}>
-              Open roster
+            <ToastAction altText="Assign first shift or task" onClick={() => router.push(rosterHref)}>
+              Assign first work
             </ToastAction>
           ),
         })

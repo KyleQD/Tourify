@@ -10,7 +10,7 @@ function read(path: string) {
 
 describe('Site map ops upgrade contracts', () => {
   it('keeps zone ownership migration and event zone bridge wiring', () => {
-    const migration = read('supabase/migrations/20260710140000_site_map_zone_ownership.sql')
+    const migration = read('supabase/migrations/20260908100000_reconcile_archived_logistics_foundation.sql')
     const zonesPost = read('app/api/admin/logistics/site-maps/[id]/zones/route.ts')
     const zonesPut = read('app/api/admin/logistics/site-maps/[id]/zones/[zoneId]/route.ts')
     const sync = read('lib/site-map/zone-roster-sync.ts')
@@ -26,13 +26,15 @@ describe('Site map ops upgrade contracts', () => {
   it('ships worker map surface and simplified venue/artist viewers', () => {
     const workerPage = read('app/work/site-maps/[id]/page.tsx')
     const workerViewer = read('components/site-maps/worker-site-map-viewer.tsx')
-    const venue = read('components/venue/site-map-viewer.tsx')
+    const venue = read('app/venue/components/site-map-viewer.tsx')
+    const venueCompatibility = read('components/venue/site-map-viewer.tsx')
     const artist = read('app/artist/events/[id]/site-map/page.tsx')
     const publish = read('app/api/admin/logistics/site-maps/[id]/publish-work-mode/route.ts')
 
     expect(workerPage).toContain('WorkerSiteMapViewer')
     expect(workerViewer).toContain('COMPLETE_TASK')
     expect(venue).toContain('PublicSiteMapViewer')
+    expect(venueCompatibility).toContain('@/app/venue/components/site-map-viewer')
     expect(artist).toContain('PublicSiteMapViewer')
     expect(publish).toContain('worker_url')
   })

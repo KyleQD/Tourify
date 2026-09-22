@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Planner redirects to events/create (cmp-event-planner-support wont-fix). */
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

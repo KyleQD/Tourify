@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Superseded by tours/builder (cmp-create-tour-form wont-fix). */
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"

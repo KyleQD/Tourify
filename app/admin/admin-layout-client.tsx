@@ -23,18 +23,20 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const hasAdminAccounts = accounts.some(acc => isOrganizationType(acc.account_type))
   const hasAdminAccess = isInAdminContext || hasAdminAccounts
 
+  const loadingDashboard = (
+    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center relative overflow-hidden">
+      <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-20 w-80 h-80 bg-blue-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+      <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm p-8 text-center max-w-md relative z-10">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-400" />
+        <h2 className="text-xl font-semibold text-white mb-2">Loading Event & Tour Management</h2>
+        <p className="text-slate-400">Setting up your dashboard...</p>
+      </Card>
+    </div>
+  )
+
   if (!mounted || !isAccountsReady || (isLoading && accounts.length === 0)) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center relative overflow-hidden">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500/[0.04] rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-blue-500/[0.04] rounded-full blur-3xl pointer-events-none" />
-        <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm p-8 text-center max-w-md relative z-10">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-400" />
-          <h2 className="text-xl font-semibold text-white mb-2">Loading Event & Tour Management</h2>
-          <p className="text-slate-400">Setting up your dashboard...</p>
-        </Card>
-      </div>
-    )
+    return loadingDashboard
   }
 
   if (error && !hasAdminAccess) {
@@ -62,6 +64,15 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
           <button onClick={() => router.push('/create?type=organization')} className="admin-btn-futuristic px-4 py-2">Create Organization Account</button>
         </Card>
       </div>
+    )
+  }
+
+  if (!isInAdminContext) {
+    return (
+      <>
+        <AccountRouteGuard />
+        {loadingDashboard}
+      </>
     )
   }
 

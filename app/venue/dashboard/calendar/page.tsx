@@ -21,20 +21,60 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const {
     venueEvents,
+    bookings,
+    reservations,
+    blocks,
     isLoading: isEventsLoading,
     error: eventsError,
     refresh: refreshCalendarData,
   } = useVenueCalendarData({ venueId: venue?.id, month: currentMonth })
   const normalizedEvents = useMemo(() => {
-    return venueEvents.map((event) => ({
+    const venueLabel = venue?.venue_name || venue?.name || "Venue"
+    const location =
+      `${venue?.city || ""}${venue?.city && venue?.state ? ", " : ""}${venue?.state || ""}` || "TBD"
+    const fromEvents = venueEvents.map((event) => ({
       id: event.id,
       title: event.title,
       date: new Date(event.date || Date.now()),
-      venue: venue?.venue_name || venue?.name || "Venue",
-      location: `${venue?.city || ""}${venue?.city && venue?.state ? ", " : ""}${venue?.state || ""}` || "TBD",
+      venue: venueLabel,
+      location,
       type: event.type || "performance",
+      href: `/venue/events/${event.id}`,
     }))
-  }, [venueEvents, venue?.city, venue?.name, venue?.state, venue?.venue_name])
+    const fromBookings = bookings.map((booking) => ({
+      id: `booking-${booking.id}`,
+      title: booking.event_name,
+      date: new Date(booking.event_date || Date.now()),
+      venue: venueLabel,
+      location,
+      type: "booking",
+      href: "/venue/bookings",
+    }))
+    // VEN-093: reservation claims split into holds (hold|offer) and confirmed
+    // consumption (contract|confirmed); manual blocks render as unavailable.
+    const fromReservations = reservations.map((r) => ({
+      id: `reservation-${r.id}`,
+      title:
+        r.status === "contract" || r.status === "confirmed"
+          ? `Reserved · ${r.resource_key.replace(/_/g, " ")}`
+          : `Hold (${r.status}) · ${r.resource_key.replace(/_/g, " ")}`,
+      date: new Date(r.starts_at),
+      venue: venueLabel,
+      location,
+      type: r.status === "hold" || r.status === "offer" ? "hold" : "reserved",
+      href: "/venue/bookings",
+    }))
+    const fromBlocks = blocks.map((b) => ({
+      id: `block-${b.date}`,
+      title: "Unavailable (blocked)",
+      date: new Date(`${b.date}T12:00:00`),
+      venue: venueLabel,
+      location,
+      type: "block",
+      href: "/venue/dashboard/settings",
+    }))
+    return [...fromEvents, ...fromReservations, ...fromBookings, ...fromBlocks]
+  }, [venueEvents, reservations, blocks, bookings, venue?.city, venue?.name, venue?.state, venue?.venue_name])
 
   // Get days in month
   const getDaysInMonth = (year: number, month: number) => {
@@ -162,6 +202,16 @@ export default function CalendarPage() {
         </Button>
       </div>
 
+      {/* VEN-093: layer legend */}
+      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400" aria-label="Calendar layers">
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500" />Confirmed event</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-cyan-400" />Booking</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Hold / offer</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-indigo-400" />Reserved (contract)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" />Blocked</span>
+        <span className="ml-auto">Days without markers are open inventory.</span>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3">
           <Card className="bg-gray-900 border-gray-800">
@@ -221,6 +271,30 @@ export default function CalendarPage() {
                             <Badge className="bg-purple-600">{day.events.length}</Badge>
                           )}
                         </div>
+                        {/* VEN-093: per-layer dots */}
+                        {day.events && day.events.length > 0 && (
+                          <div className="mb-1 flex flex-wrap gap-1">
+                            {["confirmed", "performance", "booking", "hold", "reserved", "block"].map((layerType) => {
+                              const count = day.events.filter((e) => e.type === layerType).length
+                              if (!count) return null
+                              const colors: Record<string, string> = {
+                                confirmed: "bg-green-500",
+                                performance: "bg-green-500",
+                                booking: "bg-cyan-400",
+                                hold: "bg-amber-400",
+                                reserved: "bg-indigo-400",
+                                block: "bg-red-500",
+                              }
+                              return (
+                                <span
+                                  key={layerType}
+                                  title={`${count} × ${layerType}`}
+                                  className={`h-2 w-2 rounded-full ${colors[layerType]}`}
+                                />
+                              )
+                            })}
+                          </div>
+                        )}
                         <div className="mt-1 space-y-1">
                           {day.events &&
                             day.events.slice(0, 2).map((event, eventIndex) => (
@@ -278,7 +352,7 @@ export default function CalendarPage() {
                     <div
                       key={index}
                       className="p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800"
-                      onClick={() => router.push(`/venue/events/${event.id}`)}
+                      onClick={() => router.push(event.href || `/venue/events/${event.id}`)}
                     >
                       <div className="flex min-w-0 items-center justify-between gap-2">
                         <h3 className="min-w-0 flex-1 truncate font-medium">{event.title}</h3>
@@ -310,7 +384,7 @@ export default function CalendarPage() {
                     <div
                       key={index}
                       className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-800"
-                      onClick={() => router.push(`/venue/events/${event.id}`)}
+                      onClick={() => router.push(event.href || `/venue/events/${event.id}`)}
                     >
                       <div className="bg-gray-800 p-2 rounded-md text-center min-w-[40px]">
                         <div className="text-xs text-gray-400">

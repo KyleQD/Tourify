@@ -13,7 +13,7 @@ const uploadSchema = z.object({
   isPublic: z.boolean().default(false)
 })
 
-export async function uploadVenueDocument(input: { venueId: string; file: File; name?: string; documentType?: string; isPublic?: boolean }) {
+export async function uploadVenueDocument(input: { venueId: string; file: File; name?: string; documentType?: string; isPublic?: boolean; folderId?: string; description?: string }) {
   const supabase = await createClient()
   const parsed = uploadSchema.safeParse({ venueId: input.venueId, name: input.name || input.file.name, documentType: (input.documentType as any) || 'other', isPublic: !!input.isPublic })
   if (!parsed.success) return { success: false, error: 'Invalid input' }

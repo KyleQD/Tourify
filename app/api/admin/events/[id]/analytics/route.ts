@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   assertAdminEventAccess,
 } from "@/lib/admin/admin-tour-event-access"
 
-export const GET = withAdminAuth(
-  async (request: NextRequest, { supabase, user }, { params }: any = {}) => {
+export async function GET(request: NextRequest) {
+  return withAdminCapability(
+    'event.view',
+    async (request, { supabase, user }) => {
     // Extract id from URL since withAdminAuth HOC doesn't forward params
     const url = new URL(request.url)
     const segments = url.pathname.split('/')
@@ -110,5 +112,6 @@ export const GET = withAdminAuth(
       conversionRate: capacity > 0 ? Number((totalTicketsSold / capacity).toFixed(4)) : 0,
       range,
     })
-  },
-)
+    },
+  )(request)
+}

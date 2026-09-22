@@ -1,0 +1,255 @@
+{
+  "meta": {
+    "feature": "Custom Post Styles",
+    "plan_source": "custom-posts-implementation-plan.md",
+    "spec_source": "docs/custom-posts/tourify-post-styles-handoff/",
+    "created": "2025-07-14",
+    "last_updated": "2025-07-14",
+    "schema_version": "1"
+  },
+  "tasks": [
+    {
+      "id": 0,
+      "title": "Repository Audit & Baseline Docs",
+      "status": "complete",
+      "completed_date": "2025-07-14",
+      "changes": "documentation-only",
+      "outputs": [
+        "docs/post-styles/EPK_POST_STYLE_AUDIT.md",
+        "docs/post-styles/EPK_POST_PARITY_MATRIX.md",
+        "docs/post-styles/POST_RENDER_SURFACE_INVENTORY.md",
+        "docs/post-styles/ARCHITECTURE_DECISIONS.md",
+        "docs/post-styles/BASELINE_AND_VERIFICATION.md",
+        "docs/post-styles/IMPLEMENTATION_STATUS.md",
+        "docs/post-styles/implementation-plan.json"
+      ],
+      "key_findings": {
+        "epk_templates": 19,
+        "epk_appearance_fields": 28,
+        "epk_font_ids": 10,
+        "epk_skin_ids": 19,
+        "post_render_surfaces": 7,
+        "epk_test_baseline": "16/16 passing",
+        "feed_test_baseline": "70/72 passing (2 pre-existing failures in music-post-preview.test.ts)",
+        "posts_table_columns": 33,
+        "new_tables_exist": false,
+        "feature_flags_schema": ["id", "key", "name", "description", "enabled", "rollout_percentage", "target_org_ids", "created_at", "updated_at"]
+      }
+    },
+    {
+      "id": 1,
+      "title": "Shared Appearance Contract (lib/appearance/)",
+      "status": "pending",
+      "depends_on": [0],
+      "expected_files": [
+        "lib/appearance/contracts.ts",
+        "lib/appearance/schema.ts",
+        "lib/appearance/template-registry.ts",
+        "lib/appearance/capabilities.ts",
+        "lib/appearance/sanitize.ts",
+        "lib/appearance/compile.ts",
+        "lib/appearance/telemetry.ts",
+        "lib/appearance/__tests__/registry.test.ts",
+        "lib/appearance/__tests__/sanitize.test.ts",
+        "lib/appearance/__tests__/compile.test.ts"
+      ],
+      "key_constraint": "Zero changes to lib/epk/ — all imports are FROM lib/epk/, not replacing it"
+    },
+    {
+      "id": 2,
+      "title": "Additive Database Schema & Feature Flags",
+      "status": "pending",
+      "depends_on": [1],
+      "expected_files": [
+        "supabase/migrations/*_post_style_profiles.sql",
+        "supabase/migrations/*_post_appearances.sql",
+        "supabase/migrations/*_post_appearance_revisions.sql",
+        "supabase/migrations/*_post_styles_feature_flags.sql",
+        "lib/post-style-flags.ts",
+        "__tests__/post-styles/rls.test.ts"
+      ],
+      "expected_feature_flags": [
+        "post_styles_read",
+        "post_styles_write",
+        "post_styles_editor",
+        "post_styles_all_templates"
+      ],
+      "key_constraint": "No changes to existing posts table. All flags inserted with enabled=false, rollout_percentage=0"
+    },
+    {
+      "id": 3,
+      "title": "Post Style Profiles Service Layer",
+      "status": "pending",
+      "depends_on": [2],
+      "expected_files": [
+        "lib/post-style-profiles/profiles.service.ts",
+        "lib/post-style-profiles/appearance-snapshot.service.ts",
+        "app/api/post-style-profiles/route.ts",
+        "app/api/post-style-profiles/[id]/route.ts",
+        "app/api/post-style-profiles/[id]/default/route.ts",
+        "app/api/post-appearance/preview/route.ts",
+        "__tests__/post-styles/profiles.service.test.ts"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Extend Post Creation to Snapshot Appearance",
+      "status": "pending",
+      "depends_on": [3],
+      "expected_files": [
+        "__tests__/post-styles/post-create-appearance.test.ts"
+      ],
+      "modified_files": [
+        "app/api/posts/create/route.ts"
+      ],
+      "key_constraint": "When appearance is absent OR post_styles_write flag is off: route behavior is byte-identical to current"
+    },
+    {
+      "id": 5,
+      "title": "Feed Query & DTO Extension",
+      "status": "pending",
+      "depends_on": [4],
+      "expected_files": [
+        "lib/feed/resolve-post-appearance-dto.ts"
+      ],
+      "modified_files": [
+        "lib/feed/feed-posts-query.ts",
+        "lib/services/feed.service.ts"
+      ],
+      "key_constraint": "No new network request per card. Null appearance rows produce identical output to today."
+    },
+    {
+      "id": 6,
+      "title": "One-Template Vertical Slice (End-to-End)",
+      "status": "pending",
+      "depends_on": [5],
+      "expected_files": [
+        "components/posts/appearance/post-style-boundary.tsx",
+        "components/posts/appearance/standard-post-fallback.tsx",
+        "components/posts/appearance/post-template-adapter.tsx",
+        "components/posts/appearance/styled-post-root.tsx",
+        "__tests__/post-styles/post-style-boundary.test.tsx"
+      ],
+      "modified_files": [
+        "components/feed/post-card.tsx"
+      ],
+      "initial_template": "modern",
+      "key_constraint": "PostCard renders identically to today when post_styles_read flag is off"
+    },
+    {
+      "id": 7,
+      "title": "Settings Appearance Tab: Post Styles Manager",
+      "status": "pending",
+      "depends_on": [6],
+      "expected_files": [
+        "components/posts/appearance/template-gallery.tsx",
+        "components/posts/appearance/control-renderer.tsx",
+        "components/settings/post-styles-settings-panel.tsx"
+      ],
+      "modified_files": [
+        "components/settings/artist-account-settings.tsx",
+        "components/settings/general-account-settings.tsx",
+        "components/settings/venue-account-settings.tsx",
+        "components/settings/organization-account-settings.tsx"
+      ],
+      "key_constraint": "Existing appearance content in artist and general settings is pixel-identical after change. account-scoped-settings.tsx needs no tab registration changes."
+    },
+    {
+      "id": 8,
+      "title": "Composer Style Control",
+      "status": "pending",
+      "depends_on": [7],
+      "expected_files": [
+        "components/posts/appearance/preview-switcher.tsx",
+        "components/posts/appearance/appearance-editor.tsx"
+      ],
+      "modified_files": [
+        "components/feed/clean-post-creator.tsx",
+        "components/feed/compact-post-creator.tsx",
+        "components/feed/enhanced-post-creator.tsx"
+      ],
+      "key_constraint": "template-gallery.tsx and control-renderer.tsx are SHARED from Task 7 — no copied component trees"
+    },
+    {
+      "id": 9,
+      "title": "Full Template Adapter Coverage",
+      "status": "pending",
+      "depends_on": [6],
+      "expected_files": [
+        "components/posts/appearance/adapters/modern.tsx",
+        "components/posts/appearance/adapters/classic.tsx",
+        "components/posts/appearance/adapters/minimal.tsx",
+        "components/posts/appearance/adapters/bold.tsx",
+        "components/posts/appearance/adapters/cinema.tsx",
+        "components/posts/appearance/adapters/gallery.tsx",
+        "components/posts/appearance/adapters/luxe.tsx",
+        "components/posts/appearance/adapters/poster.tsx",
+        "components/posts/appearance/adapters/coastal.tsx",
+        "components/posts/appearance/adapters/scrapbook.tsx",
+        "components/posts/appearance/adapters/bandcard.tsx",
+        "components/posts/appearance/adapters/dossier.tsx",
+        "components/posts/appearance/adapters/pressgrid.tsx",
+        "components/posts/appearance/adapters/redcolumn.tsx",
+        "components/posts/appearance/adapters/checkerboard.tsx",
+        "components/posts/appearance/adapters/editorial.tsx",
+        "components/posts/appearance/adapters/whitespace.tsx",
+        "components/posts/appearance/adapters/colorblock.tsx",
+        "components/posts/appearance/adapters/sunburst.tsx"
+      ],
+      "template_count": 19,
+      "gated_by": "post_styles_all_templates feature flag (only 'modern' available when flag is off)"
+    },
+    {
+      "id": 10,
+      "title": "All Post Render Surfaces",
+      "status": "pending",
+      "depends_on": [9],
+      "surfaces_to_update": [
+        "components/feed/post-card.tsx",
+        "components/feed/post-card-modern.tsx",
+        "components/feed/simple-feed.tsx",
+        "components/feed/social-feed.tsx",
+        "components/feed/streamlined-feed.tsx",
+        "components/artist/artist-home-feed.tsx",
+        "components/dashboard/dashboard-feed.tsx"
+      ],
+      "inventory_doc": "docs/post-styles/POST_RENDER_SURFACE_INVENTORY.md"
+    },
+    {
+      "id": 11,
+      "title": "Hardening: Security, Accessibility, Performance",
+      "status": "pending",
+      "depends_on": [10],
+      "gates": [
+        "RLS authorization matrix tests pass",
+        "CSS injection fuzz tests pass",
+        "WCAG AA contrast check for all 19 templates",
+        "Keyboard navigation audit for composer Style panel",
+        "prefers-reduced-motion compliance",
+        "Core Web Vitals within budget (20 mixed-style posts)",
+        "Zero EPK visual regressions",
+        "Render compile cache functional"
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Controlled Release",
+      "status": "pending",
+      "depends_on": [11],
+      "rollout_stages": [
+        { "percentage": 0, "scope": "feature flags off" },
+        { "percentage": 1, "scope": "internal staff only" },
+        { "percentage": 5, "scope": "early access users" },
+        { "percentage": 25, "scope": "25% of all users" },
+        { "percentage": 50, "scope": "50% of all users" },
+        { "percentage": 100, "scope": "general availability" }
+      ],
+      "flags_to_enable_in_order": [
+        "post_styles_read",
+        "post_styles_write",
+        "post_styles_editor",
+        "post_styles_all_templates"
+      ]
+    }
+  ]
+}

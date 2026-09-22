@@ -84,20 +84,24 @@ export function mapV2RowToAdminEvent(row: any, venueName: string | null): Record
   >
   const description = typeof settings.description === 'string' ? settings.description : ''
   const venueLabel = typeof settings.venue_label === 'string' ? settings.venue_label : ''
-  const start = row?.start_at ? new Date(row.start_at) : new Date()
-  const eventDate = Number.isNaN(start.getTime()) ? new Date().toISOString().slice(0, 10) : start.toISOString().slice(0, 10)
-  const eventTime = Number.isNaN(start.getTime())
-    ? '00:00'
+  const isQuickStartPlaceholder = settings.quick_start_placeholder === true
+  const start = row?.start_at ? new Date(row.start_at) : null
+  const eventDate = !start || Number.isNaN(start.getTime()) ? '' : start.toISOString().slice(0, 10)
+  const eventTime = !start || Number.isNaN(start.getTime())
+    ? ''
     : `${String(start.getUTCHours()).padStart(2, '0')}:${String(start.getUTCMinutes()).padStart(2, '0')}`
 
   const cap = row?.capacity != null ? Number(row.capacity) : 0
 
   return {
     id: row.id,
-    name: row.title,
+    name:
+      isQuickStartPlaceholder && typeof settings.quick_start_label === 'string'
+        ? settings.quick_start_label
+        : row.title,
     description,
     tour_id: undefined,
-    venue_name: venueName || venueLabel || 'Venue',
+    venue_name: venueName || venueLabel || 'Venue TBD',
     venue_address: undefined,
     event_date: eventDate,
     event_time: eventTime,
@@ -121,6 +125,8 @@ export function mapV2RowToAdminEvent(row: any, venueName: string | null): Record
     load_in_time: undefined,
     sound_check_time: undefined,
     tour: undefined,
+    settings,
+    is_quick_start_placeholder: isQuickStartPlaceholder,
   }
 }
 

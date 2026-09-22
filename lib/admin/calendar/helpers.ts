@@ -15,7 +15,7 @@ export function getCalendarItemColor(
 
 export function parseCalendarKinds(raw: string | null | undefined): AdminCalendarKind[] | undefined {
   if (!raw?.trim()) return undefined
-  const allowed = new Set(['event', 'tour', 'task', 'shift', 'production', 'hiring'])
+  const allowed = new Set(['event', 'tour', 'task', 'shift', 'production', 'hiring', 'travel'])
   const kinds = raw
     .split(',')
     .map((part) => part.trim().toLowerCase())
@@ -59,6 +59,8 @@ export function hrefForKind(kind: AdminCalendarKind, sourceId: string): string {
       return `/admin/dashboard/tours/${sourceId}`
     case 'task':
       return `/admin/dashboard/logistics`
+    case 'travel':
+      return `/admin/dashboard/logistics?tab=accommodations`
     case 'shift':
       return `/admin/dashboard/staff?tab=scheduling`
     case 'production':

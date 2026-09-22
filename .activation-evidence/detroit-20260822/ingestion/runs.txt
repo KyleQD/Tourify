@@ -1,0 +1,8 @@
+RUN|musicbrainz|succeeded|req=2|rec=15|cand=0|upd=16|err=0
+RUN|radio-browser|succeeded|req=1|rec=25|cand=0|upd=25|err=0
+CAND|musicbrainz_artist_identity|artist|new_candidate|needs_review|15
+CAND|musicbrainz_artist_identity|cultural_entity|new_candidate|needs_review|24
+CAND|musicbrainz_geo|place|matched|needs_review|1
+CAND|radio_browser_directory|radio_station|matched|needs_review|25
+STATION|draft=25
+EDGE|candidate=25

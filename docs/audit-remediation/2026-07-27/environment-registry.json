@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-28",
+  "write_policy": "blocked_until_backup_pitr_and_owner_gates_complete",
+  "environments": [
+    {
+      "name": "production",
+      "supabase_project_ref": "auqddrodjezjlypkzfpi",
+      "display_name": "Tourify Demo",
+      "status": "CONFIRMED_PRODUCTION",
+      "allowed_access": "READ_ONLY_EVIDENCE",
+      "evidence_required": [
+        "release_lead_approval",
+        "backup_pitr_readiness"
+      ],
+      "evidence_observed": [
+        "Vercel project prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n serves tourify.live",
+        "tracked deployment/production.env points to auqddrodjezjlypkzfpi",
+        "local Supabase link points to auqddrodjezjlypkzfpi",
+        "Supabase reports the project ACTIVE_HEALTHY with 180 migrations",
+        "Project owner confirmed the Vercel Production URL hostname on 2026-07-28",
+        "Kyle Daley accepted temporary accountability for release, database, security, QA, platform, and all domain-owner roles"
+      ]
+    },
+    {
+      "name": "legacy-development",
+      "supabase_project_ref": "jfguijrghezwfpllzsir",
+      "display_name": "Tourify-dev",
+      "status": "INACTIVE",
+      "allowed_access": "NONE_UNTIL_REAPPROVED"
+    }
+  ]
+}

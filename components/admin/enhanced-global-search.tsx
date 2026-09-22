@@ -101,8 +101,8 @@ export function EnhancedGlobalSearch({
       const [toursRes, eventsRes, artistsRes, venuesRes] = await Promise.allSettled([
         fetch(`/api/admin/tours?search=${q}&limit=5`, adminInit),
         fetch(`/api/admin/events?search=${q}&limit=5`, adminInit),
-        fetch(`/api/search?q=${q}&type=artists&limit=5`, { credentials: 'include' }),
-        fetch(`/api/search?q=${q}&type=venues&limit=5`, { credentials: 'include' }),
+        fetch(`/api/search?q=${q}&category=profiles&profileType=artist&limit=5`, { credentials: 'include' }),
+        fetch(`/api/search?q=${q}&category=profiles&profileType=venue&limit=5`, { credentials: 'include' }),
       ])
 
       const tourItems: SearchResult[] = []
@@ -140,14 +140,14 @@ export function EnhancedGlobalSearch({
       const artistItems: SearchResult[] = []
       if (artistsRes.status === 'fulfilled' && artistsRes.value.ok) {
         const d = await artistsRes.value.json()
-        for (const a of (d.results || d.artists || [])) {
+        for (const a of (d.items || [])) {
           artistItems.push({
             id: a.id,
             type: 'artist',
-            title: a.display_name || a.name || a.username || 'Unknown Artist',
-            subtitle: (a.genres || []).join(', ') || 'Artist',
+            title: a.title || 'Unknown Artist',
+            subtitle: a.metadata?.location || 'Artist',
             url: `/admin/dashboard/artists/${a.id}`,
-            image: a.avatar_url,
+            image: a.imageUrl,
           })
         }
       }
@@ -155,12 +155,12 @@ export function EnhancedGlobalSearch({
       const venueItems: SearchResult[] = []
       if (venuesRes.status === 'fulfilled' && venuesRes.value.ok) {
         const d = await venuesRes.value.json()
-        for (const v of (d.results || d.venues || [])) {
+        for (const v of (d.items || [])) {
           venueItems.push({
             id: v.id,
             type: 'venue',
-            title: v.venue_name || v.name || 'Unknown Venue',
-            subtitle: [v.city, v.state].filter(Boolean).join(', '),
+            title: v.title || 'Unknown Venue',
+            subtitle: v.metadata?.location || '',
             url: `/admin/dashboard/venues/${v.id}`,
           })
         }
@@ -610,7 +610,7 @@ export function EnhancedGlobalSearch({
 
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
-                                  <h4 className="text-sm font-medium text-white truncate group-hover:text-purple-400 transition-colors">
+                                  <h4 className="min-w-0 line-clamp-2 break-words text-sm font-medium text-white group-hover:text-purple-400 transition-colors" title={result.title}>
                                     {result.title}
                                   </h4>
                                   <div className="flex items-center space-x-2">

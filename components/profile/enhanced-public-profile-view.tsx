@@ -50,14 +50,13 @@ import {
   Radio,
   Headphones,
   Volume2,
-  Plus,
-  Edit,
   Settings,
   ShoppingBag
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
+import { resolveProfileCoverUrl } from "@/lib/profile/profile-image-events"
 
 interface EnhancedPublicProfileProps {
   profile: {
@@ -561,31 +560,67 @@ export function EnhancedPublicProfileView({
     }
   }, [isMarketplaceVisible, profile.id, profile.username])
 
+  const coverUrl = resolveProfileCoverUrl({
+    cover_image: profile.cover_image || profile.profile_data?.cover_image,
+    metadata: profile.profile_data?.metadata,
+  })
+  const followerCount = profile.stats.followers ?? 0
+  const followingCount = profile.stats.following ?? 0
+  const followerLabel = followerCount === 1 ? "follower" : "followers"
+  const followingLabel = followingCount === 1 ? "following" : "following"
+
   return (
     <div className={`min-h-screen ${getBackgroundGradient()}`}>
-      {/* Hero Section */}
-      <div className="relative h-96 overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: profile.cover_image ? `url(${profile.cover_image})` : `linear-gradient(135deg, ${profileColors.primary_color} 0%, ${profileColors.secondary_color} 100%)`,
-          }}
-        />
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-        
-        <div className="relative h-full flex items-end">
-          <div className="container mx-auto px-6 pb-8">
-            <div className="flex items-end gap-6">
-              <Avatar className="h-48 w-48 border-4 border-white/20 shadow-2xl">
+      {isOwnProfile && (
+        <div className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 backdrop-blur-md">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+            <p className="text-sm text-white/70">
+              You&apos;re viewing your public profile
+            </p>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-white/20 bg-white/5 text-white hover:bg-white/10"
+            >
+              <Link href="/settings">
+                <Settings className="h-3.5 w-3.5 mr-2" />
+                Edit in Settings
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Full-bleed hero */}
+      <div className="relative w-full overflow-hidden">
+        <div className="relative h-56 sm:h-72 md:h-80">
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: coverUrl
+                ? `url(${coverUrl})`
+                : `linear-gradient(135deg, ${profileColors.primary_color} 0%, ${profileColors.secondary_color} 100%)`,
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/20" />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="-mt-16 flex flex-col gap-6 pb-8 sm:-mt-20 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
+              <Avatar className="h-28 w-28 shrink-0 border-4 border-slate-950 shadow-2xl ring-2 ring-white/10 sm:h-36 sm:w-36">
                 <AvatarImage src={profile.avatar_url} alt={getDisplayName()} />
-                <AvatarFallback className="text-4xl bg-gradient-to-br from-emerald-500 to-teal-500">
+                <AvatarFallback className="text-3xl bg-gradient-to-br from-emerald-500 to-teal-500">
                   {getDisplayName().charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              
-              <div className="flex-1 text-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold">{getDisplayName()}</h1>
+
+              <div className="min-w-0 flex-1 text-white pb-1">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-3xl font-bold tracking-tight sm:text-4xl">
+                    {getDisplayName()}
+                  </h1>
                   {profile.verified && (
                     <Badge className="bg-blue-500 text-white">
                       <CheckCircle className="h-3 w-3 mr-1" />
@@ -593,124 +628,118 @@ export function EnhancedPublicProfileView({
                     </Badge>
                   )}
                 </div>
-                
-                <p className="text-xl mb-2" style={{ color: profileColors.accent_color }}>{getDisplayTitle()}</p>
-                
+
+                <p className="mb-2 text-lg" style={{ color: profileColors.accent_color }}>
+                  {getDisplayTitle()}
+                </p>
+
                 {profile.profile_data?.company && (
-                  <p className="text-white/80 mb-3">
-                    <Building className="h-4 w-4 inline mr-2" />
+                  <p className="mb-2 text-white/70 text-sm">
+                    <Building className="h-4 w-4 inline mr-1.5" />
                     {profile.profile_data.company}
                   </p>
                 )}
-                
-                <div className="flex items-center gap-6 text-sm text-white/80 mb-3">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    {profile.stats.followers.toLocaleString()} followers
-                  </div>
-                  {profile.stats.projects_completed && (
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" />
-                      {profile.stats.projects_completed} projects completed
-                    </div>
-                  )}
-                  {profile.stats.client_rating && (
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4" />
-                      {profile.stats.client_rating}/5 rating
-                    </div>
-                  )}
-                  {profile.stats.streams && (
-                    <div className="flex items-center gap-2">
-                      <Headphones className="h-4 w-4" />
-                      {formatStreams(profile.stats.streams)} streams
-                    </div>
-                  )}
+
+                <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/75">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Users className="h-4 w-4 shrink-0" />
+                    {followerCount.toLocaleString()} {followerLabel}
+                  </span>
+                  <span className="text-white/40" aria-hidden>
+                    ·
+                  </span>
+                  <span>
+                    {followingCount.toLocaleString()} {followingLabel}
+                  </span>
+                  {profile.stats.streams ? (
+                    <>
+                      <span className="text-white/40" aria-hidden>
+                        ·
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Headphones className="h-4 w-4" />
+                        {formatStreams(profile.stats.streams)} streams
+                      </span>
+                    </>
+                  ) : null}
                 </div>
-                
-                <div className="flex items-center gap-4">
+
+                <div className="flex flex-wrap items-center gap-3">
                   {profile.location && (
-                    <div className="flex items-center gap-2 text-white/80">
+                    <div className="flex items-center gap-1.5 text-sm text-white/70">
                       <MapPin className="h-4 w-4" />
                       {profile.location}
                     </div>
                   )}
-                  
                   {profile.profile_data?.availability_status && (
-                    <Badge className={cn("text-white", getAvailabilityColor(profile.profile_data.availability_status))}>
-                      <div className="w-2 h-2 rounded-full bg-white mr-2"></div>
+                    <Badge
+                      className={cn(
+                        "text-white",
+                        getAvailabilityColor(profile.profile_data.availability_status)
+                      )}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-white mr-2" />
                       {getAvailabilityText(profile.profile_data.availability_status)}
                     </Badge>
                   )}
                 </div>
               </div>
-              
-              <div className="flex flex-col gap-3">
-                {artistPublicPath && (
-                  <Button asChild className="bg-emerald-500 text-white hover:bg-emerald-400 font-semibold">
-                    <Link href={artistPublicPath}>
-                      <Music className="h-4 w-4 mr-2" />
-                      View Artist Page
-                    </Link>
-                  </Button>
-                )}
-                {!isOwnProfile && (
-                  <>
-                    <FollowFriendButton
-                      kind={
-                        profile.account_type === 'artist' ||
-                        profile.account_type === 'venue' ||
-                        profile.account_type === 'organization'
-                          ? 'follow'
-                          : 'friend'
-                      }
-                      accountType={profile.account_type}
-                      targetUserId={profile.id}
-                      size="default"
-                      className="bg-white text-black hover:bg-white/90 font-semibold"
-                      initialRelationship={relationship}
-                    />
-                    <Button 
-                      onClick={() => onMessage?.(profile.id)}
-                      variant="outline" 
-                      className="border-white/30 text-white hover:bg-white/10"
-                    >
-                      <Mail className="h-4 w-4 mr-2" />
-                      Message
-                    </Button>
-                  </>
-                )}
-                {isOwnProfile && (
-                  <Button 
-                    variant="outline" 
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-stretch">
+              {artistPublicPath && (
+                <Button
+                  asChild
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 font-semibold"
+                >
+                  <Link href={artistPublicPath}>
+                    <Music className="h-4 w-4 mr-2" />
+                    View Artist Page
+                  </Link>
+                </Button>
+              )}
+              {!isOwnProfile && (
+                <>
+                  <FollowFriendButton
+                    kind={
+                      profile.account_type === "artist" ||
+                      profile.account_type === "venue" ||
+                      profile.account_type === "organization"
+                        ? "follow"
+                        : "friend"
+                    }
+                    accountType={profile.account_type}
+                    targetUserId={profile.id}
+                    size="default"
+                    className="bg-white text-black hover:bg-white/90 font-semibold"
+                    initialRelationship={relationship}
+                  />
+                  <Button
+                    onClick={() => onMessage?.(profile.id)}
+                    variant="outline"
                     className="border-white/30 text-white hover:bg-white/10"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Profile
+                    <Mail className="h-4 w-4 mr-2" />
+                    Message
                   </Button>
-                )}
-                {profile.profile_data?.hourly_rate && (
-                  <div className="text-center text-white/80 text-sm">
-                    ${profile.profile_data.hourly_rate}/hr
-                  </div>
-                )}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="border-white/30 text-white hover:bg-white/10"
-                  onClick={() => onShare?.(profile)}
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
-                </Button>
-              </div>
+                </>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/30 text-white hover:bg-white/10"
+                onClick={() => onShare?.(profile)}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-6 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-8">
@@ -726,28 +755,22 @@ export function EnhancedPublicProfileView({
                 <p className="text-white/90 leading-relaxed mb-6">
                   {profile.bio || "This professional hasn't added a bio yet."}
                 </p>
-                
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="text-center p-4 bg-white/5 rounded-xl">
-                    <Briefcase className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+
+                <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-3">
+                  <div className="min-w-0 text-center p-4 bg-white/5 rounded-xl">
+                    <Briefcase className="h-6 w-6 text-emerald-400 mx-auto mb-2" />
                     <div className="text-2xl font-bold text-white">{projects.length}</div>
                     <div className="text-sm text-white/60">Projects</div>
                   </div>
-                  <div className="text-center p-4 bg-white/5 rounded-xl">
-                    <Star className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-white">{profile.stats.client_rating || 0}/5</div>
-                    <div className="text-sm text-white/60">Rating</div>
+                  <div className="min-w-0 text-center p-4 bg-white/5 rounded-xl">
+                    <Users className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">{followerCount}</div>
+                    <div className="text-sm text-white/60">{followerLabel}</div>
                   </div>
-                  <div className="text-center p-4 bg-white/5 rounded-xl">
-                    <Clock className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-white">{profile.stats.response_rate || 95}%</div>
-                    <div className="text-sm text-white/60">Response Rate</div>
-                  </div>
-                  <div className="text-center p-4 bg-white/5 rounded-xl">
-                    <Users className="h-8 w-8 text-purple-400 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-white">{profile.stats.followers}</div>
-                    <div className="text-sm text-white/60">Followers</div>
+                  <div className="min-w-0 text-center p-4 bg-white/5 rounded-xl col-span-2 sm:col-span-1">
+                    <MessageCircle className="h-6 w-6 text-sky-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">{profile.stats.posts ?? 0}</div>
+                    <div className="text-sm text-white/60">Posts</div>
                   </div>
                 </div>
 
@@ -1036,10 +1059,12 @@ export function EnhancedPublicProfileView({
 
             {/* Achievements Section */}
             {isAchievementsVisible && (
-              <ProfileAchievementsSection 
+              <ProfileAchievementsSection
                 userId={profile.id}
+                username={profile.username}
                 isOwnProfile={isOwnProfile}
-                className="bg-white/10 backdrop-blur border-0 rounded-3xl"
+                variant="public"
+                className="rounded-3xl"
               />
             )}
 

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823220001_money_path_transactional_rpcs.sql",
+  "taskId": "H6-MONEY-RPCS",
+  "status": "staging_validated",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "ticketing",
+    "settlements",
+    "tours"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": "Post-apply staging inspection: function definitions, grants, pinned search_path (task DB-002 evidence)"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "to_regclass probes; allocation row counts per event before/after in staging"
+    ],
+    "expectedAffectedRows": "DDL only at apply time; RPCs mutate only when later invoked by authorized routes",
+    "artifact": "Chain + validation scans clean (277 files); CREATE OR REPLACE review; read-only probes only"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Two CREATE OR REPLACE FUNCTION statements in one transaction; retry-safe",
+    "resumeCursor": "supabase migration version 20260823220001",
+    "idempotency": "CREATE OR REPLACE converges to identical definitions on re-run"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Function definitions, grants, search_path pinning; behavior parity checks vs legacy paths"
+  },
+  "recovery": {
+    "rollback": "Replace functions with last reviewed definitions; never delete invoked-function history data",
+    "forwardFix": "Later CREATE OR REPLACE preserving signatures"
+  },
+  "postflight": {
+    "queries": [
+      "functions exist with SECURITY DEFINER + pinned search_path",
+      "grants to authenticated+service_role",
+      "staging parity: settlements replace + tour cascade match legacy outcomes"
+    ],
+    "artifact": "Post-apply pg_proc + grants probes; results recorded in task DB-002 evidence (2026-09-09)",
+    "securityAdvisorArtifact": "Not run as separate artifact \u2014 posture verified via pg_proc/grants probes in staging (DB-002 evidence)",
+    "performanceAdvisorArtifact": "Not applicable \u2014 RPC definitions only; no hot-path plan changes at apply"
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": "Reviewed against production-shaped staging and applied via Management API (HTTP 201) on 2026-09-09. Postflight: replace_ticket_revenue_allocations and delete_tour_cascade exist with SECURITY DEFINER + search_path=public; grants to authenticated+service_role confirmed.",
+    "staging": "Applied via Management API (HTTP 201) on 2026-09-09. Postflight: replace_ticket_revenue_allocations and delete_tour_cascade exist with SECURITY DEFINER + search_path=public; grants to authenticated+service_role confirmed.",
+    "production": null
+  },
+  "exceptions": []
+}

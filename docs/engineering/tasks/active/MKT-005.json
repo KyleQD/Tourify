@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "id": "MKT-005",
+  "title": "Authenticated checkout return and buyer isolation",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "marketplace",
+  "created_at": "2026-09-22T15:20:21.185Z",
+  "updated_at": "2026-09-22T15:56:34Z",
+  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+  "working_tree_status": "dirty (82 entries)",
+  "goal": "Return signed-in marketplace buyers to their own paid order confirmation while preserving guest-token checkout",
+  "scope": {
+    "in": [
+      "Route authenticated checkout success to buyer-authorized paid order confirmation.",
+      "Preserve guest opaque-token order confirmation and add focused branch and denial tests."
+    ],
+    "out": [
+      "Changing Stripe production configuration.",
+      "Making guest tokens guessable or exposing other buyers orders."
+    ]
+  },
+  "working_set": [
+    "app/api/marketplace/checkout/route.ts",
+    "app/marketplace/order/",
+    "lib/marketplace/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/MKT-004.json",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    "Signed-in buyer returns from test checkout to a loadable own-order confirmation.",
+    "Guest success still resolves only through opaque guest token.",
+    "Wrong signed-in user cannot load another buyers order.",
+    "Focused tests cover authenticated and guest success URL branches and authorization."
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "Focused marketplace checkout tests",
+      "npm run verify:feature -- --changed",
+      "Staging test-mode buyer/seller rerun"
+    ],
+    "evidence": [
+      "Local: 3 focused Jest suites passed, 19 tests including wrong-buyer/unsigned denial, session mismatch, and guest flow.",
+      "Full repository typecheck was attempted by the implementation agent but interrupted after about two minutes without diagnostics; no hosted checkout was run.",
+      "All marketplace checkout Jest suites passed locally (3 suites, 11 tests); focused checkout/order lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no Stripe or hosted actor run.",
+      "QA-004 product repair validation rerun (2026-09-22): Checkout and buyer order-access Jest: 3 suites, 11 tests passed; signed-in/guest return and wrong-buyer denial remain local proof only."
+    ],
+    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_at": "2026-09-22T15:56:34Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Local checkout return and buyer-access contracts reverified; staged buyer/guest/seller payment proof remains pending.",
+    "completed": [
+      "Authenticated success URL now carries order UUID and Stripe session identifier; guest opaque token path remains.",
+      "Order loader verifies signed-in buyer, buyer ownership, and stored session on Stripe return.",
+      "Purchase history links to buyer-authorized order confirmation."
+    ],
+    "next_steps": [
+      "Deploy to isolated staging and rerun authenticated buyer, wrong buyer, guest buyer, and seller visibility in Stripe test mode."
+    ],
+    "blockers": [
+      "Live test-mode checkout and buyer/seller evidence require isolated staging and protected Stripe test configuration."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-22T15:30:36Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Authenticated checkout return and buyer-scoped order confirmation fixed locally; Stripe test-mode buyer/seller rerun remains pending.",
+        "completed": [
+          "Authenticated success URL now carries order UUID and Stripe session identifier; guest opaque token path remains.",
+          "Order loader verifies signed-in buyer, buyer ownership, and stored session on Stripe return.",
+          "Purchase history links to buyer-authorized order confirmation."
+        ],
+        "next": "Deploy to isolated staging and rerun authenticated buyer, wrong buyer, guest buyer, and seller visibility in Stripe test mode."
+      },
+      {
+        "at": "2026-09-22T15:55:04Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Local checkout return and buyer-access contracts reverified; staged buyer/guest/seller payment proof remains pending.",
+        "completed": [
+          "All marketplace checkout Jest suites passed locally (3 suites, 11 tests); focused checkout/order lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no Stripe or hosted actor run."
+        ],
+        "next": "Run authenticated buyer, wrong buyer, guest buyer, and seller visibility in isolated staging with Stripe test mode."
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Checkout and buyer order-access Jest: 3 suites, 11 tests passed; signed-in/guest return and wrong-buyer denial remain local proof only.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      }
+    ]
+  },
+  "handoffs": [
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+  ]
+}

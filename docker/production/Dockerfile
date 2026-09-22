@@ -1,14 +1,16 @@
 # Multi-stage production Dockerfile for Tourify
-FROM node:18-alpine AS base
+FROM node:24-alpine AS base
+
+RUN npm install --global npm@11.17.0
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat curl
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
 # Build stage
 FROM base AS builder
@@ -54,4 +56,4 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]

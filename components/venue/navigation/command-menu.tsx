@@ -18,16 +18,20 @@ import {
   MessageSquare,
   Settings,
   Users,
-  Building,
   HelpCircle,
   LogOut,
   Mic,
-  DollarSign,
 } from "lucide-react"
+import { getActiveVenueRoutes } from "@/lib/venue/route-registry"
 
 interface CommandMenuProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+/** Registry-driven Venue navigation entries (VEN-298). */
+function venueCommandItems() {
+  return getActiveVenueRoutes().filter((route) => route.commandNav)
 }
 
 export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
@@ -76,19 +80,16 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />
-        <CommandGroup heading="Venues">
-          <CommandItem onSelect={() => runCommand(() => router.push("/venues"))}>
-            <Building className="mr-2 h-4 w-4" />
-            <span>Venues</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/venue/equipment"))}>
-            <Mic className="mr-2 h-4 w-4" />
-            <span>Equipment</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/venue/finances"))}>
-            <DollarSign className="mr-2 h-4 w-4" />
-            <span>Finances</span>
-          </CommandItem>
+        <CommandGroup heading="Venue Operations">
+          {venueCommandItems().map((route) => (
+            <CommandItem
+              key={route.id}
+              onSelect={() => runCommand(() => router.push(route.href))}
+            >
+              <Mic className="mr-2 h-4 w-4" />
+              <span>{route.label}</span>
+            </CommandItem>
+          ))}
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Account">

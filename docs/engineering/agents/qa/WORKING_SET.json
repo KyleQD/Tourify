@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "agent": "qa",
+  "description": "Own test strategy, fixtures, end-to-end journeys, regression evidence, and quality gates.",
+  "paths": [
+    "__tests__/**",
+    "tests/**",
+    "scripts/qa/**",
+    "playwright.config.ts",
+    "vitest.config.ts",
+    "jest.config.cjs",
+    "docs/qa-*.md"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

@@ -136,6 +136,7 @@ export interface LodgingGuestAssignment {
   guest_email?: string
   guest_phone?: string
   guest_type: 'crew' | 'artist' | 'staff' | 'vendor' | 'guest' | 'vip'
+  assigned_user_id?: string
   staff_id?: string
   crew_member_id?: string
   team_member_id?: string

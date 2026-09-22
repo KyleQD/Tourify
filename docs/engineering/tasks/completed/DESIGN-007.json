@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-007",
+  "title": "Retire venue aspect-ratio primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:34.299Z",
+  "updated_at": "2026-09-11T19:46:10.584Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/aspect-ratio.tsx to components/ui/aspect-ratio.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/aspect-ratio.tsx",
+      "components/ui/aspect-ratio.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/aspect-ratio.tsx",
+    "components/ui/aspect-ratio.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/aspect-ratio|@/components/venue/ui/aspect-ratio\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/aspect-ratio.tsx components/ui/aspect-ratio.tsx",
+      "git diff --check -- components/venue/ui/aspect-ratio.tsx components/ui/aspect-ratio.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Consumer audit returned no components/venue/ui/aspect-ratio or @/components/venue/ui/aspect-ratio imports under app/, components/, hooks/, lib/, apps/, __tests__/, or scripts/.",
+      "components/venue/ui/aspect-ratio.tsx and components/ui/aspect-ratio.tsx are byte-identical with matching SHA-256 589c299c27e2ad99c2e96c9a90e6ad49051cf99fc88f0c42a13465177379186f.",
+      "Both implementations expose the same named AspectRatio export backed by @radix-ui/react-aspect-ratio Root; no public contract differences were found.",
+      "The canonical component already has an application consumer at components/social/post-item.tsx; no venue consumer or approved migration path was identified.",
+      "Canonical component register marks components/venue/ui/aspect-ratio.tsx retire later with components/ui/aspect-ratio.tsx as the target; no register change was authorized for this audit.",
+      "Focused ESLint passed for both aspect-ratio files.",
+      "git diff --check passed for the scoped component and docs paths.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:10.584Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Audit complete: the venue aspect-ratio twin has no live consumers, is byte-identical to the canonical shared primitive, and has no public/export parity differences. Safe disposition is retire later; the twin remains retained pending separate cleanup authorization.",
+    "completed": [
+      "Audited all in-scope source consumers and found zero imports of components/venue/ui/aspect-ratio.tsx.",
+      "Compared venue and canonical aspect-ratio implementations and confirmed byte, named-export, and Radix Root parity.",
+      "Confirmed the canonical register disposition and documented the absence of an approved venue consumer migration path.",
+      "Ran the focused verification commands and recorded passing evidence."
+    ],
+    "next_steps": [
+      "Retain components/venue/ui/aspect-ratio.tsx as a compatibility file until an explicitly approved cleanup action updates the register and authorizes deletion.",
+      "If a future consumer appears, migrate it to components/ui/aspect-ratio.tsx and repeat the focused parity and zero-use checks before retirement."
+    ],
+    "blockers": [
+      "Deletion or rewriting of the compatibility file is outside this audit task and remains unauthorized despite zero-use and parity evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:43:11.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded aspect-ratio consumer and parity audit. No venue twin consumers were found; venue and canonical implementations are byte-identical and expose the same AspectRatio contract. Retain the twin as retire-later compatibility debt.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-007.json"
+        ],
+        "verification": [
+          "Consumer audit returned zero matches",
+          "SHA-256 and byte comparison passed",
+          "Focused ESLint passed",
+          "git diff --check passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Compatibility-file deletion or rewriting is outside scope."
+        ],
+        "next_steps": [
+          "Retain the compatibility twin until a separately approved cleanup action is authorized."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:10.584Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Audit complete: the venue aspect-ratio twin has no live consumers, is byte-identical to the canonical shared primitive, and has no public/export parity differences. Safe disposition is retire later; the twin remains retained pending separate cleanup authorization.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

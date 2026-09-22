@@ -7,13 +7,28 @@ import { toast } from "sonner"
 import { ArtistJobPostingWizard } from "@/components/job-posting/artist-job-posting-wizard"
 import { Button } from "@/components/ui/button"
 import { buildEventJobPayload } from "@/lib/job-posting/job-posting-adapters"
+import { buildEventJobInitialValues } from "@/lib/job-posting/job-posting-prefill"
 import type { CreateJobFormData } from "@/types/artist-jobs"
 
 interface EventJobPostingProps {
   eventId: string
   eventName: string
+  eventDescription?: string
   eventDate: string
+  eventTime?: string
   eventLocation: string
+  eventAddress?: string
+  eventCity?: string
+  eventState?: string
+  eventCountry?: string
+  eventDurationMinutes?: number
+  venueWebsite?: string
+  venueContactEmail?: string
+  venueContactPhone?: string
+  soundRequirements?: string
+  lightingRequirements?: string
+  stageRequirements?: string
+  specialRequirements?: string
   onJobPosted?: (job: { title?: string; [key: string]: unknown }) => void
 }
 
@@ -32,7 +47,27 @@ const eventJobCategories = [
   { id: "12", name: "Other" },
 ]
 
-export function EventJobPosting({ eventId, eventName, eventDate, eventLocation, onJobPosted }: EventJobPostingProps) {
+export function EventJobPosting({
+  eventId,
+  eventName,
+  eventDescription,
+  eventDate,
+  eventTime,
+  eventLocation,
+  eventAddress,
+  eventCity,
+  eventState,
+  eventCountry,
+  eventDurationMinutes,
+  venueWebsite,
+  venueContactEmail,
+  venueContactPhone,
+  soundRequirements,
+  lightingRequirements,
+  stageRequirements,
+  specialRequirements,
+  onJobPosted,
+}: EventJobPostingProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -73,12 +108,24 @@ export function EventJobPosting({ eventId, eventName, eventDate, eventLocation, 
         title={`Post Job for ${eventName}`}
         description="Create an event-scoped opportunity while preserving the existing event job workflow."
         categories={eventJobCategories}
-        initialValues={{
-          location: eventLocation,
-          event_date: eventDate,
-          job_type: "one_time",
-          status: "open",
-        }}
+        initialValues={buildEventJobInitialValues({
+          description: eventDescription,
+          eventDate,
+          eventTime,
+          venueName: eventLocation,
+          venueAddress: eventAddress,
+          venueCity: eventCity,
+          venueState: eventState,
+          venueCountry: eventCountry,
+          venueWebsite,
+          venueContactEmail,
+          venueContactPhone,
+          durationMinutes: eventDurationMinutes,
+          soundRequirements,
+          lightingRequirements,
+          stageRequirements,
+          specialRequirements,
+        })}
         submitLabel="Post event job"
         isSubmitting={isSubmitting}
         onSubmit={handleSubmit}

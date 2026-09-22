@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,11 +12,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities"
 import { useAdminStats } from "../hooks/use-admin-stats"
 import { isOrganizationType, normalizeAccountType } from "@/lib/accounts/account-types"
+import {
+  annotateNavTreeByCapabilities,
+  type CapabilityAccessResult,
+} from "@/lib/admin/capability-aware-ui"
+import { filterNavigationTreeForSearch } from "@/lib/admin/navigation/admin-navigation-model"
 import {
   Home,
   Globe,
@@ -34,7 +48,6 @@ import {
   ChevronDown,
   ChevronRight,
   Activity,
-  Award,
   Clock,
   Radio,
   RadioTower,
@@ -46,14 +59,12 @@ import {
   Boxes,
   Store,
   Link2,
-  BookOpen,
   Globe2,
   FileText,
   Rss,
   Shield,
   UserCheck,
   Briefcase,
-  ClipboardList,
   Cpu,
   Flag,
   Crown,
@@ -105,12 +116,6 @@ function getHiringHref(path: string, currentAccount: ReturnType<typeof useMultiA
   return `${path}?${params.toString()}`
 }
 
-function getStaffTabHref(tab: string, currentAccount?: ReturnType<typeof useMultiAccount>["currentAccount"]) {
-  const base = getHiringHref("/admin/dashboard/staff", currentAccount ?? null)
-  const joiner = base.includes("?") ? "&" : "?"
-  return `${base}${joiner}tab=${encodeURIComponent(tab)}`
-}
-
 function doesNavHrefMatchLocation(
   pathname: string,
   searchParams: URLSearchParams,
@@ -131,6 +136,8 @@ function doesNavHrefMatchLocation(
 interface NavItem {
   label: string
   href: string
+  /** Optional landing route for a collapsible category label. */
+  landingHref?: string
   icon: any
   badge?: string
   badgeColor?: string
@@ -141,17 +148,99 @@ interface NavItem {
   metaShortcutKey?: string
   /** accent color class applied to the left border when category is expanded */
   accentColor?: string
+  /** SEC-205 — capability reflection (UX only; server still enforces). */
+  access?: CapabilityAccessResult
+}
+
+function CollapsedCategory({
+  item,
+  pathname,
+  searchParams,
+}: {
+  item: NavItem
+  pathname: string
+  searchParams: ReturnType<typeof useSearchParams>
+}) {
+  const anyChildActive = item.children?.some(
+    (child) =>
+      doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
+      pathname.startsWith(child.href.split("?")[0] + "/"),
+  )
+
+  return (
+    <DropdownMenu>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`${item.label} menu`}
+                className={`relative flex w-full items-center justify-center rounded-lg p-2.5 transition-colors ${
+                  anyChildActive
+                    ? "bg-slate-800/40 text-white"
+                    : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+                }`}
+              >
+                <item.icon className="h-4 w-4" aria-hidden="true" />
+                {anyChildActive && (
+                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-purple-400" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-slate-800 border-slate-700">
+            <p className="font-medium text-white">{item.label}</p>
+            {item.description && <p className="text-xs text-slate-400">{item.description}</p>}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <DropdownMenuContent
+        side="right"
+        align="start"
+        className="min-w-56 border-slate-700 bg-slate-900 text-slate-100"
+      >
+        <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+        {item.children?.map((child) => {
+          const isActive =
+            doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
+            pathname.startsWith(child.href.split("?")[0] + "/")
+          const denied = child.access && !child.access.allowed
+
+          if (denied) {
+            return (
+              <DropdownMenuItem key={child.href} disabled aria-label={`${child.label}: access restricted`}>
+                <child.icon className="mr-2 h-4 w-4" aria-hidden="true" />
+                {child.label}
+              </DropdownMenuItem>
+            )
+          }
+
+          return (
+            <DropdownMenuItem key={child.href} asChild>
+              <Link href={child.href} prefetch={false} aria-current={isActive ? "page" : undefined}>
+                <child.icon className="mr-2 h-4 w-4" aria-hidden="true" />
+                {child.label}
+              </Link>
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 export function OptimizedSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { currentAccount } = useMultiAccount()
+  const { capabilities } = useAdminCapabilities()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null)
 
   const { stats } = useAdminStats()
 
@@ -162,6 +251,7 @@ export function OptimizedSidebar() {
         organization_name?: string
         subtype?: string
         organization_type?: string
+        tour_collaborator?: boolean
       }
     | undefined
   const sidebarHeaderTitle =
@@ -171,19 +261,13 @@ export function OptimizedSidebar() {
     profile?.username ||
     profile?.organization_name ||
     "Organizer"
-  const activeOrganizationSubtype =
-    typeof profile?.subtype === "string"
-      ? profile.subtype
-      : typeof profile?.organization_type === "string"
-        ? profile.organization_type
-        : null
-  const isBandAccount = isOrganizationType(currentAccount?.account_type) && activeOrganizationSubtype === "band"
+  const isTourCollaborator = profile?.tour_collaborator === true
 
   // ─── Navigation structure: Dashboard + 6 collapsible categories ───────────
   const navItems: NavItem[] = useMemo(
     () => [
       {
-        label: "Dashboard",
+        label: "Home",
         href: "/admin/dashboard",
         icon: Home,
         description: "Main dashboard overview",
@@ -236,64 +320,40 @@ export function OptimizedSidebar() {
       },
       {
         label: "Workforce",
-        href: "__workforce__",
+        href: "__staff_operations__",
+        landingHref: getHiringHref("/admin/dashboard/staff", currentAccount),
         icon: Users,
         accentColor: "border-l-cyan-500",
-        description: "Staff, scheduling, hiring & permissions",
+        description: "Crew readiness, scheduling, team communications and hiring",
         children: [
           {
-            label: "Hiring Hub",
-            href: getHiringHref("/admin/dashboard/hiring", currentAccount),
-            icon: UserCheck,
+            label: "Staff Operations",
+            href: getHiringHref("/admin/dashboard/staff", currentAccount),
+            icon: Users,
             badge: stats?.staffMembers?.toString() || undefined,
-            badgeColor: "bg-cyan-500/20 text-cyan-400",
-            description: "Jobs, applications, onboarding and roster",
+            badgeColor: "bg-blue-500/20 text-blue-400",
+            description: "Tasks, shifts, team updates and coverage",
             shortcut: "⌘7",
             metaShortcutKey: "7",
           },
           {
-            label: "Scheduling & Shifts",
-            href: getStaffTabHref("scheduling", currentAccount),
-            icon: Clock,
-            description: "Shift calendar and zone assignments",
+            label: "Hiring Hub",
+            href: getHiringHref("/admin/dashboard/hiring", currentAccount),
+            icon: UserCheck,
+            badgeColor: "bg-cyan-500/20 text-cyan-400",
+            description: "Jobs, applications, onboarding and roster",
           },
           {
-            label: "Applications",
-            href: getHiringHref("/admin/dashboard/applications", currentAccount),
-            icon: ClipboardList,
-            description: "Review and manage applicants",
-          },
-          {
-            label: "Candidates",
-            href: getHiringHref("/admin/dashboard/candidates", currentAccount),
-            icon: Award,
-            description: "Onboarding candidates and compliance",
-          },
-          {
-            label: "Roster",
-            href: getHiringHref("/admin/dashboard/roster", currentAccount),
-            icon: Users,
-            description: "Team roster and Work Mode assignments",
-          },
-          {
-            label: isBandAccount ? "Band Hub" : "Organization team",
-            href: "/admin/dashboard/organization",
-            icon: isBandAccount ? Music : Building,
-            description: isBandAccount
-              ? "Band page, member roster and manager access"
-              : "Tour manager grants and artist roster",
+            label: "Payroll",
+            href: getHiringHref("/admin/dashboard/payroll", currentAccount),
+            icon: DollarSign,
+            description: "Payroll workspace and export batches",
           },
           {
             label: "Roles & Permissions",
             href: "/admin/dashboard/rbac",
             icon: Shield,
             description: "Entity RBAC and access control",
-          },
-          {
-            label: "Staff Operations",
-            href: getHiringHref("/admin/dashboard/staff", currentAccount),
-            icon: Award,
-            description: "Scheduling, communications and analytics",
           },
         ],
       },
@@ -393,20 +453,32 @@ export function OptimizedSidebar() {
             icon: MessageSquare,
             description: "Direct messages and group threads",
           },
+          {
+            label: "Publication deliveries",
+            href: "/admin/dashboard/publications/deliveries",
+            icon: Radio,
+            description: "Delivery status, safe retry, and evidence export",
+          },
         ],
       },
       {
-        label: "Content",
-        href: "__content__",
-        icon: BookOpen,
+        label: "Organization & System",
+        href: "__organization_system__",
+        icon: BarChart3,
         accentColor: "border-l-orange-500",
-        description: "Library, music, EPK, website & feed",
+        description: "Organization governance, content, analytics & system settings",
         children: [
           {
-            label: "Content Library",
+            label: "Organization",
+            href: "/admin/dashboard/organization",
+            icon: Building,
+            description: "Organization governance and member access",
+          },
+          {
+            label: "Content Hub",
             href: "/admin/dashboard/content",
             icon: FileText,
-            description: "Content moderation and management",
+            description: "Social connections, engagement, and org posts",
           },
           {
             label: "Music",
@@ -432,15 +504,6 @@ export function OptimizedSidebar() {
             icon: Rss,
             description: "Organizer network activity feed",
           },
-        ],
-      },
-      {
-        label: "Insights & System",
-        href: "__insights__",
-        icon: BarChart3,
-        accentColor: "border-l-blue-500",
-        description: "Analytics, telemetry, features & settings",
-        children: [
           {
             label: "Analytics",
             href: "/admin/dashboard/analytics",
@@ -480,7 +543,7 @@ export function OptimizedSidebar() {
         ],
       },
     ],
-    [currentAccount, stats, isBandAccount],
+    [currentAccount, stats],
   )
 
   // ─── Collect all shortcut-bearing leaf items for keyboard handler ──────────
@@ -517,7 +580,7 @@ export function OptimizedSidebar() {
         ),
     )
     if (active) setExpandedItems([active.href])
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   // ─── Persist expanded state ───────────────────────────────────────────────
   useEffect(() => {
@@ -540,18 +603,7 @@ export function OptimizedSidebar() {
         break
       }
     }
-  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Mobile detection ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const check = () => {
-      setIsMobile(window.innerWidth < 768)
-      if (window.innerWidth >= 768) setShowMobileMenu(false)
-    }
-    check()
-    window.addEventListener("resize", check)
-    return () => window.removeEventListener("resize", check)
-  }, [])
+  }, [pathname])
 
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
@@ -559,12 +611,23 @@ export function OptimizedSidebar() {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return
       const item = allLeafItems.find((i) => i.metaShortcutKey === e.key)
       if (!item) return
+      if (
+        isTourCollaborator
+        && item.href !== "/admin/dashboard"
+        && !item.href.startsWith("/admin/dashboard/tours")
+        && !item.href.startsWith("/admin/dashboard/events")
+      ) return
+      const access = annotateNavTreeByCapabilities({
+        items: [item],
+        capabilities,
+      })[0]?.access
+      if (access && !access.allowed) return
       e.preventDefault()
-      window.location.href = item.href
+      router.push(item.href)
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [allLeafItems])
+  }, [allLeafItems, capabilities, isTourCollaborator, router])
 
   const toggleExpanded = useCallback((href: string) => {
     setExpandedItems((prev) =>
@@ -572,28 +635,56 @@ export function OptimizedSidebar() {
     )
   }, [])
 
+  const capabilityNavItems = useMemo(
+    () =>
+      annotateNavTreeByCapabilities({
+        items: navItems,
+        capabilities,
+      }),
+    [navItems, capabilities],
+  )
+
+  const scopedNavItems = useMemo(() => {
+    if (!isTourCollaborator) return capabilityNavItems
+    const allowed = (href: string) =>
+      href === "/admin/dashboard"
+      || href.startsWith("/admin/dashboard/tours")
+      || href.startsWith("/admin/dashboard/events")
+
+    return capabilityNavItems
+      .map((item) => item.children
+        ? { ...item, children: item.children.filter((child) => allowed(child.href)) }
+        : item)
+      .filter((item) => item.children ? item.children.length > 0 : allowed(item.href))
+  }, [capabilityNavItems, isTourCollaborator])
+
   const filteredNavItems = useMemo(() => {
-    if (!searchQuery.trim()) return navItems
-    const q = searchQuery.toLowerCase()
-    return navItems.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.children?.some((child) => child.label.toLowerCase().includes(q)),
-    )
-  }, [navItems, searchQuery])
+    return filterNavigationTreeForSearch(scopedNavItems, searchQuery)
+  }, [scopedNavItems, searchQuery])
+  const isSearching = searchQuery.trim().length > 0
 
   // ─── Render ───────────────────────────────────────────────────────────────
-  const SidebarContent = () => (
-    <div
-      data-education-anchor="admin-sidebar"
-      className={`flex flex-col h-[calc(100vh-4rem)] bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
-        isCollapsed ? "w-16" : "w-64"
-      }`}
-    >
+  const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => {
+    const collapsed = mobile ? false : isCollapsed
+    const navigationResultsId = mobile
+      ? "admin-mobile-navigation-results"
+      : "admin-navigation-results"
+    const handleNavigation = () => {
+      if (mobile) setIsMobileMenuOpen(false)
+    }
+
+    return (
+      <nav
+        aria-label={mobile ? "Admin mobile navigation" : "Admin"}
+        data-education-anchor="admin-sidebar"
+        className={`flex flex-col bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
+          mobile ? "h-full w-full" : `h-[calc(100vh-4rem)] ${collapsed ? "w-16" : "w-64"}`
+        }`}
+      >
       {/* Header */}
       <div className="p-3 border-b border-slate-800/50">
         <div className="flex items-center justify-between">
-          {!isCollapsed && (
+          {!collapsed && (
             <div className="flex items-center space-x-2">
               <div className="p-1.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
                 <Crown className="h-5 w-5 text-white" />
@@ -604,28 +695,34 @@ export function OptimizedSidebar() {
               </div>
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-slate-400 hover:text-white h-8 w-8 p-0 shrink-0"
-          >
-            {isCollapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </Button>
+          {!mobile && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCollapsed(!collapsed)}
+              className="text-slate-400 hover:text-white h-8 w-8 p-0 shrink-0"
+              aria-label={collapsed ? "Expand Admin navigation" : "Collapse Admin navigation"}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Search */}
-      {!isCollapsed && (
+      {!collapsed && !isTourCollaborator && (
         <div className="p-3 pb-1">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search features..."
+              aria-label="Search Admin destinations"
+              aria-controls={navigationResultsId}
               value={searchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setSearchQuery(e.target.value)
@@ -637,10 +734,13 @@ export function OptimizedSidebar() {
       )}
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5 mt-1">
+      <div
+        id={navigationResultsId}
+        className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5 mt-1"
+      >
         {filteredNavItems.map((item) => {
           const isCategory = item.href.startsWith("__")
-          const isExpanded = expandedItems.includes(item.href)
+          const isExpanded = isSearching || expandedItems.includes(item.href)
           const hasChildren = !!item.children?.length
 
           // Dashboard: direct active check
@@ -656,6 +756,9 @@ export function OptimizedSidebar() {
                     <Link
                       href={item.href}
                       prefetch={false}
+                      onClick={handleNavigation}
+                      aria-label={collapsed ? item.label : undefined}
+                      aria-current={isActive ? "page" : undefined}
                       className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
                         isActive
                           ? "bg-purple-600/10 text-white border-l-2 border-l-purple-500"
@@ -664,17 +767,18 @@ export function OptimizedSidebar() {
                     >
                       <div className="flex items-center space-x-3 min-w-0">
                         <item.icon
+                          aria-hidden="true"
                           className={`h-4 w-4 flex-shrink-0 ${
                             isActive
                               ? "text-purple-400"
                               : "text-slate-400 group-hover:text-white"
                           }`}
                         />
-                        {!isCollapsed && (
+                        {!collapsed && (
                           <span className="font-medium truncate">{item.label}</span>
                         )}
                       </div>
-                      {!isCollapsed && item.badge && (
+                      {!collapsed && item.badge && (
                         <Badge
                           className={`text-xs px-1.5 py-0.5 ${item.badgeColor || "bg-slate-700 text-slate-300"}`}
                         >
@@ -683,7 +787,7 @@ export function OptimizedSidebar() {
                       )}
                     </Link>
                   </TooltipTrigger>
-                  {isCollapsed && (
+                  {collapsed && (
                     <TooltipContent side="right" className="bg-slate-800 border-slate-700">
                       <p className="font-medium text-white">{item.label}</p>
                       {item.description && (
@@ -699,22 +803,31 @@ export function OptimizedSidebar() {
             )
           }
 
-          // Category item — no href navigation, just toggle
+          // Category item — optional primary landing route plus a separate expand control.
           const anyChildActive = item.children?.some(
             (child) =>
               doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
               pathname.startsWith(child.href.split("?")[0] + "/"),
           )
 
+          if (collapsed) {
+            return (
+              <CollapsedCategory
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                searchParams={searchParams}
+              />
+            )
+          }
+
           return (
             <div key={item.href}>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => !isCollapsed && toggleExpanded(item.href)}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
+                    <div
+                      className={`w-full flex items-center justify-between rounded-lg transition-all duration-200 group text-sm ${
                         isExpanded
                           ? `bg-slate-800/40 text-white border-l-2 ${item.accentColor || "border-l-slate-500"}`
                           : anyChildActive
@@ -722,22 +835,55 @@ export function OptimizedSidebar() {
                             : "hover:bg-slate-800/50 text-slate-300 hover:text-white"
                       }`}
                     >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <item.icon
-                          className={`h-4 w-4 flex-shrink-0 ${
-                            isExpanded || anyChildActive
-                              ? "text-white"
-                              : "text-slate-400 group-hover:text-white"
-                          }`}
-                        />
-                        {!isCollapsed && (
-                          <span className="font-semibold truncate text-xs uppercase tracking-wider">
-                            {item.label}
-                          </span>
-                        )}
-                      </div>
-                      {!isCollapsed && hasChildren && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                      {item.landingHref ? (
+                        <Link
+                          href={item.landingHref}
+                          prefetch={false}
+                          onClick={handleNavigation}
+                          className="flex min-w-0 flex-1 items-center space-x-3 p-2.5"
+                          aria-label={`Open ${item.label}`}
+                        >
+                          <item.icon
+                            className={`h-4 w-4 flex-shrink-0 ${
+                              isExpanded || anyChildActive
+                                ? "text-white"
+                                : "text-slate-400 group-hover:text-white"
+                            }`}
+                          />
+                          {!collapsed && (
+                            <span className="font-semibold truncate text-xs uppercase tracking-wider">
+                              {item.label}
+                            </span>
+                          )}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => !collapsed && toggleExpanded(item.href)}
+                          aria-expanded={isExpanded}
+                          className="flex min-w-0 flex-1 items-center space-x-3 p-2.5 text-left"
+                        >
+                          <item.icon
+                            className={`h-4 w-4 flex-shrink-0 ${
+                              isExpanded || anyChildActive
+                                ? "text-white"
+                                : "text-slate-400 group-hover:text-white"
+                            }`}
+                          />
+                          {!collapsed && (
+                            <span className="font-semibold truncate text-xs uppercase tracking-wider">
+                              {item.label}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                      {!collapsed && hasChildren && (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(item.href)}
+                          className="flex items-center gap-1.5 shrink-0 p-2.5 pl-1"
+                          aria-label={`${isExpanded ? "Collapse" : "Expand"} ${item.label}`}
+                        >
                           {anyChildActive && (
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
                           )}
@@ -746,11 +892,11 @@ export function OptimizedSidebar() {
                           ) : (
                             <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                           )}
-                        </div>
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </TooltipTrigger>
-                  {isCollapsed && (
+                  {collapsed && (
                     <TooltipContent side="right" className="bg-slate-800 border-slate-700">
                       <p className="font-medium text-white">{item.label}</p>
                       {item.description && (
@@ -762,7 +908,7 @@ export function OptimizedSidebar() {
               </TooltipProvider>
 
               {/* Category children */}
-              {hasChildren && isExpanded && !isCollapsed && (
+              {hasChildren && isExpanded && !collapsed && (
                 <AnimatePresence>
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
@@ -775,11 +921,35 @@ export function OptimizedSidebar() {
                       const isChildActive =
                         doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
                         pathname.startsWith(child.href.split("?")[0] + "/")
+                      const denied = child.access && !child.access.allowed
+                      if (denied) {
+                        return (
+                          <TooltipProvider key={child.href}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="flex items-center justify-between p-2 rounded-lg text-sm text-slate-600 cursor-not-allowed opacity-60"
+                                  aria-disabled="true"
+                                >
+                                  <div className="flex items-center space-x-2 min-w-0">
+                                    <child.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span className="truncate">{child.label}</span>
+                                  </div>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="bg-slate-800 border-slate-700 max-w-xs">
+                                <p className="text-xs text-slate-200">{(child.access as { message?: string })?.message ?? "Access restricted"}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )
+                      }
                       return (
                         <Link
                           key={child.href}
                           href={child.href}
                           prefetch={false}
+                          onClick={handleNavigation}
                           className={`flex items-center justify-between p-2 rounded-lg transition-all duration-200 text-sm group ${
                             isChildActive
                               ? "bg-purple-600/20 text-purple-400 border border-purple-500/30"
@@ -804,48 +974,13 @@ export function OptimizedSidebar() {
                 </AnimatePresence>
               )}
 
-              {/* Collapsed: show children as tooltips */}
-              {isCollapsed && hasChildren && (
-                <div className="mt-0.5 space-y-0.5">
-                  {item.children?.map((child) => {
-                    const isChildActive =
-                      doesNavHrefMatchLocation(pathname, searchParams, child.href) ||
-                      pathname.startsWith(child.href.split("?")[0] + "/")
-                    return (
-                      <TooltipProvider key={child.href}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={child.href}
-                              prefetch={false}
-                              className={`flex items-center justify-center p-2 rounded-lg transition-all ${
-                                isChildActive
-                                  ? "bg-purple-600/20 text-purple-400"
-                                  : "hover:bg-slate-800/30 text-slate-500 hover:text-white"
-                              }`}
-                            >
-                              <child.icon className="h-3.5 w-3.5" />
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="bg-slate-800 border-slate-700">
-                            <p className="font-medium text-white">{child.label}</p>
-                            {child.shortcut && (
-                              <p className="text-xs text-purple-400">{child.shortcut}</p>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )
-                  })}
-                </div>
-              )}
             </div>
           )
         })}
       </div>
 
       {/* Footer: Create + Settings */}
-      {!isCollapsed && (
+      {!collapsed && (
         <div className="p-3 border-t border-slate-800/50">
           <div className="flex space-x-1.5">
             <DropdownMenu>
@@ -863,17 +998,17 @@ export function OptimizedSidebar() {
                 className="w-48 bg-slate-900 border-slate-700 text-slate-100"
               >
                 <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                  <Link href="/admin/dashboard/tours/builder" prefetch={false}>New Tour</Link>
+                  <Link href="/admin/dashboard/tours/builder" prefetch={false} onClick={handleNavigation}>New Tour</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                  <Link href="/admin/dashboard/events/create" prefetch={false}>New Event</Link>
+                  <Link href="/admin/dashboard/events/create" prefetch={false} onClick={handleNavigation}>New Event</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                  <Link href={getHiringHref("/admin/dashboard/hiring", currentAccount)} prefetch={false}>New Job Posting</Link>
+                  <Link href={getHiringHref("/admin/dashboard/hiring", currentAccount)} prefetch={false} onClick={handleNavigation}>New Job Posting</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Link href="/admin/dashboard/settings" prefetch={false}>
+            <Link href="/admin/dashboard/settings" prefetch={false} onClick={handleNavigation} aria-label="Admin settings">
               <Button
                 variant="outline"
                 size="sm"
@@ -885,48 +1020,45 @@ export function OptimizedSidebar() {
           </div>
         </div>
       )}
-    </div>
-  )
-
-  // Mobile overlay
-  if (isMobile) {
-    return (
-      <>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="fixed top-20 left-4 z-[100] ml-2 mt-2 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
-        >
-          <Menu className="h-5 w-5 text-white" />
-        </Button>
-
-        <AnimatePresence>
-          {showMobileMenu && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 md:hidden"
-            >
-              <div
-                className="absolute inset-0 bg-black/50"
-                onClick={() => setShowMobileMenu(false)}
-              />
-              <motion.div
-                initial={{ x: -300 }}
-                animate={{ x: 0 }}
-                exit={{ x: -300 }}
-                className="absolute left-0 top-0 h-full w-80 max-w-[80vw]"
-              >
-                <SidebarContent />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </>
+      </nav>
     )
   }
 
-  return <SidebarContent />
+  return (
+    <>
+      <Sheet modal open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetTrigger asChild>
+        <Button
+          ref={mobileMenuTriggerRef}
+          variant="ghost"
+          size="sm"
+          className="fixed top-20 left-4 z-[100] ml-2 mt-2 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
+          aria-label="Open Admin navigation"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="admin-mobile-navigation"
+        >
+          <Menu className="h-5 w-5 text-white" aria-hidden="true" />
+        </Button>
+        </SheetTrigger>
+        <SheetContent
+          id="admin-mobile-navigation"
+          side="left"
+          className="w-80 max-w-[85vw] border-slate-800 bg-slate-950 p-0 text-slate-100 md:hidden [&>button]:text-slate-200"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            mobileMenuTriggerRef.current?.focus()
+          }}
+        >
+          <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+          <SheetDescription className="sr-only">
+            Navigate Admin workspaces for the active organization.
+          </SheetDescription>
+          <SidebarContent mobile />
+        </SheetContent>
+      </Sheet>
+      <div className="hidden shrink-0 md:block">
+        <SidebarContent />
+      </div>
+    </>
+  )
 }

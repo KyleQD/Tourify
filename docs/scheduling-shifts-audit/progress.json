@@ -1,0 +1,219 @@
+{
+  "project": "Tourify Scheduling and Shifts",
+  "current_phase": "implementation",
+  "status": "in_progress",
+  "phase_0_status": "complete",
+  "phase_0_date_completed": "2026-08-03",
+  "tasks": [
+    "Search codebase for scheduling/shifts/staff files",
+    "Map existing workforce ecosystem and connections",
+    "Review admin UI entry points and navigation",
+    "Review worker-facing pages and flows",
+    "Inspect database tables, RLS, APIs for shifts",
+    "Document findings with severity and evidence",
+    "Build implementation roadmap and phases",
+    "Update progress.json and audit deliverables",
+    "P0-1: Wire shift edit in admin StaffSchedulingTab",
+    "P0-2: Verify venue scheduling components exist",
+    "P0-3: Add deleted_at soft delete to staff_shifts",
+    "P0-4: Separate worker decline from cancellation",
+    "P0-5: Unify API response shapes (safe only)",
+    "Fix duplicate type definitions in lib/database.types.ts",
+    "Fix corrupted function fragments in use-scheduling-data.ts"
+  ],
+  "completed": [
+    "Search codebase for scheduling/shifts/staff files",
+    "Map existing workforce ecosystem and connections",
+    "Review admin UI entry points and navigation",
+    "Review worker-facing pages and flows",
+    "Inspect database tables, RLS, APIs for shifts",
+    "Document findings with severity and evidence",
+    "Build implementation roadmap and phases",
+    "Update progress.json and audit deliverables",
+    "Created docs/scheduling-shifts-audit/00-executive-summary.md",
+    "Created docs/scheduling-shifts-audit/01-current-system-map.md",
+    "Created docs/scheduling-shifts-audit/06-data-api-audit.md",
+    "Created docs/scheduling-shifts-audit/07-permissions-security.md",
+    "Created docs/scheduling-shifts-audit/09-feature-gap-analysis.md",
+    "Created docs/scheduling-shifts-audit/12-implementation-roadmap.md",
+    "Created docs/scheduling-shifts-audit/13-testing-strategy.md",
+    "Created docs/scheduling-shifts-audit/14-definition-of-done.md",
+    "P0-1: Wire shift edit in admin StaffSchedulingTab — verified already wired end-to-end",
+    "P0-2: Verify venue scheduling components exist — all 5 components found at components/venue/staff/",
+    "P0-3: Add deleted_at soft delete to staff_shifts — migration + types + all DELETE handlers updated",
+    "P0-4: Separate worker decline from cancellation — status types + mappings + sync service updated",
+    "P0-5: Unify API response shapes — fixed shift-calendar.tsx data.shifts -> data.data",
+    "Fixed duplicate staff_shifts type definitions in lib/database.types.ts",
+    "Fixed corrupted normalizeShiftStatus/confirmationFor fragments in use-scheduling-data.ts"
+  ],
+  "blocked": [],
+  "findings": [
+    {
+      "id": "SCH-001",
+      "title": "Venue scheduling components may be non-functional stubs",
+      "severity": "high",
+      "status": "open",
+      "note": "Components exist but shift-analytics, shift-requests, shift-templates, shift-management are all mock data. shift-calendar calls real API but query params mismatch (start_date vs date_from, department not filtered)."
+    },
+    {
+      "id": "SCH-002",
+      "title": "Admin scheduling UI lacks edit capability",
+      "severity": "high",
+      "status": "closed",
+      "resolution": "Edit was already fully wired: BoardView -> openDetails -> ShiftDetailsSheet -> EditShiftSheet -> updateShift PATCH -> reload"
+    },
+    {
+      "id": "SCH-003",
+      "title": "No publish validation workflow",
+      "severity": "high",
+      "status": "open"
+    },
+    {
+      "id": "SCH-004",
+      "title": "Dual API patterns with different auth models",
+      "severity": "medium",
+      "status": "open"
+    },
+    {
+      "id": "SCH-005",
+      "title": "Venue shift API uses adhoc_venue_id workaround",
+      "severity": "medium",
+      "status": "open"
+    },
+    {
+      "id": "SCH-006",
+      "title": "Worker decline conflated with cancellation",
+      "severity": "medium",
+      "status": "closed",
+      "resolution": "Added 'declined' to EmploymentAssignmentStatus, updated transition maps, respondToShiftAssignment now uses 'declined' for worker declines"
+    },
+    {
+      "id": "SCH-007",
+      "title": "staff_shifts hard-deleted on DELETE",
+      "severity": "medium",
+      "status": "closed",
+      "resolution": "Migration adds deleted_at timestamptz. All DELETE handlers now PATCH deleted_at. All GET queries now filter .is('deleted_at', null)"
+    },
+    {
+      "id": "SCH-008",
+      "title": "No server-side overlap validation",
+      "severity": "medium",
+      "status": "open"
+    }
+  ],
+  "files_reviewed": [
+    "components/admin/scheduling/live-scheduling-panel.tsx",
+    "components/admin/scheduling/use-scheduling-data.ts",
+    "components/admin/scheduling/scheduling-data.ts",
+    "app/api/admin/staffing/shifts/route.ts",
+    "app/api/admin/staffing/shifts/[id]/route.ts",
+    "app/api/venue/shifts/route.ts",
+    "app/venue/staff/scheduling/page.tsx",
+    "app/admin/dashboard/staff/page.tsx",
+    "lib/services/staff-shift-assignment-sync.ts",
+    "lib/admin/workforce-assignment.service.ts",
+    "lib/notifications/workforce-notification-types.ts",
+    "types/staff-operations.ts",
+    "lib/database.types.ts (staff_shifts section)"
+  ],
+  "files_modified_in_phase_0": [
+    "supabase/migrations/20260804003756_staff_shifts_soft_delete.sql",
+    "lib/database.types.ts",
+    "app/api/admin/staffing/shifts/[id]/route.ts",
+    "app/api/venue/shifts/[id]/route.ts",
+    "app/api/events/[id]/staff/[shiftId]/route.ts",
+    "app/api/admin/staffing/shifts/route.ts",
+    "app/api/venue/shifts/route.ts",
+    "app/api/events/[id]/staff/route.ts",
+    "app/api/admin/staffing/shifts/publish/route.ts",
+    "app/api/admin/staff-operations/summary/route.ts",
+    "app/api/admin/events/[id]/export/route.ts",
+    "app/api/events/[id]/route.ts",
+    "app/venue/staff/scheduling/page.tsx",
+    "types/hiring-roster-work-mode.ts",
+    "lib/admin/workforce-assignment-status.ts",
+    "lib/services/staff-shift-assignment-sync.ts",
+    "components/admin/scheduling/use-scheduling-data.ts",
+    "components/venue/staff/shift-calendar.tsx"
+  ],
+  "routes_reviewed": [
+    "/admin/dashboard/staff?tab=scheduling",
+    "/venue/staff/scheduling",
+    "/api/admin/staffing/shifts",
+    "/api/admin/staffing/shifts/[id]",
+    "/api/venue/shifts",
+    "/api/work-mode/assignments"
+  ],
+  "apis_reviewed": [
+    "POST /api/admin/staffing/shifts",
+    "GET /api/admin/staffing/shifts",
+    "PATCH /api/admin/staffing/shifts/[id]",
+    "DELETE /api/admin/staffing/shifts/[id]",
+    "POST /api/venue/shifts",
+    "GET /api/venue/shifts",
+    "POST /api/work-mode/assignments/[id]/respond"
+  ],
+  "database_objects_reviewed": [
+    "staff_shifts",
+    "staff_members",
+    "staff_zones",
+    "employment_assignments",
+    "hiring_audit_events"
+  ],
+  "migrations_created": [
+    "supabase/migrations/20260804003756_staff_shifts_soft_delete.sql"
+  ],
+  "tests_added": [],
+  "tests_passed": [],
+  "tests_failed": [],
+  "known_risks": [
+    "Venue scheduling components (shift-analytics, shift-requests, shift-templates, shift-management) are mock-data stubs",
+    "shift-calendar.tsx sends start_date/end_date but API expects date_from/date_to; also sends department filter API doesn't handle",
+    "Full tsc --noEmit OOMs in this environment — verify with local build before merging",
+    "Demo data (scheduling-data.ts) is large and could leak into production if imported incorrectly",
+    "Adhoc venue ID workaround may cause data fragmentation"
+  ],
+  "next_steps": [
+    "Phase 1: Venue scheduling components wiring (shift-calendar real data, query param alignment)",
+    "Phase 1: Venue shift management wiring (shift-management, shift-templates, shift-requests)",
+    "Phase 2: Admin publish validation workflow",
+    "Phase 2: Server-side overlap validation",
+    "Phase 3: Integration tests for soft delete + decline flow",
+    "Run full build + typecheck locally before next session"
+  ],
+  "handoff_for_next_chat": {
+    "last_completed": "Phase 0 — Critical Repairs",
+    "total_files_touched": 18,
+    "critical_fixes_applied": [
+      "Soft delete on staff_shifts (migration + 10 API files + types)",
+      "Worker decline separated from cancellation (3 files)",
+      "Venue shift-calendar API shape fixed (1 file)",
+      "Duplicate type definitions cleaned up (1 file)",
+      "Duplicate function fragments cleaned up (1 file)"
+    ],
+    "known_issues_from_this_session": [
+      {
+        "issue": "Duplicate staff_shifts type block created then fixed in lib/database.types.ts",
+        "status": "resolved",
+        "lesson": "When editing generated type files, search for existing definition first; never insert a duplicate block"
+      },
+      {
+        "issue": "Duplicate function fragments in use-scheduling-data.ts from overlapping edits",
+        "status": "resolved",
+        "lesson": "Use unique old_string context in Edit; when duplicates exist, use Python reconstruction instead"
+      },
+      {
+        "issue": "Full tsc --noEmit OOMs in this environment",
+        "status": "workaround",
+        "note": "Use npm run build (with --max-old-space-size=6144) for verification, or run locally"
+      }
+    ],
+    "files_to_verify_in_next_session": [
+      "lib/database.types.ts — ensure no other duplicates were created",
+      "components/admin/scheduling/use-scheduling-data.ts — verify no stray fragments remain",
+      "app/api/venue/shifts/route.ts — consider aligning query params (start_date vs date_from) with shift-calendar.tsx",
+      "components/venue/staff/shift-calendar.tsx — department filter not handled by API"
+    ],
+    "recommended_first_action": "Run npm run build locally to verify all Phase 0 changes compile cleanly, then proceed to Phase 1 venue component wiring"
+  }
+}

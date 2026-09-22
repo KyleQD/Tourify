@@ -51,6 +51,10 @@ describe("workforce API presenters", () => {
       numberOfPositions: 4,
       createdAt: "2026-06-30T00:00:00.000Z",
       publishedAt: null,
+      archivedAt: null,
+      filledAt: null,
+      eventId: null,
+      tourId: null,
     })
   })
 

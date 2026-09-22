@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260908100000_reconcile_archived_logistics_foundation.sql",
+  "taskId": "ADM-M-010",
+  "status": "planned",
+  "owner": "ops-logistics",
+  "reviewer": "security-data",
+  "domains": ["logistics", "communications", "site-maps", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch with two organizations and scoped logistics records",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count existing team_communications, logistics_tasks, site_map_zones, and each newly promoted logistics table before apply",
+      "Inventory existing RLS policies and indexes for every touched table"
+    ],
+    "expectedAffectedRows": "DDL and additive columns only; no existing rows are deleted or rewritten",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply the idempotent migration in an isolated environment; use a later additive forward migration for any post-apply correction",
+    "resumeCursor": "Supabase migration version 20260908100000",
+    "idempotency": "ALTER TABLE/CREATE TABLE/CREATE INDEX use IF EXISTS guards; RLS policy cleanup is repeatable"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill; unresolved legacy rows remain in their source tables"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Unique acknowledgement source/user key",
+      "Positive quantities and valid reservation windows",
+      "Status and visibility checks for logistics workflows"
+    ],
+    "indexes": [
+      "Team communication event/tour/site-map time indexes",
+      "Site-map zone ownership indexes",
+      "Logistics acknowledgement, reservation, backline, catering, and comms scope indexes"
+    ],
+    "validationPlan": "Apply to a fresh database and a representative legacy snapshot; verify object shape, RLS enablement, absence of broad authenticated policies, and same-organization service-role API behavior"
+  },
+  "recovery": {
+    "rollback": "Disable the affected Admin logistics surfaces while retaining source and newly created empty tables; never reset a persistent database",
+    "forwardFix": "Add corrected columns, policies, or constraints in a later migration and repeat the two-organization authorization matrix"
+  },
+  "postflight": {
+    "queries": [
+      "Verify all promoted tables exist with expected columns, indexes, and RLS enabled",
+      "Verify no authenticated client policy remains on promoted logistics tables",
+      "Run same-organization, cross-organization, revoked, and unauthenticated logistics API checks"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}
