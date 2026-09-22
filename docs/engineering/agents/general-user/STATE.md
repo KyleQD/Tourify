@@ -155,3 +155,26 @@ Update this file only when a task establishes a durable fact future work needs.
   credential-free responses. Scoped TypeScript reaches a pre-existing
   `lib/auth/admin-context.ts` organization-identity mismatch. No hosted Storage
   access or mutation was performed; QA-003 still owns isolated-staging proof.
+
+## USER-005 scoped typecheck unblocked — Wave 31 lane 3, 2026-09-21
+
+- The last local USER-005 blocker is resolved. The scoped TypeScript failure
+  was `TS2345` at `lib/auth/admin-context.ts:154`: the local
+  `OrganizationProfileRow` interface declared `ops_org_id` optional, which is
+  not assignable to the required `ops_org_id: string | null | undefined` of the
+  canonical `OrganizerAccountIdentityRow`. The duplicate local interface was
+  deleted and the cast now uses the canonical type imported from
+  `@/lib/organizations/identity`; runtime behavior, error codes, and messages
+  are unchanged.
+- `lib/organizations/identity.ts` is organization-domain-owned (ORG-002 /
+  CP-052). General-user code must consume it, never duplicate its row shapes:
+  `lib/auth/acting-context.ts` calls `organizationIdentityFromOrganizerAccount(data)`
+  directly (supabase client is untyped there), and `admin-context.ts` now
+  asserts with the canonical `OrganizerAccountIdentityRow`.
+- Scoped tsc (`/tmp/tsconfig.user005-storage.json`; admin-context,
+  acting-context, organizations/identity and imports) passes with 0 diagnostics.
+  Focused vitest: `__tests__/auth` 9 files / 43 tests, account-delete-route 11
+  tests, org-identity-model 3 tests; eslint and `git diff --check` clean.
+  USER-005 remaining blockers are hosted-only: isolated-staging lifecycle and
+  cross-tenant negative authorization, two-prefix private-docs storage
+  deletion certification, and persistent-MFA coordination with INTG-003/DB-008.

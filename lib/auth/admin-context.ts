@@ -9,6 +9,7 @@ import {
 import {
   organizationIdentityFromOrganizerAccount,
   type CanonicalOrganizationIdentity,
+  type OrganizerAccountIdentityRow,
 } from '@/lib/organizations/identity'
 
 export interface AuthenticatedAdminRequest {
@@ -43,13 +44,6 @@ function resolveCorrelationId(headers: Pick<Headers, 'get'>): string {
 /** Org-scoped client cache key segment — include when invalidating after account switch. */
 export function actingAdminCacheKey(context: Pick<ActingAdminContext, 'orgId' | 'profileId'>): string {
   return `admin-org:${context.orgId}:profile:${context.profileId}`
-}
-
-interface OrganizationProfileRow {
-  id: string
-  user_id?: string | null
-  ops_org_id?: string | null
-  is_active?: boolean | null
 }
 
 interface VerifiedOrganizationProfile extends CanonicalOrganizationIdentity {
@@ -151,7 +145,7 @@ async function loadOrganizationProfile(
     )
   }
 
-  const identity = organizationIdentityFromOrganizerAccount(data as OrganizationProfileRow)
+  const identity = organizationIdentityFromOrganizerAccount(data as OrganizerAccountIdentityRow)
   if (!identity) {
     return errorResponse(
       409,

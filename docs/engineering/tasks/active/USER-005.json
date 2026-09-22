@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "general-user",
   "created_at": "2026-09-16T19:20:38.952Z",
-  "updated_at": "2026-09-19T02:37:54.000Z",
+  "updated_at": "2026-09-21T22:19:41.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (758 entries)",
+  "working_tree_status": "dirty (release-lane docs/LOCAL_DEPLOYMENT_READINESS.md, RELEASE-004.json, docs/recovery-and-continuity-plan.md; USER-005 lib/auth/admin-context.ts type fix)",
   "goal": "Make the complete production account lifecycle correct, tenant-safe, and verified in isolated staging",
   "scope": {
     "in": [
@@ -41,7 +41,8 @@
       "npx vitest run __tests__/auth: 9 files, 36 tests passed",
       "npx vitest run __tests__/auth/account-delete-route.test.ts: 1 file, 11 tests passed",
       "npx eslint app/api/account/delete/route.ts __tests__/auth/account-delete-route.test.ts: passed",
-      "npx tsc -p /tmp/tsconfig.user005-storage.json --pretty false: blocked by pre-existing lib/auth/admin-context.ts organization identity type error"
+      "npx tsc -p /tmp/tsconfig.user005-storage.json --pretty false: passed with 0 diagnostics (Wave 31 lane 3) after removing the local OrganizationProfileRow interface from lib/auth/admin-context.ts in favor of canonical OrganizerAccountIdentityRow",
+      "npx vitest run __tests__/auth (Wave 31): 9 files, 43 tests passed"
     ],
     "evidence": [
       "Production-readiness audit selected authentication, onboarding, personas, profiles, sessions, reset, and account deletion as core launch journeys requiring deployed certification.",
@@ -49,19 +50,21 @@
       "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
       "Private-docs deletion now explicitly enumerates both <user-id>/ and staff-credentials/<user-id>/ while retaining the historical profile-images certification prefix. Elevated Storage operations construct paths only from the authenticated UUID plus validated one-segment list results, re-listing from offset zero in 1,000-object batches until each prefix is empty.",
       "Focused tests prove more-than-1,000-object completion, later-batch list failure with auth deletion withheld, remainder-only retry, no-progress loop protection, current and legacy user-bound discovery, cross-user exclusion, unsafe-name fail-closed behavior, partial-failure reporting, and credential-free responses. No hosted Storage access or mutation was performed.",
-      "Official Supabase Storage documentation reviewed 2026-09-18: remove accepts explicit same-bucket paths; server-side service/secret keys bypass RLS and must never be exposed."
+      "Official Supabase Storage documentation reviewed 2026-09-18: remove accepts explicit same-bucket paths; server-side service/secret keys bypass RLS and must never be exposed.",
+      "Wave 31 lane 3 type-fix evidence: scoped tsc against lib/auth/admin-context.ts, lib/auth/acting-context.ts, lib/organizations/identity.ts and their imports passes with 0 diagnostics. Root cause was the local OrganizationProfileRow interface declaring ops_org_id optional while canonical OrganizerAccountIdentityRow requires it, making admin-context.ts:154 unassignable. Fix is type-level only; runtime logic, error codes, and messages unchanged."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-19T02:37:54.000Z",
+    "last_run_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+    "last_run_at": "2026-09-21T22:19:41.000Z",
     "result": "fail"
   },
   "progress": {
-    "summary": "Closed the local private-docs certification erasure and pagination gap: account deletion drains every exact-user prefix in service-sized batches, rejects unsafe or repeated results, withholds auth deletion after any later-batch failure, and remains retry-safe after partial Storage progress. Focused tests, lint, and formatting pass; scoped TypeScript remains blocked by a pre-existing admin-context identity mismatch. Hosted staging lifecycle evidence remains blocked.",
+    "summary": "Closed the local private-docs certification erasure and pagination gap: account deletion drains every exact-user prefix in service-sized batches, rejects unsafe or repeated results, withholds auth deletion after any later-batch failure, and remains retry-safe after partial Storage progress. Wave 31 lane 3 resolved the last local blocker: scoped TypeScript passes with 0 diagnostics after the pre-existing admin-context OrganizationProfileRow/OrganizerAccountIdentityRow mismatch was fixed type-level. Focused vitest (auth, account-delete-route, org-identity-model), eslint, and diff checks pass. Hosted staging lifecycle evidence remains the outstanding blocker.",
     "completed": [
       "Canonical redirect and configured-origin enforcement",
       "Verified session and persona switching authorization",
       "Account deletion authorization, cleanup, and retention mapping",
-      "Exact-user private-docs and certification-object deletion with multi-batch, no-progress, and fail-closed retry coverage"
+      "Exact-user private-docs and certification-object deletion with multi-batch, no-progress, and fail-closed retry coverage",
+      "Scoped TypeScript green: admin-context organization identity type error fixed by adopting canonical OrganizerAccountIdentityRow (type-level only)"
     ],
     "next_steps": [
       "Run isolated staging lifecycle and cross-tenant negative authorization certification",
@@ -70,7 +73,6 @@
     ],
     "blockers": [
       "Full repository typecheck did not complete within bounded window",
-      "Scoped TypeScript is blocked by the pre-existing lib/auth/admin-context.ts OrganizationProfileRow/OrganizerAccountIdentityRow mismatch",
       "No isolated staging credentials or deployed lifecycle evidence"
     ],
     "checkpoints": [
@@ -143,6 +145,24 @@
         "blockers": [
           "No isolated staging credentials or deployed lifecycle evidence",
           "Scoped TypeScript is blocked by the pre-existing lib/auth/admin-context.ts OrganizationProfileRow/OrganizerAccountIdentityRow mismatch"
+        ]
+      },
+      {
+        "at": "2026-09-21T22:19:41.000Z",
+        "sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+        "summary": "Wave 31 lane 3 (behavior-preserving type fix): reproduced the pre-existing scoped-tsc failure as TS2345 at lib/auth/admin-context.ts:154 — the local OrganizationProfileRow interface declares ops_org_id optional while canonical OrganizerAccountIdentityRow requires it. Deleted the duplicate local interface, imported the canonical type from @/lib/organizations/identity, and retargeted the cast. No runtime or message changes. Scoped tsc (admin-context, acting-context, organizations/identity and their imports) passes with 0 diagnostics; focused vitest __tests__/auth passes 9 files / 43 tests, account-delete-route 11 tests, org-identity-model 3 tests; eslint and git diff --check clean.",
+        "completed": [
+          "Scoped TypeScript evidence green for the lib/auth + lib/organizations/identity graph",
+          "Removed duplicate local OrganizationProfileRow in favor of canonical OrganizerAccountIdentityRow"
+        ],
+        "next_steps": [
+          "Run isolated staging lifecycle and cross-tenant negative authorization certification",
+          "Certify multi-batch deletion of both private-docs prefixes against isolated staging Storage",
+          "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+        ],
+        "blockers": [
+          "No isolated staging credentials or deployed lifecycle evidence",
+          "Full repository typecheck did not complete within bounded window"
         ]
       }
     ]

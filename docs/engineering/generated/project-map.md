@@ -2,21 +2,21 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `a1ca86033dea52dbcce0b2529765850044f3d9ad`
+- Source SHA: `bf2c5798cbb1ab12153fe18b5bcdc45038b03961`
 - Branch: `release/clean-snapshot`
-- Working tree: dirty (3 entries)
-- Generated at: 2026-09-21T22:14:03.391Z
+- Working tree: dirty (53 entries)
+- Generated at: 2026-09-22T09:12:12.577Z
 - Generator: `control-plane.mjs generate`
 
 ## Top-level directories
 
 | Directory | Files |
 | --- | ---: |
-| `__tests__/` | 484 |
+| `__tests__/` | 485 |
 | `app/` | 1861 |
 | `apps/` | 182 |
 | `audit-artifacts/` | 5 |
-| `components/` | 1129 |
+| `components/` | 1130 |
 | `config/` | 2 |
 | `context/` | 3 |
 | `contexts/` | 7 |
@@ -24,7 +24,7 @@
 | `data/` | 10 |
 | `deployment/` | 7 |
 | `docker/` | 5 |
-| `docs/` | 2989 |
+| `docs/` | 2995 |
 | `docs-integration-suite/` | 20 |
 | `hooks/` | 69 |
 | `lib/` | 1292 |
@@ -39,7 +39,7 @@
 | `seed/` | 3 |
 | `seed_articles/` | 13 |
 | `services/` | 1 |
-| `supabase/` | 847 |
+| `supabase/` | 849 |
 | `test-results/` | 2 |
 | `tests/` | 19 |
 | `types/` | 31 |

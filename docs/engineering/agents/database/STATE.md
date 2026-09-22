@@ -259,6 +259,53 @@ cutover. Staged migration work remains under CP-051's explicit manual-apply rule
   DB-006 staging/production cutover evidence, TICKET-005 checkout certification,
   and QA-003 denial-path evidence.
 
+## DB-005 ticketing purchase idempotency checkpoint — 2026-09-21
+
+- Wave 2026-09-21 lane 1 on `release/clean-snapshot` @ bf2c5798cbb1ab12153fe18b5bcdc45038b03961
+  (clean worktree at start): the TICKET-005 PENDING handoff (line ~133 of
+  TICKET-005.json) is now actioned in local scope. The active chain's
+  `ticket_sales` had NO distributed DB-unique purchase idempotency: only
+  partial unique indexes on `order_number`, `stripe_checkout_session_id`, and
+  `webhook_event_id` (`20260821000000_reconcile_ticketing_foundation.sql`).
+  `ticket_sales.metadata` is `jsonb not null default '{}'` and `buyer_user_id`
+  is nullable (`20260328130000_ticketing_v2.sql`).
+- New additive, forward-only migration
+  `supabase/migrations/20260921120000_ticketing_purchase_idempotency.sql`
+  (SHA-256 `70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106`):
+  `create unique index if not exists idx_ticket_sales_purchase_idempotency on
+  public.ticket_sales (buyer_user_id, event_id, (metadata ->> 'idempotency_key'))
+  where metadata ->> 'idempotency_key' is not null;` plus a comment.
+  Strictly additive — no column added, no table rewrite, no archived SQL
+  touched; the app already writes `metadata.idempotency_key`
+  (`app/api/ticketing/enhanced/route.ts`, `lib/services/ticketing.service.ts`)
+  and `findIdempotentPurchase` matches (buyer, event, key), so the constraint
+  mirrors the request-scoped contract and no application change is needed. The
+  partial predicate excludes key-less legacy/box-office rows; default
+  NULLS DISTINCT semantics leave `buyer_user_id IS NULL` rows uncollided.
+- The existing DB-005 files (`20260910230339_ticketing_admin_overview_contract.sql`
+  and `supabase/tests/db005_ticketing_schema_contract.sql`) were NOT modified;
+  the new zero-drift contract test
+  `supabase/tests/db005b_ticketing_idempotency_contract.sql`
+  (SHA-256 `c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d`)
+  asserts index presence, uniqueness, the `metadata ->> 'idempotency_key'`
+  expression, the partial predicate, base columns, and the jsonb precondition,
+  returning violation rows only and one summary row.
+- Planned manifest
+  `docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json`
+  records both SHA-256s, the layered plan (preflight duplicate-combo count →
+  apply → contract postflight → concurrent-first-request 23505 probe), and
+  status planned / manual-apply-pending (CP-051). Pending handoff
+  `docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json` hands the
+  single staging apply + postflight to the release/ops operator.
+- Verification: active migration chain PASS (294 files, no duplicate policy
+  creations, new migration in the scan); `npm run check:migration-validation`
+  PASS (planned manifest scanned, zero failures); DB-005 task JSON parse PASS;
+  `git diff --check` PASS on changed tracked paths. Local
+  `supabase db lint --local` remains BLOCKED (ECONNREFUSED at
+  127.0.0.1:54322); no apply/reset/replay/push was attempted and no hosted
+  evidence was fabricated. Remaining blocker: staged manual apply + contract
+  execution + runtime 23505 probe by the operator, then postflight evidence.
+
 ## DB-006 caller-classification checkpoint — 2026-09-21
 
 - DB-006's local acceptance gap is closed: every remaining legacy `events` /

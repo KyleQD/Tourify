@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `a1ca86033dea52dbcce0b2529765850044f3d9ad`
+- Source SHA: `bf2c5798cbb1ab12153fe18b5bcdc45038b03961`
 - Branch: `release/clean-snapshot`
-- Working tree: dirty (3 entries)
-- Generated at: 2026-09-21T22:14:03.391Z
+- Working tree: dirty (53 entries)
+- Generated at: 2026-09-22T09:12:12.577Z
 - Generator: `control-plane.mjs generate`
 
-## TSX and JSX files (1934)
+## TSX and JSX files (1935)
 
 | Source | Detected exported components |
 | --- | --- |
@@ -1064,6 +1064,7 @@
 | `components/admin/tours/tour-stops-card.tsx` | TourStopsCard |
 | `components/admin/travel-coordination-hub.tsx` | TravelCoordinationHub |
 | `components/admin/ui/admin-dashboard-metrics.tsx` | AdminDashboardMetrics, AdminQuickLinks |
+| `components/admin/ui/admin-data-table.tsx` | AdminDataTable |
 | `components/admin/ui/admin-empty-state.tsx` | AdminEmptyState, AdminCompactEmpty, AdminLoading |
 | `components/admin/ui/admin-page-header.tsx` | AdminPageHeader, AdminSectionHeader |
 | `components/admin/vendors/contract-workspace-panel.tsx` | ContractWorkspacePanel |

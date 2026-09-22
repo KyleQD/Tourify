@@ -610,7 +610,7 @@ export function EnhancedGlobalSearch({
 
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
-                                  <h4 className="text-sm font-medium text-white truncate group-hover:text-purple-400 transition-colors">
+                                  <h4 className="min-w-0 line-clamp-2 break-words text-sm font-medium text-white group-hover:text-purple-400 transition-colors" title={result.title}>
                                     {result.title}
                                   </h4>
                                   <div className="flex items-center space-x-2">

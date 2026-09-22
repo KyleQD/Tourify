@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:07.402Z",
-  "updated_at": "2026-09-16T19:24:55.209Z",
+  "updated_at": "2026-09-21T16:00:00.000Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "working_tree_status": "dirty (DB-005 idempotency lane: new migration 20260921120000 + contract test db005b + planned manifest + staging handoff uncommitted)",
   "goal": "Overlay missing ticketing objects (admin overview tables RPCs reference) via additive migration within DB reconciliation",
   "scope": {
     "in": [],
@@ -36,40 +36,53 @@
       "npm run agents:validate",
       "node -e \"JSON.parse(require('fs').readFileSync('docs/engineering/tasks/active/DB-005.json','utf8')); console.log('DB-005 JSON valid')\"",
       "node -e \"const fs=require('fs'); const s=fs.readFileSync('supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql','utf8').toLowerCase(); const required=['ticket_shares','ticket_referrals','ticket_analytics','social_media_performance','get_admin_ticketing_overview','get_admin_ticketing_social_performance','events_v2','enable row level security','security invoker','revoke all on function']; const missing=required.filter(x=>!s.includes(x)); if(missing.length) throw new Error(missing.join(',')); console.log('DB-005 static migration contract symbols: PASS')\"",
-      "shasum -a 256 supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql supabase/tests/db005_ticketing_schema_contract.sql"
+      "shasum -a 256 supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql supabase/tests/db005_ticketing_schema_contract.sql",
+      "npm run check:migration-validation",
+      "shasum -a 256 supabase/migrations/20260921120000_ticketing_purchase_idempotency.sql supabase/tests/db005b_ticketing_idempotency_contract.sql",
+      "git diff --check"
     ],
     "evidence": [
       "PASS: active migration chain has no duplicate policy creations (293 files scanned).",
       "BLOCKED: SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local could not connect because local Postgres is not running at 127.0.0.1:54322; no apply/reset/replay was attempted.",
       "PASS: npm run agents:validate — validated 17 agents, 70 tasks, 0 warnings, 0 errors.",
       "PASS: DB-005 JSON parses successfully.",
-      "PASS: static source review verified the additive migration's four compatibility tables, events_v2 references, RLS enablement, invoker RPC definitions, and public/anon execute revocation; migration SHA-256 is 948876537adb8f04731f9ea7d40a6844a495b6660dea112687bf3f2143c62a8f and contract-test SHA-256 is 093140e21a17f14b0edb186f0e3bb602f28ec46d73d42bff885f7e77f703ebc3."
+      "PASS: static source review verified the additive migration's four compatibility tables, events_v2 references, RLS enablement, invoker RPC definitions, and public/anon execute revocation; migration SHA-256 is 948876537adb8f04731f9ea7d40a6844a495b6660dea112687bf3f2143c62a8f and contract-test SHA-256 is 093140e21a17f14b0edb186f0e3bb602f28ec46d73d42bff885f7e77f703ebc3.",
+      "PASS (wave 2026-09-21, HEAD bf2c5798cbb1ab12153fe18b5bcdc45038b03961): node scripts/ci/check-active-migration-chain.mjs — 294 active migrations, no duplicate policy creations, new migration 20260921120000_ticketing_purchase_idempotency.sql appears in the chain scan.",
+      "PASS: npm run check:migration-validation — 20260921120000_ticketing_purchase_idempotency.sql scanned with its planned manifest, zero failures.",
+      "PASS: git diff --check on changed tracked paths (DB-005.json, STATE.md) — clean; new SQL/JSON files carry no trailing whitespace.",
+      "PASS: migration SHA-256 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106; contract-test SHA-256 c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d.",
+      "BLOCKED: supabase db lint --local still cannot connect (local Postgres unavailable at 127.0.0.1:54322); recorded as BLOCKED, no services started, no hosted evidence fabricated."
     ],
     "last_run_sha": "working-tree",
-    "last_run_at": "2026-09-11T18:01:06Z",
-    "result": "not-run"
+    "last_run_at": "2026-09-21T16:00:00Z",
+    "result": "partial-pass"
   },
   "progress": {
-    "summary": "Production-readiness audit promoted DB-005 to P0 because ticketing is in the core launch scope. Static migration evidence remains insufficient; staged application, runtime route exercise, generated-type parity, and TICKET-005 certification are required.",
+    "summary": "Wave 2026-09-21 lane 1: TICKET-005's PENDING handoff is now actioned in local scope. DB-005 authored a strictly additive partial unique index (20260921120000_ticketing_purchase_idempotency.sql) closing the distributed DB-unique purchase idempotency gap on ticket_sales, plus the zero-drift contract test db005b, a planned migration manifest, and a pending staging-apply handoff. The index mirrors the app contract exactly (metadata.idempotency_key written by the enhanced purchase route and checkout service; matched by findIdempotentPurchase), so no application change rides along. Static/chain/validation evidence passes; local SQL lint and staged apply/postflight remain blocked.",
     "completed": [
       "Inventoried active canonical ticketing foundation objects and the archived admin overview dependency contract.",
       "Added additive migration 20260910230339_ticketing_admin_overview_contract.sql for ticket_shares, ticket_referrals, ticket_analytics, social_media_performance, RLS, indexes, get_admin_ticketing_overview(uuid, uuid), and get_admin_ticketing_social_performance(uuid, uuid).",
       "Added supabase/tests/db005_ticketing_schema_contract.sql with zero-drift object, both RPC signature, RLS, policy, and grant checks.",
       "Confirmed the admin route's second RPC dependency was absent from the active chain and added it without restoring archive SQL.",
       "Recorded active migration-chain, control-plane, and task JSON validation as passing.",
-      "Completed a static source-contract review against the exact migration and contract-test SHA-256 values; no live schema claim is made."
+      "Completed a static source-contract review against the exact migration and contract-test SHA-256 values; no live schema claim is made.",
+      "Wave 2026-09-21: confirmed the exact current ticket_sales constraint set (metadata jsonb not null default '{}', buyer_user_id uuid nullable, event_id uuid not null; only partial unique indexes on order_number, stripe_checkout_session_id, webhook_event_id).",
+      "Wave 2026-09-21: authored additive migration 20260921120000_ticketing_purchase_idempotency.sql — CREATE UNIQUE INDEX idx_ticket_sales_purchase_idempotency ON ticket_sales(buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL; no column added, no table rewritten, sql lint not run (BLOCKED).",
+      "Wave 2026-09-21: authored supabase/tests/db005b_ticketing_idempotency_contract.sql (zero-drift: index presence, uniqueness, expression, partial predicate, base columns, jsonb precondition; one summary row).",
+      "Wave 2026-09-21: recorded the planned manifest with SHA-256s, layered plan, and manual-apply-pending (CP-051) status; filed pending handoff HF-DB-005-STAGING-APPLY to the release/ops operator.",
+      "Wave 2026-09-21: recorded TICKET-005's PENDING handoff (distributed DB-unique purchase idempotency) as actioned in local scope."
     ],
     "next_steps": [
+      "Through the approved manual staging pipeline, apply 20260921120000_ticketing_purchase_idempotency.sql once and run supabase/tests/db005b_ticketing_idempotency_contract.sql; capture both RPC signatures and returned contract shape.",
+      "Run the Layer 3 runtime probe on staging: two concurrent first requests with the same Idempotency-Key must yield exactly one ticket_sales row and a unique_violation (23505) on the second insert; re-run the TICKET-005 purchase-idempotency vitest suite.",
+      "Attach staging then production postflight evidence to docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json and advance its status.",
       "Run the DB-005 migration and contract checks against an approved staging target through the explicit manual pipeline.",
-      "Through the approved manual staging pipeline, apply the additive migration once and run supabase/tests/db005_ticketing_schema_contract.sql; capture both RPC signatures and returned contract shape.",
       "Capture staging and production postflight evidence that get_admin_ticketing_overview(uuid, uuid) and get_admin_ticketing_social_performance(uuid, uuid) resolve and return the contract shape.",
-      "Hand the migration and contract test to the approved staging operator for explicit manual application and execution.",
-      "Capture staging and production postflight evidence for both RPCs before closing DB-005.",
       "Do not use reset, forced replay, or archive-only DDL as runtime proof."
     ],
     "blockers": [
-      "Local Supabase/Postgres target is unavailable at 127.0.0.1:54322, so SQL lint and runtime contract execution could not run.",
-      "Staging and production manual-apply/postflight evidence is not available in this bounded turn; migration remains unapplied.",
+      "Local Supabase/Postgres target is unavailable at 127.0.0.1:54322, so SQL lint and runtime contract execution could not run (BLOCKED, ECONNREFUSED expected).",
+      "Staging and production manual-apply/postflight evidence is not available in this bounded turn; the new idempotency migration remains unapplied.",
       "CP-051 requires an explicitly approved manual staging/production apply; no automatic apply, reset, forced replay, or production mutation is authorized here."
     ],
     "checkpoints": [
@@ -131,8 +144,37 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-21T16:00:00.000Z",
+        "sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+        "summary": "Wave 2026-09-21 lane 1: TICKET-005 PENDING handoff actioned in local scope. Confirmed ticket_sales has no DB-unique purchase idempotency (only partial unique indexes on order_number, stripe_checkout_session_id, webhook_event_id); metadata is jsonb and buyer_user_id is nullable. Authored additive migration 20260921120000_ticketing_purchase_idempotency.sql: partial unique index idx_ticket_sales_purchase_idempotency on (buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL — mirrors the app contract (app/api/ticketing/enhanced/route.ts and lib/services/ticketing.service.ts write metadata.idempotency_key; findIdempotentPurchase matches buyer+event+key) so no application change is required and no generated-type drift occurs. Added zero-drift contract test supabase/tests/db005b_ticketing_idempotency_contract.sql, planned manifest with SHA-256s and layered plan (status planned / manual-apply-pending CP-051), and pending handoff HF-DB-005-STAGING-APPLY to the release/ops operator. Existing DB-005 files (20260910230339 migration and db005 contract test) were not modified.",
+        "changed_paths": [
+          "supabase/migrations/20260921120000_ticketing_purchase_idempotency.sql",
+          "supabase/tests/db005b_ticketing_idempotency_contract.sql",
+          "docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json",
+          "docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json",
+          "docs/engineering/tasks/active/DB-005.json",
+          "docs/engineering/agents/database/STATE.md"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — 294 active migrations, no duplicate policy creations, new migration appears in the chain scan.",
+          "PASS: npm run check:migration-validation — 20260921120000_ticketing_purchase_idempotency.sql scanned with its planned manifest, zero failures.",
+          "PASS: DB-005 JSON parse check.",
+          "PASS: git diff --check on changed tracked paths; new files carry no trailing whitespace.",
+          "PASS: SHA-256 capture — migration 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106, contract test c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d.",
+          "BLOCKED: supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred; no services started."
+        ],
+        "blockers": [
+          "No approved running target is available for SQL execution or RPC/RLS postflight; local lint BLOCKED.",
+          "Staged/manual apply of the idempotency migration requires the release/ops operator per CP-051."
+        ],
+        "next": "Apply 20260921120000_ticketing_purchase_idempotency.sql once on an approved staging target, run the db005b contract test, run the concurrent-first-request 23505 probe and the TICKET-005 purchase-idempotency vitest suite, then record postflight evidence."
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [
+    "CONSUMED (wave 2026-09-21): TICKET-005 PENDING handoff — distributed DB-unique purchase idempotency on ticket_sales — actioned in local scope by migration 20260921120000_ticketing_purchase_idempotency.sql (partial unique index on buyer_user_id, event_id, metadata->>'idempotency_key').",
+    "PENDING HF-DB-005-STAGING-APPLY (docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json): release/ops operator applies the idempotency migration once on staging, runs the db005b contract test and runtime 23505 probe, and attaches postflight evidence."
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-09-21T22:14:03.273Z",
+  "updated_at": "2026-09-22T09:12:12.438Z",
   "tasks": [
     {
       "id": "ADMIN-001",
@@ -51,6 +51,16 @@
       "updated_at": "2026-09-09T01:27:07.069Z",
       "path": "docs/engineering/tasks/completed/ADMUX-W01.json",
       "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1"
+    },
+    {
+      "id": "ADMVIEW-001",
+      "title": "Admin panel readability and navigation",
+      "status": "active",
+      "priority": "P2",
+      "owner_agent": "admin",
+      "updated_at": "2026-09-21T22:27:33.122Z",
+      "path": "docs/engineering/tasks/active/ADMVIEW-001.json",
+      "base_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961"
     },
     {
       "id": "ARTIST-001",
@@ -158,7 +168,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "database",
-      "updated_at": "2026-09-16T19:24:55.209Z",
+      "updated_at": "2026-09-21T16:00:00.000Z",
       "path": "docs/engineering/tasks/active/DB-005.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -558,7 +568,7 @@
       "status": "active",
       "priority": "P1",
       "owner_agent": "discover",
-      "updated_at": "2026-09-16T19:24:55.639Z",
+      "updated_at": "2026-09-21T22:22:16.000Z",
       "path": "docs/engineering/tasks/active/DISC-002.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -868,7 +878,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "release",
-      "updated_at": "2026-09-16T19:24:55.512Z",
+      "updated_at": "2026-09-21T22:17:32Z",
       "path": "docs/engineering/tasks/active/RELEASE-004.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },
@@ -1048,7 +1058,7 @@
       "status": "active",
       "priority": "P0",
       "owner_agent": "general-user",
-      "updated_at": "2026-09-19T02:37:54.000Z",
+      "updated_at": "2026-09-21T22:19:41.000Z",
       "path": "docs/engineering/tasks/active/USER-005.json",
       "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b"
     },

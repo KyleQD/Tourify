@@ -81,3 +81,5 @@ The opt-in smoke sends up to 61 GET requests to local `/api/search` under an iso
 5. Re-run `npm run verify:local`, `/healthz`, the relevant cron authorization check, and any affected migration/RLS checks before resuming local writes.
 
 Actual demo or production promotion additionally requires live backups/PITR and restore evidence, configured monitoring and alerts, a real rate-limit 429 proof, scheduled-worker ownership, and the full release gate.
+
+For the full recovery and continuity plan (isolated four-project topology, application rollback via exact-SHA Vercel redeploy, forward-only database repair, incident ownership, SLO-aligned RPO/RTO, PITR evidence checklist, and the isolated restore-drill runbook), see `docs/recovery-and-continuity-plan.md`. This local guide covers only the local rollback slice; it does not duplicate the production plan.

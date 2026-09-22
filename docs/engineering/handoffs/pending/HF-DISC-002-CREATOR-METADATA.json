@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DISC-002-CREATOR-METADATA",
+  "task_id": "DISC-002",
+  "from_agent": "discover",
+  "to_agent": "database",
+  "status": "pending",
+  "created_at": "2026-09-21T22:22:16.000Z",
+  "source_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+  "summary": "DISC-002 creator-filter migration is blocked by a metadata gap. The canonical /api/search (FTS-backed GlobalSearchResponse) exposes only {kind:'profile', handle, profileType, location} for profile results, sourced from the accounts projection. Creator-only search (/api/search/enhanced) additionally derives genres, skills/creatorType/service, availability/availableForHire, and artistProfileId from artist_profiles.genres (string[]) and artist_profiles.settings (Json via extractCreatorCapabilitiesV1). accounts has no genres/skills/availability columns, so the canonical contract cannot express equivalent filters without either contract drift (forbidden for DISC-002) or a schema/projection change. The database lane owns the accounts search projection (CP-052) and migrations; the artist agent owns the artist_profiles surface whose genres/settings are the source fields.",
+  "working_set": [
+    "supabase/migrations/** (additive-only, CP-051 manual apply)",
+    "lib/database.types.ts (regen via CP-016)",
+    "lib/search/global-search-service.ts (queryProfiles accounts select — consumer reference)",
+    "lib/search/global-search-types.ts (profile metadata union — consumer reference)"
+  ],
+  "completed": [
+    "Caller inventory recorded: 7 direct /api/search/enhanced callers; 6 rely on creator-only profile data (app/create/page.tsx, app/api/discover/route.ts, hooks/use-enhanced-search.ts, components/search/enhanced-search.tsx, components/admin/band-hub.tsx, components/admin/org-team-grants-panel.tsx). One caller (app/discover/users/page.tsx) needs only response.ok and can migrate without creator metadata.",
+    "Gap recorded precisely: canonical profile metadata (lib/search/global-search-types.ts {kind:'profile', handle, profileType, location}) lacks artistProfileId, genres, skills/creatorType/service, availability, subtype, and follower counts; source fields live on artist_profiles.genres + artist_profiles.settings (Json) and accounts.metadata.subtype.",
+    "/api/search/enhanced now carries an explicit compatibility-gated header comment and shares the canonical 60/min rate-limit bucket; no behavior change."
+  ],
+  "next_steps": [
+    "Add creator metadata to the canonical profile search projection: either 1) extend the accounts projection (or a search projection view) to carry artist_profiles.genres, capability-derived skills/availability (or raw settings), artist_profiles.id (artistProfileId), and metadata.subtype, via an additive migration; or 2) add a canonical-JSON column/view join consumed by lib/search/global-search-service.ts queryProfiles. Coordinate the source-of-truth fields with the artist agent (artist_profiles.settings/public_profile semantics) before applying.",
+    "Once the projection carries creator metadata, discover adds backward-compatible genre/creatorType/service/availableForHire filters to lib/search/canonical-search.ts + canonical-search-route.ts (no GlobalSearchResponse shape change), then migrates the 6 creator-filter callers off /api/search/enhanced and retires the compatibility surface.",
+    "Do NOT change the GlobalSearchResponse contract shape; new canonical filters must be additive query params only (parseCanonicalSearchRequest boundary)."
+  ],
+  "blockers": [
+    "All migrations must be additive and applied manually (CP-051); no supabase db reset or full-chain replay.",
+    "accounts/metadata is a search projection (CP-052); projection changes must not re-introduce a second organization tenant or bypass RLS at the data boundary."
+  ],
+  "verification": [
+    "npx vitest run __tests__/search/canonical-search.test.ts __tests__/search/global-search-ranking.test.ts __tests__/search/global-search-results.test.ts — 12/12 passed (no regression)",
+    "npx eslint app/api/search/enhanced/route.ts — pass",
+    "git diff --check — pass"
+  ]
+}

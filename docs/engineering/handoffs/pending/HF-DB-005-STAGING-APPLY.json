@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB-005-STAGING-APPLY",
+  "task_id": "DB-005",
+  "from_agent": "database",
+  "to_agent": "release",
+  "status": "pending",
+  "created_at": "2026-09-21T16:00:00.000Z",
+  "source_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+  "summary": "DB-005 authored a strictly additive partial unique index closing the distributed DB-unique purchase idempotency gap on ticket_sales that TICKET-005 handed over (PENDING note in TICKET-005.json). Local Postgres is unavailable and CP-051 forbids any non-manual apply, so the migration 20260921120000_ticketing_purchase_idempotency.sql (SHA-256 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106) and its zero-drift contract test supabase/tests/db005b_ticketing_idempotency_contract.sql (SHA-256 c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d) require the approved staging operator to apply once and certify. The index mirrors the app contract exactly (metadata.idempotency_key written by app/api/ticketing/enhanced/route.ts and lib/services/ticketing.service.ts; matched by findIdempotentPurchase), so no application code change rides along.",
+  "working_set": [
+    "supabase/migrations/20260921120000_ticketing_purchase_idempotency.sql",
+    "supabase/tests/db005b_ticketing_idempotency_contract.sql",
+    "docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json"
+  ],
+  "completed": [
+    "Confirmed the exact current constraint set on ticket_sales: metadata jsonb, buyer_user_id uuid nullable, event_id uuid not null, and partial unique indexes on order_number, stripe_checkout_session_id, webhook_event_id only.",
+    "Authored the additive migration: CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_sales_purchase_idempotency ON public.ticket_sales (buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL; no column added, no table rewritten, archived/superseded SQL untouched.",
+    "Authored the zero-drift contract test asserting index presence, uniqueness, expression, partial predicate, base columns, and jsonb precondition (all violation-returning SELECTs; one summary row).",
+    "Recorded the planned manifest with layered plan (preflight duplicate scan, apply, postflight contract, runtime probe), SHA-256s, and manual-apply-pending (CP-051) status."
+  ],
+  "next_steps": [
+    "Run the migration exactly once against an approved staging target (supabase migration up or targeted psql apply under CP-051) — do not reset, force-replay, or db push --include-all.",
+    "Execute supabase/tests/db005b_ticketing_idempotency_contract.sql and confirm zero violation rows plus purchase_idempotency_index_ready = true.",
+    "Run the Layer 3 runtime probe: two concurrent first requests with the same Idempotency-Key must yield exactly one ticket_sales row and a unique_violation (23505) on the second insert; re-run the TICKET-005 purchase-idempotency vitest suite.",
+    "Attach staging (then production) postflight evidence to docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json and advance its status."
+  ],
+  "blockers": [
+    "Local Postgres is unavailable (ECONNREFUSED at 127.0.0.1:54322); SQL lint and runtime contract execution are blocked.",
+    "Staging/production manual apply is the operator's job under CP-051; the authoring lane never applies, resets, replays, or pushes migrations."
+  ],
+  "verification": [
+    "PASS: node scripts/ci/check-active-migration-chain.mjs — 294 active migrations, no duplicate policy creations, new migration appears in the chain scan.",
+    "PASS: npm run check:migration-validation — new migration scanned with planned manifest, zero failures.",
+    "PASS: DB-005 task JSON parse check.",
+    "PASS: git diff --check on changed tracked paths (DB-005.json, STATE.md); new files carry no trailing whitespace.",
+    "BLOCKED: supabase db lint --local requires a live local DB; recorded as BLOCKED (ECONNREFUSED expected), no services started."
+  ]
+}

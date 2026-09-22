@@ -1,3 +1,11 @@
+// COMPATIBILITY SURFACE — creator-only profile search.
+// Canonical search is /api/search (FTS-backed GlobalSearchResponse). /api/search/enhanced
+// is retained ONLY for creator-only filters/fields (genre, creatorType, service,
+// availableForHire, availability, artistProfileId, and companion profile metadata) that
+// the canonical contract does not yet expose. It shares the canonical 60/min rate-limit
+// bucket (CANONICAL_SEARCH_RATE_LIMIT). New callers must use /api/search; this route is
+// compatibility-gated and must be retired once creator metadata lands in the canonical
+// profile projection (see docs/engineering/handoffs/pending/DISC-002-creator-metadata.md).
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
