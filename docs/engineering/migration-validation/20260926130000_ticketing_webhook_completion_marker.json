@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926130000_ticketing_webhook_completion_marker.sql",
+  "taskId": "TICKET-005",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "f6140b79fd365633f1683da1d77e4c371aeef28f13d3600c80a8bde13d57aa2d",
+  "owner": "ticketing",
+  "reviewer": "database",
+  "domains": ["ticketing", "money-path", "data-integrity", "webhooks"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "static source review of the P0 named by HF-INTG-006-TICKETING and confirmed by reading the claim site: lib/ticketing/finalize.ts claimWebhookEvent inserted into ticket_stripe_webhook_events and collapsed a 23505 into a boolean false, and app/api/ticketing/webhook/route.ts answered {received: true, duplicate: true} on that boolean. The table itself (supabase/migrations/20260821000000_reconcile_ticketing_foundation.sql:339-345) declares processed_at timestamptz not null default now(), which is stamped at CLAIM time, and the generate types carry no completed_at, so completion was unobservable and a paid order could stay permanently unfinalized behind a success response",
+    "evidenceArtifact": "static-review:TICKET-005-WEBHOOK-COMPLETION-2026-09-25 (migration SHA-256 f6140b79fd365633f1683da1d77e4c371aeef28f13d3600c80a8bde13d57aa2d; route and claim-site behaviour certified by __tests__/ticketing/webhook-claim-completion.test.ts, which fails 6 of 11 cases when the pre-fix acknowledge-on-23505 semantics is restored)"
+  },
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): capture the current shape of public.ticket_stripe_webhook_events and the count of claims with no completion marker after the apply; the pre-apply state is asserted to have NO completed_at column, so a target that already has one is a different lineage and is not this migration",
+    "Layer 1 (apply, three statements, operator): ADD COLUMN completed_at timestamptz (nullable, no default); ADD COLUMN attempts integer NOT NULL DEFAULT 1; CREATE INDEX idx_ticket_stripe_webhook_events_incomplete on (processed_at) where completed_at is null. Catalog-only ALTERs on PostgreSQL 11+ for both columns (a constant default on a new column is metadata-only), no table rewrite, no backfill, no data touched",
+    "Layer 2 (postflight, read-only, operator): run the postflight queries below; expect the two columns and the partial index to exist, completed_at to be nullable with no default, processed_at to still be NOT NULL with default now(), and zero rows to have been written or rewritten",
+    "Layer 3 (runtime certification, release/ops): replay a real Stripe test-mode checkout.session.completed twice and prove the claim row shows completed_at set and attempts = 1 after the first delivery, that the duplicate delivery returns {received: true, duplicate: true, outcome: 'duplicate'} with no side effects, and that a delivery interrupted after the claim resumes on the next attempt with attempts incremented to 2; a failed completion write must leave completed_at NULL rather than acknowledge"
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT column_name, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ticket_stripe_webhook_events' ORDER BY column_name — pre-apply expectation: no completed_at and no attempts column, and processed_at still NOT NULL with default now()",
+      "SELECT count(*) FROM public.ticket_stripe_webhook_events",
+      "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'ticket_stripe_webhook_events' — pre-apply expectation: the primary key on id only, no incomplete-claim index",
+      "Confirm the deny-all service-role-only policy ticket_stripe_webhook_events_deny is present and RLS is enabled on the table before the apply, so completion cannot widen any client surface"
+    ],
+    "expectedAffectedRows": "DDL only: two added columns and one partial index. Zero rows inserted, updated, or deleted; no backfill is executed",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with the exact file or a targeted psql apply; a partial or failed apply is corrected with a later additive forward fix, never a replay or reset",
+    "resumeCursor": "Supabase migration version 20260926130000",
+    "idempotency": "Both ALTER TABLE ... ADD COLUMN IF NOT EXISTS and CREATE INDEX IF NOT EXISTS are deterministic and repeatable, and COMMENT ON COLUMN/INDEX re-asserts the same text. No object creation depends on a pre-check, no DML is executed, and no statement narrows an existing constraint, so re-applying the file is safe"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement and no quarantine: the migration adds nullable columns and an index and writes nothing. Deliberately NO backfill of completed_at — a pre-existing row has an unprovable outcome under the old claim-time-only schema, and asserting completed_at = processed_at would claim every historical claim finished, which is the exact unprovable assertion behind the P0. Pre-existing rows are left NULL, which makes a replay of an old event RESUME (the guarded transitions make that a no-op re-apply) rather than falsely acknowledge it"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No CHECK, FK, or NOT NULL constraint is added to or changed on an existing column; processed_at keeps its NOT NULL DEFAULT now() meaning as the claim stamp and is not relaxed or repurposed",
+      "attempts is the only NOT NULL column added, and it is metadata-only on PostgreSQL 11+ for a constant default; existing rows read back as 1",
+      "No RLS policy is created or dropped. The table keeps RLS enabled and the existing deny-all policy ticket_stripe_webhook_events_deny, so completion is written only by the same service-role client that already claims the event"
+    ],
+    "indexes": [
+      "Adds partial index idx_ticket_stripe_webhook_events_incomplete on ticket_stripe_webhook_events(processed_at) where completed_at is null",
+      "The existing primary key on ticket_stripe_webhook_events(id), which is the claim's uniqueness guarantee and the source of the 23505, is untouched"
+    ],
+    "validationPlan": "Post-apply catalog probes assert both columns and the partial index exist, that completed_at is nullable and carries no default, that processed_at is still NOT NULL with default now(), and that the RLS deny policy is unchanged. Runtime behaviour is certified by __tests__/ticketing/webhook-claim-completion.test.ts (11 route-level cases over real Stripe signature verification) and by the Layer 3 replay probe; the file-based catalog contract test under supabase/tests is database-owned and is requested in HF-TICKET-035-DB-TEST-CONTRACT rather than authored from this lane"
+  },
+  "recovery": {
+    "rollback": "No object is dropped and no data is rewritten, so rollback means accepting the columns: if they must be removed, drop completed_at, attempts, and idx_ticket_stripe_webhook_events_incomplete through an explicit reviewed additive migration, and only while no deployed route depends on them — the ticketing webhook route fails closed on a missing completion marker, so removing it while the route is live would reintroduce the P0",
+    "forwardFix": "Extend scope (for example a claim lease timeout, a dead-letter state, or a partial unique guard tying a claim to its order) through a later additive migration; never re-apply or replay the chain"
+  },
+  "postflight": {
+    "queries": [
+      "SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ticket_stripe_webhook_events' AND column_name IN ('processed_at','completed_at','attempts') — expect completed_at timestamptz YES NULL, attempts integer NO 1, processed_at timestamptz NO now()",
+      "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'ticket_stripe_webhook_events' AND indexname = 'idx_ticket_stripe_webhook_events_incomplete' — expect a partial index on processed_at with the completed_at IS NULL predicate",
+      "SELECT count(*) FROM public.ticket_stripe_webhook_events WHERE completed_at IS NULL — expected to be non-zero and to equal the pre-existing claim count: this is the intended no-backfill state, not a defect",
+      "SELECT count(*) FROM public.ticket_stripe_webhook_events WHERE completed_at IS NOT NULL — expected 0 immediately after the apply, rising only as live deliveries complete",
+      "SELECT policyname, cmd, qual, with_check FROM pg_policies WHERE schemaname = 'public' AND tablename = 'ticket_stripe_webhook_events' — expect ticket_stripe_webhook_events_deny unchanged",
+      "Re-run npx vitest run __tests__/ticketing and confirm the suite is green against the migrated shape",
+      "Operator probe for stuck claims: SELECT id, event_type, processed_at, attempts FROM public.ticket_stripe_webhook_events WHERE completed_at IS NULL AND processed_at < now() - interval '1 hour' — rows here are events a delivery never finished and the next Stripe delivery of the same event id will resume them"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "ticketing",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -178,3 +178,82 @@ Update this file only when a task establishes a durable fact future work needs.
   USER-005 remaining blockers are hosted-only: isolated-staging lifecycle and
   cross-tenant negative authorization, two-prefix private-docs storage
   deletion certification, and persistent-MFA coordination with INTG-003/DB-008.
+
+## Wave 35 — `profiles.custom_url`, `calculate_venue_profile_completion`, the phone gate, and MFA — 2026-09-26
+
+Last reviewed SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
+
+### Durable facts
+
+- `profiles.custom_url` does not exist in the active chain or in `lib/database.types.ts`. The
+  canonical, chain-populated public handle on `profiles` is `username`
+  (`public.generate_unique_username`, `public.lookup_profile_id_by_username`). `profiles.url_slug`
+  appears in the generated contract but has **no active migration and no reader**, so it is not a
+  usable destination. `custom_url` survives only as a documented request/response alias on
+  `/api/profile/update`, `/api/profile/update-optimized` and `/api/profile/current`.
+- **A phantom column fails the whole PostgREST statement, not one field.** A column missing from the
+  target relation returns an error and a null `data`, so one stale identifier inside a shared select
+  string, an `.eq()` filter, or a spread-into-payload write silently disables the entire route. This
+  is how the drift presented: `profiles.custom_url` was inside the select of `/api/profile/current`
+  (9 entry-reachable callers), inside both selects of `/api/profile/[username]`, and inside the
+  update payload of `/api/profile/update` (a form that always submits the field);
+  `/api/profile/update-optimized` copied every submitted key into the column payload, so the `phone`
+  both settings forms always send poisoned the statement. `profiles.verified` in
+  `/api/settings/profile` was the same shape.
+- The database type inventory's `tscFiles` are **file-level, not line-level**, and its
+  `tscDiagnosticHits` are **upper bounds**. Three lanes have now measured an object wrong
+  independently. Measured at ca3bb0b0: `profiles.custom_url` = 10 primary diagnostics, all in
+  `lib/seo/public-preview-readers.ts` (inventory: 17, split across an artist file that contains no
+  such reference); `calculate_venue_profile_completion` = 1 live consumer,
+  `app/api/settings/route.ts:125` (inventory: 3 files, 8 hits). Re-derive with a scoped tsc; do not
+  trust the inventory's file list.
+- `profiles` has **no** `phone` column. It has `show_phone`, `show_email`, `show_location` —
+  real boolean columns from `20250819100000_profiles_expand_fields.sql`, default false — and those
+  are the **sole** publication switches. The canonical phone storage is
+  `profiles.profile_data.phone`; `profiles.metadata.phone` is the legacy mirror.
+  `lib/profile/general-public-profile.ts:27` is the one correct gate and strips `profileData.phone`
+  unless `show_phone === true`.
+- The phone gate has a **writer divergence that is deliberately unresolved**.
+  `app/api/settings/profile/route.ts:85` writes the column; `app/api/profile/update/route.ts` wrote
+  `metadata.show_phone` only; `app/api/profile/update-optimized/route.ts` mass-assigns the column
+  when its statement is not poisoned. The two settings components read `metadata.show_phone`, so the
+  toggle the user sees is not the toggle the public gate honours. Unifying it is a product/privacy
+  decision whose two directions have opposite consequences — see
+  `HF-USER-035-PHONE-GATE-WRITERS`. Do not unify it silently.
+- `app/api/connect/sessions/route.ts:146` is a **live third-party reader of the phone gate**
+  (`Boolean(profile.show_phone && connectSettings.sharePhoneOnConnect && profile.profile_data?.phone)`)
+  and belongs to no agent's grant.
+- `app/api/settings/route.ts` took a caller-supplied `profile_id` on both verbs. RLS blocked the
+  cross-user **write** (`profiles_update ... USING (id = auth.uid())`) but the route still answered
+  `success: true` for a zero-row update, and RLS never blocked the cross-user **read** because
+  `profiles_select` is `USING (true)` in the active chain — GET returned another user's entire
+  profile row, `metadata` and `profile_data` included. Both verbs now return 403 and issue no query.
+- MFA is **dead**, and the unlock is a deletion order rather than a permission. The complete importer
+  set of `lib/services/mfa.service.ts` is `hooks/use-mfa.ts` and
+  `__tests__/integrations/mfa.service.test.ts`; the hook had zero importers and is **deleted**. The
+  `user_mfa_*` relations the service reads are created by no SQL file under `supabase/` and are
+  superseded by `20260918213707_mfa_verification_codes`. Persistent MFA remains an open requirement
+  under INTG-003 / DB-008; this retires one superseded implementation.
+- A scoped tsc over the MFA graph did **not** complete inside a 10-minute bound — `mfa.service.ts`
+  triggers `TS2589` at six sites, so the measurement itself is expensive. The 40 + 1 diagnostic
+  figures are quoted from the design-system lane's preserved run, not re-measured here.
+
+### Current focus
+
+- USER-003: the drift repair is complete for the general-user surface. Remaining acceptance still
+  depends on the canonical settings-family owner decision in `QUESTIONS.md` Q2.
+- USER-005: locally achievable work is done. Hosted criteria (isolated-staging lifecycle, cross-tenant
+  negative authorization, two-prefix `private-docs` Storage certification) remain blocked and are not
+  claimed.
+- USER-006: **decided — RETIRE.** See the `decision` block in the task. The route is retained on disk
+  only because the removal sequence's route-map precondition needs `agents:generate`.
+
+### Known risks
+
+- `custom_url` now aliases `username` in three API responses. A client that treated them as
+  independent handle fields will see them converge. The conflict case is rejected with 400 rather
+  than silently resolved, so no handle change is ever chosen for the user.
+- `/api/profile/create/route.ts` is repointed but has **zero callers** and is not deleted; route
+  deletion is a product-surface decision and is routed by handoff.
+- The `events`, `analytics`, `calendar` and `connect` path families belong to no agent, so nothing in
+  them can be verified by an owner until the registry is repaired.

@@ -1,9 +1,9 @@
 /**
  * Guarded internal JSON fetch for the server-side fan-outs that call the app's
  * own API routes: `/api/discover` (DISC-SSRF-001), `/api/hub` (DISC-SSRF-002),
- * and the news external-candidate fan-out (DISC-SSRF-003). All three previously
- * derived the outbound base origin from the inbound request, and CodeQL flagged
- * only the first.
+ * the news external-candidate fan-out (DISC-SSRF-003), and the opportunities
+ * RSS ingest (DISC-SSRF-004). All four previously derived the outbound base
+ * origin from the inbound request, and CodeQL flagged only the first.
  *
  * Every hop of this path is controlled:
  *
@@ -119,7 +119,28 @@ export const NEWS_UPSTREAM_ROUTES = {
 } as const satisfies Record<string, { pathname: string; params: readonly string[] }>
 
 /**
- * Every route the guarded transport may reach, across all three fan-outs. The
+ * Security decision DISC-SSRF-004. `ingestOpportunitiesFromRss` used to build
+ * `new URL('/api/feed/rss-news', params.origin)` and hand it to the global
+ * `fetch` once per each of six hardcoded categories. `params.origin` was
+ * `request.nextUrl.origin` at BOTH callers, so a caller who controlled `Host` /
+ * `X-Forwarded-Host` chose the destination of six concurrent server-side
+ * requests, and the global `fetch` followed any redirect out of the fan-out.
+ * Unflagged, for the same reason as DISC-SSRF-002/003: `js/request-forgery`
+ * models `request.url` as a remote-flow source but not `request.nextUrl.origin`.
+ *
+ * The destination is the same frozen pathname the news fan-out already uses, so
+ * this adds a *key*, never a second allowlist, transport or redirect policy.
+ * The key is per-call-site so a denial log names the surface that was refused.
+ */
+export const OPPORTUNITIES_UPSTREAM_ROUTES = {
+  opportunitiesRssNews: {
+    pathname: '/api/feed/rss-news',
+    params: ['limit', 'category'],
+  },
+} as const satisfies Record<string, { pathname: string; params: readonly string[] }>
+
+/**
+ * Every route the guarded transport may reach, across all four fan-outs. The
  * pathname is still a compile-time constant chosen by key; the union only
  * widens the redundant path-prefix cross-check, never a caller-reachable input.
  */
@@ -127,6 +148,7 @@ export const INTERNAL_UPSTREAM_ROUTES = {
   ...DISCOVER_UPSTREAM_ROUTES,
   ...HUB_UPSTREAM_ROUTES,
   ...NEWS_UPSTREAM_ROUTES,
+  ...OPPORTUNITIES_UPSTREAM_ROUTES,
 } as const satisfies Record<string, { pathname: string; params: readonly string[] }>
 
 export type InternalUpstreamRoute = keyof typeof INTERNAL_UPSTREAM_ROUTES

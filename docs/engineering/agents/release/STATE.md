@@ -26,8 +26,8 @@
 
 - RELEASE-005 is blocked, not complete. Full Vitest at candidate SHA `7cf660ad8422dbd3adbdb77369d94638cdc2231b` reported 5017 passed, 8 skipped, and 2 failed tests: the MFA bcrypt timeout and the `PublicSiteMapViewer` site-map contract.
 - Hosted E2E has no matching successful run for the candidate SHA; the latest listed runs failed, including run `33990768961` failing both Vitest and Playwright jobs. Candidate check-runs contain no E2E result.
-- GitHub branch-protection lookup for `main` returned 404. No required-check enforcement evidence exists, and no workflow, deployment, or branch-protection change was made.
-- Closure requires fixing the two tests, a successful matching-SHA hosted E2E run, and owner-provisioned branch protection with `e2e.yml` required.
+- ~~GitHub branch-protection lookup for `main` returned 404. No required-check enforcement evidence exists, and no workflow, deployment, or branch-protection change was made.~~ **CORRECTED 2026-09-25 (Wave 35, REL-005): this is obsolete.** `GET /repos/KyleQD/Tourify/branches/main/protection` now returns **200, not 404**: `strict: true` over 10 required contexts, `required_approving_review_count: 1`, `dismiss_stale_reviews`, `require_last_push_approval`, `enforce_admins`, `required_linear_history`, no force pushes, no deletions, `required_conversation_resolution`, `required_signatures.enabled: false`. No branch-protection setting has been changed by any agent lane.
+- Closure requires fixing the two tests (both since closed locally, 2026-09-21), a successful matching-SHA hosted E2E run, and the owner-executed required-check set (now decided in REL-003, still unapplied).
 
 ## Known risks
 
@@ -400,7 +400,7 @@ required e2e governance remain promotion-scoped.
   was rerun: 568 files passed, 2 skipped; 5,317 tests passed, 8 skipped; exit 0
   in 23.04 seconds. Fresh read-only GitHub evidence remains blocked: the newest
   ten `e2e.yml` runs are failures from 2026-09-05, none targets `ddf3b43d`, and
-  the main-branch protection endpoint still returns 404 `Branch not protected`.
+  ~~the main-branch protection endpoint still returns 404 `Branch not protected`.~~ **SUPERSEDED 2026-09-25:** it returns **200** with 10 strict required contexts. See REL-005. The surrounding sentence is retained as the 2026-09-21 record; only the protection claim is corrected.
 
 ## RELEASE-005 local Jest closure — 2026-09-21
 
@@ -433,7 +433,7 @@ required e2e governance remain promotion-scoped.
 
 - Read-only Vercel inspection maps both `demo.tourify.live` and `tourify.live` to production deployment `dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK` in project `tourify-beta-k2` (`prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n`). Separate staging deployment/project isolation is disproven for the current aliases.
 - Both public health endpoints return 200 without release SHA, deployment ID, Supabase-origin, or Stripe-mode headers. Both CSPs advertise `https://auqddrodjezjlypkzfpi.supabase.co`; staging runtime database and test-payment mode remain unproven.
-- GitHub staging and production environments have no variables, secrets, or protection rules; main branch protection is absent. The field-by-field packet and operator checklist are at `docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md`. No deployment, database write, actor, or payment action occurred.
+- GitHub staging and production environments have no variables, secrets, or protection rules; ~~main branch protection is absent~~ **CORRECTED 2026-09-25 (REL-005): `main` IS protected** — the endpoint returns 200 with 10 strict required contexts plus review/admin enforcement. The GitHub *environment* claim above is unaffected and still stands. The field-by-field packet and operator checklist are at `docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md`. No deployment, database write, actor, or payment action occurred.
 
 ## Wave 32 PR #14 release-lane check triage — 2026-09-25
 
@@ -518,8 +518,11 @@ setting was changed. Full transcript:
   `required_approving_review_count: 1`, `dismiss_stale_reviews`, `require_last_push_approval`,
   `enforce_admins`, `required_linear_history`, no force pushes, no deletions,
   `required_conversation_resolution`. `required_signatures` is **false**.
-  STATE.md and RELEASE-005 both still record `404 Branch not protected`; that baseline
-  is obsolete.
+  ~~STATE.md and RELEASE-005 both still record `404 Branch not protected`; that baseline
+  is obsolete.~~ **ACTED ON 2026-09-25 (Wave 35, REL-005):** the correction has been
+  applied. The live-claim sites in this file and in RELEASE-005 were corrected in
+  place; the dated evidence entries were **superseded by append** rather than
+  rewritten, because rewriting a dated measurement falsifies the record.
 - **Merge blockers on PR #14 are exactly three required checks:** `Database Types`
   (FAILURE), `Lint And Build` (FAILURE), `E2E Tests (Playwright)` (CANCELLED).
   `mergeStateStatus: BLOCKED`. The `Vercel` and Advanced Security `CodeQL` failures
@@ -553,3 +556,178 @@ setting was changed. Full transcript:
 5. RELEASE-006: remove or pin the stale tracked `pnpm-lock.yaml`; align the hosted
    `nodeVersion`; collapse the heap ceilings only after a green-run duration is
    measured.
+
+## Wave 35 governance lane — 2026-09-25
+
+Full evidence: `docs/audits/flow-notes/release-wave35-governance-2026-09-25.md`.
+Decisions: `REL-002` … `REL-006` (domain) and `CP-077` … `CP-079` (cross-domain).
+**One code file changed: `.github/workflows/ci.yml`.** No product file, hosted
+environment, branch-protection setting, code-scanning analysis or alert, lockfile,
+or `e2e.yml` was touched. No git history operation was performed. No credential,
+token, DSN, or hosted value was read, printed, or fabricated; the only environment
+data inspected was the set of variable **names** in `deployment/*.env`.
+
+### The release gate is now eleven independent jobs
+
+`ci.yml` went from one composite job to eleven, with **no `needs:` edges**. The
+production build, the migration gates and the service-role audit were steps
+sequenced after `Typecheck` and were therefore `skipped` on run `35761777731`,
+which is why head `d2176904` has no production-build evidence at all. They now
+report their own conclusions. `Lint And Build` keeps only clean install, lint, the
+ESLint warning budget, the critical dependency audit and the typecheck — exactly
+the evidence that was already running when the gate failed. `npm audit
+--audit-level=critical` **moved up** ahead of `Typecheck`, so it stops being
+maskable: strictly more coverage than before.
+
+Coverage preservation is **proven, not asserted**: a set difference of every `npm
+run …` / `npm test` / `npm ci` / `npm audit` invocation before and after returns
+**0 removed and 0 added**, and the file contains zero occurrences of
+`continue-on-error`, `if: always()`, `|| true`, `|| echo`, or
+`ignoreDuringBuilds`.
+
+### The four `ci.yml` required context names are contract
+
+GitHub matches a required status check by its reported **name**, so renaming the
+job that emits one changes branch protection without touching a protection file.
+`Production Debug Scan`, `Vitest`, `Database Types` and `Lint And Build` are
+reproduced byte-for-byte and their presence is asserted mechanically (`CP-077`).
+The six other required contexts come from `e2e.yml` and `security-scans.yml`,
+neither of which was modified.
+
+### Nine of eleven job caps are provisional, and say so in the file
+
+Measured against a green whole-job run: `Production Debug Scan` 56 s,
+`Vitest` 119 s, `Mobile Typecheck And Lint` 85 s (green `mobile-checks`).
+Everything else is annotated `PROVISIONAL` in `ci.yml` with the single green run
+that would replace it. The `Typecheck` step cap of 115 min is 1.69× the only
+observation (68 m 18 s, on a *failing* tree). The `Production Build` cap rests on
+a cost model whose **static-generation phase has never once been measured**,
+because the `Build` step has never completed on this repository; 45 min is
+budgeted for it deliberately over-generously. No claim is made that any job
+completes inside its budget.
+
+The duplicate full-repo `tsc` inside `next build` is **not** removed. The only
+switch is `typescript.ignoreBuildErrors` in `next.config.ts`, which is not
+release-owned and whose relaxation would weaken a gate. The honest outcome is a
+correctly-budgeted long build, not a fast one — see `HF-QA-035-E2E-BUILD-HEADROOM`
+for the E2E-job headroom arithmetic, raised as a coordination item rather than
+applied to QA's file.
+
+### The `refs/heads/main` code-scanning baseline: root cause found, and it is a merge-ordering fact
+
+`GET /code-scanning/analyses?ref=refs/heads/main` → **0**.
+`?branch=main&state=open|dismissed|fixed` → **0 / 0 / 0**. All **19** recorded
+analyses are `refs/pull/{14,6,5,4}/merge`.
+
+**Both candidate causes in the earlier hypothesis were wrong.** `main` *was*
+pushed (`76d8389e…`, 2026-07-19, `protected: true`), and the SARIF upload *is*
+landing (19 PR analyses, CodeQL 2.27.0, `/language:javascript-typescript`). The
+real cause is a third thing: **`.github/workflows/security-scans.yml` has never
+been on `main`.** `git ls-tree --name-only origin/main .github/workflows/` returns
+13 files and it is not among them; it was introduced in `be313ca2` (2026-08-04) on
+an unmerged feature branch. GitHub Actions runs only workflow files present in
+the pushed commit, so `on: push: branches: [main]` **has never existed on the
+default branch and has never had the opportunity to fire** — and the
+`schedule: cron "23 9 * * 1"` trigger is equally inert, with zero `push` and zero
+`schedule` events in 19 recorded runs.
+
+**A sharper coupling surfaced and matters more than the baseline itself:** four of
+the ten required contexts — `Security exception governance`, `Secret scan`,
+`CodeQL (JavaScript/TypeScript)`, `Generate SBOM` — are emitted **only** by that
+file, which is **not on `main`**. They are satisfiable only because a pull request
+carries it; there is **zero evidence their `push: main` path has ever run**; and
+removing the file from `main` would make four required contexts unproducible and
+block every future merge.
+
+Until `analyses?ref=refs/heads/main` is non-empty, the Advanced Security `CodeQL`
+gate **cannot function as a regression gate** for this repository and its alert
+count measures pull-request size, not risk. That is a pipeline fact, not a
+statement about any finding: 94 of 96 alerts sit in files the PR never touched and
+the single critical is not in the diff, yet **nothing was dismissed** (CP-060). The
+Wave 33/34 fixes to `app/api/discover`, `app/api/hub` and `lib/news/feed-service.ts`
+are **not** confirmed closed — GHAS has no local engine. Five-step owner procedure
+in the evidence record §3.4; the single check that proves the defect closed is a
+non-empty `analyses?ref=refs/heads/main`.
+
+### Required-check posture: decided, recorded, NOT applied
+
+Seven questions answered with rationale in `REL-003` / `CP-077`:
+
+| Candidate | Decision |
+| - | - |
+| `Dependency review` | **Require** — unconditional on PRs, already green, already `fail-on-severity: critical` |
+| Advanced Security `CodeQL` | **Defer** — no `main` baseline, so it would enforce a PR-size artefact |
+| `Migrations And RLS Matrix`, `mobile-checks`, `redirect-safety`, `Mobile Typecheck And Lint` | **Do not require as configured** — all four are **path-filtered**, and a required context that does not report for a head SHA **blocks the merge**. Requiring any of them would brick `main` on the first unrelated PR |
+| `Production Build`, `Migration Gates`, `Service-Role Audit`, `Jest Unit Tests`, `Route And Registry Gates`, `Regression Safeguards` | **Require** — one atomic `PUT` |
+| `required_signatures` | Leave `false`; recommend the owner enable it |
+
+GitHub **replaces** `required_status_checks.contexts` wholesale rather than
+appending, so the change is a single atomic operation with **no window in which
+enforcement is weaker than today's**. The exact owner procedure — read the current
+set programmatically, build current+6, `PUT` once, read back — is in the evidence
+record §2.3. **No `PUT` was issued and no protection state was changed by this
+lane.** One hard sequencing constraint: the six new contexts only start reporting
+once a pull request runs the restructured `ci.yml`, so the `PUT` must land in the
+same window as the merge carrying the restructure, or immediately after it.
+
+### Two operator-gated preconditions, recorded as blocking
+
+1. **Type regeneration** — `HF-RELEASE-035-TYPE-REGEN-OPERATOR`. Credential-gated,
+   not permission-gated: `supabase/.temp/linked-project.json` exists but
+   `supabase/.temp/pooler-url` is 92 bytes with **no embedded password**, and
+   Docker is unavailable, so all three modes of
+   `scripts/ci/database-types-source.mjs` are blocked. Regeneration is now *safe*:
+   the database lane withdrew its blocker with evidence that the active chain is a
+   strict **superset** of the contract (+13 relations, +54 columns, +42 callables,
+   **zero** contract-only), so it would add coverage and delete none.
+   `lib/database.types.ts` is byte-unchanged. This 8 GB machine cannot measure the
+   type surface at all — CI's 16 GB runner is the only place the 1 384-diagnostic
+   count can be re-measured.
+2. **`INTERNAL_API_ORIGIN`** — `HF-RELEASE-035-INTERNAL-API-ORIGIN-OPERATOR`. The
+   guard reads `INTERNAL_API_ORIGIN` → `NEXT_PUBLIC_APP_URL` →
+   `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL`, with no fallback and no
+   localhost default, so an unset environment silently returns empty sections by
+   design. **New finding:** `deployment/demo.env` (31 keys) and
+   `deployment/production.env` (25 keys) contain **none** of the four names, and
+   neither carries `ENCRYPTION_KEY`, `INTERNAL_API_SECRET` or `CRON_SECRET`. An
+   operator who loads either template and deploys gets the fail-closed response.
+   **No key was added and no value was written** — a guessed origin would either be
+   refused or allowlist something that should not be reachable.
+
+**Three claims stay unprovable without a live target**, recorded so they are not
+mistaken for covered: PostgREST schema-cache behaviour after a migration (a stale
+cache yields zero rows and *no* error — the same shape as the Wave 34 search
+drift); real RLS against real rows, since `Migrations And RLS Matrix` proves the
+matrix against a freshly built *ephemeral* stack; and the **13 view relations
+whose columns are proven by name occurrence** rather than by replaying the
+`SELECT` list.
+
+### Stale records retired
+
+`main` is protected. Corrected in place as live claims: this file's lines 29, 403,
+436 and the 521–522 note, plus `RELEASE-005.json` `progress.blockers[2]` and the
+`RELEASE-007.json` audit baseline. Superseded **by append** as dated observations:
+the RELEASE-005 evidence lines dated 2026-09-09 and 2026-09-20, and the
+RELEASE-007 evidence dated 2026-09-22 — each was true on its date, and rewriting a
+dated measurement would falsify the record (`REL-005`). **Verified to carry no
+stale claim and therefore untouched:** `CHARTER.md` and `BASELINE.md`, `GAPS.md`,
+`QUESTIONS.md`, `VERIFICATION.md`, `INTERFACES.md`, `ARCHITECTURE.md`, `BACKLOG.md`.
+
+The two Vercel facts are reconciled: `tourify-beta-k2` (`prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n`)
+**is the production project**, and `targets.production.alias` contains
+`tourify.live`, `www.tourify.live` **and `demo.tourify.live`** — so **RELEASE-007
+criterion 1 is unmet** and PR previews build inside the production project, which
+`docs/DEPLOYMENT_ROUTINE.md` §4 forbids. Any "legacy/archival scratch clone"
+description of that project is superseded. Note the trap:
+`docs/engineering/PROJECT_STATE.md:43-44` mentions `myproject/tourify-beta-K2`, a
+**local directory**, which is a different object; that reference document was not
+edited. Remediation is owner-executed in `HF-RELEASE-007-VERCEL-HOSTED`, with the
+ordering constraint that the Git integration must be disabled **before**
+`demo.tourify.live` is removed from the production aliases.
+
+### New known risk
+
+Four of ten required contexts depend on a workflow file that is not on `main`, and
+`actionlint` is unavailable here, so the restructured `ci.yml` has had YAML parse,
+structural, script-existence and expression-balance checks but **no schema-level
+lint**. The first CI run is the first real lint of the new file.

@@ -161,9 +161,26 @@ describe('route-level lifecycle guards', () => {
 
   it('returns unavailable rather than false zero when settlement reads fail', () => {
     const route = readFileSync('app/api/ticketing/settlements/route.ts', 'utf8')
-    expect(route).toContain('allocationsResult.error || txnsResult.error || settlementResult.error')
+    // The authoritative money reads still gate the response: allocations and the
+    // financial_transactions ledger are the only sources of the returned figures.
+    expect(route).toContain('allocationsResult.error || txnsResult.error')
     expect(route).toContain("code: 'ticketing_unavailable'")
     expect(route).toContain('status: 503')
+  })
+
+  it('does not read the archived `settlements` relation that fails every active-chain deployment', () => {
+    // DB-008 ticketing cluster. `settlements` is archive-only, so the read always
+    // errored and its error 503'd the whole endpoint, making the authoritative
+    // money read unreachable. Zero consumers read the `settlement` key: the one
+    // live client (components/admin/event-ticketing-ops-panels.tsx) stores the
+    // whole response and reads gross/refunds/fees/net/shares only.
+    const route = readFileSync('app/api/ticketing/settlements/route.ts', 'utf8')
+    expect(route).not.toMatch(/from\(['"]settlements['"]\)/)
+    expect(route).not.toContain('settlementResult')
+    // The absence is stated explicitly rather than dropped, so an absent record
+    // is never presented as a zero.
+    expect(route).toContain('settlement: null')
+    expect(route).toContain('settlement_available: false')
   })
 
   it('rejects expired transfers and conditionally closes pending ones', () => {

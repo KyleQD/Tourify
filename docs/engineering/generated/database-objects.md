@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (423 entries)
-- Generated at: 2026-09-25T22:27:02.069Z
+- Working tree: dirty (152 entries)
+- Generated at: 2026-09-25T23:26:47.265Z
 - Generator: `control-plane.mjs generate`
 
-## Objects (714)
+## Objects (716)
 
 | Type | Name | Latest create evidence |
 | --- | --- | --- |
@@ -473,12 +473,14 @@
 | table | `marketplace_entitlements` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_external_clicks` | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
 | table | `marketplace_external_listings` | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
+| table | `marketplace_fee_rules` | `supabase/migrations/20260926140100_marketplace_money_path_tables.sql` |
 | table | `marketplace_integrations` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_listing_variants` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_listings` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_moderation_queue` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_order_items` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_orders` | `supabase/migrations/20260410120000_marketplace_core.sql` |
+| table | `marketplace_payment_events` | `supabase/migrations/20260926140100_marketplace_money_path_tables.sql` |
 | table | `marketplace_payout_ledger` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_service_milestones` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_storefronts` | `supabase/migrations/20260410120000_marketplace_core.sql` |
@@ -618,7 +620,7 @@
 | table | `ticket_revenue_allocations` | `supabase/migrations/20260821000000_reconcile_ticketing_foundation.sql` |
 | table | `ticket_sales` | `supabase/migrations/archive/setup_ticketing_database.sql` |
 | table | `ticket_shares` | `supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql` |
-| table | `ticket_stripe_webhook_events` | `supabase/migrations/20260821000000_reconcile_ticketing_foundation.sql` |
+| table | `ticket_stripe_webhook_events` | `supabase/migrations/20260926130000_ticketing_webhook_completion_marker.sql` |
 | table | `ticket_transfers` | `supabase/migrations/20260821000000_reconcile_ticketing_foundation.sql` |
 | table | `ticket_types` | `supabase/migrations/archive/setup_ticketing_database.sql` |
 | table | `ticketing_migration_issues` | `supabase/migrations/20260821025543_unified_guest_list_admissions.sql` |
@@ -727,7 +729,7 @@
 | view | `venue_identity_bridge_audit` | `supabase/migrations/20260823010000_venue_identity_bridge.sql` |
 | view | `work_hub_integrity_issues` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 
-## RLS policies (1309)
+## RLS policies (1313)
 
 | Table | Policy | Latest create evidence |
 | --- | --- | --- |
@@ -1259,6 +1261,7 @@
 | `marketplace_entitlements` | marketplace_entitlements_seller_manage | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | `marketplace_external_clicks` | marketplace_external_clicks_seller_read | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
 | `marketplace_external_listings` | marketplace_external_listings_owner_manage | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
+| `marketplace_fee_rules` | marketplace_fee_rules_admin_manage | `supabase/migrations/20260926140100_marketplace_money_path_tables.sql` |
 | `marketplace_integrations` | marketplace_integrations_owner_manage | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | `marketplace_listing_variants` | marketplace_variants_owner_manage | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | `marketplace_listing_variants` | marketplace_variants_public_read | `supabase/migrations/20260410120000_marketplace_core.sql` |
@@ -2000,6 +2003,9 @@
 | `venues_v2` | venues_v2_select | `supabase/migrations/20260414140000_fix_security_linter_views_and_rls.sql` |
 | `venues_v2` | venues_v2_update | `supabase/migrations/20260414140000_fix_security_linter_views_and_rls.sql` |
 | `venues_v2` | venues_v2_worker_assignment_select | `supabase/migrations/20260911013017_work_mode_overview_communications.sql` |
+| `visible` | Users can view comment likes | `supabase/migrations/20260926140000_interaction_read_scoping.sql` |
+| `visible` | Users can view comments | `supabase/migrations/20260926140000_interaction_read_scoping.sql` |
+| `visible` | Users can view likes | `supabase/migrations/20260926140000_interaction_read_scoping.sql` |
 | `vote_kind` | vote_kind_select | `supabase/migrations/20260414140000_fix_security_linter_views_and_rls.sql` |
 | `work_mode_check_in_events` | work_mode_check_in_events_worker_insert | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | `work_mode_check_in_events` | work_mode_check_in_events_worker_select | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |

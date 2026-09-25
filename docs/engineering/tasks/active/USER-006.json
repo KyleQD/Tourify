@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "general-user",
   "created_at": "2026-09-18T23:22:13.000Z",
-  "updated_at": "2026-09-19T00:11:37.000Z",
+  "updated_at": "2026-09-25T23:01:04.945Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty shared worktree; bounded USER-006 retained-route hardening and focused tests present",
   "goal": "Give the generic private-docs signed-upload route an explicit consumer contract or retire it with durable authorization and zero-caller evidence while preserving user privacy and storage boundaries",
@@ -53,7 +53,10 @@
       "rg -n \"private-docs\" app lib __tests__ --glob '*.{ts,tsx}'",
       "git diff --check -- app/api/upload/signed-url/route.ts __tests__/uploads/private-docs-signed-url.test.ts docs/engineering",
       "npm run agents:generate",
-      "npm run agents:validate"
+      "npm run agents:validate",
+      "rg -l \"api/upload/signed-url\" --no-ignore -g '!node_modules' -g '!.next' .",
+      "rg -n \"upload/signed-url\" app components hooks lib contexts apps   (expect: zero hits)",
+      "rg -n \"'private-docs'|\\\"private-docs\\\"\" app lib components hooks apps"
     ],
     "evidence": [
       "ORCH-002 read-only research found no product caller for /api/upload/signed-url; only the route itself and ownership tooling mention it.",
@@ -64,14 +67,19 @@
       "2026-09-19T00:11:37.000Z: replaced the unused client expiry clamp with a truthful fixed 7,200-second contract, exact private-docs bucket response, no-store headers, and rejection of conflicting client expiry values.",
       "2026-09-19T00:11:37.000Z: own-user path validation now rejects raw/double-encoded traversal, encoded separators, backslashes, empty/dot segments, control characters, whitespace padding, and cross-user prefixes instead of rewriting attacker input.",
       "2026-09-19T00:11:37.000Z: limiter errors and production without distributed limiting now fail closed before authentication/signing; Storage signing errors return no token.",
-      "2026-09-19T00:11:37.000Z: focused Vitest passed 1 file / 23 tests; focused ESLint, inherited-config scoped TypeScript, caller scan, diff validation, JSON validation, and agents:validate passed."
+      "2026-09-19T00:11:37.000Z: focused Vitest passed 1 file / 23 tests; focused ESLint, inherited-config scoped TypeScript, caller scan, diff validation, JSON validation, and agents:validate passed.",
+      "2026-09-26 DECISION: RETIRE. Recorded in the `decision` block of this task with grounds, the rejected adopt alternative and its five re-entry conditions, and an owned removal path. See docs/engineering/agents/general-user/DECISIONS.md DOMAIN-016 context and DECISIONS.md CP-085/CP-087.",
+      "2026-09-26 REFRESHED ZERO-CALLER EVIDENCE at ca3bb0b0 (not inherited from Wave 19). `rg -l 'api/upload/signed-url'` over the whole repository returns only: __tests__/uploads/private-docs-signed-url.test.ts (the route's own contract test), scripts/agent-tools/generate-workspace-ownership.mjs (tooling), tsconfig.tsbuildinfo (build artifact), and docs/**. Restricted to app/ components/ hooks/ lib/ contexts/ apps/ it returns nothing. apps/mobile has no caller.",
+      "2026-09-26 the only two production writers of the private-docs bucket are app/api/settings/certifications/upload/route.ts:50 and app/api/account/delete/route.ts:57, and neither uses the generic signer. The certification uploader's `staff-credentials/<user-id>/` path is incompatible with the retained signer's `<user-id>/` contract, so adoption would require re-contracting the one real uploader.",
+      "2026-09-26 the route is RETAINED on disk, unchanged, because the removal sequence's route-map precondition cannot be met this wave: docs/engineering/generated/api-routes.md and permissions.md both list the route, the acceptance criterion requires refreshed route-map evidence, and `npm run agents:generate` is forbidden to this lane. Retention is a sequencing fact, not a change of decision, and the route is not presented as canonical.",
+      "2026-09-26 NOT RUN: no hosted Supabase call, no bucket inspection, no cross-user denial test against a deployed environment, no migration apply, no `supabase db reset` (CP-051). The bucket-only INSERT policy claim is read from the active migration chain, not from a deployed policy set."
     ],
-    "last_run_sha": "working-tree@7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-19T00:11:37.000Z",
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T00:35:00.000Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "The zero-caller route is retained and decision-blocked, with no inferred adoption or retirement. Its local security contract is now fail closed for authentication, prefix/path validation, fixed expiry truthfulness, limiter availability, bucket selection, and Storage errors. Hosted RLS and product disposition remain open.",
+    "summary": "Wave 35 general-user. DECISION MADE: RETIRE app/api/upload/signed-url/route.ts. Not adopt. Grounds, all re-verified at ca3bb0b0 rather than inherited from Wave 19: (1) zero product callers - the only non-route code reference in the whole repository is scripts/agent-tools/generate-workspace-ownership.mjs, and a search restricted to app/ components/ hooks/ lib/ contexts/ apps/ returns nothing at all, apps/mobile included; (2) the only two production writers of the private-docs bucket are app/api/settings/certifications/upload/route.ts:50 and app/api/account/delete/route.ts:57, neither of which uses the generic signer, and the certification uploader's staff-credentials/<user-id>/ path is INCOMPATIBLE with the signer's <user-id>/ contract, so adoption would require re-contracting the one real uploader; (3) the signer's own-user prefix check is application-level defense in depth with no hosted RLS backing, because the active storage migration authorizes authenticated INSERT into private-docs by BUCKET, not by prefix; (4) the createSignedUploadUrl token is fixed at two hours and usable without further authentication, so in the bucket that holds staff credentials a leaked token is a two-hour, non-prefix-bound write capability the route cannot revoke. The adopt alternative is rejected with the five conditions under which it could be reconsidered; the two load-bearing ones are a prefix-scoped storage policy and a token-lifetime security review. Removal path and owner recorded: general-user, five ordered steps, importer first (route and its 344-line test deleted in ONE change, plus the two generator entries), with route-map refresh as an explicit precondition. THE ROUTE IS RETAINED ON DISK, unchanged and still hardened, because that route-map precondition needs npm run agents:generate which is forbidden to this lane this wave, and the zero-caller scan must be repeated at the merge SHA rather than at a concurrent-lane worktree SHA. Retention is a sequencing fact, not a change of decision, and the route is not presented as canonical. No code changed in this checkpoint. No hosted evidence claimed, no migration applied, no supabase db reset (CP-051).",
     "completed": [
       "Assigned the generic private-docs signed-upload route to the general-user agent through this explicit bounded task.",
       "Recorded the current zero-product-caller finding and the existing settings-certification/account-deletion dependencies without inferring retirement.",
@@ -80,20 +88,19 @@
       "Replaced path rewriting with exact own-user-prefix validation and traversal/ambiguous-path rejection.",
       "Aligned the response with Supabase's fixed two-hour signed-upload TTL and rejected unsupported client TTL claims.",
       "Pinned signing to private-docs, added no-store response headers, kept service-role credentials out of the route, and made limiter/signing failures fail closed.",
-      "Added focused zero-caller, authentication, cross-user, traversal, bucket, expiry, limiter, signing-error, and service-role leakage tests."
+      "Added focused zero-caller, authentication, cross-user, traversal, bucket, expiry, limiter, signing-error, and service-role leakage tests.",
+      "Made and recorded the explicit adopt-versus-retire decision, with evidence, as the task's purpose required.",
+      "Refreshed the zero-caller scan at the current SHA rather than inheriting Wave 19's, and extended it to apps/mobile.",
+      "Named the removal path, its owner, its two preconditions and its five ordered steps, including the generator-entry cleanup and the importer-first ordering constraint.",
+      "Established the conditions under which adoption could still be reconsidered, and identified the two load-bearing ones (a prefix-scoped storage policy and a token-lifetime security review)."
     ],
     "next_steps": [
-      "Obtain a product/security decision to adopt one named consumer or authorize retirement.",
-      "If adopted, reconcile the route's <user-id>/ path with the certification flow's staff-credentials/<user-id>/ path and name the exact consumer before changing either contract.",
-      "Database scopes authenticated private-docs INSERT policy to an approved user/org prefix in a separate migration task; USER-006 does not claim application checks as RLS proof.",
-      "USER-005 reconciles account deletion cleanup for private-docs staff-credentials/<user-id>/ objects, then QA-003 certifies the selected upload path and cross-user denial."
+      "Orchestrator runs npm run agents:generate so the route map can be refreshed - the acceptance-criterion precondition for retirement. Then general-user, at the merge SHA, re-runs the exact zero-caller scan and executes removal steps 1-5 in one change. Database scopes the private-docs authenticated INSERT policy to a user/org prefix in a separate additive migration regardless of the outcome, because the certification uploader writes into the same bucket. QA-003 certifies the settings certification upload journey and cross-user denial against the deployed release SHA; retirement does not change that requirement."
     ],
     "blockers": [
-      "No approved adoption or retirement decision exists yet.",
-      "The active private-docs migration permits authenticated inserts anywhere in the bucket and does not enforce the route's own-user prefix at the storage boundary; no hosted policy evidence was produced.",
-      "The existing certification uploader writes private-docs/staff-credentials/<user-id>/..., while this retained route intentionally permits only <user-id>/...; adopting it would require an explicit consumer/path decision.",
-      "USER-005 account deletion currently enumerates only <user-id>/ under private-docs, so it does not cover the certification path; that lifecycle fix is outside USER-006.",
-      "QA-003 lacks hosted staging upload credentials and exact-SHA execution evidence."
+      "The acceptance criterion for retirement requires refreshed route-map evidence, which requires agents:generate — forbidden to this lane this wave to avoid a shared-map race with six concurrent lanes.",
+      "No hosted Supabase evidence. The bucket-only INSERT policy and the two-hour token lifetime are read from documentation and the migration chain, not verified against a deployed environment.",
+      "The zero-caller scan was taken at a concurrent-lane worktree SHA and must be repeated at the merge SHA before removal executes."
     ],
     "checkpoints": [
       {
@@ -132,13 +139,82 @@
         "blockers": [
           "No product disposition authority or hosted Storage/RLS evidence exists in this local-only wave."
         ]
+      },
+      {
+        "at": "2026-09-26T00:35:00.000Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 general-user, USER-006 share. The task's purpose — a decision — has been made: RETIRE, with grounds, the rejected adopt alternative and its re-entry conditions, and an owned removal path. Zero-caller evidence was refreshed at this SHA instead of inherited and extended to apps/mobile: the only non-route code reference is the ownership generator. The two decisive structural grounds are that the certification uploader's `staff-credentials/<user-id>/` path is incompatible with the signer's `<user-id>/` contract, and that the signer's own-user prefix check has no hosted RLS backing while a leaked token is a two-hour, non-prefix-bound write capability into the staff-credentials bucket. The route is RETAINED on disk because the removal sequence's route-map precondition needs agents:generate, which is forbidden this wave, and the scan must be repeated at the merge SHA. No code changed in this checkpoint. No hosted evidence is claimed and no migration was applied.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/USER-006.json",
+          "docs/engineering/DECISIONS.md",
+          "docs/engineering/agents/general-user/DECISIONS.md"
+        ],
+        "verification": [
+          "rg -l 'api/upload/signed-url' over the repository: only the route's own test, the ownership generator, tsconfig.tsbuildinfo and docs/**",
+          "rg -n 'upload/signed-url' app components hooks lib contexts apps: zero hits",
+          "rg for the private-docs bucket in production code: exactly app/api/settings/certifications/upload/route.ts:50, app/api/upload/signed-url/route.ts:9, app/api/account/delete/route.ts:57",
+          "npm run agents:validate: PASS, 0 errors"
+        ],
+        "blockers": [
+          "Route-map refresh requires agents:generate, which is forbidden this wave.",
+          "No hosted Supabase evidence; the bucket-only INSERT policy is read from the migration chain, not from a deployed policy set."
+        ],
+        "next_steps": [
+          "Orchestrator refreshes the generated route map.",
+          "general-user re-runs the scan at the merge SHA and executes removal steps 1-5 in one change.",
+          "Database scopes the private-docs INSERT policy to a user/org prefix regardless of the outcome."
+        ]
+      },
+      {
+        "at": "2026-09-25T23:01:04.945Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 general-user. DECISION MADE: RETIRE app/api/upload/signed-url/route.ts. Not adopt. Grounds, all re-verified at ca3bb0b0 rather than inherited from Wave 19: (1) zero product callers - the only non-route code reference in the whole repository is scripts/agent-tools/generate-workspace-ownership.mjs, and a search restricted to app/ components/ hooks/ lib/ contexts/ apps/ returns nothing at all, apps/mobile included; (2) the only two production writers of the private-docs bucket are app/api/settings/certifications/upload/route.ts:50 and app/api/account/delete/route.ts:57, neither of which uses the generic signer, and the certification uploader's staff-credentials/<user-id>/ path is INCOMPATIBLE with the signer's <user-id>/ contract, so adoption would require re-contracting the one real uploader; (3) the signer's own-user prefix check is application-level defense in depth with no hosted RLS backing, because the active storage migration authorizes authenticated INSERT into private-docs by BUCKET, not by prefix; (4) the createSignedUploadUrl token is fixed at two hours and usable without further authentication, so in the bucket that holds staff credentials a leaked token is a two-hour, non-prefix-bound write capability the route cannot revoke. The adopt alternative is rejected with the five conditions under which it could be reconsidered; the two load-bearing ones are a prefix-scoped storage policy and a token-lifetime security review. Removal path and owner recorded: general-user, five ordered steps, importer first (route and its 344-line test deleted in ONE change, plus the two generator entries), with route-map refresh as an explicit precondition. THE ROUTE IS RETAINED ON DISK, unchanged and still hardened, because that route-map precondition needs npm run agents:generate which is forbidden to this lane this wave, and the zero-caller scan must be repeated at the merge SHA rather than at a concurrent-lane worktree SHA. Retention is a sequencing fact, not a change of decision, and the route is not presented as canonical. No code changed in this checkpoint. No hosted evidence claimed, no migration applied, no supabase db reset (CP-051).",
+        "completed": [],
+        "next_steps": [
+          "Orchestrator runs npm run agents:generate so the route map can be refreshed - the acceptance-criterion precondition for retirement. Then general-user, at the merge SHA, re-runs the exact zero-caller scan and executes removal steps 1-5 in one change. Database scopes the private-docs authenticated INSERT policy to a user/org prefix in a separate additive migration regardless of the outcome, because the certification uploader writes into the same bucket. QA-003 certifies the settings certification upload journey and cross-user denial against the deployed release SHA; retirement does not change that requirement."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
-    "USER-003/product owner decides whether the settings certification uploader remains canonical or explicitly adopts this generic signer; its staff-credentials/<user-id>/ path is not compatible with the retained signer's <user-id>/ path without a named decision.",
-    "USER-005 adds private-docs/staff-credentials/<user-id>/ cleanup or otherwise resolves the currently uncovered certification objects.",
-    "Database replaces the bucket-only authenticated INSERT policy with an approved user/org-prefix policy in a separate migration task; no migration is applied or rewritten in USER-006.",
-    "QA-003 certifies the selected upload path and cross-user denial against the exact deployed release SHA."
-  ]
+    "orchestrator: run npm run agents:generate so the route map can be refreshed — this is the acceptance-criterion precondition for the recorded retirement, and general-user is forbidden to write the shared maps this wave.",
+    "general-user (self, next wave, at the merge SHA): execute the recorded removal path — delete app/api/upload/signed-url/route.ts, __tests__/uploads/private-docs-signed-url.test.ts and the two scripts/agent-tools/generate-workspace-ownership.mjs entries in ONE change, then verify the certification-upload and account-deletion journeys still pass.",
+    "Database: replace the bucket-only authenticated INSERT policy on private-docs with an approved user/org-prefix policy in a separate additive migration task. This is needed regardless of the retirement outcome, because the settings certification uploader writes into the same bucket.",
+    "QA-003: certify the settings certification upload journey and cross-user denial against the deployed release SHA. Retirement does not change this requirement."
+  ],
+  "decision": {
+    "outcome": "RETIRE",
+    "decided_by": "general-user (owner of USER-006 and of app/api/upload/signed-url/route.ts)",
+    "decided_at": "2026-09-26T00:35:00.000Z",
+    "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "statement": "RETIRE `app/api/upload/signed-url/route.ts`. Do not adopt it. The generic private-docs signed-upload route has no product consumer, its path contract is incompatible with the only real uploader into the bucket it signs for, and its primary security control cannot be proven at the storage boundary. It is retained on disk, unchanged and still hardened, only until the removal sequence below runs; retention is not endorsement.",
+    "grounds": [
+      "Zero product callers, re-verified at ca3bb0b0 rather than inherited. A repository-wide search for `upload/signed-url` outside docs, .agents, tsconfig.tsbuildinfo and the route's own test returns exactly one code reference outside the route: scripts/agent-tools/generate-workspace-ownership.mjs, which is tooling. A search restricted to app/, components/, hooks/, lib/, contexts/ and apps/ returns nothing at all. apps/mobile has no caller either.",
+      "The only two production writers of the `private-docs` bucket are `app/api/settings/certifications/upload/route.ts:50` and `app/api/account/delete/route.ts:57`. Neither uses the generic signer. The certification uploader writes `private-docs/staff-credentials/<user-id>/...`; the retained signer's contract is `<user-id>/...` only. Adoption would require re-contracting the one real uploader, which is a product decision, not a drift repair.",
+      "The primary security control is not provable at the boundary it claims to enforce. The active storage migration authorizes authenticated INSERT into `private-docs` by BUCKET, not by user prefix, so the route's own-user prefix check is application-level defense in depth with no hosted RLS backing. A route whose entire isolation argument rests on an unprovable control should not be given a consumer.",
+      "The token outlives the request and is not prefix-bound. Supabase's `createSignedUploadUrl` token is fixed at a two-hour lifetime and is usable without further authentication. The route's 7,200-second contract is truthful, but the token's usable path is constrained by the bucket policy, not by the route's prefix check. In the bucket that holds staff credentials, that is a two-hour write capability handed to whoever obtains the token, and a leaked token is not revocable by the route.",
+      "The cost of keeping it is not zero and is measurable. The route plus its 23-test contract and the ownership-generator entries exist solely to describe a capability nothing uses, and the Wave 34 design-system lane established the general principle that a retained module with no caller is a false signal of capability during security review."
+    ],
+    "rejected_alternative": {
+      "outcome": "ADOPT",
+      "why_not": "Adoption would need a named consumer, and none exists. Specifying the conditions under which adoption could still be reconsidered, since the brief asks for them: (1) a product owner names one concrete consumer and its journey; (2) that consumer's path shape is reconciled with the signer's `<user-id>/` contract, or the contract is widened deliberately; (3) Database ships an additive migration scoping authenticated `private-docs` INSERT to an approved user/org prefix, so the isolation is enforced at the storage boundary rather than in application code; (4) the token lifetime and revocation story are accepted by a security reviewer for a bucket containing staff credentials; (5) QA-003 certifies cross-user denial against the deployed release SHA. Conditions (3) and (4) are the load-bearing ones; without (3) the route's own-user check is cosmetic."
+    },
+    "removal_path": {
+      "owner": "general-user (USER-006 holds the file in its working set; no other agent's grant covers app/api/upload/**)",
+      "preconditions": [
+        "Re-run the exact zero-caller scan at the release SHA and attach the output. The scan has already been refreshed once at ca3bb0b0 in this wave; it must be repeated at the merge SHA.",
+        "Refresh the generated route map. `docs/engineering/generated/api-routes.md` and `permissions.md` both list this route, and the acceptance criterion requires refreshed route-map evidence. This needs `npm run agents:generate`, which was forbidden to this lane this wave, so the orchestrator must run it or grant it."
+      ],
+      "steps": [
+        "1. Delete `app/api/upload/signed-url/route.ts`.",
+        "2. Delete `__tests__/uploads/private-docs-signed-url.test.ts` (344 lines) in the SAME change. Deleting the route and keeping the test would convert 23 passing tests into a module-resolution failure, and deleting the test while keeping the route would leave a test asserting a capability that no longer exists. Ordering constraint, from the Wave 34 design-system finding: importer first, module second, never the reverse.",
+        "3. Remove the two `scripts/agent-tools/generate-workspace-ownership.mjs` entries (lines 391 and 401) in the same change, or the generator will keep emitting a manifest entry for a file that does not exist.",
+        "4. Verify the two real journeys are untouched and green: `npx vitest run __tests__/uploads __tests__/auth/account-delete-route.test.ts __tests__/settings`.",
+        "5. Re-run `npm run agents:generate` so `docs/engineering/workspace-ownership/manifest.json` and the generated route maps drop the reference, then `npm run agents:validate`."
+      ],
+      "not_a_precondition": "Nothing in the certification upload path or the account-deletion path needs to change. `app/api/settings/certifications/upload/route.ts` and `app/api/account/delete/route.ts` are independent of the generic signer and remain the approved paths for their journeys."
+    },
+    "status_this_wave": "Decision made and recorded. The route is RETAINED on disk, unchanged and still hardened, because the removal sequence's route-map precondition cannot be satisfied this wave (`npm run agents:generate` is forbidden) and the zero-caller scan must be re-run at the merge SHA rather than at a concurrent-lane worktree SHA. Retention is a sequencing fact, not a change of decision."
+  }
 }

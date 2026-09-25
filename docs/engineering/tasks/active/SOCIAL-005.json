@@ -6,9 +6,9 @@
   "priority": "P2",
   "owner_agent": "social",
   "created_at": "2026-09-22T15:20:21.465Z",
-  "updated_at": "2026-09-22T15:56:34Z",
-  "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-  "working_tree_status": "dirty (83 entries)",
+  "updated_at": "2026-09-25T23:03:04.436Z",
+  "base_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "working_tree_status": "dirty shared worktree (6 concurrent lanes); Wave 35 social edits isolated to app/api/social/follow/route.ts, __tests__/social/follow-contract-consistency.test.ts (new), __tests__/social/profile-follow-route.test.ts, and the social task/state/decision records",
   "goal": "Consolidate follow and unfollow client behavior and side effects across current profile and feed surfaces",
   "scope": {
     "in": [
@@ -22,7 +22,13 @@
   "working_set": [
     "app/api/social/follow/",
     "app/api/follow/",
-    "components/"
+    "components/",
+    "app/api/social/follow/route.ts",
+    "__tests__/social/follow-contract-consistency.test.ts",
+    "__tests__/social/profile-follow-route.test.ts",
+    "app/api/follow/route.ts (legacy shim, read only)",
+    "app/api/notifications/social/route.ts (follow branch delegation, read only)",
+    "lib/services/social-interactions.service.ts (read only; lib/services/** is the design-system lane's)"
   ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md",
@@ -40,34 +46,48 @@
     "commands": [
       "Focused social follow tests",
       "npm run verify:feature -- --changed",
-      "Staging customer/artist rerun"
+      "Staging customer/artist rerun",
+      "npx vitest run __tests__/social/follow-contract-consistency.test.ts __tests__/social/profile-follow-route.test.ts __tests__/social/legacy-notification-follow-route.test.ts",
+      "npx eslint --no-cache app/api/social/follow/route.ts __tests__/social/follow-contract-consistency.test.ts __tests__/social/profile-follow-route.test.ts",
+      "npx vitest run __tests__/social __tests__/messaging"
     ],
     "evidence": [
       "Local: focused social/artist route and client tests passed (root rerun: 4 files / 16 tests); targeted lint and diff checks passed.",
       "Full repository typecheck did not complete on the shared dirty tree; mobile typecheck passed. No hosted follow action was run.",
       "Canonical/legacy follow and artist feed/network Vitest passed locally (4 files, 16 tests); focused follow-route lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no hosted follow action.",
       "QA-004 product repair validation rerun (2026-09-22): Canonical follow route/client Vitest: 4 files, 16 tests passed; hosted two-actor counts and notification proof remains open.",
-      "Static migration-chain finding: five separately named follows count triggers are declared across 20241220000010, 20250131000004, 20250210000000, and 20250211000000; each migration drops only its own trigger name. Hosted trigger inventory is pending."
+      "Static migration-chain finding: five separately named follows count triggers are declared across 20241220000010, 20250131000004, 20250210000000, and 20250211000000; each migration drops only its own trigger name. Hosted trigger inventory is pending.",
+      "Wave 35: __tests__/social/follow-contract-consistency.test.ts added with 11 tests over a two-actor edge table. It proves the three entrypoints (canonical /api/social/follow, the legacy /api/follow shim, and the action=follow branch of /api/notifications/social) resolve to one state and one side effect, that a mutual follow plus an unfollow leaves each actor's reloaded view independent, that a replayed unfollow and a replayed follow are both idempotent, and that an actor can never delete another actor's follow edge.",
+      "Wave 35: unauthorized coverage completed. Unauthenticated mutation returns 401 and never reaches the database; unauthenticated relationship read returns 401; self-follow, a non-uuid target and an unknown action all return 400 with no side effect recorded.",
+      "Wave 35: the achievement metric reports profiles.followers_count (the trigger-maintained column), not a count of the edges the request wrote. The test decouples the two by setting followers_count to a value the edge table does not imply, so an edge-derived implementation fails.",
+      "Wave 35 hardening: the canonical mutation is rate limited per authenticated user (30 per 60s via the existing createRateLimiter, degrading to allow-all when Redis is unconfigured like the sibling comment route) and refuses a non-uuid followingId with 400 before any write. Previously the route had no bound and a malformed target could only surface as a 500.",
+      "Wave 35: answered social's half of HF-DESIGN-034-TEST-ASSERTED-MODULES with DOMAIN-004 — retire lib/services/social-interactions.service.ts rather than adopt it (zero importers, getCurrentUserId() returns null and isAuthenticated() returns false by construction, and it reads profiles from a module-scope browser client). Social narrowed its own pinning assertion in __tests__/social/profile-follow-route.test.ts to the three live clients; the file itself belongs to the design-system lane.",
+      "Wave 35: the database lane's 'logistics' code-drift cluster (marketplace_post_attachments, 18 inventory hits) was re-derived with a scoped typecheck and contains nothing in social's grant: 4 primary diagnostics across lib/marketplace/feed-attachment.ts, lib/events/canonical-event-service.ts, lib/events/event-matcher.ts and lib/logistics/plans.ts. The inventory's own primaryDomain for the object is 'events', and none of its 128 objects names social as an owning domain. No social action is due on this cluster; the work lane already holds HF-WORK-034-MARKETPLACE-POST-ATTACHMENTS.",
+      "Wave 35 combined run: __tests__/social + __tests__/messaging = 16 files, 128 tests passed. Focused ESLint and git diff --check clean. Scoped TypeScript over the changed follow route reports only the pre-existing OptimizedNotificationService.sendFollowNotification diagnostic already recorded at HEAD (was line 89, now line 122 because 33 lines of validation were added above an unchanged statement).",
+      "NOT run and NOT claimed: any hosted two-actor follow, retry, notification or count run; a full npm run typecheck; the deployed RLS matrix. No staging target exists and CP-051 forbids applying migrations."
     ],
-    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-    "last_run_at": "2026-09-22T15:56:34Z",
-    "result": "pass"
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T16:10:00.000Z",
+    "result": "partial"
   },
   "progress": {
-    "summary": "Follow retry and client contracts reverified locally; cross-actor count/notification proof remains pending.",
+    "summary": "Advanced to a complete local cross-actor proof. Added __tests__/social/follow-contract-consistency.test.ts (11 tests) over a real two-actor edge table: the canonical /api/social/follow, the legacy /api/follow shim and the action=follow branch of /api/notifications/social all resolve to one relationship, one achievement and one notification; a mutual follow plus an unfollow leaves each actor's reloaded view independent; a replayed unfollow and a replayed follow are both idempotent; and an actor can never delete another actor's follow edge. Completed the unauthorized coverage the acceptance criteria name: unauthenticated mutation and read return 401 with no database access, self-follow / non-uuid target / unknown action return 400 with no side effect. Proved the achievement reports the trigger-maintained profiles.followers_count rather than a count of the edges the request wrote, by decoupling the two in the fake. Hardened the canonical mutation: a per-authenticated-user rate limit (30/60s via the existing createRateLimiter, degrading to allow-all when Redis is unconfigured like the sibling comment route) and a 400 for a non-uuid followingId before any write; the route previously had no bound while the canonical comment route did. Answered the social half of HF-DESIGN-034-TEST-ASSERTED-MODULES with DOMAIN-004, retire not adopt, and narrowed this lane's own pinning assertion to the three live clients. Re-derived the database lane's logistics cluster with a scoped typecheck: marketplace_post_attachments has zero diagnostics in social's grant (4 across lib/marketplace/feed-attachment.ts, lib/events/canonical-event-service.ts, lib/events/event-matcher.ts, lib/logistics/plans.ts; the inventory's own primaryDomain is events and none of its 128 objects names social), so no social action is due. Verified: 16 files/128 tests with __tests__/messaging; focused ESLint and git diff --check clean; scoped TypeScript reports only the pre-existing OptimizedNotificationService.sendFollowNotification diagnostic already recorded at HEAD. Not run and not claimed: any hosted two-actor follow, retry, notification or count run; full typecheck; the RLS matrix.",
     "completed": [
       "Canonical follow route accepts retries, runs achievement and direct notification only for a new insert, and returns consistent follow/unfollow state.",
       "Legacy /api/follow and /api/notifications/social follow branches delegate to canonical route.",
-      "Mobile, artist home feed, and visible artist network clients use canonical API; targeted tests and lint passed."
+      "Mobile, artist home feed, and visible artist network clients use canonical API; targeted tests and lint passed.",
+      "Added a two-actor consistency suite proving the canonical, legacy and notification entrypoints produce one relationship, one achievement and one notification, and that reloaded relationship state stays independent per actor after a mutual follow and an unfollow.",
+      "Completed the unauthorized-access coverage the acceptance criteria name: unauthenticated mutation and read, self-follow, malformed target, unknown action, and the cross-actor unfollow that must report changed: false and leave the other actor's edge intact.",
+      "Bounded the canonical follow mutation per authenticated user and refused a non-uuid target before any write, closing an unbounded path into another user's notification inbox.",
+      "Recorded DOMAIN-004, social's answer to the social half of HF-DESIGN-034-TEST-ASSERTED-MODULES, and narrowed the test assertion that was keeping a dead service module alive."
     ],
     "next_steps": [
-      "Run customer/artist follow, retry, notification, count, and unfollow across web and mobile on isolated staging.",
-      "Monitor account-scoped demo service only if mounted in a shipped UI.",
-      "Have Database reconcile the active and hosted follows count triggers, then probe one insert, duplicate retry, and delete with two actors before crediting reloaded counts."
+      "Run the two-actor follow, retry, notification, count and unfollow sequence on isolated staging across web and mobile and return exact-SHA evidence to QA-004 (no target exists; all 718 QA-004 rows are still not_run). Database lane reconciles the five separately named follows count triggers in the active chain, then probes one insert, one duplicate retry and one delete with two actors before any reloaded count is credited. Design-system lane deletes lib/services/social-interactions.service.ts and removes the narrowed assertion in the same change."
     ],
     "blockers": [
-      "Cross-actor staging proof requires isolated staging and campaign actors.",
-      "Active migration chain declares multiple follows count triggers (follow_counts_trigger, trigger_follows_insert/delete, trigger_follows_count_update, trigger_update_follower_counts); hosted presence and counter drift are unverified."
+      "Cross-actor staging proof requires an isolated staging target and campaign actors; none exists, so 'reloaded counts and relationship state agree across actors' is proven locally against a fake edge table and not against a live database.",
+      "The active migration chain declares multiple follows count triggers (follow_counts_trigger, trigger_follows_insert, trigger_follows_delete, trigger_follows_count_update, trigger_update_follower_counts); hosted presence and counter drift are unverified, and the count a reloaded profile shows comes from the trigger-maintained profiles.followers_count column rather than from the edge table.",
+      "lib/services/social-interactions.service.ts cannot be deleted by social: lib/services/** belongs to the design-system lane."
     ],
     "checkpoints": [
       {
@@ -98,10 +118,23 @@
           "Focused local regression verification passed; no new product code changes in this lane."
         ],
         "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      },
+      {
+        "at": "2026-09-25T23:03:04.436Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Advanced to a complete local cross-actor proof. Added __tests__/social/follow-contract-consistency.test.ts (11 tests) over a real two-actor edge table: the canonical /api/social/follow, the legacy /api/follow shim and the action=follow branch of /api/notifications/social all resolve to one relationship, one achievement and one notification; a mutual follow plus an unfollow leaves each actor's reloaded view independent; a replayed unfollow and a replayed follow are both idempotent; and an actor can never delete another actor's follow edge. Completed the unauthorized coverage the acceptance criteria name: unauthenticated mutation and read return 401 with no database access, self-follow / non-uuid target / unknown action return 400 with no side effect. Proved the achievement reports the trigger-maintained profiles.followers_count rather than a count of the edges the request wrote, by decoupling the two in the fake. Hardened the canonical mutation: a per-authenticated-user rate limit (30/60s via the existing createRateLimiter, degrading to allow-all when Redis is unconfigured like the sibling comment route) and a 400 for a non-uuid followingId before any write; the route previously had no bound while the canonical comment route did. Answered the social half of HF-DESIGN-034-TEST-ASSERTED-MODULES with DOMAIN-004, retire not adopt, and narrowed this lane's own pinning assertion to the three live clients. Re-derived the database lane's logistics cluster with a scoped typecheck: marketplace_post_attachments has zero diagnostics in social's grant (4 across lib/marketplace/feed-attachment.ts, lib/events/canonical-event-service.ts, lib/events/event-matcher.ts, lib/logistics/plans.ts; the inventory's own primaryDomain is events and none of its 128 objects names social), so no social action is due. Verified: 16 files/128 tests with __tests__/messaging; focused ESLint and git diff --check clean; scoped TypeScript reports only the pre-existing OptimizedNotificationService.sendFollowNotification diagnostic already recorded at HEAD. Not run and not claimed: any hosted two-actor follow, retry, notification or count run; full typecheck; the RLS matrix.",
+        "completed": [],
+        "next_steps": [
+          "Run the two-actor follow, retry, notification, count and unfollow sequence on isolated staging across web and mobile and return exact-SHA evidence to QA-004 (no target exists; all 718 QA-004 rows are still not_run). Database lane reconciles the five separately named follows count triggers in the active chain, then probes one insert, one duplicate retry and one delete with two actors before any reloaded count is credited. Design-system lane deletes lib/services/social-interactions.service.ts and removes the narrowed assertion in the same change."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
-    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004.",
+    "Database: reconcile the follows count triggers in the active chain, then probe one insert, one duplicate retry and one delete with two actors on a target before any reloaded follower count is credited. The route now reports profiles.followers_count verbatim and never a locally derived count, so any drift is in the trigger layer.",
+    "Design-system: retire lib/services/social-interactions.service.ts (social's decision, DOMAIN-004) and delete the narrowed assertion in __tests__/social/profile-follow-route.test.ts in the same change.",
+    "Artist: app/artist/business/analytics/page.tsx:149-153 counts post_likes from the browser for arbitrary post ids; if that surface shows follower-like engagement counts derived from it, it is the same contract question and belongs with the artist lane's post_likes deletion in HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT."
   ]
 }

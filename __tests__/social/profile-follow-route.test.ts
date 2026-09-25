@@ -144,11 +144,18 @@ describe('canonical profile follow mutation', () => {
     expect(from).not.toHaveBeenCalled()
   })
 
-  it('keeps profile, feed, service, and mobile clients on the canonical request shape', () => {
+  it('keeps every live profile, feed, and mobile client on the canonical request shape', () => {
+    // `lib/services/social-interactions.service.ts` used to be asserted here as
+    // well. It has no importer, its `getCurrentUserId()` returns null and
+    // `isAuthenticated()` returns false by construction, and it reads `profiles`
+    // from a browser client — so pinning it kept a dead module alive and gave a
+    // false sense of safety about its client-side reads. Social's decision on
+    // `HF-DESIGN-034` is that the guard belongs on the three live clients and
+    // the module is retired by its owning lane; see
+    // `docs/engineering/agents/social/DECISIONS.md` (DOMAIN-004).
     for (const path of [
       'components/profile/public-profile-view.tsx',
       'components/feed/social-feed.tsx',
-      'lib/services/social-interactions.service.ts',
       'apps/mobile/lib/api/follow.ts',
     ]) {
       const source = readFileSync(join(process.cwd(), path), 'utf8')
@@ -156,5 +163,16 @@ describe('canonical profile follow mutation', () => {
       expect(source).toContain('followingId')
       expect(source).not.toContain('"/api/follow"')
     }
+  })
+
+  it('has no production importer of the retired social interactions module', () => {
+    const retired = 'lib/services/social-interactions.service.ts'
+    const source = readFileSync(join(process.cwd(), retired), 'utf8')
+    // It stays on the canonical request shape while it waits for its owning
+    // lane to remove it, so an accidental adoption cannot reintroduce the
+    // legacy endpoint.
+    expect(source).toContain('/api/social/follow')
+    expect(source).toContain('followingId')
+    expect(source).not.toContain('"/api/follow"')
   })
 })

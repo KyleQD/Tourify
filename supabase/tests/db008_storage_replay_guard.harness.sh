@@ -33,20 +33,99 @@
 #   4. reset, apply the GUARDED storage DDL as the OWNER        -> policy set must be identical
 #   5. re-apply the GUARDED storage DDL as the OWNER twice more -> idempotent
 set -u
-PSQL="/opt/homebrew/opt/postgresql@16/bin/psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -v ON_ERROR_STOP=1"
+# ---------------------------------------------------------------------------
+# REPRODUCIBILITY, Wave 35.
+#
+# This harness as committed in Wave 33 exited 0 having executed ZERO scenarios:
+# the scenario manifest (`manifest.json`) and the emulation bootstrap it loads
+# (`00-bootstrap.sql`) were never committed, and it also demanded a cluster that
+# the reader was expected to have already created on a fixed port. Nothing about
+# it was reproducible from the tree, so the CP-059 proof it carried was not
+# durable evidence — it was a claim.
+#
+# It is now SELF-CONTAINING and needs nothing but the repository and a local
+# PostgreSQL 16:
+#   * it creates and destroys its own throwaway cluster in a temp dir
+#   * it generates the scenario manifest itself from the ten guarded migrations,
+#     by running db008_storage_replay_extract.mjs into that temp dir
+#   * it loads the committed fixture db008_storage_replay_bootstrap.sql
+#   * it still asserts its own post-reset state before trusting any scenario
+#
+# Run it with:  bash supabase/tests/db008_storage_replay_guard.harness.sh
+# or through the single entry point:  bash supabase/tests/db008_run_all.sh
+# ---------------------------------------------------------------------------
+PGBIN="${PGBIN:-/opt/homebrew/opt/postgresql@16/bin}"
 HARNESS="$(cd "$(dirname "$0")" && pwd)"
-MANIFEST="${MANIFEST:-$HARNESS/manifest.json}"
-
+ROOT="${DB_ROOT:-$(cd "$HARNESS/../.." && pwd)}"
 REPLAY_ROLE=tourify_replay
 
+if [ ! -x "$PGBIN/initdb" ]; then
+  echo "SKIP no local PostgreSQL at $PGBIN (set PGBIN to a PostgreSQL 16 bin dir)"
+  exit 0
+fi
+
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/db008-storageguard.XXXXXX")"
+PGDATA="$TMP/data"; SOCK="$TMP"
+export PATH="$PGBIN:$PATH"
+cleanup() { pg_ctl -D "$PGDATA" -m immediate stop >/dev/null 2>&1; rm -rf "$TMP"; }
+trap cleanup EXIT
+
+echo "db008 storage replay-safety harness (local emulation, not a hosted target)"
+initdb -D "$PGDATA" -U postgres --auth=trust -E UTF8 --locale=C >"$TMP/initdb.log" 2>&1 || { echo "FAIL initdb"; tail -5 "$TMP/initdb.log"; exit 1; }
+pg_ctl -D "$PGDATA" -o "-p 55433 -k $SOCK -c listen_addresses=''" -l "$TMP/pg.log" start >/dev/null 2>&1 || { echo "FAIL pg_ctl start"; tail -5 "$TMP/pg.log"; exit 1; }
+echo "  throwaway PostgreSQL $(psql -h "$SOCK" -p 55433 -U postgres -d postgres -X -Atc 'show server_version' | head -1) cluster started"
+psql -h "$SOCK" -p 55433 -U postgres -d postgres -X -q -c "create database replaytest" >/dev/null 2>&1
+
+PSQL="psql -h $SOCK -p 55433 -U postgres -d replaytest -X -q -v ON_ERROR_STOP=1"
+BOOTSTRAP="$HARNESS/db008_storage_replay_bootstrap.sql"
+
+# The ten CP-059 guarded storage-owning migrations. Listed here rather than
+# discovered so that a migration being added to or removed from the guarded set is
+# a visible edit to this file, and so the manifest is reproducible without a
+# previous run having written one.
+GUARDED_TAGS="20250115000001 20250122000000 20250816141000 20260413000000 20260413300002 20260414130000 20260625020000 20260630211500 20260717194541 20260825130000"
+EXTRACT="$HARNESS/db008_storage_replay_extract.mjs"
+EXTRACT_OUT="$TMP/extract"
+mkdir -p "$EXTRACT_OUT"
+: >"$TMP/taglist"
+for t in $GUARDED_TAGS; do
+  # A tag is the migration's 14-digit version prefix, not its filename; the
+  # extract script appends `.sql` itself. Resolve the prefix to the real filename
+  # so the scenario set is named here and verified here, rather than living in a
+  # manifest nobody committed.
+  hit=$(ls "$ROOT"/supabase/migrations/"$t"_*.sql 2>/dev/null | head -1)
+  if [ -z "$hit" ]; then
+    echo "FAIL: guarded migration version $t is missing; the tag list in this harness is stale" >&2
+    exit 1
+  fi
+  echo "$t" >>"$TMP/taglist"
+done
+# The extract script takes the migration FILENAME stem, not the 14-digit version.
+: >"$TMP/filelist"
+for t in $GUARDED_TAGS; do
+  hit=$(ls "$ROOT"/supabase/migrations/"$t"_*.sql 2>/dev/null | head -1)
+  b=$(basename "$hit" .sql)
+  echo "$b" >>"$TMP/filelist"
+done
+if ! (cd "$ROOT" && node "$EXTRACT" "$ROOT" "$EXTRACT_OUT" $(cat "$TMP/filelist") >"$TMP/extract.log" 2>&1); then
+  echo "FAIL: could not extract the storage DDL for the guarded migrations" >&2
+  cat "$TMP/extract.log" >&2
+  exit 1
+fi
+MANIFEST="$EXTRACT_OUT/manifest.json"
+extracted=$(node -e "console.log(require('$MANIFEST').length)")
+echo "  scenario manifest generated: $MANIFEST ($extracted migrations)"
+[ "$extracted" -gt 0 ] || { echo "FAIL: the generated manifest has zero scenarios" >&2; exit 1; }
+[ -f "$BOOTSTRAP" ] || { echo "FAIL: committed bootstrap fixture missing: $BOOTSTRAP" >&2; exit 1; }
+
 reset_cluster() {
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -c "drop schema if exists storage cascade; drop schema if exists auth cascade;" >/dev/null
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -c "revoke all on schema public from $REPLAY_ROLE;" >/dev/null 2>&1
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -c "drop owned by $REPLAY_ROLE;" >/dev/null 2>&1
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -c "drop role if exists $REPLAY_ROLE;" >/dev/null 2>&1
-  $PSQL -f "$HARNESS/00-bootstrap.sql" >/dev/null
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -c "do \$\$ begin if not exists (select 1 from pg_roles where rolname='$REPLAY_ROLE') then create role $REPLAY_ROLE login bypassrls; end if; end \$\$;" >/dev/null
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -q -c "grant usage on schema public, storage, auth to $REPLAY_ROLE; grant all on all tables in schema storage to $REPLAY_ROLE; grant all on all functions in schema storage, auth to $REPLAY_ROLE;" >/dev/null
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -q -c "drop schema if exists storage cascade; drop schema if exists auth cascade;" >/dev/null
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -q -c "revoke all on schema public from $REPLAY_ROLE;" >/dev/null 2>&1
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -q -c "drop owned by $REPLAY_ROLE;" >/dev/null 2>&1
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -q -c "drop role if exists $REPLAY_ROLE;" >/dev/null 2>&1
+  $PSQL -f "$BOOTSTRAP" >/dev/null
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -q -c "do \$\$ begin if not exists (select 1 from pg_roles where rolname='$REPLAY_ROLE') then create role $REPLAY_ROLE login bypassrls; end if; end \$\$;" >/dev/null
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -q -c "grant usage on schema public, storage, auth to $REPLAY_ROLE; grant all on all tables in schema storage to $REPLAY_ROLE; grant all on all functions in schema storage, auth to $REPLAY_ROLE;" >/dev/null
   # The replay role is deliberately NOT a member of supabase_storage_admin and is
   # not a superuser, so pg_class_ownercheck must refuse it. BYPASSRLS is granted
   # because the real Supabase layout lets the migration role write storage.buckets
@@ -57,7 +136,7 @@ reset_cluster() {
   # would make every assertion below vacuously true, so prove the harness state
   # before trusting any result.
   local state
-  state=$(psql -h /tmp -p 55433 -U postgres -d replaytest -X -Atc \
+  state=$(psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -Atc \
     "select (select count(*) from pg_tables where schemaname='storage') || '/' || (select count(*) from pg_policies where schemaname='storage') || '/' || (select pg_get_userbyid(relowner) from pg_class where oid='storage.objects'::regclass) || '/' || (select rolsuper::text from pg_roles where rolname='$REPLAY_ROLE');")
   if [ "$state" != "2/0/supabase_storage_admin/false" ]; then
     echo "HARNESS STATE INVALID: $state (expected 2/0/supabase_storage_admin/false)" >&2
@@ -74,14 +153,14 @@ run_as() {  # $1 = role, $2 = file
 }
 
 policy_snapshot() {
-  psql -h /tmp -p 55433 -U postgres -d replaytest -X -Atc \
+  psql -h "$SOCK" -p 55433 -U postgres -d replaytest -X -Atc \
     "select policyname || '|' || coalesce(cmd,'') || '|' || coalesce(roles::text,'') from pg_policies where schemaname='storage' and tablename='objects' order by policyname;"
 }
 
 pass=0; fail=0
 for tag in $(node -e "for(const m of require('$MANIFEST'))console.log(m.tag)"); do
-  orig="$HARNESS/$tag.owner.sql"
-  grd="$HARNESS/$tag.guarded.sql"
+  orig="$EXTRACT_OUT/$tag.owner.sql"
+  grd="$EXTRACT_OUT/$tag.guarded.sql"
 
   reset_cluster
   out_orig=$(run_as "$REPLAY_ROLE" "$orig"); rc_orig=$?
@@ -131,12 +210,10 @@ echo
 # failure, and the missing prerequisites are named instead of silently skipped.
 if [ "$pass" -eq 0 ] && [ "$fail" -eq 0 ]; then
   echo "replay-safety: 0 scenarios executed - THIS IS A FAILURE, not a pass"
-  echo "  expected scenario manifest: $MANIFEST"
-  [ -f "$MANIFEST" ] || echo "  MISSING: regenerate it with:"
-  echo "    node supabase/tests/db008_storage_replay_extract.mjs <repo-root> $MANIFEST <migration-file>..."
-  echo "  expected bootstrap fixture: $HARNESS/00-bootstrap.sql"
-  [ -f "$HARNESS/00-bootstrap.sql" ] || echo "  MISSING: the Supabase storage/auth emulation bootstrap"
-  echo "  expected a reachable cluster on 127.0.0.1:55433 database replaytest"
+  echo "  scenario manifest: $MANIFEST"
+  echo "  bootstrap fixture: $BOOTSTRAP"
+  echo "  The manifest and fixture are generated and committed respectively, so a zero"
+  echo "  here means the extraction produced nothing, not that the harness is dormant."
   exit 1
 fi
 echo "replay-safety: $pass passed, $fail failed"

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926140200_scheduled_posts_platform_columns.sql",
+  "taskId": "DB-011",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "57bc2b850a0165c09d55f04000cb7e52dce44a8670487d753beadec741e8466b",
+  "contractTestSha256": "79bb121fdc76587370dbfff2f7d56640acb4ed6a622e593fa2b9e15e33baeaa1",
+  "owner": "database",
+  "reviewer": "social-content",
+  "domains": [
+    "social",
+    "schema-integrity"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE. An ORDERING defect, reproduced from the real migration files rather than asserted. 20250904110000_scheduled_posts_platform_status.sql adds scheduled_posts.platform_status and .platform_errors behind `alter table if exists`, and creates their two GIN indexes inside a `do $body$` block that returns early when to_regclass is null. The table itself is created LATER, by 20260413200000_port_missing_tables.sql:335, because '2026-04-13' sorts after '2025-09-04'. On a fresh replay the earlier migration therefore finds no table, does nothing, and reports success. The two columns are NOT dead: app/api/artist/content/overview/route.ts:137 selects them and :180-181 returns them, and lib/services/cross-platform-posting.service.ts:195 writes platform_status. So a chain-built target breaks a live route at PostgREST. Reproduced end to end in supabase/tests/db008_scheduled_posts_platform.harness.sh: apply 20250904110000 to an empty schema, then apply 20260413200000's scheduled_posts block, then observe 0 of 2 platform columns. Executed evidence, ALL CHECKS PASSED.",
+    "evidenceArtifact": "executed-replay:DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE-2026-09-26 (migration SHA-256 57bc2b850a0165c09d55f04000cb7e52dce44a8670487d753beadec741e8466b)"
+  },
+  "assumptions": [
+    "The earlier migration cannot be edited. It has already run on real targets, and editing an applied migration breaks the hosted history ledger (docs/engineering/migration-validation/hosted-history-ledger.json) and the migration-checksum pin. Renumbering it would move it, not after 20260413200000, because the version encodes the intended calendar order.",
+    "Some targets already carry the two columns, applied out of band. DB-002 recorded that some versions in this project were applied by raw Management API SQL rather than by the migration runner, which is the most likely reason. `add column if not exists` makes this file a no-op there, so it is safe on both kinds of target and is not a repair-only migration that could fail on a healthy database.",
+    "The columns must NOT be removed. They are read and written by live, entry-reachable product code; a migration that dropped them would be a second regression. The divergence is repaired forward, never resolved by deleting the consumer.",
+    "The extraction in the harness stops at the end of the scheduled_posts_own DO block. Running past it pulls in booking_requests, staff_onboarding and a trigger that references public.profiles, none of which the harness bootstraps, so an over-wide range aborts on an unrelated relation and reports a migration problem that does not exist. This was an actual failure during authoring and is why the range is explicit."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): select attname from pg_attribute where attrelid = 'public.scheduled_posts'::regclass, and list the indexes on scheduled_posts. Record which of the two columns and two GIN indexes are already present. A target with all four needs no action and the apply is a no-op; a target with none is the case this migration exists for.",
+    "Layer 1 (apply, single run, operator): one transaction. ALTER TABLE ... ADD COLUMN IF NOT EXISTS for both columns, COMMENT ON COLUMN for both, CREATE INDEX IF NOT EXISTS for both GIN indexes, then a DO block that raises if either column is still absent once scheduled_posts exists and only raises a WARNING (not an exception) when the table itself is absent, because that is a different and more serious finding and must not be reported as this one. ADD COLUMN takes ACCESS EXCLUSIVE briefly; the table is not rewritten, both columns are nullable with a constant default, and on any real target the columns already exist so the statement is a no-op.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db008_scheduled_posts_platform_columns_contract.sql; expect zero violation rows and exactly one summary row scheduled_posts_platform_columns_ready. Then re-run supabase/tests/db008_chain_contract_replay.mjs --check and confirm the scheduled_posts skippedRelationAbsentAtReplay entries for 20250904110000 are no longer the only source of those columns.",
+    "Layer 3 (runtime certification, social/content lane): exercise app/api/artist/content/overview/route.ts against the repaired target and confirm the platform_status/platform_errors fields are populated rather than null. Then CP-016: regenerate lib/database.types.ts so the contract finally declares the two columns it has been missing while the product has been reading them."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT attname FROM pg_attribute WHERE attrelid = 'public.scheduled_posts'::regclass AND attname IN ('platform_status','platform_errors') AND attnum > 0 AND NOT attisdropped",
+      "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public' AND tablename='scheduled_posts' ORDER BY indexname",
+      "SELECT count(*) FROM public.scheduled_posts",
+      "SELECT relrowsecurity FROM pg_class WHERE oid = 'public.scheduled_posts'::regclass"
+    ],
+    "expectedAffectedRows": "Zero rows of data. Two nullable columns with constant defaults and two GIN indexes, each skipped where already present.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 500,
+    "statementTimeoutMs": 15000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). One transaction, no product change required, no ordering dependency on any code change. Safe to apply ahead of the CP-016 regeneration, and in fact the regeneration is what finally makes the contract agree with what the product already reads.",
+    "resumeCursor": "Supabase migration version 20260926140200",
+    "idempotency": "Fully deterministic. ALTER TABLE ... ADD COLUMN IF NOT EXISTS, COMMENT ON COLUMN, and CREATE INDEX IF NOT EXISTS are all idempotent, and the DO block only raises or warns. Verified by applying the file twice on a throwaway PostgreSQL 16.15 cluster in supabase/tests/db008_scheduled_posts_platform.harness.sh: the second apply produced no error and the column count stayed at exactly 2."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement and no backfill. Both columns are nullable with a '{}'::jsonb default, so existing rows read as an empty per-platform map rather than NULL, which is what app/api/artist/content/overview/route.ts:180-181 already coalesces for. No partial-application state: the file is one transaction."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No constraint is added, altered or dropped. scheduled_posts keeps its status CHECK, its RLS enablement and its scheduled_posts_own policy; the harness asserts the RLS flag and the policy are still present after the apply, because a column migration that disturbed the authorization surface of the table it touches would be an unreviewed change.",
+      "Both columns are nullable jsonb with a constant default, matching the original 20250904110000 declaration exactly so a target that already has them and a target built from the chain end up with the same shape."
+    ],
+    "indexes": [
+      "idx_scheduled_posts_platform_status and idx_scheduled_posts_platform_errors, both GIN, both reproduced from the `execute` statements inside 20250904110000's do $body$ block. The contract test asserts both exist AND that the index definition contains 'USING gin', so a same-named btree left behind by something else is a violation rather than a pass.",
+      "Dropping platform_errors also drops its GIN index, because the index depends on the column. The harness demonstrates this: after dropping the column the postflight is red, and re-applying the MIGRATION (not merely re-adding the column) is what turns it green again."
+    ],
+    "validationPlan": "supabase/tests/db008_scheduled_posts_platform_columns_contract.sql returns violation rows only plus one summary row emitted only when clean, so an unapplied target cannot pass vacuously; and if scheduled_posts itself is absent the relation cast raises rather than reporting success, because 'the table is missing' is a different finding. It asserts 6 properties: the relation exists; both columns exist; both are jsonb; RLS is enabled and the scheduled_posts_own policy is present; both GIN indexes exist; and the platform index definition really says USING gin. supabase/tests/db008_scheduled_posts_platform.harness.sh adds the executed half: it reproduces the ordering defect from the real files, proves the repair, proves idempotency, runs the product's own write shape (lib/services/cross-platform-posting.service.ts:195's per-platform jsonb map) and read shape (app/api/artist/content/overview/route.ts:137), and proves the postflight fails when a column is removed."
+  },
+  "recovery": {
+    "rollback": "ALTER TABLE public.scheduled_posts DROP COLUMN IF EXISTS platform_errors, DROP COLUMN IF EXISTS platform_status; - issued as a later forward migration, never as an edit to this file. This restores the divergent state and BREAKS app/api/artist/content/overview/route.ts:137, which selects both columns, so it is not a safe rollback on a target that serves that route. The honest position is that this migration has no safe rollback while the consumer exists, which is itself the argument for keeping the columns.",
+    "forwardFix": "Any correction is a new additive migration with a higher version. The most likely change is a NOT NULL constraint once every writer is known to set the column, or a CHECK constraining the jsonb shape, neither of which is safe to add blind."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db008_scheduled_posts_platform_columns_contract.sql",
+      "SELECT attname, format_type(atttypid, atttypmod) FROM pg_attribute WHERE attrelid='public.scheduled_posts'::regclass AND attname IN ('platform_status','platform_errors') AND attnum > 0 AND NOT attisdropped",
+      "SELECT indexdef FROM pg_indexes WHERE schemaname='public' AND tablename='scheduled_posts' AND indexname LIKE '%platform%'",
+      "SELECT count(*) FROM public.scheduled_posts WHERE platform_status IS NULL"
+    ]
+  },
+  "verificationOwner": "social-content lane to exercise app/api/artist/content/overview/route.ts against the repaired target and to own the CP-016 regeneration that makes the contract declare these columns; release/ops operator for the staging apply and postflight",
+  "evidence": [
+    "supabase/tests/db008_scheduled_posts_platform.harness.sh - executed on a throwaway PostgreSQL 16.15 cluster, ALL CHECKS PASSED. The substantive assertion is stage 1, and it is a REPRODUCTION rather than a claim: applying 20250904110000 to an empty schema, then applying 20260413200000's scheduled_posts block, leaves 0 of the 2 platform columns in place. That is the fresh-replay divergence, produced by the repository's own migration files.",
+    "Stage 3 runs the product's own SQL shapes rather than a substitute: the per-platform jsonb map that lib/services/cross-platform-posting.service.ts:195 builds, and the seven-column select that app/api/artist/content/overview/route.ts:137 issues. Both succeed after the repair and the first could not have succeeded before it.",
+    "Stage 4 asserts the negative: RLS is still enabled and scheduled_posts_own is still present, so the repair did not disturb the authorization surface of the table it touches.",
+    "The postflight was proven able to fail: dropping platform_errors turns it red, and the harness records that re-adding the column alone is NOT enough because the GIN index went with it, so the migration must be re-applied.",
+    "LOCAL EMULATION ONLY: PostgreSQL 16.15, a throwaway cluster, and two chain migration FILES applied by hand to an empty schema. Not Supabase, not hosted, not a full chain replay, no `supabase db reset` (CP-051).",
+    "Not proven here: which of the repository's targets already carry these columns out of band, and the hosted result of CP-016 regeneration."
+  ],
+  "exceptions": []
+}

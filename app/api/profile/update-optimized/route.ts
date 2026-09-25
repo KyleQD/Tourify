@@ -112,53 +112,11 @@ export async function PUT(request: NextRequest) {
 
     const updateData: ProfileUpdateData = validationResult.data
 
-    // Handle custom URL validation and uniqueness
-    if (updateData.custom_url) {
-      // Clean the custom URL
-      const cleanedUrl = updateData.custom_url.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '')
-      
-      // Check if URL is reserved
-      const reservedUrls = [
-        'admin', 'api', 'www', 'app', 'settings', 'profile', 'user', 'account', 
-        'dashboard', 'login', 'signup', 'auth', 'help', 'support', 'about', 
-        'contact', 'terms', 'privacy', 'events', 'artist', 'venue', 'search', 
-        'discover', 'feed', 'messages', 'notifications', 'billing', 'security', 
-        'integrations', 'onboarding', 'create', 'edit', 'delete', 'update'
-      ]
-      
-      if (reservedUrls.includes(cleanedUrl)) {
-        return NextResponse.json({
-          error: 'This URL is reserved and cannot be used',
-          field: 'custom_url'
-        }, { status: 400 })
-      }
-
-      // Check if URL is already taken by another user
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('custom_url', cleanedUrl)
-        .neq('id', user.id)
-        .single()
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ Error checking custom URL:', checkError)
-        return NextResponse.json({
-          error: 'Error validating custom URL'
-        }, { status: 500 })
-      }
-
-      if (existingProfile) {
-        return NextResponse.json({
-          error: 'This URL is already taken',
-          field: 'custom_url'
-        }, { status: 400 })
-      }
-
-      updateData.custom_url = cleanedUrl
-    }
-
-    // Handle username validation and uniqueness
+    // Handle username validation and uniqueness.
+    // DB-008 / Wave 35: the former `custom_url` uniqueness block was removed — it
+    // filtered on a column that exists in no active migration, so the check always
+    // errored instead of reporting a taken handle. Both fields are resolved to the
+    // single canonical `username` handle in the block below.
     if (updateData.username) {
       const { data: existingUsername, error: usernameError } = await supabase
         .from('profiles')
@@ -195,17 +153,100 @@ export async function PUT(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Prepare update data with only defined fields for optimal performance
+    // Prepare update data with only defined fields for optimal performance.
+    //
+    // DB-008 / Wave 35: `custom_url`, `phone` and `spotify` are NOT `profiles`
+    // columns — they exist in no active migration and in no generated contract.
+    // Because the loop below copied every submitted key straight into the column
+    // payload, submitting any of them made PostgREST reject the WHOLE statement
+    // and this route answered 500. `components/settings/profile-settings-optimized.tsx`
+    // and `components/settings/profile-settings.tsx` always submit `phone`, so the
+    // settings form could not save at all. They are now routed to their canonical
+    // destinations instead of poisoning the update:
+    //   * `custom_url` -> `username` (the canonical public handle)
+    //   * `phone`      -> `profile_data.phone` (canonical phone storage; the column
+    //                     `profiles.show_phone` gates in lib/profile/general-public-profile.ts)
+    //   * `spotify`    -> `profile_data.spotify` (no canonical column exists)
+    // The top-level `show_email` / `show_phone` / `show_location` column writes are
+    // UNCHANGED, so the set of settings that can open a public privacy flag is
+    // exactly what it was before this repair.
+    const NON_COLUMN_FIELDS = new Set(['custom_url', 'phone', 'spotify'])
+
     const profileUpdate: any = {
       updated_at: new Date().toISOString()
     }
 
-    // Only include fields that are being updated (avoid unnecessary writes)
     Object.keys(updateData).forEach(key => {
+      if (NON_COLUMN_FIELDS.has(key)) return
       if (updateData[key as keyof ProfileUpdateData] !== undefined) {
         profileUpdate[key] = updateData[key as keyof ProfileUpdateData]
       }
     })
+
+    const mergedProfileData = isRecord(existingProfileRow?.profile_data)
+      ? { ...existingProfileRow.profile_data }
+      : {}
+    if (updateData.phone !== undefined) mergedProfileData.phone = updateData.phone
+    if (updateData.spotify !== undefined) mergedProfileData.spotify = updateData.spotify
+    if (Object.keys(mergedProfileData).length > 0) {
+      profileUpdate.profile_data = mergedProfileData
+    }
+
+    // `custom_url` is a deprecated request alias for the canonical handle.
+    if (updateData.custom_url !== undefined) {
+      if (
+        updateData.username !== undefined &&
+        updateData.username !== updateData.custom_url
+      ) {
+        return NextResponse.json({
+          error: 'username and custom_url disagree; send only one',
+          field: 'custom_url'
+        }, { status: 400 })
+      }
+      if (updateData.username === undefined) {
+        const cleanedHandle = updateData.custom_url
+          .toLowerCase()
+          .replace(/[^a-zA-Z0-9_-]/g, '')
+
+        const reservedUrls = new Set([
+          'admin', 'api', 'www', 'app', 'settings', 'profile', 'user', 'account',
+          'dashboard', 'login', 'signup', 'auth', 'help', 'support', 'about',
+          'contact', 'terms', 'privacy', 'events', 'artist', 'venue', 'search',
+          'discover', 'feed', 'messages', 'notifications', 'billing', 'security',
+          'integrations', 'onboarding', 'create', 'edit', 'delete', 'update'
+        ])
+
+        if (reservedUrls.has(cleanedHandle)) {
+          return NextResponse.json({
+            error: 'This URL is reserved and cannot be used',
+            field: 'custom_url'
+          }, { status: 400 })
+        }
+
+        const { data: handleHolder, error: handleError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', cleanedHandle)
+          .neq('id', user.id)
+          .single()
+
+        if (handleError && handleError.code !== 'PGRST116') {
+          console.error('❌ Error checking profile handle:', handleError)
+          return NextResponse.json({
+            error: 'Error validating profile handle'
+          }, { status: 500 })
+        }
+
+        if (handleHolder) {
+          return NextResponse.json({
+            error: 'This URL is already taken',
+            field: 'custom_url'
+          }, { status: 400 })
+        }
+
+        profileUpdate.username = cleanedHandle
+      }
+    }
 
     if (updateData.profile_experience) {
       const existingProfileData = isRecord(existingProfileRow?.profile_data) ? existingProfileRow.profile_data : {}
@@ -252,14 +293,11 @@ export async function PUT(request: NextRequest) {
         full_name,
         bio,
         avatar_url,
-        custom_url,
-        phone,
         location,
         website,
         profile_data,
         instagram,
         twitter,
-        spotify,
         show_email,
         show_phone,
         show_location,
@@ -306,6 +344,18 @@ export async function PUT(request: NextRequest) {
 
     const processingTime = Date.now() - startTime
 
+    // `phone` and `spotify` are read back from the canonical jsonb storage, not
+    // from phantom `profiles` columns. `show_phone` is the top-level boolean the
+    // public gate reads; this route still writes it (unchanged), so the flag the
+    // form shows and the flag the gate honours are the same value.
+    const updatedProfileData = isRecord(updatedProfile.profile_data)
+      ? updatedProfile.profile_data
+      : {}
+    const updatedPhone =
+      typeof updatedProfileData.phone === 'string' ? updatedProfileData.phone : null
+    const updatedSpotify =
+      typeof updatedProfileData.spotify === 'string' ? updatedProfileData.spotify : null
+
     // Return optimized profile response
     const response = {
       success: true,
@@ -313,17 +363,18 @@ export async function PUT(request: NextRequest) {
       profile: {
         id: updatedProfile.id,
         username: updatedProfile.username,
-        custom_url: updatedProfile.custom_url,
+        // Deprecated alias of the canonical handle; `profiles.custom_url` is not a column.
+        custom_url: updatedProfile.username,
         full_name: updatedProfile.full_name,
         bio: updatedProfile.bio,
         avatar_url: updatedProfile.avatar_url,
-        phone: updatedProfile.phone,
+        phone: updatedPhone,
         location: updatedProfile.location,
         website: updatedProfile.website,
         social_links: {
           instagram: updatedProfile.instagram,
           twitter: updatedProfile.twitter,
-          spotify: updatedProfile.spotify,
+          spotify: updatedSpotify,
           website: updatedProfile.website
         },
         privacy: {
@@ -337,12 +388,12 @@ export async function PUT(request: NextRequest) {
           posts: updatedProfile.posts_count || 0
         },
         profile_data: {
-          ...(isRecord(updatedProfile.profile_data) ? updatedProfile.profile_data : {}),
+          ...updatedProfileData,
           name: updatedProfile.full_name,
           bio: updatedProfile.bio,
           location: updatedProfile.location,
           website: updatedProfile.website,
-          phone: updatedProfile.phone
+          phone: updatedPhone
         },
         verified: updatedProfile.is_verified || false,
         account_type: 'general',

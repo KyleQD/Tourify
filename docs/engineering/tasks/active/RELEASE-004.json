@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "release",
   "created_at": "2026-09-09T09:35:23.764Z",
-  "updated_at": "2026-09-21T22:17:32Z",
+  "updated_at": "2026-09-25T22:54:27.503Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (uncommitted docs slice: docs/recovery-and-continuity-plan.md added; RELEASE-004 record updated — Wave 31 lane 2, 2026-09-21)",
   "goal": "Document and prove recovery for isolated staging and production Vercel and Supabase topology, including PITR, restore drills, ownership, and application rollback",
@@ -39,12 +39,12 @@
       "2026-09-21: npm run check:local-docker PASS (static compose/Dockerfile/standalone inputs; no daemon needed).",
       "2026-09-21: npm run check:migration-chain PASS (296 active migration files scanned; no duplicate policy creations)."
     ],
-    "last_run_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
-    "last_run_at": "2026-09-21T22:17:32Z",
+    "last_run_sha": "ca3bb0b0",
+    "last_run_at": "2026-09-25T23:56:00.000Z",
     "result": "partial-pass"
   },
   "progress": {
-    "summary": "Acceptance criteria 1, 3, and 4 are documented locally in docs/recovery-and-continuity-plan.md: required four-project isolated Vercel/Supabase topology (cross-referencing RELEASE-007), application rollback via exact-SHA Vercel redeploy + env-var management, forward-only database repair consistent with CP-051/CP-053 (no destructive reset, no migration-history rewriting, no archive-only DDL as runtime proof), incident ownership, RPO/RTO aligned to the 99.9% monthly web/API SLO and observability runbooks, escalation paths, a PITR/backup evidence checklist, and an operator-executable isolated restore-drill runbook. Criterion 2 remains blocked on hosted Supabase-dashboard PITR/backup evidence and a completed isolated restore drill once the approved isolated target is provisioned.",
+    "summary": "Wave 35 cross-reference only; no change to this task acceptance state. docs/recovery-and-continuity-plan.md describes a required four-project isolated topology, and Wave 35 re-confirmed read-only that the LIVE topology contradicts it in a way that matters specifically for recovery: tourify-beta-k2 (prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n) is the PRODUCTION project and its production alias list still contains demo.tourify.live. The plan is therefore a TARGET state, not a description of anything that exists, and a rollback or restore procedure that assumes an isolated demo target is in fact running against a production alias. The plan was deliberately NOT edited in this wave: the binding correction is an owner-executed hosted mutation recorded in HF-RELEASE-007-VERCEL-HOSTED, and editing the plan before the topology is corrected would only replace one untrue statement with another. No hosted environment, branch protection, database, or recovery target was touched, no restore drill was run, and no migration was applied (CP-051). Criterion 2 remains blocked on hosted Supabase backup/PITR evidence and a completed isolated restore drill. PASS: git diff --check exit 0; agents:validate 17 agents / 152 tasks / 0 errors.",
     "completed": [
       "Added local rollback and Supabase recovery handoff notes in docs/LOCAL_DEPLOYMENT_READINESS.md.",
       "Created docs/recovery-and-continuity-plan.md as the durable recovery plan: isolated four-project topology, app rollback, forward-only DB repair, incident ownership, SLO-aligned RPO/RTO, escalation, PITR evidence checklist, and isolated restore-drill runbook with rollback, success criteria, and evidence template.",
@@ -52,9 +52,7 @@
       "Ran npm run check:local-docker and npm run check:migration-chain; both passed read-only at HEAD (2026-09-21)."
     ],
     "next_steps": [
-      "Hosted: provision the four isolated Vercel/Supabase projects (RELEASE-007 blocker), then capture production backup/PITR dashboard evidence into the section 5 checklist.",
-      "Hosted: execute one isolated restore drill against an approved isolated target and fill the section 6 evidence template (achieved RPO/RTO).",
-      "Owner decision OR-RECOVERY-01: whether catastrophic-restore downtime counts against the 99.9% availability SLO."
+      "After HF-RELEASE-007-VERCEL-HOSTED steps 1-3 complete, update docs/recovery-and-continuity-plan.md to reference the observed, verified topology rather than only the target, recording the real dpl_ IDs, Supabase origins, and approver. Then execute the isolated restore drill in section 6 and fill the evidence template. Still blocked on hosted provisioning and owner PITR cost approval (OR-RECOVERY-01)."
     ],
     "blockers": [
       "No approved Supabase target confirmation or production restore-drill evidence is available in the local workspace.",
@@ -93,6 +91,32 @@
           "No approved isolated Supabase recovery target is provisioned (gated on RELEASE-007) so no restore drill can execute.",
           "PITR cost/retention requires account-owner approval; decision status remains PENDING_DASHBOARD_EVIDENCE_AND_COST_APPROVAL."
         ]
+      },
+      {
+        "at": "2026-09-25T23:56:00.000Z",
+        "sha": "ca3bb0b0",
+        "summary": "Wave 35 cross-reference, no change to this tasks acceptance state. docs/recovery-and-continuity-plan.md describes a required four-project isolated topology (staging/production Vercel plus staging/production Supabase). Wave 35 re-confirmed read-only that the LIVE topology contradicts it in a specific way worth recording next to the plan: tourify-beta-k2 (prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n) is the PRODUCTION project and its production alias list still contains demo.tourify.live, so the plan is a TARGET state, not a description of anything that exists. That matters for recovery specifically, because a rollback or restore procedure that assumes an isolated demo target is running against a production alias. The plan was NOT edited in this wave - it is a release-owned document but the binding correction is an owner-executed hosted mutation recorded in HF-RELEASE-007-VERCEL-HOSTED, and editing the plan before the topology is corrected would replace one untrue statement with another. No hosted environment, branch protection, database, or recovery target was touched, and no restore drill was run. Criterion 2 remains blocked on hosted Supabase backup/PITR evidence.",
+        "completed": [
+          "Recorded that docs/recovery-and-continuity-plan.md states a target topology that the live environment does not yet match, and why that specifically affects recovery and rollback.",
+          "Deliberately did not edit the plan before the hosted binding is corrected, to avoid replacing one untrue statement with another."
+        ],
+        "next_steps": [
+          "After HF-RELEASE-007-VERCEL-HOSTED steps 1-3 complete, update docs/recovery-and-continuity-plan.md to reference the observed, verified topology rather than only the target, and record the real dpl_ IDs, Supabase origins, and approver.",
+          "Then execute the isolated restore drill in section 6 and fill the evidence template. Still blocked on hosted provisioning."
+        ],
+        "blockers": [
+          "The recovery plan currently describes a four-project isolated topology that does not exist yet; the live demo alias is a production alias. Criterion 2 also remains blocked on hosted Supabase backup/PITR evidence and a completed isolated restore drill."
+        ]
+      },
+      {
+        "at": "2026-09-25T22:54:27.503Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 cross-reference only; no change to this task acceptance state. docs/recovery-and-continuity-plan.md describes a required four-project isolated topology, and Wave 35 re-confirmed read-only that the LIVE topology contradicts it in a way that matters specifically for recovery: tourify-beta-k2 (prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n) is the PRODUCTION project and its production alias list still contains demo.tourify.live. The plan is therefore a TARGET state, not a description of anything that exists, and a rollback or restore procedure that assumes an isolated demo target is in fact running against a production alias. The plan was deliberately NOT edited in this wave: the binding correction is an owner-executed hosted mutation recorded in HF-RELEASE-007-VERCEL-HOSTED, and editing the plan before the topology is corrected would only replace one untrue statement with another. No hosted environment, branch protection, database, or recovery target was touched, no restore drill was run, and no migration was applied (CP-051). Criterion 2 remains blocked on hosted Supabase backup/PITR evidence and a completed isolated restore drill. PASS: git diff --check exit 0; agents:validate 17 agents / 152 tasks / 0 errors.",
+        "completed": [],
+        "next_steps": [
+          "After HF-RELEASE-007-VERCEL-HOSTED steps 1-3 complete, update docs/recovery-and-continuity-plan.md to reference the observed, verified topology rather than only the target, recording the real dpl_ IDs, Supabase origins, and approver. Then execute the isolated restore drill in section 6 and fill the evidence template. Still blocked on hosted provisioning and owner PITR cost approval (OR-RECOVERY-01)."
+        ],
+        "blockers": []
       }
     ]
   },

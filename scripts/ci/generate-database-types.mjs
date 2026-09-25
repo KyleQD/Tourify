@@ -14,6 +14,7 @@ const result = spawnSync("supabase", args, {
   cwd: ROOT,
   encoding: "utf8",
   stdio: ["ignore", "pipe", "inherit"],
+  maxBuffer: 64 * 1024 * 1024,
 })
 
 if (result.error) throw result.error

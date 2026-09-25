@@ -108,6 +108,32 @@ async function persistDesign(
 }
 
 function buildProfilePreview(profile: any) {
+  // DB-008 / Wave 35 (USER-005): `profiles.phone` is a phantom column — it exists
+  // in no active migration and in no generated contract — so the previous
+  // `profile.show_phone === true ? profile.phone : null` returned `null` even when
+  // the owner had explicitly enabled phone sharing: a privacy flag that gated
+  // nothing. The canonical storage is `profiles.profile_data.phone` (written by
+  // app/api/settings/profile/route.ts and app/api/profile/update/route.ts), with
+  // `profiles.metadata.phone` as the legacy mirror. The gate itself is UNCHANGED
+  // (`profiles.show_phone === true`), so this is a repoint of the source, not a
+  // relaxation. This builder only ever runs over the AUTHENTICATED caller's own
+  // `profiles` row (see loadProfileBundle(supabase, user.id)), so the value is the
+  // caller's own contact data and no other subject is affected.
+  const profileData =
+    profile.profile_data && typeof profile.profile_data === 'object' && !Array.isArray(profile.profile_data)
+      ? profile.profile_data
+      : {}
+  const metadata =
+    profile.metadata && typeof profile.metadata === 'object' && !Array.isArray(profile.metadata)
+      ? profile.metadata
+      : {}
+  const storedPhone =
+    typeof profileData.phone === 'string' && profileData.phone
+      ? profileData.phone
+      : typeof metadata.phone === 'string' && metadata.phone
+        ? metadata.phone
+        : null
+
   return {
     id: profile.id,
     username: profile.username,
@@ -126,7 +152,7 @@ function buildProfilePreview(profile: any) {
     show_phone: profile.show_phone === true,
     show_location: profile.show_location !== false,
     email: profile.show_email === true ? profile.email : null,
-    phone: profile.show_phone === true ? profile.phone : null,
+    phone: profile.show_phone === true ? storedPhone : null,
   }
 }
 

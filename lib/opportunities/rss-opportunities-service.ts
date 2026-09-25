@@ -1,5 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { fetchInternalJson } from '@/lib/discover/internal-json-fetch'
+import { parseAllowedOrigins } from '@/lib/discover/outbound-guard'
+import { toPlainText } from '@/lib/news/text-sanitize'
+
+/** Frozen key into `INTERNAL_UPSTREAM_ROUTES`; the pathname is never caller-supplied. */
+const RSS_NEWS_UPSTREAM_ROUTE = 'opportunitiesRssNews' as const
+
 interface RSSNewsItem {
   id: string
   title: string
@@ -25,23 +32,57 @@ export interface OpportunityRecordInput {
   metadata: Record<string, unknown>
 }
 
+/**
+ * Security decision DISC-SSRF-004 — port of the `/api/discover` guard.
+ *
+ * This function used to take a caller-supplied `origin` (`request.nextUrl.origin`
+ * at BOTH callers) and build `new URL('/api/feed/rss-news', params.origin)` from
+ * it, once per each of six hardcoded categories. `nextUrl.origin` reflects the
+ * inbound `Host` / `X-Forwarded-Host` header, so a caller chose the destination
+ * of six concurrent server-side requests, and the global `fetch` follows
+ * redirects, so a 3xx from the first hop reached anywhere. CodeQL never flagged
+ * it: `js/request-forgery` treats `request.url` as a remote-flow source but not
+ * `request.nextUrl.origin`, which is why the same class survived two earlier
+ * fixes in adjacent files.
+ *
+ * The destination is now the operator-declared exact origin
+ * (`INTERNAL_API_ORIGIN` -> `NEXT_PUBLIC_APP_URL` ->
+ * `VERCEL_PROJECT_PRODUCTION_URL` -> `VERCEL_URL`), the pathname is a
+ * compile-time constant selected by key, and the transport is resolve-then-pin
+ * over `node:https` with structural redirect denial, a 5s wall clock, a 2 MiB
+ * cap, and a JSON content-type requirement. With no allowlisted origin this
+ * ingest performs no outbound request at all and simply upserts nothing.
+ */
 export async function ingestOpportunitiesFromRss(params: {
-  origin: string
   supabase: SupabaseClient
   limitPerCategory?: number
 }) {
   const categories = ['Music Industry', 'Music News', 'Hip-Hop', 'Electronic Music', 'Indie Music', 'Local Music']
   const limit = params.limitPerCategory || 24
 
+  const allowlist = parseAllowedOrigins()
+  if (allowlist.length === 0) {
+    console.warn(
+      '[Opportunities] No internal upstream origin is allowlisted; the RSS ingest is disabled. Set INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_URL).'
+    )
+    return { upserted: 0 }
+  }
+
   const payloads = await Promise.all(
     categories.map(async category => {
-      const endpoint = new URL('/api/feed/rss-news', params.origin)
-      endpoint.searchParams.set('limit', String(limit))
-      endpoint.searchParams.set('category', category)
-      const response = await fetch(endpoint.toString(), { cache: 'no-store' })
-      if (!response.ok) return []
-      const data = await response.json()
-      return Array.isArray(data.news) ? (data.news as RSSNewsItem[]) : []
+      // Denials log the route key and the reason only — never a category value.
+      const result = await fetchInternalJson({
+        route: RSS_NEWS_UPSTREAM_ROUTE,
+        params: { limit, category },
+        headers: { 'user-agent': 'TourifyOpportunityIngest/1.0' },
+        allowlist
+      })
+      if (!result.ok) {
+        console.error(`[Opportunities] Upstream "${RSS_NEWS_UPSTREAM_ROUTE}" denied: ${result.denial}`)
+        return []
+      }
+      const data = result.data as { news?: unknown } | null
+      return Array.isArray(data?.news) ? (data.news as RSSNewsItem[]) : []
     })
   )
 
@@ -294,19 +335,6 @@ function tokenize(value: string) {
 function extractKeywords(value: string) {
   const blocked = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'your', 'you', 'are'])
   return tokenize(value).filter(token => !blocked.has(token)).slice(0, 28)
-}
-
-function toPlainText(value: string) {
-  return String(value || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&#8217;/g, "'")
-    .replace(/&#8216;/g, "'")
-    .replace(/&#8220;/g, '"')
-    .replace(/&#8221;/g, '"')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 function normalizeExternalUrl(value: string | undefined) {

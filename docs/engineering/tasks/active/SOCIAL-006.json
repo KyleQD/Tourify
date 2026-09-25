@@ -6,33 +6,87 @@
   "priority": "P2",
   "owner_agent": "social",
   "created_at": "2026-09-23T19:16:10.916Z",
-  "updated_at": "2026-09-24T00:38:33Z",
+  "updated_at": "2026-09-25T23:03:15.560Z",
   "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "working_tree_status": "dirty (25 entries)",
   "goal": "Implement the organization/tour/event operational communications contract for announcements, acknowledgements, mentions, delivery state, and source links.",
   "scope": {
-    "in": [],
-    "out": []
+    "in": [
+      "Organization/tour/event scoped operational communications over existing announcement, group-thread, task-message and acknowledgement records",
+      "Announcement and task feed, current-user mention projection, pending acknowledgement and non-responder projection",
+      "Preserving direct and group messaging in the global inbox without duplicating canonical message records"
+    ],
+    "out": [
+      "Provider-specific delivery detail until a configured provider contract exists",
+      "New message tables or copies of canonical message records",
+      "Admin logistics surfaces owned by the admin/work lanes (app/api/admin/**, components/work-mode/**)"
+    ]
   },
-  "working_set": [],
+  "working_set": [
+    "app/api/admin/logistics/communications-command-center/route.ts (read only; app/api/admin/** is the admin lane's)",
+    "components/admin/logistics/communications-command-center.tsx (read only; components/admin/** is the admin lane's)",
+    "lib/messaging/** (social-owned, unchanged this wave)",
+    "docs/engineering/tasks/active/SOCIAL-006.json"
+  ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md"
   ],
-  "acceptance_criteria": [],
+  "acceptance_criteria": [
+    "Operational communications are read from canonical records and never create a duplicate message row",
+    "Announcement, mention and acknowledgement projections are scoped to an organization/tour/event acting context",
+    "Direct and group messaging continue to appear in the global inbox",
+    "Provider-specific delivery state is not claimed until a configured provider contract exists"
+  ],
   "verification": {
     "tier": "fast",
-    "commands": ["npx eslint app/api/admin/logistics/communications-command-center/route.ts components/admin/logistics/communications-command-center.tsx"],
-    "evidence": ["Operational feed reuses native group threads/messages, event bulletins, task messages, and logistics acknowledgements; it creates no duplicate message records."],
-    "last_run_sha": null,
-    "last_run_at": null,
-    "result": "passed"
+    "commands": [
+      "npx eslint app/api/admin/logistics/communications-command-center/route.ts components/admin/logistics/communications-command-center.tsx"
+    ],
+    "evidence": [
+      "Operational feed reuses native group threads/messages, event bulletins, task messages, and logistics acknowledgements; it creates no duplicate message records.",
+      "Wave 35 (2026-09-26): this lane changed no file in this task's surface. The surface lives under app/api/admin/** and components/admin/**, which are the admin/work lanes' paths and outside social's grant, so the Wave 35 work (the post_likes server read, the interaction-route gate inventory, and the follow contract) does not touch it and could not.",
+      "Wave 35 regression context: the combined __tests__/social + __tests__/messaging run (16 files / 128 tests) and the __tests__/polls + __tests__/feed run (15 files / 118 tests) are both green, so the social-owned messaging and engagement contracts that the operational feed composes over are unchanged and passing.",
+      "NOT verified: no pilot delivery-state data was available, and no hosted run was performed. Provider-specific delivery detail remains unimplemented because no provider contract is configured."
+    ],
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T16:12:00.000Z",
+    "result": "partial"
   },
   "progress": {
-    "summary": "Operational communications contract implemented over existing records with organization/tour/event scope.",
-    "completed": ["Added scoped announcement and task feed.", "Added current-user mention projection.", "Added pending acknowledgement and non-responder projection.", "Preserved direct/group messaging in the global inbox."],
-    "next_steps": ["Add provider-specific delivery detail only when a configured provider contract exists."],
-    "blockers": [],
-    "checkpoints": [{"at":"2026-09-24T00:38:33Z","summary":"Completed the operational feed contract without copying or duplicating canonical message records.","next":"Validate pilot delivery-state data under QA-007."}]
+    "summary": "Re-verified with no change to the surface, and the task record was brought up to a checkable standard. The implementation this task describes lives under app/api/admin/logistics/communications-command-center/ and components/admin/logistics/, which are the admin/work lanes' paths and outside social's grant, so Wave 35 neither modified nor could modify them; the social-owned messaging and engagement records the operational feed composes over are unchanged and their suites are green (16 files / 128 tests with __tests__/messaging, 15 files / 118 with __tests__/polls + __tests__/feed). Wrote the previously-empty scope.in / scope.out and acceptance_criteria into the record so 'implemented over existing records with organization/tour/event scope' is checkable rather than asserted, and stated provider-specific delivery detail as an explicit non-goal instead of leaving it implied by silence. Honest status: not verified. No pilot delivery-state data was available, no hosted run was performed, and the single criterion that cannot be met locally - provider-specific delivery state - stays unimplemented because no provider contract is configured.",
+    "completed": [
+      "Added scoped announcement and task feed.",
+      "Added current-user mention projection.",
+      "Added pending acknowledgement and non-responder projection.",
+      "Preserved direct/group messaging in the global inbox.",
+      "Wrote the acceptance criteria and scope boundaries into the task record so 'implemented over existing records' is checkable rather than asserted."
+    ],
+    "next_steps": [
+      "Validate pilot delivery-state data under QA-007 on an approved target; none exists today. Add provider-specific delivery detail only once a configured provider contract exists, and route any change to the command-center routes and components through the admin/work lane that owns those paths."
+    ],
+    "blockers": [
+      "The implementation surface is under app/api/admin/** and components/admin/**, which belong to the admin/work lanes; social owns the contract and the messaging records it composes over, not the routes.",
+      "No pilot delivery-state data and no approved target, so nothing about real delivery state is verified."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Completed the operational feed contract without copying or duplicating canonical message records.",
+        "next": "Validate pilot delivery-state data under QA-007."
+      },
+      {
+        "at": "2026-09-25T23:03:15.560Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Re-verified with no change to the surface, and the task record was brought up to a checkable standard. The implementation this task describes lives under app/api/admin/logistics/communications-command-center/ and components/admin/logistics/, which are the admin/work lanes' paths and outside social's grant, so Wave 35 neither modified nor could modify them; the social-owned messaging and engagement records the operational feed composes over are unchanged and their suites are green (16 files / 128 tests with __tests__/messaging, 15 files / 118 with __tests__/polls + __tests__/feed). Wrote the previously-empty scope.in / scope.out and acceptance_criteria into the record so 'implemented over existing records with organization/tour/event scope' is checkable rather than asserted, and stated provider-specific delivery detail as an explicit non-goal instead of leaving it implied by silence. Honest status: not verified. No pilot delivery-state data was available, no hosted run was performed, and the single criterion that cannot be met locally - provider-specific delivery state - stays unimplemented because no provider contract is configured.",
+        "completed": [],
+        "next_steps": [
+          "Validate pilot delivery-state data under QA-007 on an approved target; none exists today. Add provider-specific delivery detail only once a configured provider contract exists, and route any change to the command-center routes and components through the admin/work lane that owns those paths."
+        ],
+        "blockers": []
+      }
+    ]
   },
-  "handoffs": []
+  "handoffs": [
+    "Admin/work lane: the communications command center under app/api/admin/logistics/** and components/admin/logistics/** is the implementation surface for this contract and is owned by that lane. Social owns the underlying message and acknowledgement records and the projection semantics."
+  ]
 }

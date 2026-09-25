@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-RELEASE-035-INTERNAL-API-ORIGIN-OPERATOR",
+  "task_id": "RELEASE-005",
+  "from_agent": "release",
+  "to_agent": "owner",
+  "status": "pending",
+  "created_at": "2026-09-25T23:46:00.000Z",
+  "source_sha": "ca3bb0b0",
+  "summary": "BLOCKING, OPERATOR-GATED. Consuming HF-DISC-002-INTERNAL-API-ORIGIN (discover -> release). The Wave 33/34 outbound guard reads INTERNAL_API_ORIGIN, then NEXT_PUBLIC_APP_URL, then VERCEL_PROJECT_PRODUCTION_URL, then VERCEL_URL, and has NO fallback and NO localhost default. An environment with none of them set does not error - /api/discover returns empty sections, /api/hub returns zeroed metrics, and the news feed loses its external RSS candidates, by design. NEW FINDING from this lane: the committed deployment templates do not carry any of the four variable names, so an operator who loads deployment/demo.env or deployment/production.env and deploys will get exactly that fail-closed empty response. No key was added and no value was written, because the correct value is environment-specific and a guessed origin would either be refused (useless) or allowlist something that should not be reachable.",
+  "working_set": [
+    "deployment/demo.env",
+    "deployment/production.env",
+    "lib/discover/outbound-guard.ts",
+    "app/api/discover/route.ts",
+    "app/api/hub/route.ts",
+    "lib/news/feed-service.ts"
+  ],
+  "completed": [
+    "Accepted the handoff as a named blocking release precondition rather than a discover-lane concern, and recorded it as one.",
+    "Read the key list (names only, no value read) of deployment/demo.env (31 keys) and deployment/production.env (25 keys). None of INTERNAL_API_ORIGIN, NEXT_PUBLIC_APP_URL, VERCEL_PROJECT_PRODUCTION_URL, VERCEL_URL or DISCOVER_ALLOW_LOCAL_UPSTREAM appears in either file. Both also lack ENCRYPTION_KEY, INTERNAL_API_SECRET and CRON_SECRET, so neither template can satisfy the production environment contract on its own either.",
+    "Confirmed the guard's variable set and precedence directly in lib/discover/outbound-guard.ts, lines 315-318, and confirmed the three surfaces each log a distinct actionable warning naming the variable to set, so the failure is diagnosable from logs rather than being a silent empty response.",
+    "Recorded the constraint that makes this operator-only: INTERNAL_API_ORIGIN must be a bare scheme://host[:port]. The guard rejects a configured origin carrying a path, query, or fragment, and it fails closed on a partially-parseable value rather than admitting a subset."
+  ],
+  "next_steps": [
+    "Set INTERNAL_API_ORIGIN in the PRODUCTION Vercel project prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n: vercel env add INTERNAL_API_ORIGIN production --scope kyleqdaley-gmailcoms-projects. Do this AFTER HF-RELEASE-007-VERCEL-HOSTED completes, so the value is not published to the production project while it is still receiving arbitrary PR preview builds.",
+    "Set it in the isolated staging project once RELEASE-007 isolation exists: vercel env add INTERNAL_API_ORIGIN preview --scope kyleqdaley-gmailcoms-projects.",
+    "Set it in the protected GitHub environments so the promotion workflows carry it: gh secret set INTERNAL_API_ORIGIN --env staging and gh secret set INTERNAL_API_ORIGIN --env production.",
+    "Prefer INTERNAL_API_ORIGIN over relying on VERCEL_URL or VERCEL_PROJECT_PRODUCTION_URL. VERCEL_URL is a per-deployment value and the preview origin changes on every deploy, so relying on it makes the guard's behaviour deployment-dependent for no benefit.",
+    "Leave DISCOVER_ALLOW_LOCAL_UPSTREAM UNSET in every deployed environment. It exists only for local development against http://127.0.0.1:3000 and is ignored when NODE_ENV=production; a loopback or private-literal origin is refused outright in production even when it is set.",
+    "Smoke all three surfaces per environment and confirm non-empty results: /api/discover returns sections.for_you and stats.trending_count above zero; /api/hub returns metrics.headlines above zero; /api/news/feed returns at least one item with originType 'external'. An empty result WITHOUT the warning means the origin resolves but the upstream rejects; an empty result WITH the warning means the allowlist is still empty. Those two states are distinguishable, which is the point of the warning.",
+    "Decide whether deployment/demo.env and deployment/production.env should carry the key with an environment-specific value, or whether the variable is deliberately Vercel-only. Either answer is defensible; leaving it undocumented in both is not."
+  ],
+  "blockers": [
+    "Operator-gated. No deployed environment, credential, or hosting account is reachable from this workspace, and fabricating a value or claiming hosted evidence is forbidden. No env file was created or edited and no value was written.",
+    "The production project is the wrong place to set this until HF-RELEASE-007-VERCEL-HOSTED steps 1 and 2 complete, because the production project currently receives Git-triggered previews for arbitrary branches.",
+    "The Redis 429 and Supabase-backed search smoke checks recorded in HF-RELEASE-003-OWNER and in DISC-002's own verification block are also unrun and remain release-gate items."
+  ],
+  "verification": [
+    "grep over lib/discover/outbound-guard.ts -> OUTBOUND_ENV_SOURCES lists INTERNAL_API_ORIGIN (line 315), NEXT_PUBLIC_APP_URL (316), VERCEL_PROJECT_PRODUCTION_URL (317), VERCEL_URL (318), in that precedence order.",
+    "Key listing of deployment/demo.env -> 31 keys, none of them INTERNAL_API_ORIGIN / NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL / DISCOVER_ALLOW_LOCAL_UPSTREAM. Key listing of deployment/production.env -> 25 keys, same absence. KEYS ONLY: no value was read, printed, or copied.",
+    "app/api/discover/route.ts:366 and app/api/hub/route.ts:148 each log a distinct warning naming INTERNAL_API_ORIGIN (and the fallbacks) when the allowlist is empty.",
+    "NOT RUN and NOT CLAIMED: no deployed environment was inspected, no variable was set or verified as set, no hosted request was made, no migration was applied, and no CodeQL re-analysis was performed."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md"
+}

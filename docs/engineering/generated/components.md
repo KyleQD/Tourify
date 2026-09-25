@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (423 entries)
-- Generated at: 2026-09-25T22:27:02.069Z
+- Working tree: dirty (152 entries)
+- Generated at: 2026-09-25T23:26:47.265Z
 - Generator: `control-plane.mjs generate`
 
 ## TSX and JSX files (1945)

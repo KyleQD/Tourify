@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-TICKET-035-TICKET-NOTIFICATIONS",
+  "task_id": "TICKET-005",
+  "from_agent": "ticketing",
+  "to_agent": "design-system",
+  "status": "pending",
+  "created_at": "2026-09-25T16:25:00.000Z",
+  "updated_at": "2026-09-25T16:25:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "dirty_state_caveat": "Wave 35 worktree, 6 concurrent lanes, HEAD ca3bb0b0, nothing committed. lib/services/** is owned by the design-system lane in this wave and the ticketing lane was explicitly barred from editing it, so this is a handoff rather than a fix. The ticketing lane changed no file under lib/services/**.",
+  "summary": "DB-008 code-drift cluster object `ticket_notifications` resolves to exactly one reference in the repository, `lib/services/ticketing.service.ts:343`, and the fix is to delete a dead method. This lane could not apply it because lib/services/** is not in its grant. IMPORTANT CORRECTION TO THE INVENTORY: docs/engineering/database-type-inventory-2026-09-25.json records this object as consumerVerdict 'dead' with lib/services/ticketing.service.ts listed as an 'unreachable module'. That is wrong about the module and right only about the method. The module is LIVE — app/tickets/purchase/page.tsx is a Next entry point, it imports components/ticketing/ticket-purchase-form.tsx, and that component imports the service at line 14 (`import { ticketingService } from '@/lib/services/ticketing.service'`) and calls it at lines 133 and 210. The DEAD part is the method: `sendTicketNotification` has exactly one occurrence in the whole repository, which is its own definition, so it is unreachable code inside a live module. Anyone acting on the inventory's file-level verdict alone would reach the right file for the wrong reason and could wrongly conclude the whole module is deletable (CP-074).",
+  "working_set": [
+    "lib/services/ticketing.service.ts:340-364 — the dead `sendTicketNotification` method; line 343 is the `.from('ticket_notifications').insert({...})` that raises the drift diagnostic",
+    "Read-only context: components/ticketing/ticket-purchase-form.tsx:14,133,210 (the live caller that proves the module is reachable)",
+    "Read-only context: app/tickets/purchase/page.tsx (the Next entry point that proves reachability)"
+  ],
+  "completed": [
+    "Re-derived the consumer verdict from the import graph rather than the inventory (CP-066/CP-073): module live, method dead, with the exact chain recorded above.",
+    "Proved the relation is absent, so re-creating it is not the fix: `rg 'create table (if not exists )?(public\\.)?ticket_notifications' supabase/migrations/*.sql` returns nothing. It exists only under supabase/migrations_backup/2025012800000{0,1}_*enhanced_ticketing_system.sql, which is not the active chain, and it has no entry in the generated type surface (rg over lib/database.types.ts returns nothing), which is why the .from() call is a TS overload error rather than a runtime-only problem.",
+    "Named the canonical replacement for the day it is ever called: lib/ticketing/notifications.ts already routes ticket notifications through OptimizedNotificationService.createNotification with an idempotency_key, which is the whole role ticket_notifications played. So a repoint is available and deletion is safe.",
+    "Confirmed zero risk of deleting the method: no caller anywhere, and the one live purchase path (ticket-purchase-form.tsx) uses validatePromoCode and purchaseTickets, not notifications."
+  ],
+  "next_steps": [
+    "design-system: delete the `sendTicketNotification` method at lib/services/ticketing.service.ts:340-364. It is the only reference to ticket_notifications in the repository, so removing it clears the cluster's 4 attributed diagnostic hits for this object with no behaviour change and no repoint needed.",
+    "design-system: if any future caller needs in-app ticket notifications, route it to lib/ticketing/notifications.ts (OptimizedNotificationService.createNotification with an idempotency_key) rather than reviving a table the active chain does not create.",
+    "Optional: if the inventory is corrected in place by its owning lane, change this object's consumerVerdict from 'dead' to reflect a live module containing a dead method, and drop the misleading 'unreachable module' phrasing, so the next lane does not inherit the wrong premise."
+  ],
+  "blockers": [
+    "File-scope boundary: lib/services/** is owned by the design-system lane in Wave 35 and is explicitly outside the ticketing grant, so the ticketing lane did not edit it. This is a 25-line deletion with a proven recipe; it is a grant decision, not an analysis problem.",
+    "The ticketing lane cannot mark this cluster object resolved in its own task record, because the diagnostic originates in a file it does not own and the fix is unapplied."
+  ],
+  "verification": [
+    "rg -n 'sendTicketNotification' -g '!node_modules' . returns exactly one hit: lib/services/ticketing.service.ts:340, the definition.",
+    "rg -n 'create table (if not exists )?(public\\.)?ticket_notifications' supabase/migrations/*.sql returns no rows.",
+    "rg -n 'ticket_notifications' lib/database.types.ts returns no rows.",
+    "rg -ln \"from '@/lib/services/ticketing.service'\" . returns components/ticketing/ticket-purchase-form.tsx, and rg -ln 'ticket-purchase-form' app/ components/ returns app/tickets/purchase/page.tsx — a Next entry point, so the module is live by definition.",
+    "Not verified from this lane: the typecheck reduction, because the file is outside the ticketing grant and the scoped tsc run did not include lib/services/**."
+  ]
+}

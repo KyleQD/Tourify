@@ -14,20 +14,15 @@ export async function GET(
     const username = decodeURIComponent(resolved.username)
     const supabase = await createClient()
 
-    let { data: profile } = await supabase
+    // DB-008 / Wave 35: the `custom_url` fallback is removed. `profiles.custom_url`
+    // exists in no active migration and in no generated contract, so the query
+    // could only ever error; the canonical public handle is `profiles.username`,
+    // which the lookup above already uses.
+    const { data: profile } = await supabase
       .from('profiles')
       .select('id, username')
       .eq('username', username)
       .maybeSingle()
-
-    if (!profile) {
-      const byCustom = await supabase
-        .from('profiles')
-        .select('id, username')
-        .eq('custom_url', username)
-        .maybeSingle()
-      profile = byCustom.data
-    }
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE",
+  "task_id": "SOCIAL-007",
+  "from_agent": "social",
+  "to_agent": "database",
+  "status": "pending",
+  "created_at": "2026-09-26T00:00:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty shared worktree; 6 concurrent lanes)",
+  "dirty_state_caveat": "Social changed no migration and authored no manifest. This is the product answer to the question HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE asked the owning domain, plus the consumer-side column contract that unblocks the authoring decision.",
+  "summary": "Answer to the question in HF-DB-011: per-platform status tracking on `scheduled_posts` is still a live feature, so 20250904110000 must be repaired forward and must NOT be retired. More than that, the chain is not merely silent about the two columns, it is missing them, and two live code paths read and write them: `lib/services/cross-platform-posting.service.ts:195` inserts `platform_status` into `scheduled_posts`, and `app/api/artist/content/overview/route.ts:137` selects `platform_status, platform_errors`. `supabase/migrations/20260413200000_port_missing_tables.sql:335-356` creates the table without either column, so on any target replayed from the chain the insert throws and the artist content overview read fails. That is a live break on a fresh replay, not a harmless skip, and it is the reason the retirement option is wrong.",
+  "working_set": [
+    "supabase/migrations/20250904110000_scheduled_posts_platform_status.sql",
+    "supabase/migrations/20260413200000_port_missing_tables.sql",
+    "lib/services/cross-platform-posting.service.ts:179-201",
+    "app/api/artist/content/overview/route.ts:137",
+    "components/cross-platform/scheduled-posts-panel.tsx",
+    "supabase/functions/social-post/index.ts"
+  ],
+  "completed": [
+    "Re-derived the divergence by reading the chain rather than the inventory: 20250904110000 (2025-09-04) sorts before 20260413200000 (2026-04-13), so in version order the guarded `alter table if exists` precedes the `create table`. HF-DB-011's ordering analysis is confirmed.",
+    "Read the consumers. `cross-platform-posting.service.ts:195` writes `platform_status` in the insert payload; `app/api/artist/content/overview/route.ts:137` selects `platform_status, platform_errors` and projects them at :180-181 with a `|| {}` fallback. The UI panel `components/cross-platform/scheduled-posts-panel.tsx` renders them. The feature is live in three places, so it is not dead code and the columns are not optional.",
+    "Stated the column contract from the consumer side, so the authoring decision does not have to guess nullability or default from the guarded ALTER: `platform_status jsonb DEFAULT '{}'::jsonb` holding a `Record<platform, status>` that the writer always supplies as a complete per-target object; `platform_errors jsonb DEFAULT '{}'::jsonb` holding a `Record<platform, message>` that the writer omits. Both readers tolerate null, so the existing `DEFAULT '{}'::jsonb` without `NOT NULL` is sufficient and is the shape to capture; adding `NOT NULL` is a separate, optional hardening that would need the writer audited first.",
+    "Confirmed the two GIN indexes in the same migration are the only other artifacts the repair needs to recreate, and they are already `if not exists`."
+  ],
+  "next_steps": [
+    "Author one strictly additive, forward-only migration that adds `platform_status jsonb DEFAULT '{}'::jsonb` and `platform_errors jsonb DEFAULT '{}'::jsonb` to `public.scheduled_posts` unconditionally, plus the two `create index if not exists` statements, and hand the manifest to the operator. Do not edit 20250904110000 in place; a forward-only chain cannot repair an earlier statement's effect on a fresh replay.",
+    "Do not capture these columns into `lib/database.types.ts` by hand. They are already in the generated contract only if the regeneration precondition is met; CP-016 requires an applied target.",
+    "This closes the social half of HF-DB-011. The other half — whether any live target already has the columns out of band — still needs the read-only probe the database lane specified, and social cannot run it.",
+    "If the database lane prefers to close HF-DB-011 as 'the product says yes, the fix is queued' rather than authoring in this wave, say so in the handoff and social will keep the answer in `docs/engineering/agents/social/STATE.md` as a known fresh-replay break rather than a silent one."
+  ],
+  "blockers": [
+    "Social authored no migration and applied none (CP-051). The authoring is database-owned because it lands in the same chain and ledger that three marketplace and ticketing migrations were added to in this wave, and a version collision there is the database lane's to sequence.",
+    "The 'does any live target already have these columns' probe needs target credentials social does not have. No hosted read was performed and none is claimed.",
+    "The fresh-replay break was measured by reading the chain and the consumers. It was NOT reproduced against a database, because CP-051 forbids starting one."
+  ],
+  "verification": [
+    "Read `supabase/migrations/20260413200000_port_missing_tables.sql:335-356`: the `create table if not exists scheduled_posts (...)` column list contains no `platform_status` and no `platform_errors`.",
+    "Read `lib/services/cross-platform-posting.service.ts:195`: the insert payload includes `platform_status: (options.targets || [...]).reduce(...)`.",
+    "Read `app/api/artist/content/overview/route.ts:137,180-181`: the select requests `platform_status, platform_errors` and projects them with `|| {}` fallbacks.",
+    "HF-DB-011's own replay harness already reports the skip: `node supabase/tests/db008_chain_contract_replay.mjs . <out> --report` names 20250904110000 as skippedRelationAbsentAtReplay with `columns a fresh replay never creates: platform_status, platform_errors`."
+  ]
+}

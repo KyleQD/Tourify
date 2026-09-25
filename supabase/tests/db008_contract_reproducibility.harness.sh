@@ -100,12 +100,51 @@ check("no constraint/keyword is recorded as a column", phantom.length === 0, pha
 check("a skipped pre-create ALTER is not what supplies the column",
   cols["staff_invitations"] && cols["staff_invitations"]["tour_id"] === "20250813123000_create_staff_invitations_if_missing.sql",
   `provenance recorded as ${cols["staff_invitations"] && cols["staff_invitations"]["tour_id"]}`)
-// 20250904110000 adds platform_status to scheduled_posts before
-// 20260413200000 creates that table, so a fresh replay really has no such
-// column. The contract must not declare one either, or regeneration would drop
-// it. This is the one place where a live target and a fresh chain can differ.
-check("a genuinely skipped column is absent from chain and contract alike",
-  !has("scheduled_posts", "platform_status") && !has("scheduled_posts", "platform_errors") && !(r.contractColumns && false))
+// 20250904110000 adds platform_status/platform_errors to scheduled_posts BEFORE
+// 20260413200000 creates that table, so until 20260926140200 a fresh replay
+// really had neither column. This assertion USED to pin that divergence
+// ("a genuinely skipped column is absent from chain and contract alike") and it
+// started failing the moment the repair landed, which is the correct outcome: the
+// defect it described no longer exists.
+//
+// The assertion is therefore rewritten, not deleted. It now pins the REPAIRED
+// invariant, which is strictly stronger because it covers both halves:
+//
+//   the CHAIN must now carry both columns, attributed to 20260926140200 and not
+//   to the migration that was supposed to supply them, so the repair is what
+//   closes the gap and not the original ALTER quietly starting to work; and
+//   the CONTRACT still declares neither, which is the remaining CP-016 debt and
+//   the reason the regeneration delta keeps counting them as additions.
+//
+// An assertion that stops being true when the bug is fixed is a bug detector.
+// An assertion that stops being true and is quietly deleted is how a bug detector
+// becomes a rubber stamp. Keep the check, change what it claims.
+const spStatus = has("scheduled_posts", "platform_status")
+const spErrors = has("scheduled_posts", "platform_errors")
+check("the ordering repair is what supplies the platform columns, not the original ALTER",
+  spStatus && spErrors
+    && (cols["scheduled_posts"] || {})["platform_status"] === "20260926140200_scheduled_posts_platform_columns.sql"
+    && (cols["scheduled_posts"] || {})["platform_errors"] === "20260926140200_scheduled_posts_platform_columns.sql",
+  `platform_status attributed to ${(cols["scheduled_posts"] || {})["platform_status"]}, platform_errors to ${(cols["scheduled_posts"] || {})["platform_errors"]}`)
+// The two original ALTER migrations are STILL skipped on a fresh replay and the
+// replay must keep saying so. The repair did not make 20250904110000 start
+// working; it added a later migration that supplies the columns regardless. If
+// these notes ever disappear it means the ordering changed underneath this
+// harness, and the attribution assertion above would then be proving the wrong
+// thing.
+const schedNotes = (r.replayNotes || []).filter((n) => JSON.stringify(n).includes("scheduled_posts"))
+check("the replay still records the two skipped scheduled_posts ALTERs (the repair did not make them effective)",
+  schedNotes.length === 2
+    && schedNotes.every((n) => /20250904110000|20250905004500/.test(n.file || "")),
+  `${schedNotes.length} scheduled_posts replay note(s): ${JSON.stringify(schedNotes)}`)
+// The contract still lacks the two columns, so they remain part of the
+// regeneration ADDITION set. Recorded as the honest remaining state, not as a pass
+// condition: the type surface is still behind the chain on this table.
+const contractDeclaresPlatformColumns =
+  /platform_status/.test(require("fs").readFileSync(path.join(ROOT, "lib/database.types.ts"), "utf8").split("scheduled_posts: {")[1]?.split("\n      };")[0] || "")
+check("the contract still does not declare the platform columns (known CP-016 debt, not a gate)",
+  contractDeclaresPlatformColumns === false,
+  `contractDeclaresPlatformColumns = ${contractDeclaresPlatformColumns}`)
 // Internal consistency of the report itself.
 check("report is self-consistent: outOfBand == sum of per-relation entries",
   r.counts.outOfBand === Object.values(r.outOfBandByRelation).reduce((a, v) => a + v.length, 0))

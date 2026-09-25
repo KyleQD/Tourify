@@ -4,7 +4,7 @@
   "task_id": "DISC-002",
   "from_agent": "discover",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "completed",
   "created_at": "2026-09-25T22:50:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "FOUND BY THE CP-069 GREP, NOT BY THE SCANNER. After fixing the two known unflagged sinks in Wave 34, discover ran the grep that CP-069 requires — `rg -n \"new URL\\('/api/\" app lib` — and found a THIRD instance of the identical defect class, structurally the same as the news sink that was just fixed. lib/opportunities/rss-opportunities-service.ts:38 builds `new URL('/api/feed/rss-news', params.origin)` and calls the global `fetch()` on it once per each of six hardcoded categories. `params.origin` is `request.nextUrl.origin` at BOTH callers: app/api/opportunities/sync/route.ts:13 and app/api/opportunities/route.ts:36. A caller who controls the `Host` / `X-Forwarded-Host` header therefore chose the destination of six concurrent server-side requests, and because the global `fetch` follows redirects, a 3xx from the first hop reached anywhere. CodeQL has never flagged it: js/request-forgery treats request.url as a remote-flow source but not request.nextUrl.origin. discover CANNOT fix it — lib/opportunities/** is outside the Wave 34 file ownership — and did not try. The fix is the same import swap that fixed the news sink two hours earlier: the frozen route key `newsRssFeed` already exists in lib/discover/internal-json-fetch.ts, so `ingestOpportunitiesFromRss` needs no new route map entry at all.",
@@ -21,18 +21,13 @@
     "Established that no validation or allowlist exists anywhere on that path, and that the transport has none of the five transport-level controls: no redirect denial, no resolve-then-pin, no timeout, no response cap, no content-type requirement.",
     "Established that this needs no new infrastructure: the frozen route key `newsRssFeed` -> `/api/feed/rss-news` with params `limit` and `category` already exists in INTERNAL_UPSTREAM_ROUTES, and the `category` values this call site sends are already in the declared param set. The fix is replacing the three lines with a `fetchInternalJson({ route: 'newsRssFeed', params: { limit, category }, allowlist })` call.",
     "Ran the same grep across app/ and lib/ and triaged every remaining `request.nextUrl.origin` hit so the next lane does not have to re-derive them. Classified as NOT the same defect, deliberately not reported as vulnerabilities: lib/auth/request-public-origin.ts is already env-first and hard-refuses the header in production, and its output feeds redirects rather than a network sink; app/api/music/share-message/route.ts:18 and app/api/payment/route.ts:120 are env-first with a request-origin fallback and build user-facing links, not server-side fetch destinations. app/api/admin/tours/[id]/collaboration-invites/route.ts:37 and the app/api/marketplace/integrations/shopify/* files are other lanes' and were read only far enough to classify.",
-    "Recorded the finding in DISC-002's blockers and in the discover domain state so it cannot be lost at handoff."
+    "Recorded the finding in DISC-002's blockers and in the discover domain state so it cannot be lost at handoff.",
+    "CONSUMED IN WAVE 35. Resolved; no further routing needed."
   ],
   "next_steps": [
-    "orchestrator: route to the opportunities owner (work lane per the registry — \"own jobs, hiring, workforce, staffing, shifts, onboarding\" — or general-user; the registry does not name lib/opportunities/** explicitly, so confirm the owner rather than assuming).",
-    "Receiver: replace the `new URL(...)` + global `fetch` at lib/opportunities/rss-opportunities-service.ts:37-40 with fetchInternalJson keyed on the existing `newsRssFeed` route, parse the allowlist once per call, and log a denial as `[Opportunities] Upstream \"newsRssFeed\" denied: <reason>` — route key and reason only, never the category value and never a resolved URL. Keep the surrounding `categories.map` shape; the fan-out itself is not the defect.",
-    "Receiver: also delete the now-unused `origin` property from the `ingestOpportunitiesFromRss` parameter type and stop passing it at both call sites, following the same pattern discover used for BuildNewsFeedParams.requestOrigin.",
-    "Receiver: add a test in the receiver's own suite asserting zero sockets on rejection, mirroring __tests__/discover/hub-news-self-fetch-ssrf.test.ts. The `newsRssFeed` key's behaviour is already covered on the discover side; what is missing is coverage that this call site actually uses the guarded transport.",
-    "Release/infra: INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL) must be set in deployed environments, or the opportunity RSS ingest will produce zero records once it is fixed. Same prerequisite as HF-DISC-002-INTERNAL-API-ORIGIN.",
-    "discover: nothing further. If the opportunities surface is brought into a discover-owned path later, re-run `rg -n \"new URL\\('/api/\" app lib` as the standing check."
+    "discover: nothing further. Standing check after any future sink of this class: `rg -n \"new URL\\('/api/\" app lib`, not the scanner."
   ],
   "blockers": [
-    "discover cannot fix this: lib/opportunities/** and app/api/opportunities/** are outside the Wave 34 file ownership, so the defect is live in the repository and is recorded rather than fixed. This is stated plainly rather than papered over by a registry entry, because the registry's purpose is to record triaged non-exploitable findings and this one has not been assessed for exploitability in its own context.",
     "Ownership is ambiguous: the agent registry describes purposes, not file paths, and no registry entry names lib/opportunities/**. The receiver must be confirmed by the orchestrator, not inferred.",
     "The six hardcoded category strings are passed through `URLSearchParams` once the guard is applied, so the fix also bounds their length; no category value can reach the host or the path either way.",
     "No code-scanning alert exists for this file, so fixing it will produce no alert transition on the PR. There is also no refs/heads/main code-scanning baseline, so the absence of a finding is doubly uninformative here."
@@ -42,5 +37,7 @@
     "PASS — `rg -n \"request.nextUrl.origin\" app lib` (excluding node_modules) confirms the two taint sources for that sink and classifies the remaining hits; the only other `new URL('/api/...` self-fetch pattern in the repository is the one above.",
     "PASS — the destination route is already registered: INTERNAL_UPSTREAM_ROUTES.newsRssFeed -> pathname /api/feed/rss-news, params ['limit', 'category'], asserted in __tests__/discover/hub-news-self-fetch-ssrf.test.ts ('exposes only constant pathnames for the hub and news fan-outs' and 'connects the news fan-out to the validated address and forwards only the fixed user-agent'). No new route map entry is required by the receiver.",
     "NOT RUN — no hosted or credentialed test, no migration apply, no CodeQL re-analysis, and no code change to any opportunities file. No hosted evidence is claimed."
-  ]
+  ],
+  "resolved_at": "2026-09-25T16:20:00.000Z",
+  "consumed_by": "discover (Wave 35) — returned by the orchestrator because the Wave 35 file grant covers lib/opportunities/**, app/api/opportunities/**, app/api/feed/rss-news/** and components/news/**"
 }

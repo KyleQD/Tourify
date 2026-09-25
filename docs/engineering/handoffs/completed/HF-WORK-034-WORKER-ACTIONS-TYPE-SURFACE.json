@@ -1,0 +1,55 @@
+{
+ "schema_version": "1.0",
+ "id": "HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE",
+ "task_id": "WORK-006",
+ "from_agent": "work",
+ "to_agent": "database",
+ "status": "completed",
+ "created_at": "2026-09-25T22:06:00.000Z",
+ "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+ "summary": "The only two objects in the whole DB-008 inventory that the active migration chain DOES create and `lib/database.types.ts` does not declare are both in the work domain: `work_mode_check_in_events` and `work_mode_publication_acknowledgements`, both created by supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql, i.e. after the 20260910000001 generation watermark. They are the only objects in the inventory whose class is `stale-types`, so they are the only work-domain diagnostics that regeneration can actually clear. Three consumers currently reach them through locally-typed `any` escapes, each annotated with the reason. This is a request to reconcile the generated contract, NOT to hand-edit it, and it is the highest-yield type fix available to the work domain.",
+ "working_set": [
+  "supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql (READ ONLY)",
+  "lib/work-mode/read-model.ts",
+  "app/api/work-mode/assignments/[id]/actions/route.ts (READ ONLY - outside the Wave 34 work grant)",
+  "app/api/admin/events/[id]/work-mode/attendance/route.ts (READ ONLY - admin lane owns it)",
+  "lib/database.types.ts (NEVER hand-edited)",
+  "docs/engineering/database-type-inventory-2026-09-25.json (READ ONLY)",
+  "docs/engineering/migration-validation/20260922155356_worker_actions_scope_reconciliation.json (READ ONLY)"
+ ],
+ "evidence": {
+  "chain_created": [
+   "work_mode_check_in_events - firstCreatedIn and lastEventIn 20260922155356_worker_actions_scope_reconciliation.sql",
+   "work_mode_publication_acknowledgements - firstCreatedIn and lastEventIn 20260922155356_worker_actions_scope_reconciliation.sql"
+  ],
+  "absent_from_generated_types": "Both are listed in staleTypeSurface.relations in the inventory and neither name appears anywhere in lib/database.types.ts (verified by rg in the working tree).",
+  "generation_watermark": "The generated contract reflects the chain through 20260910000001_get_active_organizer_account_for_org.sql; both relations postdate it.",
+  "consumers_and_escape_hatches": [
+   "lib/work-mode/read-model.ts:806-812 - `const eventDb = supabase as SupabaseClient<Database> & { from(table: \"work_mode_check_in_events\"): any }`, with the comment recording that the table and its RLS are owned by DB-010 and the read is skipped unless FEATURE_WORK_MODE_WORKER_ACTIONS=1",
+   "app/api/work-mode/assignments/[id]/actions/route.ts:41-43 - `type WorkerActionsClient = SupabaseClient<Database> & { from(table: \"work_mode_check_in_events\" | \"work_mode_publication_acknowledgements\"): any }`",
+   "app/api/admin/events/[id]/work-mode/attendance/route.ts:42-44 - same local cast, admin-lane file"
+  ],
+  "column_contract_available": "The migration file is the source of truth for columns and RLS; no column contract needs to be invented by any lane.",
+  "hosted_state": "The migration is present in the active chain and carries a migration-validation record, but the work lane holds no hosted apply evidence; the worker-actions SQL was previously tracked as local_only_unapplied and FEATURE_WORK_MODE_WORKER_ACTIONS remains unset, so the code paths are staged-off and fail closed."
+ },
+ "next_steps": [
+  "Regenerate or reconcile `lib/database.types.ts` for these two relations only, as part of the DB-008 out-of-band DDL reconciliation, from a target that includes 20260922155356_worker_actions_scope_reconciliation.sql.",
+  "Once the relations are declared, the work lane will drop the `any` escape at lib/work-mode/read-model.ts:808-810 and the work-mode action route's local cast. Neither changes runtime behaviour; they only restore compile-time checking of the check-in/acknowledge queries.",
+  "Do NOT reintroduce the retired `staff_applications` / `staff_jobs` / `get_staff_dashboard_stats` surface while reconciling. Those are code-drift objects the active chain deliberately never created; see HF-DB008-TYPECHECK-WORK and the work domain's own dead-code evidence."
+ ],
+ "blockers": [
+  "Regeneration is blocked on DB-008's recorded finding that the generated contract is NOT reproducible from the chain: venue_profiles declares 42 columns in the types while the chain creates 19, so a chain-only regeneration would delete real columns. Fixing these two relations without that reconciliation risks making it worse.",
+  "No hosted schema or RLS probe evidence exists for the worker-actions tables, so WORK-006's acceptance criteria still cannot be executed even with correct types."
+ ],
+ "verification": [
+  "PASS: rg confirms the two relation names are absent from lib/database.types.ts and present in three code consumers, each behind a local cast.",
+  "PASS: the inventory's staleTypeSurface records both relations as chain-created in 20260922155356.",
+  "NOT RUN: no typecheck, no regeneration, no migration apply, no hosted action by the work lane.",
+  "Wave 35 database lane, 2026-09-26T01:30:00.000Z. Gates at close: check:migration-chain exit 0 (309 files), check:migration-validation exit 0, check:migration-ledger exit 0 (18 classified, 291 unreconciled), agents:validate 0 errors."
+ ],
+ "completed_at": "2026-09-26T01:30:00.000Z",
+ "completed": [
+  "CONFIRMED. work_mode_check_in_events and work_mode_publication_acknowledgements, created by 20260922155356_worker_actions_scope_reconciliation.sql, are the only two chain-created relations missing from lib/database.types.ts, and they are the newest (post-watermark) relations in the chain. db008_chain_contract_replay.mjs reports them in chainOnlyRelations alongside 13 others; they have live, entry-reachable consumers at app/api/work-mode/assignments/[id]/actions/route.ts:42,83,172,185,229,245 and app/api/admin/events/[id]/work-mode/attendance/route.ts:42,44. Regeneration against a chain-built target would ADD them, which is a fix and not a loss. NOT MIGRATED and NOT HAND-EDITED: lib/database.types.ts is outside this lane's ownership, so the disposition is that the CP-016 regeneration clears them. They are the clearest single argument for unblocking regeneration: the product code has been casting an untyped table for at least one wave and the schema has been correct the whole time."
+ ],
+ "source_sha_at_disposition": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)"
+}

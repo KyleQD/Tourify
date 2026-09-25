@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "social",
   "created_at": "2026-09-09T09:35:18.124Z",
-  "updated_at": "2026-09-21T04:22:42.000Z",
+  "updated_at": "2026-09-25T23:03:09.283Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty shared worktree; SOCIAL-004 edits isolated to messaging routes/client/helpers/tests and social task/state records",
   "goal": "Launch tenant-safe realtime messaging with membership enforcement, reconnect behavior, typing, presence, and durable read state",
@@ -73,14 +73,16 @@
       "Realtime delivery now upserts by message id and refetches on SUBSCRIBED, while conversation-list unread state uses persisted is_read/read_at fields.",
       "No deployed two-member plus outsider Supabase Realtime/RLS run was performed; acceptance remains partial.",
       "Combined post-change full Vitest passed: 568 files passed, 2 skipped; 5317 tests passed, 8 skipped; exit 0 in 23.04 seconds.",
-      "Control-plane validation passed: 17 agents, 113 tasks, 0 errors; 8 generated-map SHA warnings remain for orchestrator reconciliation."
+      "Control-plane validation passed: 17 agents, 113 tasks, 0 errors; 8 generated-map SHA warnings remain for orchestrator reconciliation.",
+      "Wave 35 re-verification (2026-09-26, HEAD ca3bb0b0): the Wave 32 messaging hardening is untouched. All 24 SOCIAL-004 tests in __tests__/messaging (account-scope, friends-and-send-schema, realtime-channel, realtime-determinism) pass unchanged inside the combined __tests__/social + __tests__/messaging run of 16 files / 128 tests. This lane changed no file under app/api/messages/**, app/api/messaging/**, lib/messaging/** or app/messages/**.",
+      "Wave 35 added __tests__/social/interaction-route-gate-inventory.test.ts, which scans every app/api route for interaction tables. It does not currently cover the messaging surface, because the group reaction path is authorized by thread membership (ensureMembership) rather than by post visibility; a future messaging route that reads group interaction rows would need its own predicate, and the guard's registry is where that claim would be recorded."
     ],
-    "last_run_sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
-    "last_run_at": "2026-09-21T04:25:12.000Z",
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T16:12:00.000Z",
     "result": "partial"
   },
   "progress": {
-    "summary": "Local SOCIAL-004 reverification is clean: focused tests/lint and the changed-file fast wrapper pass, membership failures do not disclose conversation existence, and reconnect/duplicate/unread state is deterministic. The task remains active solely because deployed two-member plus outsider Realtime/RLS validation is an explicit acceptance criterion.",
+    "summary": "Re-verified with no change to the messaging surface. All 24 SOCIAL-004 tests (account-scope, friends-and-send-schema, realtime-channel, realtime-determinism) pass unchanged inside the combined __tests__/social + __tests__/messaging run of 16 files / 128 tests. This lane changed no file under app/api/messages/**, app/api/messaging/**, lib/messaging/** or app/messages/**: the Wave 35 work was the post_likes server read, the interaction-route gate inventory and the follow contract, none of which touch conversation reads, sends, topic handshakes, typing, presence, read state or membership non-disclosure. The new gate inventory does not currently cover the messaging surface because the group reaction path is authorized by thread membership rather than post visibility; a future messaging route reading group interaction rows would need its own predicate recorded in that registry. Result remains partial for exactly one unchanged reason: the required deployed two-member plus outsider Realtime/RLS run has no approved target, and all 718 QA-004 campaign coverage rows are still not_run.",
     "completed": [
       "Added membership-authorized opaque Realtime topic handshake for each conversation.",
       "Added membership-authorized read-receipt endpoint using existing messages.is_read/read_at columns; no schema or migration changes.",
@@ -91,8 +93,7 @@
       "Added focused deterministic delivery and RLS/non-disclosure regression coverage; local fast verification passes."
     ],
     "next_steps": [
-      "On an approved isolated Supabase staging target, validate with two authenticated conversation members plus a non-member that reads, inserts, topics, typing, presence, reconnect recovery, and read receipts are isolated to the authorized conversation.",
-      "Record target/migration version, fixture identities, member outcomes, outsider denials, and cleanup evidence before completion."
+      "On an approved isolated Supabase staging target, run the two-member plus outsider Realtime/RLS validation (read, insert, topic, typing, presence, reconnect recovery, read receipts) and record target/migration version, fixture identities, member outcomes, outsider denials and cleanup evidence. Nothing else stands between this task and completion."
     ],
     "blockers": [
       "No approved isolated Supabase target with two member sessions plus an outsider session was available for the required deployed Realtime/RLS acceptance run."
@@ -190,6 +191,16 @@
         "blockers": [
           "Required live target and authenticated member/outsider sessions were unavailable."
         ]
+      },
+      {
+        "at": "2026-09-25T23:03:09.283Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Re-verified with no change to the messaging surface. All 24 SOCIAL-004 tests (account-scope, friends-and-send-schema, realtime-channel, realtime-determinism) pass unchanged inside the combined __tests__/social + __tests__/messaging run of 16 files / 128 tests. This lane changed no file under app/api/messages/**, app/api/messaging/**, lib/messaging/** or app/messages/**: the Wave 35 work was the post_likes server read, the interaction-route gate inventory and the follow contract, none of which touch conversation reads, sends, topic handshakes, typing, presence, read state or membership non-disclosure. The new gate inventory does not currently cover the messaging surface because the group reaction path is authorized by thread membership rather than post visibility; a future messaging route reading group interaction rows would need its own predicate recorded in that registry. Result remains partial for exactly one unchanged reason: the required deployed two-member plus outsider Realtime/RLS run has no approved target, and all 718 QA-004 campaign coverage rows are still not_run.",
+        "completed": [],
+        "next_steps": [
+          "On an approved isolated Supabase staging target, run the two-member plus outsider Realtime/RLS validation (read, insert, topic, typing, presence, reconnect recovery, read receipts) and record target/migration version, fixture identities, member outcomes, outsider denials and cleanup evidence. Nothing else stands between this task and completion."
+        ],
+        "blockers": []
       }
     ]
   },

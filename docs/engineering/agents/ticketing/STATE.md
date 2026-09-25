@@ -1,8 +1,8 @@
 # Ticketing state
 
-- Last reviewed SHA: `b93967752b4262a2d7441755843eb886514fef26` (working tree, branch release/clean-snapshot, 2026-09-21)
-- Last reviewed at: 2026-09-21 (TICKET-005 local deliverable verification)
-- Active task: TICKET-005 (P0) — local deliverable complete; hosted create-to-settlement lifecycle blocked on credentials
+- Last reviewed SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96` (working tree, branch codex/qa004-staging-campaign, 2026-09-25, Wave 35)
+- Last reviewed at: 2026-09-25 (TICKET-005 P0 claim/complete fix + DB-008 drift cluster)
+- Active task: TICKET-005 (P0) — webhook claim/complete P0 fixed and mutation-proven locally; hosted create-to-settlement lifecycle blocked on credentials and a target
 - Confidence: working (canonical direction accepted via TIX-001/ADR-007; security fixes landed; several money-integrity and cutover gaps open)
 
 ## Durable facts
@@ -19,7 +19,7 @@
 - Settlement writes are append-only/versioned through the existing RPC contract; identical retries no-op and unavailable RPCs fail closed (TICKET-002).
 - Admin/venue ticketing read surfaces in the TICKET-003 scope return `ticketing_unavailable` for missing/failed authoritative data and preserve legitimate zero values.
 - Credentials are opaque tokens (no signature/rotation yet) — TIX-508 pending.
-- 10 focused `__tests__/ticketing/` suites are mocked unit/contract tests; no deployed-schema/RLS/E2E/offline/load coverage (TIX-602 pending).
+- 17 focused `__tests__/ticketing/` suites, 149 tests: mocked unit/contract tests plus route-level tests over real Stripe signature verification and a recording Supabase stub; still no deployed-schema/RLS/E2E/offline/load coverage (TIX-602 pending).
 
 ## Current focus
 
@@ -28,7 +28,7 @@
 
 ## Known risks
 
-- Working tree carries 386 uncommitted entries; source maps were refreshed at SHA `7cf660ad...` and remain working-tree evidence.
+- Working tree carries many uncommitted entries across 6 concurrent lanes; generated maps are stale at HEAD and `npm run agents:generate` was deliberately not run (shared-map race), so `agents:validate` reports 8 pre-existing map-SHA warnings.
 - `supabase/migrations/20260720020254_admin_ticketing_security.sql` is marker-only; object-creation migration for the admin ticketing overview RPCs is not in the active chain (F6 — verify deployed reality before touching those routes).
 - Check-in limiter falls back to a per-instance in-memory Map when Redis is absent (documented degradation vs fail-closed opt-in `RATE_LIMIT_ENFORCE`).
 - TICKET-003/TICKET-004 local-readiness checkpoint: admin overview routes now return `ticketing_unavailable` when canonical metrics are missing, and purchase authentication is independent of `FEATURE_TICKETING_V2`.
@@ -53,3 +53,15 @@ Update this file only when a task establishes a durable fact future work needs.
 - DB-005 handoff (recorded in TICKET-005.json + this file): the active chain has NO distributed DB-unique purchase idempotency on `ticket_sales` — only partial unique indexes on `order_number`, `stripe_checkout_session_id`, `webhook_event_id` (20260821000000_reconcile_ticketing_foundation.sql). Suggested constraint: partial unique index on `ticket_sales(buyer_user_id, event_id, metadata->>'idempotency_key')` or a dedicated `idempotency_key` column. Until DB-005 lands, two concurrent FIRST requests can both create rows; request-scoped dedup only covers double-click/retry.
 - Certification tests added: `__tests__/ticketing/refund-replay.test.ts` and `__tests__/ticketing/purchase-idempotency.test.ts` (25 tests). Focused suite: 15 files, 120 tests passed. Focused ESLint on the 6 changed files exit 0; `git diff --check` exit 0.
 - No migration authored by this lane and no hosted/webhook/Stripe execution strings in this lane's diff; hosted create-to-settlement lifecycle and Stripe execution remain blocked (no credentials). Changes left uncommitted for orchestrator (no git add/commit per constraints).
+
+## TICKET-005 P0 checkpoint — 2026-09-25 (claim/complete split)
+
+- The INTG-006 P0 is FIXED. `ticket_stripe_webhook_events` stamped `processed_at not null default now()` at claim time, so completion was unobservable and the route's `{received: true, duplicate: true}` on a 23505 could acknowledge work that never happened. A paid order could stay permanently unfinalized.
+- **Durable fact — claim is not completion.** `claimWebhookEvent` returns `{kind:'claimed'}|{kind:'duplicate'}`; a duplicate is resolved by `readWebhookEventCompletion` (reads `completed_at`), and `completeWebhookEvent` writes the marker only after every handler write succeeded. completed → acknowledge with zero side effects; claimed-but-not-completed → **resume**. An unreadable marker or an unwritable completion **fails closed with 500**. The route's response gained an additive `outcome` (`processed` | `resumed` | `duplicate`).
+- **Durable fact — the resume path follows the repository's existing shape**, `app/api/photos/purchase/webhook/route.ts` (claim → read the marker → resume or acknowledge → *check* the completion write). Reuse that shape for any new claim-before-process route rather than inventing one.
+- **Durable fact — enabling resume inverts the safety argument.** "A retry is a no-op" no longer holds, so every side effect was re-audited under "this may run again": data-boundary-guarded writes (inventory RPCs, `issueTicketsForOrder`, ledger idempotency, referral mark) run unconditionally; the **unguarded** `increment_promo_code_usage` counter runs only on the delivery that performed the `pending → completed` transition; and a status flag is not a receipt — `payment_status='completed' AND issuance_status='issued'` no longer short-circuits alone, because a delivery that died after issuance but before the ledger write leaves an order with **no revenue receipt**, so the guard now verifies the receipt and otherwise falls through to the idempotent repair path. Every such failure resolves toward writing or retrying, never toward acknowledging.
+- Migration `20260926130000_ticketing_webhook_completion_marker.sql`: adds nullable `completed_at`, `attempts integer NOT NULL DEFAULT 1`, and a partial index on the incomplete subset. No backfill (deliberate: a historical row's outcome is unprovable, and asserting it finished is the defect inverted — a replay of an old event therefore RESUMES). No RLS or policy change. Planned manifest authored; authored only, never applied (CP-051).
+- `message.includes('duplicate')` as a duplicate test is too loose and is gone; duplicate detection is now `code === '23505' || /duplicate key/i`, matching the photos route.
+- Drift cluster (DB-008, ticketing): re-derivation did not reproduce the inventory. `settlements` was the only in-grant object and is fixed — `app/api/ticketing/settlements/route.ts` read an archive-only relation whose error was **fused into the availability gate**, so `GET /api/ticketing/settlements` returned 503 `ticketing_unavailable` on every active-chain deployment and the authoritative money read was unreachable; the read is removed and absence is stated as `settlement: null` + `settlement_available: false`, with the 503 gate still covering `ticket_revenue_allocations` + `financial_transactions`. The other three objects are handed off (`HF-TICKET-035-TICKET-NOTIFICATIONS`, `HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW`, `HF-TICKET-035-ARTIST-STATS-RPC`).
+- Focused suite: **17 files, 149 tests passed** (was 15/120). `check:migration-chain` and `check:migration-validation` exit 0 (306 files). Scoped tsc over `app/api/ticketing/**` + `lib/ticketing/**`: webhook and settlements routes clean; the 9 TS2589/TS2769 in `app/api/ticketing/enhanced/route.ts` (144, 145, 286, 287, 583, 735, 736, 773, 774) are pre-existing and unchanged. Focused ESLint exit 0, `git diff --check` exit 0, `agents:validate` 0 errors / 8 pre-existing map-SHA warnings. Six mutations of the fix were each proven to fail the expected cases.
+- **Still open, recorded not closed:** a partial issuance is not repaired (`issueTicketsForOrder` returns as soon as any ticket exists for the order, so a delivery that dies between ticket 1 and 2 leaves the order `completed` with `issuance_status` unset and re-runs the repair path on every later replay); analytics rows are not deduplicated across a resume (`ticket_analytics_events` has no unique key, so `checkout_completed` / `ticket_purchased` can double — metric inflation, not a ledger error); a failed completion marker has no operator alert beyond the log; `increment_promo_code_usage` is not in the active chain at all, so the newly guarded counter is currently inert. Hosted create-to-settlement proof, the DB-005 index application, and the two migrations' apply all remain blocked on a target and credentials.

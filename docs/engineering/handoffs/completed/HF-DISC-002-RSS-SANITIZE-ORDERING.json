@@ -4,7 +4,7 @@
   "task_id": "DISC-002",
   "from_agent": "discover",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "completed",
   "created_at": "2026-09-25T22:20:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "Five of the six news-surface CodeQL alerts this lane triaged in Wave 33 are still open, and the fix is now a one-line import swap at each of the four remaining call sites. The root-cause helper the Wave 33 dispositions always required was written and tested in Wave 34: lib/news/text-sanitize.ts exports toPlainText, which decodes entities in ONE semicolon-terminated pass, strips markup second, and then removes any residual < or >, so the returned string cannot contain a markup delimiter for any input. components/feed/rss-news-item.tsx (alert #43) was switched to it and is fixed. Addressed to the orchestrator rather than to a single domain because the four remaining files span four ownership claims: app/api/feed/rss-news/route.ts is the feed surface (social), lib/services/rss-feed.service.ts is explicitly lib/services/** (design-system), lib/opportunities/rss-opportunities-service.ts is jobs/opportunities (work), and components/news/news-page.tsx is news charter but was excluded from this wave's discover file ownership. discover cannot edit any of them and did not try.",
@@ -22,14 +22,11 @@
     "Fixed alert #43 in code at components/feed/rss-news-item.tsx, the one call site discover owns, and used it as the reference implementation for the other four.",
     "Re-confirmed at d2176904 that all five remaining call sites are byte-for-byte unchanged from the Wave 33 triage, so the dispositions still describe the code as it stands.",
     "Re-confirmed there is still no dangerouslySetInnerHTML in components/news/**, components/feed/rss-news-item.tsx, app/api/feed/rss-news/route.ts, lib/services/rss-feed.service.ts, lib/opportunities/** or lib/news/**, which is the only reason these five are not exploitable XSS today.",
-    "Updated all three discover registry entries in place with the current facts. None was deleted, because none is now unnecessary: each still names at least one open alert."
+    "Updated all three discover registry entries in place with the current facts. None was deleted, because none is now unnecessary: each still names at least one open alert.",
+    "CONSUMED IN WAVE 35. Resolved; no further routing needed."
   ],
   "next_steps": [
-    "orchestrator: route to the owning lane per file (app/api/feed/** -> social, lib/services/** -> design-system, lib/opportunities/** -> work, components/news/** -> discover in a wave that grants the file).",
-    "At each call site: delete the local helper and import toPlainText from @/lib/news/text-sanitize. On lib/opportunities/rss-opportunities-service.ts alias the import, because that file already declares a local function with the same name.",
-    "On app/api/feed/rss-news/route.ts, keep the CDATA unwrap — toPlainText strips CDATA wrappers as markup, so the leading .replace(/^<!\\[CDATA\\[...\\]\\]>$/, '$1') is redundant rather than wrong.",
-    "Release: push and re-run CodeQL. Until GitHub reports the analysis, none of #40, #41, #42, #43, #45 or #46 is closed, including #43 whose code fix has landed.",
-    "discover: re-triage and then delete the three registry entries once the last of the five alerts is fixed in code. Do not let them be inherited silently past the 2026-12-25 expiry."
+    "discover: nothing further. Standing check after any future sink of this class: `rg -n \"new URL\\('/api/\" app lib`, not the scanner."
   ],
   "blockers": [
     "discover holds no file ownership over any of the four remaining call sites, so this lane cannot close alerts #40, #41, #42 or #45. The disposition is a time-boxed exception (expiry 2026-12-25), not a dismissal; nothing was dismissed on GitHub.",
@@ -44,5 +41,7 @@
     "rg for decodeXmlText / cleanText / toPlainText / decodeTextEntity at the four call sites -> all still present and unchanged at d2176904.",
     "node scripts/ci/check-security-exceptions.mjs -> 'Security exception registry OK — 5 active exception(s)', exit 0. node --test scripts/ci/check-security-exceptions.test.mjs -> 3 pass, 0 fail.",
     "NOT RUN: no hosted or credentialed test, no CodeQL re-analysis, no migration apply. No hosted evidence is claimed."
-  ]
+  ],
+  "resolved_at": "2026-09-25T16:20:00.000Z",
+  "consumed_by": "discover (Wave 35) — returned by the orchestrator because the Wave 35 file grant covers lib/opportunities/**, app/api/opportunities/**, app/api/feed/rss-news/** and components/news/**"
 }

@@ -6,8 +6,8 @@
   "priority": "P2",
   "owner_agent": "database",
   "created_at": "2026-09-23T19:16:08.891Z",
-  "updated_at": "2026-09-25T21:39:03.539Z",
-  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "updated_at": "2026-09-25T23:22:58.661Z",
+  "base_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
   "working_tree_status": "dirty (18 entries)",
   "goal": "Verify active schema, RLS, authoritative logistics tables, organization isolation, and overview query requirements without promoting archived migrations.",
   "scope": {
@@ -52,22 +52,33 @@
         "command": "bash supabase/tests/db008_storage_replay_guard.harness.sh (20260413000000)",
         "result": "pass",
         "detail": "Original aborts as a replay role; guarded form completes with 44 warnings; the owner-applied 44-policy set is identical to the original; idempotent over three applies."
-      }
+      },
+      "bash supabase/tests/db011_interaction_scope.harness.sh - ALL CHECKS PASSED, including the pre-fix negative control (anon 2/2, 1/1, 2/2) and the post-fix measurement (0/0/0).",
+      "bash supabase/tests/db011_marketplace_money_path.harness.sh - ALL CHECKS PASSED with 3 negative controls.",
+      "bash supabase/tests/db008_scheduled_posts_platform.harness.sh - ALL CHECKS PASSED, defect reproduced from the real files then repaired.",
+      "node supabase/tests/db011_marketplace_local_only_disposition.mjs - 66 items, 14 chain-has, 46 blocking, 6 dead.",
+      "npm run check:migration-chain exit 0 (309 files); check:migration-validation exit 0; check:migration-ledger exit 0 (18 classified, 291 unreconciled); agents:validate 0 errors."
     ],
-    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
-    "last_run_at": "2026-09-25T22:00:00.000Z",
-    "result": "not-run",
-    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T01:50:00.000Z",
+    "result": "partial",
+    "resultReason": "Wave 35 evidence is EXECUTED for everything it claims and LOCAL: every harness runs on a throwaway PostgreSQL 16.15 cluster created and destroyed by the run, and every statement about authorization is a role-switched behavioural measurement rather than a policy inspection. NOT done and NOT claimed: no migration was applied to staging or production, no `supabase db reset` and no chain replay were run (CP-051), `npm run typecheck` was not run (this host has 8 GB and the full typecheck OOMs; CI measured 68m18s on 16 GB), `npm run generate:database-types` and `npm run check:database-types` were not run, and no hosted read was performed other than a read-only `supabase gen types --linked`. The hosted apply, the hosted postflight and the Supabase security-advisor rerun remain the operator gate."
   },
   "progress": {
-    "summary": "Wave 34: P0 marketplace checkout reconciled INTO the active chain. Consumed HF-DB-009 and authored 3 additive forward-only migrations, each with a planned manifest and a zero-drift contract postflight: 20260926120000 (marketplace_checkout_attempts from archive 20260728000011 PLUS guest_email, which the archive lacks and checkout/route.ts:467 writes, plus the 6 P6 guest-checkout columns the same route inserts on marketplace_orders at :377 - the P0 was two columns deep, not one), 20260926120100 (marketplace_external_listings + marketplace_external_clicks + the 4 marketplace_listings columns the redirect route needs, with the archived public-read policy replaced by a column-limited view because a USING predicate cannot exclude canonical_url), 20260926120200 (public.record_marketplace_entitlement_download: SECURITY DEFINER, search_path pinned, EXECUTE revoked from PUBLIC and anon, single guarded UPDATE replacing the service-role CAS at delivery/[orderItemId]/route.ts:89-120). EXECUTED evidence, not static review: db011_marketplace_surface.harness.sh applies each migration twice on a throwaway PostgreSQL 16.15 cluster with the real chain migration 20260410120000 applied verbatim, then 33/33 checks pass including 5 negative controls, a post-state re-assertion, a real two-session concurrent race at the last download credit, and the quota sequence 1->2->refused at max_downloads=2. LOCAL EMULATION ONLY - not Supabase, not hosted, not a chain replay, no db reset. Gates: check:migration-chain PASS 305, check:migration-validation PASS repo-wide, check:migration-ledger PASS 305/15/290 (3 added as launch-required), agents:validate PASS, eslint exit 0, diff --check clean.",
+    "summary": "Wave 35, Objectives 2 and 3. Marketplace triage: 66 surface items from the 17 archived local_only_unapplied migrations classify to 14 chain-has / 46 blocking / 6 dead, and 36 of the 46 are ONE product decision (the external-fulfilment surface from archive 20260704224927, entangled with a token-vault column contract), not 36 column contracts. Authored the 2 money-path items in 20260926140100: marketplace_payment_events (Stripe webhook idempotency claim, service-role-only, unique on provider_event_id so a retried event cannot fulfil an order twice) and marketplace_fee_rules (admin-gated, default rule seeded INACTIVE so applying the migration cannot start charging a fee). Objective 3: HF-DB-006-SOCIAL-007 stage 1 shipped in 20260926140000 - anon read 2/2, 1/1 and 2/2 rows of post_likes, comment_likes and post_comments before and 0/0/0 after; the handoff's premise about the two browser consumers does not hold, since both already filter by their own user_id; stage 2 is deliberately NOT authored because it would empty the liker list at app/api/notifications/social/route.ts:291-297 and zero the counts at lib/admin/content-hub/org-posts.ts:55. HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE repaired in 20260926140200, with the ordering defect reproduced from the real chain files first. All three migrations applied twice with identical end state and each has a contract postflight proven able to fail.",
     "completed": [
       "logistics_tasks.completed is absent from both the active chain and the generated types. The chain's lifecycle column on logistics_tasks is status (aligned by 20250818122000_logistics_tasks_align.sql), so the canonical replacement is logistics_tasks.status. Read by app/artist/business/analytics/page.tsx and app/artist/events/[id]/page.tsx, both entry-reachable. Routed in HF-DB008-TYPECHECK-LOGISTICS to the work agent.",
       "20260413000000_comprehensive_storage_setup.sql, the largest storage migration in the chain with 44 storage.objects policies and 10 storage.buckets seeds, is now CP-059 guarded. It is the migration the PR #14 `Database Types` job named, and the abort it caused is fixed.",
-      "No archived logistics migration was promoted. The authoritative logistics tables stay as 20260908100000_reconcile_archived_logistics_foundation.sql left them."
+      "No archived logistics migration was promoted. The authoritative logistics tables stay as 20260908100000_reconcile_archived_logistics_foundation.sql left them.",
+      "20260926140000_interaction_read_scoping.sql authored, manifest planned, contract test + behavioural harness ALL CHECKS PASSED. anon denied on 3 interaction tables; authenticated rows unchanged; the stage-2 cross-user residual asserted by the harness so it cannot be forgotten; the file applied twice with an identical policy set.",
+      "20260926140100_marketplace_money_path_tables.sql authored, manifest planned, ALL CHECKS PASSED. anon/authenticated/signed-in all read 0 marketplace_payment_events rows (no policy, RLS enabled); a non-admin reads 0 fee rules and the same row promoted to admin reads 1; a duplicate provider_event_id is refused; 0 fee rules are active after apply; 3 negative controls fire and the postflight returns to green.",
+      "20260926140200_scheduled_posts_platform_columns.sql authored, manifest planned, ALL CHECKS PASSED. The ordering defect is REPRODUCED from 20250904110000 and 20260413200000 before being repaired, and the product's own read and write shapes are run against the result.",
+      "db011_marketplace_local_only_disposition.mjs fixed: column consumers now require the file to bind the TABLE and mention the COLUMN within 25 lines, instead of matching a bare column name anywhere. Blocking count 47 -> 46; marketplace_storefronts.status 2,158 -> 16; marketplace_moderation_queue.action 557 -> 1.",
+      "The remaining 44 blocking items are dispositioned: 36 are the external-fulfilment surface from archive 20260704224927 and are ONE product decision entangled with a token-vault column contract; 4 are the service marketplace; 2 are marketplace_listings.search_vector; 2 are moderation-queue column sets. None is a money path.",
+      "Five handoffs moved to completed with real dispositions: HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE, HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED, HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE, HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT, HF-DESIGN-034-SCHEMA-NO-HOME."
     ],
     "next_steps": [
-      "Operator: manual apply of the three migrations to staging under CP-051, then run the three contract postflights and the harness, then regenerate lib/database.types.ts. Marketplace lane: answer two decisions in HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED - does max_downloads=0 mean unlimited (the route says yes, the function says no), and switch the delivery route to the AUTHENTICATED client (a service-role JWT has no sub, so auth.uid() would be null and every call would raise). Security-data: sign off on the column-limited projection, the one place these files do not reproduce their archive verbatim. Still open and larger than the handoff: 61 marketplace surface items absent from the chain with live consumers - inventory via supabase/tests/db011_marketplace_local_only_disposition.mjs, recommend a second wave ordered by route criticality."
+      "Operator: manual staging apply of the three migrations under CP-051, the three contract postflights, then the Supabase security advisor. Social + admin lanes: switch the two cross-user like readers to the service-role client, after which stage 2 of the like tightening is a four-line change (HF-DB-006-SOCIAL-007-STAGE2). Marketplace lane: decide whether external fulfilment ships at all - if not, delete the 36 consumers; if yes, the token-vault design needs a security reviewer before this lane authors those columns."
     ],
     "blockers": [
       "DB-011's organization-isolation and overview-query requirements still need the hosted verification this lane cannot perform. Nothing was applied.",
@@ -91,6 +102,16 @@
         "completed": [],
         "next_steps": [
           "Operator: manual apply of the three migrations to staging under CP-051, then run the three contract postflights and the harness, then regenerate lib/database.types.ts. Marketplace lane: answer two decisions in HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED - does max_downloads=0 mean unlimited (the route says yes, the function says no), and switch the delivery route to the AUTHENTICATED client (a service-role JWT has no sub, so auth.uid() would be null and every call would raise). Security-data: sign off on the column-limited projection, the one place these files do not reproduce their archive verbatim. Still open and larger than the handoff: 61 marketplace surface items absent from the chain with live consumers - inventory via supabase/tests/db011_marketplace_local_only_disposition.mjs, recommend a second wave ordered by route criticality."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:58.661Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35, Objectives 2 and 3. Marketplace triage: 66 surface items from the 17 archived local_only_unapplied migrations classify to 14 chain-has / 46 blocking / 6 dead, and 36 of the 46 are ONE product decision (the external-fulfilment surface from archive 20260704224927, entangled with a token-vault column contract), not 36 column contracts. Authored the 2 money-path items in 20260926140100: marketplace_payment_events (Stripe webhook idempotency claim, service-role-only, unique on provider_event_id so a retried event cannot fulfil an order twice) and marketplace_fee_rules (admin-gated, default rule seeded INACTIVE so applying the migration cannot start charging a fee). Objective 3: HF-DB-006-SOCIAL-007 stage 1 shipped in 20260926140000 - anon read 2/2, 1/1 and 2/2 rows of post_likes, comment_likes and post_comments before and 0/0/0 after; the handoff's premise about the two browser consumers does not hold, since both already filter by their own user_id; stage 2 is deliberately NOT authored because it would empty the liker list at app/api/notifications/social/route.ts:291-297 and zero the counts at lib/admin/content-hub/org-posts.ts:55. HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE repaired in 20260926140200, with the ordering defect reproduced from the real chain files first. All three migrations applied twice with identical end state and each has a contract postflight proven able to fail.",
+        "completed": [],
+        "next_steps": [
+          "Operator: manual staging apply of the three migrations under CP-051, the three contract postflights, then the Supabase security advisor. Social + admin lanes: switch the two cross-user like readers to the service-role client, after which stage 2 of the like tightening is a four-line change (HF-DB-006-SOCIAL-007-STAGE2). Marketplace lane: decide whether external fulfilment ships at all - if not, delete the 36 consumers; if yes, the token-vault design needs a security reviewer before this lane authors those columns."
         ],
         "blockers": []
       }
@@ -171,5 +192,11 @@
       "npx eslint on the three authored .mjs files -> exit 0",
       "git diff --check on supabase/ and docs/engineering/ -> clean"
     ]
-  }
+  },
+  "blockers": [
+    "No hosted apply, no hosted postflight, no security-advisor result, and no `supabase db reset` or chain replay (CP-051).",
+    "Stage 2 of the like tightening cannot land before the social and admin consumer switches; shipping it first produces a plausible-looking empty liker list rather than an error.",
+    "The 36 external-fulfilment items need a product decision and, for the token envelope, a security review.",
+    "The disposition instrument is a LOWER BOUND for column consumers: a file that builds its column list dynamically is not counted, so money-path items were verified by hand."
+  ]
 }

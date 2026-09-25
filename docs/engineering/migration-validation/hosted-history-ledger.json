@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "sourceDirectory": "supabase/migrations",
   "sourceSnapshot": {
-    "capturedAt": "2026-09-25T21:33:15.056Z",
-    "activeCount": 305,
+    "capturedAt": "2026-09-25T23:35:00.000Z",
+    "activeCount": 309,
     "firstMigration": "20240410000000_migration_replay_suppress_notices.sql",
-    "lastMigration": "20260926120200_marketplace_entitlement_download_increment_rpc.sql",
-    "digestSha256": "63be169b68fd4e2abc5cfe0aeb11fa958ff20a4a11ecf1a75103a1715f6b0220"
+    "lastMigration": "20260926140200_scheduled_posts_platform_columns.sql",
+    "digestSha256": "b284d1da4b097e0f16861116a3329f0b5d33b23d7f7217839a0b86c3dfe78875"
   },
   "environments": {
     "staging": {
@@ -136,11 +136,29 @@
         "taskId": "DB-011",
         "rationale": "Adds public.record_marketplace_entitlement_download(uuid,text,timestamptz): a buyer-scoped, single-statement download increment with search_path pinned to public and EXECUTE revoked from PUBLIC and anon. Replaces the privileged service-role compare-and-swap at app/api/marketplace/delivery/[orderItemId]/route.ts:89-120 and is the fix for the SEC-109 replace_with_rpc reviewed-debt entry. Not launch-blocking on its own, but it is the authorization primitive the marketplace delivery surface is meant to be built on, and it must exist before the route is switched over.",
         "nextAction": "Owned by the database lane, reviewed by security-data. Apply additively in staging, run supabase/tests/db011_marketplace_entitlement_rpc_contract.sql and the harness stage-3 caller assertions, rerun the Supabase security advisor, then have the marketplace lane switch the route to the authenticated client and retire the SEC-109 entry. Record the staging history disposition here."
+      },
+      {
+        "migration": "20260926140000_interaction_read_scoping.sql",
+        "taskId": "DB-011",
+        "rationale": "Stage 1 of HF-DB-006-SOCIAL-007. Replaces the USING (true) SELECT policy on public.post_likes (20240430000000_create_posts.sql:47-49), public.post_comments (20241220000010_enhance_feed_system.sql:131-134) and public.comment_likes (:152-155) with policies scoped TO authenticated and predicated on the parent row being readable. Measured on a throwaway PostgreSQL 16.15 cluster: before the migration an unauthenticated caller reads 2 of 2 post_likes rows, 1 of 1 comment_likes rows and 2 of 2 post_comments rows; after it reads 0 of each. That is a platform-wide identity and engagement graph exposed to the internet, and it is a security defect, not a type error. No committed product surface changes behaviour, so this is not blocked on a consumer change; stage 2 (own-rows plus entitled engagement readers) is a separate, smaller follow-up that IS blocked on the social and admin lanes.",
+        "nextAction": "Owned by the database lane, reviewed by security-social. Apply additively in staging, run supabase/tests/db008_interaction_read_scoping_contract.sql, then probe as anon that all three tables return zero rows, then rerun the Supabase security advisor. Stage 2 is HF-DB-006-SOCIAL-007-STAGE2 and requires app/api/notifications/social/route.ts:291-297 (social) and lib/admin/content-hub/org-posts.ts:55 (admin) to move to the service-role client first. Record the staging history disposition here."
+      },
+      {
+        "migration": "20260926140100_marketplace_money_path_tables.sql",
+        "taskId": "DB-011",
+        "rationale": "The two MONEY-PATH items of HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED, selected from the 46 blocking items the disposition instrument classifies out of 66 archived marketplace surface items. public.marketplace_payment_events (archive 20260728000011:45-79) is the Stripe webhook idempotency claim: without its unique constraint on provider_event_id, a retried checkout.session.completed fulfils an order twice. Its RLS design is enabled-with-no-policy so only a role that bypasses RLS can reach it, reproduced verbatim. public.marketplace_fee_rules (archive 20260728000010) is the versioned platform fee schedule, admin-write-only behind public.profiles.role = 'admin' with no public read; its two real readers, lib/marketplace/fee-calculator.ts:51-57 via app/api/marketplace/checkout/route.ts:352 and app/api/marketplace/admin/fee-rules/route.ts, both use createServiceRoleClient(), which is why the archive's no-public-read design is correct rather than a bug. The default rule is seeded INACTIVE so applying the migration cannot start charging a fee. The remaining 36 blocking items are the external-fulfilment surface from archive 20260704224927 and are one product decision the marketplace lane owns, not 36 independent column contracts.",
+        "nextAction": "Owned by the database lane, reviewed by security-marketplace. Apply additively in staging, run supabase/tests/db011_marketplace_money_path_contract.sql, probe that a signed-in non-admin reads 0 fee rules and that a duplicate provider_event_id is refused, then confirm with the marketplace lane whether the Stripe webhook route is enabled at launch. Do NOT extend this to the external-fulfilment columns until the marketplace lane decides whether external fulfilment ships. Record the staging history disposition here."
+      },
+      {
+        "migration": "20260926140200_scheduled_posts_platform_columns.sql",
+        "taskId": "DB-011",
+        "rationale": "HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE, an ordering defect reproduced from the repository's own files rather than asserted. 20250904110000 adds scheduled_posts.platform_status and .platform_errors behind `alter table if exists`; the table is created later by 20260413200000 because '2026-04-13' sorts after '2025-09-04'. A fresh replay therefore creates the table and never the two columns, while app/api/artist/content/overview/route.ts:137 selects them and lib/services/cross-platform-posting.service.ts:195 writes one. The chain and the committed contract happen to agree (the contract does not declare them either), which is why regeneration loses nothing - but the live route breaks at PostgREST on a chain-built target. This migration repairs it forward. The earlier migration cannot be edited and renumbering would not move it after 20260413200000.",
+        "nextAction": "Owned by the database lane, reviewed by social-content. Apply additively in staging, run supabase/tests/db008_scheduled_posts_platform_columns_contract.sql, then have the social/content lane exercise app/api/artist/content/overview/route.ts. The CP-016 regeneration that finally makes lib/database.types.ts declare these two columns follows the apply. Record the staging history disposition here."
       }
     ],
     "deferred": [],
     "unclassified": {
-      "count": 290,
+      "count": 291,
       "blocker": "No authoritative staging and production migration-history snapshots or owner-approved launch/deferred disposition exist for the remaining active migrations; do not infer application state or deferment from repository presence. Wave 34 re-derived the source snapshot from the real active chain after adding the three DB-011 marketplace migrations, and classified only migrations whose owning task, planned manifest and launch rationale are all present in this repository."
     }
   }

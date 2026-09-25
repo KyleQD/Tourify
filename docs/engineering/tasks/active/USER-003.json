@@ -6,7 +6,7 @@
   "priority": "P2",
   "owner_agent": "general-user",
   "created_at": "2026-09-09T09:35:17.042Z",
-  "updated_at": "2026-09-16T19:24:56.071Z",
+  "updated_at": "2026-09-25T23:00:47.259Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Rewrite settings as one unified surface from EnhancedSettingsRouter + legacy account-settings families",
@@ -33,46 +33,54 @@
     "Single unified settings surface"
   ],
   "verification": {
-    "tier": "fast",
+    "tier": "feature",
     "commands": [
-      "npx eslint app/settings/notifications/page.tsx app/settings/profile-colors/page.tsx components/settings/enhanced-settings-router.tsx components/settings/profile-colors-settings.tsx",
-      "npx vitest run __tests__/notifications/account-options.test.ts",
-      "npx vitest run __tests__/settings/enhanced-settings-router.test.tsx",
-      "NODE_OPTIONS='--max-old-space-size=8192' npx tsc --noEmit --pretty false 2>&1 | rg 'components/settings/(enhanced-settings-router|profile-colors-settings)|app/settings/(notifications|profile-colors)' || true",
-      "npm run verify:fast -- --changed",
+      "NODE_OPTIONS='--max-old-space-size=6144' npx tsc -p /tmp/tsconfig.user-wave35-obj1.json --pretty false",
+      "npx vitest run __tests__/auth __tests__/profile __tests__/settings __tests__/seo __tests__/uploads __tests__/security __tests__/onboarding __tests__/general __tests__/dashboard",
+      "npx vitest run __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts",
+      "npx eslint app/api/profile app/api/settings lib/seo lib/profile __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run check:public-surface",
+      "npm run check:db002-security-contract",
+      "npm run check:service-role-allowlist",
+      "git diff --check -- app/api/profile app/api/settings lib/seo lib/profile hooks/use-mfa.ts __tests__/profile __tests__/auth",
       "npm run agents:validate"
     ],
     "evidence": [
-      "Focused ESLint passed for the four settings paths and the new router test.",
-      "Notification account-options test passed: 1 file, 4 tests.",
-      "Settings-router test passed: 1 file, 4 tests covering notification deep links, unsupported-tab fallback, unified tab navigation, and the Advanced Colors action.",
-      "Changed-path typecheck filter produced no diagnostics during the bounded repository-wide check; the full check was interrupted after no output.",
-      "Control-plane generation refreshed maps at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b; validation passed: 17 agents, 93 tasks, 0 warnings/errors.",
-      "verify:fast --changed exited before task-specific checks because the dirty shared worktree references missing components/ui/use-mobile.tsx paths."
+      "Scoped tsc over app/api/profile/**, app/api/settings/**, lib/seo/**, lib/profile/**: 36 primary diagnostics before, 21 after, 0 new. The 15 removed are exactly 10 profiles.custom_url errors in lib/seo/public-preview-readers.ts, 1 calculate_venue_profile_completion error in app/api/settings/route.ts, and 4 in app/api/profile/[username]/route.ts.",
+      "The re-derivation contradicts docs/engineering/database-type-inventory-2026-09-25.json. The inventory attributes profiles.custom_url to lib/public-artist/get-public-artist-profile.ts, which contains no such reference at HEAD or in the worktree, and claims 17 hits; the measured count is 10 and every one is in lib/seo/public-preview-readers.ts. It also attributes calculate_venue_profile_completion to three files and records 8 hits; the measured reality is one live consumer, app/api/settings/route.ts:125, confirmed independently by rg excluding docs/ and by the discover lane.",
+      "The 21 remaining scoped diagnostics are not general-user's: 15 are venue_profiles.cover_image_url, already resolved by the unapplied-but-committed supabase/migrations/20260925210000_venue_profile_presentation_columns.sql that names lib/seo/public-preview-readers.ts as its reader, and 6 are in lib/services/optimized-notification-service.ts (design-system's grant).",
+      "Runtime consequence, larger than the diagnostic count: a PostgREST statement naming a column the relation does not expose returns an error and a null data, so one phantom identifier disables the whole statement. profiles.custom_url was inside the select of app/api/profile/current/route.ts (9 entry-reachable callers), inside both selects of app/api/profile/[username]/route.ts, and inside the update payload of app/api/profile/update/route.ts (a form that always submits the field). app/api/profile/update-optimized/route.ts copied every submitted key into the column payload, so the `phone` both settings forms always send poisoned the statement and the settings profile form could not save at all. profiles.verified in app/api/settings/profile/route.ts was the same shape. All are repointed; none was made more permissive.",
+      "Authorization: app/api/settings/route.ts accepted a caller-supplied profile_id on both verbs. RLS blocked the cross-user write but the route answered success:true for a zero-row update, and RLS never blocked the cross-user read because profiles_select is USING (true) in the active chain. Both verbs now return 403 and issue no query; 5 route tests cover it.",
+      "Focused vitest: 32 files / 205 tests passed across __tests__/auth, __tests__/profile, __tests__/settings, __tests__/seo, __tests__/uploads, __tests__/security, __tests__/onboarding, __tests__/general, __tests__/dashboard. The two new files are 23 tests.",
+      "Focused eslint exit 0 with no output. git diff --check scoped to the general-user paths exit 0.",
+      "npm run check:migration-chain PASS (306 files scanned), check:migration-validation PASS, check:public-surface PASS, check:db002-security-contract PASS, check:service-role-allowlist PASS, security exception registry OK (3 active entries).",
+      "npm run agents:validate: 17 agents, 152 tasks, 0 errors, 8 warnings. All 8 warnings are `generated from a different SHA`; agents:generate is forbidden this wave, so the shared-map refresh belongs to the orchestrator.",
+      "NOT RUN and not claimed: no full `npm run typecheck` (68m18s on CI, OOMs on this 8GB machine with six concurrent lanes), no full test suite, no migration apply, no `supabase db reset` (CP-051), no hosted or credentialed action, no CodeQL re-analysis. All QA-004 campaign coverage rows remain not_run; no staging target exists."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-11T18:24:40Z",
-    "result": "partial-pass"
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T00:20:00.000Z",
+    "result": "pass"
   },
   "progress": {
-    "summary": "Production-readiness triage keeps USER-003 at P2 and outside the core launch gate. USER-005 owns account lifecycle launch readiness; escalate this settings rewrite only if a certified journey exposes a direct dependency.",
+    "summary": "Wave 35 general-user. Closed the general-user share of HF-DISC-002-DRIFT-SEO-SETTINGS and re-derived the drift attribution independently instead of trusting the inventory. profiles.custom_url: 10 measured primary diagnostics, ALL in lib/seo/public-preview-readers.ts (inventory claimed 17 across two files, one of which contains no such reference). calculate_venue_profile_completion: exactly one live consumer, app/api/settings/route.ts:125 (inventory claimed three files, 8 hits). Repointed every phantom-column use in the grant to the canonical destination and deleted the dead RPC call. Scoped tsc 36 -> 21 primary diagnostics, 0 new; the 21 remaining are venue_profiles.cover_image_url (resolved by another lane's unapplied migration) and lib/services/optimized-notification-service.ts. The load-bearing finding is that the drift was an outage, not a type error: one phantom identifier inside a shared select string, an .eq() filter, or a spread-into-payload write fails the whole PostgREST statement, so /api/profile/current (9 callers), /api/profile/[username], /api/profile/update, /api/profile/update-optimized and /api/settings/profile were all returning 404/500/empty. PASS: 32 files / 205 tests focused; eslint exit 0; check:migration-chain, check:migration-validation, check:public-surface, check:db002-security-contract, check:service-role-allowlist all green; agents:validate 0 errors. NOT RUN and not claimed: full typecheck, full suite, any migration apply, any hosted or credentialed action, any auth-flow result.",
     "completed": [
-      "Added query-backed notifications and profile-colors tabs to EnhancedSettingsRouter.",
-      "Added ProfileColorsSettings using the authenticated user from useAuth and the existing profile-color hook/customizer contract.",
-      "Redirected /settings/notifications and /settings/profile-colors to the unified surface.",
-      "Normalized unsupported tab query values to the profile tab and kept the Advanced Colors action inside the unified router.",
-      "Added focused EnhancedSettingsRouter coverage for deep links, fallback behavior, and tab navigation.",
-      "Preserved existing Supabase/RLS data boundaries and did not change migrations or settings APIs."
+      "Re-derived the profiles.custom_url and calculate_venue_profile_completion attribution with a scoped tsc instead of trusting the inventory, and recorded that the inventory's tscFiles are file-level and its tscDiagnosticHits are upper bounds.",
+      "Repointed every profiles.custom_url column use in the grant to the canonical profiles.username handle; custom_url survives only as a documented request/response alias so the existing settings forms keep working.",
+      "Deleted the dead calculate_venue_profile_completion RPC call from app/api/settings/route.ts; venue_profiles.profile_completion is a real column that the canonical venue settings form already writes directly.",
+      "Repointed the phantom profiles.verified column in app/api/settings/profile/route.ts to the canonical is_verified.",
+      "Routed profiles.phone to profiles.profile_data.phone in the update routes, which is the storage the public gate actually strips.",
+      "Fixed the undeclared baseSocialLinks spread in app/api/profile/[username]/route.ts, which threw a ReferenceError at runtime, and gave lib/profile/general-public-profile.ts an explicit return type so the gate's output is usable at the call site.",
+      "Closed the general-user side of HF-DISC-002-DRIFT-SEO-SETTINGS and recorded the correction for the database lane."
     ],
     "next_steps": [
-      "Resolve the owner decision for the remaining canonical settings family before removing or redirecting legacy account-scoped implementations.",
-      "Rerun the fast wrapper from a worktree without the missing pre-existing path.",
-      "Resolve the owner decision for the remaining canonical settings family before removing or redirecting legacy account-scoped implementations."
+      "Orchestrator refreshes generated maps (8 SHA warnings) and re-measures the 1384 baseline on a machine that can run the full typecheck; database lane corrects the inventory's file-level attributions; QA-003 certifies the repaired profile/settings journeys. USER-003 acceptance still depends on the canonical settings-family owner decision in QUESTIONS.md Q2."
     ],
     "blockers": [
-      "Repository-wide verify:fast --changed cannot complete because unrelated dirty worktree entries include missing components/ui/use-mobile.tsx; it exits before task-specific checks.",
-      "The full repository typecheck did not complete within the bounded verification window; no diagnostics were emitted for changed settings paths.",
-      "USER-003 acceptance remains open pending the owner’s canonical settings-family decision; legacy account-scoped implementations were intentionally preserved."
+      "Full repository typecheck cannot run on this 8GB machine with six concurrent lanes; the scoped measurement is the only diagnostic evidence produced and is a lower bound on this surface.",
+      "USER-003's canonical settings-family acceptance criterion remains gated on the owner decision in QUESTIONS.md Q2; this wave repaired the settings API surface, not the legacy component-family consolidation.",
+      "app/api/profile/create/route.ts is repointed but has zero callers; deleting a whole route is a product-surface decision and is routed by handoff instead of taken unilaterally."
     ],
     "checkpoints": [
       {
@@ -136,8 +144,71 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-26T00:20:00.000Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 general-user. Re-derived the seo/settings drift attribution independently and found the inventory wrong in both directions. profiles.custom_url: 10 measured primary diagnostics, all in lib/seo/public-preview-readers.ts, not the 17 the inventory claims and not in lib/public-artist/get-public-artist-profile.ts. calculate_venue_profile_completion: one live consumer, app/api/settings/route.ts:125, not three files and 8 hits. Repointed every phantom-column use in the grant to the canonical destination and deleted the dead RPC call; 36 -> 21 primary diagnostics with 0 new. The load-bearing discovery is that the drift was an outage, not a type error: one phantom identifier inside a shared select string, an .eq() filter, or a spread-into-payload write fails the WHOLE PostgREST statement, so app/api/profile/current (9 callers), app/api/profile/[username] (public), app/api/profile/update, app/api/profile/update-optimized and app/api/settings/profile were all returning 404/500/empty before this change. Also found and fixed an authorization defect in my own surface: app/api/settings/route.ts took a caller-supplied profile_id on both verbs; RLS blocked the cross-user write but the route answered success:true, and RLS never blocked the cross-user read because profiles_select is USING (true). MFA drift decided (retire) and the dead hooks/use-mfa.ts deleted. PASS: 32 files / 205 tests; scoped tsc 36 -> 21; eslint exit 0; migration chain and validation green; four security checks green; agents:validate 0 errors. NOT RUN and not claimed: full typecheck, full test suite, any migration apply, any hosted or credentialed action, any auth-flow result.",
+        "changed_paths": [
+          "lib/seo/public-preview-readers.ts",
+          "app/api/profile/[username]/route.ts",
+          "app/api/profile/[username]/recognition/route.ts",
+          "app/api/profile/current/route.ts",
+          "app/api/profile/update/route.ts",
+          "app/api/profile/update-optimized/route.ts",
+          "app/api/profile/create/route.ts",
+          "app/api/profile/check-url/route.ts",
+          "app/api/profile/custom-design/route.ts",
+          "app/api/settings/route.ts",
+          "app/api/settings/profile/route.ts",
+          "lib/profile/general-public-profile.ts",
+          "lib/profile/custom-profile-prompt.ts",
+          "hooks/use-mfa.ts (deleted)",
+          "__tests__/profile/profile-contact-privacy.test.ts",
+          "__tests__/auth/settings-route-scope.test.ts",
+          "docs/engineering/DECISIONS.md",
+          "docs/engineering/agents/general-user/DECISIONS.md",
+          "docs/engineering/handoffs/pending/HF-USER-035-PHONE-GATE-WRITERS.json",
+          "docs/engineering/handoffs/pending/HF-USER-035-UNOWNED-PATHS-REGISTRY.json",
+          "docs/engineering/handoffs/pending/HF-USER-035-MFA-DEAD-SURFACE-UNLOCK.json"
+        ],
+        "verification": [
+          "npx vitest run __tests__/auth __tests__/profile __tests__/settings __tests__/seo __tests__/uploads __tests__/security __tests__/onboarding __tests__/general __tests__/dashboard: PASS, 32 files / 205 tests",
+          "npx vitest run __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts: PASS, 2 files / 23 tests",
+          "scoped tsc /tmp/tsconfig.user-wave35-obj1.json: 36 primary before, 21 after, 0 new",
+          "npx eslint app/api/profile app/api/settings lib/seo lib/profile + both new tests: PASS, exit 0, no output",
+          "npm run check:migration-chain: PASS (306 files scanned)",
+          "npm run check:migration-validation: PASS",
+          "npm run check:public-surface: PASS; check:db002-security-contract: PASS; check:service-role-allowlist: PASS; security exception registry: OK (3 active)",
+          "git diff --check scoped to the general-user paths: PASS, exit 0",
+          "npm run agents:validate: PASS, 17 agents, 152 tasks, 0 errors, 8 SHA warnings (agents:generate forbidden this wave)"
+        ],
+        "blockers": [
+          "No hosted staging target exists; every QA-004 campaign coverage row is not_run and no auth-flow result is claimed.",
+          "The phone-gate writer divergence is a product/privacy decision and is escalated, not decided.",
+          "The events / analytics / calendar / connect path families have no owning agent."
+        ],
+        "next_steps": [
+          "Orchestrator refresh of the generated maps; database lane correction of the inventory attributions.",
+          "Integrations retires __tests__/integrations/mfa.service.test.ts, then design-system deletes the four MFA service modules in order.",
+          "QA-003 certifies the repaired profile/settings journeys and the phone-gate direction in isolated staging."
+        ]
+      },
+      {
+        "at": "2026-09-25T23:00:47.259Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 general-user. Closed the general-user share of HF-DISC-002-DRIFT-SEO-SETTINGS and re-derived the drift attribution independently instead of trusting the inventory. profiles.custom_url: 10 measured primary diagnostics, ALL in lib/seo/public-preview-readers.ts (inventory claimed 17 across two files, one of which contains no such reference). calculate_venue_profile_completion: exactly one live consumer, app/api/settings/route.ts:125 (inventory claimed three files, 8 hits). Repointed every phantom-column use in the grant to the canonical destination and deleted the dead RPC call. Scoped tsc 36 -> 21 primary diagnostics, 0 new; the 21 remaining are venue_profiles.cover_image_url (resolved by another lane's unapplied migration) and lib/services/optimized-notification-service.ts. The load-bearing finding is that the drift was an outage, not a type error: one phantom identifier inside a shared select string, an .eq() filter, or a spread-into-payload write fails the whole PostgREST statement, so /api/profile/current (9 callers), /api/profile/[username], /api/profile/update, /api/profile/update-optimized and /api/settings/profile were all returning 404/500/empty. PASS: 32 files / 205 tests focused; eslint exit 0; check:migration-chain, check:migration-validation, check:public-surface, check:db002-security-contract, check:service-role-allowlist all green; agents:validate 0 errors. NOT RUN and not claimed: full typecheck, full suite, any migration apply, any hosted or credentialed action, any auth-flow result.",
+        "completed": [],
+        "next_steps": [
+          "Orchestrator refreshes generated maps (8 SHA warnings) and re-measures the 1384 baseline on a machine that can run the full typecheck; database lane corrects the inventory's file-level attributions; QA-003 certifies the repaired profile/settings journeys. USER-003 acceptance still depends on the canonical settings-family owner decision in QUESTIONS.md Q2."
+        ],
+        "blockers": []
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [
+    "orchestrator: registry repair for app/api/events/**, lib/events/**, app/api/analytics/**, app/api/calendar/** and app/api/connect/**, none of which belong to any agent — HF-USER-035-UNOWNED-PATHS-REGISTRY",
+    "design-system: MFA service disposition after integrations retires the test — HF-USER-035-MFA-DEAD-SURFACE-UNLOCK",
+    "orchestrator/product: decide the profiles.show_phone writer direction — HF-USER-035-PHONE-GATE-WRITERS"
+  ]
 }

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-TICKET-035-ARTIST-STATS-RPC",
+  "task_id": "TICKET-005",
+  "from_agent": "ticketing",
+  "to_agent": "artist",
+  "status": "pending",
+  "created_at": "2026-09-25T16:35:00.000Z",
+  "updated_at": "2026-09-25T16:35:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "dirty_state_caveat": "Wave 35 worktree, 6 concurrent lanes, HEAD ca3bb0b0, nothing committed. Informational handoff: the ticketing lane has NO action available and made no change. It is filed so the artist lane has the ticketing cluster's re-derivation without re-running it, and so the cluster's per-object record is complete.",
+  "summary": "DB-008 code-drift cluster object `get_enhanced_artist_stats` is assigned to the ticketing cluster by the inventory, but the ticketing file set contains no reference to it and cannot contain one. The inventory's own domainFileCounts put 1 attributed file in 'ticketing', but all five tscFiles (contexts/artist-context.tsx, lib/marketplace/public-listing-query.ts, lib/marketplace/ticket-source-adapter.ts, lib/music/creator-outbox-runner.ts, lib/public-artist/get-public-artist-profile.ts) are outside the ticketing grant, so the cluster assignment appears to come from a path-to-domain mapping rather than from any ticketing consumer. Re-derivation finds ZERO code callers anywhere in the repository: the only matches are eight comments that say the RPC is not in the active chain, one non-migration SQL file (supabase/optimize-artist-backend.sql:379, which is not a migration and is never applied), and one archived migration under supabase/migrations/archive/. This is already dispositioned by the artist lane, which pins it with an executable test.",
+  "working_set": [
+    "No ticketing file. For the record only: __tests__/artist/db008-code-drift-repoints.test.ts:240-241 (artist-owned, read-only here) asserts that artist-owned sources do not contain rpc('get_enhanced_artist_stats'",
+    "Read-only context: lib/public-artist/artist-stats.ts:4 and lib/public-artist/get-public-artist-profile.ts:685,838, which document the RPC's absence in code comments"
+  ],
+  "completed": [
+    "Re-derived the consumer set: rg for rpc('get_enhanced_artist_stats') across the repository returns no production caller at all — the only matches are a markdown table, a comment in contexts/artist-context.tsx, and the artist lane's own negative assertion.",
+    "Confirmed the RPC is absent from the active chain: its only CREATE OR REPLACE FUNCTION is at supabase/migrations/archive/fix_artist_music_upload.sql:239, and supabase/optimize-artist-backend.sql:379 is not a migration file, so neither is applied by the chain.",
+    "Confirmed the already-landed disposition rather than proposing a second one: __tests__/artist/db008-code-drift-repoints.test.ts:240-241 and __tests__/artist/feed-analytics-scope.test.ts:33 both assert the absence, so the object is fenced and needs no new work.",
+    "Determined that no ticketing action is possible or needed, and said so instead of claiming credit for files this lane does not own."
+  ],
+  "next_steps": [
+    "artist: none required. This is a notification, not a request — the object is already fenced by two of your own tests and the remaining inventory hits are the comment text that documents the gap.",
+    "database or whoever owns the inventory (optional): the 10 attributed tscDiagnosticHits for this object are comment text on live modules, which is the same false-positive shape CP-066 records for staffing_hiring_job_postings_templates_column. If the inventory is ever corrected in place, this object's consumerVerdict could move from 'live' with four liveConsumers to zero code consumers, which would stop it being routed to further lanes."
+  ],
+  "blockers": [
+    "The inventory file docs/engineering/database-type-inventory-2026-09-25.json is a read-only input to the ticketing lane, so this lane cannot correct the attribution; and the object is not in the ticketing file set, so this lane cannot act on it even if it were misattributed.",
+    "No blocker for the artist lane: this is informational."
+  ],
+  "verification": [
+    "rg -n \"rpc\\(\\s*['\\\"]get_enhanced_artist_stats\" -g '!node_modules' . returns no production caller; the only hits are docs/artist-dashboard-wireframe.md:161 (a markdown table) and the artist lane's own negative assertion at __tests__/artist/db008-code-drift-repoints.test.ts:241.",
+    "rg -n 'get_enhanced_artist_stats' over app/ lib/ components/ contexts/ returns 8 hits, every one of them a comment stating the RPC is not in the active chain (contexts/artist-context.tsx:62,446; lib/artist/artist-stats.ts:5; lib/public-artist/public-artist-types.ts:42; lib/public-artist/get-public-artist-profile.ts:685,838; lib/public-artist/artist-stats.ts:4).",
+    "rg -no 'create or replace function (public\\.)?get_enhanced_artist_stats' supabase/migrations/*.sql returns no rows; the only definitions are supabase/migrations/archive/fix_artist_music_upload.sql:239 and supabase/optimize-artist-backend.sql:379, neither of which is in the active chain.",
+    "Read the artist lane's existing fence: __tests__/artist/db008-code-drift-repoints.test.ts:240-241 asserts artist-owned sources have no rpc('get_enhanced_artist_stats' call."
+  ]
+}

@@ -405,7 +405,11 @@ describe('paid-event replay after a refund (finalizePaidOrder)', () => {
     })
 
     expect(result).toEqual({ alreadyFinalized: true })
-    expect(fake.calls).toEqual(['from:ticket_sales'])
+    // The receipt read is a verification, not a side effect: a finalized order
+    // must have its revenue receipt confirmed rather than trusted from the status
+    // flags alone (TICKET-005 / HF-INTG-006-TICKETING). No write, no issuance, no
+    // analytics, no notification.
+    expect(fake.calls).toEqual(['from:ticket_sales', 'from:financial_transactions'])
   })
 
   it('a recorded metadata.refund with un-issued issuance still replays as a terminal acknowledgement', async () => {
@@ -442,6 +446,7 @@ describe('paid-event replay after a refund (finalizePaidOrder)', () => {
     })
 
     expect(result).toEqual({ alreadyFinalized: true })
-    expect(fake.calls).toEqual(['from:ticket_sales'])
+    // Receipt verification only; see the note above. Still zero writes.
+    expect(fake.calls).toEqual(['from:ticket_sales', 'from:financial_transactions'])
   })
 })

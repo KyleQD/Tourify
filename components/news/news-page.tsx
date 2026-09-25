@@ -20,6 +20,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { NewsFilters } from '@/components/news/news-filters'
 import { NewsMasthead } from '@/components/news/news-masthead'
 import { useActingContext } from '@/hooks/use-acting-context'
+import { toPlainText } from '@/lib/news/text-sanitize'
 import type { NewsCategory, NewsFeedItem, NewsSortMode } from '@/lib/news/types'
 
 const AUTO_REFRESH_MS = 15 * 60 * 1000
@@ -355,10 +356,10 @@ function TickerStrip({ items }: { items: NewsFeedItem[] }) {
               className="group flex shrink-0 items-center gap-3 rounded-lg px-3 py-1.5 transition hover:bg-white/5"
             >
               <span className="text-xs font-semibold text-slate-300 group-hover:text-white">
-                {truncate(decodeTextEntity(story.title), 72)}
+                {truncate(toPlainText(story.title), 72)}
               </span>
               <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-slate-400">
-                {decodeTextEntity(story.sourceName)}
+                {toPlainText(story.sourceName)}
               </span>
             </NewsLink>
           ))}
@@ -485,7 +486,7 @@ function StoryCard({ item, index, compact = false }: { item: NewsFeedItem; index
               {originLabel}
             </span>
             <span className="rounded-full bg-black/45 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
-              {truncate(decodeTextEntity(item.sourceName || 'Tourify'), 28)}
+              {truncate(toPlainText(item.sourceName || 'Tourify'), 28)}
             </span>
           </div>
 
@@ -498,11 +499,11 @@ function StoryCard({ item, index, compact = false }: { item: NewsFeedItem; index
 
         <div className="flex flex-1 flex-col gap-3 p-4">
           <h2 className="line-clamp-2 text-base font-semibold leading-snug text-white">
-            {decodeTextEntity(item.title || 'Untitled story')}
+            {toPlainText(item.title || 'Untitled story')}
           </h2>
 
           <p className={`flex-1 text-sm leading-relaxed text-slate-400 ${compact ? 'line-clamp-2' : 'line-clamp-3'}`}>
-            {decodeTextEntity(item.summary || 'No summary available yet.')}
+            {toPlainText(item.summary || 'No summary available yet.')}
           </p>
 
           <div className="flex flex-wrap gap-1.5">
@@ -587,13 +588,13 @@ function StoryCard({ item, index, compact = false }: { item: NewsFeedItem; index
               ) : null}
               <div className="space-y-2 p-4">
                 <div className="inline-flex rounded-full border border-fuchsia-300/20 bg-fuchsia-400/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100">
-                  {decodeTextEntity(item.sourceName || 'News Pulse')}
+                  {toPlainText(item.sourceName || 'News Pulse')}
                 </div>
                 <div className="text-sm font-semibold leading-snug text-white">
-                  {decodeTextEntity(item.title || 'Untitled story')}
+                  {toPlainText(item.title || 'Untitled story')}
                 </div>
                 <p className="line-clamp-2 text-xs leading-5 text-slate-400">
-                  {decodeTextEntity(item.summary || '')}
+                  {toPlainText(item.summary || '')}
                 </p>
               </div>
             </div>
@@ -695,18 +696,6 @@ function getSourceDetail(item: NewsFeedItem) {
   return 'Tourify source'
 }
 
-function decodeTextEntity(value: string): string {
-  return String(value || '')
-    .replace(/&#8217;/g, "'")
-    .replace(/&#8216;/g, "'")
-    .replace(/&#8220;/g, '"')
-    .replace(/&#8221;/g, '"')
-    .replace(/&#8211;/g, '-')
-    .replace(/&#8212;/g, '-')
-    .replace(/&amp;/g, '&')
-    .replace(/<[^>]*>/g, '')
-}
-
 function formatStoryTime(value?: string) {
   if (!value) return 'Recently'
   const date = new Date(value)
@@ -785,8 +774,8 @@ function buildArticlePreviewFromNewsItem(item: NewsFeedItem) {
     id: getShareContentId(item),
     slug: getArticleSlug(item),
     url: item.url || '',
-    title: decodeTextEntity(item.title || 'Untitled story'),
-    excerpt: decodeTextEntity(item.summary || ''),
+    title: toPlainText(item.title || 'Untitled story'),
+    excerpt: toPlainText(item.summary || ''),
     featuredImageUrl: item.imageUrl || null,
     categories: item.topics.slice(0, 4),
     tags: item.topics.slice(0, 8),

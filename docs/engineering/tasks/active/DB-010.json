@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "database",
   "created_at": "2026-09-22T15:46:20.728Z",
-  "updated_at": "2026-09-25T21:39:16.914Z",
+  "updated_at": "2026-09-25T23:22:47.541Z",
   "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
   "working_tree_status": "dirty (137 entries)",
   "goal": "Review archived worker-action SQL, add a safe active additive migration, and prove staging schema and authorization before WORK-006 enables actions",
@@ -74,7 +74,7 @@
     "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Wave 34: no new DB-010 work. Ledger interaction only: work_mode_publication_acknowledgements and work_mode_check_in_events (20260922155356) remain chain-only relations that regeneration would add, and the refreshed staleTypeSurface in the inventory now lists all 13 such relations rather than 9. Their status is unchanged - absent from lib/database.types.ts, recoverable only by regeneration, which still needs a reachable target.",
+    "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
     "completed": [
       "Reviewed archived local-only SQL against canonical Work Mode event resolution and active publication/audience schema.",
       "Authored forward-only active migration, private audience predicate, exact-SHA planned manifest, and catalog postflight checks.",
@@ -85,7 +85,7 @@
       "20260922155356 is unaffected by the CP-059 work: it declares no storage.objects policy and no storage.buckets write."
     ],
     "next_steps": [
-      "Unchanged: targeted validation, hosted apply, live denial probes, generated types and the QA-004 worker-action reruns, all pending staging isolation and operator credentials."
+      "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
     ],
     "blockers": [
       "DB-010's own blockers are unchanged: staged apply, live denial probes, generated types and QA-004 worker-action reruns all remain pending a staging target and operator credentials.",
@@ -221,6 +221,16 @@
         "completed": [],
         "next_steps": [
           "Unchanged: targeted validation, hosted apply, live denial probes, generated types and the QA-004 worker-action reruns, all pending staging isolation and operator credentials."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:47.541Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
         ],
         "blockers": []
       }

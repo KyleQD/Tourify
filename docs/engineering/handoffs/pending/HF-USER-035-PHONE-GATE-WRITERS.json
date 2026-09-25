@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-USER-035-PHONE-GATE-WRITERS",
+  "task_id": "USER-005",
+  "from_agent": "general-user",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-26T00:05:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree, branch codex/qa004-staging-campaign)",
+  "dirty_state_caveat": "Concurrent Wave 35 multi-lane dirty tree. This lane changed only app/api/profile/**, app/api/settings/**, lib/profile/**, lib/seo/**, hooks/use-mfa.ts, its own tests and the general-user decision records. `app/api/connect/**`, `components/dashboard/**` and `lib/services/**` were read and NOT touched.",
+  "summary": "The privacy flag the admin lane found is real, and the correct repair is deliberately incomplete: `profiles.show_phone` is the canonical publication gate but three separate settings writers disagree about whether they own it, and unifying them is a product/privacy decision whose two directions have opposite consequences. general-user refused to guess. Separately, `app/api/connect/sessions/route.ts` reads a phone under that gate and belongs to no agent's grant.",
+  "working_set": [
+    "supabase/migrations/20250819100000_profiles_expand_fields.sql:49-51 (profiles.show_phone boolean default false — the gate)",
+    "app/api/settings/profile/route.ts:85 (writes the column — the ONLY pre-existing writer of the gate)",
+    "app/api/profile/update/route.ts:163 (writes metadata.show_phone only; deliberately NOT given the column write)",
+    "app/api/profile/update-optimized/route.ts:302 (mass-assigns the column; the 41 stranded diagnostics)",
+    "components/settings/profile-settings-optimized.tsx:186 and components/settings/enhanced-profile-settings.tsx:118 (read metadata.show_phone, so the toggle shown in the UI is not the toggle the gate honours)",
+    "app/api/connect/sessions/route.ts:18,146 (canSharePhone reads profile_data.phone under the column gate; UNOWNED PATH)",
+    "lib/profile/general-public-profile.ts:27 (the one correct gate, unchanged)",
+    "docs/engineering/DECISIONS.md CP-086"
+  ],
+  "completed": [
+    "Established that profiles.show_phone is real: created by an ACTIVE migration, present in all three generated-contract blocks, default false. It is not drift.",
+    "Established that profiles.phone does not exist in the active chain or the contract, so every `show_phone === true ? profile.phone : null` was green and returned null. Three such sites existed in the general-user grant.",
+    "Repointed the self-only preview (app/api/profile/custom-design/route.ts) to the canonical profiles.profile_data.phone with the gate expression byte-identical. The value returned is the authenticated caller's own contact data; no other subject is affected.",
+    "Pinned the LLM-prompt snapshot (lib/profile/custom-profile-prompt.ts) to `phone: null` with an explicit comment, because that value is serialized into a third-party model prompt. Repointing it would be a privacy widening disguised as a drift fix.",
+    "Added a NO-WIDENING GUARD rather than a convention: __tests__/profile/profile-contact-privacy.test.ts asserts app/api/profile/update/route.ts contains no `profileUpdate.show_phone` and no `profileUpdate.phone`, so no new writer of the gate can appear without failing a test.",
+    "Reached the same conclusion by a second, independent route: app/api/settings/route.ts accepted a caller-supplied profile_id on both verbs. RLS blocked the cross-user WRITE (profiles_update USING (id = auth.uid())) but the route still answered success:true for a zero-row update, and RLS never blocked the cross-user READ because profiles_select is USING (true) — GET returned another user's entire profile row, metadata and profile_data included, to any authenticated caller. Both verbs now return 403 and issue no query.",
+    "Did NOT add a top-level show_phone write to any route that lacked one, did NOT unify metadata.show_phone with the column, and did NOT relax any gate."
+  ],
+  "next_steps": [
+    "orchestrator/product: decide ONE of two directions for the writer divergence, with the privacy consequence stated in the ticket. (A) Treat the column as canonical — then app/api/profile/update and app/api/profile/update-optimized gain the ability to publish a phone, which is a WIDENING from three writers to three writers but from the currently-effective single writer; it must ship with a consent re-prompt because existing accounts may have `metadata.show_phone: true` recorded against a gate that was never consulted. (B) Treat metadata.show_phone as canonical — then the public phone switch is permanently off, the toggle in components/settings must be removed or relabelled, and lib/profile/general-public-profile.ts:27 should keep stripping unconditionally. Option B is strictly no more permissive and is the safe default if no decision is reached.",
+    "orchestrator: assign an owner for app/api/connect/**. `app/api/connect/sessions/route.ts:146` is `Boolean(profile.show_phone && connectSettings.sharePhoneOnConnect && profile.profile_data?.phone)` — a live third-party phone surface built on the gate, and it is in no agent's grant and no manifest entry. It is NOT in the strict-ownership list of the general-user Wave 35 brief, so it was read and not edited.",
+    "Once a direction is chosen, add the corresponding assertion to __tests__/profile/profile-contact-privacy.test.ts so the decision is pinned rather than only documented.",
+    "QA-003: a phone-sharing journey cannot be certified until the direction is chosen. Today the observable behaviour is: toggling the switch in the optimized/enhanced profile settings forms changes metadata only, and the public /api/profile/<username> payload still omits phone."
+  ],
+  "blockers": [
+    "The direction decision is a product/privacy call, not a schema-mechanical one. general-user cannot make it without a stated consent consequence for existing accounts.",
+    "app/api/connect/** has no owning agent, so the only other live reader of the gate cannot be fixed or verified by its owner.",
+    "No hosted evidence. profiles_select USING (true) and profiles_update USING (id = auth.uid()) were read from the active migration chain; the deployed policy set was not queried. No staging target exists."
+  ],
+  "verification": [
+    "PASS: npx vitest run __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts — 2 files, 23 tests.",
+    "PASS: npx vitest run __tests__/auth __tests__/profile __tests__/settings __tests__/seo __tests__/uploads __tests__/security __tests__/onboarding __tests__/general __tests__/dashboard — 32 files, 205 tests.",
+    "PASS: npx eslint app/api/profile app/api/settings lib/seo lib/profile + both new test files — exit 0, no output.",
+    "PASS: npm run check:public-surface, check:db002-security-contract, check:service-role-allowlist, check:migration-chain, check:migration-validation.",
+    "PASS: scoped tsc /tmp/tsconfig.user-wave35-obj1.json — 36 primary diagnostics before, 21 after, 0 new.",
+    "NOT RUN: no full `npm run typecheck` (68m18s on CI, OOMs on this 8GB box with six concurrent lanes), no migration apply, no hosted or credentialed action, no `supabase db reset` (CP-051)."
+  ]
+}

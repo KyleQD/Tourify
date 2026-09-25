@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "general-user",
   "created_at": "2026-09-16T19:20:38.952Z",
-  "updated_at": "2026-09-21T22:19:41.000Z",
+  "updated_at": "2026-09-25T23:00:56.730Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (release-lane docs/LOCAL_DEPLOYMENT_READINESS.md, RELEASE-004.json, docs/recovery-and-continuity-plan.md; USER-005 lib/auth/admin-context.ts type fix)",
   "goal": "Make the complete production account lifecycle correct, tenant-safe, and verified in isolated staging",
@@ -15,7 +15,9 @@
       "Signup, verification, login, logout, reset, onboarding, persona switching, sessions, redirect allowlists, and account deletion",
       "Cross-persona and cross-tenant authorization and privacy-retention behavior"
     ],
-    "out": ["Unified settings rewrite owned by USER-003"]
+    "out": [
+      "Unified settings rewrite owned by USER-003"
+    ]
   },
   "working_set": [
     "app/auth",
@@ -25,7 +27,10 @@
     "lib/auth",
     "__tests__/auth"
   ],
-  "references": ["docs/DEVELOPMENT_WORKFLOW.md", "docs/DEPLOYMENT_ROUTINE.md"],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
   "acceptance_criteria": [
     "Every account lifecycle flow passes in isolated staging",
     "Cross-persona and cross-tenant access attempts fail at the server data boundary",
@@ -42,7 +47,15 @@
       "npx vitest run __tests__/auth/account-delete-route.test.ts: 1 file, 11 tests passed",
       "npx eslint app/api/account/delete/route.ts __tests__/auth/account-delete-route.test.ts: passed",
       "npx tsc -p /tmp/tsconfig.user005-storage.json --pretty false: passed with 0 diagnostics (Wave 31 lane 3) after removing the local OrganizationProfileRow interface from lib/auth/admin-context.ts in favor of canonical OrganizerAccountIdentityRow",
-      "npx vitest run __tests__/auth (Wave 31): 9 files, 43 tests passed"
+      "npx vitest run __tests__/auth (Wave 31): 9 files, 43 tests passed",
+      "NODE_OPTIONS='--max-old-space-size=6144' npx tsc -p /tmp/tsconfig.user-wave35-obj1.json --pretty false",
+      "npx vitest run __tests__/auth __tests__/profile __tests__/settings __tests__/seo __tests__/uploads __tests__/security __tests__/onboarding __tests__/general __tests__/dashboard",
+      "npx vitest run __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts",
+      "npx eslint app/api/profile app/api/settings lib/seo lib/profile __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts",
+      "npm run check:public-surface",
+      "npm run check:db002-security-contract",
+      "npm run check:service-role-allowlist",
+      "npm run agents:validate"
     ],
     "evidence": [
       "Production-readiness audit selected authentication, onboarding, personas, profiles, sessions, reset, and account deletion as core launch journeys requiring deployed certification.",
@@ -51,29 +64,40 @@
       "Private-docs deletion now explicitly enumerates both <user-id>/ and staff-credentials/<user-id>/ while retaining the historical profile-images certification prefix. Elevated Storage operations construct paths only from the authenticated UUID plus validated one-segment list results, re-listing from offset zero in 1,000-object batches until each prefix is empty.",
       "Focused tests prove more-than-1,000-object completion, later-batch list failure with auth deletion withheld, remainder-only retry, no-progress loop protection, current and legacy user-bound discovery, cross-user exclusion, unsafe-name fail-closed behavior, partial-failure reporting, and credential-free responses. No hosted Storage access or mutation was performed.",
       "Official Supabase Storage documentation reviewed 2026-09-18: remove accepts explicit same-bucket paths; server-side service/secret keys bypass RLS and must never be exposed.",
-      "Wave 31 lane 3 type-fix evidence: scoped tsc against lib/auth/admin-context.ts, lib/auth/acting-context.ts, lib/organizations/identity.ts and their imports passes with 0 diagnostics. Root cause was the local OrganizationProfileRow interface declaring ops_org_id optional while canonical OrganizerAccountIdentityRow requires it, making admin-context.ts:154 unassignable. Fix is type-level only; runtime logic, error codes, and messages unchanged."
+      "Wave 31 lane 3 type-fix evidence: scoped tsc against lib/auth/admin-context.ts, lib/auth/acting-context.ts, lib/organizations/identity.ts and their imports passes with 0 diagnostics. Root cause was the local OrganizationProfileRow interface declaring ops_org_id optional while canonical OrganizerAccountIdentityRow requires it, making admin-context.ts:154 unassignable. Fix is type-level only; runtime logic, error codes, and messages unchanged.",
+      "2026-09-26 Wave 35. The phone-privacy gap the admin lane reported is real and the repair is deliberately incomplete. profiles.show_phone is a real boolean column (supabase/migrations/20250819100000_profiles_expand_fields.sql:49-51, default false) and is the SOLE publication gate; profiles.phone exists in no active migration and in no generated contract, so every `show_phone === true ? profile.phone : null` was green and returned null. Established the full gate inventory (lib/profile/general-public-profile.ts:27 public and correct, lib/profile/custom-profile-prompt.ts:88, app/api/profile/custom-design/route.ts:126,129, app/api/connect/sessions/route.ts:146) and the full writer inventory (app/api/settings/profile/route.ts:85 writes the column; app/api/profile/update/route.ts wrote metadata only).",
+      "2026-09-26 Wave 35. Chosen treatment, provably no more permissive: the canonical phone storage is profiles.profile_data.phone and the gate expression is unchanged. The self-only preview (app/api/profile/custom-design/route.ts) is repointed to the canonical storage, because the value returned is the authenticated caller's own. The LLM-prompt snapshot (lib/profile/custom-profile-prompt.ts) is pinned to `phone: null` with an explicit comment, because it is serialized into a third-party model prompt and repointing it would move a real phone number across a trust boundary. No route that lacked a top-level show_phone write gained one, and a test asserts that app/api/profile/update/route.ts contains no profileUpdate.show_phone and no profileUpdate.phone.",
+      "2026-09-26 Wave 35. Authorization defect found and fixed in the general-user grant: app/api/settings/route.ts accepted a caller-supplied profile_id on both verbs. RLS blocked the cross-user WRITE (profiles_update USING (id = auth.uid())) but the route answered success:true for a zero-row update, and RLS never blocked the cross-user READ because profiles_select is USING (true) in the active chain, so GET returned another user's entire profile row — metadata and profile_data jsonb included — to any authenticated caller. Both verbs now return 403 and issue no query. 5 route tests cover it.",
+      "2026-09-26 Wave 35. MFA drift verdict: RETIRE. Independently re-derived the importer set: lib/services/mfa.service.ts is imported by exactly hooks/use-mfa.ts and __tests__/integrations/mfa.service.test.ts, and the hook had zero importers. hooks/use-mfa.ts (468 lines) is DELETED as step 1 of the ordered unlock; the service files are routed by handoff because lib/services/** is design-system's grant. The user_mfa_* relations the service reads are created by no SQL file under supabase/ and are already superseded by 20260918213707_mfa_verification_codes.",
+      "2026-09-26 Wave 35 verification. PASS: 32 files / 205 tests across the focused auth/profile/settings/seo/uploads/security/onboarding/general/dashboard suites; the two new files are 23 tests. Scoped tsc 36 -> 21 primary diagnostics, 0 new. Focused eslint exit 0. check:migration-chain, check:migration-validation, check:public-surface, check:db002-security-contract, check:service-role-allowlist and the security exception registry all green. agents:validate 17 agents / 152 tasks / 0 errors / 8 SHA warnings.",
+      "2026-09-26 Wave 35, honest limits. NOT RUN: full `npm run typecheck` (68m18s on CI, OOMs on this 8GB machine with six concurrent lanes); a scoped tsc over the MFA graph specifically did not complete inside a 10-minute bound because mfa.service.ts triggers TS2589 at six sites, so the 40 + 1 diagnostic figures are quoted from the design-system lane's preserved run at .agents/tmp/scope-results/pre-del-C1.raw.txt and were not re-measured here. No migration apply, no `supabase db reset` (CP-051), no hosted or credentialed action. No isolated-staging lifecycle, cross-tenant denial, or private-docs Storage certification result is claimed; every QA-004 campaign row remains not_run."
     ],
-    "last_run_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
-    "last_run_at": "2026-09-21T22:19:41.000Z",
-    "result": "fail"
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T00:25:00.000Z",
+    "result": "partial-pass"
   },
   "progress": {
-    "summary": "Closed the local private-docs certification erasure and pagination gap: account deletion drains every exact-user prefix in service-sized batches, rejects unsafe or repeated results, withholds auth deletion after any later-batch failure, and remains retry-safe after partial Storage progress. Wave 31 lane 3 resolved the last local blocker: scoped TypeScript passes with 0 diagnostics after the pre-existing admin-context OrganizationProfileRow/OrganizerAccountIdentityRow mismatch was fixed type-level. Focused vitest (auth, account-delete-route, org-identity-model), eslint, and diff checks pass. Hosted staging lifecycle evidence remains the outstanding blocker.",
+    "summary": "Wave 35 general-user. Objective 2: the phone-privacy gap is real and the repair is deliberately incomplete. profiles.show_phone IS a real boolean column (20250819100000_profiles_expand_fields.sql:49-51, default false) and is the SOLE publication gate; profiles.phone is a phantom in both the active chain and the contract, so every 'show_phone === true ? profile.phone : null' was green and returned null. Canonical phone storage is profiles.profile_data.phone. Chosen treatment, provably no more permissive than today: repointed the self-only preview (app/api/profile/custom-design/route.ts) to the canonical storage under an UNCHANGED gate, since the value is the caller's own; pinned lib/profile/custom-profile-prompt.ts to phone:null because that snapshot is serialized into a third-party model prompt and repointing it would move a real phone number across a trust boundary; added NO new show_phone column writer anywhere, enforced by a test asserting app/api/profile/update/route.ts has no profileUpdate.show_phone. Also found and closed an authorization defect in my own surface: app/api/settings/route.ts took a caller-supplied profile_id on both verbs; RLS blocked the cross-user write but the route answered success:true, and RLS never blocked the cross-user READ because profiles_select is USING (true), so GET returned another user's entire profile row including metadata/profile_data to any authenticated caller. Both verbs now 403 with no query issued. Objective 4: verified independently that lib/services/mfa.service.ts has exactly two importers and the hook had zero; verdict RETIRE; deleted hooks/use-mfa.ts (468 lines) as step 1 of the importer-first unlock and routed the service deletion to integrations then design-system by handoff. PASS: 32 files / 205 tests focused (2 new files, 23 tests); scoped tsc 36 -> 21; eslint exit 0; six security/migration checks green; agents:validate 0 errors. NOT RUN and not claimed: full typecheck; a scoped MFA typecheck that exceeded a 10-minute bound so the 40+1 figures are quoted from the design-system lane's preserved run; any migration apply; any hosted action; any isolated-staging lifecycle, cross-tenant denial or private-docs Storage certification result.",
     "completed": [
       "Canonical redirect and configured-origin enforcement",
       "Verified session and persona switching authorization",
       "Account deletion authorization, cleanup, and retention mapping",
       "Exact-user private-docs and certification-object deletion with multi-batch, no-progress, and fail-closed retry coverage",
-      "Scoped TypeScript green: admin-context organization identity type error fixed by adopting canonical OrganizerAccountIdentityRow (type-level only)"
+      "Scoped TypeScript green: admin-context organization identity type error fixed by adopting canonical OrganizerAccountIdentityRow (type-level only)",
+      "Established show_phone as the sole phone publication gate, profiles.phone as a phantom, and profiles.profile_data.phone as the canonical storage; recorded the full gate and writer inventory.",
+      "Chose and applied a treatment that is no more permissive than today: repoint the self-only preview, pin the LLM prompt snapshot to null, add no new gate writer, and guard the last point with a test.",
+      "Closed the caller-supplied profile_id authorization gap in app/api/settings/route.ts on both GET and PUT, fail closed with 403 and no query issued.",
+      "Decided the MFA surface disposition (retire) with evidence and completed step 1 of the ordered unlock by deleting the zero-importer hooks/use-mfa.ts.",
+      "Filed three handoffs: HF-USER-035-PHONE-GATE-WRITERS, HF-USER-035-UNOWNED-PATHS-REGISTRY, HF-USER-035-MFA-DEAD-SURFACE-UNLOCK."
     ],
     "next_steps": [
-      "Run isolated staging lifecycle and cross-tenant negative authorization certification",
-      "Certify the two private-docs deletion prefixes against isolated staging Storage without exposing elevated credentials",
-      "Coordinate persistent MFA acceptance with INTG-003 and DB-008"
+      "QA-003 certifies isolated-staging lifecycle, cross-tenant negative authorization and the two-prefix private-docs deletion (all still hosted-only, all not_run). Orchestrator/product decides the show_phone writer direction - the toggle in two settings forms is not the toggle the public gate honours - and assigns an owner for app/api/connect/**, the only other live reader of the gate. Integrations retires __tests__/integrations/mfa.service.test.ts, then design-system deletes the four MFA service modules in order. Persistent MFA acceptance remains coordinated with INTG-003 and DB-008."
     ],
     "blockers": [
-      "Full repository typecheck did not complete within bounded window",
-      "No isolated staging credentials or deployed lifecycle evidence"
+      "No isolated staging credentials and no deployed lifecycle evidence. Every QA-004 campaign coverage row is not_run and no staging target exists.",
+      "The full repository typecheck cannot run on this 8GB machine with six concurrent lanes; a scoped tsc over the MFA graph did not complete in 10 minutes, so the MFA diagnostic figures are quoted, not re-measured.",
+      "app/api/connect/sessions/route.ts is a live third-party reader of the show_phone gate and belongs to no agent, so the privacy decision cannot be verified end to end until the orchestrator assigns an owner.",
+      "The phone-gate writer divergence is a product/privacy decision with opposite consequences in each direction; general-user escalated it rather than guessing."
     ],
     "checkpoints": [
       {
@@ -164,10 +188,65 @@
           "No isolated staging credentials or deployed lifecycle evidence",
           "Full repository typecheck did not complete within bounded window"
         ]
+      },
+      {
+        "at": "2026-09-26T00:25:00.000Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 general-user, USER-005 share. Objective 2: characterised the show_phone/phone privacy gap and closed it as far as is safe — profiles.show_phone is a real column and the sole publication gate, profiles.phone is a phantom in both the active chain and the contract, profiles.profile_data.phone is canonical. Repointed the self-only preview to the canonical storage under an unchanged gate; pinned the LLM-prompt snapshot to phone:null because it is serialized into a third-party model prompt; added a test asserting no route gained the ability to open the gate. Also found that app/api/settings/route.ts returned another user's entire profile row to any authenticated caller via a caller-supplied profile_id — RLS cannot help because profiles_select is USING (true) — and closed it on both verbs. Objective 4: verified independently that lib/services/mfa.service.ts has exactly two importers, decided RETIRE, deleted the zero-importer hooks/use-mfa.ts, and routed the service deletion by handoff with the strict importer-first order. Objective 1: 15 primary diagnostics removed from the general-user surface, 0 new, and the drift turns out to have been a live outage on five routes. PASS: 32 files / 205 tests; scoped tsc 36 -> 21; eslint exit 0; six security/migration checks green; agents:validate 0 errors. NOT RUN and not claimed: full typecheck, a scoped MFA typecheck, any migration apply, any hosted action, any auth-flow result.",
+        "changed_paths": [
+          "app/api/profile/custom-design/route.ts",
+          "app/api/profile/current/route.ts",
+          "app/api/profile/update/route.ts",
+          "app/api/profile/update-optimized/route.ts",
+          "app/api/profile/create/route.ts",
+          "app/api/profile/check-url/route.ts",
+          "app/api/profile/[username]/route.ts",
+          "app/api/profile/[username]/recognition/route.ts",
+          "app/api/settings/route.ts",
+          "app/api/settings/profile/route.ts",
+          "lib/profile/general-public-profile.ts",
+          "lib/profile/custom-profile-prompt.ts",
+          "lib/seo/public-preview-readers.ts",
+          "hooks/use-mfa.ts (deleted)",
+          "__tests__/profile/profile-contact-privacy.test.ts",
+          "__tests__/auth/settings-route-scope.test.ts"
+        ],
+        "verification": [
+          "npx vitest run __tests__/auth __tests__/profile __tests__/settings __tests__/seo __tests__/uploads __tests__/security __tests__/onboarding __tests__/general __tests__/dashboard: PASS, 32 files / 205 tests",
+          "npx vitest run __tests__/profile/profile-contact-privacy.test.ts __tests__/auth/settings-route-scope.test.ts: PASS, 2 files / 23 tests",
+          "scoped tsc /tmp/tsconfig.user-wave35-obj1.json: 36 primary before, 21 after, 0 new",
+          "npx eslint app/api/profile app/api/settings lib/seo lib/profile + both new tests: PASS, exit 0",
+          "npm run check:migration-chain / check:migration-validation / check:public-surface / check:db002-security-contract / check:service-role-allowlist: all PASS",
+          "node scripts/ci/check-security-exceptions.mjs: OK, 3 active exceptions",
+          "npm run agents:validate: PASS, 17 agents, 152 tasks, 0 errors"
+        ],
+        "blockers": [
+          "No isolated staging target; all hosted criteria remain blocked and none is claimed.",
+          "MFA diagnostic figures quoted from another lane's preserved run, not re-measured (10-minute bound exceeded).",
+          "app/api/connect/** is unowned, so the phone-gate decision cannot be verified end to end."
+        ],
+        "next_steps": [
+          "Isolated-staging lifecycle and cross-tenant negative authorization certification (QA-003).",
+          "Two-prefix private-docs Storage certification (QA-003).",
+          "Product decision on the show_phone writer direction; integrations then design-system complete the MFA retirement."
+        ]
+      },
+      {
+        "at": "2026-09-25T23:00:56.730Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 general-user. Objective 2: the phone-privacy gap is real and the repair is deliberately incomplete. profiles.show_phone IS a real boolean column (20250819100000_profiles_expand_fields.sql:49-51, default false) and is the SOLE publication gate; profiles.phone is a phantom in both the active chain and the contract, so every 'show_phone === true ? profile.phone : null' was green and returned null. Canonical phone storage is profiles.profile_data.phone. Chosen treatment, provably no more permissive than today: repointed the self-only preview (app/api/profile/custom-design/route.ts) to the canonical storage under an UNCHANGED gate, since the value is the caller's own; pinned lib/profile/custom-profile-prompt.ts to phone:null because that snapshot is serialized into a third-party model prompt and repointing it would move a real phone number across a trust boundary; added NO new show_phone column writer anywhere, enforced by a test asserting app/api/profile/update/route.ts has no profileUpdate.show_phone. Also found and closed an authorization defect in my own surface: app/api/settings/route.ts took a caller-supplied profile_id on both verbs; RLS blocked the cross-user write but the route answered success:true, and RLS never blocked the cross-user READ because profiles_select is USING (true), so GET returned another user's entire profile row including metadata/profile_data to any authenticated caller. Both verbs now 403 with no query issued. Objective 4: verified independently that lib/services/mfa.service.ts has exactly two importers and the hook had zero; verdict RETIRE; deleted hooks/use-mfa.ts (468 lines) as step 1 of the importer-first unlock and routed the service deletion to integrations then design-system by handoff. PASS: 32 files / 205 tests focused (2 new files, 23 tests); scoped tsc 36 -> 21; eslint exit 0; six security/migration checks green; agents:validate 0 errors. NOT RUN and not claimed: full typecheck; a scoped MFA typecheck that exceeded a 10-minute bound so the 40+1 figures are quoted from the design-system lane's preserved run; any migration apply; any hosted action; any isolated-staging lifecycle, cross-tenant denial or private-docs Storage certification result.",
+        "completed": [],
+        "next_steps": [
+          "QA-003 certifies isolated-staging lifecycle, cross-tenant negative authorization and the two-prefix private-docs deletion (all still hosted-only, all not_run). Orchestrator/product decides the show_phone writer direction - the toggle in two settings forms is not the toggle the public gate honours - and assigns an owner for app/api/connect/**, the only other live reader of the gate. Integrations retires __tests__/integrations/mfa.service.test.ts, then design-system deletes the four MFA service modules in order. Persistent MFA acceptance remains coordinated with INTG-003 and DB-008."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
-    "Provide account-lifecycle, two-prefix private-docs deletion, partial-failure retry, and negative-authorization fixtures plus staging evidence to QA-003. Coordinate persistent MFA storage with INTG-003 and DB-008."
+    "orchestrator: registry repair for the unowned path families, including app/api/connect/** which is a live reader of the phone gate — HF-USER-035-UNOWNED-PATHS-REGISTRY",
+    "orchestrator/product: decide the profiles.show_phone writer direction and the consent consequence for existing accounts — HF-USER-035-PHONE-GATE-WRITERS",
+    "integrations then design-system: retire the MFA test, then delete the four MFA service modules in the recorded order — HF-USER-035-MFA-DEAD-SURFACE-UNLOCK",
+    "QA-003: account-lifecycle, two-prefix private-docs deletion, partial-failure retry, negative-authorization and phone-gate fixtures plus isolated-staging evidence. Persistent MFA remains coordinated with INTG-003 and DB-008."
   ]
 }

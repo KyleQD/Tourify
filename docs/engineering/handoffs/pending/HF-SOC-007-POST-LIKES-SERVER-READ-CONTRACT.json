@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT",
+  "task_id": "SOCIAL-007",
+  "from_agent": "social",
+  "to_agent": "artist",
+  "status": "pending",
+  "created_at": "2026-09-26T00:00:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty shared worktree; 6 concurrent lanes)",
+  "dirty_state_caveat": "Social changed only app/api/social/post-likes/**, app/api/feed/posts/route.ts (one like read), lib/social/post-like-state.ts, app/api/notifications/social/route.ts (comments only), app/api/social/follow/route.ts, and __tests__/social/**. It edited neither components/artist/** nor components/profile/** nor app/artist/**. Line numbers below were read from this worktree and must be re-confirmed before editing, because those files are shared.",
+  "summary": "This is the app-side consumer coordination that HF-DB-006-SOCIAL-007 named as the blocker for tightening the post_likes / post_comments SELECT policies. Two surfaces read `post_likes` from the browser. Both reads were already self-scoped (`.eq('user_id', currentUser.id)`), so neither leaked anything, but both depend on the permissive `USING (true)` SELECT policy and neither belongs in a browser. The server-authorized replacement now exists and is proven. The required change in the artist lane's two files is a DELETION, not an integration: `GET /api/feed/posts` already returns a per-row `is_liked` computed on the caller-scoped client, and both transforms already consume it. Social has built, tested and hardened the server side; it cannot make this change itself because both files are in the artist lane's grant.",
+  "working_set": [
+    "app/api/social/post-likes/route.ts",
+    "lib/social/post-like-state.ts",
+    "app/api/feed/posts/route.ts",
+    "components/artist/artist-home-feed.tsx",
+    "components/profile/public-profile-view.tsx",
+    "app/artist/business/analytics/page.tsx",
+    "apps/mobile/components/dashboard/feed-post-list.tsx",
+    "__tests__/social/viewer-post-like-state.test.ts"
+  ],
+  "completed": [
+    "`GET /api/social/post-likes?postIds=<csv>` is the canonical server-authorized batch read. 200 { success, likedPostIds: string[], degraded: false }; 400 { error: 'invalid_post_ids' | 'too_many_post_ids', maxPostIds: 50 }; 401 { error: 'Unauthorized' }. It authenticates with `checkAuth` (Bearer + cookie), reads only `.eq('user_id', viewerId)` rows, gates the requested ids on `canViewPostComments` BEFORE any like read, never imports the service-role client, and returns an explicit 500 `like_state_unavailable` instead of a false zero when a read fails.",
+    "`lib/social/post-like-state.ts` is the single implementation: bounded and de-duplicating id normalization, follow-relationship resolution in at most five queries regardless of batch size, and a `degraded` flag so 'not liked' and 'could not be determined' are distinguishable (CP-049).",
+    "Shape equivalence is proven, not argued: `__tests__/social/viewer-post-like-state.test.ts` computes the old browser read literally (`.from('post_likes').select('post_id').eq('user_id', uid).in('post_id', ids)` -> `Set<string>`) and asserts the server read returns the same Set for entitled posts, differing only by removing ids the caller may not see.",
+    "The field that makes the deletion possible is proven to survive: `normalizeFeedPostDTO` (`lib/feed/feed-post-dto.ts`) emits `is_liked: Boolean(post.is_liked)`, and a test asserts true / false / absent all round-trip.",
+    "`GET /api/feed/posts` no longer computes `is_liked` on the service-role client. `fetchViewerLikedPostIds` now receives the caller-scoped client, so the one interaction read on the feed path runs under the caller's own RLS (CP-058). The feed's own post-visibility scope in `lib/feed/feed-posts-query.ts` is unchanged and remains the gate for that surface.",
+    "The missing regression guard now exists: `__tests__/social/interaction-route-gate-inventory.test.ts` enumerates every `app/api/**/route.ts` that names an interaction table and fails unless the route calls the gate, pins its reads to the caller's own rows, or is registered with a written reason. It was proven to fail on a deliberately non-compliant route."
+  ],
+  "next_steps": [
+    "REQUIRED (artist lane), `components/artist/artist-home-feed.tsx`: delete lines 182-191 (the `const postIds = ...` / `const liked = new Set<string>()` / `supabase.from('post_likes')` block inside `transformPosts`), leaving line 183's `const liked = new Set<string>()` so line 192's `toArtistFeedPost(post, liked)` still compiles. Also delete line 21 (`import { supabase } from '@/lib/supabase'`) — it has no other use in that file. `toArtistFeedPost` already ORs the field in at line 161: `is_liked: likedPostIds.has(post.id) || Boolean(post.is_liked)`, and the rows come from `/api/feed/posts?type=home|tagged&limit=40`, which supplies `is_liked`. `transformPosts` no longer needs `async`, but leaving it async is harmless because `await transformPosts(...)` is already awaited at the call site.",
+    "REQUIRED (artist lane), `components/profile/public-profile-view.tsx`: delete lines 282-295 (the `try { const { data: likes, error: likesError } = await supabase.from('post_likes') ... } catch { ... }` block). Lines 277-280 already build `likedPostIds` from `post.is_liked`, which the transform at line 272 carries over from `/api/feed/posts?type=user`. Keep `setLikedPosts(likedPostIds)` at line 296 and the `else { setLikedPosts(new Set()) }` branch. The `supabase` import at line 4 must stay: it is still used at line 424 for `supabase.auth.getUser()`.",
+    "OPTIONAL but recommended, `app/artist/business/analytics/page.tsx:149-153`: this is a browser COUNT over `post_likes` for arbitrary post ids with no caller filter, so it reads the whole table through the permissive policy. It is the reader a tightened policy breaks outright. Move it to the server as an owner-scoped aggregate, or accept that it must go to zero when the policy lands. Social cannot change it: `app/artist/**` is not in its grant.",
+    "OUT OF SCOPE BUT REPORTED, `apps/mobile/components/dashboard/feed-post-list.tsx:92-94`: a browser like/unlike WRITE straight to `post_likes`, bypassing `POST /api/posts/[id]/likes` and therefore bypassing the achievement and notification side effects. Not a read leak, but it means a mobile like is invisible to the engagement side effects the canonical route owns. Owned by the mobile lane.",
+    "NOT NEEDED: no client has to call `GET /api/social/post-likes` for the two feed surfaces. It exists so that a surface which does not already receive `is_liked` has an authorized path, and so the database lane has a named server contract to point a tightened policy at. `__tests__/social/viewer-post-like-state.test.ts` pins that the two browser reads are still present, so this handoff's two deletions will make that assertion fail — that failure is the intended signal that the change landed."
+  ],
+  "blockers": [
+    "Social cannot make the two required edits: `components/artist/**`, `components/profile/**` and `app/artist/**` are explicitly outside its file grant for this wave.",
+    "`HF-DB-006-SOCIAL-007` is still in `pending/` — the database lane returned a decision not to author a migration, but has not accepted the handoff, so there is no tightened policy to validate the change against. No hosted target exists and CP-051 forbids applying one, so the change is proven against the shipped policy posture and a fake client that models it, not against a live database.",
+    "Line numbers in this handoff were read from a shared dirty worktree. Re-confirm each one before editing; a concurrent lane may have shifted them."
+  ],
+  "verification": [
+    "npx vitest run __tests__/social — 12 files, 102 tests passed (was 8 files / 58 at the start of this wave).",
+    "npx vitest run __tests__/social/viewer-post-like-state.test.ts — 23 passed, including the browser-read/server-read set equivalence and the `is_liked` DTO round-trip.",
+    "npx vitest run __tests__/social/interaction-route-gate-inventory.test.ts — 7 passed. The guard was also proven to FAIL by adding a temporary non-compliant route under app/api/social/ (reported as `Unguarded` and `Undeclared`), and the temporary route was removed in the same step.",
+    "npx vitest run __tests__/polls __tests__/feed — green after the feed route change; see the SOCIAL-007 checkpoint for the exact count.",
+    "No migration was authored and none was applied (CP-051). `npm run test:rls-matrix` was not run, because it applies migrations and starts a database."
+  ]
+}

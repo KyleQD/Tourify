@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-INTG-006-TICKETING-RESOLVED",
+  "task_id": "TICKET-005",
+  "from_agent": "ticketing",
+  "to_agent": "integrations",
+  "status": "pending",
+  "created_at": "2026-09-25T16:20:00.000Z",
+  "updated_at": "2026-09-25T16:20:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "dirty_state_caveat": "Wave 35 worktree, 6 concurrent lanes, HEAD ca3bb0b0. Nothing here has been committed; the orchestrator commits. INTG-006 owns app/api/webhooks/** and app/api/subscriptions/**, and this lane touched neither. The only files changed are listed in working_set. The integrations inventory classification for ticketing/webhook/route.ts is now stale in the integrations lane's own test file (__tests__/integrations/webhook-route-inventory.test.ts still annotates the completion-marker gap as open) — that edit is INTG-006's to make, not this lane's.",
+  "summary": "The P0 filed as HF-INTG-006-TICKETING is FIXED in the ticketing lane. Confirmed from source, not from the summary: claimWebhookEvent collapsed a 23505 into a bare boolean and the route answered {received: true, duplicate: true} on it, while ticket_stripe_webhook_events declared processed_at timestamptz not null default now() (20260821000000_reconcile_ticketing_foundation.sql:343), which the claim INSERT stamps — so the ledger had no field written at completion at all. The disposition is the resume-vs-acknowledge split INTG-006 recommended, implemented in the shape this repository already uses for app/api/photos/purchase/webhook/route.ts (claim, read the marker, resume or acknowledge, and CHECK the completion write). Migration 20260926130000_ticketing_webhook_completion_marker.sql adds a nullable completed_at, an attempts counter, and a partial index on the incomplete subset; no RLS or policy change. The duplicate is now resolved by the completion marker: completed acknowledges with zero side effects, claimed-but-not-completed RESUMES, and an unreadable marker or an unwritable completion fails closed with 500. The response gains an additive outcome field and never reports duplicate:true for work that did not occur.",
+  "working_set": [
+    "supabase/migrations/20260926130000_ticketing_webhook_completion_marker.sql (new) — completed_at + attempts + partial index on the incomplete subset; no backfill, no RLS change",
+    "docs/engineering/migration-validation/20260926130000_ticketing_webhook_completion_marker.json (new) — planned manifest, status deliberately not advanced (see blockers)",
+    "lib/ticketing/finalize.ts — claimWebhookEvent now returns {kind:'claimed'}|{kind:'duplicate'} and stamps no completion; new readWebhookEventCompletion (fails closed) and completeWebhookEvent (returns the error so the route can fail closed); finalizePaidOrder gained transition-ownership so an unguarded counter cannot double-run on a resume, and receipt verification so a status flag is not treated as a revenue receipt",
+    "app/api/ticketing/webhook/route.ts — claim call site decides resume vs acknowledge; completion write is checked and a failure returns 500",
+    "__tests__/ticketing/webhook-claim-completion.test.ts (new) — 11 route-level cases over real Stripe signature verification",
+    "__tests__/ticketing/webhook-completion-migration-contract.test.ts (new) — 17 contract cases over the migration, the manifest (validated with the CI validator, not a restatement of it) and the claim site",
+    "__tests__/ticketing/refund-replay.test.ts — two already-finalized call-log assertions updated to include the new receipt READ; no behavioural expectation changed",
+    "docs/engineering/DECISIONS.md — CP-080, CP-081"
+  ],
+  "completed": [
+    "Defect confirmed independently from executable code: the ledger column the completion marker would need is NOT NULL with a claim-time default, and no route-local change could have fixed it without a schema addition.",
+    "Claim/complete split landed: completion has its own observable marker, written only after every handler write succeeded, and it is never backfilled for historical rows (asserting an unprovable completion is the same defect inverted).",
+    "Resume-vs-acknowledge decided and implemented at the claim call site, in the repository's existing proven shape, with the fail-closed read and the checked completion write.",
+    "Money-safety of the newly enabled resume path audited and repaired: the unguarded promo counter is now transition-owned, and a finalized order without its revenue receipt falls through to the idempotent repair path instead of being acknowledged.",
+    "All five requested cases covered and proven to bite: 4 independent mutations (original acknowledge-on-23505, unguarded promo counter, status-flag-only already-finalized, unchecked completion write) each fail 1-6 of the new cases; a 5th mutation that backfills completed_at = processed_at fails the contract test.",
+    "Regression check on the replay-safe refund work landed earlier: the focused ticketing suite went from 15 files / 120 tests to 17 files / 149 tests, all passing, and DB-005's 20260921120000_ticketing_purchase_idempotency.sql is untouched and still green under npm run check:migration-chain and npm run check:migration-validation.",
+    "Inventory annotation made stale on purpose: __tests__/integrations/webhook-route-inventory.test.ts still records the completion-marker gap as open, and this lane did not edit it because that file is INTG-006's."
+  ],
+  "next_steps": [
+    "INTG-006: update the ticketing/webhook/route.ts entry in __tests__/integrations/webhook-route-inventory.test.ts — posture can move from 'verified' with an open completion-marker gap to fully hardened, and the note should cite 20260926130000_ticketing_webhook_completion_marker.sql.",
+    "INTG-006: with this evidence, mark the 'replay-safe completion and safe retry semantics' half of INTG-006 acceptance criterion 2 met FOR THE TICKETING ROUTE ONLY. The deferred provider routes behind status:'disabled' launch capabilities remain out of scope and are unaffected.",
+    "Release/DB-008: apply the migration to an approved staging target and run the manifest's Layer 3 probe (deliver twice, prove attempts = 1 then 2 and a clean duplicate acknowledgement), then move the manifest off 'planned'. The hosted half cannot be closed from this lane: there is no Stripe credential and no staging target."
+  ],
+  "blockers": [
+    "CP-051: the migration is authored only. It was not applied, reset, replayed, or pushed from this lane, so the manifest is honestly 'planned' with all three evidence tiers null. An operator applies it once to an approved staging target.",
+    "No payment-provider evidence exists and none is claimed: no Stripe credential, no test-mode delivery, no isolated or staging replay. Every QA-004 campaign coverage row for this route stays not_run. The certification here is local behavioural proof against a recording stub plus static migration/contract assertions.",
+    "supabase/tests/** is database-owned in this wave, so the file-based catalog contract test the manifest's validationPlan references was NOT authored here; its queries are inline in the manifest's postflight and the request is HF-TICKET-035-DB-TEST-CONTRACT.",
+    "A full-repo typecheck was not run (8 GB machine; CI measured 68m18s / 1,384 diagnostics). Verification is scoped tsc over app/api/ticketing/** and lib/ticketing/**, and the one pre-existing TS2345 in the webhook route was fixed rather than reported.",
+    "Three residual correctness items are recorded, not closed: a partial issuance is not repaired (issueTicketsForOrder returns as soon as any ticket exists for the order), analytics rows are not deduplicated across a resume (ticket_analytics_events has no unique key), and increment_promo_code_usage is not in the active chain at all, so the newly guarded counter is currently inert."
+  ],
+  "verification": [
+    "npx vitest run __tests__/ticketing — 17 files / 149 tests passed (baseline 15 / 120).",
+    "Mutation A, the original P0 semantics restored in the route: 6 of the 11 new behavioural cases fail, including 'CASE 3 — finalize throws after the claim: 500, no completion marker, and the retry RESUMES'.",
+    "Mutation B, the promo counter no longer transition-guarded: 'a resume does not re-run the unguarded promo counter' fails. Mutation C, already-finalized trusting the status flags instead of the receipt: the same case fails. Mutation D, the completion write not checked: 'CASE 5 — a failed completion leaves the event processable instead of falsely acknowledged' fails.",
+    "Mutation E, backfilling completed_at = processed_at in the migration: the no-backfill contract case AND the manifest/SQL checksum case both fail. Mutation F, stamping completed_at at claim time in the insert: the claim-site contract case fails.",
+    "npm run check:migration-chain — exit 0, 306 files scanned. npm run check:migration-validation — exit 0, new migration scanned with its planned manifest.",
+    "Scoped tsc over app/api/ticketing/** and lib/ticketing/**: the webhook and settlements routes are clean; the only remaining diagnostics are the 9 pre-existing TS2589/TS2769 in app/api/ticketing/enhanced/route.ts at lines 144, 145, 286, 287, 583, 735, 736, 773, 774, which TICKET-005 already recorded as pre-existing at HEAD and which are unchanged by this lane.",
+    "npm run agents:validate — 0 errors, 8 pre-existing generated-map SHA warnings (agents:generate deliberately not run: shared-map race)."
+  ]
+}

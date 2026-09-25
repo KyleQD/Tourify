@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (423 entries)
-- Generated at: 2026-09-25T22:27:02.069Z
+- Working tree: dirty (152 entries)
+- Generated at: 2026-09-25T23:26:47.265Z
 - Generator: `control-plane.mjs generate`
 
-## Route handlers (951)
+## Route handlers (952)
 
 | Route | Methods | Source |
 | --- | --- | --- |
@@ -831,6 +831,7 @@
 | `/api/social/friend-search` | GET | `app/api/social/friend-search/route.ts` |
 | `/api/social/oauth/callback` | GET | `app/api/social/oauth/callback/route.ts` |
 | `/api/social/oauth/start` | GET | `app/api/social/oauth/start/route.ts` |
+| `/api/social/post-likes` | GET | `app/api/social/post-likes/route.ts` |
 | `/api/social/relationship` | GET, POST | `app/api/social/relationship/route.ts` |
 | `/api/social/simple-connection-request` | POST | `app/api/social/simple-connection-request/route.ts` |
 | `/api/social/simple-suggestions` | GET | `app/api/social/simple-suggestions/route.ts` |

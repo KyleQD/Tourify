@@ -62,17 +62,30 @@ export async function GET(request: NextRequest) {
   if (!canFull && !canShare)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [allocationsResult, txnsResult, settlementResult] = await Promise.all([
+  // DB-008 ticketing code-drift cluster: the `settlements` relation is NOT
+  // created by the active migration chain (it exists only under
+  // supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/,
+  // e.g. 20260602130000_settlements.sql), and it is absent from the generated
+  // types. Reading it therefore always errored (PostgREST PGRST205 / 42P01), and
+  // because that error was fused into the availability gate below, EVERY caller
+  // got 503 ticketing_unavailable — the authoritative money read from
+  // `financial_transactions` + `ticket_revenue_allocations` was unreachable
+  // behind a dead optional field.
+  //
+  // The read is removed rather than repointed because the active chain has no
+  // settlement relation or settlement RPC to repoint to; the canonical ticketing
+  // settlement surface IS the two tables already read here. The absence is
+  // reported explicitly rather than dropped, so no consumer can mistake "no
+  // settlement record" for a zero or for a served record.
+  const [allocationsResult, txnsResult] = await Promise.all([
     supabase.from('ticket_revenue_allocations').select('*').eq('event_id', eventId).eq('is_active', true),
     supabase.from('financial_transactions').select('category, type, amount').eq('event_id', eventId),
-    supabase.from('settlements').select('*').eq('event_id', eventId).maybeSingle(),
   ])
 
-  if (allocationsResult.error || txnsResult.error || settlementResult.error) {
+  if (allocationsResult.error || txnsResult.error) {
     console.error('[settlements] authoritative read unavailable', {
       allocations: allocationsResult.error,
       transactions: txnsResult.error,
-      settlement: settlementResult.error,
     })
     return NextResponse.json(
       { error: 'Settlement data is temporarily unavailable', code: 'ticketing_unavailable' },
@@ -82,7 +95,6 @@ export async function GET(request: NextRequest) {
 
   const allocations = allocationsResult.data
   const txns = txnsResult.data
-  const settlement = settlementResult.data
 
   const gross = (txns || [])
     .filter((t: any) => t.type === 'income' && t.category === 'ticket_revenue')
@@ -124,7 +136,12 @@ export async function GET(request: NextRequest) {
     net: canFull ? net : null,
     allocations: canFull ? allocations || [] : [],
     shares: visibleShares,
-    settlement,
+    // No separate settlement record exists on the active chain, and none is
+    // invented here: the numbers above are derived from the append-only
+    // financial_transactions ledger and the versioned ticket_revenue_allocations
+    // waterfall. Stated explicitly so an absent record is never read as a zero.
+    settlement: null,
+    settlement_available: false,
     share_only: !canFull,
   })
 }

@@ -1,0 +1,13 @@
+entities_all
+entities_artists
+entities_individuals
+entities_venues
+forum_threads_hot_mv
+forum_threads_top_mv
+friend_suggestions_view
+music_tracks
+public_venue_availability
+tour_plan_normalize_stats_v
+unified_staff_roster
+venue_identity_bridge_audit
+work_hub_integrity_issues

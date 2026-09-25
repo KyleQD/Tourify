@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:06.653Z",
-  "updated_at": "2026-09-25T21:39:15.715Z",
+  "updated_at": "2026-09-25T23:22:46.590Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Remove anonymous execution from exposed SECURITY DEFINER and money-path functions and verify the critical hosted authorization migrations in staging and production",
@@ -74,7 +74,7 @@
     "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Wave 34: no new DB-002 work; its four exposed SECURITY DEFINER functions were not touched. One DB-002 lesson applied rather than repeated: 20260926120200_marketplace_entitlement_download_increment_rpc.sql is a NEW SECURITY DEFINER function written the corrected way at author time - search_path pinned to public, revoke from public, revoke from anon, grant to authenticated - and db011_marketplace_entitlement_rpc_contract.sql fails closed on exactly the DB-002 regression, with a negative control that grants anon EXECUTE to prove the check bites. Same posture on the two new marketplace tables: ENABLE plus FORCE ROW LEVEL SECURITY, so the owner is subject to the deliberate absence of a buyer INSERT policy. The Wave 33 measurement correction touches DB-002's supporting evidence: the out-of-band DDL it attributed to raw Management API application is not visible in the generated contract at all (0 contract columns lack chain provenance), so the metadata drift it recorded in supabase_migrations.schema_migrations is a history-parity question, not a schema-coverage one.",
+    "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
     "completed": [
       "20260823210000_harden_hiring_onboarding_pii.sql — APPLIED (hiring-PII hardening)",
       "20260823220001_money_path_transactional_rpcs.sql — APPLIED (money-path transactional RPCs)",
@@ -93,7 +93,7 @@
       "The insert into storage.buckets for the application-documents bucket is now guarded the same way, so a replay role that cannot write storage.buckets no longer aborts the chain at 20260717194541 before 20260914090000_revoke_public_execute_db002.sql is ever reached."
     ],
     "next_steps": [
-      "Unchanged: DB-002 stays release-blocked on its own hosted evidence. Read-only re-verification of the four functions, the security-advisor rerun, and the migration-history reconciliation remain operator work. Nothing in this wave reduces that blocker."
+      "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
     ],
     "blockers": [
       "DB-002's own blockers are unchanged: the four SECURITY DEFINER functions still need a reviewed, explicit CP-051 manual authorization fix applied, then hosted probes and an advisor rerun. This lane applied nothing.",
@@ -205,6 +205,16 @@
         "completed": [],
         "next_steps": [
           "Unchanged: DB-002 stays release-blocked on its own hosted evidence. Read-only re-verification of the four functions, the security-advisor rerun, and the migration-history reconciliation remain operator work. Nothing in this wave reduces that blocker."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:46.590Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
         ],
         "blockers": []
       }

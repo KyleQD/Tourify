@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:07.688Z",
-  "updated_at": "2026-09-25T21:39:16.324Z",
+  "updated_at": "2026-09-25T23:22:47.178Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Make events_v2 canonical for every core launch flow, explicitly gate incompatible legacy domains, and eliminate runtime schema probing",
@@ -63,7 +63,7 @@
     "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Wave 34: no new DB-006 work and no change to the canonical events_v2 direction. One measurement correction is relevant: the chain DOES create events_v2.quick_start_batch_id and events_v2.quick_start_ordinal via 20260731193454_streamlined_tour_builder_quick_start.sql. Wave 33 reported them as out-of-band because that ALTER statement leads with 'alter column ... drop not null' rather than 'add', so the whole statement was classified as neither an add nor a drop by the scanner. The columns are not drift and the six-caller cutover is unaffected.",
+    "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
     "completed": [
       "Confirmed the active events_v2 schema has org-scoped RLS and is already the admin tour event write target.",
       "Removed the tour planner's legacy events fallback after the canonical events_v2 relation read.",
@@ -79,7 +79,7 @@
       "event_equipment, event_tasks, event_staff and event_crew_assignments are classified schema-missing or code-drift and routed in HF-DB008-SCHEMA-MISSING-ARTIST and HF-DB008-TYPECHECK-ARTIST. The first three are schema-missing with a live entry-reachable consumer (app/artist/events/actions/manage-equipment.ts, manage-tasks.ts, manage-staff.ts) and need the artist domain's column contract before a migration can be written; the database lane will not invent one."
     ],
     "next_steps": [
-      "Unchanged: staging and production cutover evidence, and the 38 deferred legacy callers' named-owner reviews. No migration authored or applied this wave."
+      "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
     ],
     "blockers": [
       "DB-006's own staging/production cutover evidence is unchanged and still absent. This lane applied nothing.",
@@ -207,6 +207,16 @@
         "completed": [],
         "next_steps": [
           "Unchanged: staging and production cutover evidence, and the 38 deferred legacy callers' named-owner reviews. No migration authored or applied this wave."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:47.178Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
         ],
         "blockers": []
       }

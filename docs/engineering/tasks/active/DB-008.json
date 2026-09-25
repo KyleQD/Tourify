@@ -6,8 +6,8 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-16T19:20:38.326Z",
-  "updated_at": "2026-09-25T21:38:56.295Z",
-  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "updated_at": "2026-09-25T23:22:58.436Z",
+  "base_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Make staging schema, production migration history, generated types, and the launch migration ledger agree without destructive resets",
   "scope": {
@@ -105,15 +105,25 @@
         "command": "npm run check:database-types",
         "result": "not-run",
         "detail": "Needs a live target for the same reason."
-      }
+      },
+      "SUPABASE_TYPE_SOURCE=local node scripts/ci/generate-database-types.mjs -> exit 1, 'Cannot connect to the Docker daemon'.",
+      "SUPABASE_TYPE_SOURCE=linked node scripts/ci/generate-database-types.mjs -> exit 1, 'Error: spawnSync supabase ENOBUFS' errno -55 - a transport failure, not a credential failure.",
+      "supabase gen types typescript --schema public --linked -> exit 0, 37,963 lines, 1,183,384 bytes.",
+      "SUPABASE_TYPE_SOURCE=project-id with no token -> Node throws before the CLI; with an invalid but correctly-shaped token -> 'Invalid access token format'. No real token was used or requested.",
+      "node supabase/tests/db008_linked_type_delta.mjs <payload> . -> 609/8,020/151 target vs 402/5,275/100 contract; 78 relations and 112 columns and 27 callables only in the contract; 285 relations only in the target, 276 created by no active migration.",
+      "bash supabase/tests/db008_view_column_replay.harness.sh -> ALL CHECKS PASSED, 13/13 resolved, contractOnlyColumns=0, viewOnlyColumns=0, unresolvedViews=0.",
+      "bash supabase/tests/db008_contract_reproducibility.harness.sh -> ALL CHECKS PASSED, measured out-of-band columns 0.",
+      "node supabase/tests/db008_contract_attribution_audit.mjs . -> exit 0, 0 without provenance, 0 unsupported.",
+      "git ls-files supabase/tests/ | grep db008_storage -> four files, neither manifest.json nor 00-bootstrap.sql. Confirms the Wave 33 fixture gap.",
+      "bash supabase/tests/db008_storage_replay_guard.harness.sh -> 10 passed, 0 failed, exit 0."
     ],
-    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
-    "last_run_at": "2026-09-25T22:00:00.000Z",
-    "result": "not-run",
-    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-26T01:50:00.000Z",
+    "result": "partial",
+    "resultReason": "Wave 35 evidence is EXECUTED for everything it claims and LOCAL: every harness runs on a throwaway PostgreSQL 16.15 cluster created and destroyed by the run, and every statement about authorization is a role-switched behavioural measurement rather than a policy inspection. NOT done and NOT claimed: no migration was applied to staging or production, no `supabase db reset` and no chain replay were run (CP-051), `npm run typecheck` was not run (this host has 8 GB and the full typecheck OOMs; CI measured 68m18s on 16 GB), `npm run generate:database-types` and `npm run check:database-types` were not run, and no hosted read was performed other than a read-only `supabase gen types --linked`. The hosted apply, the hosted postflight and the Supabase security-advisor rerun remain the operator gate."
   },
   "progress": {
-    "summary": "Wave 34: WITHDREW the Wave 33 launch blocker on measurement. The generated contract IS reproducible from the active chain - 0 contract columns, 0 relations, 0 callables lack chain provenance out of 5275 columns / 402 relations / 100 callables; the chain (401 tables + 14 views, 5335 columns, 224 routines) is a strict superset and regeneration would ADD 13 relations / 54 columns / 42 callables and DELETE 0. The 42-vs-19 venue_profiles figure and the 130-column figure were four defects in my own 138-line Wave 33 column replay (case-sensitive 'add column' inside matchAll, 'constraint' recorded as a column, alter-if-exists-before-create treated as creating, and DROP/CREATE applied in per-kind rather than file order). Replaced it with supabase/tests/db008_chain_contract_replay.mjs, gated by db008_contract_reproducibility.harness.sh (33 checks incl. 13 instrument self-assertions, 5 negative controls, 6 post-state re-assertions) and cross-checked by db008_contract_attribution_audit.mjs (5170 attributions, 0 unsupported). Also fixed 2 counting defects in the Wave 33 surface replay, refreshed the inventory with the retraction and the inverse finding, and turned the Wave 33 storage harness's false green (0 scenarios, exit 0) into a hard failure. Gates: check:migration-chain PASS 305 files, check:migration-validation PASS repo-wide, check:migration-ledger PASS 305/15/290, agents:validate PASS 17/151/0/0, eslint exit 0, git diff --check clean.",
+    "summary": "Wave 35, Objective 1 + Objective 4. Regeneration enumerated by ATTEMPTING each path: local needs Docker (measured), linked WORKS and is the WRONG target (measured: 609 relations / 8,020 columns / 151 callables vs a 417-relation chain, and regenerating from it would delete 78 relations / 112 columns / 27 callables and add 276 relations no active migration creates), project-id needs a real access token. The real blocker is in the repo: spawnSync with no maxBuffer in scripts/ci/generate-database-types.mjs:13 and check-database-types.mjs:13 fails with ENOBUFS above 1 MB, and this project's output is 1.18 MB. lib/database.types.ts NOT regenerated, byte-unchanged. Wave 34's one stated weakness is CLOSED: the 13 view relations are now proven by letting PostgreSQL resolve their real SELECT lists on a throwaway 16.15 cluster (13/13 resolved, 0 contract columns uncovered, 0 view-only columns, 3 negative controls fired), and the reproducibility claim was corrected rather than overstated. Objective 4: the storage-replay harness was NOT reproducible (neither manifest.json nor 00-bootstrap.sql was ever committed and nothing invoked it) and is now self-contained, running 10 scenarios 10/10; a second, worse extractor defect was fixed, where reading the unguarded form from git HEAD would now compare the guarded form against itself and pass every scenario without exercising the failure mode.",
     "completed": [
       "Added hosted-history-ledger.json and check-hosted-migration-ledger.mjs with normal and --require-reconciled modes.",
       "Added active-chain, database-type source, and migration manifest validation tooling without resets or invented hosted evidence.",
@@ -125,10 +135,17 @@
       "Replay-safety harness (supabase/tests/db008_storage_replay_guard.harness.sh) on a throwaway PostgreSQL 16.15 cluster emulating the Supabase storage bootstrap: 10/10 pass. Every ORIGINAL form aborts under a non-owner replay role (the PR #14 failure mode); every GUARDED form completes with a warning carrying sqlstate/sqlerrm; the owner-applied policy set is identical to the original wherever the original worked, 75 policies compared; idempotent over three applies; and 5 policies are RECOVERED from the four migrations whose relowner = current_user + raise notice guard had silently created none.",
       "New additive migration 20260925210000_venue_profile_presentation_columns.sql (SHA-256 db0e3f3c6d3a11d8dc6f9a502c0b6e3d3c9f7c91d1fbda83ad792e70b88e6c37) adds public.venue_profiles.social_links jsonb NOT NULL DEFAULT '{}'::jsonb and public.venue_profiles.cover_image_url text. Applied twice against the throwaway cluster; supabase/tests/db008_venue_profile_presentation_columns_contract.sql returned 0 violations across 8 checks plus venue_profile_presentation_columns_ready = true, and pre-existing rows read back '{}'.",
       "Hosted-history ledger reconciled to the real chain: sourceSnapshot re-derived (302 active, last 20260925210000_venue_profile_presentation_columns.sql, digest 5eb33574... recomputed after the CP-059 edits) and launch.required grown from 9 to 12 by classifying the three migrations added since the previous snapshot, each with a named task, a planned manifest and a launch rationale. unclassified.count is 290, which is 302 minus the 12 genuinely classified, not a number chosen to satisfy the gate.",
-      "Expired migration-validation exception job-posting-scope-not-null renewed to 2026-10-25 with a renewalHistory entry. It could not simply be deleted: the marker in the migration SQL is load-bearing, because check-migration-validation accepts a SET NOT NULL only with a validated precheck or a reviewed lock-budget marker. Its own recorded evidence already states the waived step completed, so this is an evidence-consistent renewal; admin-platform remains the owner of HIRING-SCOPED-JOBS-AND-SEATS."
+      "Expired migration-validation exception job-posting-scope-not-null renewed to 2026-10-25 with a renewalHistory entry. It could not simply be deleted: the marker in the migration SQL is load-bearing, because check-migration-validation accepts a SET NOT NULL only with a validated precheck or a reviewed lock-budget marker. Its own recorded evidence already states the waived step completed, so this is an evidence-consistent renewal; admin-platform remains the owner of HIRING-SCOPED-JOBS-AND-SEATS.",
+      "The CP-016 superset gate is now a REPLAY on every surface: 417 relations / 5,363 columns / 224 routines against a contract of 402 / 5,275 / 100, 0 out-of-band, regeneration would ADD 15 relations / 58 columns / 42 callables and DELETE 0.",
+      "db008_view_column_replay.harness.sh + db008_view_column_replay_plan.mjs + db008_view_relation_list.txt added. Four instrument defects found and fixed while building them: the extractor emitted masked SQL instead of the original, the comparator iterated only the resolved side, information_schema.columns excluded the two materialized views, and a BSD-sed backslash-question made an error branch dead.",
+      "db008_chain_contract_replay.mjs now reports viewColumnReplay and marks the old name-occurrence caveat SUPERSEDED rather than deleting it.",
+      "db008_linked_type_delta.mjs added, with a parser self-check that caught a real argCount bug on its first run.",
+      "db008_storage_replay_guard.harness.sh is self-contained: own cluster, own manifest, committed bootstrap, own post-state assertion. db008_storage_replay_extract.mjs now synthesises the unguarded form by unwrapping the CP-059 guard blocks instead of reading git HEAD, because the guard is committed and the historical comparison silently degraded to guarded-vs-guarded.",
+      "db008_run_all.sh added: one entry point for all nine database-lane harnesses, with a per-harness statement of what a pass does and does not prove, an explicit list of the four live-target commands never claimed, and a hard failure when zero harnesses run.",
+      "One reproducibility assertion that began failing when the ordering bug was fixed was REWRITTEN into three that pin the repaired invariant, not deleted."
     ],
     "next_steps": [
-      "Operator: run npm run generate:database-types against a reachable staging target. The deletion-direction gate now passes, so regeneration is safe; the blocker is purely reachability (no linked/project-id target, Docker unavailable here). Then record the staging history disposition in hosted-history-ledger.json. Still open: the seven unmigrated schema-missing objects (zero contracts landed - HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED), the scheduled_posts live-vs-fresh divergence (HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE), and the weaker view-column surface (13 relations proven by name occurrence, not replay). Regenerate the shared maps with agents:generate once the worktree settles."
+      "Scripts owner: add maxBuffer to the two spawnSync calls - that alone blocks regeneration on any target. DB-008 with release/ops: decide which target the contract is generated FROM, because chain 417 / contract 402 / linked 609 are mutually incompatible and nothing in the repo records the choice. Orchestrator: wire bash supabase/tests/db008_run_all.sh into package.json and CI, asserting that scenarios RAN rather than that the command exited 0."
     ],
     "blockers": [
       "npm run typecheck was not run and no pass is claimed: 68m18s on a 16GB CI runner, OOMs on this 8GB box, and four lanes share it.",
@@ -228,6 +245,16 @@
           "Operator: run npm run generate:database-types against a reachable staging target. The deletion-direction gate now passes, so regeneration is safe; the blocker is purely reachability (no linked/project-id target, Docker unavailable here). Then record the staging history disposition in hosted-history-ledger.json. Still open: the seven unmigrated schema-missing objects (zero contracts landed - HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED), the scheduled_posts live-vs-fresh divergence (HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE), and the weaker view-column surface (13 relations proven by name occurrence, not replay). Regenerate the shared maps with agents:generate once the worktree settles."
         ],
         "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:58.436Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35, Objective 1 + Objective 4. Regeneration enumerated by ATTEMPTING each path: local needs Docker (measured), linked WORKS and is the WRONG target (measured: 609 relations / 8,020 columns / 151 callables vs a 417-relation chain, and regenerating from it would delete 78 relations / 112 columns / 27 callables and add 276 relations no active migration creates), project-id needs a real access token. The real blocker is in the repo: spawnSync with no maxBuffer in scripts/ci/generate-database-types.mjs:13 and check-database-types.mjs:13 fails with ENOBUFS above 1 MB, and this project's output is 1.18 MB. lib/database.types.ts NOT regenerated, byte-unchanged. Wave 34's one stated weakness is CLOSED: the 13 view relations are now proven by letting PostgreSQL resolve their real SELECT lists on a throwaway 16.15 cluster (13/13 resolved, 0 contract columns uncovered, 0 view-only columns, 3 negative controls fired), and the reproducibility claim was corrected rather than overstated. Objective 4: the storage-replay harness was NOT reproducible (neither manifest.json nor 00-bootstrap.sql was ever committed and nothing invoked it) and is now self-contained, running 10 scenarios 10/10; a second, worse extractor defect was fixed, where reading the unguarded form from git HEAD would now compare the guarded form against itself and pass every scenario without exercising the failure mode.",
+        "completed": [],
+        "next_steps": [
+          "Scripts owner: add maxBuffer to the two spawnSync calls - that alone blocks regeneration on any target. DB-008 with release/ops: decide which target the contract is generated FROM, because chain 417 / contract 402 / linked 609 are mutually incompatible and nothing in the repo records the choice. Orchestrator: wire bash supabase/tests/db008_run_all.sh into package.json and CI, asserting that scenarios RAN rather than that the command exited 0."
+        ],
+        "blockers": []
       }
     ]
   },
@@ -294,5 +321,11 @@
       "git diff --check on supabase/ and docs/engineering/ -> clean",
       "bash supabase/tests/db008_storage_replay_guard.harness.sh -> NOW exits 1 (was a false green at exit 0); the fix is that zero scenarios is a failure, the missing manifest.json and 00-bootstrap.sql are named"
     ]
-  }
+  },
+  "blockers": [
+    "scripts/ci/** and lib/database.types.ts are outside the database lane's grant, so the maxBuffer fix and the regeneration itself are handed over rather than applied.",
+    "No regeneration was performed and none is claimed; lib/database.types.ts is byte-unchanged at SHA-256 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7.",
+    "The --linked target must never be used as a regeneration source.",
+    "Disclosed: a modified copy of the generator run from inside scripts/ci/ overwrote lib/database.types.ts before this was noticed. Restored in-session from git show HEAD and verified byte-identical by SHA-256; git status is clean for that path. No git history mutation was issued at any point."
+  ]
 }

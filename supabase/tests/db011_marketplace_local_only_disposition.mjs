@@ -80,6 +80,59 @@ function consumers(name) {
   return out.split("\n").filter(Boolean)
 }
 
+// COLUMN consumers must be SCOPED TO THE TABLE.
+//
+// The Wave 34 revision counted a `(table, column)` pair's consumers by searching
+// for the BARE COLUMN NAME across the whole repository. For a distinctive name
+// that is fine. For `status`, `action`, `metadata` or `actor_user_id` it counts
+// every file that happens to use that word about some other table: it reported
+// `marketplace_storefronts.status` with 2,158 consumers and
+// `marketplace_moderation_queue.action` with 557, citing hooks/use-travel-coordination.ts
+// and contexts/jukebox-context.tsx, neither of which reads a marketplace table.
+// Acting on those numbers would author columns nobody asked for and would bury the
+// real findings.
+//
+// A column consumer now requires the file to bind the TABLE and mention the
+// COLUMN within a short window of that binding, which is the shape of every real
+// access: `.from('marketplace_listings').select('..., sync_status')` and
+// `from(table).update({ sync_status })`. The window is generous (25 lines) so a
+// multi-line builder still counts, and the check is a LOWER BOUND: a file that
+// builds its column list dynamically will not be counted, which is why the
+// money-path items are additionally verified by hand before anything is authored.
+const COLUMN_WINDOW = 25
+const codeFileCache = new Map()
+function codeFilesMentioning(table) {
+  if (codeFileCache.has(table)) return codeFileCache.get(table)
+  const files = consumers(table)
+  const out = []
+  for (const f of files) {
+    let text
+    try { text = readFileSync(path.join(ROOT, f), "utf8") } catch { continue }
+    const lines = text.split("\n")
+    const anchors = []
+    lines.forEach((line, i) => {
+      if (new RegExp(`\\b${table}\\b`).test(line)) anchors.push(i)
+    })
+    if (anchors.length) out.push({ file: f, lines, anchors })
+  }
+  codeFileCache.set(table, out)
+  return out
+}
+function columnConsumers(table, column) {
+  const out = []
+  const col = new RegExp(`\\b${column}\\b`)
+  for (const { file, lines, anchors } of codeFilesMentioning(table)) {
+    const hit = anchors.some((a) => {
+      const lo = Math.max(0, a - COLUMN_WINDOW)
+      const hi = Math.min(lines.length, a + COLUMN_WINDOW + 1)
+      for (let i = lo; i < hi; i++) if (col.test(lines[i])) return true
+      return false
+    })
+    if (hit) out.push(file)
+  }
+  return out
+}
+
 const items = []
 for (const m of marketplace) {
 
@@ -108,7 +161,7 @@ for (const m of marketplace) {
   }
   for (const a of new Set(adds.map((x) => `${x.table}.${x.column}`))) {
     const [table, column] = a.split(".")
-    const c = consumers(column)
+    const c = columnConsumers(table, column)
     items.push({ migration: m.version, kind: "column", name: a, chain: chainHasColumn(table, column), consumers: c.length, sample: c.slice(0, 3) })
   }
 }

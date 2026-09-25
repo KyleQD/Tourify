@@ -2,23 +2,23 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (423 entries)
-- Generated at: 2026-09-25T22:27:02.069Z
+- Working tree: dirty (152 entries)
+- Generated at: 2026-09-25T23:26:47.265Z
 - Generator: `control-plane.mjs generate`
 
 ## Static source scan
 
-- Supabase migrations: 438
-- Distinct detected objects: 714
-- Distinct detected policies: 1309
+- Supabase migrations: 442
+- Distinct detected objects: 716
+- Distinct detected policies: 1313
 
 | Type | Distinct names |
 | --- | ---: |
 | function | 268 |
 | materialized view | 2 |
-| table | 429 |
+| table | 431 |
 | type | 1 |
 | view | 14 |
 

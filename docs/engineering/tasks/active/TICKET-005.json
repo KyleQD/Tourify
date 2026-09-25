@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "ticketing",
   "created_at": "2026-09-16T19:20:39.276Z",
-  "updated_at": "2026-09-22T15:56:34Z",
+  "updated_at": "2026-09-25T22:54:26.167Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Certify the complete ticket transaction lifecycle against the reconciled staged schema without anonymous or cross-tenant money access",
@@ -22,60 +22,74 @@
     "app/api/ticketing",
     "lib/ticketing",
     "__tests__/ticketing",
-    "e2e"
+    "e2e",
+    "supabase/migrations/20260926130000_ticketing_webhook_completion_marker.sql (authored this wave; DB-005 precedent migration was the input)",
+    "docs/engineering/migration-validation/20260926130000_ticketing_webhook_completion_marker.json (authored this wave)"
   ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md",
     "docs/DEPLOYMENT_ROUTINE.md"
   ],
   "acceptance_criteria": [
-    "The deployed create-to-settlement ticket lifecycle passes against the reconciled staging schema",
-    "Purchase authentication, inventory races, webhook replay, idempotency, transfer, refund, and check-in concurrency are verified",
-    "Settlement remains append-only and unavailable data is never represented as a false zero",
-    "Anonymous and cross-tenant callers cannot read or mutate protected ticketing or money data"
+    "CRITERION 1 — The deployed create-to-settlement ticket lifecycle passes against the reconciled staging schema :: HOSTED-BLOCKED (unchanged, honest). Requires a deployed target, a reconciled staging schema and a real Stripe test-mode lifecycle. None exists in this environment: no staging target, no credentials, and all QA-004 campaign coverage rows are not_run. Nothing this wave changed that status. What is locally true: the lifecycle code path is now replay-safe and the 503-on-a-dead-read defect that made the settlement view unreachable on every active-chain deployment is fixed (see criterion 3).",
+    "CRITERION 2 — Purchase authentication, inventory races, webhook replay, idempotency, transfer, refund, and check-in concurrency are verified :: LOCALLY MET for webhook replay and refund; HOSTED-BLOCKED for the rest. Webhook replay was the open P0 in this criterion and is now closed locally: claim is split from completion, a duplicate delivery resumes incomplete work instead of being acknowledged, and the newly enabled resume path was audited so its side effects are idempotent (CP-080, CP-081). Refund replay safety is unchanged and still green. Purchase authentication, inventory races, purchase idempotency, transfer and check-in concurrency are NOT verified here: they need the deployed lifecycle, and the distributed purchase race additionally depends on DB-005's index being applied to a target.",
+    "CRITERION 3 — Settlement remains append-only and unavailable data is never represented as a false zero :: LOCALLY MET and improved this wave. No settlement write is mutated or deleted; the append-only ledger and the versioned allocation RPC are untouched. On the false-zero rule this wave closed a real gap: app/api/ticketing/settlements/route.ts read the archive-only `settlements` relation, whose error was fused into the availability gate, so GET /api/ticketing/settlements returned 503 ticketing_unavailable on every deployment built from the active chain and the authoritative money read was unreachable. The dead read is removed and the absence is reported explicitly as settlement: null with settlement_available: false, so an absent record can never read as a zero; the 503 gate still covers the two authoritative reads, so the gate was narrowed to authoritative sources, not weakened. A/B scoped tsc proves the diagnostic was real and is resolved.",
+    "CRITERION 4 — Anonymous and cross-tenant callers cannot read or mutate protected ticketing or money data :: LOCALLY UNCHANGED, hosted verification still blocked. This wave changed no authorization logic, no RLS, and no policy: the new migration creates no policy and touches no RLS enablement, so the claim ledger keeps its deny-all service-role-only surface and completion is writable only by the same service-role client that already claims the event. The webhook route still rejects an unsigned delivery before the claim ledger is touched (covered by a test). The negative probes against a deployed target remain outstanding; the venue lane has independently reported the same environment blocker.",
+    "CRITERION 5 (added this wave) — DB-008 ticketing code-drift cluster is dispositioned per object from re-derived evidence :: LOCALLY MET, with honest per-object outcomes. Re-derivation did not reproduce the inventory's file attributions in either direction. `settlements` fixed in the ticketing file set (diagnostic proven by A/B and resolved). `track_venue_profile_view`: the inventory's attribution to app/api/ticketing/webhook/route.ts is false; the single real caller is app/api/venues/[id]/route.ts:109, handed to venue. `ticket_notifications`: the inventory's 'unreachable module' verdict is false (the module is live via app/tickets/purchase/page.tsx -> components/ticketing/ticket-purchase-form.tsx:14); only the method is dead, and lib/services/** is outside this grant, so it is handed to design-system. `get_enhanced_artist_stats`: zero code callers anywhere, already fenced by the artist lane's own tests; no ticketing action possible, handed to artist as informational. Honest cluster reduction: 1 object of 4, in 1 file, not a cluster cleared."
   ],
   "verification": {
     "tier": "release",
     "commands": [
-      "npx vitest run __tests__/ticketing",
-      "npm run test:e2e",
-      "npm run verify:release",
-      "Focused ticketing suites: 35 tests passed",
-      "npx vitest run __tests__/ticketing: 13 files, 95 tests passed",
-      "npx vitest run __tests__/ticketing (2026-09-21): 15 files, 120 tests passed",
-      "Focused ESLint on 6 changed ticketing files: exit 0",
-      "git diff --check on changed ticketing files: exit 0",
-      "Scoped tsc on changed ticketing lib + test files: clean (route TS2589/TS2769 diagnostics confirmed pre-existing at HEAD)"
+      "npx vitest run __tests__/ticketing — 17 files, 149 tests passed (Wave 30 baseline was 15 files / 120 tests; this wave adds 2 files and 29 tests)",
+      "npx vitest run __tests__/ticketing/webhook-claim-completion.test.ts — 11 passed (route-level, real Stripe signature verification over a recording Supabase stub)",
+      "npx vitest run __tests__/ticketing/webhook-completion-migration-contract.test.ts — 17 passed (migration, manifest, and claim-site contract)",
+      "npm run check:migration-chain — exit 0, 306 files scanned",
+      "npm run check:migration-validation — exit 0, new migration scanned with its planned manifest",
+      "Scoped tsc over app/api/ticketing/** and lib/ticketing/** — webhook and settlements routes clean; 9 pre-existing TS2589/TS2769 remain in app/api/ticketing/enhanced/route.ts (lines 144, 145, 286, 287, 583, 735, 736, 773, 774), identical to HEAD and unrelated to this wave",
+      "Scoped tsc A/B for the drift cluster — with the archived `settlements` read restored, app/api/ticketing/settlements/route.ts:83 reports TS2589 plus two TS2769 overload failures; with it removed the file is clean",
+      "Focused ESLint on the 6 changed ticketing files — exit 0",
+      "git diff --check on changed ticketing files — exit 0",
+      "npm run agents:validate — 0 errors, 8 pre-existing generated-map SHA warnings (agents:generate deliberately not run: shared-map race)",
+      "Full-repo tsc and the full test suite NOT run: 8 GB machine, CI measured 68m18s / 1,384 diagnostics"
     ],
     "evidence": [
-      "Audit baseline: existing E2E creates and publishes an event but does not complete purchase, payment webhook, transfer, QR/check-in, refund, or settlement as one deployed lifecycle.",
-      "Local implementation and focused tests only; no hosted staging claim",
-      "Typecheck interrupted after bounded window with no diagnostics; no hosted staging claim",
-      "Canonical refund replay certification (refund-replay.test.ts) and request-scoped purchase idempotency certification (purchase-idempotency.test.ts) pass; DB-005 handoff recorded for distributed DB-unique purchase idempotency",
-      "Focused ticketing Vitest passed locally (15 files, 120 tests), including refund replay and purchase idempotency; scoped diff whitespace check passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no hosted transaction or migration applied.",
-      "QA-004 product repair validation rerun (2026-09-22): Ticketing lifecycle Vitest: 15 files, 120 tests passed; distributed DB-unique purchase idempotency and hosted create-to-settlement proof remain open."
+      "HF-INTG-006-TICKETING P0 CONFIRMED FROM SOURCE, not from the summary: claimWebhookEvent collapsed a 23505 into a bare boolean, the route answered {received: true, duplicate: true} on it, and ticket_stripe_webhook_events declared processed_at timestamptz not null default now() (20260821000000_reconcile_ticketing_foundation.sql:343) which the claim INSERT stamps — so the ledger had no field written at completion at all.",
+      "P0 FIXED: 20260926130000_ticketing_webhook_completion_marker.sql adds a nullable completed_at, an attempts counter, and a partial index on the incomplete subset, with no backfill, no RLS change and no policy change; a duplicate claim is resolved by reading completed_at, an unreadable marker or an unwritable completion fails closed with 500.",
+      "THE NEW TESTS BITE — 6 independent mutations, each reverting one part of the fix, were run and each failed the expected cases: (A) the original acknowledge-on-23505 semantics fails 6 of 11 behavioural cases including the canonical P0 case; (B) the promo counter without transition ownership fails 1; (C) already-finalized trusting the status flags instead of the revenue receipt fails 1; (D) an unchecked completion write fails 1; (E) a completed_at = processed_at backfill fails the no-backfill contract case and the manifest checksum case; (F) stamping completed_at at claim time fails the claim-site contract case.",
+      "RESUME SAFETY AUDITED, NOT ASSUMED: enabling resume inverts the previous safety argument, so every side effect was re-audited. Guarded at the data boundary (inventory RPCs, issuance, ledger idempotency, referral mark) runs unconditionally on a resume; the unguarded increment_promo_code_usage counter now runs only on the delivery that performed the pending -> completed transition; and a status flag is no longer treated as a receipt, so a completed+issued order whose revenue receipt is missing falls through to the idempotent repair path instead of being acknowledged. This last one was found by the new tests, not by reading, and the receipt loss it prevents is pre-existing.",
+      "DB-005 REGRESSION CHECK: the replay-safe refund work and the distributed purchase idempotency migration landed earlier (20260921120000_ticketing_purchase_idempotency.sql) are untouched. The only edit to existing tests is two already-finalized call-log assertions in refund-replay.test.ts that now include the new receipt READ; no behavioural expectation changed, and the focused suite grew from 15 files / 120 tests to 17 files / 149 tests, all passing.",
+      "DRIFT CLUSTER RE-DERIVED, NOT BELIEVED: the inventory's file-level attributions failed in both directions. `settlements` was the only object with a real in-grant diagnostic (A/B proven) and it is fixed; `track_venue_profile_view` is not referenced by the ticketing webhook route at all (venue lane's correction independently confirmed) and its single real caller is venue's; `ticket_notifications`' module is LIVE, contradicting the inventory's 'unreachable module' verdict, and only its method is dead, in a file outside this grant; `get_enhanced_artist_stats` has zero code callers and is already fenced by the artist lane's own tests.",
+      "NO HOSTED OR PAYMENT-PROVIDER EVIDENCE IS CLAIMED. No Stripe credential, no test-mode delivery, no staging target, no migration applied. The migration is authored only under CP-051, the manifest is honestly 'planned' with all three evidence tiers null, and every QA-004 campaign coverage row for these routes remains not_run. The certification is local behavioural proof plus static migration and contract assertions.",
+      "Shared worktree at HEAD ca3bb0b0, 6 concurrent lanes, nothing staged or committed by this lane; the orchestrator commits.",
+      "FULL REPO TYPECHECK WAS NOT RUN: 8 GB machine. Verification is scoped tsc over app/api/ticketing/** and lib/ticketing/**, labelled scoped per CP-076."
     ],
-    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-    "last_run_at": "2026-09-22T15:56:34Z",
+    "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+    "last_run_at": "2026-09-25T16:45:00.000Z",
     "result": "fail"
   },
   "progress": {
-    "summary": "Ticket lifecycle local contracts reverified; distributed first-request idempotency and hosted create-to-settlement proof remain pending.",
+    "summary": "Fixed the P0 ticketing Stripe webhook claim/complete defect (HF-INTG-006-TICKETING): re-confirmed from source that claimWebhookEvent collapsed a 23505 into a boolean and the ledger stamped processed_at at CLAIM time, so completion was unobservable and a paid order could stay permanently unfinalized behind a {received:true, duplicate:true}. Split claim from complete: new additive forward-only migration 20260926130000_ticketing_webhook_completion_marker.sql (nullable completed_at, attempts counter, partial index on the incomplete subset, NO backfill, no RLS change) + planned manifest; claimWebhookEvent now returns claimed/duplicate, readWebhookEventCompletion fails closed, completeWebhookEvent's error is checked, and the call site RESUMES an incomplete claim instead of acknowledging it. Audited the newly enabled resume path and repaired it: the unguarded increment_promo_code_usage counter is now transition-owned, and a status flag is no longer treated as a revenue receipt, so a completed+issued order missing its receipt falls through to the idempotent repair path. Dispositioned the DB-008 ticketing drift cluster per object after re-deriving attributions: fixed settlements in app/api/ticketing/settlements/route.ts (an archive-only read whose error was fused into the availability gate, 503-ing the authoritative money read on every active-chain deployment), confirmed the venue lane's correction that the ticketing webhook route never referenced track_venue_profile_view, and disproved the inventory's 'unreachable module' verdict for ticket_notifications (the module is live; only the method is dead). PASS: npx vitest run __tests__/ticketing = 17 files / 149 tests (baseline 15/120); 6 independent mutations of the fix each fail the expected cases; check:migration-chain and check:migration-validation exit 0 (306 files); scoped tsc over app/api/ticketing/** + lib/ticketing/** clean for both changed routes with the 9 pre-existing enhanced/route.ts diagnostics unchanged; focused ESLint exit 0; git diff --check exit 0; agents:validate 0 errors / 8 pre-existing map-SHA warnings. BLOCKED and not claimed: no staging target, no Stripe credential, no migration applied (CP-051, manifest honestly 'planned'), so the hosted create-to-settlement lifecycle and all QA-004 campaign coverage rows remain not_run.",
     "completed": [
       "Canonical published and enabled sale gate",
       "Reserved inventory and fail-closed reservation consumption",
       "Buyer-scoped delivery, transfer, check-in concurrency, and settlement error handling",
       "Canonical refund replay certification: refundOrderTickets returns {duplicate:true} on already-refunded RPC with zero side effects; finalizePaidOrder no-ops on refunded/cancelled/metadata.refund terminal states; writeRefundLedger/writeSaleLedger fail closed on unavailable pre-checks and treat 23505/duplicate as duplicate acknowledgements",
-      "Request-scoped purchase idempotency: findIdempotentPurchase dedupes same key+buyer+event actionable orders (newest-order-wins) wired into the enhanced purchase route; distributed DB-unique constraint handed off to DB-005"
+      "Request-scoped purchase idempotency: findIdempotentPurchase dedupes same key+buyer+event actionable orders (newest-order-wins) wired into the enhanced purchase route; distributed DB-unique constraint handed off to DB-005",
+      "P0 (HF-INTG-006-TICKETING): claim split from completion on ticket_stripe_webhook_events; a duplicate delivery now resumes incomplete work or acknowledges it honestly, and never acknowledges work that did not happen. Migration 20260926130000_ticketing_webhook_completion_marker.sql + planned manifest + 17-case contract test, all additive and forward-only with no backfill",
+      "Money-safety of the newly enabled resume path audited and repaired: unguarded promo counter made transition-owned, and a finalized order without its revenue receipt no longer short-circuits as already-finalized (CP-081)",
+      "Dead archived `settlements` read removed from app/api/ticketing/settlements/route.ts, which was 503-ing the authoritative settlement money read on every active-chain deployment; absence now reported explicitly as settlement: null / settlement_available: false",
+      "DB-008 ticketing drift cluster dispositioned per object from re-derived evidence, with 4 handoffs filed (integrations resolution, design-system ticket_notifications, venue track_venue_profile_view, artist get_enhanced_artist_stats informational) plus a database request for the supabase/tests contract file"
     ],
     "next_steps": [
-      "Run deployed create-to-settlement lifecycle against reconciled staging schema once credentials are available",
-      "DB-005: add distributed DB-unique purchase idempotency on ticket_sales (e.g., partial unique index on (buyer_user_id, event_id, metadata->>'idempotency_key')) per handoff note"
+      "Operator applies 20260921120000_ticketing_purchase_idempotency.sql and 20260926130000_ticketing_webhook_completion_marker.sql to an approved staging target, then run the manifest Layer 3 replay probe (deliver twice; prove attempts 1 then 2, a clean duplicate acknowledgement, and that a failed completion write leaves completed_at NULL); database lane authors supabase/tests/db008_ticketing_webhook_completion_contract.sql from the manifest postflight; INTG-006 marks the ticketing half of its criterion 2 met via HF-INTG-006-TICKETING-RESOLVED; design-system deletes the dead sendTicketNotification method; venue decides delete-vs-land for track_venue_profile_view. Next ticketing session: partial-issuance repair, analytics dedup across a resume, and an operator alert on a failed completion marker."
     ],
     "blockers": [
-      "Full repository typecheck did not complete within bounded window (path-scoped tsc used instead; changed files clean)",
-      "No reconciled hosted schema, staging credentials, or Stripe lifecycle evidence",
-      "Distributed DB-unique purchase idempotency blocked on DB-005 migration (no ticket_sales idempotency column or unique expression index in active chain)"
+      "No staging target, no Stripe credential, and no isolated database: acceptance criterion 1 and the hosted half of criterion 2 cannot be advanced by any local work, and all QA-004 campaign coverage rows for these routes remain not_run",
+      "CP-051: the new migration is authored only — never applied, reset, replayed, or pushed from this lane — so its manifest is honestly 'planned' and no schema behaviour is claimed",
+      "Distributed purchase idempotency is authored (20260921120000_ticketing_purchase_idempotency.sql) but unapplied, so the concurrent-first-request race cannot be closed until it is applied and probed on a target",
+      "The generated type surface was not touched: completed_at and attempts are absent from lib/database.types.ts by design (the ticketing clients are untyped there), so if the database lane's regeneration reachability work concludes regeneration is possible, these two columns must be included or the type surface will be wrong for them",
+      "Full-repo typecheck and full test suite not run on this 8 GB machine; all typecheck evidence here is scoped tsc and is labelled scoped",
+      "Three code-drift objects could not be fixed from this lane because their files are owned by other domains; each is handed off with a proven recipe rather than reported as done"
     ],
     "checkpoints": [
       {
@@ -145,11 +159,47 @@
           "Focused local regression verification passed; no new product code changes in this lane."
         ],
         "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      },
+      {
+        "at": "2026-09-25T16:45:00.000Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "P0 ticketing Stripe webhook claim/complete defect fixed: defect re-confirmed from source, resume-vs-acknowledge decided at the claim call site, claim/complete split landed as an additive forward-only migration with a planned manifest and a contract test, and the newly enabled resume path audited so its side effects are money-safe. Also dispositioned the DB-008 ticketing drift cluster per object after re-deriving the attributions, fixing the one in-grant object. Verification: npx vitest run __tests__/ticketing = 17 files, 149 tests passed (baseline 15/120); 6 independent mutations of the fix each fail the expected cases; check:migration-chain and check:migration-validation exit 0; scoped tsc over app/api/ticketing/** and lib/ticketing/** clean for both changed routes with the 9 pre-existing enhanced/route.ts diagnostics unchanged; focused ESLint and git diff --check exit 0; agents:validate 0 errors / 8 pre-existing map warnings. No migration applied, no hosted or payment-provider evidence claimed.",
+        "completed": [
+          "Claim/complete split with observable completion and a fail-closed resume path",
+          "Transition-ownership guard on the unguarded promo counter",
+          "Revenue-receipt verification replacing status-flag-only already-finalized",
+          "Archived `settlements` read removed from the settlement money route",
+          "Four handoffs filed with re-derived evidence"
+        ],
+        "next_steps": [
+          "Operator applies 20260926130000_ticketing_purchase_idempotency.sql and 20260926130000_ticketing_webhook_completion_marker.sql to an approved staging target, then the Layer 3 replay probe runs",
+          "DB-005 / release: run the deployed Stripe test-mode lifecycle and the anonymous/cross-tenant denial probes"
+        ],
+        "blockers": [
+          "No staging target, no credentials, no payment-provider evidence; all QA-004 campaign coverage rows remain not_run",
+          "CP-051: migration authored only, manifest honestly 'planned'",
+          "Partial issuance, analytics duplication across a resume, and the absence of an operator alert on a failed completion marker are recorded as open items, not closed"
+        ]
+      },
+      {
+        "at": "2026-09-25T22:54:26.167Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Fixed the P0 ticketing Stripe webhook claim/complete defect (HF-INTG-006-TICKETING): re-confirmed from source that claimWebhookEvent collapsed a 23505 into a boolean and the ledger stamped processed_at at CLAIM time, so completion was unobservable and a paid order could stay permanently unfinalized behind a {received:true, duplicate:true}. Split claim from complete: new additive forward-only migration 20260926130000_ticketing_webhook_completion_marker.sql (nullable completed_at, attempts counter, partial index on the incomplete subset, NO backfill, no RLS change) + planned manifest; claimWebhookEvent now returns claimed/duplicate, readWebhookEventCompletion fails closed, completeWebhookEvent's error is checked, and the call site RESUMES an incomplete claim instead of acknowledging it. Audited the newly enabled resume path and repaired it: the unguarded increment_promo_code_usage counter is now transition-owned, and a status flag is no longer treated as a revenue receipt, so a completed+issued order missing its receipt falls through to the idempotent repair path. Dispositioned the DB-008 ticketing drift cluster per object after re-deriving attributions: fixed settlements in app/api/ticketing/settlements/route.ts (an archive-only read whose error was fused into the availability gate, 503-ing the authoritative money read on every active-chain deployment), confirmed the venue lane's correction that the ticketing webhook route never referenced track_venue_profile_view, and disproved the inventory's 'unreachable module' verdict for ticket_notifications (the module is live; only the method is dead). PASS: npx vitest run __tests__/ticketing = 17 files / 149 tests (baseline 15/120); 6 independent mutations of the fix each fail the expected cases; check:migration-chain and check:migration-validation exit 0 (306 files); scoped tsc over app/api/ticketing/** + lib/ticketing/** clean for both changed routes with the 9 pre-existing enhanced/route.ts diagnostics unchanged; focused ESLint exit 0; git diff --check exit 0; agents:validate 0 errors / 8 pre-existing map-SHA warnings. BLOCKED and not claimed: no staging target, no Stripe credential, no migration applied (CP-051, manifest honestly 'planned'), so the hosted create-to-settlement lifecycle and all QA-004 campaign coverage rows remain not_run.",
+        "completed": [],
+        "next_steps": [
+          "Operator applies 20260921120000_ticketing_purchase_idempotency.sql and 20260926130000_ticketing_webhook_completion_marker.sql to an approved staging target, then run the manifest Layer 3 replay probe (deliver twice; prove attempts 1 then 2, a clean duplicate acknowledgement, and that a failed completion write leaves completed_at NULL); database lane authors supabase/tests/db008_ticketing_webhook_completion_contract.sql from the manifest postflight; INTG-006 marks the ticketing half of its criterion 2 met via HF-INTG-006-TICKETING-RESOLVED; design-system deletes the dead sendTicketNotification method; venue decides delete-vs-land for track_venue_profile_view. Next ticketing session: partial-issuance repair, analytics dedup across a resume, and an operator alert on a failed completion marker."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
     "Consume DB-002, DB-005, DB-006, and INTG-006 evidence; provide the deployed transaction lifecycle and money-boundary certification to QA-003 and RELEASE-005.",
-    "PENDING DB-005: add distributed DB-unique purchase idempotency on ticket_sales — no idempotency column or unique expression index exists in the active chain (20260821000000_reconcile_ticketing_foundation.sql as extended by DB-005); suggested partial unique index on ticket_sales(buyer_user_id, event_id, metadata->>'idempotency_key') or dedicated idempotency_key column; request-scoped dedup via findIdempotentPurchase is the local stopgap until the constraint lands."
+    "PENDING DB-005: add distributed DB-unique purchase idempotency on ticket_sales — no idempotency column or unique expression index exists in the active chain (20260821000000_reconcile_ticketing_foundation.sql as extended by DB-005); suggested partial unique index on ticket_sales(buyer_user_id, event_id, metadata->>'idempotency_key') or dedicated idempotency_key column; request-scoped dedup via findIdempotentPurchase is the local stopgap until the constraint lands. UPDATE 2026-09-25: the constraint is AUTHORED as 20260921120000_ticketing_purchase_idempotency.sql and its manifest is green, but it is unapplied, so the race is still open on any target.",
+    "FILED 2026-09-25 -> integrations: HF-INTG-006-TICKETING-RESOLVED. The P0 in HF-INTG-006-TICKETING is fixed locally with mutation-proven evidence; INTG-006 owns marking the ticketing half of its acceptance criterion 2 and updating the now-stale completion-marker annotation in its route inventory.",
+    "FILED 2026-09-25 -> design-system: HF-TICKET-035-TICKET-NOTIFICATIONS. The dead sendTicketNotification method at lib/services/ticketing.service.ts:340-364 is the sole reference to ticket_notifications; the inventory's 'unreachable module' verdict is wrong and the module is live.",
+    "FILED 2026-09-25 -> venue: HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW. The single real caller is app/api/venues/[id]/route.ts:109, not the ticketing webhook route the inventory named; the RPC is absent from the active chain and the call is already try/catch-guarded, so the decision is delete-vs-land.",
+    "FILED 2026-09-25 -> artist: HF-TICKET-035-ARTIST-STATS-RPC. Informational; get_enhanced_artist_stats has zero code callers and is already fenced by the artist lane's own tests, so there is no ticketing action.",
+    "FILED 2026-09-25 -> database: HF-TICKET-035-DB-TEST-CONTRACT. Request to author supabase/tests/db008_ticketing_webhook_completion_contract.sql from the manifest postflight (supabase/tests/** is outside this grant), review the manifest, and apply it once; also notes that if regeneration becomes reachable, completed_at and attempts must be included in the type surface."
   ]
 }

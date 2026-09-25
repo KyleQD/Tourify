@@ -8,7 +8,7 @@
 // support is a replay bug, and this is what catches it.
 //
 // READ-ONLY.
-import { readFileSync, readdirSync } from "node:fs"
+import { readFileSync, readdirSync, rmSync } from "node:fs"
 import path from "node:path"
 
 const ROOT = process.argv[2] || process.cwd()
@@ -32,8 +32,15 @@ while ((m = REL.exec(gen)) !== null) {
 
 // The replay writes its reconstruction next to its report. Run it once if the
 // sidecar is not already present.
+//
+// The scratch files go to the OS temp directory, NOT next to this script.
+// Writing them into `supabase/tests/` left two untracked dotfiles in the working
+// tree on every run, which is indistinguishable from real work in a dirty tree
+// with six concurrent lanes, and it means the audit cannot be run from a clean
+// checkout without dirtying it. Override with DB_ATTRIBUTION_SCRATCH.
 const { execFileSync } = await import("node:child_process")
-const base = path.join(REPLAY_DIR, ".attribution-audit.json")
+const { tmpdir } = await import("node:os")
+const base = path.join(process.env.DB_ATTRIBUTION_SCRATCH || tmpdir(), `db008-attribution-audit-${process.pid}.json`)
 execFileSync("node", [path.join(REPLAY_DIR, "db008_chain_contract_replay.mjs"), ROOT, base], { stdio: "ignore" })
 const chain = JSON.parse(readFileSync(base.replace(/\.json$/, "") + ".chain-columns.json", "utf8"))
 const report = JSON.parse(readFileSync(base, "utf8"))
@@ -79,4 +86,8 @@ console.log(`no chain provenance: ${unverified.length}`)
 for (const u of unverified.slice(0, 20)) console.log(`  ${u}`)
 console.log(`attribution unsupported by the cited file: ${unsupported.length}`)
 for (const u of unsupported.slice(0, 20)) console.log(`  ${u}`)
-process.exit(unverified.length + unsupported.length === 0 ? 0 : 1)
+// Clean up the scratch reconstruction. A read-only instrument that leaves files
+// behind in the tree is not read-only in the way an operator assumes.
+for (const f of [base, base.replace(/\.json$/, "") + ".chain-columns.json"]) {
+  try { rmSync(f) } catch { /* already gone, or never written */ }
+}

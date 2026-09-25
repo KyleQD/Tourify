@@ -1,0 +1,40 @@
+{
+ "schema_version": "1.0",
+ "id": "HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE",
+ "task_id": "DB-008",
+ "from_agent": "database",
+ "to_agent": "social",
+ "status": "completed",
+ "created_at": "2026-09-26T00:00:00.000Z",
+ "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree; 6 concurrent lanes)",
+ "summary": "One concrete instance of the Wave 33 'out-of-band DDL' class survives the corrected replay, and it needs a yes/no from the domain that owns the column before the next CP-016 regeneration. public.scheduled_posts.platform_status and .platform_errors are added by 20250904110000, which runs BEFORE 20260413200000 creates the table, inside an `alter table if exists` guard. A fresh chain replay therefore never creates them, while the generated contract does not declare them either, so the two currently agree. If any live target received scheduled_posts before 20250904110000 ran, that target has the columns and a regeneration would silently drop them from lib/database.types.ts.",
+ "working_set": [
+  "supabase/migrations/20250904110000_scheduled_posts_platform_status.sql",
+  "supabase/migrations/20260413200000_port_missing_tables.sql",
+  "supabase/tests/db008_chain_contract_replay.mjs"
+ ],
+ "completed": [
+  "Located the cause: migration version order is not calendar order. 20250904110000 (2025-09-04) sorts before 20260413200000 (2026-04-13), so the ALTER precedes the CREATE in any replay that applies the chain in version order.",
+  "Confirmed the ALTER is guarded (`alter table if exists` plus a to_regclass check in the enclosing DO block), so a fresh replay skips it silently rather than aborting. The replay records this as skippedRelationAbsentAtReplay, not as a chain abort.",
+  "Confirmed the contract is silent on both columns, so the superset property the CP-016 gate depends on currently holds for them. `node supabase/tests/db008_chain_contract_replay.mjs . <out> --check` exits 0.",
+  "Found the same shape in five more ALTERs, all guarded and all harmless: 20250813121000 alters public.staff_invitations four times before 20250813123000 creates it, but the later CREATE declares tour_id, role, origin and created_by in its own body, so the columns do arrive. Only the scheduled_posts pair is genuinely lost.",
+  "RESOLVED, not answered with a yes/no. Measured instead: a fresh replay really does skip the two columns (reproduced in supabase/tests/db008_scheduled_posts_platform.harness.sh from the two real chain files), AND the columns are NOT dead - app/api/artist/content/overview/route.ts:137 selects them and lib/services/cross-platform-posting.service.ts:195 writes one. The correct outcome was therefore neither branch of the original question: the columns are live, the chain is wrong, and 20260926140200_scheduled_posts_platform_columns.sql repairs it forward. The contract still declares neither, which is now explicitly recorded as CP-016 debt rather than as safety."
+ ],
+ "next_steps": [
+  "Answer one question: does any live environment have public.scheduled_posts.platform_status or .platform_errors? Read-only probe: `select column_name from information_schema.columns where table_schema='public' and table_name='scheduled_posts' and column_name in ('platform_status','platform_errors');` on staging and on production.",
+  "If NO target has them, the columns are dead: 20250904110000 was written against a table that did not exist yet and never took effect anywhere. Record that and no migration is needed. Do not capture them.",
+  "If ANY target has them, they are genuine out-of-band DDL and must be captured as an additive migration so the chain stays a superset of the contract. Say which target and I will author it; I will not guess the nullability or default from the guarded ALTER alone.",
+  "Separately, and yours to decide: 20250904110000 is a migration that cannot do what it says on a fresh target. Whether to repair it forward (an additive migration that adds the columns unconditionally) or to retire it is a social-domain call about whether the per-platform status tracking is still a feature."
+ ],
+ "blockers": [
+  "The regeneration precondition currently holds, so this is not blocking today. It becomes blocking the moment a target is found that has the columns: at that point regeneration would delete real coverage, which is the exact Wave 33 blocker and the reason that finding had to be retracted on measurement rather than trusted.",
+  "The probe requires target credentials the database lane does not have. No hosted read was performed and none is claimed."
+ ],
+ "verification": [
+  "node supabase/tests/db008_chain_contract_replay.mjs . <out> --report prints: `ALTERs a fresh replay would skip ... 6` and names 20250904110000 as skippedRelationAbsentAtReplay with `columns a fresh replay never creates: platform_status, platform_errors`.",
+  "The harness assertion `a genuinely skipped column is absent from chain and contract alike` in supabase/tests/db008_contract_reproducibility.harness.sh pins the current agreement, so a future chain edit that makes the two disagree fails the gate instead of passing quietly.",
+  "Wave 35 database lane, 2026-09-26T01:30:00.000Z. Gates at close: check:migration-chain exit 0 (309 files), check:migration-validation exit 0, check:migration-ledger exit 0 (18 classified, 291 unreconciled), agents:validate 0 errors."
+ ],
+ "completed_at": "2026-09-26T01:30:00.000Z",
+ "source_sha_at_disposition": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)"
+}

@@ -376,6 +376,30 @@ export async function GET(request: NextRequest) {
     // Per-user aggregate stats are self-only. A caller-supplied `userId` that
     // is not the authenticated user is refused so counters cannot be used to
     // enumerate another user's activity.
+    //
+    // RESPONSE CONTRACT for the self-stats branch (no `postId`, optional
+    // `?userId=` equal to the caller):
+    //
+    //   likesGiven        post_likes rows the caller authored. Authoritative.
+    //   likesReceived     post_likes rows on posts the caller authored.
+    //   commentsGiven     post_comments rows the caller authored. Authoritative.
+    //   commentsReceived  post_comments rows on posts the caller authored.
+    //   sharesGiven       post_shares rows the caller authored. Authoritative.
+    //   sharesReceived    post_shares rows ON THE CALLER'S OWN POSTS THAT THE
+    //                     CALLER IS PERMITTED TO READ. `post_shares` SELECT is
+    //                     `auth.uid() = user_id`
+    //                     (20241220000010_enhance_feed_system.sql:208-212), so
+    //                     this counter cannot include another actor's share and
+    //                     is therefore NOT a share total. The share total for
+    //                     a post is `posts.shares_count`; the share total for a
+    //                     profile is the sum of `posts.shares_count` over that
+    //                     profile's posts. A consumer that needs a share total
+    //                     must use those columns, and a caller that needs its
+    //                     own shares must use `sharesGiven`.
+    //
+    // The permissive service-role value that `sharesReceived` used to return was
+    // a disclosure primitive, not a metric, so the behaviour change is
+    // deliberate and permanent (CP-058, DOMAIN-002).
     if (requestedUserId && !isUuid(requestedUserId)) {
       return NextResponse.json({ error: 'Invalid user id' }, { status: 400 })
     }
@@ -414,8 +438,8 @@ export async function GET(request: NextRequest) {
 
       // `post_shares` SELECT is `auth.uid() = user_id`, so this counts only
       // share rows the caller is permitted to read — never another actor's.
-      // The permissive service-role value it replaced was a disclosure
-      // primitive; `posts.shares_count` remains the aggregate surface.
+      // It is therefore not a share total; see the response contract above.
+      // `posts.shares_count` remains the aggregate surface.
       supabase
         .from('post_shares')
         .select('id, posts!inner(user_id)', { count: 'exact', head: true })

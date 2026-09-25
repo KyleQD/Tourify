@@ -22,15 +22,18 @@ export async function GET(
       supabase = await createClient()
     }
 
-    // First, try to find the profile by username in the main profiles table
-    let lookupMethod: 'username' | 'custom_url' = 'username'
-
-    let { data: profile, error: profileError } = await supabase
+    // First, try to find the profile by username in the main profiles table.
+    // DB-008 / Wave 35: `profiles.custom_url` is in no active migration and in no
+    // generated contract, and the previous `custom_url` fallback could therefore
+    // never match a row. It is removed rather than repointed: the primary lookup
+    // below already resolves the canonical public handle (`profiles.username`), so
+    // a second lookup on the same value is dead code, and keeping it poisoned both
+    // PostgREST selects on the non-existent column.
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(`
         id,
         username,
-        custom_url,
         full_name,
         bio,
         avatar_url,
@@ -55,46 +58,11 @@ export async function GET(
       .eq('username', username)
       .single()
 
-    // If not found, try matching the custom_url instead
     if (profileError || !profile) {
-      lookupMethod = 'custom_url'
-
-      ;({ data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          custom_url,
-          full_name,
-          bio,
-          avatar_url,
-          cover_image,
-          location,
-          website,
-          profile_data,
-          social_links,
-          metadata,
-          instagram,
-          twitter,
-          show_email,
-          show_phone,
-          show_location,
-          is_verified,
-          followers_count,
-          following_count,
-          posts_count,
-          created_at,
-          updated_at
-        `)
-        .eq('custom_url', username)
-        .single())
-
-      if (profileError || !profile) {
-        return NextResponse.json(
-          { error: 'Profile not found' },
-          { status: 404 }
-        )
-      }
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      )
     }
 
 
@@ -162,7 +130,7 @@ export async function GET(
       profile_experience: baseProfileData.profile_experience || profileData.profile_experience
     }
     socialLinks = {
-      ...baseSocialLinks,
+      ...publicIdentity.socialLinks,
       ...socialLinks
     }
 

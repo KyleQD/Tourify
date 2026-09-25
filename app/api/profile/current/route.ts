@@ -16,13 +16,20 @@ export async function GET(request: NextRequest) {
     const { user, supabase } = authResult
 
 
-    // Get the user's profile with the correct field names
+    // Get the user's profile with the correct field names.
+    // DB-008 / Wave 35: `profiles.custom_url` was selected here and exists in no
+    // active migration and in no generated contract, so PostgREST rejected the
+    // whole select and this route answered 404 "Profile not found" for EVERY user
+    // — including the nav, the dashboard, `app/profile/[username]`, the artist
+    // business page and the settings forms, all of which call it. The canonical
+    // public handle is `profiles.username`; `custom_url` is now dropped from the
+    // select and re-exposed below as a deprecated alias so the two settings forms
+    // that still read `profile.custom_url` keep working.
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(`
         id,
         username,
-        custom_url,
         full_name,
         bio,
         avatar_url,
@@ -104,7 +111,11 @@ export async function GET(request: NextRequest) {
     const profileWithStats = {
       id: profile.id,
       username: profile.username,
-      custom_url: (profile as any).custom_url,
+      // Deprecated alias: `profiles.custom_url` does not exist in the active
+      // chain. The response field is retained so `components/settings/
+      // enhanced-profile-settings.tsx` and `profile-settings-optimized.tsx` keep
+      // rendering, and it now carries the canonical handle.
+      custom_url: profile.username,
       account_type: 'general' as const,
       profile_data: {
         ...((profile as any).profile_data || {}),

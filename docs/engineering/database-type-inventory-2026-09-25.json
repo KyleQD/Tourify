@@ -29,16 +29,6 @@
       "resolution": "re-run npm run typecheck after the clusters are fixed and compare against this baseline"
     },
     {
-      "gap": "RETRACTED — the generated contract IS reproducible from the active chain",
-      "detail": "Wave 33 reported 130 contract columns across 23 relations with no chain provenance, headlined by public.venue_profiles (42 declared, 19 created). That was an instrument defect, not schema drift. The Wave 33 column replay matched `add column` case-SENSITIVELY inside matchAll(), so every migration written in upper-case DDL style contributed zero columns, it recorded the keyword `constraint` as a column name, it did not model `alter table if exists` no-ops, and it applied DROP and CREATE events in per-kind loop order rather than file order. A corrected replay (supabase/tests/db008_chain_contract_replay.mjs) reconstructs 401 tables + 14 views, 5335 columns and 224 routines from the 305-migration chain and finds ZERO contract columns, ZERO contract relations and ZERO contract callables without chain provenance. public.venue_profiles resolves to 44 chain columns, every one attributed to a named active migration; 5170 contract columns were independently re-verified against the cited file (supabase/tests/db008_contract_attribution_audit.mjs, 0 unsupported).",
-      "resolution": "CLOSED for the deletion risk. CP-016 regeneration can no longer remove contract coverage: the chain is a strict superset. Regeneration is still blocked on OPERATIONAL grounds only (no linked or project-id target, Docker unavailable, so `supabase gen types` cannot run here) and on the marketplace relations, which until 20260926120000/120100 are absent from BOTH the chain and the contract and therefore cannot appear in any regeneration.",
-      "evidence": [
-        "node supabase/tests/db008_chain_contract_replay.mjs . <out> --check",
-        "bash supabase/tests/db008_contract_reproducibility.harness.sh",
-        "node supabase/tests/db008_contract_attribution_audit.mjs ."
-      ]
-    },
-    {
       "gap": "View column surface is proven by name occurrence, not by replay",
       "detail": "13 of the 415 chain relations are views or materialized views. A view column list is the SELECT list of its definition, which no text replay reconstructs reliably (joins, aliases, select *). For those 13 the contract surface is checked by literal column-name occurrence in the migration that defines the view; all 13 views currently have 0 columns without a name occurrence. That is weaker than the table-column replay and is the one place where a regeneration could still remove coverage.",
       "resolution": "If a future regeneration drops a view column, check this surface first. Reconstructing the 13 definitions by replay is possible but was judged lower value than the marketplace and contract work in this wave.",
@@ -49,16 +39,26 @@
     },
     {
       "gap": "Six ALTERs are skipped by a fresh chain replay",
-      "detail": "Version order is not calendar order, so 20250904110000 (2025-09-04) runs BEFORE 20260413200000 (2026-04-13). 20250813121000 ALTERs public.staff_invitations four times and 20250904110000 / 20250905004500 ALTER public.scheduled_posts, all inside to_regclass or information_schema guards, at points where those relations do not yet exist. A fresh replay therefore skips all six; the staff_invitations columns still arrive from the later CREATE, and the two scheduled_posts columns (platform_status, platform_errors) are absent from both the chain and the contract, so the two agree. A LIVE target that received the tables earlier may carry platform_status / platform_errors, which a chain-built target will not — a live-versus-fresh divergence that regeneration would remove.",
+      "detail": "Version order is not calendar order, so 20250904110000 (2025-09-04) runs BEFORE 20260413200000 (2026-04-13). 20250813121000 ALTERs public.staff_invitations four times and 20250904110000 / 20250905004500 ALTER public.scheduled_posts, all inside to_regclass or information_schema guards, at points where those relations do not yet exist. A fresh replay therefore skips all six; the staff_invitations columns still arrive from the later CREATE, and the two scheduled_posts columns (platform_status, platform_errors) are absent from both the chain and the contract, so the two agree. A LIVE target that received the tables earlier may carry platform_status / platform_errors, which a chain-built target will not \u2014 a live-versus-fresh divergence that regeneration would remove.",
       "resolution": "Operator decision before the next regeneration: does any live target carry scheduled_posts.platform_status? If yes, capture it as an additive migration (or confirm it is dead) rather than letting regeneration delete it. Recorded as a handoff.",
       "evidence": [
         "supabase/tests/db008_chain_contract_replay.mjs report.preCreateAlters"
       ]
+    },
+    {
+      "gap": "A tsc error count is a LOWER BOUND on drift, never an upper bound",
+      "detail": "The Wave 34 finding stands and Wave 35 found a second, sharper instance of it. The admin lane proved product code with an `any`-typed client produces ZERO diagnostics while still breaking at PostgREST. Wave 35 measured the same thing in the other direction: the `--linked` payload declares 609 relations where the product has 417, and the 1,384 diagnostics in this inventory were reported against a contract the chain already supersedes by 15 relations and 58 columns. A diagnostic count therefore cannot rank schema risk, and the 1,384 figure must not be used as a progress denominator.",
+      "resolution": "Rank by the chain-vs-contract delta and by whether a route is entry-reachable, not by diagnostic count. Regenerate the contract, then re-measure."
+    },
+    {
+      "gap": "The three regeneration targets disagree with each other, and the repo has no record of which one the contract came from",
+      "detail": "Chain 417 relations / 5,363 columns. Committed contract 402 / 5,275 / 100. Linked project 609 / 8,020 / 151. Wave 34 established the chain is a strict superset of the contract, so a chain-built target is safe. Wave 35 established the linked project is a different lineage and unsafe. Nothing in the repository records which target the committed contract was generated from, and `check:database-types` cannot answer it either, because it also needs a target. Two of the three must converge and the choice has to be recorded.",
+      "resolution": "DB-008 with release/ops: decide the generation target, record the decision in docs/engineering/migration-validation/hosted-history-ledger.json, then apply the pending migrations to it and regenerate. See HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE."
     }
   ],
   "diagnosticHitCountMethod": "tscDiagnosticHits counts, per object, the number of primary diagnostics whose 8-line message window names that object. Because tsc repeats the rejected literal inside the printed overload union, those per-object hits SUM TO MORE than the 1,384 primary diagnostics (1,548 here) and must never be added up and read as a diagnostic total. The authoritative totals are 1,384 primary diagnostics across 407 files and 128 distinct missing objects. 197 distinct file paths appear on the primary diagnostic lines; the 407 figure is tsc's own end-of-run summary, which also counts files that only produced suppressed or warning-level output.",
   "totals": {
-    "activeMigrations": 305,
+    "activeMigrations": 309,
     "tscPrimaryDiagnostics": 1384,
     "tscDistinctFilesInPreservedLog": 197,
     "namedMissingObjects": 107,
@@ -76,10 +76,11 @@
       "schema-missing": 149,
       "stale-types": 19
     },
-    "wave34Note": "schema-missing is 7 of the 9: venue_profiles.social_links and venue_profiles.cover_image_url were captured as 20260925210000 in Wave 33 and are now present in the chain, so they are resolved at the database layer and need only regeneration. stale-types is 0: the 2 ticket_shares / ticket_referrals diagnostics are fixed by regeneration, and the contract now declares neither."
+    "wave34Note": "schema-missing is 7 of the 9: venue_profiles.social_links and venue_profiles.cover_image_url were captured as 20260925210000 in Wave 33 and are now present in the chain, so they are resolved at the database layer and need only regeneration. stale-types is 0: the 2 ticket_shares / ticket_referrals diagnostics are fixed by regeneration, and the contract now declares neither.",
+    "wave35Note": "The 1,384 diagnostics were NOT re-measured; no tsc was run and the CI log is unchanged. What changed: the chain is 309 migrations and regeneration would now ADD 15 relations / 58 columns / 42 callables and DELETE 0 against a chain-built target, and would DELETE 78 relations against the linked project, which is a different database. See staleTypeSurface.wave35RegenerationAnswer and knownGaps."
   },
   "staleTypeSurface": {
-    "note": "Objects the active chain creates and lib/database.types.ts does not declare. The chain is now 305 migrations: 415 relations (401 tables + 14 views), 224 routines (142 callable + 82 trigger). RETURNS trigger functions are correctly never emitted by `supabase gen types`, so they are counted separately and are not drift. Regeneration would ADD every item below and remove nothing.",
+    "note": "Objects the active chain creates and lib/database.types.ts does not declare. The chain is now 309 migrations: 417 relations (403 tables + 14 views), 5,363 columns, 224 routines (142 callable + 82 trigger). RETURNS trigger functions are correctly never emitted by `supabase gen types`, so they are counted separately and are not drift. Regeneration against a CHAIN-BUILT target would ADD every item below and remove nothing. Measured by supabase/tests/db008_contract_reproducibility.harness.sh: regeneration would ADD 15 relations, 58 columns and 42 callables, and DELETE 0.",
     "relations": {
       "ticketing_migration_issues": {
         "name": "ticketing_migration_issues",
@@ -457,7 +458,45 @@
       }
     },
     "stalenessWatermark": "The contract reflects the chain through 20260910000001_get_active_organizer_account_for_org.sql. Everything listed here is created by a later migration and would be added by regeneration. Note that cleanup_orphaned_artist_files, cleanup_old_notifications and refresh_forum_mviews are created in 2025 and are STILL absent from the contract: they remain an unexplained generation-target artefact, now 39 callables rather than 4, so the Wave 33 reading that they were mostly staleness does not hold.",
-    "wave34Correction": "Wave 33 listed 4 unexplained callables (cleanup_orphaned_artist_files, cleanup_old_notifications, refresh_forum_mviews, fix_missing_profiles) alongside 15 stale ones. With the corrected 100-callable contract count, fix_missing_profiles IS present in the contract and 39 callables are chain-only, of which those three 2025 functions remain the genuinely unexplained minority."
+    "wave34Correction": "Wave 33 listed 4 unexplained callables (cleanup_orphaned_artist_files, cleanup_old_notifications, refresh_forum_mviews, fix_missing_profiles) alongside 15 stale ones. With the corrected 100-callable contract count, fix_missing_profiles IS present in the contract and 39 callables are chain-only, of which those three 2025 functions remain the genuinely unexplained minority.",
+    "wave35RegenerationAnswer": {
+      "againstAChainBuiltTarget": {
+        "verdict": "SAFE in the deletion direction, and now measured in every direction rather than only the deletion one.",
+        "adds": {
+          "relations": 15,
+          "columns": 58,
+          "callables": 42
+        },
+        "deletes": {
+          "relations": 0,
+          "columns": 0,
+          "callables": 0
+        },
+        "outOfBand": 0,
+        "viewColumnsProvenBy": "SELECT-list replay on a throwaway PostgreSQL 16.15 cluster, not column-name occurrence. See viewColumnReplay below.",
+        "gate": "bash supabase/tests/db008_contract_reproducibility.harness.sh -> ALL CHECKS PASSED, measured out-of-band columns 0"
+      },
+      "againstTheLinkedProject": {
+        "verdict": "DESTRUCTIVE. DO NOT RUN.",
+        "why": "The linked project is a DIFFERENT schema lineage, not this chain. `supabase gen types typescript --schema public --linked` succeeds with no credential prompt and returns 609 relations / 8,020 columns / 151 callables, against a contract of 402 / 5,275 / 100 and a chain of 417 relations / 5,363 columns.",
+        "wouldDelete": {
+          "relations": 78,
+          "columns": 112,
+          "callables": 27
+        },
+        "wouldAdd": {
+          "relations": 285,
+          "ofWhichNoActiveMigrationCreates": 276,
+          "columns": 346,
+          "callables": 78
+        },
+        "wouldRetype": {
+          "columns": 250
+        },
+        "evidenceThatItIsNotThisChain": "All 78 relations it would delete are also created by the active chain, and they originate in 26 separate migrations from 20250115000000 to 20260908130000 with no contiguous cutoff, so the linked database is not simply behind. 276 of the 285 it would add exist in NO active migration and include betalaunch, demo_*, world_* and admin_roles. The committed contract was not generated from it.",
+        "instrument": "node supabase/tests/db008_linked_type_delta.mjs <payload> . (self-checks its own parser; exits 1 if the parser is wrong)"
+      }
+    }
   },
   "codeDriftClusters": [
     {
@@ -5464,7 +5503,14 @@
       }
     }
   ],
-  "revision": "Wave 34 database lane (d2176904, dirty worktree). The Wave 33 out-of-band COLUMN finding is RETRACTED; see knownGaps[2] and outOfBandDdlDelta. staleTypeSurface and the two migrated column pairs are refreshed.",
+  "revision": [
+    {
+      "wave": 35,
+      "at": "2026-09-26T01:40:00.000Z",
+      "by": "database",
+      "note": "Wave 35 revised the REGENERATION ANSWER, not the diagnostic inventory. The 1,384 diagnostics were not re-measured (no tsc run: this box has 8 GB and the full typecheck OOMs), and the CI log this inventory was built from is unchanged. What changed is what regeneration would DO, and by how much, and the fact that one of the three regeneration targets is a different database."
+    }
+  ],
   "outOfBandDdlDelta": {
     "measuredBy": "supabase/tests/db008_chain_contract_replay.mjs (case-insensitive, file-order event replay, with existence-guard modelling and an audited dynamic-DDL supplement)",
     "totals": {
@@ -5541,6 +5587,112 @@
         "20260926120100_marketplace_external_listing_surface.sql",
         "20260926120200_marketplace_entitlement_download_increment_rpc.sql"
       ]
+    },
+    "wave35": {
+      "authored": [
+        "20260926140000_interaction_read_scoping.sql - three SELECT policies on post_likes / comment_likes / post_comments replaced. anon reads 2 of 2, 1 of 1 and 2 of 2 rows before and 0 of 0 after. Not a type-surface change.",
+        "20260926140100_marketplace_money_path_tables.sql - 2 tables (marketplace_payment_events, marketplace_fee_rules), 2 indexes, 1 policy, 1 trigger, 1 inactive seed row. Not a type-surface change; both tables are absent from the contract and will be ADDED by regeneration.",
+        "20260926140200_scheduled_posts_platform_columns.sql - 2 columns and 2 GIN indexes on scheduled_posts. The chain now supplies platform_status / platform_errors, which no fresh replay produced before; the contract still declares neither, so they remain in the ADD set."
+      ],
+      "netEffectOnTheRegenerationDelta": "ADD grew from 13 relations / 56 columns / 42 callables (Wave 34) to 15 relations / 58 columns / 42 callables. DELETE remains 0."
     }
-  }
+  },
+  "viewColumnReplay": {
+    "supersedes": "knownGaps item 3 (the name-occurrence caveat on the 13 view relations)",
+    "status": "CLOSED by measurement in Wave 35",
+    "before": "The 13 chain view relations were covered by COLUMN-NAME OCCURRENCE in their defining migration, not by replaying the SELECT list. A name that appears in a file proves only that the string is somewhere in the text, so this was the one surface where a regeneration could still have removed coverage.",
+    "after": {
+      "method": "supabase/tests/db008_view_column_replay.harness.sh extracts all 13 view DDL statements byte-verbatim from the chain (by OFFSET from a length-preserving comment/literal mask, so literals like 'Individual'::text survive), applies them in version order to a throwaway PostgreSQL 16.15 cluster whose dependency-stub closure is DISCOVERED from the server's own `relation ... does not exist` errors, and asks PostgreSQL for the resolved output columns via pg_attribute (information_schema.columns excludes materialized views, which would have made the two forum_*_mv relations read as zero columns).",
+      "viewsResolved": "13 of 13",
+      "contractColumnsUncovered": 0,
+      "viewOnlyColumns": 0,
+      "negativeControls": 3,
+      "verdict": "The reproducibility claim is no longer overstated. Every surface of the CP-016 gate is now a replay: table columns by ordered event replay, relations and callables by ordered event replay, and view columns by letting PostgreSQL resolve the actual SELECT list."
+    },
+    "residual": "The dependency stubs are built from the chain's own declared column NAMES and TYPES, plus a documented supplement for columns added only through dynamic DDL (20260625000000_polymorphic_hiring_entity.sql adds employer_entity_type / employer_entity_id through `execute format('alter table public.%I add column if not exists ...', v_table)`). A stub that over-approximates cannot change the output column names of a view with an explicit SELECT list, and the one view using `select *` (entities_all) is resolved by PostgreSQL from the three views above it, so its expansion is exact."
+  },
+  "schemaMissingDisposition": {
+    "asOf": "2026-09-26",
+    "note": "HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED asked for these; HF-DB-011-SCHEMA-MISSING-CONTRACTS-DISPOSITION dispositions them. The premise was half wrong: the artist lane did deliver exact columns for four objects, but the delivery is not locatable in any handoff addressed to `database`, so it still cannot be acted on without a second-hand guess at nullability.",
+    "migrated": [
+      {
+        "object": "venue_profiles.social_links",
+        "migration": "20260925210000_venue_profile_presentation_columns.sql"
+      },
+      {
+        "object": "venue_profiles.cover_image_url",
+        "migration": "20260925210000_venue_profile_presentation_columns.sql"
+      }
+    ],
+    "blockedOnAContractTheLaneCannotVerify": [
+      {
+        "object": "event_tasks",
+        "owner": "artist",
+        "diagnosticHits": "part of 75",
+        "action": "locate the delivered contract in a handoff addressed to `database`; then one additive migration"
+      },
+      {
+        "object": "event_equipment",
+        "owner": "artist",
+        "diagnosticHits": "part of 75",
+        "action": "same"
+      },
+      {
+        "object": "artist_licensing_deals",
+        "owner": "artist",
+        "diagnosticHits": "part of 75",
+        "action": "same"
+      },
+      {
+        "object": "artist_license_templates",
+        "owner": "artist",
+        "diagnosticHits": "part of 75",
+        "action": "same"
+      }
+    ],
+    "retiredDoNotCreate": [
+      {
+        "object": "pending_password_resets",
+        "owner": "qa",
+        "diagnosticHits": 14,
+        "evidence": "no CREATE TABLE in the active chain, and the design-system lane deleted the code that queried it. Re-verified in Wave 35. Creating it would resurrect dead surface."
+      }
+    ],
+    "undecidableNoCreateTableAnywhere": [
+      {
+        "object": "hiring_candidates",
+        "owner": "work",
+        "diagnosticHits": 4,
+        "disposition": "work supplies the contract from the product's actual reads, or the querying code is deleted"
+      },
+      {
+        "object": "error_reports",
+        "owner": "admin",
+        "diagnosticHits": 6,
+        "disposition": "admin owns the report surface and the contract"
+      },
+      {
+        "object": "user_mfa_methods",
+        "owner": "identity",
+        "disposition": "MFA is live since 20260918213707, so decide: genuinely missing, or genuinely dead"
+      },
+      {
+        "object": "user_mfa_setup_temp",
+        "owner": "identity",
+        "disposition": "RETIRE. A temporary enrolment scratch table with no reader, and a security-lifetime problem if it does exist."
+      },
+      {
+        "object": "user_mfa_backup_codes",
+        "owner": "identity",
+        "disposition": "DECIDE, with user_mfa_methods"
+      },
+      {
+        "object": "access_audit_log",
+        "owner": "security",
+        "disposition": "retire-or-build. A compliance relation with no home; an invented shape is worse than none."
+      }
+    ],
+    "explicitlyNotDone": "Nothing in the 'undecidable' set was migrated. The database lane will not invent a table to make tsc quieter: the measured evidence from Waves 33 and 34 is that a plausible-looking invented column is found at PostgREST, not at compile time."
+  },
+  "lastRevisedAt": "2026-09-26T01:40:00.000Z"
 }

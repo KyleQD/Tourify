@@ -2,18 +2,18 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (423 entries)
-- Generated at: 2026-09-25T22:27:02.069Z
+- Working tree: dirty (152 entries)
+- Generated at: 2026-09-25T23:26:47.265Z
 - Generator: `control-plane.mjs generate`
 
 ## Top-level directories
 
 | Directory | Files |
 | --- | ---: |
-| `__tests__/` | 528 |
-| `app/` | 1869 |
+| `__tests__/` | 539 |
+| `app/` | 1870 |
 | `apps/` | 186 |
 | `audit-artifacts/` | 5 |
 | `components/` | 1140 |
@@ -24,10 +24,10 @@
 | `data/` | 10 |
 | `deployment/` | 7 |
 | `docker/` | 5 |
-| `docs/` | 3121 |
+| `docs/` | 3147 |
 | `docs-integration-suite/` | 20 |
-| `hooks/` | 72 |
-| `lib/` | 1292 |
+| `hooks/` | 71 |
+| `lib/` | 1293 |
 | `logs/` | 2 |
 | `migrations/` | 30 |
 | `packages/` | 2 |
@@ -39,7 +39,7 @@
 | `seed/` | 3 |
 | `seed_articles/` | 13 |
 | `services/` | 1 |
-| `supabase/` | 880 |
+| `supabase/` | 896 |
 | `test-results/` | 6 |
 | `tests/` | 20 |
 | `types/` | 31 |

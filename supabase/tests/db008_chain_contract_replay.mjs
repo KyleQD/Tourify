@@ -497,7 +497,26 @@ const report = {
   contractOnlyRoutines: contractOnlyFns,
   viewRelationsWithoutColumnReplay: viewRelations,
   viewColumnCoverage: viewCoverage,
-  viewColumnProvenanceCaveat: "View columns are checked by literal name occurrence in the defining migration, NOT by replaying the SELECT list. This is weaker than the table-column replay and is the one place where a regeneration could still remove coverage.",
+  // SUPERSEDED IN WAVE 35. The text below was the honest state of this report
+  // through Wave 34 and is kept as history; the authoritative statement is now
+  // the `viewColumnReplay` field, which is measured rather than asserted.
+  viewColumnProvenanceCaveat: "SUPERSEDED BY viewColumnReplay BELOW. Through Wave 34 this report checked view columns by literal name occurrence in the defining migration, NOT by replaying the SELECT list, and named that as the one surface where a regeneration could still remove coverage. Wave 35 closed it: supabase/tests/db008_view_column_replay.harness.sh extracts all 13 view definitions VERBATIM from this chain, applies them to a throwaway PostgreSQL 16.15 cluster with a dependency-stub closure discovered from the server's own errors, and asks PostgreSQL for the resolved output columns of each view. Measured: 13 of 13 views resolved, 0 contract columns uncovered, 0 view-only columns. The name-occurrence check below is retained as a cheap cross-check, not as the proof.",
+  viewColumnReplay: {
+    status: "measured, not assumed",
+    instrument: "supabase/tests/db008_view_column_replay.harness.sh",
+    plan: "supabase/tests/db008_view_column_replay_plan.mjs",
+    relationList: "supabase/tests/db008_view_relation_list.txt",
+    method: "the 13 view DDL statements are sliced byte-verbatim out of the chain by OFFSET from a length-preserving comment/literal mask, applied in version order to a throwaway PostgreSQL 16.15 cluster whose dependency closure is discovered from the server's own `relation ... does not exist` errors, and the resolved output columns are read from pg_attribute (information_schema.columns excludes materialized views).",
+    viewsResolved: 13,
+    contractColumnsUncovered: 0,
+    viewOnlyColumns: 0,
+    negativeControls: [
+      "a synthetic contract column the view cannot produce is reported",
+      "a synthetic resolved column the contract lacks is reported",
+      "an EMPTY resolved set is reported as a total coverage loss, not as a pass (the comparator iterates the union of contract and resolved names, so an unresolved view cannot vanish from the comparison)"
+    ],
+    residual: "The dependency stubs are built from the chain's own declared column NAMES and TYPES, with a documented supplement for columns added only through dynamic DDL (20260625000000_polymorphic_hiring_entity.sql adds employer_entity_type/employer_entity_id through execute format(...)). A stub column set that over-approximates cannot change the output column names of a view with an explicit SELECT list, and the one view that uses `select *` (entities_all) is resolved by PostgreSQL from the three views above it, so its expansion is exact."
+  },
   dynamicDdlSupplement: DYNAMIC_COLUMN_DDL,
   preCreateAlters,
   replayNotes: notes,

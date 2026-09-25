@@ -2,12 +2,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
+import { createRateLimiter } from '@/lib/utils/rate-limit'
 
 // Canonical profile-follow contract (also used by the legacy /api/follow shim):
 // POST { followingId, action: 'follow' | 'unfollow' }
 // 200 { success: true, action: 'followed' | 'unfollowed', isFollowing, changed }
 // `changed` is false for a retry. Only a new insert records the achievement and
 // sends a direct-follow notification; request notifications use their own flow.
+// 400 { error } for a malformed body, a non-uuid target, or a self-follow.
+// 429 { error: 'Too many follow requests' } once the caller exhausts the window.
+//
+// Every caller funnels through this handler — the profile and feed clients, the
+// legacy `/api/follow` shim, and the `action: 'follow'` branch of
+// `/api/notifications/social` all delegate here — so this is also where the
+// canonical side effects are rate limited. A follow fans out a notification to
+// another user, which makes an unbounded mutation loop a notification-spam
+// primitive; the limit is per authenticated user and generous enough that a
+// retry storm after a flaky network still succeeds.
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const followMutationLimiter = createRateLimiter({
+  namespace: 'social:follow:mutate',
+  limit: 30,
+  windowSec: 60,
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +38,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { user, supabase } = authResult
+
+    const rateLimit = await followMutationLimiter.check(user.id)
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: 'Too many follow requests' }, { status: 429 })
+    }
 
     let body: Record<string, unknown>
     try {
@@ -36,6 +60,15 @@ export async function POST(request: NextRequest) {
     if (typeof followingId !== 'string' || !followingId || !action) {
       return NextResponse.json(
         { error: 'Following ID and action are required' },
+        { status: 400 }
+      )
+    }
+
+    // `follows.following_id` is a uuid, so a non-uuid target can only ever
+    // surface as a driver error. Refuse it before the insert instead.
+    if (!UUID_PATTERN.test(followingId)) {
+      return NextResponse.json(
+        { error: 'Invalid following id' },
         { status: 400 }
       )
     }

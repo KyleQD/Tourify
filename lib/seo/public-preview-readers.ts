@@ -28,10 +28,20 @@ function createEpkSlug(input: string) {
 
 export async function getPublicProfilePreview(username: string) {
   const supabase = await createClient()
+  // DB-008 / Wave 35: `profiles.custom_url` exists in NO active migration and in
+  // neither `lib/database.types.ts` nor the live generated contract — it was only
+  // ever created by the out-of-chain
+  // `supabase/migrations_backup/20250120250000_add_custom_url_to_profiles.sql`.
+  // Because it was inside the shared `profileSelect` string, PostgREST rejected
+  // the WHOLE select and this reader returned `null` for every username, so
+  // `app/profile/[username]/layout.tsx` silently lost all SEO preview metadata.
+  // The canonical, chain-populated public handle on `profiles` is `username`
+  // (public.generate_unique_username / public.lookup_profile_id_by_username).
+  // `profiles.url_slug` was NOT chosen: it is in the generated contract but has no
+  // active migration and no reader, so it would only move the breakage.
   const profileSelect = `
     id,
     username,
-    custom_url,
     full_name,
     bio,
     avatar_url,
@@ -43,20 +53,11 @@ export async function getPublicProfilePreview(username: string) {
     is_verified
   `
 
-  let { data: profile } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select(profileSelect)
     .eq('username', username)
     .maybeSingle()
-
-  if (!profile) {
-    const fallback = await supabase
-      .from('profiles')
-      .select(profileSelect)
-      .eq('custom_url', username)
-      .maybeSingle()
-    profile = fallback.data
-  }
 
   if (!profile) return null
 

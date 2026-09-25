@@ -914,3 +914,136 @@ cutover. Staged migration work remains under CP-051's explicit manual-apply rule
   was fabricated. `agents:generate` was deliberately not run; the orchestrator
   should run it once the worktree settles, since the generated maps now trail
   2 new migrations, 3 new manifests, 2 new handoffs and the refreshed inventory.
+
+## Wave 35 — regeneration enumerated, the last weak surface closed, three migrations authored — 2026-09-26
+
+Branch `codex/qa004-staging-campaign` @ `ca3bb0b0`, dirty worktree with 6
+concurrent lanes. No migration was applied to any environment, no reset or
+replay was run, `agents:generate` was deliberately not run (shared-map race),
+and no full typecheck was run (8 GB box; CI needs 68 min on 16 GB).
+
+### Objective 1 — regeneration: reachable, and reachable the WRONG way
+
+- **All three paths executed, not reasoned about.**
+  `SUPABASE_TYPE_SOURCE=local` → `Cannot connect to the Docker daemon`
+  (exit 1). `SUPABASE_TYPE_SOURCE=linked` → **exit 0, 1,183,384 bytes, no
+  credential prompt**. Wave 34 recorded `linked` as unreachable; that was
+  wrong. `SUPABASE_TYPE_SOURCE=project-id` → Node throws before the CLI with no
+  token; with a deliberately invalid but correctly-shaped token the CLI answers
+  `Invalid access token format`.
+- **The real blocker is in the repository, not the environment.**
+  `scripts/ci/generate-database-types.mjs:13` and `check-database-types.mjs:13`
+  call `spawnSync` with no `maxBuffer`, so Node's 1 MB cap applies and both
+  fail with `ENOBUFS` (errno -55) on any target. This project's output is
+  1.18 MB. One option in two files outside this lane's grant; handed over.
+- **`lib/database.types.ts` was NOT regenerated and is byte-unchanged**
+  (SHA-256 `168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7`).
+  `--linked` must never be used as a source: it holds 609 relations / 8,020
+  columns / 151 callables against a chain of 417 / 5,363 and a contract of
+  402 / 5,275 / 100. Regenerating from it would delete 78 relations, 112
+  columns and 27 callables and add 285 relations of which 276 are created by no
+  active migration. It is a different database, not a stale one: the 78 deletions
+  span 26 migrations from 20250115000000 to 20260908130000 with no contiguous
+  cutoff, and the contract has zero out-of-band surface against the chain, so
+  the contract demonstrably did not come from it.
+- **The 13 view relations are now PROVEN, not name-matched.**
+  `db008_view_column_replay.harness.sh` slices the view DDL byte-verbatim by
+  offset from a length-preserving mask, applies it to a throwaway PostgreSQL
+  16.15 with a server-discovered dependency closure, and asks PostgreSQL for
+  the resolved columns: **13/13 resolved, 0 contract columns uncovered, 0
+  view-only columns, 3 negative controls fired.** The reproducibility claim is
+  no longer overstated. `db008_chain_contract_replay.mjs` marks the old caveat
+  SUPERSEDED and adds a measured `viewColumnReplay` field.
+- **Four instrument defects found and fixed on the way**, all the same shape as
+  the Wave 33/34 ones: emitting the masked SQL instead of the original (a
+  literal `'Individual'::text` became `::text`); a comparator that iterated only
+  the resolved side, so an unresolved view passed the coverage check; reading
+  materialized views through `information_schema.columns`, which excludes them;
+  and a BSD-`sed` `\?` that made an error branch permanently dead.
+
+### Objective 2 — marketplace: 66 items triaged
+
+14 already in the chain, **46 blocking**, 6 dead. The blocking set is dominated
+by ONE product decision, not 36 column contracts: archive `20260704224927` is
+the external-fulfilment surface (Shopify/Printful) and its column contract is
+entangled with `marketplace_integrations.token_envelope` /
+`.refresh_token_envelope`, a secrets-vault question. **Authored the 2 money-path
+items** in `20260926140100`: `marketplace_payment_events` (the Stripe webhook
+idempotency claim, service-role-only by design, unique on `provider_event_id`)
+and `marketplace_fee_rules` (admin-gated, default rule seeded INACTIVE). The
+remaining 44 are 36 external-fulfilment, 4 service-marketplace, 2
+`search_vector`, 2 moderation-queue column sets; **none is a money path**.
+Also fixed a false-positive instrument: column consumers were counted by bare
+column name, reporting `marketplace_storefronts.status` with 2,158 consumers
+citing files that read no marketplace table. After scoping consumer matching to
+the table, those are 16 and 1.
+
+### Objective 3 — the named handoffs
+
+- **`HF-DB-006-SOCIAL-007`: stage 1 authored and executed.**
+  `20260926140000_interaction_read_scoping.sql` closes the `anon` exposure on
+  `post_likes`, `post_comments` and `comment_likes` (found by the same scan, not
+  named in the handoff). Measured: anon read 2/2, 1/1 and 2/2 rows before, 0/0/0
+  after. **The handoff's premise about the browser consumers does not hold**:
+  `components/artist/artist-home-feed.tsx:186` and
+  `components/profile/public-profile-view.tsx:284` already filter
+  `.eq('user_id', <caller>)` and need no coordination. Stage 2
+  (own-rows-only) is **not** authored: it would empty the liker list at
+  `app/api/notifications/social/route.ts:291-297` and zero the counts at
+  `lib/admin/content-hub/org-posts.ts:55`. The residual is asserted by the
+  harness, so the finding is reduced and not silently closed.
+- **`HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE`: repaired.**
+  `20260926140200` reproduces the ordering defect from the real files and then
+  fixes it. Wave 34's "the contract and the chain agree" was right about the
+  contract and was the wrong place to stop: `app/api/artist/content/overview/
+  route.ts:137` selects both columns and
+  `lib/services/cross-platform-posting.service.ts:195` writes one.
+- **`HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE`: confirmed.** The two
+  `work_mode_*` tables are chain-only relations with live consumers at
+  `app/api/work-mode/assignments/[id]/actions/route.ts` and
+  `app/api/admin/events/[id]/work-mode/attendance/route.ts`. Regeneration
+  against a chain-built target clears them. Not hand-edited:
+  `lib/database.types.ts` is outside this lane.
+- **`HF-DB-011-SCHEMA-MISSING-CONTRACTS-*`: dispositioned.** The premise is half
+  wrong — the artist lane's contract for the four artist objects is not
+  locatable in any handoff addressed to `database`, so it still cannot be acted
+  on. `pending_password_resets` re-verified as genuinely dead, explicitly not to
+  be created. Five objects have no `CREATE TABLE` anywhere and are dispositioned
+  per object; `user_mfa_setup_temp` is consistent with CP-087's MFA deletion
+  order.
+
+### Objective 4 — the storage guard was not reproducible, and is now
+
+`git ls-files` confirms neither `manifest.json` nor `00-bootstrap.sql` was ever
+committed, and nothing invoked the harness: the Wave 33 CP-059 proof was a claim.
+The fixture existed under a different name, so the defect was a filename
+mismatch plus a missing manifest. The harness is now self-contained (own
+cluster, own manifest, committed bootstrap, own post-state assertion) and runs
+**10 scenarios, 10 passed, exit 0**. A second, worse defect was fixed in the
+extractor: it read the unguarded form from `git show HEAD:<file>`, which is now
+the guarded form, so every scenario would have passed without exercising the
+failure mode. The unguarded form is now synthesised by unwrapping the CP-059
+guard blocks. `db008_run_all.sh` is the single entry point for all nine
+harnesses; `package.json` and CI are outside this lane and are handed over.
+
+### Gates and honesty
+
+- `check:migration-chain` **pass** (309 files). `check:migration-validation`
+  **pass** repo-wide. `check:migration-ledger` **pass** (309 active, 18
+  classified, 291 unreconciled). `agents:validate` **0 errors**, 8 warnings, all
+  "generated from a different SHA" because `agents:generate` was not run.
+- `bash supabase/tests/db008_run_all.sh` → **ran 9, skipped 1, failed 0**. The
+  skip is `view-delta`, which needs a gen-types payload; it was run separately
+  and its full output is in the linked-target handoff.
+- **Not run and not claimed:** `npm run typecheck`, `npm run generate:database-types`,
+  `npm run check:database-types`, `supabase db lint --local`, and every hosted
+  probe. No hosted evidence was fabricated beyond the read-only
+  `supabase gen types --linked`.
+- **Disclosed incident:** while proving the `maxBuffer` defect I ran a
+  one-line-modified copy of the generator from inside `scripts/ci/`, and it
+  overwrote `lib/database.types.ts` — a file this lane may not touch. Restored in
+  the same session with `git show HEAD:lib/database.types.ts` (a read, not a
+  history mutation) and verified byte-identical by SHA-256; `git status` is clean
+  for that path. The scratch file was deleted. No
+  commit/add/checkout/restore/stash/reset/clean/rebase/merge/cherry-pick was
+  issued at any point in this wave.

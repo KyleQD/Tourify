@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { z } from 'zod'
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 const updateProfileSchema = z.object({
   full_name: z.string().min(1, 'Full name is required').max(100, 'Full name must be less than 100 characters').optional(),
   username: z.string().min(3, 'Username must be at least 3 characters').max(30, 'Username must be less than 30 characters').optional(),
+  // Deprecated request alias for `username`; see the handle-resolution block below.
+  // It is never written as a `profiles` column because that column is not in the
+  // active migration chain.
   custom_url: z.string().min(3, 'Custom URL must be at least 3 characters').max(30, 'Custom URL must be less than 30 characters').optional(),
   bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
   location: z.string().max(100, 'Location must be less than 100 characters').optional(),
@@ -43,14 +50,36 @@ export async function PUT(request: NextRequest) {
 
     const updateData = validationResult.data
 
-    // Handle custom URL validation and uniqueness
-    if (updateData.custom_url) {
-      // Clean the custom URL
-      const cleanedUrl = updateData.custom_url.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '')
-      
+    // Handle the public handle: validation and uniqueness.
+    //
+    // DB-008 / Wave 35: `profiles.custom_url` exists in no active migration and in
+    // no generated contract, so the previous `custom_url` write below made
+    // PostgREST reject the ENTIRE update statement — this route returned 500 for
+    // every real client (`components/settings/enhanced-profile-settings.tsx`
+    // always submits the field). `profiles.username` is the canonical, chain-
+    // populated public handle, so `custom_url` is now treated as a deprecated
+    // request alias for it. A payload that carries both with different values is
+    // rejected explicitly rather than silently resolved, so no handle change is
+    // ever chosen for the user.
+    const requestedHandle = updateData.username ?? updateData.custom_url
+    if (
+      updateData.username !== undefined &&
+      updateData.custom_url !== undefined &&
+      updateData.username !== updateData.custom_url
+    ) {
+      return NextResponse.json({
+        error: 'username and custom_url disagree; send only one',
+        field: 'custom_url'
+      }, { status: 400 })
+    }
+
+    if (requestedHandle) {
+      // Clean the handle
+      const cleanedUrl = requestedHandle.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '')
+
       // Check if URL is reserved
       const reservedUrls = ['admin', 'api', 'www', 'app', 'settings', 'profile', 'user', 'account', 'dashboard', 'login', 'signup', 'auth', 'help', 'support', 'about', 'contact', 'terms', 'privacy', 'events', 'artist', 'venue', 'search', 'discover', 'feed', 'messages', 'notifications', 'billing', 'security', 'integrations']
-      
+
       if (reservedUrls.includes(cleanedUrl)) {
         return NextResponse.json({
           error: 'This URL is reserved and cannot be used',
@@ -58,18 +87,18 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 })
       }
 
-      // Check if URL is already taken by another user
+      // Check if the handle is already taken by another user
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('id')
-        .eq('custom_url', cleanedUrl)
+        .eq('username', cleanedUrl)
         .neq('id', user.id)
         .single()
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ Error checking custom URL:', checkError)
+        console.error('❌ Error checking profile handle:', checkError)
         return NextResponse.json({
-          error: 'Error validating custom URL'
+          error: 'Error validating profile handle'
         }, { status: 500 })
       }
 
@@ -80,31 +109,9 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 })
       }
 
-      updateData.custom_url = cleanedUrl
-    }
-
-    // Handle username validation and uniqueness
-    if (updateData.username) {
-      const { data: existingUsername, error: usernameError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', updateData.username)
-        .neq('id', user.id)
-        .single()
-
-      if (usernameError && usernameError.code !== 'PGRST116') {
-        console.error('❌ Error checking username:', usernameError)
-        return NextResponse.json({
-          error: 'Error validating username'
-        }, { status: 500 })
-      }
-
-      if (existingUsername) {
-        return NextResponse.json({
-          error: 'This username is already taken',
-          field: 'username'
-        }, { status: 400 })
-      }
+      updateData.username = cleanedUrl
+      // `custom_url` is a request alias only; it is never written as a column.
+      delete updateData.custom_url
     }
 
     // Get current profile to merge with updates
@@ -126,19 +133,21 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
-    // Direct profile fields
+    // Direct profile fields. `custom_url` is intentionally absent: the column
+    // does not exist in the active chain and writing it fails the whole statement.
     if (updateData.full_name !== undefined) profileUpdate.full_name = updateData.full_name
     if (updateData.username !== undefined) profileUpdate.username = updateData.username
-    if (updateData.custom_url !== undefined) profileUpdate.custom_url = updateData.custom_url
     if (updateData.bio !== undefined) profileUpdate.bio = updateData.bio
 
     // Metadata fields
-    const currentMetadata = currentProfile.metadata || {}
+    const currentMetadata = isRecord(currentProfile.metadata) ? currentProfile.metadata : {}
     const newMetadata = {
       ...currentMetadata,
       full_name: updateData.full_name || currentMetadata.full_name,
       username: updateData.username || currentMetadata.username,
-      custom_url: updateData.custom_url || currentMetadata.custom_url,
+      // Deprecated alias mirror. `profiles.custom_url` does not exist; this jsonb
+      // key is kept only so older readers of `metadata.custom_url` stay truthful.
+      custom_url: updateData.username || currentMetadata.custom_url,
       bio: updateData.bio || currentMetadata.bio,
       location: updateData.location !== undefined ? updateData.location : currentMetadata.location,
       website: updateData.website !== undefined ? updateData.website : currentMetadata.website,
@@ -146,11 +155,27 @@ export async function PUT(request: NextRequest) {
       instagram: updateData.instagram !== undefined ? updateData.instagram : currentMetadata.instagram,
       twitter: updateData.twitter !== undefined ? updateData.twitter : currentMetadata.twitter,
       show_email: updateData.show_email !== undefined ? updateData.show_email : currentMetadata.show_email,
+      // NOTE: deliberately written to `metadata` only, exactly as before. The
+      // public publication gate is the top-level `profiles.show_phone` column
+      // (lib/profile/general-public-profile.ts) and this route has never been able
+      // to set it. Adding the column write here would widen what can be published,
+      // so it is escalated instead — see the USER-005 checkpoint.
       show_phone: updateData.show_phone !== undefined ? updateData.show_phone : currentMetadata.show_phone,
       show_location: updateData.show_location !== undefined ? updateData.show_location : currentMetadata.show_location,
     }
 
     profileUpdate.metadata = newMetadata
+
+    // `profiles.phone` does not exist. The canonical phone storage is
+    // `profiles.profile_data.phone` — the same key app/api/settings/profile/route.ts
+    // writes and the same key lib/profile/general-public-profile.ts strips when
+    // `show_phone` is not `true`. Mirror it here so a phone entered in this form is
+    // actually gated instead of being stranded in a legacy mirror. This does not
+    // change the gate: the top-level `show_phone` column is untouched by this route.
+    if (updateData.phone !== undefined) {
+      const currentProfileData = isRecord(currentProfile.profile_data) ? currentProfile.profile_data : {}
+      profileUpdate.profile_data = { ...currentProfileData, phone: updateData.phone }
+    }
 
     // Update the profile
     const { data: updatedProfile, error: updateError } = await supabase
@@ -175,7 +200,8 @@ export async function PUT(request: NextRequest) {
       profile: {
         id: updatedProfile.id,
         username: updatedProfile.username,
-        custom_url: updatedProfile.custom_url,
+        // Deprecated alias of `username`; see the select note above.
+        custom_url: updatedProfile.username,
         full_name: updatedProfile.full_name,
         bio: updatedProfile.bio,
         metadata: updatedProfile.metadata,

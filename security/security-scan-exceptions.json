@@ -34,54 +34,6 @@
       }
     },
     {
-      "id": "CODEQL-40-42-46-RSS-ENTITY-DECODE-AFTER-TAG-STRIP",
-      "scanner": "github-advanced-security:codeql (queries: security-extended)",
-      "finding": "CodeQL alerts #40 (js/double-escaping, app/api/feed/rss-news/route.ts:89), #42 and #46 (js/double-escaping and js/incomplete-multi-character-sanitization, both lib/services/rss-feed.service.ts:140) on refs/pull/14/merge at d21769046d517898144ee09a1c7bb4a7d36b068f. Source: third-party RSS/XML feed bodies fetched by RSS_SOURCES. Sink: decodeXmlText (route.ts:89) and RSSFeedService.cleanText (rss-feed.service.ts:140), both of which strip <[^>]*> and then decode &lt;/&gt;/&amp; back into markup characters. Re-confirmed still present at d2176904 in Wave 34; neither file was changed.",
-      "owner": "discover",
-      "rationale": "Triaged by the discover agent in Wave 33 against executable source, and RE-VERIFIED in Wave 34. These are real sanitization defects but not exploitable XSS on any current path. Every consumer of the decoded strings renders them as React children, which auto-escape: components/feed/rss-news-item.tsx renders {item.title} and {toPlainText(item.description)} as text nodes, and a repository-wide search found no dangerouslySetInnerHTML in components/news/**, components/feed/rss-news-item.tsx, app/api/feed/rss-news/route.ts, lib/services/rss-feed.service.ts or lib/news/**. The decode-after-strip ordering reintroduces literal < and > characters into an otherwise tag-free string, so the output is unsound as a sanitizer but inert in this render path. STATUS CHANGE IN WAVE 34: the root-cause helper the disposition always required now exists and is tested — lib/news/text-sanitize.ts exports toPlainText, which decodes in ONE semicolon-terminated pass (so &amp;lt; stays literal and cannot be double-decoded), strips markup second, then removes any residual < or > so a malformed unpaired tag cannot survive. The two call sites named above are still unfixed purely because app/api/feed/** and lib/services/** are outside the discover file ownership granted for this wave; the fix is a one-line import swap at each. Not dismissed on GitHub.",
-      "issue": "DISC-002 / HF-DISC-002-RSS-SANITIZE-ORDERING (routed by the Wave 34 discover lane; supersedes the routing in HF-DISC-002-NEWSELF-FETCH-SSRF)",
-      "expiresAt": "2026-12-25",
-      "mitigation": "No compensating control is required for the reported XSS path because the sink is React text rendering, which escapes. The residual risk is a future render-path change, so the fix must land before any consumer moves these values into dangerouslySetInnerHTML, an email template, or a server-rendered HTML email. Required fix is now mechanical: replace decodeXmlText and RSSFeedService.cleanText with toPlainText from lib/news/text-sanitize.ts, which already implements the required decode-then-strip ordering and is covered by 17 tests in __tests__/news/text-sanitize.test.ts. Re-triage on any change to app/api/feed/rss-news/route.ts or lib/services/rss-feed.service.ts.",
-      "productionExploitability": {
-        "decision": "not_exploitable",
-        "rationale": "An attacker would need to control a configured RSS publisher feed, and the resulting markup is rendered as React text children with automatic escaping and no dangerouslySetInnerHTML sink anywhere in the news surfaces. Re-verified in Wave 34 by reading the two call sites and grepping the news render path; no hosted or credentialed test was run and none is claimed.",
-        "reviewedBy": "discover agent triage (Wave 33) and Wave 34 re-verification; human security sign-off still pending",
-        "reviewedAt": "2026-09-25"
-      }
-    },
-    {
-      "id": "CODEQL-43-45-NEWSURFACE-INCOMPLETE-TAG-STRIP",
-      "scanner": "github-advanced-security:codeql (queries: security-extended)",
-      "finding": "CodeQL alert #43 (js/incomplete-multi-character-sanitization, components/feed/rss-news-item.tsx:49, stripHtml) and alert #45 (js/incomplete-multi-character-sanitization, components/news/news-page.tsx:699, decodeTextEntity) on refs/pull/14/merge at d21769046d517898144ee09a1c7bb4a7d36b068f. Both stripped markup with a regex and then decoded a fixed subset of HTML entities, leaving other forms such as &#x3c; and &NewLine; intact.",
-      "owner": "discover",
-      "rationale": "ALERT #43 IS FIXED IN TREE AS OF WAVE 34. The local stripHtml at components/feed/rss-news-item.tsx no longer exists: the component now calls toPlainText from lib/news/text-sanitize.ts, which decodes entities in a single semicolon-terminated pass, strips markup second, and then removes any residual < or >, so the returned string cannot contain a markup delimiter for any input. The fix is covered by 17 tests in __tests__/news/text-sanitize.test.ts, including the payload named in the previous disposition (&lt;script&gt;alert(1)&lt;/script&gt;) and nine further entity/hex/unpaired-tag variants. ALERT #45 REMAINS OPEN. components/news/news-page.tsx:699 decodeTextEntity still strips with a regex and decodes only &#8217;/&#8216;/&#8220;/&#8221;/&#8211;/&#8212;/&amp;. Its output is likewise rendered as a React child, so it is not exploitable today, but the file is components/news/**, which is outside the discover file ownership granted for Wave 34 even though the news surface is discover charter. The entry is retained for #45 alone and re-routed to HF-DISC-002-RSS-SANITIZE-ORDERING. Nothing was dismissed on GitHub, and #43 is not claimed closed on GitHub either: a hosted re-scan is the only confirmation.",
-      "issue": "DISC-002 / HF-DISC-002-RSS-SANITIZE-ORDERING (routed by the Wave 34 discover lane; supersedes the routing in HF-DISC-002-NEWSELF-FETCH-SSRF)",
-      "expiresAt": "2026-12-25",
-      "mitigation": "For #45 the immediate control is that the value never reaches an HTML sink: it is a React child, so the browser sees text. Required fix: replace decodeTextEntity with toPlainText from lib/news/text-sanitize.ts, which is already implemented, tested, and client-safe. Treat plain-text conversion as a presentation concern and let the framework escape, rather than trying to hand-roll entity decoding at each call site. If any future requirement renders these strings as HTML, adopt a maintained allowlist HTML sanitizer and re-triage this alert. Re-triage on any change to components/news/news-page.tsx.",
-      "productionExploitability": {
-        "decision": "not_exploitable",
-        "rationale": "The value is rendered as a React text child with automatic escaping; no dangerouslySetInnerHTML sink was found in the news surfaces. The incomplete entity handling is a display-fidelity defect (an undecoded &#x3c; shows as literal text), not an injection path. Read-only verification; no hosted or credentialed test was run and none is claimed.",
-        "reviewedBy": "discover agent triage (Wave 33) and Wave 34 re-verification; human security sign-off still pending",
-        "reviewedAt": "2026-09-25"
-      }
-    },
-    {
-      "id": "CODEQL-41-RSS-OPPORTUNITIES-TOPLAINTEXT",
-      "scanner": "github-advanced-security:codeql (queries: security-extended)",
-      "finding": "CodeQL alert #41 (js/double-escaping, lib/opportunities/rss-opportunities-service.ts:300, toPlainText) on refs/pull/14/merge at d21769046d517898144ee09a1c7bb4a7d36b068f. Source: third-party opportunity-feed HTML. Sink: toPlainText, which strips <[^>]+> and then decodes &nbsp;/&amp;/&#8217;/&#8216;/&#8220;/&#8221;.",
-      "owner": "discover",
-      "rationale": "Triaged by the discover agent in Wave 33 and RE-VERIFIED unchanged in Wave 34. Same class as alerts #40/#42/#46: the decode step runs after the strip step, so the returned string can contain literal angle brackets that the strip was supposed to remove. The output is used for keyword extraction (extractKeywords/tokenize) and plain-text display, not as HTML, and the opportunities surface renders it as React children, so there is no injection sink today. The file is still unfixed: lib/opportunities/** is outside the discover file ownership granted for Wave 34. The correctly ordered helper the disposition requires now exists and is tested — lib/news/text-sanitize.ts exports toPlainText (single-pass decode, then strip, then a residual-delimiter pass); note that it shares a name with the local toPlainText in rss-opportunities-service.ts, so the import should be aliased. Re-routed to HF-DISC-002-RSS-SANITIZE-ORDERING. Not dismissed on GitHub.",
-      "issue": "DISC-002 / HF-DISC-002-RSS-SANITIZE-ORDERING (routed by the Wave 34 discover lane; supersedes the routing in HF-DISC-002-NEWSELF-FETCH-SSRF)",
-      "expiresAt": "2026-12-25",
-      "mitigation": "No compensating control is required for the reported path because the value is not rendered as HTML. Required fix, same as the rest of the cluster and now mechanical: replace the local toPlainText with the shared toPlainText from lib/news/text-sanitize.ts (aliased on import to avoid the name collision), which decodes once and strips second, and which is unit-tested to render &lt;script&gt;alert(1)&lt;/script&gt; as inert text. Re-triage on any change to lib/opportunities/rss-opportunities-service.ts.",
-      "productionExploitability": {
-        "decision": "not_exploitable",
-        "rationale": "The decoded text feeds a tokenizer and a React text render; it is never emitted as HTML. Requires control of a configured third-party opportunity feed, and even then the browser sees text. Read-only verification; no hosted or credentialed test was run and none is claimed.",
-        "reviewedBy": "discover agent triage (Wave 33) and Wave 34 re-verification; human security sign-off still pending",
-        "reviewedAt": "2026-09-25"
-      }
-    },
-    {
       "id": "CODEQL-95-ADMIN-OAUTH-STATE-HMAC-SINK",
       "scanner": "github-advanced-security:codeql (queries: security-extended)",
       "finding": "CodeQL alert #95 — js/insufficient-password-hash, lib/admin/content-hub/oauth-state.ts:96 columns 76-80 on refs/pull/14/merge at commit 5324399bf453f07d6a380bf6effab263383ff17c. Retrieved read-only in Wave 34: most_recent_instance.state open, dismissed_reason null, fixed_at null, rule security_severity_level high, message \"Password from a call to createSignedOAuthState is hashed insecurely.\" repeated for five flow paths. The sink is createHmac('sha256', getStateSigningSecret()).update(body).digest('base64url') inside verifySignedOAuthState; `body` is the base64url payload half of the signed state string.",

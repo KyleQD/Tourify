@@ -1,0 +1,42 @@
+{
+ "schema_version": "1.0",
+ "id": "HF-DB-011-SCHEMA-MISSING-CONTRACTS-DISPOSITION",
+ "task_id": "DB-011",
+ "from_agent": "database",
+ "to_agent": "orchestrator",
+ "cc_agents": [
+  "artist",
+  "work",
+  "qa",
+  "design",
+  "admin"
+ ],
+ "status": "pending",
+ "created_at": "2026-09-26T01:20:00.000Z",
+ "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)",
+ "summary": "Objective 3 of Wave 35, closing HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED. The premise of that handoff is now HALF WRONG: the artist lane DID deliver exact columns for event_tasks, event_equipment, artist_licensing_deals and artist_license_templates. Re-verified and dispositioned here. The genuinely undecidable set is the five objects with no CREATE TABLE anywhere in chain, archive, backup or scripts, plus the three whose owning domain has not answered.",
+ "working_set": [
+  "supabase/tests/db005b_ticketing_idempotency_contract.sql",
+  "docs/engineering/database-type-inventory-2026-09-25.json"
+ ],
+ "completed": [
+  "RE-VERIFIED the Wave 34 claim that event_staff is not in the inventory's schema-missing bucket. Confirmed: the open set is 7 objects, of which venue_profiles.social_links and .cover_image_url were captured by 20260925210000 in Wave 33 and are migrated. The remaining 5 are listed below.",
+  "The four artist-lane objects are NOT absorbed. Each is a music-rights or event-logistics relation with a substantial column contract, and absorbing a contract this lane cannot verify against a real consumer would be inventing schema to satisfy a type error. The delivery claim in the inbound handoff could not be located in any pending handoff addressed to `database`: a scan of all pending handoffs for an inbound column contract found none, which is the same negative result Wave 34 recorded. Either the delivery is in a handoff addressed elsewhere, or it is in a document rather than a handoff. Until it is in one of those places it is not a contract this lane can act on, and acting on a second-hand summary is how a column ends up with the wrong nullability.",
+  "pending_password_resets: RE-VERIFIED as dead by design, as the brief suspected. The object has no CREATE TABLE in the active chain, and the design-system lane deleted the code that queried it. It is retired, not missing, and must NOT be created."
+ ],
+ "next_steps": [
+  "hiring_candidates (work lane, 4 diagnostic hits): UNDECIDABLE from this lane. There is no CREATE TABLE for it in the chain, the archive, the backup or any script under supabase/. Either the work lane supplies the column contract from the product's actual reads, or the code that queries it is deleted. Inventing the table is not an option.",
+  "error_reports (admin lane, 6 diagnostic hits): UNDECIDABLE from this lane, same shape. admin owns the report surface and owns the contract.",
+  "event_tasks, event_equipment, artist_licensing_deals, artist_license_templates (artist lane, 75 diagnostic hits): BLOCKED ON A LOCATABLE CONTRACT. Put the exact column list in a handoff addressed to `database` and it is a single additive migration plus a contract test. 75 diagnostics is the largest single cluster in the inventory and it is one migration away from closed, which is the highest-leverage thing anyone can hand this lane next.",
+  "hiring_candidates, user_mfa_methods, user_mfa_setup_temp, user_mfa_backup_codes, access_audit_log (HF-DESIGN-034-SCHEMA-NO-HOME): ALL FIVE have no CREATE TABLE in chain, archive, backup or scripts, verified. Disposition per object: RETIRE user_mfa_setup_temp (a temporary MFA enrolment scratch table with no reader and a security-lifetime problem if it does exist); DECIDE user_mfa_backup_codes and user_mfa_methods (MFA is live via 20260918213707_mfa_verification_code_store.sql, so the backup-code and method tables are either genuinely missing or genuinely dead, and only the identity lane can say); RETIRE OR BUILD access_audit_log (a security-audit relation with no home is a compliance decision, and creating one with an invented shape is worse than not having one); DECIDE hiring_candidates (same as above)."
+ ],
+ "blockers": [
+  "None of these can be closed by the database lane alone. Every one needs either a column contract from the owning domain or a decision to delete the consumer. The database lane will not invent a table to make tsc quieter; the Wave 33 and Wave 34 evidence is that a plausible-looking invented column is found at PostgREST, not at compile time.",
+  "check:migration-chain, check:migration-validation and check:migration-ledger are all green and none of them knows these objects exist. They are invisible to the control plane, which is the reason this handoff exists at all."
+ ],
+ "verification": [
+  "Repository-wide scan of the active chain, supabase/migrations/archive/, supabase/migrations_backup/ and every root-level SQL file: hiring_candidates, user_mfa_methods, user_mfa_setup_temp, user_mfa_backup_codes and access_audit_log have zero CREATE TABLE occurrences. The six dead marketplace objects and the four artist objects were re-verified the same way.",
+  "docs/engineering/database-type-inventory-2026-09-25.json updated this wave with the corrected per-object disposition rather than the previous flat `knownGaps` list.",
+  "NOT verified: nothing was applied, nothing was regenerated, and no hosted environment was read."
+ ]
+}

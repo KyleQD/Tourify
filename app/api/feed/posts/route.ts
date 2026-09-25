@@ -413,6 +413,17 @@ async function fetchPostAppearances(supabase: any, posts: any[]) {
   }
 }
 
+/**
+ * The viewer's own like state for the rows the feed is about to return.
+ *
+ * This is an interaction read, so it must not use a service-role client as its
+ * read path (CP-058). The caller-scoped client is used whenever the request is
+ * authenticated; the query is already pinned to `.eq('user_id', viewerUserId)`,
+ * so the rows are identical either way and the caller's own RLS now applies.
+ * `post_likes` still carries a permissive `USING (true)` SELECT policy, which
+ * is why `HF-DB-006-SOCIAL-007` exists; the strict, visibility-gated read for
+ * surfaces that are not the feed is `lib/social/post-like-state.ts`.
+ */
 async function fetchViewerLikedPostIds(
   supabase: any,
   posts: any[],
@@ -423,7 +434,7 @@ async function fetchViewerLikedPostIds(
   if (postIds.length === 0) return new Set<string>()
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = supabase
       .from('post_likes')
       .select('post_id')
       .eq('user_id', viewerUserId)
@@ -439,7 +450,9 @@ async function fetchViewerLikedPostIds(
 async function enrichFeedPosts(
   supabase: any,
   posts: any[] | null | undefined,
-  viewerUserId?: string | null
+  viewerUserId?: string | null,
+  /** Caller-scoped client; the interaction read must not use service role. */
+  viewerSupabase?: any | null
 ) {
   const safePosts = posts || []
   if (safePosts.length === 0) return []
@@ -454,7 +467,7 @@ async function enrichFeedPosts(
     getManageablePostIds({ supabase, posts: safePosts, userId: viewerUserId }),
     fetchAcceptedCollaborators(supabase, safePosts),
     fetchPostAppearances(supabase, safePosts),
-    fetchViewerLikedPostIds(supabase, safePosts, viewerUserId),
+    fetchViewerLikedPostIds(viewerSupabase || supabase, safePosts, viewerUserId),
   ])
 
   return withPolls.map(post => {
@@ -666,7 +679,12 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      const enrichedPosts = await enrichFeedPosts(supabase, basePosts, authResult?.user?.id || null)
+      const enrichedPosts = await enrichFeedPosts(
+        supabase,
+        basePosts,
+        authResult?.user?.id || null,
+        authResult?.supabase || null,
+      )
       let normalized = enrichedPosts.map(normalizeFeedPostDTO)
 
       // Additive: merge organizer event updates for attending users (not Your Posts).
@@ -781,7 +799,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const enrichedPosts = await enrichFeedPosts(supabase, posts, authResult?.user?.id || null)
+      const enrichedPosts = await enrichFeedPosts(
+        supabase,
+        posts,
+        authResult?.user?.id || null,
+        authResult?.supabase || null,
+      )
       return NextResponse.json({ success: true, data: enrichedPosts.map(normalizeFeedPostDTO), error: null })
     }
 

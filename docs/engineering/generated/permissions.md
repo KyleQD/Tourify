@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (423 entries)
-- Generated at: 2026-09-25T22:27:02.069Z
+- Working tree: dirty (152 entries)
+- Generated at: 2026-09-25T23:26:47.265Z
 - Generator: `control-plane.mjs generate`
 
 Static detection is a routing aid, not an authorization audit. Missing markers require review; detected markers do not prove correct scope.
@@ -62,7 +62,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 - `lib/supabase/service-role.ts`
 - `lib/supabase/tourify-session-cookie.ts`
 
-## API route indicators (951)
+## API route indicators (952)
 
 | Source | Detected indicators |
 | --- | --- |
@@ -881,10 +881,11 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/skills/endorse/route.ts` | session/auth |
 | `app/api/social/all-users/route.ts` | session/auth, service role |
 | `app/api/social/follow-request/route.ts` | session/auth, service role |
-| `app/api/social/follow/route.ts` | session/auth |
+| `app/api/social/follow/route.ts` | session/auth, rate limit |
 | `app/api/social/friend-search/route.ts` | session/auth |
 | `app/api/social/oauth/callback/route.ts` | session/auth |
 | `app/api/social/oauth/start/route.ts` | session/auth |
+| `app/api/social/post-likes/route.ts` | service role |
 | `app/api/social/relationship/route.ts` | session/auth |
 | `app/api/social/simple-connection-request/route.ts` | session/auth |
 | `app/api/social/simple-suggestions/route.ts` | session/auth |

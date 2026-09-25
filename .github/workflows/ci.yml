@@ -11,10 +11,85 @@ on:
 env:
   NODE_VERSION: '24'
 
+# ============================================================================
+# Wave 35 release restructure (REL-002). Read this before changing a job name.
+# ============================================================================
+#
+# WHY THIS FILE WAS SPLIT
+#
+# Until 2026-09-25 the whole release gate was ONE job, `Lint And Build`, and
+# every migration check, the service-role audit, the admin/registry gates, the
+# mobile parity checks, the Jest suite and the production build were steps
+# sequenced AFTER `Typecheck`. On run 35761777731 (head d2176904) step 11
+# `Typecheck` failed, so steps 12-27 -- fifteen release-gate steps plus `Build`
+# -- were all reported `skipped`. The PR therefore merged-with-no-build-
+# evidence risk was structural, not incidental: a typecheck failure made the
+# production build, `check:migration-validation` and
+# `check:service-role-allowlist` unobservable.
+#
+# Those evidence classes now run as INDEPENDENT jobs. `Lint And Build` keeps
+# only what is genuinely one class (clean install + static analysis) and keeps
+# exactly the meaning it already had, so no currently-enforced gate loses
+# enforcement: the steps moved out of it now run unconditionally in their own
+# jobs instead of being masked, and `npm audit --audit-level=critical` MOVED
+# UP in front of `Typecheck`, so it too is no longer maskable.
+#
+# REQUIRED CONTEXT NAMES ARE CONTRACT, NOT STYLE
+#
+# `main` currently requires these ten status-check contexts (verified read-only
+# 2026-09-25, GET /repos/KyleQD/Tourify/branches/main/protection -> 200):
+#
+#   Production Debug Scan ........ this file, job `production-debug`
+#   Vitest ....................... this file, job `vitest`
+#   Database Types ............... this file, job `database-types`
+#   Lint And Build ............... this file, job `checks`
+#   Unit Tests (Vitest) .......... e2e.yml,      job `unit-tests`   (QA-owned)
+#   E2E Tests (Playwright) ....... e2e.yml,      job `e2e`          (QA-owned)
+#   Security exception governance  security-scans.yml, job `exception-governance`
+#   Secret scan .................. security-scans.yml, job `secret-scan`
+#   CodeQL (JavaScript/TypeScript) security-scans.yml, job `codeql`
+#   Generate SBOM ................ security-scans.yml, job `sbom`
+#
+# Every one of those `name:` values is reproduced here byte-for-byte. GitHub
+# matches required checks by the check's reported NAME, so renaming or removing
+# any of them makes the required context stop reporting and blocks every future
+# merge of `main`. New jobs introduced here are named so they can be ADDED to
+# the required set in one atomic PUT; see REL-003 and
+# HF-RELEASE-005-REQUIRED-CHECKS for the exact procedure.
+#
+# TIMEOUT PROVENANCE
+#
+# Every cap in this file is annotated MEASURED or PROVISIONAL. Measured values
+# come from:
+#   * CI run 35761777731, job 106861310047 (head d2176904, ubuntu-latest,
+#     4 cores / 16 GB) -- per-step timings for the former composite job.
+#   * E2E run 35761778422, job 106862321148 (same runner class).
+#   * Vercel deployment dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY (4 cores / 8 GB),
+#     build log and deployment timings.
+#   * Green whole-job timings from the same SHA: Vitest 119s, Production Debug
+#     Scan 56s, Unit Tests (Vitest) 95s, Migrations And RLS Matrix 172s,
+#     mobile-checks 85s, redirect-safety 57s.
+# A value marked PROVISIONAL is NOT a measurement. Each one names the single
+# green run that would confirm or replace it. No cap below was chosen to make
+# anything pass.
+#
+# The workflow-level `defaults.run.timeout-minutes` is a ceiling against the
+# 360-minute default that let a hung `run` step burn six hours of runner time.
+# Only the two long static-analysis steps are individually raised above it, and
+# both overrides are visible on the step itself.
+defaults:
+  run:
+    timeout-minutes: 30
+
 jobs:
+  # --------------------------------------------------------------------------
+  # `Production Debug Scan` -- REQUIRED CONTEXT. Unchanged.
+  # MEASURED 56s whole job (35761777731). 10 min is ~10x headroom.
+  # --------------------------------------------------------------------------
   production-debug:
     name: Production Debug Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,9 +107,14 @@ jobs:
       - name: Production debug scan
         run: npm run check:production-debug
 
+  # --------------------------------------------------------------------------
+  # `Vitest` -- REQUIRED CONTEXT. Unchanged.
+  # MEASURED 119s whole job, 5317 tests (35761777731). 20 min is ~10x headroom.
+  # --------------------------------------------------------------------------
   vitest:
     name: Vitest
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,9 +130,19 @@ jobs:
       - name: Vitest
         run: npm run test:unit
 
+  # --------------------------------------------------------------------------
+  # `Database Types` -- REQUIRED CONTEXT. Unchanged check, cap added.
+  # The 2026-09-22 run FAILED at `supabase start` after 129s, so this job has
+  # no green measurement of its own. PROVISIONAL 25 min, derived from the green
+  # `Migrations And RLS Matrix` job (172s: same Supabase stack, full
+  # `migration up --local` over the whole chain, plus the RLS matrix) scaled up
+  # for a full `supabase start` with all services and two additional checks.
+  # Confirm with: the first green `Database Types` whole-job duration.
+  # --------------------------------------------------------------------------
   database-types:
     name: Database Types
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,9 +164,264 @@ jobs:
       - name: Verify generated database types
         run: npm run check:database-types
 
+  # --------------------------------------------------------------------------
+  # `Lint And Build` -- REQUIRED CONTEXT. NAME UNCHANGED.
+  #
+  # Scope is now exactly the evidence that was already running when the gate
+  # failed on 2026-09-22: clean install (`npm ci` under the pinned
+  # Node/npm/lockfile contract), lint, the ESLint warning budget, the critical
+  # dependency audit, and the full typecheck. Nothing that used to be enforced
+  # through this job stopped being enforced -- see the header block.
+  #
+  # `Dependency audit (critical)` MOVED UP, ahead of `Typecheck`. It used to be
+  # step 18 and was masked by the typecheck failure; it is now unskippable.
+  #
+  # TIMEOUTS
+  #   setup+toolchain+`npm ci`+peer-deps  MEASURED 76s (steps 1-8)
+  #   `npm run lint`                      MEASURED 48s
+  #   `check:eslint-warning-budget`       MEASURED 16s
+  #   `npm run typecheck`                 MEASURED 68m18s, but on a FAILING
+  #     tree carrying 1384 primary diagnostics across 407 files. There is no
+  #     green measurement, so the step cap is PROVISIONAL at 115 min = 1.69x
+  #     the only observed value. Raising it further would be guesswork in the
+  #     other direction; lowering it risks a false red on a green tree, which
+  #     is the one outcome this gate must not produce.
+  #     Confirm with: the first green `Typecheck` step duration, then set the
+  #     step cap to ceil(1.25 x green) and the job cap to step + 15.
+  # --------------------------------------------------------------------------
   checks:
     name: Lint And Build
     runs-on: ubuntu-latest
+    timeout-minutes: 125
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Verify runtime and package-manager contract
+        run: npm run check:toolchain
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify supported peer dependency graph
+        run: npm run check:peer-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: ESLint warning no-growth budget
+        run: npm run check:eslint-warning-budget
+
+      - name: Dependency audit (critical)
+        run: npm audit --audit-level=critical
+
+      - name: Typecheck
+        timeout-minutes: 115
+        run: npm run typecheck
+
+  # --------------------------------------------------------------------------
+  # `Migration Gates` -- NEW independent job.
+  #
+  # This was step 12 `Migration validation lint` inside `Lint And Build` and was
+  # `skipped` on 2026-09-22 behind the typecheck failure. It is a release-gate
+  # class in its own right (RELEASE-005 acceptance criterion 3 names migration
+  # checks explicitly), so it now runs unconditionally and reports its own
+  # conclusion.
+  #
+  # No green measurement exists for this check in isolation. The adjacent green
+  # `Migrations And RLS Matrix` job (172s) does a full chain apply, so this
+  # static lint is far cheaper; 15 min is generous and PROVISIONAL. Confirm
+  # with: the first green `Migration Gates` whole-job duration.
+  # --------------------------------------------------------------------------
+  migration-gates:
+    name: Migration Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Install dependencies
+        run: npm ci
+      - name: Migration validation lint
+        run: npm run check:migration-validation
+
+  # --------------------------------------------------------------------------
+  # `Service-Role Audit` -- NEW independent job.
+  #
+  # `check:service-role-allowlist` was step 15 and `check:admin-audit` was step
+  # 16 of `Lint And Build`; both were `skipped` on 2026-09-22. RELEASE-005
+  # acceptance criterion 3 names the service-role audit explicitly. They are
+  # paired because the admin workbook and the service-role allowlist are the
+  # two generated-evidence registries that must agree.
+  #
+  # TIMEOUTS. `check:service-role-allowlist` last passed by classifying 195
+  # production files (Wave 34, exit 0) and has no job-level measurement.
+  # `check:admin-audit` is a `--check` + `--require-workbook` over generated
+  # evidence, also unmeasured at job level. 15 min is PROVISIONAL and generous
+  # for two static scans. Confirm with: the first green `Service-Role Audit`
+  # whole-job duration.
+  # --------------------------------------------------------------------------
+  service-role-audit:
+    name: Service-Role Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Install dependencies
+        run: npm ci
+      - name: Service-role allowlist (SEC-109)
+        run: npm run check:service-role-allowlist
+      - name: Admin workflow registry and generated evidence views
+        run: npm run check:admin-audit
+
+  # --------------------------------------------------------------------------
+  # `Route And Registry Gates` -- NEW independent job.
+  #
+  # Steps 13, 14 and 17 of `Lint And Build`, all `skipped` on 2026-09-22.
+  # Grouped because they are the same class: static registries that must agree
+  # with the route surface and with each other.
+  #
+  # `redirect-safety` (the standalone workflow) measured 57s whole job for a
+  # clean install plus two of these scripts, so 15 min is PROVISIONAL and
+  # generous. Confirm with: the first green `Route And Registry Gates` duration.
+  # --------------------------------------------------------------------------
+  registry-gates:
+    name: Route And Registry Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Install dependencies
+        run: npm ci
+      - name: Admin API route registry
+        run: npm run check:admin-route-registry
+      - name: Legacy tour route inventory (TOUR-103)
+        run: npm run check:legacy-tour-route-inventory
+      - name: Token registry regression gate (DESIGN-034)
+        run: npm run test:token-registry && npm run check:token-registry
+
+  # --------------------------------------------------------------------------
+  # `Regression Safeguards` -- NEW independent job.
+  #
+  # Steps 19, 24, 25 and 26 of `Lint And Build`, all `skipped` on 2026-09-22.
+  # These are the focused route/redirect/venue-operation smoke scripts. The
+  # same scripts also run in the standalone `redirect-safety` workflow
+  # (57s green), which bounds their cost.
+  # 15 min is PROVISIONAL. Confirm with: the first green `Regression
+  # Safeguards` whole-job duration.
+  # --------------------------------------------------------------------------
+  regression-safeguards:
+    name: Regression Safeguards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Install dependencies
+        run: npm ci
+      - name: Contract tests
+        run: npm test -- lib/api/__tests__/contracts.test.ts
+      - name: Mobile redirect safety test
+        run: npm run test:mobile-redirect
+      - name: Auth callback redirect smoke test
+        run: npm run test:auth-redirects
+      - name: Venue operations safeguard test
+        run: npm run test:venue-ops
+
+  # --------------------------------------------------------------------------
+  # `Jest Unit Tests` -- NEW independent job.
+  #
+  # `npm test` was step 23 of `Lint And Build` and was `skipped` on 2026-09-22.
+  # It is the Jest suite, which is disjoint from the `Vitest` required context
+  # (`npm run test:unit`); both are enforced and neither implies the other.
+  #
+  # MEASURED 4.199s for 109 suites / 681 tests locally (RELEASE-005, 2026-09-21),
+  # so the suite itself is negligible and the job cost is the clean install.
+  # 20 min is PROVISIONAL and generous. Confirm with: the first green
+  # `Jest Unit Tests` whole-job duration.
+  # --------------------------------------------------------------------------
+  jest-unit:
+    name: Jest Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+
+  # --------------------------------------------------------------------------
+  # `Mobile Typecheck And Lint` -- NEW independent job.
+  #
+  # Steps 20-22 of `Lint And Build` (mobile dependency install, mobile
+  # typecheck, mobile lint), all `skipped` on 2026-09-22. The parity-sensitive
+  # path filter is preserved verbatim, including its `push`-event behaviour, so
+  # this job still skips when a pull request touches nothing under the
+  # mobile-or-core surface.
+  #
+  # NOTE for the required-check decision: this job's context is CONDITIONAL on a
+  # pull request's changed paths. It must not be added to `main`'s required
+  # checks while that condition holds -- a required context that does not report
+  # for a given head SHA blocks the merge. Either widen the filter first or do
+  # not require this context. See REL-003.
+  #
+  # MEASURED 85s for the green `mobile-checks` job in mobile-ci.yml, which is a
+  # strict superset of these steps (it adds mobile unit smokes). 15 min is
+  # ~10x that and is treated as a real bound, not provisional.
+  # --------------------------------------------------------------------------
+  mobile-parity:
+    name: Mobile Typecheck And Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,74 +452,85 @@ jobs:
 
       - name: Install pinned npm
         run: npm install --global npm@11.17.0
-      - name: Verify runtime and package-manager contract
-        run: npm run check:toolchain
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify supported peer dependency graph
-        run: npm run check:peer-deps
-
-      - name: Lint
-        run: npm run lint
-
-      - name: ESLint warning no-growth budget
-        run: npm run check:eslint-warning-budget
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Migration validation lint
-        run: npm run check:migration-validation
-
-      - name: Admin API route registry
-        run: npm run check:admin-route-registry
-
-      - name: Legacy tour route inventory (TOUR-103)
-        run: npm run check:legacy-tour-route-inventory
-
-      - name: Service-role allowlist (SEC-109)
-        run: npm run check:service-role-allowlist
-
-      - name: Admin workflow registry and generated evidence views
-        run: npm run check:admin-audit
-
-      - name: Token registry regression gate (DESIGN-034)
-        run: npm run test:token-registry && npm run check:token-registry
-
-      - name: Dependency audit (critical)
-        run: npm audit --audit-level=critical
-
-      - name: Contract tests
-        run: npm test -- lib/api/__tests__/contracts.test.ts
-
       - name: Install mobile dependencies
         if: github.event_name != 'pull_request' || steps.changes.outputs.mobile_or_core == 'true'
         working-directory: apps/mobile
         run: npm ci
-
       - name: Mobile typecheck
         if: github.event_name != 'pull_request' || steps.changes.outputs.mobile_or_core == 'true'
         run: npm run mobile:typecheck
-
       - name: Mobile lint
         if: github.event_name != 'pull_request' || steps.changes.outputs.mobile_or_core == 'true'
         run: npm run mobile:lint
 
-      - name: Unit tests
-        run: npm test
-
-      - name: Mobile redirect safety test
-        run: npm run test:mobile-redirect
-
-      - name: Auth callback redirect smoke test
-        run: npm run test:auth-redirects
-
-      - name: Venue operations safeguard test
-        run: npm run test:venue-ops
-
+  # --------------------------------------------------------------------------
+  # `Production Build` -- NEW independent job. This is the structural fix.
+  #
+  # `npm run build:vercel` was step 27 of `Lint And Build` and was `skipped` on
+  # 2026-09-22, so head d2176904 has NO production-build evidence at all. It is
+  # now independent: a typecheck failure elsewhere can no longer hide it.
+  #
+  # COST MODEL (every input is a measurement except the last)
+  #   clean install, toolchain, env contract   MEASURED 76s  (job 106861310047
+  #                                              steps 1-8)
+  #   webpack compile                          MEASURED 264s, and that was on
+  #                                              Vercel's 4-core / 8 GB box
+  #                                              ("Compiled successfully in
+  #                                              4.4min", dpl_2zPXya6i...). A
+  #                                              4-core / 16 GB ubuntu-latest
+  #                                              runner is not slower.
+  #   inline typecheck                         MEASURED 4098s (68m18s). This is
+  #                                              unavoidable: `next build` runs
+  #                                              a full-repo `tsc` because
+  #                                              next.config.ts sets
+  #                                              `typescript.ignoreBuildErrors:
+  #                                              false`, and next.config.ts is
+  #                                              NOT release-owned, so the
+  #                                              duplicate typecheck cannot be
+  #                                              removed from a build. It is
+  #                                              ALSO unavoidable on the E2E
+  #                                              job for the same reason.
+  #   static generation / prerender            UNMEASURED. The `Build` step has
+  #                                              never once completed on this
+  #                                              repository. 45 min is budgeted
+  #                                              PROVISIONALLY and deliberately
+  #                                              over-generous, because the
+  #                                              number of statically generated
+  #                                              routes is not something this
+  #                                              lane measured and will not
+  #                                              present a guess as a fact.
+  #   => 76s + 264s + 4098s + 2700s = 7138s = 119 min expected worst case.
+  #   Step cap 140 min, job cap 150 min.
+  #
+  # PROVISIONAL, and the confirming measurement is: the first green `Build` step
+  # duration. Then set the step cap to ceil(1.25 x green) and the job cap to
+  # step + 10. Until that run exists, no claim is made that this build completes
+  # inside any budget -- only that the budget is large enough not to be the
+  # thing that fails first.
+  #
+  # The env values below are the repository's existing non-secret CI build
+  # fixtures. They are not credentials and they are not production values; a
+  # real deployment supplies its own. The production environment contract runs
+  # first inside `build:vercel` and must pass before compilation begins.
+  # --------------------------------------------------------------------------
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
+      - name: Install dependencies
+        run: npm ci
       - name: Build
+        timeout-minutes: 140
         run: npm run build:vercel
         env:
           # Non-secret build fixtures. Runtime deployments must supply real values.
