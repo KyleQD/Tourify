@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-012",
+  "title": "Establish vendor organization ownership",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "database",
+  "created_at": "2026-09-23T19:16:12.149Z",
+  "updated_at": "2026-09-25T21:39:17.228Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (29 entries)",
+  "goal": "Design and implement additive vendor-to-organization ownership and secure data boundaries required before a logistics Vendors workspace can ship.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "database contract + repository gates",
+    "commands": [
+      "node supabase/tests/db008_chain_surface_replay.mjs"
+    ],
+    "evidence": [
+      {
+        "command": "node supabase/tests/db008_chain_surface_replay.mjs",
+        "result": "pass",
+        "detail": "No vendor-ownership relation exists in the reconstructed live chain surface, confirming DB-012's design is genuinely new rather than a re-creation of something already present."
+      }
+    ],
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "not-run",
+    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
+  },
+  "progress": {
+    "summary": "Wave 34: no new DB-012 work. The generated-contract blocker that sat under DB-012 as well as DB-004 and DB-008 is withdrawn on measurement: the chain is a strict superset of lib/database.types.ts, so nothing in the contract is at risk from a regeneration and no reconciliation-by-hand is needed. What remains is operational - Docker unavailable and no linked or project-id target, so npm run generate:database-types cannot run here - plus the three marketplace relations, which were absent from both the chain AND the contract and are now captured by 20260926120000 and 20260926120100.",
+    "completed": [
+      "No vendor_organization / vendor ownership relation or column appears among the 128 classified objects. The vendor surface that does appear is event_provider_connections (code-drift, live consumer app/api/integrations/bandsintown/status/route.ts), which is a provider-connection table, not a vendor-ownership table.",
+      "DB-012's design therefore still has to be authored from first principles; the inventory does not pre-empt it and does not create a competing vendor surface."
+    ],
+    "next_steps": [
+      "Unchanged: the vendor-organization ownership decision. Regeneration is now safe but not yet possible from this machine; the operator runs it against a reachable target."
+    ],
+    "blockers": [
+      "DB-012's own blockers are unchanged: the additive vendor-to-organization ownership design and its secure data boundary are still to be authored, and the venue logistics organization-isolation evidence it depends on is still absent."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-25T20:52:43.915Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: found no vendor-organization-ownership object among the 128 classified objects, so DB-012's additive vendor-ownership design is unaffected by the 1,384-diagnostic blocker and is genuinely new rather than a re-creation of something already present. The only vendor-adjacent object is event_provider_connections, a provider-connection table, routed to integrations with an explicit note that it is NOT the vendor-ownership surface.",
+        "completed": [],
+        "next_steps": [
+          "DB-012's blockers are unchanged: the additive vendor-to-organization ownership design and its secure boundary are still to be authored, and the venue logistics organization-isolation evidence it depends on is still absent."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:17.228Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-012 work. The generated-contract blocker that sat under DB-012 as well as DB-004 and DB-008 is withdrawn on measurement: the chain is a strict superset of lib/database.types.ts, so nothing in the contract is at risk from a regeneration and no reconciliation-by-hand is needed. What remains is operational - Docker unavailable and no linked or project-id target, so npm run generate:database-types cannot run here - plus the three marketplace relations, which were absent from both the chain AND the contract and are now captured by 20260926120000 and 20260926120100.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: the vendor-organization ownership decision. Regeneration is now safe but not yet possible from this machine; the operator runs it against a reachable target."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DB008-TYPECHECK-INTEGRATIONS: integrations agent to repoint event_provider_connections (code-drift, live consumer app/api/integrations/bandsintown/status/route.ts). This is a provider-connection table and is NOT the vendor-organization-ownership surface DB-012 is designing."
+  ],
+  "wave34Note": "No new DB-012 work. The generated-contract blocker that sat under DB-012 and DB-004 as well as DB-008 is withdrawn on measurement: the chain is a strict superset of lib/database.types.ts, so nothing in the contract is at risk from a regeneration. What remains is operational - no linked or project-id target and no Docker, so npm run generate:database-types cannot run here - plus the marketplace relations, which were absent from both the chain and the contract and are now captured by 20260926120000 and 20260926120100. See DB-008.wave34 and DB-011.marketplaceCheckoutReconciliation."
+}

@@ -2,19 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { getStripe } from "@/lib/stripe"
+import { isUniqueViolation } from "@/lib/integrations/webhook-security"
 
 export const dynamic = "force-dynamic"
-
-function getWebhookSecret() {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET_SUBSCRIPTIONS
-  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET_SUBSCRIPTIONS is required for subscription webhooks")
-  return secret
-}
 
 export async function POST(request: NextRequest) {
   let supabase: any = null
   let claimedEventId: string | null = null
   try {
+    // Fail closed before reading the body: an unconfigured endpoint is a
+    // configuration gap, not a retryable processing failure, and the response
+    // must not echo configuration detail.
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET_SUBSCRIPTIONS
+    if (!webhookSecret)
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 503 })
+
     const body = await request.text()
     const signature = request.headers.get("stripe-signature")
     if (!signature)
@@ -24,18 +26,21 @@ export async function POST(request: NextRequest) {
     let event: any
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, getWebhookSecret())
-    } catch (err) {
-      console.error("[Subscription Webhook] Signature verification failed:", err)
+      // Stripe's constructEvent verifies the HMAC in constant time and applies
+      // its own bounded replay tolerance.
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    } catch {
+      console.error("[Subscription Webhook] signature verification failed", { kind: "invalid_signature" })
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
     supabase = createServiceRoleClient()
 
-    // Idempotency ledger: insert-before-process; a unique violation means the
-    // event was already handled. Degrades gracefully (no dedupe) if the table
-    // has not been provisioned yet.
-    let seen = false
+    // Idempotency ledger: atomic insert-before-process against
+    // platform_webhook_events (unique on provider + provider_event_id). A unique
+    // violation means the event was already claimed; any other persistence
+    // failure fails closed so Stripe retries and the event is never processed
+    // unclaimed.
     {
       const { error: ledgerError } = await supabase
         .from("platform_webhook_events")
@@ -46,13 +51,12 @@ export async function POST(request: NextRequest) {
           processing_status: "processing",
         })
       if (ledgerError) {
-        if (ledgerError.code === "23505" || /duplicate key/i.test(ledgerError.message ?? "")) {
+        if (isUniqueViolation(ledgerError)) {
           return NextResponse.json({ received: true, outcome: "duplicate" })
         }
-        console.error("[Subscription Webhook] Ledger insert failed:", ledgerError)
+        console.error("[Subscription Webhook] ledger insert failed", { kind: "internal_error" })
         throw new Error("Subscription webhook event persistence failed")
       }
-      seen = true
       claimedEventId = event.id
     }
 
@@ -116,26 +120,24 @@ export async function POST(request: NextRequest) {
       default:
     }
 
-    if (seen) {
-      const { error: completionError } = await supabase
-        .from("platform_webhook_events")
-        .update({ processing_status: "processed", processed_at: new Date().toISOString() })
-        .eq("provider", "stripe")
-        .eq("provider_event_id", event.id)
-      if (completionError) throw new Error("Subscription webhook completion persistence failed")
-    }
+    const { error: completionError } = await supabase
+      .from("platform_webhook_events")
+      .update({ processing_status: "processed", processed_at: new Date().toISOString() })
+      .eq("provider", "stripe")
+      .eq("provider_event_id", event.id)
+    if (completionError) throw new Error("Subscription webhook completion persistence failed")
 
     return NextResponse.json({ received: true })
-  } catch (error) {
+  } catch {
     if (supabase && claimedEventId) {
       const { error: failureError } = await supabase
         .from("platform_webhook_events")
         .update({ processing_status: "failed" })
         .eq("provider", "stripe")
         .eq("provider_event_id", claimedEventId)
-      if (failureError) console.error("[Subscription Webhook] Failed to record failure:", failureError)
+      if (failureError) console.error("[Subscription Webhook] failed to record failure", { kind: "internal_error" })
     }
-    console.error("[Subscription Webhook] Unexpected error:", error)
+    console.error("[Subscription Webhook] unexpected error", { kind: "internal_error" })
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 })
   }
 }

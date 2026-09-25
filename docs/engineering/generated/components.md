@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-22T17:00:56.458Z
+- Working tree: dirty (423 entries)
+- Generated at: 2026-09-25T22:27:02.069Z
 - Generator: `control-plane.mjs generate`
 
-## TSX and JSX files (1937)
+## TSX and JSX files (1945)
 
 | Source | Detected exported components |
 | --- | --- |
@@ -137,6 +137,7 @@
 | `app/admin/dashboard/jobs/page.tsx` | default or inline |
 | `app/admin/dashboard/layout.tsx` | DashboardLayout |
 | `app/admin/dashboard/loading.tsx` | Loading |
+| `app/admin/dashboard/logistics/logistics-control-tower-client.tsx` | LogisticsControlTowerClient |
 | `app/admin/dashboard/logistics/logistics-page-client.tsx` | LogisticsPageClient |
 | `app/admin/dashboard/logistics/page.tsx` | LogisticsPage |
 | `app/admin/dashboard/logistics/plans/[tourId]/error.tsx` | LogisticsPlanError |
@@ -257,7 +258,6 @@
 | `app/artist/events/staff/page.tsx` | StaffReadinessPage |
 | `app/artist/events/tasks/page.tsx` | TasksPage |
 | `app/artist/events/ticket-sales/page.tsx` | TicketSalesPage |
-| `app/artist/features/analytics/analytics-dashboard.tsx` | AnalyticsDashboard |
 | `app/artist/features/blog/[id]/page.tsx` | default or inline |
 | `app/artist/features/blog/blog-editor.tsx` | default or inline |
 | `app/artist/features/blog/page.tsx` | default or inline |
@@ -465,9 +465,12 @@
 | `app/licensing/projects/[id]/page.tsx` | LicensingProjectPage |
 | `app/loading.tsx` | Loading |
 | `app/login/page.tsx` | LoginPage |
+| `app/marketplace/delivery/[orderItemId]/download-client.tsx` | MarketplaceDownloadClient |
+| `app/marketplace/delivery/[orderItemId]/page.tsx` | default or inline |
 | `app/marketplace/listing/[listing-slug]/page.tsx` | default or inline |
 | `app/marketplace/listings/[id]/page.tsx` | MarketplaceListingDetailPage |
 | `app/marketplace/order/[token]/page.tsx` | default or inline |
+| `app/marketplace/order/components/guest-order-claim.tsx` | GuestOrderClaim |
 | `app/marketplace/page.tsx` | MarketplacePage |
 | `app/marketplace/purchases/page.tsx` | MarketplacePurchasesPage |
 | `app/marketplace/seller-agreement/page.tsx` | SellerAgreementPage |
@@ -571,10 +574,9 @@
 | `app/venue/components/attendance/attendance-tracker.tsx` | AttendanceTracker |
 | `app/venue/components/attendance/import-wizard.tsx` | ImportWizard |
 | `app/venue/components/attendance/qr-code-scanner.tsx` | QRCodeScanner |
-| `app/venue/components/booking-calendar.tsx` | BookingCalendar |
+| `app/venue/components/availability/venue-availability-editor.tsx` | VenueAvailabilityEditor |
 | `app/venue/components/booking-details-modal.tsx` | BookingDetailsModal |
 | `app/venue/components/certification-item.tsx` | CertificationItem |
-| `app/venue/components/chat-tab.tsx` | ChatTab |
 | `app/venue/components/collaboration/project-board.tsx` | EventBoard |
 | `app/venue/components/collaboration/project-card.tsx` | EventCard |
 | `app/venue/components/command-menu.tsx` | CommandMenu |
@@ -889,6 +891,12 @@
 | `components/admin/logistics/automated-setup-workflows.tsx` | AutomatedSetupWorkflows |
 | `components/admin/logistics/backline/backline-ops-panel.tsx` | BacklineOpsPanel |
 | `components/admin/logistics/catering/catering-ops-panel.tsx` | CateringOpsPanel |
+| `components/admin/logistics/command-center/attention-row.tsx` | LogisticsAttentionRow |
+| `components/admin/logistics/command-center/error-state.tsx` | LogisticsCommandCenterError |
+| `components/admin/logistics/command-center/logistics-overview-panel.tsx` | LogisticsOverviewPanel |
+| `components/admin/logistics/command-center/states.tsx` | LogisticsCommandCenterLoading, LogisticsCommandCenterEmpty |
+| `components/admin/logistics/command-center/status-indicators.tsx` | LogisticsReadinessIndicator, LogisticsSourceHealthIndicator, LogisticsSourceHealthSummary |
+| `components/admin/logistics/command-center/summary-stat.tsx` | LogisticsSummaryStat |
 | `components/admin/logistics/communications-command-center.tsx` | CommunicationsCommandCenter |
 | `components/admin/logistics/equipment-catalog.tsx` | EquipmentCatalog |
 | `components/admin/logistics/equipment-inventory-manager.tsx` | EquipmentInventoryManager |
@@ -1855,7 +1863,6 @@
 | `components/venue/venue/attendance/attendance-tracker.tsx` | AttendanceTracker |
 | `components/venue/venue/attendance/import-wizard.tsx` | ImportWizard |
 | `components/venue/venue/attendance/qr-code-scanner.tsx` | QRCodeScanner |
-| `components/venue/venue/booking-calendar.tsx` | BookingCalendar |
 | `components/venue/venue/command-search.tsx` | CommandSearch |
 | `components/venue/venue/create-event-modal.tsx` | EventFormModal |
 | `components/venue/venue/customer-relationship.tsx` | CustomerRelationship |
@@ -1904,6 +1911,7 @@
 | `components/verification/account-verification.tsx` | AccountVerification |
 | `components/work-mode/work-mode-attendance-history.tsx` | WorkModeAttendanceHistory |
 | `components/work-mode/work-mode-event-workspace.tsx` | WorkModeEventWorkspace |
+| `components/work-mode/work-mode-history.tsx` | WorkModeHistory |
 | `components/work-mode/work-mode-overview.tsx` | WorkModeOverview |
 | `components/work-mode/work-mode-workspace.tsx` | WorkModeWorkspace |
 | `components/world/globe/GlobeExperience.tsx` | WorldGlobeExperience |

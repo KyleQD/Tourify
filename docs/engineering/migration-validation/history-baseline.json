@@ -13,7 +13,10 @@
     },
     {
       "file": "supabase/migrations/20260701021033_job_application_profile_snapshot.sql",
-      "sha256": "f94846e9c2056d5a50889e0d480e554e3cbed69a177f459c9d239b4248031cd3"
+      "sha256": "d38c2bcd4e67e15d5ed4a293e51318583532a9351be3067f56583609e333f943",
+      "revisedFromSha256": "f94846e9c2056d5a50889e0d480e554e3cbed69a177f459c9d239b4248031cd3",
+      "revisionTaskId": "DB-008",
+      "revisionReason": "Replay-safety correction, not a schema change. The do $app_docs_storage$ block issued two unqualified CREATE POLICY statements on storage.objects, which enforces pg_class_ownercheck (exact owner OR superuser OR member of the owning role). Any replay role outside that set aborted the whole chain with SQLSTATE 42501 'must be owner of table objects' and failed the PR #14 'Database Types' job. Each policy is now attempted in its own subtransaction so the server's own verdict decides: the policies are still created whenever the replay role may create them, and otherwise the failure is absorbed and reported as a WARNING instead of aborting. No column, table, policy, bucket, or grant is added, altered, or dropped; the policy definitions are byte-identical. Verified against PostgreSQL 16 across five ownership/replay-role permutations; see docs/engineering/migration-validation/20260701021033_job_application_profile_snapshot.json and __tests__/database/ci-replay-and-retired-workforce-migration.test.ts."
     },
     {
       "file": "supabase/migrations/20260701032519_hiring_onboarding_candidate_links.sql",

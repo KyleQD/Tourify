@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-RELEASE-005-REQUIRED-CHECKS",
+  "task_id": "RELEASE-005",
+  "from_agent": "release",
+  "to_agent": "owner",
+  "status": "pending",
+  "created_at": "2026-09-25T20:19:07Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "RELEASE-005's stale blocker is retired: `main` IS now branch-protected. Read-only `GET /repos/KyleQD/Tourify/branches/main/protection` returns 200 with strict required checks and full review/admin enforcement. Three enforcement gaps remain against RELEASE-005 acceptance criterion 3, and they cannot be closed from the agent lane. No branch-protection setting was changed.",
+  "working_set": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/security-scans.yml",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "completed": [
+    "Retired the recorded `404 Branch not protected` baseline for `main`. Both STATE.md and RELEASE-005 still carry it; the live configuration is now: strict required_status_checks (10 contexts), required_approving_review_count 1, dismiss_stale_reviews true, require_last_push_approval true, enforce_admins true, required_linear_history true, allow_force_pushes false, allow_deletions false, required_conversation_resolution true.",
+    "Captured the exact required-check set and mapped each against RELEASE-005 acceptance criterion 3 (clean install, lint, typecheck, unit/integration tests, production build, migration checks, service-role audit, security scan, critical E2E).",
+    "Established that three required checks are the actual merge blockers on PR #14: `Database Types` (FAILURE), `Lint And Build` (FAILURE), `E2E Tests (Playwright)` (CANCELLED). mergeStateStatus is BLOCKED, and nothing else contributes.",
+    "Established that the `Vercel` failure and the Advanced Security `CodeQL` failure do NOT block the merge, because neither is a required check."
+  ],
+  "next_steps": [
+    "Decide whether to require the GitHub Advanced Security `CodeQL` gate. It is the only check on the PR carrying a security verdict (96 open alerts, 1 critical) and it is not required, so a security regression cannot block a merge today.",
+    "Decide whether to require `Dependency review` (already SUCCESS on this PR, and already configured with `fail-on-severity: critical`) and `Migrations And RLS Matrix` (Admin RLS CI, already SUCCESS on this PR). Both are running but unenforced.",
+    "Address the structural gap: production build, migration checks (`check:migration-validation`), and the service-role audit (`check:service-role-allowlist`) exist only as steps sequenced after `Typecheck` inside the single `Lint And Build` job, not as independent required checks. On this PR the `Typecheck` step failed and all of them were skipped - including `Build` - so the release gate produced no production-build evidence at all. Either split them into separate required jobs or accept the coupling explicitly; the release lane did not change this because the obvious remedy (`continue-on-error` / `if: always()`) would weaken the gate.",
+    "Note that `required_signatures.enabled` is false, so commits are not required to be signed or verified."
+  ],
+  "blockers": [
+    "RELEASE-005 explicitly records 'Have the repository owner provision branch protection on main and record e2e.yml as a required check; do not change this from the local task', and this lane was dispatched read-only for this item. No protection setting was modified.",
+    "`E2E Tests (Playwright)` is CANCELLED on this PR. That is another lane's failure and was not investigated here, but it is a required check and therefore a merge blocker.",
+    "Hosted exact-SHA QA-003 certification, deployment evidence, approver, and rollback point remain outstanding and are unaffected by the protection posture."
+  ],
+  "verification": [
+    "gh api repos/KyleQD/Tourify/branches/main/protection -> 200; required_status_checks.strict true; contexts = Production Debug Scan, Vitest, Database Types, Lint And Build, Unit Tests (Vitest), E2E Tests (Playwright), Security exception governance, Secret scan, CodeQL (JavaScript/TypeScript), Generate SBOM.",
+    "gh pr view 14 --json statusCheckRollup,mergeStateStatus -> 20 checks; mergeStateStatus BLOCKED; blocking = Database Types FAILURE, Lint And Build FAILURE, E2E Tests (Playwright) CANCELLED.",
+    "gh api repos/KyleQD/Tourify/actions/jobs/106861310047 -> steps 12-27 (15 release-gate steps plus Build) all conclusion `skipped` after step 11 `Typecheck` failed.",
+    "gh api repos/KyleQD/Tourify/branches/main/protection -> required_signatures.enabled false, enforce_admins.enabled true, required_linear_history.enabled true, allow_force_pushes.enabled false, allow_deletions.enabled false."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md"
+}

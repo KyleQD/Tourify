@@ -149,15 +149,15 @@ Update this ledger after every run so each agent starts from the latest failure 
 
 | Actor journey | Last blocked step | Fixes shipped since last run | Rerun first | New scenarios unlocked | Repeated failures | Regressions | Confidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Worker | Check-in/out action endpoint is feature-gated and current work state says required SQL is not applied | None | Staff member creation, schedule visibility, worker action availability, check-in/out, work history | None yet | `SIM-20260922-WORK-001`, `SIM-20260922-WORK-002` | None known | Low |
-| Artist | Live publish/discovery/sales chain not run | None | Brand/EPK publish, discovery, booking, sales visibility | None yet | Staging packet missing | None known | Low |
-| Venue manager | Venue/org boundary and booking/staffing chain not run | None | Venue profile, availability, staff need, worker schedule | None yet | `SIM-20260922-ADMIN-002` dependency | None known | Low |
-| Organization manager | Hiring/onboarding/scheduling chain not run | None | Event/tour creation, job posting, applicant review, scheduling | None yet | Staging packet missing | None known | Low |
-| Platform admin | Admin boundary evidence blocked; static defects found | None | Team-member PATCH denial, venue detail scope, platform-only workflows | None yet | `SIM-20260922-ADMIN-001`, `SIM-20260922-ADMIN-002` | None known | Low |
-| Customer/general user | Authenticated marketplace success redirect points at guest-token order page; follow endpoints are split | None | Discovery, follow, message, authenticated purchase redirect, buyer order dashboard | None yet | `SIM-20260922-MKT-001`, `SIM-20260922-SOC-001` | None known | Low |
-| Marketplace/ticketing | Authenticated marketplace checkout success URL cannot load order confirmation by token | None | Checkout, order/ticket visibility, wallet/door/refund where supported | None yet | `SIM-20260922-TIX-001`, `SIM-20260922-MKT-001` | None known | Low |
-| Music/social/content | Music publish tests pass locally; follow surface has duplicate endpoint contracts | None | Publish/playback, posts, messages, follows, notifications, outsider denial | Music route focused tests remain green | `SIM-20260922-SOC-001`; staging packet missing | None known | Low |
-| Auth/database boundary | Hosted schema/security reconciliation incomplete | None | RLS denial probes, campaign actor isolation, schema parity checks | None yet | `SIM-20260922-DB-001` | None known | Low |
+| Worker | Check-in/out action endpoint is feature-gated and current work state says required SQL is not applied; 111 focused worker tests green headless | None (DB-010 migration reviewed but unapplied; WORK-006 flag off) | Staff member creation, schedule visibility, check-in/out, work history, deep job paging | None yet | `SIM-20260922-WORK-001`, `SIM-20260922-WORK-002`, `SIM-20260922-WORK-003`; new `WORK-004` (no work-history surface), `WORK-005` (jobs merge pagination truncation) | None known | Low |
+| Artist | Live publish/discovery/sales chain not run; 59 artist tests green | None | Brand/EPK publish, discovery, booking, sales visibility | None yet | Staging packet missing; new `ARTIST-001` (visibility selector does not gate public profile), `ARTIST-002` (band page never surfaces music/storefront) | None known | Low |
+| Venue manager | Venue/org boundary and booking/staffing chain not run; 34 venue focused tests green | None | Venue profile, availability block editor, staff need, worker schedule | None yet | `SIM-20260922-ADMIN-002` dependency; new `VENUE-001` (raw availability/reservations read by any authenticated user), `VENUE-002` (no availability write path), `VENUE-003` (dead mock components) | None known | Low |
+| Organization manager | Hiring/onboarding/scheduling chain not run; 63 org/event/job focused tests green | None | Event/tour create+publish, job posting, applicant review, scheduling | None yet | Staging packet missing; new `ORG-001` (no org event publish UI), `ORG-002` (event PATCH creator-only), `ORG-003` (org jobs labeled venue / null org name) | None known | Low |
+| Platform admin | Admin boundary evidence blocked; 28 admin tests + 54/54 registry exact | ADMIN-003 local fixes hold (team-member PATCH, venues detail) | Team-member PATCH denial, venue detail scope, music-ops platform-only cleanup, platform-only workflows | None yet | `SIM-20260922-ADMIN-001`, `SIM-20260922-ADMIN-002`; new `ADMIN-003` (music-marketplace/ops non-canonical guard), `ADMIN-004` (four music content/royalties routes same drift) | None known | Low |
+| Customer/general user | Authenticated marketplace success redirect points at guest-token order page; follow endpoints were split | MKT-001 and SOC-001 local fixes pass focused suites (order-access/success-url 7/7; follow 16/16) | Discovery, follow, message, authenticated purchase redirect, buyer order dashboard, guest order claim | None yet | `SIM-20260922-MKT-001`, `SIM-20260922-SOC-001`; new `USER-001` (guest claim CTAs link to dead `/auth/*` routes) | None known | Low |
+| Marketplace/ticketing | Authenticated checkout success URL could not load order confirmation; 26 commerce tests green headless | MKT-001 local fix verified (order UUID + session binding; wrong-buyer denial) | Checkout both branches, guest order claim, buyer cancel, seller refund, download, test-mode purchase | None yet | `SIM-20260922-TIX-001`, `SIM-20260922-MKT-001`; new `MKT-002` (claim UI dead end), `MKT-003` (no cancel/refund UI), `MKT-004` (checkout idempotency burns keys), `MKT-005` (download renders JSON; non-atomic count) | None known | Low |
+| Music/social/content | Music publish tests pass locally; follow surface has duplicate endpoints | FOLLOW-route contract suites pass 16/16 | Follow write/read consolidation, playback persistence read-back, outsider denial on interactions-stats | Music route focused tests remain green | `SIM-20260922-SOC-001`; new `SOC-003` (interaction-stats GET service-role leak), `MUS-001` (play route unconditional success) | None known | Low |
+| Auth/database boundary | Hosted schema/security reconciliation incomplete; provisioner 8/8 green; migration-ledger digest now FAILS in dirty tree | None (DB-010 staged SQL reviewed; revoke still unapplied) | RLS denial probes (incl. new venue availability/reservations), campaign actor isolation, ledger re-digest | None yet | `SIM-20260922-DB-001`; new `DB-002` (venue RLS authenticated/anon leak — validates+extends VENUE-001), `DB-003` (migration-ledger digest drift) | None known | Low |
 
 ## Findings
 
@@ -283,6 +283,217 @@ Copy this template for every new blocked or failed step.
 - Acceptance criteria: Follow and unfollow have one documented client contract; double follow returns success/idempotent state; achievement or notification behavior is consistent; tests cover both current public-profile and feed button clients.
 - Rerun scenario: `sim-customer-01` follows `sim-artist-01` from profile and feed surfaces, retries the click, reloads following lists, verifies artist follower count or event, then unfollows cleanly.
 
+#### SIM-20260922-VENUE-001 — Raw venue availability and reservations readable by any authenticated user
+
+- Type: Confirmed static defect (data-boundary / RLS)
+- Severity: P1 (P0 if live exposure is proven by DB-002 denial probes)
+- Status: new
+- Actor and goal: `sim-venue-manager-01` and `sim-foreign-venue-manager-01`; unauthorized-scenario verification for venue availability
+- Scenario type: Unauthorized actor / data boundary
+- Failure point: RLS on `public.venue_availability` and `public.venue_reservations`
+- Expected optimal outcome: Raw availability rows (incl. `blocked_reason`, `notes`, `booking_id`, `event_id`) and reservation rows (incl. `source_id`, `created_by`) are readable only by venue operators or service-scope; public reads route through the sanitized `public_venue_availability` view.
+- Actual result: `venue_core.sql` leaves `"Anyone can view venue availability" FOR SELECT USING (true)`; the reservation-conflict migration revokes SELECT on `venue_availability` only from anon/PUBLIC, and `venue_reservations` keeps `USING (true)` with no REVOKE. The venue calendar hook reads raw tables client-side. The auth/database slice validated and extended this in `SIM-20260922-DB-002` (P0): anon was never revoked on `venue_reservations`, and `source_id`/`created_by` leak, contradicting the "existence/timing only" comment.
+- User impact: A signed-in customer or foreign venue manager can enumerate any venue's blocked dates, internal block reasons, and reservation negotiation state; FOREIGN-01 row cannot pass while this boundary is open.
+- Evidence: `supabase/migrations/20250814123000_venue_core.sql:108-120,298-304`; `supabase/migrations/20260823140000_reservation_conflict_engine.sql:74-83,286-302`; `app/venue/hooks/use-venue-calendar-data.ts:80-100`
+- Suspected cause: The sanitized view was added but the raw-table policy was never tightened and the calendar client was never migrated.
+- Necessary fix: Additive forward migration revoking SELECT on both raw tables from anon/PUBLIC/authenticated (keeping service_role), replacing `venue_reservations_public_read` with a scope-restricted or sanitized surface, and pointing venue calendar reads at the sanitized projection. Regenerate `lib/database.types.ts` (CP-016) after apply.
+- Primary owner: `venue`
+- Secondary collaborators: `database`, `qa`
+- Existing task or new task recommendation: New bounded venue task (venue availability data-boundary hardening); hosted denial proof belongs to `DB-002`/`DB-008`.
+- Acceptance criteria: On isolated staging, anon/customer/foreign-venue-manager receive 0 rows from both raw tables; `public_venue_availability` still serves sanitized rows; venue operator and service paths still function.
+- Rerun scenario: `sim-venue-manager-01` reads own calendar; `sim-foreign-venue-manager-01`, `sim-customer-01`, and anon are denied on raw tables; public venue page shows only dates.
+
+#### SIM-20260922-ADMIN-003 — /api/admin/music-marketplace/ops uses non-canonical inline admin guard and a false capability registry claim
+
+- Type: Confirmed static defect (registry/code drift; harness cannot detect it)
+- Severity: P1
+- Status: new
+- Actor and goal: Platform admin oversees global kill switches / compliance holds
+- Scenario type: Unauthorized actor / admin capability boundary
+- Failure point: `/api/admin/music-marketplace/ops` GET and POST
+- Expected optimal outcome: Platform-global ops on the canonical `withPlatformAdmin` family standard, with registry entry `platform_admin`.
+- Actual result: Guard is `requireApiUser` + inline `assertAdmin` (`profiles.is_admin === true` OR `Number(admin_level) >= 1`), which also grants `is_admin=true` at any admin_level; the registry claims `capability_gated (content.view)` + `audit: true`. No focused test exists (`rg music-marketplace` → none in `__tests__/admin`). Writes `music_marketplace_admin_actions` audit rows.
+- User impact: Audits and capability-matrix convergence treat an org capability as authorization; the global kill-switch surface is invisible to canonical-guard verification.
+- Evidence: `app/api/admin/music-marketplace/ops/route.ts:25-35,49,93`; `lib/admin/api-route-registry.ts:1404-1411`; `scripts/ci/check-admin-route-registry.mjs` (checks only the legacy ceiling, not `capability_gated` claims)
+- Suspected cause: Music-family platform routes predate the canonical wrapper and were never in the platform-ops migration batches (they are `capability_gated`, not `legacy_pending_migration`).
+- Necessary fix: Migrate to `withPlatformAdmin` (preserve feature gate, killMap caps, hold/alert predicates, action attribution); set registry `platform_admin` + `auditMethods: ['POST']`; add focused denial/allow tests + matrix convergence entry.
+- Primary owner: `admin`
+- Secondary collaborators: `music`, `qa`
+- Existing task or new task recommendation: New bounded task or extend `ADMIN-003` batch list.
+- Acceptance criteria: Platform-only denial test; org-admin with content.view denied; kill switch writes key-scoped; registry exact.
+- Rerun scenario: Platform admin vs scoped org admin vs unrelated user on `/api/admin/music-marketplace/ops`.
+
+#### SIM-20260922-ADMIN-004 — Four music content/royalties admin routes carry the same guard/registry drift
+
+- Type: Confirmed static defect (registry/code drift)
+- Severity: P2
+- Status: new
+- Actor and goal: Platform admin / RBAC music reviewer performs content-review and royalty-import oversight
+- Scenario type: Unauthorized actor / admin capability boundary
+- Failure point: `/api/admin/content/music/certifications` (GET/PATCH), `/api/admin/content/music/rights/disputes` (GET/PATCH/POST), `/api/admin/content/music/rights/review` (GET/PATCH), `/api/admin/music/royalties/imports` (GET)
+- Expected optimal outcome: Registry `capability_gated (content.view)` matches the routed guard, or the route moves to the canonical platform guard.
+- Actual result: All use `requireApiUser` + music-domain helpers (`userCanReviewMusicCertification` / `userCanAdminRoyaltiesOps` — platform `is_admin=true` AND admin_level ∈ {moderator,super} OR RBAC permission). Same drift class as earlier resolved families, never recorded.
+- User impact: Contract integrity; capability matrix cannot detect the mismatch.
+- Evidence: route files listed above; `lib/admin/api-route-registry.ts`
+- Necessary fix: (a) move onto canonical platform guard with scope decision, or (b) align the registry to the actual permission contract with a documented `rbac_permission`-keyed authClass. One focused contract test per route.
+- Primary owner: `admin`
+- Secondary collaborators: `music`, `database`
+- Existing task or new task recommendation: Extend `ADMIN-003` batch list.
+- Acceptance criteria: Registry-to-code parity verified per route; focused denial/allow tests.
+- Rerun scenario: Platform admin (moderator/super), numeric-admin_level user, RBAC-granted reviewer, unrelated user.
+
+#### SIM-20260922-ORG-002 — Event PATCH authorizes by creator only, no org capability
+
+- Type: Confirmed static defect (authorization)
+- Severity: P2
+- Status: new
+- Actor and goal: Any org member updates an event
+- Scenario type: Unauthorized actor / data boundary
+- Failure point: `PATCH /api/events/[id]` uses `existing.created_by === user.id` (creator-only); GET does any-org-member limit-1 lookup. No UI currently PATCHes this route (only the venue delete dialog DELETEs).
+- Expected optimal outcome: Org-scoped `event.manage` check at the data boundary (ORG-006/H8 invariant).
+- Actual result: Creator-only mutation with no org/capability/RBAC check; denies other `event.manage` members and allows a creator outside org roles.
+- User impact: Latent privilege/availability risk if any UI adopts this route.
+- Evidence: `app/api/events/[id]/route.ts`; `app/venue/components/event-details/delete-event-dialog.tsx:25` (only consumer = DELETE)
+- Necessary fix: Align with `withAdminCapability`/`withOrgCommand` (org + capability) or remove/deprecate the route.
+- Primary owner: `organization`
+- Secondary collaborators: `admin`
+- Existing task or new task recommendation: Fold into `ORG-006`.
+- Acceptance criteria: PATCH requires owning-org + `event.manage`; non-creator manager can update.
+- Rerun scenario: Non-creator org manager updates a campaign event; foreign tenant is denied.
+
+#### SIM-20260922-ORG-003 — Org-published jobs are labeled "Venue staffing" with a null organization name
+
+- Type: Confirmed static defect (display/filtering)
+- Severity: P3
+- Status: new
+- Actor and goal: Worker identifies an org-published job employer (ORG-07)
+- Scenario type: Success path / empty state
+- Failure point: `GET /api/jobs` unified board (merge=1) maps ALL `job_posting_templates` rows via `mapVenueTemplateToUnified`, hardcoding `source:'venue'` and deriving `organization_name` from `row.venue?.name`.
+- Expected optimal outcome: Org postings (`employer_entity_type='organization'`) show the org name and a correct source badge; `venue_id` filter does not drop them.
+- Actual result: Org postings show "Venue staffing" badge + `organization_name: null`; excluded when a `venue_id` filter applies.
+- User impact: Worker trust issue and ORG-07 discovery attenuation.
+- Evidence: `lib/rebuild/unified-jobs-list.ts:80-98`; `app/api/jobs/route.ts:116-145`
+- Necessary fix: Branch the mapper on `employer_entity_type` and resolve the org display name (`organizer_accounts`), or add a separate org mapper.
+- Primary owner: `organization`
+- Secondary collaborators: `work`, `admin`
+- Existing task or new task recommendation: New/recommended — fold into the org jobs task.
+- Acceptance criteria: Org-published jobs show org name + correct source badge; rerun ORG-07.
+- Rerun scenario: `sim-org-manager-01` publishes a job; `sim-worker-01` finds it with the org identity on the board.
+
+#### SIM-20260922-USER-001 — Guest order-claim CTAs link to non-existent auth routes
+
+- Type: Confirmed static defect (navigation dead end)
+- Severity: P2
+- Status: new
+- Actor and goal: Guest buyer claims a paid order after sign-up/sign-in (GEN-07 / GEN-01)
+- Scenario type: Success path / navigation entry
+- Failure point: `app/marketplace/order/[token]/page.tsx:282` (`/auth/sign-up?redirect=...`) and `:287` (`/auth/sign-in?redirect=...`)
+- Expected optimal outcome: Both CTAs land on the unified portal `/login?tab=signup|signin` and return to the order after auth.
+- Actual result: `app/auth/` has no `sign-in`/`sign-up` route; middleware redirects only unhyphenated legacy names; the hyphenated URLs 404. The `redirect=` param itself is honored.
+- User impact: Guest buyers who just paid cannot claim the order; broken primary CTA on a confirmation page, avoidable support load and lost conversion.
+- Evidence: page.tsx:282,287; `middleware.ts:189-206`; `components/auth/tourify-auth-portal.tsx:99-111`; contrast `/marketplace/purchases/page.tsx:44`
+- Necessary fix: Change both CTAs to `/login?tab=signup&redirect=...` and `/login?tab=signin&redirect=...`, or add middleware handling for the hyphenated names; add a link-contract test.
+- Primary owner: `marketplace`
+- Secondary collaborators: `general-user`, `qa`
+- Existing task or new task recommendation: Fold into `MKT-005` or a small USER settings task.
+- Acceptance criteria: Both CTAs resolve to a live auth route; after auth the order appears in `/marketplace/purchases`.
+- Rerun scenario: `sim-customer-02` (guest) buys test merch, clicks both CTAs, signs up, verifies the claimed order in purchases.
+
+#### SIM-20260922-MKT-004 — Checkout idempotency burns attempt keys and strands abandoned orders
+
+- Type: Confirmed static defect
+- Severity: P2
+- Status: new
+- Actor and goal: Customer retries checkout after a transient Stripe session-init failure or abandons payment
+- Scenario type: Cancellation or retry / idempotency
+- Failure point: `app/api/marketplace/checkout/route.ts:395-409,482-488` and `lib/marketplace/webhook-processor.ts` (no attempt terminal transition; no `checkout.session.expired` case)
+- Expected optimal outcome: A retryable `stripe_checkout_init_failed` error can retry with the same idempotency key; abandoned/expired sessions reconcile to cancelled.
+- Actual result: On session-create failure the route deletes ledger/order items/order but not `marketplace_checkout_attempts` (stays `pending` pointing at the deleted order); same-key retry then hits non-retryable 409 `checkout_session_unavailable`; nothing ever writes attempt `completed`; `checkout.session.expired` is treated as skipped.
+- User impact: Retry friction after transient outages; orphaned pending orders/attempts accumulate; refreshed-key duplicate-session risk.
+- Evidence: `route.ts`; `lib/marketplace/checkout-idempotency.ts:39-45`; `webhook-processor.ts:88,121-189,365-378,420`
+- Necessary fix: Mark attempts completed on paid webhook; transition attempts to failed/expired on init failure; add `checkout.session.expired` reconciliation; make resume treat a missing order as stale and allow re-create; add focused tests.
+- Primary owner: `marketplace`
+- Secondary collaborators: `integrations`, `database`, `qa`
+- Existing task or new task recommendation: Extend `MKT-004`/`MKT-005`.
+- Acceptance criteria: Same-key retry after init failure succeeds; completed-key reuse returns non-retryable 409; expired sessions cancel orders and free inventory/attempts.
+- Rerun scenario: Simulate Stripe init failure → retry same key → success; paid → second checkout same key → 409; abandon a test checkout → expires → cancelled and resumable.
+
+#### SIM-20260922-MKT-005 — Digital delivery "Download" renders JSON and entitlement increments are non-atomic
+
+- Type: Confirmed static defect (UI) + harness gap
+- Severity: P2
+- Status: new
+- Actor and goal: Buyer downloads a digital purchase from `/marketplace/purchases`
+- Scenario type: Success path / persistence
+- Failure point: `app/marketplace/purchases/page.tsx:116` links to `/api/marketplace/delivery/[orderItemId]`, which returns `NextResponse.json({data})`; the route increments `download_count` via read-then-write.
+- Expected optimal outcome: Download yields the asset file client-side and increments the count atomically.
+- Actual result: A plain `<Link>` navigates to a JSON API response; two concurrent hits can both pass `hasReachedDownloadLimit` and both write `download_count + 1`.
+- User impact: Digital buyers cannot actually download from the UI; entitlement limit can be exceeded under race.
+- Evidence: `purchases/page.tsx:114-118`; `delivery/[orderItemId]/route.ts:44-99`
+- Necessary fix: Add a client download handler (fetch signed URL, set `window.location`/anchor download or redirect); replace read-modify-write with an atomic/conditional update; add a delivery focused test (guest denial + limit race).
+- Primary owner: `marketplace`
+- Secondary collaborators: `general-user`, `qa`
+- Existing task or new task recommendation: Extend `MKT-005`.
+- Acceptance criteria: Download yields the asset; count never exceeds max under concurrent hits; unauthorized user denied.
+- Rerun scenario: Buyer downloads a paid digital item twice sequentially and twice concurrently; downloads stop at the limit; wrong user denied.
+
+#### SIM-20260922-SOC-003 — Notification/social interaction-stats GET reads any post or user via service role without visibility gates
+
+- Type: Confirmed static defect (authorization gap on a read path)
+- Severity: P1
+- Status: new
+- Actor and goal: Outsider reads interaction metadata on `followers`/`private` posts
+- Scenario type: Unauthorized actor / data boundary
+- Failure point: `app/api/notifications/social/route.ts` GET (lines 200-317) — service-role `postId` stats (+ names via `profiles!...fkey`) and arbitrary `userId` aggregate stats; Bearer auth only, no post-visibility, no profile privacy, no ownership check.
+- Expected optimal outcome: Interaction stats honor the same visibility model as the feed and are denied to non-entitled viewers; auth model matches the POST.
+- Actual result: Any authenticated bearer user can request `?postId=<any>` or `?userId=<any>` and receive likes/comments/shares lists and counts through the RLS-bypassing service client.
+- User impact: Follower-only/private post engagement leaks to outsiders; per-user engagement stats readable for anyone.
+- Evidence: `app/api/notifications/social/route.ts:200-317`; contrast `app/api/feed/posts/route.ts:616-626`; `posts.visibility` CHECK in `20241220000010_enhance_feed_system.sql:97`; `__tests__/social/legacy-notification-follow-route.test.ts:71-90` codifies the unowned GET.
+- Necessary fix: Gate `postId` reads on the post's visibility + author profile privacy + ownership/follow context (or remove the dormant endpoint); add `userId` ownership check; unify auth with `checkAuth`/`authenticateApiRequest`.
+- Primary owner: `social`
+- Secondary collaborators: `database`, `qa`
+- Existing task or new task recommendation: Extend `SOCIAL-005` or a bounded `SOCIAL-006`-style follow-up.
+- Acceptance criteria: Follower-only/private post interaction stats return 403/empty to non-entitled users; author sees own stats; per-user stats require self or verified permission; cookie-auth parity.
+- Rerun scenario: `sim-customer-01` (outsider) and `sim-artist-01` (owner) call GET on the artist's followers-only post; outsider denied, owner sees stats.
+
+#### SIM-20260922-MUS-001 — Music play route returns unconditional success and can silently drop persistence
+
+- Type: Confirmed static defect (misleading success contract / silent telemetry loss)
+- Severity: P2
+- Status: new
+- Actor and goal: Artist and customer; music publishing/playback persistence evidence
+- Scenario type: Success path / persistence
+- Failure point: `app/api/music/play/route.ts` — outer `catch` returns `{success:true}` for every thrown error; `music_plays` insert error only logged; `recordMusicEvent`/`syncMusicStats`/achievement failures swallowed.
+- Expected optimal outcome: Play endpoint confirms the persisted play/event or returns a failure the client can retry without duplicating `music_plays`.
+- Actual result: Response always `"Play recorded successfully"` even when the insert/event/sync failed; the route contract cannot serve as persistence evidence.
+- User impact: QA-004 playback "success" cannot be evidenced from the API; silent stat drift; retry/duplication risk.
+- Evidence: `app/api/music/play/route.ts:59-75,159-169`; `lib/music/music-access.ts:124-134,170-181`
+- Necessary fix: Return 5xx when the primary `music_plays` insert fails while keeping side-effect failures non-fatal; expose a non-200 contract or idempotency key.
+- Primary owner: `music`
+- Secondary collaborators: `qa`, `database`
+- Existing task or new task recommendation: Bounded follow-up on top of `MUSIC-004`/`MUSIC-005`.
+- Acceptance criteria: Failed `music_plays` insert returns an error status; successful insert returns success and one row; retry duplicates nothing.
+- Rerun scenario: `sim-customer-01` plays the campaign track; route + DB read-back of `music_plays`/`music_engagement_events` agree on exactly one play; repeat with forced insert failure.
+
+#### SIM-20260922-WORK-005 — Unified /api/jobs pagination silently truncates deep results
+
+- Type: Confirmed static defect
+- Severity: P3
+- Status: new
+- Actor and goal: Worker finds and filters jobs (deep paging)
+- Scenario type: Success path / empty state
+- Failure point: `app/api/jobs/route.ts` — `fetchWindow = Math.min(400, page * perPage * 3)` per source, but `unified_total` is the uncapped DB count and `unified = merged.slice(from, to+1)` runs over window-limited rows only.
+- Expected optimal outcome: Pagination consistent with reported totals.
+- Actual result: Rows beyond the 400-row window can never appear; page 1 can be skewed when one source's top items fall outside its 60-row window; `has_next`/total still promise more.
+- User impact: Job search/filter silently incomplete; misleading total/page counts.
+- Evidence: `app/api/jobs/route.ts:104,148,159,172-173`
+- Necessary fix: Compute pagination against a unified window derived from `unified_total` (or keyset by date), or cap reported totals to window coverage; add a multi-page merge test.
+- Primary owner: `work`
+- Secondary collaborators: None
+- Existing task or new task recommendation: New/recommended (fold into the jobs search task).
+- Acceptance criteria: merge=1 pages fully cover reported totals with no dropped rows under skewed distributions.
+- Rerun scenario: Job search deep-paging.
+
 ### Missing capabilities
 
 #### SIM-20260922-WORK-001 — Shift scheduling cannot be credited from existing evidence
@@ -379,6 +590,160 @@ Copy this template for every new blocked or failed step.
 - Acceptance criteria: Test-mode payment is confirmed, customer order/ticket persists, seller/artist/manager sees the transaction, webhook replay/idempotency remains safe, no production payment key is used.
 - Rerun scenario: Customer slice buys a ticket or merch item in test mode, reloads account orders, and receiving actor verifies sale visibility.
 
+#### SIM-20260922-ARTIST-001 — Profile visibility selector does not gate the public profile
+
+- Type: Confirmed static defect (misleading visibility control / privacy failure)
+- Severity: P1
+- Status: new
+- Actor and goal: `sim-artist-01` chooses "Private — invite only" or "Verified users only" and expects the public page and search to honor it
+- Scenario type: Unauthorized/privacy + publish-state success path
+- Failure point: `contexts/artist-context.tsx` `updateDetailedProfile` persists the selector as `settings.preferences.privacy_settings`; the public read gate `lib/public-artist/get-public-artist-profile.ts:479` and search gate `lib/search/global-search-service.ts:236` only honor `settings.public_profile !== false`. No code writes `public_profile: false` (`grep "public_profile:\s*false"` → none).
+- Expected optimal outcome: Changing visibility actually changes public read/no-read behavior; the owner-only private-preview banner is reachable; Private hides the page from non-owners.
+- Actual result: Public/Verified/Private options persist into an inert model; `settings.public_profile` stays true; the private-preview banner can never appear through the UI; "Verified users only" is a second dead option.
+- User impact: Privacy expectation failure — a private-marked profile stays publicly visible/discoverable.
+- Evidence: `app/artist/profile/page.tsx:839-853`; `contexts/artist-context.tsx:842-889`; `lib/public-artist/get-public-artist-profile.ts:475-486`; `lib/search/global-search-service.ts:236`
+- Suspected cause: Two visibility models drifted — legacy `privacy_settings` string vs canonical `artist_profiles.settings.public_profile` boolean — and the UI was wired to the inert model.
+- Necessary fix: Map the selector to `settings.public_profile` (public→true, private→false; verify or remove the Verified option), add save→reload→public-read parity tests, keep the DB-005 creator-search-projection gate in sync.
+- Primary owner: `artist`
+- Secondary collaborators: `general-user`, `database`
+- Existing task or new task recommendation: New `ARTIST-005`; answers pending handoff `HF-DB-005-ARTIST-CREATOR-FIELDS` assumption 1.
+- Acceptance criteria: Setting Private makes `getPublicArtistProfileDTO` return null to a non-owner and shows the private-preview banner to the owner; search projection excludes the profile; focused test covers public/private/verified round-trips.
+- Rerun scenario: `sim-artist-01` sets Private, saves, reloads `/artist/[slug]` as owner and logged-out, verifies search discoverability, returns to Public.
+
+#### SIM-20260922-ARTIST-002 — Band public profile can never surface music or storefront
+
+- Type: Missing capability
+- Severity: P2
+- Status: new
+- Actor and goal: `sim-artist-02` (band/collaborator) promotes band music and merch from the canonical band page
+- Scenario type: Success path / empty state
+- Failure point: `getPublicBandProfileDTO` (`lib/public-artist/get-public-artist-profile.ts:296-383`) hardcodes empty `tracks`/`products`/`media`; `components/public-artist/public-artist-page.tsx:141-147,248` skips storefront loading for `isBand`.
+- Expected optimal outcome: A band with accepted members who publish public music/merch shows those on the band public page.
+- Actual result: Band pages always render zero music, zero storefront, zero media regardless of member content.
+- User impact: Band actors cannot promote music/merch from their canonical surface; band brand goal stalls.
+- Evidence: `lib/public-artist/get-public-artist-profile.ts:332-346`; `components/public-artist/public-artist-page.tsx:246-265`
+- Suspected cause: Band modeled via `organizer_accounts` + `organization_artist_members`, but content read paths were built only for the single-artist model; no aggregation layer for band pages.
+- Necessary fix: Add member-aggregated music/merch to the band DTO respecting `is_public`/`moderation_status`/`rights_confirmed` filters, or explicitly scope band pages; coordinate with music/marketplace ownership.
+- Primary owner: `artist`
+- Secondary collaborators: `music`, `marketplace`
+- Existing task or new task recommendation: New `ARTIST-006`.
+- Acceptance criteria: A band with ≥1 accepted member with public approved music renders a playable section; storefront matches member listings; coherent empty state.
+- Rerun scenario: `sim-artist-02` publishes a public track as a band member; `sim-customer-01` opens the band page and confirms visibility.
+
+#### SIM-20260922-VENUE-002 — Venue "manage availability" has no shipped write path
+
+- Type: Missing capability (blocks a core goal)
+- Severity: P1
+- Status: new
+- Actor and goal: `sim-venue-manager-01` blocks dates / sets availability (VEN-02), a pilot-chain prerequisite
+- Scenario type: Success path / persistence / validation
+- Failure point: No `app/api/venue/**` availability route exists; the only `venue_availability` app/lib reference is a client SELECT in `use-venue-calendar-data.ts`; `booking-calendar.tsx` renders hardcoded mock dates with inert buttons; calendar blocked-day cards deep-link to settings with no block manager.
+- Expected optimal outcome: A venue manager marks dates unavailable (reason/notes), edits/clears them, sees blocks in the calendar, and `validateVenueAvailability` rejects conflict requests on blocked dates.
+- Actual result: Nothing in the tree writes `venue_availability` except the RLS `FOR ALL` operator policy and the booking/reservation engines; blocks can only exist via DB operator or fixture insert.
+- User impact: The venue side of the pilot chain (availability) cannot be exercised through the UI; booking validation against manager-created blocks is impossible; VEN-02 rows stay blocked.
+- Evidence: `app/venue/hooks/use-venue-calendar-data.ts:93-99`; `app/venue/components/booking-calendar.tsx:18-20,157-169` (zero consumers); `app/venue/dashboard/calendar/page.tsx:67-75`; `app/api/booking-requests/route.ts:342-348`
+- Necessary fix: Add a venue-scoped availability API (`POST/PATCH/DELETE /api/venue/availability`) gated by `canManageVenue` and the operator RLS policy; wire a block editor into the dashboard calendar; retire the mock component; add focused tests.
+- Primary owner: `venue`
+- Secondary collaborators: `database`, `qa`
+- Existing task or new task recommendation: New venue availability block-editor task (e.g., `VENUE-004`).
+- Acceptance criteria: Manager creates/edits/clears blocks from the UI; blocks persist after reload; org-side booking validation rejects blocked dates; wrong-scope writes denied.
+- Rerun scenario: `sim-venue-manager-01` blocks two dates and reloads; `sim-org-manager-01` submits a request for a blocked date and receives a conflict; `sim-foreign-venue-manager-01` is denied writes.
+
+#### SIM-20260922-VENUE-003 — Legacy mock/dead venue components remain in tree with zero consumers
+
+- Type: Design idea / polish debt (duplicate-risk marker)
+- Severity: P3
+- Status: new
+- Actor and goal: Venue manager uses settings and booking surfaces without confusing/inert controls
+- Scenario type: Empty state / polish
+- Failure point: `app/venue/components/booking-calendar.tsx` and `app/venue/components/settings-view.tsx` (plus legacy twins under `components/venue/`) ship mock data and inert buttons with zero consumers.
+- Expected optimal outcome: Dead mock components are removed or wired so QA cannot be misled by decorative UI.
+- Actual result: Zero imports of either component; shipped surfaces use `EnhancedSettingsLayout`/server-only `toPublicVenueProfile`; the mock files remain as misleading debt.
+- User impact: Static review precedence risk; a rerunner may mistake mock controls for shipped capability.
+- Evidence: `app/venue/components/booking-calendar.tsx`; `app/venue/components/settings-view.tsx:181-241`
+- Necessary fix: Retire both component files and legacy twins, or wire them to real APIs if still intended.
+- Primary owner: `venue`
+- Secondary collaborators: `design-system`
+- Existing task or new task recommendation: Fold into the recorded venue component-dedup debt or the new venue availability task.
+- Acceptance criteria: No mock-data component or button-without-handler remains; build tree has no dangling imports.
+- Rerun scenario: Venue settings/calendar static click-through shows only functional controls.
+
+#### SIM-20260922-ORG-001 — Organization event publish/completion has no production UI surface
+
+- Type: Missing capability / dead surface
+- Severity: P1 (pilot)
+- Status: new
+- Actor and goal: `sim-org-manager-01` creates and advances an event (ORG-01/ORG-06/ORG-10)
+- Scenario type: Success path / persistence
+- Failure point: `app/events/create/page.tsx` → `createEventAction` creates `events_v2` with `status='inquiry'` and redirects to `/events`; `updateEventStatusAction` has zero production UI/service callers (test-only); `isEventsV2PubliclyListable` requires `confirmed|advancing|onsite`.
+- Expected optimal outcome: Event becomes publicly listed after a publish step on the org surface.
+- Actual result: No publish/completion UI exists on the org surface; events stay `inquiry` and invisible. The admin dashboard surface (org-scoped) works on the same table, richer than `/events/create`.
+- User impact: Org manager following the coverage-route hint cannot publish or close an event; ORG-01/06/10 rows blocked.
+- Evidence: `app/events/create/page.tsx:20,30-34`; `app/events/_actions/event-actions.ts:110,129`; `app/api/admin/events/[id]/publish/route.ts:17`; `admin/dashboard/events/[id]/page.tsx:1205-1216`
+- Necessary fix: Wire `updateEventStatusAction` into the create flow (publish/completion step) or repoint pilot coverage rows off `/events/create`; align CRM status enum with public gating.
+- Primary owner: `organization`
+- Secondary collaborators: `admin`
+- Existing task or new task recommendation: `ORG-006`/`ORG-007` alignment; coverage rows ORG-01/06/10.
+- Acceptance criteria: Org-manager event reaches `confirmed` via a production UI path; rerun ORG-01 after env unblocked.
+- Rerun scenario: `sim-org-manager-01` creates and publishes a campaign event; customer sees it publicly.
+
+#### SIM-20260922-MKT-002 — Guest order claim is a UI dead end; guest digital downloads unreachable
+
+- Type: Missing capability
+- Severity: P1
+- Status: new
+- Actor and goal: Guest buyer links a paid order to an account and accesses digital downloads
+- Scenario type: Success path / persistence / order claim
+- Failure point: `app/marketplace/order/[token]/page.tsx:270-293` has no wiring to `app/api/marketplace/order/[token]/claim/route.ts`; `/api/marketplace/delivery/[orderItemId]` denies guests by design.
+- Expected optimal outcome: A guest who signs into an account from the "Save your order" prompt has the order linked, sees it in purchases, and can download digital entitlements.
+- Actual result: The claim API exists but no UI or auth flow calls it; after sign-in the user returns to the same guest-token page (`isGuest` stays true), the order never appears in purchases, and it is unreachable after the 72h token expiry. Guest entitlements have `buyer_user_id = null`, so delivery can never serve them.
+- User impact: Advertised "link your order" promise broken; guests permanently lose receipts and digital goods; support load.
+- Evidence: `app/marketplace/order/[token]/page.tsx:270-293`; `app/api/marketplace/order/[token]/claim/route.ts`; `app/api/marketplace/delivery/[orderItemId]/route.ts:32-34`; `webhook-processor.ts:393-416`; `checkout-p6.test.ts:9` (imports but never tests claim)
+- Necessary fix: Add a claim trigger (client button or post-login claim when redirect is `/marketplace/order/<token>`), re-query the order after claim so the CTA disappears, resolve guest entitlements to the claimed user, cover claim + claimed-order access + download in tests.
+- Primary owner: `marketplace`
+- Secondary collaborators: `general-user`, `qa`
+- Existing task or new task recommendation: Extend `MKT-005` or new `MKT-006`.
+- Acceptance criteria: Guest order is claimable from the UI by a matching-email signed-in user; claimed order appears in purchases and survives token expiry; wrong-email/different-user denied; downloads work after claim.
+- Rerun scenario: Guest checkout → receipt → "Save your order" → sign up → order linked and visible in purchases → download works; different-email sign-in is denied.
+
+#### SIM-20260922-MKT-003 — No marketplace UI for buyer cancellation or seller refund
+
+- Type: Missing capability
+- Severity: P1
+- Status: new
+- Actor and goal: Buyer cancels a pending order; seller refunds a paid order
+- Scenario type: Cancellation or retry / refund / persistence
+- Failure point: Cancel and refund routes exist with correct scoping, but no product surface calls them; the seller store dashboard renders orders read-only.
+- Expected optimal outcome: Buyer can cancel pending/abandoned orders and seller can refund from the UI with idempotent retry.
+- Actual result: Grep for the cancel/refund routes finds only Jest suites; `/marketplace` `checkout=cancelled` banner does not cancel the created pending order; `/marketplace/purchases` has no cancel/refund affordance. Cancel/refund requires a direct API call — a runbook-forbidden bypass.
+- User impact: Refund/cancel scenarios cannot pass through the UI; abandoned checkouts leave visible "Awaiting payment" orders forever.
+- Evidence: `app/api/marketplace/orders/[id]/cancel` and `.../refund` routes; `components/marketplace/seller-store-dashboard.tsx:1675-1732`; `app/marketplace/page.tsx:324-326`; `app/marketplace/purchases/page.tsx`
+- Necessary fix: Add buyer cancel button (pending orders) and seller refund action (paid orders), wiring the existing idempotent routes; include empty/disabled states.
+- Primary owner: `marketplace`
+- Secondary collaborators: `general-user`, `qa`
+- Existing task or new task recommendation: Fold into `MKT-005` or new `MKT-007`.
+- Acceptance criteria: Buyer cancels a pending order and sees cancelled state + payout hold; seller refunds with idempotency and sees audit entries; retry does not double-cancel/refund.
+- Rerun scenario: `sim-customer-01` cancels an abandoned order; `sim-artist-01` refunds a paid order; both reload to verify persistence.
+
+#### SIM-20260922-WORK-004 — Worker has no work-history surface
+
+- Type: Missing capability (feature gap)
+- Severity: P2
+- Status: new
+- Actor and goal: Worker views completed/cancelled/declined work after a shift
+- Scenario type: Success path / persistence
+- Failure point: `getWorkModeAssignments` filters `.in("status", ["invited","confirmed","active"])` (`lib/work-mode/read-model.ts`); `EmploymentAssignmentStatus` includes `completed|cancelled|declined`, but no worker-facing surface lists terminal assignments; events workspace and assignment detail vanish once status leaves the active set.
+- Expected optimal outcome: Completed assignments visible in a work history (dates, role, org, earnings/attendance summary).
+- Actual result: The moment a shift/assignment completes it is invisible to the worker — no history exists.
+- User impact: Work-journey claim unmet; completed-work record unavailable; achievements "work history" has no confirmed data source.
+- Evidence: `lib/work-mode/read-model.ts`; `types/hiring-roster-work-mode.ts`; absence of any history surface in the work-mode views
+- Necessary fix: Add a worker history read (status param or separate endpoint with the same scope guards), a Work Mode "history" view, and a completed-assignment test case.
+- Primary owner: `work`
+- Secondary collaborators: None
+- Existing task or new task recommendation: Attach to `WORK-007` area or new task.
+- Acceptance criteria: Worker with a completed assignment sees it under a work history section with role/org/date/status; API returns terminal-status rows only to the owning user.
+- Rerun scenario: Worker complete-shift → history.
+
 ### Design ideas
 
 None recorded yet.
@@ -461,6 +826,26 @@ None recorded yet.
 - Acceptance criteria: Hosted ledger is reconciled, critical SECURITY DEFINER exposure is denied to anon/PUBLIC as intended, generated types match the staged schema, and release/QA can cite exact evidence.
 - Rerun scenario: Auth/database boundary slice runs denial probes and schema parity checks before product actor journeys.
 
+#### SIM-20260922-DB-003 — Working-tree migration edits invalidate DB-008 ledger digest
+
+- Type: Test harness gap / schema-source drift
+- Severity: P2 (local)
+- Status: new
+- Actor and goal: All actors; DB-008 schema-parity evidence quality
+- Scenario type: Persistence / schema parity (harness)
+- Failure point: `docs/engineering/migration-validation/hosted-history-ledger.json` `sourceSnapshot.digestSha256` vs the active chain
+- Expected optimal outcome: `npm run check:migration-ledger` matches the current tree, and ledger/type evidence always names the tree state it was computed from.
+- Actual result: Three active migrations were edited in the uncommitted worktree (`20260701021033_job_application_profile_snapshot.sql`, `20260717194541_harden_security_audit_remediation.sql`, `20260825130000_phase3_message_attachments_bucket_private.sql`, +83/−29); `check:migration-ledger` now exits non-zero on digest mismatch (was green at DB-008's 16:18:55Z checkpoint). `check:database-types` is Docker-blocked so type drift cannot be re-proven locally.
+- User impact: Risk of stale or contradictory local ledger evidence; the storage-policy edits must be attributed and committed before any type-regeneration/apply claim.
+- Evidence: `git diff --stat supabase/migrations/` (3 files); per-file SHA-256 working-tree vs HEAD; ledger `digestSha256 ba0ecbbb…` with `capturedAt 2026-09-22T15:57:33Z`
+- Suspected cause: Concurrent admin/logistics hardening wave edited active migrations without refreshing the ledger digest.
+- Necessary fix: Commit/attribute the storage-policy hardening wave (reviewed: no RLS loosening), then refresh the ledger digest and re-run DB-008 local checks; keep `check:database-types` gated on an available Docker target.
+- Primary owner: `database`
+- Secondary collaborators: `qa`, `release`
+- Existing task or new task recommendation: `DB-008` ledger refresh (note drift in checkpoints).
+- Acceptance criteria: `check:migration-ledger` green in a clean tree at a recorded SHA; no hosted apply claim precedes ledger refresh.
+- Rerun scenario: Re-run ledger + chain checks after the wave is committed on the next recorded SHA.
+
 ## Bypasses
 
 | Bypass ID | Scenario | Why bypass was used | User-facing step not tested | Evidence | Follow-up |
@@ -482,6 +867,26 @@ None recorded yet.
 | `SIM-20260922-QA-001` | `QA-004`, `QA-003` | `qa`, `release` | Existing active | Fill isolated-staging packet. |
 | `SIM-20260922-QA-002` | `QA-005` | `qa`, `database` | Active | Build campaign-safe additive provisioner. |
 | `SIM-20260922-DB-001` | `DB-002`, `DB-008` | `database`, `release`, `qa` | Existing active | Needed before authoritative hosted pass results. |
+| `SIM-20260922-VENUE-001` | `VENUE-005` + `DB-002`/`DB-008` | `venue`, `database`, `qa` | Active | Additive RLS fix (anon/authenticated raw reads) + hosted denial probes. Cross-audited as `SIM-20260922-DB-002`. |
+| `SIM-20260922-VENUE-002` | `VENUE-004` (availability) | `venue`, `database`, `qa` | Active | No availability write path; build venue-scoped block editor. |
+| `SIM-20260922-VENUE-003` | Venue component-dedup debt | `venue`, `design-system` | Recommended | Retire mock/dead venue components. |
+| `SIM-20260922-ARTIST-001` | `ARTIST-005` | `artist`, `general-user`, `database` | Active | Map visibility selector to `settings.public_profile`; answers `HF-DB-005` assumption 1. |
+| `SIM-20260922-ARTIST-002` | `ARTIST-006` | `artist`, `music`, `marketplace` | Active | Band page music/storefront aggregation. |
+| `SIM-20260922-ORG-001` | `ORG-006`/`ORG-007` | `organization`, `admin` | Active | Org event publish/completion UI. |
+| `SIM-20260922-ORG-002` | `ORG-006` | `organization`, `admin` | Active | Event PATCH should use org + capability. |
+| `SIM-20260922-ORG-003` | `ORG-008` | `organization`, `work`, `admin` | Active | Org job postings show org name/badge. |
+| `SIM-20260922-ADMIN-003` | Extend `ADMIN-003` | `admin`, `music`, `qa` | Active | music-marketplace/ops → `withPlatformAdmin`; fix registry drift. |
+| `SIM-20260922-ADMIN-004` | Extend `ADMIN-003` | `admin`, `music`, `database` | Active | Four music content/royalties routes same drift class. |
+| `SIM-20260922-USER-001` | `MKT-006` | `marketplace`, `general-user`, `qa` | Active | Fix guest claim CTAs to `/login?tab=...`. |
+| `SIM-20260922-MKT-002` | `MKT-006` | `marketplace`, `general-user`, `qa` | Active | Wire guest order claim + guest entitlement resolution. |
+| `SIM-20260922-MKT-003` | `MKT-007` | `marketplace`, `general-user`, `qa` | Active | Buyer cancel + seller refund UI. |
+| `SIM-20260922-MKT-004` | `MKT-004`/`MKT-005` | `marketplace`, `integrations`, `database`, `qa` | Active | Checkout idempotency attempt lifecycle + session-expired reconciliation. |
+| `SIM-20260922-MKT-005` | `MKT-008` (+ `MKT-005`) | `marketplace`, `general-user`, `qa` | Active | Digital download client + atomic count. |
+| `SIM-20260922-SOC-003` | `SOCIAL-007` | `social`, `database`, `qa` | Active | Interaction-stats GET visibility/ownership gates. |
+| `SIM-20260922-MUS-001` | `MUSIC-006` | `music`, `qa`, `database` | Active | Play route fail-closed persistence contract. |
+| `SIM-20260922-WORK-004` | `WORK-008` | `work` | Active | Worker work-history surface. |
+| `SIM-20260922-WORK-005` | `WORK-009` | `work` | Active | Unified /api/jobs pagination truncation. |
+| `SIM-20260922-DB-003` | `DB-008` | `database`, `qa`, `release` | Existing active | Refresh ledger digest after storage-policy wave commits. |
 | Mobile coverage and preview gate | `QA-006` | `qa`, `release`, product domains | Active | Run shipped iOS/Android journeys on preview builds targeting the recorded staging SHA. |
 
 ### Read-only hosted readiness probe — 2026-09-22
@@ -598,3 +1003,16 @@ The orchestrator owns ordering and one primary domain owner per task. Domain tas
 - Read-only GET health probes returned 200 from demo and production, with no release SHA, deployment ID, Supabase-origin, or Stripe-mode headers. Both CSPs still advertise the same Supabase origin. The prior RELEASE-007 Vercel inspection maps both aliases to one deployment. Actor provisioning and the pilot remain stopped.
 - Focused local validation: actor provisioner 8/8 tests, mobile gate 7/7 tests, launch fixture contract passed, mobile typecheck passed, coverage inventory 718 valid rows with 0 shipped and 0 passed, and `agents:validate` passed with 17 agents and 122 tasks. The final coverage gate remains red on unclassified rows as designed. No Auth, database, payment, preview build, device, or live UI action occurred.
 - Next order: RELEASE-007 isolated staging and exact-SHA packet; DB-008 ledger/schema plus DB-002 denial proof; protected Stripe test mode and QA-005 inputs; fresh campaign Auth manifest; DB-010 hosted worker-action postflight and denial proof before WORK-006 flag; then the eight-step web pilot with receiving-side evidence. QA-006 iOS/Android preview evidence is required before mobile rows or the full matrix can pass.
+
+### Agent user simulation launch round — 2026-09-23
+
+- Status: Safe/static phase completed across all nine journey slices; live UI mutation still blocked by the unchanged environment gates. Reads reflect HEAD `d2176904` (the QA simulation campaign staging-gates commit) plus the dirty working tree.
+- Agents launched (all read-only, per runbook journey ownership): worker, artist, venue, organization, platform admin, customer/general user, marketplace/ticketing, music/social/content, auth/database boundary.
+- Guardrails honored: no database reset/delete/truncate/seed/provision, no migration apply, no payment action, no Supabase mutation, no credential publication, no file edits by agents (findings returned to the orchestrator for consolidation).
+- Environment blockers re-confirmed: `SIM-20260922-QA-001` (RELEASE-007 packet: `demo.tourify.live` == production deployment `dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK`; `/api/health` omits all four `x-tourify-*` identity headers), `SIM-20260922-QA-002` (QA-005 provisioner implemented, 8/8 tests, but not run — all eleven `QA_CAMPAIGN_*` inputs absent), `SIM-20260922-DB-001` (DB-002/DB-008 hosted proof pending; anon/PUBLIC EXECUTE on the four SECURITY DEFINER functions still un-revoked), `SIM-20260922-TIX-001` (no Stripe test-mode proof).
+- Focused verification totals across slices: worker 111 tests, artist 59, venue 34, organization 63, platform admin 28 (+ admin-route registry 54/54 exact), customer 23, marketplace/ticketing 26, music/social/content 16+ follow suites, database provisioner 8/8 (`check:migration-ledger` now fails on a digest drift — see `SIM-20260922-DB-003`). No failing product test was observed.
+- New findings recorded (20): confirmed defects `VENUE-001`, `ADMIN-003`, `ADMIN-004`, `ORG-002`, `ORG-003`, `USER-001`, `MKT-004`, `MKT-005`, `SOC-003`, `MUS-001`, `WORK-005`; missing capabilities `ARTIST-001`, `ARTIST-002`, `VENUE-002`, `VENUE-003`, `ORG-001`, `MKT-002`, `MKT-003`, `WORK-004`; harness gap `DB-003`. The database slice additionally cross-audited the venue RLS boundary as `DB-002` (P0, validates and extends `VENUE-001`).
+- Task routing created: twelve bounded tasks now own the new findings — `VENUE-004` (availability write path) and `VENUE-005` (availability/reservations RLS boundary) for venue; `ARTIST-005` (visibility selector gate) and `ARTIST-006` (band public profile aggregation); `ORG-008` (org job postings surface); `WORK-008` (work-history surface) and `WORK-009` (jobs pagination truncation); `MKT-006` (guest order claim / dead CTAs), `MKT-007` (buyer cancel / seller refund), `MKT-008` (digital delivery); `SOCIAL-007` (interaction-stats service-role leak); `MUSIC-006` (play route fail-closed). Findings already covered by active tasks were linked in-place: `ADMIN-003`, `ORG-006`, `MKT-004`/`MKT-005`, `DB-002`, `DB-008`, and `VENUE-003`→`VENUE-002` component-tree debt.
+- Existing findings advanced to ready-for-rerun with local fixes: `MKT-001` (order UUID + session binding; order-access/success-url 7/7 and checkout Jest suites green) and `SOC-001` (canonical follow route; net-new read-contract portions folded in). `WORK-001/002/003` remain staging-gated behind `DB-010`/`WORK-006`.
+- Cover-to-pass: 718 candidate rows still 0 shipped / 0 passed and awaiting UI classification. No live persona journey was credited.
+- Next rerun order: close RELEASE-007 isolation + exact SHA, DB-008 ledger + DB-002 denial probes (incl. new venue availability/reservations boundary), Stripe test mode, QA-005 provisioning, and DB-010 worker-action postflight; then rerun the thin-web pilot with the highest-priority product gates (`ARTIST-001` visibility, `VENUE-002` availability write path, `ORG-001` event publish, `MKT-002` order claim) fixed before the first credited chain.

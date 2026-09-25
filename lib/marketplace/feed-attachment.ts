@@ -89,6 +89,38 @@ export type FeedMarketplaceAttachment = FeedListingAttachment | FeedStorefrontAt
 // CTA resolution
 // ---------------------------------------------------------------------------
 
+type FeedListingAvailabilityInput = {
+  status?: string | null
+  moderation_status?: string | null
+} | null | undefined
+
+type FeedListingRedirectInput = ({
+  id: string
+  listing_kind?: string | null
+  status?: string | null
+  moderation_status?: string | null
+} | null | undefined)
+
+type FeedExternalListingSafetyInput = {
+  safety_status?: string | null
+} | null | undefined
+
+export function isFeedListingAvailable(listing: FeedListingAvailabilityInput): boolean {
+  return !!listing && listing.status === 'published' && listing.moderation_status === 'approved'
+}
+
+export function resolveFeedListingRedirectHref(
+  listing: FeedListingRedirectInput,
+  external: FeedExternalListingSafetyInput,
+  source: 'feed' | 'hub' | 'storefront' | 'profile' | 'direct' | 'unknown' = 'feed'
+): string | null {
+  if (!isFeedListingAvailable(listing)) return null
+  if (listing?.listing_kind !== 'external') return null
+  if (external?.safety_status !== 'approved') return null
+
+  return `/api/marketplace/listings/${listing.id}/redirect?from=${source}`
+}
+
 function resolveCta(
   listingKind: string,
   serviceMode: string | null,
@@ -154,16 +186,18 @@ export async function resolveFeedAttachment(
 
     // Resolve external provider name if applicable
     let providerName: string | null = null
+    let externalListing: { provider_name?: string | null; safety_status?: string | null } | null = null
     if (listing?.listing_kind === 'external') {
       const { data: ext } = await supabase
         .from('marketplace_external_listings')
         .select('provider_name, safety_status')
         .eq('listing_id', listing.id)
         .maybeSingle()
+      externalListing = ext ?? null
       if (ext?.safety_status === 'approved') providerName = ext.provider_name ?? null
     }
 
-    const available = !!listing && listing.status === 'published' && listing.moderation_status === 'approved'
+    const available = isFeedListingAvailable(listing)
     const cta = listing
       ? resolveCta(listing.listing_kind, listing.service_mode, listing.category)
       : 'buy_now'
@@ -192,9 +226,7 @@ export async function resolveFeedAttachment(
       cta,
       isExternal: listing?.listing_kind === 'external',
       providerName,
-      redirectHref: listing?.listing_kind === 'external'
-        ? `/api/marketplace/listings/${listing.id}/redirect?from=feed`
-        : null,
+      redirectHref: resolveFeedListingRedirectHref(listing, externalListing),
       originalSellerUserId: attachment.original_seller_user_id,
       originalStorefrontSlug,
     }
@@ -302,7 +334,7 @@ export async function resolveFeedAttachmentsBatch(
       const listing = listingMap.get(att.listing_id) ?? null
       const ext = att.listing_id ? externalMap.get(att.listing_id) ?? null : null
       const originalSf = att.original_store_id ? originalStoreMap.get(att.original_store_id) : null
-      const available = !!listing && listing.status === 'published' && listing.moderation_status === 'approved'
+      const available = isFeedListingAvailable(listing)
       const cta = listing ? resolveCta(listing.listing_kind, listing.service_mode, listing.category) : 'buy_now'
 
       result[att.post_id] = {
@@ -329,9 +361,7 @@ export async function resolveFeedAttachmentsBatch(
         cta,
         isExternal: listing?.listing_kind === 'external',
         providerName: ext?.safety_status === 'approved' ? ext?.provider_name ?? null : null,
-        redirectHref: listing?.listing_kind === 'external'
-          ? `/api/marketplace/listings/${listing.id}/redirect?from=feed`
-          : null,
+        redirectHref: resolveFeedListingRedirectHref(listing, ext),
         originalSellerUserId: att.original_seller_user_id,
         originalStorefrontSlug: originalSf?.slug ?? null,
       }

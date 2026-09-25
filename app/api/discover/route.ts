@@ -7,6 +7,11 @@ import {
   fetchTopAlbumsByGenre,
 } from '@/lib/discover/enrich'
 import {
+  fetchInternalJson,
+  type DiscoverUpstreamRoute,
+} from '@/lib/discover/internal-json-fetch'
+import { parseAllowedOrigins } from '@/lib/discover/outbound-guard'
+import {
   normalizeEventsFromDiscover,
   normalizeMusicTracks,
   normalizeProfilesFromEnhanced,
@@ -84,12 +89,16 @@ interface DiscoverResponse {
 
 type DiscoverIntent = 'grow' | 'network' | 'book' | 'learn'
 
-function parseJsonSafe(value: string): any {
-  try {
-    return JSON.parse(value)
-  } catch {
-    return null
-  }
+/**
+ * The aggregation fan-out runs on `node:https` / `node:dns` (resolve-then-pin),
+ * so this handler must stay on the Node.js runtime.
+ */
+export const runtime = 'nodejs'
+
+function parseBoundedInt(raw: string | null, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt(String(raw ?? ''), 10)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(Math.max(parsed, min), max)
 }
 
 function scorePostEngagement(post: DiscoverPost) {
@@ -325,8 +334,8 @@ function rankHireMatches({
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
-  const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 30)
+  const { searchParams } = new URL(request.url)
+  const limit = parseBoundedInt(searchParams.get('limit'), 12, 1, 30)
   const sectionLimit = Math.max(4, Math.min(limit, 12))
   const location = searchParams.get('location')?.trim() || null
   const creatorType = searchParams.get('creatorType')?.trim() || null
@@ -346,23 +355,39 @@ export async function GET(request: NextRequest) {
   const cookie = request.headers.get('cookie')
   if (cookie) headers.cookie = cookie
 
-  const fetchJson = async (path: string) => {
-    try {
-      const response = await fetch(`${origin}${path}`, { headers, cache: 'no-store' })
-      if (!response.ok) return null
-      const text = await response.text()
-      return parseJsonSafe(text)
-    } catch (error) {
-      console.error(`[Discover API] Failed request for ${path}:`, error)
-      return null
-    }
+  // Security decision DISC-SSRF-001 (CodeQL alert #16, js/request-forgery):
+  // the outbound base origin is operator configuration only. It is never taken
+  // from `request.url` / `Host` / `X-Forwarded-Host`, so a caller cannot point
+  // this fan-out at an internal, loopback, or link-local address. An
+  // unconfigured deployment performs no outbound request at all.
+  const allowlist = parseAllowedOrigins()
+  if (allowlist.length === 0) {
+    console.warn(
+      '[Discover API] No internal upstream origin is allowlisted; the aggregation fan-out is disabled. Set INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_URL).'
+    )
   }
 
-  const eventsDiscoverParams = new URLSearchParams({
+  /**
+   * Callers select an upstream by key, never by URL. Denials log the route key
+   * and the reason only — never a parameter value or the resolved URL.
+   */
+  const fetchUpstream = async (
+    route: DiscoverUpstreamRoute,
+    params?: Record<string, string | number | boolean | null | undefined>
+  ) => {
+    const result = await fetchInternalJson({ route, params, headers, allowlist })
+    if (!result.ok) {
+      console.error(`[Discover API] Upstream "${route}" denied: ${result.denial}`)
+      return null
+    }
+    return result.data
+  }
+
+  const eventsDiscoverParams: Record<string, string> = {
     limit: String(sectionLimit * 2),
     sortBy: location ? 'relevance' : 'date',
-  })
-  if (location) eventsDiscoverParams.set('location', location)
+  }
+  if (location) eventsDiscoverParams.location = location
 
   const postsLimit = Math.max(sectionLimit * 3, 24)
   const musicLimit = Math.max(sectionLimit * 3, 36)
@@ -377,12 +402,12 @@ export async function GET(request: NextRequest) {
     topAlbumsByGenre,
     tours,
   ] = await Promise.all([
-    fetchJson(`/api/feed/posts?type=all&limit=${postsLimit}&offset=0`),
-    fetchJson(`/api/events/discover?${eventsDiscoverParams.toString()}`),
-    fetchJson(`/api/feed/music?sortBy=recent&limit=${musicLimit}`),
-    fetchJson(`/api/feed/music?sortBy=trending&limit=${musicLimit}`),
-    fetchJson(`/api/feed/music?sortBy=popular&limit=${musicLimit}`),
-    authResult ? fetchJson(`/api/social/suggested?limit=${sectionLimit}`) : Promise.resolve(null),
+    fetchUpstream('feedPosts', { type: 'all', limit: postsLimit, offset: 0 }),
+    fetchUpstream('eventsDiscover', eventsDiscoverParams),
+    fetchUpstream('feedMusic', { sortBy: 'recent', limit: musicLimit }),
+    fetchUpstream('feedMusic', { sortBy: 'trending', limit: musicLimit }),
+    fetchUpstream('feedMusic', { sortBy: 'popular', limit: musicLimit }),
+    authResult ? fetchUpstream('socialSuggested', { limit: sectionLimit }) : Promise.resolve(null),
     fetchTopAlbumsByGenre({ supabase, limit: 8 }),
     fetchDiscoverTours({ limit: sectionLimit }),
   ])
@@ -412,18 +437,18 @@ export async function GET(request: NextRequest) {
     sectionLimit
   )
 
-  const peopleParams = new URLSearchParams({
+  const peopleParams: Record<string, string> = {
     limit: String(sectionLimit * 4),
     type: 'all',
     includeRecommendations: 'true',
     sortBy: 'relevance',
-  })
-  if (location) peopleParams.set('location', location)
-  if (creatorType) peopleParams.set('creatorType', creatorType)
-  if (service) peopleParams.set('service', service)
-  if (availableForHire) peopleParams.set('availableForHire', 'true')
+  }
+  if (location) peopleParams.location = location
+  if (creatorType) peopleParams.creatorType = creatorType
+  if (service) peopleParams.service = service
+  if (availableForHire) peopleParams.availableForHire = 'true'
 
-  const enhancedPeoplePayload = await fetchJson(`/api/search/enhanced?${peopleParams.toString()}`)
+  const enhancedPeoplePayload = await fetchUpstream('searchEnhanced', peopleParams)
   const peopleRaw = locationBoostedProfiles(
     normalizeProfilesFromEnhanced(enhancedPeoplePayload),
     location

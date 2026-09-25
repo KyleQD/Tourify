@@ -79,7 +79,11 @@ async function requireCollaboratorRequestScope(args: {
 
     const isScopedList =
       args.request.method === 'GET'
-      && (pathname === '/api/admin/tours' || pathname === '/api/admin/events')
+      && (
+        pathname === '/api/admin/tours'
+        || pathname === '/api/admin/events'
+        || pathname === '/api/admin/logistics/overview'
+      )
     const isCollaboratorSearch = pathname === '/api/admin/users/search'
     if (isScopedList || isCollaboratorSearch) return null
 

@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DESIGN-034-DEAD-IMPORTER-OWNERS",
+  "task_id": "DESIGN-034",
+  "from_agent": "design-system",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-25T15:34:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "Concurrent Wave 34 multi-lane dirty tree. This lane changed only lib/services/**. Every importer named below is outside the design-system grant, so none of them was touched.",
+  "summary": "12 modules under lib/services/** are dead but could not be deleted this wave, because every one of their importers is itself entry-unreachable AND lives outside the design-system grant. Deleting the module would replace its diagnostics with a TS2307 'cannot find module' in a file this lane does not own, which is a net loss. The unlock is always the same shape: the owning lane deletes the dead importer, then this lane deletes the service. Each dead importer is listed with its owner. The single highest-value item is mfa.service.ts at 40 measured primary diagnostics, blocked on the integrations lane's test and hook.",
+  "working_set": [
+    "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+    "__tests__/integrations/mfa.service.test.ts",
+    "hooks/use-mfa.ts",
+    "components/admin/onboarding/onboarding-wizard.tsx",
+    "components/admin/onboarding/steps/role-selection-step.tsx",
+    "components/admin/enhanced-onboarding-system.tsx",
+    "components/admin/onboarding-form-fields.tsx",
+    "components/auth/enhanced-signup-form.tsx",
+    "components/enhanced-account-demo.tsx",
+    "hooks/use-enhanced-accounts.ts",
+    "hooks/use-data-isolation.tsx",
+    "components/verification/account-verification.tsx",
+    "components/onboarding-complete.tsx",
+    "hooks/use-achievement-triggers.ts",
+    "app/venue/staff/components/onboarding-wizard.tsx"
+  ],
+  "completed": [
+    "Proved, per module, that every importer is entry-unreachable by BFS from 1,484 Next.js entry points, and re-proved the spot-checks with an independent rg sweep.",
+    "Measured the diagnostic value of each blocked module with scoped tsc so the owner can price the unlock. mfa.service.ts is 40 primary diagnostics; staff-onboarding.service.ts was measured at 4 and has already been repointed to 2 in this lane; mfa-verification-code-store.server.ts is 1.",
+    "Established the ordering constraint: the importer is deleted first, the service second, never the reverse."
+  ],
+  "unlocks_by_owner": [
+    {
+      "owner": "integrations",
+      "measuredPrimaryDiagnosticsWaiting": 41,
+      "deleteTheseDeadImporters": [
+        "__tests__/integrations/mfa.service.test.ts (a vitest root that imports the MFA service directly; it is the ONLY reason mfa.service.ts cannot be removed)",
+        "hooks/use-mfa.ts (0 importers, verified independently)"
+      ],
+      "thenThisLaneCanDelete": [
+        "lib/services/mfa.service.ts (40 measured primary diagnostics)",
+        "lib/services/mfa-verification-code-store.server.ts (1 measured primary diagnostic)",
+        "lib/services/mfa-verification-code-store.ts",
+        "lib/services/sms-delivery.service.ts (only importer is mfa.service.ts)"
+      ],
+      "whyItMatters": "This is the largest single remaining item in the pile. All three user_mfa_* tables are absent from every SQL file in the repository, so the whole MFA surface rests on relations the chain never created. Deleting the surface removes 41 diagnostics and forces the decision HF-DESIGN-034-SCHEMA-NO-HOME already asks for. Note that mfa-verification-code-store.server.ts is also listed in the venue lane's lib/supabase/service-role-legacy-imports.json, so coordinate with venue before deleting.",
+      "caveat": "hooks/use-mfa.ts is a generic hooks/ file, not an integrations/ file. If the integrations lane does not own it, the orchestrator must assign it."
+    },
+    {
+      "owner": "admin",
+      "measuredPrimaryDiagnosticsWaiting": "not measured this wave (measurement budget spent on the 15 deletions); the inventory attributes 6 database objects to admin-onboarding.service.ts alone",
+      "deleteTheseDeadImporters": [
+        "components/admin/onboarding/onboarding-wizard.tsx (0 importers)",
+        "components/admin/onboarding/steps/role-selection-step.tsx (0 importers)",
+        "components/admin/enhanced-onboarding-system.tsx (0 importers)",
+        "components/admin/onboarding-form-fields.tsx (0 importers)"
+      ],
+      "thenThisLaneCanDelete": [
+        "lib/services/admin-onboarding.service.ts (admin_onboarding, admin_onboarding_steps, admin_roles, analytics_snapshots, complete_onboarding_step, start_admin_onboarding)",
+        "lib/services/onboarding-templates.service.ts"
+      ]
+    },
+    {
+      "owner": "accounts",
+      "deleteTheseDeadImporters": [
+        "components/verification/account-verification.tsx (0 importers)",
+        "components/enhanced-account-demo.tsx (0 importers)",
+        "hooks/use-enhanced-accounts.ts (1 importer, and that importer is itself the zero-importer enhanced-account-demo.tsx, so the whole chain is dead)"
+      ],
+      "thenThisLaneCanDelete": [
+        "lib/services/verification.service.ts (8 database objects: verification_requests, verification_documents, verification_badges, verification_criteria, verification_history, calculate_verification_score, get_verification_status, submit_verification_request)",
+        "lib/services/enhanced-account.service.ts (get_account_feed, discover_accounts, get_account_display_info, update_account_stats, upsert_account)"
+      ]
+    },
+    {
+      "owner": "auth-identity",
+      "deleteTheseDeadImporters": ["components/auth/enhanced-signup-form.tsx (0 importers)"],
+      "thenThisLaneCanDelete": ["lib/services/auth.service.ts"]
+    },
+    {
+      "owner": "venue",
+      "deleteTheseDeadImporters": ["app/venue/staff/components/onboarding-wizard.tsx (0 importers)"],
+      "thenThisLaneCanDelete": [
+        "lib/services/staff-onboarding.service.ts (already repointed in this lane; deleting it removes its remaining 2 pre-existing diagnostics, which are a missing createClient import and a missing flow_type column, neither of them a database object)"
+      ]
+    },
+    {
+      "owner": "unassigned (generic components/ and hooks/)",
+      "deleteTheseDeadImporters": [
+        "components/onboarding-complete.tsx (0 importers)",
+        "hooks/use-achievement-triggers.ts (0 importers)",
+        "hooks/use-data-isolation.tsx (0 importers)"
+      ],
+      "thenThisLaneCanDelete": [
+        "lib/services/achievement-trigger.service.ts",
+        "lib/services/data-isolation.service.ts (access_audit_log)"
+      ],
+      "note": "The orchestrator must assign these three files to a domain; they are outside every lane's explicit grant, which is why they are still here."
+    }
+  ],
+  "next_steps": [
+    "Route each group to its owner. The owner deletes the dead importer and hands the service back to design-system, or the orchestrator grants design-system the importer file and this lane finishes the job.",
+    "Do not delete any of these 12 services before its importer is gone. A TS2307 in a file another lane owns is worse than the diagnostics it removes."
+  ],
+  "blockers": [
+    "Every unlock is blocked on a file outside the design-system grant. Expanding into any of them would be exactly the silent scope expansion the Wave 34 brief forbids."
+  ],
+  "verification": [
+    "PASS: for each of the 15 dead importers listed above, an independent `rg` sweep for its own specifier returns only documentation or its own dead peer, never an app/ page, route, or layout.",
+    "PASS: no TS2307 was introduced anywhere; the focused test run and the SEC-109 check are both unchanged.",
+    "NOT MEASURED: the diagnostic count for 10 of the 12 blocked modules. The scoped-tsc budget was spent on the 15 deletions; those 10 are recorded in the inventory artifact with a null measurement rather than a guess."
+  ],
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json"
+}

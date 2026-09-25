@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { isArtistProfileHidden } from '@/lib/artist/profile-visibility'
 
 export async function GET(
   request: NextRequest,
@@ -40,6 +41,23 @@ export async function GET(
       .single()
 
     if (artistError || !artistProfile) {
+      return NextResponse.json(
+        { error: 'Artist profile not found' },
+        { status: 404 }
+      )
+    }
+
+    // Data-boundary visibility gate (ARTIST-005): hidden profiles are only
+    // readable by their owner. Keeps this public-by-name surface in sync with
+    // getPublicArtistProfileDTO and the search projection.
+    const artistSettings =
+      artistProfile.settings && typeof artistProfile.settings === 'object'
+        ? (artistProfile.settings as Record<string, unknown>)
+        : {}
+    const isOwner = Boolean(
+      authResult?.user?.id && authResult.user.id === artistProfile.user_id
+    )
+    if (isArtistProfileHidden(artistSettings) && !isOwner) {
       return NextResponse.json(
         { error: 'Artist profile not found' },
         { status: 404 }

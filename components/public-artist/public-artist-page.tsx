@@ -42,19 +42,12 @@ import {
 } from "@/lib/public-artist/artist-profile-appearance"
 import themeStyles from "@/components/public-artist/artist-profile-theme.module.css"
 import { PublicArtistMediaLightbox } from "@/components/public-artist/media/public-artist-media-lightbox"
+import {
+  bandProductsToMarketplaceListings,
+  type BandStorefrontListing,
+} from "@/lib/public-artist/band-storefront"
 
-interface MarketplaceListing {
-  id: string
-  title: string
-  description: string | null
-  category: string
-  product_type: string
-  currency: string
-  base_price: number | null
-  cover_image_url: string | null
-  featured_rank?: number | null
-  marketplace_listing_variants?: Array<{ id: string; title: string; price: number }>
-}
+type MarketplaceListing = BandStorefrontListing
 
 function initials(name: string) {
   return name
@@ -67,12 +60,22 @@ function initials(name: string) {
 export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; username: string }) {
   const { hero, tracks, events, about, media, posts, stats, epk, creator, organizations, socialLinks = [], bandMembers = [] } = dto
   const isBand = dto.pageKind === "band"
+  // Band storefronts are aggregated server-side into dto.products (ARTIST-006);
+  // single-artist pages load listings client-side via /api/marketplace/discover.
+  const bandStorefrontListings = isBand ? bandProductsToMarketplaceListings(dto.products) : []
   const [isBookingOpen, setIsBookingOpen] = useState(false)
   const [showMessageModal, setShowMessageModal] = useState(false)
-  const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([])
+  const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>(bandStorefrontListings)
   const [isCheckoutLoadingId, setIsCheckoutLoadingId] = useState<string | null>(null)
   const [marketplaceMessage, setMarketplaceMessage] = useState<string | null>(null)
-  const [selectedVariantByListing, setSelectedVariantByListing] = useState<Record<string, string>>({})
+  const [selectedVariantByListing, setSelectedVariantByListing] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    for (const listing of bandStorefrontListings) {
+      const firstVariant = listing.marketplace_listing_variants?.[0]
+      if (firstVariant?.id) initial[listing.id] = firstVariant.id
+    }
+    return initial
+  })
   const [storefrontExternalLinks, setStorefrontExternalLinks] = useState<Array<{ label: string; url: string }>>([])
   const [storefrontTheme, setStorefrontTheme] = useState<StorefrontThemeConfig>(DEFAULT_STOREFRONT_THEME)
   const [storefrontDisplayName, setStorefrontDisplayName] = useState<string | null>(null)
@@ -139,6 +142,10 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
 
   useEffect(() => {
     if (isBand) {
+      // Band storefront items were seeded from dto.products (server-aggregated
+      // member listings); only the banner/theme/sections need the seller
+      // storefront config, falling back to defaults when the band has none.
+      void loadStorefrontLinks()
       setHasLoadedStorefront(true)
       return
     }
@@ -245,7 +252,11 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
 
   const featuredListings = marketplaceListings.filter(isFeaturedListing)
   const hasMusic = tracks.tracks.length > 0
-  const showStorefront = !isBand && (!hasLoadedStorefront || marketplaceListings.length > 0)
+  // Bands render the storefront only when the server-aggregated member catalog
+  // has listings; single artists keep the loading state (render while fetching).
+  const showStorefront = isBand
+    ? marketplaceListings.length > 0
+    : !hasLoadedStorefront || marketplaceListings.length > 0
   const storefrontCategories = storefrontSections.map(section => {
     if (section === "featured") {
       return {

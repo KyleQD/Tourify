@@ -9,9 +9,10 @@ const routeSource = readFileSync(
 
 describe('Admin site-map collection scope contract', () => {
   it('uses events_v2 as the only event scope for reads and writes', () => {
-    expect(routeSource).toContain("query.eq('event_v2_id', eventId)")
+    expect(routeSource).toContain("runListQuery('event_v2_id')")
     expect(routeSource).toContain('event_v2_id: eventId || null')
-    expect(routeSource).not.toContain("query.eq('event_id', eventId)")
+    expect(routeSource).toContain("runListQuery('event_id')")
+    expect(routeSource).toContain('isMissingSiteMapEventV2Column')
     expect(routeSource).not.toContain('event_id: body.eventId || null')
   })
 

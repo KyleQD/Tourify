@@ -36,6 +36,7 @@ Status of work lives in [PROGRESS.md](PROGRESS.md). This file is the ordered sur
 | `ops-events-command` | `/admin/dashboard/events/[id]/command-center` | `app/admin/dashboard/events/[id]/command-center/page.tsx` |
 | `ops-calendar` | `/admin/dashboard/calendar` | `app/admin/dashboard/calendar/page.tsx` |
 | `ops-logistics` | `/admin/dashboard/logistics` | `app/admin/dashboard/logistics/page.tsx` |
+| `ops-logistics-control-tower` | Portfolio-first logistics overhaul | `app/admin/dashboard/logistics/page.tsx` |
 | `ops-logistics-sitemap-redirect` | `/admin/dashboard/logistics/site-maps-enhanced` | `app/admin/dashboard/logistics/site-maps-enhanced/page.tsx` |
 
 ## 3. Workforce

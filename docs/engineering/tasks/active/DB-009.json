@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-18T23:22:13.000Z",
-  "updated_at": "2026-09-18T23:49:45.000Z",
+  "updated_at": "2026-09-25T21:39:16.631Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty shared worktree; bounded DB-009 resolver and contract-test changes present",
   "goal": "Define, own, and verify one fail-closed identity and access contract for resolving artist_events, events, and events_v2 references without weakening any consumer authorization boundary",
@@ -44,33 +44,30 @@
     "Focused tests, lint, scoped type diagnostics, importer inventory, diff validation, and control-plane validation pass"
   ],
   "verification": {
-    "tier": "feature",
+    "tier": "database contract + repository gates",
     "commands": [
-      "npx vitest run __tests__/events/event-reference-contract.test.ts",
-      "npx eslint app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts",
-      "npx tsc --noEmit --pretty false --skipLibCheck --target ES2020 --module esnext --moduleResolution bundler app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts",
-      "rg -l \"event-reference\" app lib --glob '*.{ts,tsx}'",
-      "git diff --check -- app/api/events/_lib/event-reference.ts __tests__/events/event-reference-contract.test.ts docs/engineering",
-      "npm run agents:validate"
+      "node supabase/tests/db008_chain_surface_replay.mjs",
+      "npm run check:migration-chain"
     ],
     "evidence": [
-      "ORCH-002 read-only research found 18 direct importers: 16 event subresource routes plus app/api/payment/route.ts and lib/events/event-task-workflow.ts.",
-      "DB-006 explicitly leaves legacy/public/artist-event compatibility outside its bounded six-caller cutover until identifier and authorization contracts are mapped.",
-      "2026-09-18T23:36:27.000Z: implemented canonical events_v2 -> artist_events -> events lookup for both UUID and slug identifiers, while retaining source identity and owner/org/venue/schedule projections.",
-      "2026-09-18T23:36:27.000Z: the resolver now fails closed on query errors, malformed data, within-table duplicates, and cross-table ambiguity; it uses only the caller-supplied authenticated client.",
-      "2026-09-18T23:36:27.000Z: focused Vitest passed 1 file / 8 tests; focused ESLint and scoped TypeScript diagnostics passed; the static importer inventory remained exactly 18 app/lib paths.",
-      "2026-09-18T23:49:45.000Z discover review: the event page accepts UUID or slug, branches on the resolved table, and calls canAccessEventAsViewer; active events_v2 RLS remains organization-member scoped, so anonymous published events_v2 behavior still needs approved hosted policy/evidence.",
-      "2026-09-18T23:49:45.000Z social review: attendance and posts retain event_table source qualification and viewer checks on writes; their reads rely on RLS after resolution. Active attendance policy evidence is legacy-events oriented and no active event_posts creation/RLS migration was found in this bounded review, so deployed read isolation remains unverified.",
-      "2026-09-18T23:49:45.000Z ticketing/payment review: finance and frozen legacy guest-list reads require authenticated event permission; checkout accepts a UUID-only eventId and uses a user-scoped client after booking ownership. The route does not bind booking.event_id to the requested/resolved event, which requires a ticketing/payment security handoff.",
-      "2026-09-18T23:49:45.000Z work review: staff routes require admin capability plus active-org identity, incidents and vendor collection creation gate on events_v2, and tasks use permission-gated workflow context. The vendor item route remains polymorphic without the collection route's events_v2 gate, and other unqualified event_id subresources still require work-owner compatibility approval.",
-      "2026-09-18T23:49:45.000Z: refined focused matrix verification passed 1 file / 9 tests, focused ESLint, scoped TypeScript diagnostics, importer inventory, diff validation, and agents:validate."
+      {
+        "command": "node supabase/tests/db008_chain_surface_replay.mjs",
+        "result": "pass",
+        "detail": "event_posts is absent from the reconstructed live chain surface."
+      },
+      {
+        "command": "npm run check:migration-chain",
+        "result": "pass",
+        "detail": "302 files, no duplicate policy creations."
+      }
     ],
-    "last_run_sha": "working-tree@7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-18T23:49:45.000Z",
-    "result": "pass"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "not-run",
+    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "All DB-009 local implementation and consumer-inventory acceptance criteria are met and focused verification passes. The 18 callers are evidence-checked against identifier, source, and authorization behavior, with divergences named rather than normalized silently. DB-009 stays active pending domain-owner decisions and hosted RLS/canonical-cutover evidence.",
+    "summary": "Wave 34: no new DB-009 work and no migration, which is correct - DB-009 owns no migration. The events_v2 correction applies to the resolver's inputs: quick_start_batch_id and quick_start_ordinal are chain-created, not missing, so the shared resolver contract needs no change and none was made.",
     "completed": [
       "Assigned the shared multi-table event-reference path to the database agent through this explicit bounded task.",
       "Recorded the 18-importer topology and the DB-006 scope boundary without treating generated maps as behavioral proof.",
@@ -80,19 +77,17 @@
       "Restricted anonymous/unrelated events_v2 viewer access to confirmed, advancing, and onsite; owner access remains explicit, and org metadata alone does not grant viewer access.",
       "Preserved events_v2 org, venue, date, and time projections required by organization-scoped staff and workflow consumers.",
       "Reviewed all 18 importers against executable route evidence and refined the matrix to distinguish UUID-only payment, source-qualified social/discover callers, unqualified polymorphic subresources, events_v2-gated collection writes, and active-organization workforce routes.",
-      "Recorded explicit consumer handoffs for the unbound payment booking/event identity, vendor item-route source divergence, social read-policy evidence, public events_v2 RLS, and unqualified polymorphic event_id consumers."
+      "Recorded explicit consumer handoffs for the unbound payment booking/event identity, vendor item-route source divergence, social read-policy evidence, public events_v2 RLS, and unqualified polymorphic event_id consumers.",
+      "event_posts: zero occurrences across the 302 active migrations and zero in lib/database.types.ts. Its only definitions are in supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20250120000000_event_social_features.sql. Read by app/api/events/[id]/posts/route.ts, app/api/events/[id]/page/route.ts and app/api/employer/vetting/[applicationId]/route.ts, all entry-reachable. DB-009 recorded that no active creation/RLS migration exists for event_posts; this wave turns that into a classified object with its archived source and its three live consumers.",
+      "DB-009's own resolver, app/api/events/_lib/event-reference.ts, appears in the typecheck failure only through the events.start_date and events.cover_image_url column drift on the legacy `events` table, not through the resolver itself. That is consistent with DB-009's fail-closed identifier order (events_v2, artist_events, events) and does not indicate a resolver defect.",
+      "No DB-009 migration or hosted mutation was performed or attempted."
     ],
     "next_steps": [
-      "Discover/database owners decide and evidence how public confirmed/advancing/onsite events_v2 rows are visible to anonymous callers without weakening org-scoped writes.",
-      "Ticketing/payment owners bind the owned booking's event_id to the requested/resolved event before checkout and certify ordinary buyers can resolve the canonical event through RLS.",
-      "Work owner decides whether vendor item mutations and other unqualified event_id subresources remain intentionally polymorphic or require events_v2/source-qualified gating.",
-      "Social/database owners provide active/deployed RLS evidence for attendance and event-post reads, then QA-003 exercises the named positive and denial scenarios."
+      "Unchanged: the named artist/discover, ticketing/payment, work and social reviews, deployed RLS isolation evidence, DB-006 staging/production cutover evidence, TICKET-005 checkout certification and QA-003 denial-path evidence."
     ],
     "blockers": [
-      "DB-006 has not completed hosted staging/production evidence for the canonical events_v2 cutover; active source shows events_v2 SELECT is organization-member scoped rather than a proven public-read contract.",
-      "Ticketing/payment has not approved or fixed the missing booking.event_id to requested event binding in app/api/payment/route.ts.",
-      "Work has not approved the vendor item route's polymorphic mutations or the unqualified event_id identity used by jobs, locations, participants, tasks, finance, guest list, incidents reads, and vendor reads.",
-      "Social/database lacks active/deployed event_posts RLS evidence and events_v2-aware attendance read-policy evidence; local route inspection cannot replace hosted isolation tests."
+      "DB-009's open items are unchanged: named artist/discover, ticketing/payment, work and social review, deployed RLS isolation evidence, DB-006's hosted cutover evidence, TICKET-005 checkout certification and QA-003 denial-path evidence.",
+      "event_posts remains an event-surface decision that the artist agent owns, not the database lane."
     ],
     "checkpoints": [
       {
@@ -153,6 +148,26 @@
         "blockers": [
           "Payment event binding, public events_v2 RLS, social read-policy evidence, and work source-identity decisions are outside this local database contract-review wave."
         ]
+      },
+      {
+        "at": "2026-09-25T20:52:43.713Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: corroborated DB-009's recorded finding about event_posts with its archived source and its three live consumers, and confirmed the DB-009 resolver itself is not implicated: app/api/events/_lib/event-reference.ts appears in the typecheck failure only through legacy events column drift, not through the resolver, which is consistent with the fail-closed events_v2 -> artist_events -> events identifier order. No DB-009 migration or hosted mutation was performed or attempted.",
+        "completed": [],
+        "next_steps": [
+          "DB-009's open items are unchanged, plus event_posts is now an event-surface decision the artist agent owns via HF-DB008-TYPECHECK-EVENTS."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:16.631Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-009 work and no migration, which is correct - DB-009 owns no migration. The events_v2 correction applies to the resolver's inputs: quick_start_batch_id and quick_start_ordinal are chain-created, not missing, so the shared resolver contract needs no change and none was made.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: the named artist/discover, ticketing/payment, work and social reviews, deployed RLS isolation evidence, DB-006 staging/production cutover evidence, TICKET-005 checkout certification and QA-003 denial-path evidence."
+        ],
+        "blockers": []
       }
     ]
   },
@@ -162,6 +177,8 @@
     "Ticketing/payment: bind booking.event_id to the requested/resolved event; then certify buyer-scoped canonical checkout under TICKET-005.",
     "Work: decide whether app/api/events/[id]/vendors/[vendorId]/route.ts and other unqualified event_id subresources remain polymorphic or receive source/events_v2 gates.",
     "Social/database: establish active and deployed RLS truth for event_attendance and event_posts reads across all three event sources.",
-    "QA-003: execute anonymous, unrelated, owner, organization member, published/public, unpublished, missing, ambiguous, and booking/event mismatch scenarios after owner changes land."
-  ]
+    "QA-003: execute anonymous, unrelated, owner, organization member, published/public, unpublished, missing, ambiguous, and booking/event mismatch scenarios after owner changes land.",
+    "HF-DB008-TYPECHECK-EVENTS carries the event_posts classification DB-009 asked for. DB-009's own resolver contract is unaffected: it appears in the typecheck failure only via legacy `events` column drift, not via the resolver."
+  ],
+  "wave34Note": "No new DB-009 work. The events_v2 correction in DB-006.wave34Note applies here too: the shared resolver contract reads events_v2, and quick_start_batch_id / quick_start_ordinal are chain-created, not missing. No resolver change is implied and none was made; DB-009 owns no migration."
 }

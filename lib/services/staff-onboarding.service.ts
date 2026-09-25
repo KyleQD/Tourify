@@ -270,9 +270,13 @@ export class StaffOnboardingService {
 
       if (staffError) throw staffError
 
+      // C-03/DB-008 code-drift repoint: `venue_profiles` has no `name` column in
+      // the active chain or in the generated contract. The chain's display-name
+      // column is `venue_name` (see 20260721120000_venue_profiles_url_slug.sql,
+      // which names `venue_name` as the correct column and `name` as wrong).
       const { data: venue, error: venueError } = await supabase
         .from('venue_profiles')
-        .select('name, address')
+        .select('venue_name, address')
         .eq('id', staff.venue_id)
         .single()
 
@@ -286,9 +290,9 @@ export class StaffOnboardingService {
           data: {
             full_name: staff.name,
             temp_password: tempPassword,
-            venue_name: venue.name,
+            venue_name: venue.venue_name,
             position: staff.role,
-            welcome_message: `Welcome to ${venue.name}! You've been added as a ${staff.role} in the ${staff.department} department.`,
+            welcome_message: `Welcome to ${venue.venue_name}! You've been added as a ${staff.role} in the ${staff.department} department.`,
           },
         },
       })

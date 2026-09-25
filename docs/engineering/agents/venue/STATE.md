@@ -1,9 +1,9 @@
 # Venue state
 
-- Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b` (task base_sha)
-- Last reviewed at: 2026-09-11 (DESIGN-004 compatibility handoff)
-- Active task: VENUE-003 completed (booking lifecycle state-machine contract)
-- Confidence: high — deep read of all generated maps, legacy records, and domain paths
+- Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f` (task base_sha)
+- Last reviewed at: 2026-09-25 (VENUE-004 / VENUE-005 wave 34: SEC-109 green, DB-008 venue code-drift cluster cleared)
+- Active task: VENUE-004 (availability write path) and VENUE-005 (availability/reservations raw-read boundary) — both implementation-complete in source, both with hosted gates still open
+- Confidence: high for the availability/reservations boundary and for the SEC-109 classification; the code-drift cluster is closed for every file inside the venue grant, with 14 of 135 hits handed off
 
 ## Durable facts
 
@@ -41,6 +41,11 @@
 ## Current focus
 
 - VENUE-001 audit complete. Produce follow-up task records for top-priority questions (Q1–Q3).
+- VENUE-004 and VENUE-005 are implementation-complete in source. Both stay active only on
+  hosted gates: the booking-lane receiving edit (handoff
+  `HF-VENUE-004-BOOKING-RECEIVING`) and the DB-002/DB-008 isolated-staging apply plus
+  denial probes. Do not re-open either locally; there is no remaining local work that
+  would change behavior.
 - The venue/design-system compatibility boundary is handed off; keep VENUE-002 blocked
   unless a follow-up task identifies an approved venue consumer migration.
 - Baseline, gaps, and questions delivered to `docs/engineering/agents/venue/`.
@@ -51,6 +56,25 @@
 - Venue booking lifecycle has no test evidence; manual SQL acceptance gate still open.
 - Mobile has zero venue surfaces; web-only for operators may be intentional but unconfirmed.
 - Working tree is dirty (386+ entries); only venue domain and task record were modified.
+- Until `20260924120000` is applied on a hosted environment, the raw
+  `venue_availability`/`venue_reservations` `USING (true)` read leak is still live in that
+  environment even though the app no longer reads those tables with a client role. Treat
+  the migration as security-critical and unapplied, not as done.
+- `lib/venue/staff-management.service.ts` did not typecheck: it referenced
+  `venue_crew_members`, `venue_team_contractors`, and `get_staff_dashboard_stats`, which
+  exist in no migration and no generated type. **RESOLVED 2026-09-25 (Wave 34):** the file
+  was deleted after a whole-tree zero-importer proof (see the code-drift section below). The
+  database lane's investigation is no longer a blocker for venue. The byte-level twin at
+  `lib/services/staff-management.service.ts` is `lib/services/**` and remains open in
+  `HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE`.
+- ~~`check:migration-validation` and `check:migration-ledger` fail in the current dirty tree
+  for reasons outside venue~~ **RESOLVED 2026-09-25 (Wave 34):** both exit 0. The drift was a
+  concurrently modified migration's baseline checksum and a DB-008-owned ledger snapshot;
+  those lanes fixed them. The venue lane edited neither.
+- `app/api/venues/**` is unowned by path: the venue `WORKING_SET.json` lists `app/venues/**`
+  and `app/api/venue/**` but not `app/api/venues/**`, even though the charter names public
+  profiles as venue work. `app/api/venues/[id]/route.ts` is the last consumer of two
+  DB-008 code-drift objects.
 
 Update this file only when a task establishes a durable fact future work needs.
 
@@ -79,3 +103,123 @@ Update this file only when a task establishes a durable fact future work needs.
 - GET health semantics are vault-derived: disconnected / needs_reauth / connected from row
   connection state plus vault `accessToken` presence. Coverage: `__tests__/venue/venue-integrations-api.test.ts`
   (9 tests).
+
+## Venue availability/reservations are a venue-scoped, service-role boundary — 2026-09-25 (VENUE-004 / VENUE-005)
+
+- Canonical surfaces: `lib/venue/availability.ts` is the only file in `app/`, `lib/`, or
+  `components/` that touches `venue_availability` or `venue_reservations` raw. It is
+  `import "server-only"` and every helper is reached only after a
+  `canManageVenue(..., "manage_bookings")` check. A tree-wide static scan asserts this
+  (`__tests__/venue/venue-calendar-raw-read-boundary.test.ts`); add a venue table to that
+  scan when a new raw read appears.
+- `app/api/venue/availability` (GET/POST/PATCH/DELETE) and `app/api/venue/reservations`
+  (GET) are the only app surfaces for these tables. PATCH and DELETE-by-id resolve the
+  venue from the row's own `venue_id` before gating, so holding a foreign row id grants
+  nothing. The service-role client is constructed only after the gate.
+- The venue calendar hook `app/venue/hooks/use-venue-calendar-data.ts` no longer imports
+  `@/lib/supabase/client` at all; `loadVenueCalendarLayers` fetches both layers through
+  the two APIs and throws on any non-2xx so the calendar fails closed.
+- RLS closure is authored but UNAPPLIED (CP-051): migration
+  `20260924120000_venue_availability_reservations_scope_rls.sql` revokes table-level
+  SELECT on both raw tables from `anon`/`public`/`authenticated`, keeps `service_role`
+  SELECT, and replaces the two permissive `USING (true)` client read policies with
+  `TO service_role` policies. The two venue-scoped `FOR ALL` write policies are
+  deliberately untouched (see VENUE-D02). The sanitized `public_venue_availability`
+  projection keeps its `anon`/`authenticated` grant and still resolves after the revoke
+  because it is `security_barrier`, not `security_invoker` (VENUE-D01 / VENUE-D04 in
+  `docs/engineering/agents/venue/DECISIONS.md`).
+- Availability blocks are calendar days (`yyyy-MM-dd`). Booking requests carry instants;
+  `toAvailabilityCalendarDay` maps an instant to its UTC day so block checks never depend
+  on the host timezone. `isVenueEventDateBlocked` is the one-call receiving helper.
+- Open cross-lane item: `app/api/booking-requests/route.ts`
+  `validateVenueAvailability` still does not consult blocks, so org-side booking
+  requests are not yet rejected against manager-created blocks. Handoff
+  `docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json` carries the
+  exact one-line change and current line references.
+- Verification posture: `npm run check:migration-chain`, `check:db002-security-contract`,
+  and a per-file migration-validation scan of the new migration/manifest are green;
+  `check:migration-validation` and `check:migration-ledger` fail for reasons outside the
+  venue lane (concurrent-lane baseline drift; DB-008-owned ledger snapshot). Hosted
+  denial probes are DB-002/DB-008's to run; no hosted evidence is claimed.
+
+## SEC-109 is green; the venue availability service-role import is classified, not refactored — 2026-09-25 (VENUE-004 / VENUE-005, Wave 34)
+
+- `app/api/venue/availability/route.ts` and `app/api/venue/reservations/route.ts` keep
+  their bare `createServiceRoleClient` import and are registered in
+  `lib/supabase/service-role-legacy-imports.json` — the registry the SEC-109 check itself
+  names in its failure message. `npm run check:service-role-allowlist` exits 0:
+  `195 production files: 182 historical, 31 reviewed remediation debt, 1 low-level factories`.
+- `executeServiceRoleJob` is a **worse** fit here, on three independent grounds (VENUE-D05 /
+  CP-067): (1) it throws `org_not_found` unless a verified `organizations` row exists, and
+  `venue_profiles` has no `organization_id` — the only org link is
+  `settings.operational_org_id`, lazily *provisioned* by `ensureVenueOperationalContext`, so
+  the refactor would 500 the availability editor for a venue that has not provisioned; its
+  `target` block revalidates only eventId/tourId/saleId, so it could not re-assert venue
+  scope even on success. (2) `SERVICE_ROLE_MODULES` has 33 ids and none covers venue
+  availability or reservations; adding one means editing a security allowlist outside venue
+  ownership. (3) The client role genuinely cannot do the work — migration `20260924120000`
+  revokes client SELECT on both raw tables.
+- Durable rule: **`executeServiceRoleJob` fits a call only when the caller can supply a
+  real, existing `orgId`, an allowlisted module id, and an operation the org/RLS boundary
+  can express.** A route scoped by a different key keeps its bare client and is registered.
+- The flat `service-role-legacy-imports.json` array has **no** field for a disposition,
+  owner, rationale, or review date. Those live in
+  `lib/supabase/service-role-import-review.json`, which is outside the venue file grant and
+  was carrying a concurrent marketplace lane's uncommitted edits. Owner `venue-operations`
+  and the rationale are therefore recorded in VENUE-D05, and the registry move is routed in
+  `HF-VENUE-SEC109-DISPOSITION-REGISTRY`. Remember that reviewed-debt entries are
+  staleness-checked by the same script, so a future refactor must remove its entry in the
+  same change.
+- `check:migration-chain`, `check:migration-validation`, `check:migration-ledger`, and
+  `check:db002-security-contract` all exit 0 as of this date. The two Wave 32 external
+  failures were other lanes' files; this lane did not edit either.
+
+## The DB-008 code-drift objects are archived, not stale types — venue share cleared 2026-09-25 (VENUE-005, Wave 34)
+
+- The database lane proved by ordered CREATE/DROP/RENAME replay that these objects are
+  absent from **both** the active chain and `lib/database.types.ts`. Regeneration can never
+  satisfy them, and no migration may resurrect them.
+- **Deleted for zero importers** (whole-tree import + symbol + `import()`/`require()` scan;
+  only `docs/` mentions survive):
+  - `lib/venue/staff-management.service.ts` — `venue_crew_members` (54 hits),
+    `venue_team_contractors` (38), `get_staff_dashboard_stats` (12). A repoint was available
+    (`organization_people` per `lib/admin/workforce-identity-map.ts`; `staff_members` per
+    `20260823070000_staff_members_canonical_roster.sql`) but pointless for a class nothing
+    calls.
+  - `app/venue/components/chat-tab.tsx`, `app/venue/actions/chat-actions.ts`,
+    `app/venue/types/chat.ts` — `event_team_messages`. `chat-tab.tsx` had 0 importers, so
+    the subtree was unreachable. Repointing is *provably wrong*, not merely undesirable:
+    `event_group_messages` (`20260413210000`) has only a `service_role` policy, so moving a
+    **user-session** server action onto it converts a missing-relation error into an RLS
+    denial while looking like a fix.
+- **Repointed**: `app/venue/components/staff/shift-templates.tsx` now reads
+  `venue_recurring_shifts` (`20260413200000_port_missing_tables.sql:158`, declared at
+  `lib/database.types.ts:21442`) instead of the archived `venue_shift_templates`. Column
+  mapping: `shift_title` replaces the archived name column; `department`, `start_time`,
+  `end_time`, `staff_needed` unchanged. Measured 2 `tsc` errors before, 0 after. The
+  inventory had recorded `canonicalReplacement: null` — **that field is a hypothesis**;
+  re-derive it from the chain. `venue_recurring_templates` is the wrong destination (a
+  booking recurrence, not a shift blueprint). The read stays on the browser session client,
+  so `venue_recurring_shifts_owner` applies and a delegated team manager now sees zero rows
+  instead of an error; widening that policy to venue RBAC is a DB-002 decision.
+- **Handed off, not edited** (outside the grant): `lib/services/staff-management.service.ts`,
+  `lib/services/staff-job-board.service.ts`, `lib/services/venue-scheduling.service.ts` →
+  `HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE`; `app/api/venues/[id]/route.ts`
+  (`venue_profile_views`, `track_venue_profile_view`) →
+  `HF-DB008-TYPECHECK-VENUE-PUBLIC-PROFILE-VIEWS`. 14 of the cluster's 135 hits remain
+  outside the venue grant.
+- **Standing path gap**: the venue `WORKING_SET.json` lists `app/venues/**` and
+  `app/api/venue/**` but **not** `app/api/venues/**`, so the public venue profile route is
+  unowned by path even though the charter names public profiles as venue work. Resolve
+  before the next venue task needs that route.
+- Locked by `__tests__/venue/venue-code-drift-cluster.test.ts` (29 tests). Its absence
+  assertion is **DDL-shaped, not a substring**: `20260414223233` lists
+  `event_team_messages` as a bare string inside a `to_regclass`-guarded lint array, so a
+  substring check would have been vacuous. Negative control verified against a
+  known-present routine.
+- Durable rule (VENUE-D06 / CP-068): repoint if the chain has an object that can carry the
+  call; otherwise delete if the consumer is not entry-reachable; otherwise hand off. Never
+  author a migration to resurrect an archived object.
+- Venue suite: **15 files / 131 tests** (was 14 / 102). `npm run typecheck` was **not** run
+  (68m18s on CI, 1,384 errors across 197 files, OOMs on this 8GB box), so the cluster's
+  contribution to the baseline is measured per-file, not against a re-run.

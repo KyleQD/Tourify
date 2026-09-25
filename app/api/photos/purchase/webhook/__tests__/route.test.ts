@@ -354,4 +354,57 @@ describe("POST /api/photos/purchase/webhook", () => {
     expect(payload.error).toBe("Failed to update purchase")
     expect(calls.ledgerMarkProcessed).toHaveLength(0)
   })
+
+  it("fails closed with 500 when the completion write is not persisted, so the retry resumes", async () => {
+    // A swallowed completion error would acknowledge the delivery while the
+    // claim stayed 'processing'; Stripe's retry would then resume and reprocess.
+    mockConstructEvent(completedSessionEvent())
+    const { supabase, calls } = buildMockSupabase({
+      ledgerMarkError: { message: "write failed" },
+    })
+    mockedCreateServiceRoleClient.mockReturnValue(supabase)
+
+    const response = await POST(makeRequest())
+    const payload = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(payload).toEqual({ error: "Ledger completion failed" })
+    expect(calls.ledgerMarkProcessed).toHaveLength(1)
+  })
+
+  it("fails closed with 500 when a resumed claim cannot be completed", async () => {
+    mockConstructEvent(completedSessionEvent())
+    const { supabase } = buildMockSupabase({
+      ledgerInsertError: { code: "23505", message: "duplicate key value violates unique constraint" },
+      claimedRow: {
+        processing_status: "processing",
+        processed_at: null,
+        attempts: 2,
+      },
+      ledgerMarkError: { message: "write failed" },
+    })
+    mockedCreateServiceRoleClient.mockReturnValue(supabase)
+
+    const response = await POST(makeRequest())
+    const payload = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(payload).toEqual({ error: "Ledger completion failed" })
+  })
+
+  it("acknowledges an unprovisioned ledger without requiring a completion write", async () => {
+    mockConstructEvent(completedSessionEvent())
+    const { supabase, calls } = buildMockSupabase({
+      ledgerInsertError: { code: "42P01", message: 'relation "platform_webhook_events" does not exist' },
+      ledgerMarkError: { message: "write failed" },
+    })
+    mockedCreateServiceRoleClient.mockReturnValue(supabase)
+
+    const response = await POST(makeRequest())
+    const payload = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(payload).toEqual({ received: true, outcome: "degraded" })
+    expect(calls.ledgerMarkProcessed).toHaveLength(0)
+  })
 })

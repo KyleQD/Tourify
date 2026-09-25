@@ -1,0 +1,21 @@
+{
+  "label": "pre-staff-onboarding",
+  "roots": [
+    "lib/services/staff-onboarding.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 4,
+  "primaryDiagnosticLines": 4,
+  "filesWithDiagnostics": 1,
+  "byFile": {
+    "lib/services/staff-onboarding.service.ts": 4
+  },
+  "byCode": {
+    "TS2339": 2,
+    "TS2304": 1,
+    "TS2769": 1
+  },
+  "tsFilesParsed": "907",
+  "tsLines": null,
+  "stderr": ""
+}

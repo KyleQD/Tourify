@@ -3,7 +3,33 @@
  * Organization → tour → stop/event (/ optional leg). Never invent defaults.
  */
 
-export const LOGISTICS_SCOPE_PARAMS = ["orgId", "tourId", "eventId", "legId", "tab", "stopId", "panel", "issueId"] as const
+export const LOGISTICS_SCOPE_PARAMS = [
+  "orgId",
+  "tourId",
+  "eventId",
+  "legId",
+  "tab",
+  "stopId",
+  "panel",
+  "issueId",
+  "recordId",
+  "siteMapId",
+] as const
+
+export const LOGISTICS_PRIMARY_TABS = ["overview", "travel", "production", "communications", "maps"] as const
+export type LogisticsPrimaryTab = (typeof LOGISTICS_PRIMARY_TABS)[number]
+
+const LOGISTICS_TAB_ALIASES: Record<string, { tab: LogisticsPrimaryTab; panel?: string }> = {
+  transport: { tab: "travel", panel: "ground" },
+  transportation: { tab: "travel", panel: "ground" },
+  "hotels-flights": { tab: "travel", panel: "air-lodging" },
+  accommodations: { tab: "travel", panel: "air-lodging" },
+  equipment: { tab: "production", panel: "equipment" },
+  backline: { tab: "production", panel: "backline" },
+  catering: { tab: "production", panel: "catering" },
+  communication: { tab: "communications" },
+  "site-maps": { tab: "maps" },
+}
 
 export interface LogisticsScopeState {
   orgId: string | null
@@ -14,6 +40,22 @@ export interface LogisticsScopeState {
   stopId: string | null
   panel: string | null
   issueId: string | null
+  recordId: string | null
+  siteMapId: string | null
+}
+
+export function normalizeLogisticsTab(raw: string | null | undefined): {
+  tab: LogisticsPrimaryTab
+  panel: string | null
+  isAlias: boolean
+} {
+  if (raw && LOGISTICS_PRIMARY_TABS.includes(raw as LogisticsPrimaryTab)) {
+    return { tab: raw as LogisticsPrimaryTab, panel: null, isAlias: false }
+  }
+  const alias = raw ? LOGISTICS_TAB_ALIASES[raw] : undefined
+  return alias
+    ? { tab: alias.tab, panel: alias.panel || null, isAlias: true }
+    : { tab: "overview", panel: null, isAlias: Boolean(raw) }
 }
 
 export function parseLogisticsScopeParams(
@@ -34,6 +76,8 @@ export function parseLogisticsScopeParams(
     stopId: get("stopId"),
     panel: get("panel"),
     issueId: get("issueId"),
+    recordId: get("recordId"),
+    siteMapId: get("siteMapId"),
   }
 }
 

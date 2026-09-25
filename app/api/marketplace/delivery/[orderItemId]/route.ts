@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { requireApiUser } from "@/lib/api/route-helpers"
 import {
   hasReachedDownloadLimit,
   resolveStorageTarget,
   shouldRefreshSignedUrl,
 } from "@/lib/marketplace/entitlement-delivery"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 export const dynamic = "force-dynamic"
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq("id", item.order_id)
       .single()
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 })
-    if (order.buyer_user_id !== user.id && order.seller_user_id !== user.id) {
+    if (order.buyer_user_id !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -37,6 +37,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .from("marketplace_entitlements")
       .select("*")
       .eq("order_item_id", orderItemId)
+      .eq("buyer_user_id", user.id)
+      .eq("status", "active")
       .maybeSingle()
     if (error) return NextResponse.json({ error: "Failed to load entitlement" }, { status: 500 })
     if (!entitlement) return NextResponse.json({ error: "No entitlement available" }, { status: 404 })
@@ -80,8 +82,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         }
       }
     }
+    if (!refreshedSignedUrl) {
+      return NextResponse.json({ error: "Download asset is not available" }, { status: 409 })
+    }
 
-    const { data: updated, error: updateError } = await supabase
+    const service = createServiceRoleClient()
+    let updateQuery = service
       .from("marketplace_entitlements")
       .update({
         signed_url: refreshedSignedUrl,
@@ -90,15 +96,39 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         last_downloaded_at: new Date().toISOString(),
       })
       .eq("id", entitlement.id)
-      .select("*")
-      .single()
+      .eq("buyer_user_id", user.id)
+      .eq("status", "active")
+      .eq("download_count", entitlement.download_count)
+
+    if (entitlement.max_downloads > 0) {
+      updateQuery = updateQuery.lt("download_count", entitlement.max_downloads)
+    }
+
+    const { data: updated, error: updateError } = await updateQuery
+      .select("id, signed_url, signed_url_expires_at, max_downloads, download_count, last_downloaded_at")
+      .maybeSingle()
 
     if (updateError) {
       console.error("Failed to refresh entitlement URL", updateError)
       return NextResponse.json({ error: "Failed to refresh download URL" }, { status: 500 })
     }
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Download was already claimed by another request. Please try again." },
+        { status: 409 },
+      )
+    }
 
-    return NextResponse.json({ data: updated })
+    return NextResponse.json({
+      data: {
+        entitlementId: updated.id,
+        downloadUrl: updated.signed_url,
+        signedUrlExpiresAt: updated.signed_url_expires_at,
+        maxDownloads: updated.max_downloads,
+        downloadCount: updated.download_count,
+        lastDownloadedAt: updated.last_downloaded_at,
+      },
+    })
   } catch (error) {
     console.error("Unexpected marketplace delivery GET error", error)
     return NextResponse.json({ error: "Unexpected delivery error" }, { status: 500 })

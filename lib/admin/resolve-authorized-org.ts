@@ -79,9 +79,12 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
   requestedOrgId: string | null | undefined
   eventId?: string | null
   tourId?: string | null
+  /** Already verified by the Admin acting-context wrapper for tour collaborators. */
+  allowedTourIds?: readonly string[]
 }): Promise<AuthorizedOrgScope> {
   const service = createServiceClient()
   const { userId, requestedOrgId, eventId, tourId } = args
+  const collaboratorTourIds = Array.from(new Set(args.allowedTourIds || []))
 
   const [
     { data: memberships, error: memberErr },
@@ -108,9 +111,23 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
     .map((row: { ops_org_id?: string | null }) => row.ops_org_id)
     .filter((id: string | null | undefined): id is string => Boolean(id))
 
+  const directlyAuthorizedOrgIds = mergeAuthorizedOrgIds(memberOrgIds, ownerOrgIds)
+  let collaboratorOrgAuthorized = false
+  if (requestedOrgId && !directlyAuthorizedOrgIds.includes(requestedOrgId) && collaboratorTourIds.length > 0) {
+    const { data: collaboratorTours, error: collaboratorToursError } = await service
+      .from('tours')
+      .select('id')
+      .eq('org_id', requestedOrgId)
+      .in('id', collaboratorTourIds)
+    if (collaboratorToursError) throw new Error(collaboratorToursError.message)
+    collaboratorOrgAuthorized = (collaboratorTours ?? []).length > 0
+  }
+
   const orgId = resolveExplicitAuthorizedOrgId(
     requestedOrgId,
-    mergeAuthorizedOrgIds(memberOrgIds, ownerOrgIds),
+    collaboratorOrgAuthorized
+      ? [...directlyAuthorizedOrgIds, requestedOrgId as string]
+      : directlyAuthorizedOrgIds,
   )
 
   const [{ data: events, error: eventsErr }, { data: tours, error: toursErr }] = await Promise.all([
@@ -124,15 +141,31 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
   let eventIds = (events ?? []).map((row: { id: string }) => row.id)
   let tourIds = (tours ?? []).map((row: { id: string }) => row.id)
 
+  if (collaboratorTourIds.length > 0) {
+    tourIds = tourIds.filter((id) => collaboratorTourIds.includes(id))
+    if (tourIds.length === 0) throw new AdminOrganizationAccessDeniedError()
+    const { data: linkedEvents, error: linkedEventsError } = await service
+      .from('tour_events')
+      .select('event_id')
+      .in('tour_id', tourIds)
+    if (linkedEventsError) throw new Error(linkedEventsError.message)
+    const linkedEventIds = new Set(
+      (linkedEvents ?? [])
+        .map((row: { event_id?: string | null }) => row.event_id)
+        .filter((id: string | null | undefined): id is string => Boolean(id)),
+    )
+    eventIds = eventIds.filter((id) => linkedEventIds.has(id))
+  }
+
   if (eventId) {
     if (!eventIds.includes(eventId))
-      throw new Error('Event is not available to this admin account.')
+      throw new AdminOrganizationAccessDeniedError()
     eventIds = [eventId]
   }
 
   if (tourId) {
     if (!tourIds.includes(tourId))
-      throw new Error('Tour is not available to this admin account.')
+      throw new AdminOrganizationAccessDeniedError()
     tourIds = [tourId]
   }
 
@@ -141,8 +174,9 @@ export async function resolveAuthorizedOrgLogisticsScope(args: {
 
 /**
  * Apply org-scoped filters to a logistics_tasks-style query.
- * When both event and tour lists are empty, restrict to created_by = userId
- * (only for tables that have created_by — pass includeCreatedBy: false otherwise).
+ * Records without an authorized event or tour cannot be proven to belong to the
+ * selected organization and are therefore excluded, even when the caller created
+ * them under a different account context.
  */
 export function applyOrgLogisticsTaskFilter(args: {
   query: any
@@ -155,33 +189,27 @@ export function applyOrgLogisticsTaskFilter(args: {
 }): any {
   const {
     query,
-    userId,
     eventIds,
     tourIds,
     eventId,
     tourId,
-    includeCreatedBy = true,
   } = args
 
   if (eventId) return query.eq('event_id', eventId)
   if (tourId) return query.eq('tour_id', tourId)
 
   if (eventIds.length === 0 && tourIds.length === 0) {
-    if (includeCreatedBy) return query.eq('created_by', userId)
-    // No org entities and no created_by column — return impossible match
+    // No authorized parent identifiers means no record can be bound to this org.
     return query.eq('id', '00000000-0000-0000-0000-000000000000')
   }
 
   const parts: string[] = []
-  if (includeCreatedBy) parts.push(`created_by.eq.${userId}`)
   if (eventIds.length > 0) parts.push(`event_id.in.(${eventIds.join(',')})`)
   if (tourIds.length > 0) parts.push(`tour_id.in.(${tourIds.join(',')})`)
 
-  if (parts.length === 1 && !includeCreatedBy)
+  if (parts.length === 1)
     return eventIds.length > 0
       ? query.in('event_id', eventIds)
       : query.in('tour_id', tourIds)
-
-  if (parts.length === 1) return query.or(parts[0])
   return query.or(parts.join(','))
 }

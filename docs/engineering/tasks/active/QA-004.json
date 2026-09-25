@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "qa",
   "created_at": "2026-09-22T12:11:48.761Z",
-  "updated_at": "2026-09-22T16:21:28.210Z",
+  "updated_at": "2026-09-25T20:22:37.870Z",
   "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
   "working_tree_status": "dirty (75 entries)",
   "goal": "Run a continuing non-destructive isolated-staging persona simulation across every shipped core web, iOS, and Android journey, including one complete event and a multi-stop tour, and route verified improvements into bounded domain tasks.",
@@ -93,14 +93,17 @@
       "2026-09-22 unblock sprint packet created at docs/audits/flow-notes/release-readiness-unblock-sprint.md. Read-only checks show no .vercel project link, Supabase CLI linked to Tourify Demo project auqddrodjezjlypkzfpi, and public demo/prod health both advertise that same Supabase origin while omitting release/deployment/Stripe headers. Live QA remains blocked.",
       "2026-09-22 QA actor operator pass: docs/audits/flow-notes/qa005-actor-provisioning-packet-2026-09-22.md records all 11 absent QA_CAMPAIGN inputs, twelve manifest actor keys, exact hosted gate dependencies, and first web pilot order. Read-only GET health checks returned 200 but no release/deployment/database/Stripe identity headers; both CSPs advertised the same Supabase origin. No hosted Auth, database, payment, device, or UI action.",
       "QA-004 thin pilot operator checkpoint: 25 exact web coverage rows and receiving-side evidence checklist prepared; all 718 candidate rows remain not_run and unclassified. Live execution blocked by RELEASE-007 isolation/SHA/Stripe proof, DB-008/DB-002/DB-010 hosted evidence, QA-005 protected actors, and QA-006 preview evidence.",
-      "2026-09-22 final QA check: coverage inventory valid with 718 rows, 0 shipped and 0 passed; final coverage gate correctly fails on 718 missing visible-UI scope decisions. No campaign row was credited."
+      "2026-09-22 final QA check: coverage inventory valid with 718 rows, 0 shipped and 0 passed; final coverage gate correctly fails on 718 missing visible-UI scope decisions. No campaign row was credited.",
+      "2026-09-23 agent user simulation launch round (safe/static phase, read-only): all nine journey slices (worker, artist, venue, organization, platform admin, customer, marketplace/ticketing, music/social, auth/database) returned result + fix packets at HEAD d2176904 without editing files or mutating state. Focused verification totals: worker 111, artist 59, venue 34, organization 63, admin 28 (+ admin registry 54/54 exact), customer 23, marketplace/ticketing 26, social 16+, provisioner 8/8; no failing product test. 20 new findings recorded in docs/audits/flow-notes/agent-user-simulation-campaign.md (VENUE-001/002/003, ARTIST-001/002, ORG-001/002/003, ADMIN-003/004, USER-001, MKT-002/003/004/005, SOC-003, MUS-001, WORK-004/005, DB-002 cross-audit, DB-003). Environment blockers unchanged: RELEASE-007 isolation packet, DB-008/DB-002 hosted proof, QA-005 inputs absent, no Stripe test-mode evidence. All 718 coverage rows remain unrun.",
+      "2026-09-25 Wave 32 QA gate audit (read-only, no campaign row credited): reviewed the shared PR E2E gate that the campaign's web pilot depends on. The gate had never executed a test. Its build step could not finish, and separately npm run test:e2e aborted during collection with 'Total: 0 tests in 0 files' because playwright.config.ts collected tests/e2e/launch-certification, whose module-scope load requires QA_CERT_* secrets. After testIgnore the PR suite enumerates 11 tests in 5 files. This is a harness gap now fixed by QA, not a campaign finding, and it does not change any of the 718 rows.",
+      "2026-09-25 Wave 32 safety finding for the campaign: tests/e2e/01, 02, 03, 04 and 05 sign in with hardcoded non-campaign fallback credentials (test-organizer@tourify.test, qa-multi-a@tourify.test, qa-flow-*@tourify.test) against whatever NEXT_PUBLIC_SUPABASE_URL the job supplies, and 01/02/03/05 create and publish records. The pull-request E2E job carries environment: staging, so a same-repository pull request can drive those mutations with staging credentials. QA removed the hidden secrets.STAGING_URL hosted retarget from this lane, but the credential and environment-scope exposure remains and is routed to release. No campaign actor, record, or payment was touched by this lane."
     ],
-    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-    "last_run_at": "2026-09-22T16:20:35Z",
-    "result": "local-coverage-valid; campaign-not-run"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T13:26:00.000Z",
+    "result": "local-coverage-valid; campaign-not-run; shared-e2e-gate-harness-gap-fixed"
   },
   "progress": {
-    "summary": "Next-phase QA execution remains blocked safely. QA-005 actor packet and QA-006 mobile packet are prepared, but all eleven QA_CAMPAIGN inputs are absent, public demo/prod health lacks release/deployment/database/Stripe headers, and coverage remains 718 valid rows with zero passed. No actor, payment, mobile preview, database, or UI journey was run.",
+    "summary": "Audited the shared PR E2E gate the thin web pilot depends on; all 718 coverage rows remain not_run and no campaign actor journey is credited. Two harness defects fixed under QA-003: the build budget that made the suite unrunnable, and a collection abort where playwright.config.ts testDir './tests/e2e' pulled in tests/e2e/launch-certification whose module-scope QA_CERT_* load produced 'Total: 0 tests in 0 files'. After testIgnore the PR suite enumerates 11 tests in 5 files. Recorded a campaign safety exposure for release: the pull-request E2E job carries environment: staging while specs 01-05 sign in with hardcoded non-campaign fallback credentials (test-organizer@tourify.test, qa-multi-a@tourify.test, qa-flow-*@tourify.test) and create records, so a same-repository PR can drive mutations with staging credentials. QA removed the hidden secrets.STAGING_URL hosted retarget from this lane; the credential and environment-scope exposure remains. No actor, record, payment, or database mutation was performed.",
     "completed": [
       "Created QA-004 as the durable task record for the simulation campaign.",
       "Confirmed the existing West Coast seed script updates matching users and therefore must not be reused blindly for this campaign.",
@@ -118,10 +121,13 @@
       "Dispatched and completed the local ADMIN-003 repair wave for SIM-20260922-ADMIN-001 and SIM-20260922-ADMIN-002; both are ready for isolated-staging actor reruns.",
       "Recorded release and QA gate checkpoint in the campaign ledger.",
       "Confirmed no actor provisioning, mobile preview run, or live simulation was credited.",
-      "Advanced SIM-20260922-WORK-002 from SQL-authoring blocker to hosted-apply blocker by reviewing and cleaning DB-010 local migration evidence."
+      "Advanced SIM-20260922-WORK-002 from SQL-authoring blocker to hosted-apply blocker by reviewing and cleaning DB-010 local migration evidence.",
+      "Diagnosed the shared PR E2E gate failure that had prevented any web E2E execution, and fixed the CI budgets, the hidden hosted-target fallback, the skip-passes-green hole, and the launch-certification collection abort (QA-003, decision QA-032).",
+      "Recorded that the campaign's thin web pilot still has no runnable E2E substrate: even with the gate fixed, spec 05 needs the untracked seed fixtures and spec 04 needs campaign-owned credentials that do not exist.",
+      "Routed the environment-scope and hardcoded-credential exposure in the PR E2E job to release as a campaign safety concern, consistent with the runbook rule that a job must not mutate a host it has not proven isolated."
     ],
     "next_steps": [
-      "After release and DB packets pass on one deployed SHA, run QA-005 Auth-only provisioning, establish personas through UI, then execute docs/engineering/qa004-thin-pilot.md before expanding to event/tour matrix."
+      "Keep all 718 rows unrun. Before treating any red PR E2E result as a product defect, provision QA-005 campaign-owned actors; the existing specs' hardcoded credentials must not be pointed at staging. Hosted RELEASE-007, DB-008/DB-002/DB-010, and Stripe test-mode blockers are unchanged."
     ],
     "blockers": [
       "RELEASE-007 still lacks hosted proof that staging deployment, Supabase project, and secrets differ from production; demo hostname is not sufficient.",
@@ -351,6 +357,37 @@
         "completed": [],
         "next_steps": [
           "After release and DB packets pass on one deployed SHA, run QA-005 Auth-only provisioning, establish personas through UI, then execute docs/engineering/qa004-thin-pilot.md before expanding to event/tour matrix."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-23T00:00:00.000Z",
+        "sha": "d2176904 (dirty working tree)",
+        "summary": "Agent user simulation launch round (safe/static phase, read-only): all nine journey slices ran at HEAD d2176904 with no file edits, DB mutation, payment, or secret access. 20 new SIM-20260922 findings recorded and routed; focused test suites green across every slice; environment blockers unchanged.",
+        "completed": [
+          "Launched and collected read-only journey results from worker, artist, venue, organization, platform admin, customer, marketplace/ticketing, music/social/content, and auth/database slices.",
+          "Recorded 20 new findings in docs/audits/flow-notes/agent-user-simulation-campaign.md: confirmed defects VENUE-001, ADMIN-003, ADMIN-004, ORG-002, ORG-003, USER-001, MKT-004, MKT-005, SOC-003, MUS-001, WORK-005; missing capabilities ARTIST-001/002, VENUE-002/003, ORG-001, MKT-002/003, WORK-004; harness gap DB-003; plus DB-002 venue-RLS cross-audit (P0) folding with VENUE-001.",
+          "Added new-finding rows to the follow-up task table with domain owners and routing, and appended the 2026-09-23 run report with per-slice verification totals.",
+          "Focused verification totals (all green): worker 111, artist 59, venue 34, organization 63, admin 28 + registry 54/54, customer 23, marketplace/ticketing 26, social follow suites, provisioner 8/8. Existing MKT-001/SOC-001 local fixes verified green.",
+          "Preserved runbook guardrails: no reset/delete/truncate/seed/provision, no migration apply, no payment action, no Supabase mutation, no credential publication."
+        ],
+        "next_steps": [
+          "Resolve RELEASE-007 isolation + exact SHA, DB-008/DB-002/DB-010 hosted proof, QA-005 protected actor inputs, Stripe test mode, and QA-006 preview builds before any live row credit.",
+          "Rerun the thin web pilot after the top product gates (ARTIST-001 visibility, VENUE-002 availability write path, ORG-001 event publish, MKT-002 order claim) are fixed."
+        ],
+        "blockers": [
+          "RELEASE-007 lacks hosted proof of separate staging deployment/Supabase origin/secrets from production.",
+          "DB-008/DB-002 hosted schema and authorization evidence still pending; anon/PUBLIC EXECUTE on four SECURITY DEFINER functions un-revoked.",
+          "All eleven QA_CAMPAIGN inputs absent; no Stripe test-mode proof; no iOS/Android preview builds."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:22:37.870Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Audited the shared PR E2E gate the thin web pilot depends on; all 718 coverage rows remain not_run and no campaign actor journey is credited. Two harness defects fixed under QA-003: the build budget that made the suite unrunnable, and a collection abort where playwright.config.ts testDir './tests/e2e' pulled in tests/e2e/launch-certification whose module-scope QA_CERT_* load produced 'Total: 0 tests in 0 files'. After testIgnore the PR suite enumerates 11 tests in 5 files. Recorded a campaign safety exposure for release: the pull-request E2E job carries environment: staging while specs 01-05 sign in with hardcoded non-campaign fallback credentials (test-organizer@tourify.test, qa-multi-a@tourify.test, qa-flow-*@tourify.test) and create records, so a same-repository PR can drive mutations with staging credentials. QA removed the hidden secrets.STAGING_URL hosted retarget from this lane; the credential and environment-scope exposure remains. No actor, record, payment, or database mutation was performed.",
+        "completed": [],
+        "next_steps": [
+          "Keep all 718 rows unrun. Before treating any red PR E2E result as a product defect, provision QA-005 campaign-owned actors; the existing specs' hardcoded credentials must not be pointed at staging. Hosted RELEASE-007, DB-008/DB-002/DB-010, and Stripe test-mode blockers are unchanged."
         ],
         "blockers": []
       }

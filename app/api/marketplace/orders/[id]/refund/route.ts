@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { fromZodError, jsonError } from "@/lib/api/route-helpers"
+import { getRefundLifecycleTransition } from "@/lib/marketplace/order-lifecycle"
 import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { getStripeClient } from "@/lib/stripe"
@@ -47,13 +48,21 @@ export async function POST(
     return jsonError({ status: 500, code: "order_lookup_failed", message: "Unable to load order.", retryable: true })
   }
   if (!order) return jsonError({ status: 404, code: "order_not_found", message: "Order not found." })
-  if (order.seller_user_id !== userId) {
+  const actorRole = order.seller_user_id === userId ? "seller" : "unknown"
+  const transition = getRefundLifecycleTransition({
+    orderStatus: order.status,
+    paymentStatus: order.payment_status,
+    paymentReference: order.payment_reference,
+    actorRole,
+  })
+
+  if (!transition.allowed && transition.reason === "seller_required") {
     return jsonError({ status: 403, code: "forbidden", message: "Only the seller can refund this order." })
   }
-  if (order.status === "refunded" || order.payment_status === "refunded") {
+  if (!transition.allowed && transition.reason === "already_refunded") {
     return jsonError({ status: 409, code: "already_refunded", message: "This order has already been refunded." })
   }
-  if (order.payment_status !== "paid" || !order.payment_reference) {
+  if (!transition.allowed) {
     return jsonError({ status: 409, code: "order_not_refundable", message: "Only paid orders can be refunded." })
   }
 
@@ -72,7 +81,7 @@ export async function POST(
   const requestedAt = new Date().toISOString()
   const { error: holdError } = await service
     .from("marketplace_payout_ledger")
-    .update({ payout_status: "on_hold" })
+    .update(transition.payoutPatch)
     .eq("order_id", orderId)
     .neq("payout_status", "paid")
   if (holdError) {
@@ -101,12 +110,18 @@ export async function POST(
         refundId: refund.id,
       },
     ]
-    const { error: auditError } = await service
+    // The audit write is the local idempotency ledger for this key. If it does
+    // not land, a retry must not be told the request was recorded, so an empty
+    // update result is treated as a failure rather than a silent success.
+    const { data: auditedOrder, error: auditError } = await service
       .from("marketplace_orders")
       .update({ metadata: { ...(order.metadata || {}), lifecycleAudit } })
       .eq("id", orderId)
       .eq("payment_status", "paid")
-    if (auditError) {
+      .select("id")
+      .maybeSingle()
+    if (auditError || !auditedOrder) {
+      console.error("Marketplace refund audit write did not persist", { orderId, refundId: refund.id })
       return jsonError({ status: 500, code: "refund_audit_failed", message: "Refund submitted; audit reconciliation is required.", retryable: true })
     }
 

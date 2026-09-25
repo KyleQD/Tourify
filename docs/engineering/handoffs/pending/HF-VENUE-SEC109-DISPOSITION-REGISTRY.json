@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-VENUE-SEC109-DISPOSITION-REGISTRY",
+  "task_id": "VENUE-005",
+  "from_agent": "venue",
+  "to_agent": "database",
+  "status": "pending",
+  "created_at": "2026-09-25T22:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "SEC-109 is green, but the two venue entries it went green on carry no disposition, owner, rationale, or review date, because lib/supabase/service-role-legacy-imports.json is a flat path array with no field for them. The rich registry is lib/supabase/service-role-import-review.json, which the venue file grant does not include and which currently holds a concurrent marketplace lane's uncommitted edits. This handoff carries the four fields so the debt is tracked in the registry that can actually hold them, and asks the SEC-109 owner to decide whether the flat array is the right home for new-format imports at all.",
+  "working_set": [
+    "lib/supabase/service-role-import-review.json (receiver edits; NOT venue-owned)",
+    "lib/supabase/service-role-legacy-imports.json (venue already added its two paths here)",
+    "lib/supabase/service-role-allowlist.ts (read-only reference; no venue module id exists)"
+  ],
+  "completed": [
+    "Re-derived the gating justification from the current bytes rather than trusting Wave 32. Both routes call authenticateApiRequest first, resolve a venue, call canManageVenue(auth.supabase, user.id, venueId, 'manage_bookings'), and only then construct the service-role client. PATCH and DELETE-by-id resolve scope from the row's own venue_id. __tests__/venue/venue-availability-api.test.ts asserts mockedServiceClient was never called on the 401/403 paths.",
+    "Evaluated executeServiceRoleJob as the preferred path and rejected it on three independent grounds, recorded in VEN-D05 / CP-067: (1) it throws org_not_found unless a verified organizations row exists, and venue_profiles has no organization_id — the only link is the lazily provisioned settings.operational_org_id written by ensureVenueOperationalContext, so the refactor would 500 the availability editor for any venue that has not run that provisioning, and its target block cannot revalidate a venue at all; (2) SERVICE_ROLE_MODULES has 33 ids and none covers venue availability or reservations, so adopting it means editing a security allowlist outside the venue grant; (3) the client role genuinely cannot do the work — VENUE-005's migration 20260924120000 revokes client SELECT on both raw tables and retains it only for service_role.",
+    "Registered app/api/venue/availability/route.ts and app/api/venue/reservations/route.ts in lib/supabase/service-role-legacy-imports.json, keeping the file's alphabetical order. This is the exact remediation the SEC-109 failure message names.",
+    "npm run check:service-role-allowlist now exits 0: '✓ service-role imports classified (195 production files: 182 historical, 31 reviewed remediation debt, 1 low-level factories)'. check:migration-chain, check:migration-validation, check:migration-ledger and check:db002-security-contract all exit 0 as well."
+  ],
+  "next_steps": [
+    "If the reviewed-debt registry is the correct home for a NEW import that is deliberately kept, add these two entries (disposition and ids are the receiver's call; the file currently uses owner 'venue-operations' with ADM-WF-0xx / ADM-M-0xx): { file: 'app/api/venue/availability/route.ts', owner: 'venue-operations', rationale: 'Venue availability blocks are a venue_profiles-scoped boundary that is service-role-only after migration 20260924120000, which revokes client SELECT on the raw table; it is not expressible as an organization job because venue_profiles has no organization_id, nor as a user-RLS read.' } and the same for 'app/api/venue/reservations/route.ts'. NOTE: reviewed-debt entries are checked for staleness and a stale one fails the gate, so removing a later refactor means removing the entry in the same change.",
+    "Only then remove the two flat-array entries from lib/supabase/service-role-legacy-imports.json, so the same file is not classified in two places.",
+    "Decide whether lib/supabase/service-role-legacy-imports.json should accept new imports at all. Its name and the check's own wording ('historical') both describe a pre-existing-debt register, and CP-062's stated rule is that debt is relocated and classified, not accumulated silently. A new import entering the flat array records no disposition, so it cannot be tracked to closure the way a reviewed-debt entry can."
+  ],
+  "blockers": [
+    "lib/supabase/service-role-import-review.json is outside the venue file grant and is ' M' modified in the shared worktree by the marketplace lane; editing it here would risk clobbering another lane's uncommitted change.",
+    "No disposition can be chosen unilaterally for a registry whose ids are workflow/finding-scoped. The venue rationale is evidence, not a disposition choice."
+  ],
+  "commands_run": [
+    "npm run check:service-role-allowlist — PASS exit 0 (was exit 1 with exactly these two files).",
+    "npm run check:migration-chain — PASS exit 0 (302 files scanned).",
+    "npm run check:migration-validation — PASS exit 0.",
+    "npm run check:migration-ledger — PASS exit 0 (302 active migrations, 12 classified, 290 explicitly unreconciled).",
+    "npm run check:db002-security-contract — PASS exit 0.",
+    "npx vitest run __tests__/venue/ — PASS 15 files / 131 tests.",
+    "npx eslint on the changed venue files — PASS exit 0.",
+    "git diff --check — PASS exit 0.",
+    "npm run agents:validate — PASS 17 agents, 151 tasks, 0 warnings, 0 errors."
+  ],
+  "verification": [
+    "lib/supabase/service-role-legacy-imports.json now contains both venue paths, alphabetically placed.",
+    "lib/supabase/service-role-job.ts:55-62 (org_not_found), :63-73 (target covers eventId/tourId/saleId only), lib/supabase/service-role-allowlist.ts:6-40 (33 module ids, no venue surface), lib/venue/venue-access.ts:347-395 (lazy operationalOrgId provisioning) — all read from the current bytes."
+  ]
+}

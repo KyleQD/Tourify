@@ -7,6 +7,7 @@ import {
   requireMarketplaceEnabled,
   requireMarketplaceEnabledForAccount,
 } from "@/lib/marketplace/require-marketplace-enabled"
+import { getStorefrontStorageCompatibilityIssue } from "@/lib/marketplace/storefront-identity"
 
 const externalLinkSchema = z.object({
   label: z.string().min(1).max(100),
@@ -186,6 +187,13 @@ export async function PUT(request: NextRequest) {
     const accountGuard = requireMarketplaceEnabledForAccount(ctx.accountType)
     if (accountGuard) return accountGuard
     const { userId, supabase } = ctx
+    const storageIssue = getStorefrontStorageCompatibilityIssue(ctx)
+    if (storageIssue) {
+      return NextResponse.json(
+        { error: { code: storageIssue.code, message: storageIssue.message, owner: storageIssue.owner } },
+        { status: 503 }
+      )
+    }
 
     const payload = storefrontSchema.parse(await request.json())
     const upsertPayload = {

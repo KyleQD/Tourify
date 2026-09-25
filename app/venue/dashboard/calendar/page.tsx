@@ -11,6 +11,7 @@ import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { useVenueCalendarData } from "@/app/venue/hooks/use-venue-calendar-data"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
+import { VenueAvailabilityEditor } from "@/app/venue/components/availability/venue-availability-editor"
 import { getEventTypeBadgeColor, getEventTypeLabel, isSameCalendarDay } from "@/app/venue/lib/event-presentation"
 
 export default function CalendarPage() {
@@ -71,7 +72,9 @@ export default function CalendarPage() {
       venue: venueLabel,
       location,
       type: "block",
-      href: "/venue/dashboard/settings",
+      // VENUE-004: selecting the date surfaces the availability editor in the
+      // side rail instead of deep-linking to settings with no block manager.
+      href: undefined,
     }))
     return [...fromEvents, ...fromReservations, ...fromBookings, ...fromBlocks]
   }, [venueEvents, reservations, blocks, bookings, venue?.city, venue?.name, venue?.state, venue?.venue_name])
@@ -161,6 +164,16 @@ export default function CalendarPage() {
     return normalizedEvents.filter(
       (event) => isSameCalendarDay(event.date, selectedDate),
     )
+  }
+
+  // VENUE-004: blocked-date cards focus the availability editor on that date;
+  // everything else navigates to its detail surface.
+  const handleEventClick = (event: (typeof normalizedEvents)[number]) => {
+    if (event.type === "block") {
+      setSelectedDate(event.date)
+      return
+    }
+    router.push(event.href || `/venue/events/${event.id}`)
   }
 
   const calendarDays = useMemo(() => generateCalendarDays(), [currentMonth, eventsByDate])
@@ -352,7 +365,7 @@ export default function CalendarPage() {
                     <div
                       key={index}
                       className="p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800"
-                      onClick={() => router.push(event.href || `/venue/events/${event.id}`)}
+                      onClick={() => handleEventClick(event)}
                     >
                       <div className="flex min-w-0 items-center justify-between gap-2">
                         <h3 className="min-w-0 flex-1 truncate font-medium">{event.title}</h3>
@@ -371,6 +384,14 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
 
+          {/* VENUE-004: venue-scoped availability block editor */}
+          <VenueAvailabilityEditor
+            venueId={venue.id}
+            month={currentMonth}
+            selectedDate={selectedDate}
+            onChanged={() => void refreshCalendarData()}
+          />
+
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader>
               <CardTitle>Upcoming Events</CardTitle>
@@ -384,7 +405,7 @@ export default function CalendarPage() {
                     <div
                       key={index}
                       className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-800"
-                      onClick={() => router.push(event.href || `/venue/events/${event.id}`)}
+                      onClick={() => handleEventClick(event)}
                     >
                       <div className="bg-gray-800 p-2 rounded-md text-center min-w-[40px]">
                         <div className="text-xs text-gray-400">

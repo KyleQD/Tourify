@@ -2,6 +2,10 @@ import "server-only";
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canDiscoverSiteMapByInheritance } from "@/lib/admin/map-access-contract";
+import {
+  isMissingSiteMapEventV2Column,
+  normalizeLegacySiteMapEventScope,
+} from "@/lib/site-map/schema-compat";
 
 export type SiteMapAccessRole =
   | "none"
@@ -180,11 +184,34 @@ export async function getSiteMapAccess(
     return accessForRole(siteMapId, userId, "none");
   }
 
-  const { data: siteMap, error: siteMapError } = await supabase
+  let { data: siteMap, error: siteMapError } = await supabase
     .from("site_maps")
     .select("id, created_by, is_public, event_v2_id, tour_id")
     .eq("id", siteMapId)
     .maybeSingle();
+
+  if (isMissingSiteMapEventV2Column(siteMapError)) {
+    const legacyResult = await supabase
+      .from("site_maps")
+      .select(
+        "id, created_by, is_public, event_id, tour_id, canonical_event:events_v2!site_maps_event_id_fkey(id)",
+      )
+      .eq("id", siteMapId)
+      .maybeSingle();
+    const legacySiteMap = legacyResult.data;
+    siteMap = legacySiteMap
+      ? {
+          id: legacySiteMap.id,
+          created_by: legacySiteMap.created_by,
+          is_public: legacySiteMap.is_public,
+          event_v2_id: normalizeLegacySiteMapEventScope(
+            legacySiteMap as Record<string, unknown>,
+          ).event_v2_id,
+          tour_id: legacySiteMap.tour_id,
+        }
+      : null;
+    siteMapError = legacyResult.error;
+  }
 
   if (siteMapError || !siteMap) {
     return accessForRole(siteMapId, userId, "none");

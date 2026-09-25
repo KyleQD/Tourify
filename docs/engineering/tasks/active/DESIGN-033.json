@@ -6,7 +6,7 @@
   "priority": "P2",
   "owner_agent": "design-system",
   "created_at": "2026-09-13T18:57:01.004Z",
-  "updated_at": "2026-09-16T19:24:56.135Z",
+  "updated_at": "2026-09-25T22:19:26.012Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Apply the owner-approved C-03 --radius change: establish --radius at app/globals.css :root (0.5rem) so the tailwind radius aliases resolve to 0.25/0.375/0.5rem (4/6/8px), updating the token registry and recording that the app-wide visual corner change (blasthing ~3068 rounded utilities / 923 files) is owner-accepted with a QA visual-check handoff.",
@@ -20,16 +20,19 @@
     "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
     "docs/implementation/ui-ux-completion/TOKEN_AUTHORITY_INVENTORY.md",
     "docs/engineering/agents/design-system/STATE.md",
-    "docs/engineering/handoffs/pending/HF-DESIGN-033-QA.json (new)"
+    "docs/engineering/handoffs/pending/HF-DESIGN-033-QA.json (new)",
+    "docs/engineering/handoffs/pending/HF-DESIGN-034-C03-APPROVAL-PROVENANCE.json (new; Wave 34)"
   ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md"
   ],
   "acceptance_criteria": [
-    "--radius: 0.5rem present at app/globals.css :root (semantic radius block) and tailwind.config.ts extend.borderRadius maps lg/md/sm exactly to 0.5/0.375/0.25rem (verified, no correction required).",
-    "Scoped Tailwind build proof: .rounded-lg/.rounded-md/.rounded-sm utilities resolve to the owner-accepted values.",
-    "TOKEN_REGISTRY.md Table C rows flipped from conflict/gated to live/applied; TOKEN_AUTHORITY_INVENTORY.md roadmap marks C-03 applied; QA visual-check handoff recorded.",
-    "STATE.md durable facts + task record updated (checkpoint, evidence, verification, last_run_sha/at); status stays active with result pass for the code change (QA visual check is the final gate)."
+    "--radius: 0.5rem present at app/globals.css :root (semantic radius block) and tailwind.config.ts extend.borderRadius maps lg/md/sm exactly to 0.5/0.375/0.25rem (verified, no correction required). [MET - re-verified 2026-09-25]",
+    "Scoped Tailwind build proof: .rounded-lg/.rounded-md/.rounded-sm utilities resolve to the owner-accepted values. [MET - re-verified 2026-09-25]",
+    "TOKEN_REGISTRY.md Table C rows flipped from conflict/gated to live/applied; TOKEN_AUTHORITY_INVENTORY.md roadmap marks C-03 applied; QA visual-check handoff recorded. [MET]",
+    "STATE.md durable facts + task record updated (checkpoint, evidence, verification, last_run_sha/at); status stays active with result pass for the code change (QA visual check is the final gate). [MET]",
+    "NOT MET, and not self-approvable by the design-system lane: an independent owner record of the C-03 acceptance. Every statement that the owner approved the 0 -> 8/6/4px app-wide delta lives in design-system lane documents (TOKEN_REGISTRY.md, TOKEN_AUTHORITY_INVENTORY.md, this task record, STATE.md). docs/engineering/DECISIONS.md contains no C-03 or --radius entry, and HF-DESIGN-033-QA is still status=pending with no acceptance. Recorded as a blocker in HF-DESIGN-034-C03-APPROVAL-PROVENANCE.",
+    "NOT MET: the QA visual-check final gate. HF-DESIGN-033-QA has been pending since 2026-09-13T19:40:00Z; the recorded blocker is the venue surface (terms-gate duplicate-key on accounts_account_type_display_name_key plus repeated venue-stats fetch errors), which is venue/host state, not design-system work."
   ],
   "verification": {
     "tier": "fast",
@@ -41,7 +44,18 @@
       "git diff --check -- app/globals.css",
       "npx vitest run __tests__/design-system (2 files / 5 tests) + theme/style-adjacent (__tests__/dashboard/dashboard-themes.test.ts, __tests__/post-styles/post-style-boundary.test.ts, __tests__/post-styles/premiere-styles-v3.test.ts) (22 tests)",
       "Point-in-time rg sweeps: new -- declarations vs HEAD (only --radius added by DESIGN-033, all registered); zero test files assert border-radius/rounded-*/--radius (rg)",
-      "npm run agents:validate"
+      "npm run agents:validate",
+      "WAVE 34: git status --porcelain -- app/globals.css tailwind.config.ts (both clean at HEAD; no source change in this lane)",
+      "WAVE 34: ./node_modules/.bin/tailwindcss -i probe.css -o out.css -c tailwind.config.ts --content probe.html (probe: rounded-lg/md/sm) -> 3 border-radius declarations emitted verbatim, exit 0",
+      "WAVE 34: node numeric resolution proof from app/globals.css :root (0.5rem -> 8px/6px/4px; staff scope 0.625rem -> 10px unchanged)",
+      "WAVE 34: rg -n \"C-03|--radius|rounded-lg\" docs/engineering/DECISIONS.md -> 0 matches (no cross-domain owner record of the acceptance)",
+      "WAVE 34: npx vitest run __tests__/design-system __tests__/services __tests__/venue/venue-code-drift-cluster.test.ts __tests__/integrations/mfa.service.test.ts __tests__/events __tests__/feed -> 33 files / 253 tests passed",
+      "git status --porcelain -- app/globals.css tailwind.config.ts -> empty (both clean at HEAD; no source change by this lane)",
+      "git show HEAD:app/globals.css | rg -- '--radius' -> --radius: 0.5rem present at :root",
+      "./node_modules/.bin/tailwindcss -i probe.css -o out.css -c tailwind.config.ts --content probe.html -> exit 0, three border-radius declarations emitted verbatim",
+      "node numeric resolution from app/globals.css :root -> 0.5rem/8px, calc(-2px)/6px, calc(-4px)/4px; .staff-scheduling-prototype 0.625rem/10px unchanged",
+      "rg -n 'C-03|--radius|rounded-lg' docs/engineering/DECISIONS.md -> 0 matches (no cross-domain owner record of the acceptance)",
+      "npx vitest run __tests__/design-system __tests__/services __tests__/venue/venue-code-drift-cluster.test.ts __tests__/integrations/mfa.service.test.ts __tests__/events __tests__/feed -> 33 files / 253 tests passed"
     ],
     "evidence": [
       "SCOPED BUILD PROOF (tailwindcss v3.4.17 CLI, tailwind.config.ts, probe content 'rounded-lg rounded-md rounded-sm', exit 0): output.css emits exactly `.rounded-lg { border-radius: var(--radius) }`, `.rounded-md { border-radius: calc(var(--radius) - 2px) }`, `.rounded-sm { border-radius: calc(var(--radius) - 4px) }` (plus tailwindcss-animate enter/exit keyframes). RUNTIME RESOLUTION with the applied `--radius: 0.5rem` at :root (node proof): lg = 0.5rem (8px), md = 0.375rem (6px), sm = 0.25rem (4px) — the owner-accepted values. Before DESIGN-033 these computed to 0 (border-radius initial: var(--radius) undefined at :root -> invalid at computed-value time).",
@@ -61,28 +75,40 @@
       "QA HANDOFF: docs/engineering/handoffs/pending/HF-DESIGN-033-QA.json created (to_agent qa, status pending) — QA visual check of critical surfaces (main app, admin, artist, venue, dashboard, settings; staff scope expected unchanged at 0.625rem) is the final gate before DESIGN-033 closes.",
       "QA BLOCKER FOLLOW-UP (2026-09-13, localhost:3000 via Codex in-app browser fallback after scripted agent-browser was blocked by the read-only Crashpad socket): clean seeded artist persona qa-flow-artist1@tourify.test rendered direct `/artist` with the post composer, quiet-feed loading/empty state, artist primary navigation, and Overview link; no page-level ArtistLoading screen or new artist console error was observed. QA Multi B venue `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` rendered the Venue workspace underneath the mandatory terms gate; attempting the required terms save reproduced the visible `duplicate key value violates unique constraint \"accounts_account_type_display_name_key\"` error, and the route emitted repeated `Error fetching venue stats: Object` errors. A clean venue session could not be provisioned without bypassing or mutating the hosted account state, so venue visual acceptance is not claimed.",
       "QA STAFF RUNTIME FOLLOW-UP (2026-09-13): organization `/admin/dashboard/staff?account=b06240db-f9dd-4bb0-892f-083078914867&tab=scheduling` rendered Scheduling & Shifts with week board, filters, staff pool, conflicts, publish, and empty states. Browser readback: root `--radius` `.5rem`, app `rounded-lg` 8px / `rounded-md` 6px, and `.staff-scheduling-prototype` `--radius` `.625rem` with sampled `.rounded-lg` at 10px; the staff scope remains unchanged.",
-      "QA VERIFICATION FOLLOW-UP (2026-09-13): `npx vitest run __tests__/design-system __tests__/dashboard/dashboard-themes.test.ts __tests__/post-styles/post-style-boundary.test.ts __tests__/post-styles/premiere-styles-v3.test.ts` passed 5 files / 27 tests; static Node proof passed root `.5rem`, staff `.625rem`, and Tailwind lg/md/sm formulas; `npm run agents:validate` passed 17 agents / 99 tasks / 0 warnings / 0 errors. No source change was made by this QA follow-up; the owner-approved radius decision remains unchanged."
+      "QA VERIFICATION FOLLOW-UP (2026-09-13): `npx vitest run __tests__/design-system __tests__/dashboard/dashboard-themes.test.ts __tests__/post-styles/post-style-boundary.test.ts __tests__/post-styles/premiere-styles-v3.test.ts` passed 5 files / 27 tests; static Node proof passed root `.5rem`, staff `.625rem`, and Tailwind lg/md/sm formulas; `npm run agents:validate` passed 17 agents / 99 tasks / 0 warnings / 0 errors. No source change was made by this QA follow-up; the owner-approved radius decision remains unchanged.",
+      "WAVE 34 RE-VERIFICATION (2026-09-25, tree d2176904 + concurrent-lane dirt): app/globals.css and tailwind.config.ts are BOTH CLEAN at HEAD (git status --porcelain returns nothing for either), so --radius: 0.5rem at app/globals.css:76 is already committed and this lane made no source change. Static proof re-run: app/globals.css :root --radius = 0.5rem; tailwind.config.ts extend.borderRadius lines 80-84 map lg = var(--radius), md = calc(var(--radius) - 2px), sm = calc(var(--radius) - 4px); numeric resolution = 0.5rem/8px, 0.375rem/6px, 0.25rem/4px; the .staff-scheduling-prototype scope still carries its own 0.625rem (10px) and is unaffected by cascade.",
+      "WAVE 34 SCOPED TAILWIND BUILD (tailwindcss v3.4.17 CLI, exit 0, 95ms, probe content rounded-lg rounded-md rounded-sm): output.css emits exactly three border-radius declarations - var(--radius), calc(var(--radius) - 2px), calc(var(--radius) - 4px). The three utilities generate verbatim.",
+      "WAVE 34 TEST: npx vitest run __tests__/design-system/__tests__ (4 files: shared-state-primitives, use-mobile-contract, logistics-command-center-patterns, lib-services-orphaned-pile) plus __tests__/services, __tests__/venue/venue-code-drift-cluster.test.ts, __tests__/integrations/mfa.service.test.ts, __tests__/events, __tests__/feed = 33 files / 253 tests passed. No assertion anywhere in the suite depends on border-radius, rounded-* or --radius, so the owner-accepted corner delta cannot be caught by a test and no test needed updating.",
+      "WAVE 34 C-03 APPROVAL PROVENANCE FINDING (the reason this task cannot close): the only records asserting owner acceptance of the 0 -> 8/6/4px delta are design-system lane documents. docs/engineering/DECISIONS.md was searched for C-03, --radius and rounded-lg and contains ZERO matches. HF-DESIGN-033-QA is still status=pending. The design-system lane will NOT self-approve a C-03 gate; routed in HF-DESIGN-034-C03-APPROVAL-PROVENANCE."
     ],
-    "last_run_sha": "working-tree",
-    "last_run_at": "2026-09-13T20:31:29.000Z",
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:19:26.012Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "Production-readiness triage keeps DESIGN-033 non-P0. The remaining venue visual gate is not a production blocker unless QA-003 identifies a core accessibility or usability failure caused by the radius change.",
+    "summary": "Re-verified at tree d2176904 without any source change: app/globals.css and tailwind.config.ts are both CLEAN at HEAD, so --radius: 0.5rem at app/globals.css:76 is already committed. Static proof re-run - :root --radius = 0.5rem, tailwind.config.ts:80-84 maps lg/md/sm to var(--radius) / calc(-2px) / calc(-4px), resolving to 8/6/4px, and the .staff-scheduling-prototype scope keeps its own 0.625rem (10px). Scoped tailwindcss v3.4.17 build re-run: exit 0, the three utilities emit var(--radius), calc(var(--radius) - 2px) and calc(var(--radius) - 4px) verbatim. Tests: 33 files / 253 tests passed. DESIGN-033 STILL CANNOT CLOSE, and this lane did not close it: the C-03 owner approval is not independently evidenced.",
     "completed": [
       "APPLY: --radius: 0.5rem added to app/globals.css :root (semantic radius comment block after the chart ramp; only token added by this task).",
       "VERIFY: tailwind.config.ts borderRadius formulas confirmed 1:1 (lg var(--radius) -> 0.5rem, md calc(-2px) -> 0.375rem, sm calc(-4px) -> 0.25rem); NO config correction needed (formulas already produce owner-accepted values).",
       "BUILD PROOF: scoped tailwindcss build emits .rounded-lg/.rounded-md/.rounded-sm resolving verbatim; node numeric proof 8/6/4px with the applied :root value.",
       "DOCS: TOKEN_REGISTRY.md Table C 4 rows + Table K 3 rows conflict -> live, gate history + owner-acceptance recorded, §2a/§4e/§5g superseded markers, new §6 execution notes; TOKEN_AUTHORITY_INVENTORY.md C-03 row resolved, §2.2/§8/roadmap updated; STATE.md durable facts + known risks + current focus updated.",
       "QA HANDOFF: HF-DESIGN-033-QA created (pending, to_agent qa) — QA visual check of critical surfaces is the final gate.",
-      "VERIFICATION SUITE: all commands run and evidence recorded (result: pass) — eslint 0, scoped tsc 0, git diff --check clean, design-system 5/5 + theme/style 22/22 tests pass, agents:validate 17/99/0/0, point-in-time rg clean."
+      "VERIFICATION SUITE: all commands run and evidence recorded (result: pass) — eslint 0, scoped tsc 0, git diff --check clean, design-system 5/5 + theme/style 22/22 tests pass, agents:validate 17/99/0/0, point-in-time rg clean.",
+      "Re-verified the applied C-03 change at today's tree: --radius: 0.5rem at :root, tailwind formulas 1:1, 8/6/4px resolution, staff scope 0.625rem/10px unchanged",
+      "Scoped tailwindcss v3.4.17 build re-run: exit 0, three border-radius declarations emitted verbatim",
+      "Wrote the task's acceptance criteria state honestly: four MET, two explicitly NOT MET (independent owner record; QA visual gate)",
+      "Found and recorded that the C-03 approval evidence is circular: every affirmative statement about owner acceptance is a design-system lane document, docs/engineering/DECISIONS.md has ZERO C-03/--radius/rounded-lg matches, and HF-DESIGN-033-QA has been status=pending since 2026-09-13T19:40:00Z",
+      "Opened HF-DESIGN-034-C03-APPROVAL-PROVENANCE routing the owner decision to the orchestrator instead of self-approving it",
+      "Recorded the revert path in case the owner never approved: removing --radius: 0.5rem from :root is a one-line change with the same ~3,068-usage blast radius in the opposite direction, and needs the same explicit owner decision"
     ],
     "next_steps": [
-      "Resolve or provision a clean venue QA session so `/venue/dashboard` can be inspected without the terms-save duplicate-key modal and venue-stats errors; then rerun the venue visual check before closing HF-DESIGN-033-QA and moving DESIGN-033 to completed.",
-      "Token program remainder: D-02 live form-override replacement (owner-reviewed; registry §5d) and Phase 6 adoption + regressions."
+      "Orchestrator/owner: record the C-03 acceptance as a dated cross-domain decision in docs/engineering/DECISIONS.md with a named approver, OR state that it was never given so the token can be reverted. Until one of those happens DESIGN-033 stays active. See HF-DESIGN-034-C03-APPROVAL-PROVENANCE.",
+      "QA: close HF-DESIGN-033-QA. Its blocker is the venue surface (terms-gate save failing with duplicate key value violates unique constraint accounts_account_type_display_name_key, plus repeated Error fetching venue stats: Object), which needs venue-domain or hosted-state repair, not design-system work.",
+      "Token program remainder unchanged: D-02 live form-override replacement (owner-reviewed) and Phase 6 adoption + regressions."
     ],
     "blockers": [
-      "The final QA visual gate is incomplete only for venue: QA Multi B's `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` is behind the required terms gate because save fails with `duplicate key value violates unique constraint \"accounts_account_type_display_name_key\"`, and repeated `Error fetching venue stats: Object` errors are observed. Direct `/artist` is now verified with the clean seeded artist persona and no page-level Loading screen. The owner-accepted app-wide 0 -> 8/6/4px delta remains intentionally non-zero-regression (blast radius ~3,068 rounded-{lg,md,sm} usages / 923 files)."
+      "C-03 OWNER APPROVAL IS NOT INDEPENDENTLY EVIDENCED. The change is applied and committed, but every record asserting the owner accepted the app-wide 0 -> 8/6/4px corner delta is a design-system lane document. docs/engineering/DECISIONS.md has no C-03 or --radius entry and HF-DESIGN-033-QA has never been accepted. The design-system lane will not self-approve this gate; the implementing lane must not be the accepting lane for its own visual-regression gate. Routed in HF-DESIGN-034-C03-APPROVAL-PROVENANCE.",
+      "The QA visual final gate remains open and is not closeable from this lane. HF-DESIGN-033-QA is status=pending since 2026-09-13T19:40:00Z. Earlier authenticated passes covered /dashboard, /settings, the org admin dashboard, the staff Scheduling tab and /artist/overview; the venue surface has never been accepted because its terms-gate save fails on accounts_account_type_display_name_key."
     ],
     "checkpoints": [
       {
@@ -162,6 +188,28 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-25T22:19:26.012Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Re-verified at tree d2176904 without any source change: app/globals.css and tailwind.config.ts are both CLEAN at HEAD, so --radius: 0.5rem at app/globals.css:76 is already committed. Static proof re-run - :root --radius = 0.5rem, tailwind.config.ts:80-84 maps lg/md/sm to var(--radius) / calc(-2px) / calc(-4px), resolving to 8/6/4px, and the .staff-scheduling-prototype scope keeps its own 0.625rem (10px). Scoped tailwindcss v3.4.17 build re-run: exit 0, the three utilities emit var(--radius), calc(var(--radius) - 2px) and calc(var(--radius) - 4px) verbatim. Tests: 33 files / 253 tests passed. DESIGN-033 STILL CANNOT CLOSE, and this lane did not close it: the C-03 owner approval is not independently evidenced.",
+        "completed": [
+          "Re-verified the applied C-03 change at today's tree: --radius: 0.5rem at :root, tailwind formulas 1:1, 8/6/4px resolution, staff scope 0.625rem/10px unchanged",
+          "Scoped tailwindcss v3.4.17 build re-run: exit 0, three border-radius declarations emitted verbatim",
+          "Wrote the task's acceptance criteria state honestly: four MET, two explicitly NOT MET (independent owner record; QA visual gate)",
+          "Found and recorded that the C-03 approval evidence is circular: every affirmative statement about owner acceptance is a design-system lane document, docs/engineering/DECISIONS.md has ZERO C-03/--radius/rounded-lg matches, and HF-DESIGN-033-QA has been status=pending since 2026-09-13T19:40:00Z",
+          "Opened HF-DESIGN-034-C03-APPROVAL-PROVENANCE routing the owner decision to the orchestrator instead of self-approving it",
+          "Recorded the revert path in case the owner never approved: removing --radius: 0.5rem from :root is a one-line change with the same ~3,068-usage blast radius in the opposite direction, and needs the same explicit owner decision"
+        ],
+        "next_steps": [
+          "Orchestrator/owner: record the C-03 acceptance as a dated cross-domain decision in docs/engineering/DECISIONS.md with a named approver, OR state that it was never given so the token can be reverted. Until one of those happens DESIGN-033 stays active. See HF-DESIGN-034-C03-APPROVAL-PROVENANCE.",
+          "QA: close HF-DESIGN-033-QA. Its blocker is the venue surface (terms-gate save failing with duplicate key value violates unique constraint accounts_account_type_display_name_key, plus repeated Error fetching venue stats: Object), which needs venue-domain or hosted-state repair, not design-system work.",
+          "Token program remainder unchanged: D-02 live form-override replacement (owner-reviewed) and Phase 6 adoption + regressions."
+        ],
+        "blockers": [
+          "C-03 OWNER APPROVAL IS NOT INDEPENDENTLY EVIDENCED. The change is applied and committed, but every record asserting the owner accepted the app-wide 0 -> 8/6/4px corner delta is a design-system lane document. docs/engineering/DECISIONS.md has no C-03 or --radius entry and HF-DESIGN-033-QA has never been accepted. The design-system lane will not self-approve this gate; the implementing lane must not be the accepting lane for its own visual-regression gate. Routed in HF-DESIGN-034-C03-APPROVAL-PROVENANCE.",
+          "The QA visual final gate remains open and is not closeable from this lane. HF-DESIGN-033-QA is status=pending since 2026-09-13T19:40:00Z. Earlier authenticated passes covered /dashboard, /settings, the org admin dashboard, the staff Scheduling tab and /artist/overview; the venue surface has never been accepted because its terms-gate save fails on accounts_account_type_display_name_key."
+        ]
       }
     ]
   },

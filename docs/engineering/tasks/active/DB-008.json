@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-16T19:20:38.326Z",
-  "updated_at": "2026-09-22T16:18:55Z",
+  "updated_at": "2026-09-25T21:38:56.295Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries)",
   "goal": "Make staging schema, production migration history, generated types, and the launch migration ledger agree without destructive resets",
@@ -36,34 +36,103 @@
     "Staging schema, generated types, migration ledger, and launch manifest have zero unexplained drift"
   ],
   "verification": {
-    "tier": "release",
+    "tier": "database contract + repository gates",
     "commands": [
       "npm run check:migration-chain",
       "npm run check:migration-validation",
-      "npm run check:migration-checksums",
+      "npm run check:migration-ledger",
+      "bash supabase/tests/db008_storage_replay_guard.harness.sh",
+      "psql -f 20260925210000_venue_profile_presentation_columns.sql (x2) then psql -f db008_venue_profile_presentation_columns_contract.sql",
+      "node validate-inventory.mjs",
+      "psql -f db008_storage_replay_guard_contract.sql (negative control)",
+      "npm run agents:validate",
+      "npm run generate:database-types",
+      "npm run typecheck",
       "npm run check:database-types"
     ],
     "evidence": [
-      "Audit baseline: 294 active migrations exist, most validation manifests are still planned, zero are production-verified, and raw Management API applications created migration-history drift.",
-      "2026-09-22 local source refresh: hosted-history ledger matches 299 active migrations (9 classified, 290 explicitly unreconciled), including DB-010 as required before WORK-006 flag enablement. Staging/production history remains unverified.",
-      "2026-09-22 unblock sprint check: Supabase CLI is linked to Tourify Demo project auqddrodjezjlypkzfpi, which is also the origin advertised by both demo and production public health CSP. Do not treat the linked project as isolated staging until RELEASE-007 proves separation."
+      {
+        "command": "npm run check:migration-chain",
+        "result": "pass",
+        "detail": "302 active migration files scanned, no duplicate policy creations. The CP-059 transform moves create policy inside DO blocks, which the checker strips before scanning, so replay-guarding cannot introduce a duplicate-policy failure."
+      },
+      {
+        "command": "npm run check:migration-validation",
+        "result": "pass",
+        "detail": "Whole repository, exit 0. The new 20260925210000 manifest is scanned and validated. The pre-existing expired exception is renewed rather than removed, for the load-bearing reason recorded in the manifest."
+      },
+      {
+        "command": "npm run check:migration-ledger",
+        "result": "pass",
+        "detail": "302 active migrations, 12 classified, 290 explicitly unreconciled."
+      },
+      {
+        "command": "bash supabase/tests/db008_storage_replay_guard.harness.sh",
+        "result": "pass",
+        "detail": "10 migrations, 10 passed, 0 failed, on a throwaway PostgreSQL 16.15 cluster. Originals abort as replay roles; guarded forms complete with warnings; policy sets identical where the original worked; idempotent over three applies; 5 policies recovered from silent loss."
+      },
+      {
+        "command": "psql -f 20260925210000_venue_profile_presentation_columns.sql (x2) then psql -f db008_venue_profile_presentation_columns_contract.sql",
+        "result": "pass",
+        "detail": "Applied twice (idempotent) on the throwaway cluster; contract test 0 violations on all 8 checks plus the summary row. This is a throwaway local cluster, not any environment migration was applied to."
+      },
+      {
+        "command": "node validate-inventory.mjs",
+        "result": "pass",
+        "detail": "107 object literals and 21 column pairs re-derived from the preserved CI log; 0 mismatches in either direction; all consumer paths and evidence sources exist on disk."
+      },
+      {
+        "command": "psql -f db008_storage_replay_guard_contract.sql (negative control)",
+        "result": "pass",
+        "detail": "With the policies absent the contract test reports 23 violations, so it is not vacuous."
+      },
+      {
+        "command": "npm run agents:validate",
+        "result": "pass",
+        "detail": "17 agents, 151 tasks, 0 warnings, 0 errors."
+      },
+      {
+        "command": "npm run generate:database-types",
+        "result": "not-run",
+        "detail": "Requires a live target; Docker is unavailable and no linked or project-id target is configured. See remaining_blockers."
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "not-run",
+        "detail": "Prohibited in this four-lane wave; 68m18s on CI and OOMs locally. No typecheck pass is claimed."
+      },
+      {
+        "command": "npm run check:database-types",
+        "result": "not-run",
+        "detail": "Needs a live target for the same reason."
+      }
     ],
-    "last_run_sha": null,
-    "last_run_at": null,
-    "result": "not-run"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "not-run",
+    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Next-phase unblock check confirms hosted schema reconciliation remains blocked. No staging/production Supabase environment values or protected secrets are present through GitHub environments, and no hosted migration history was queried or reconciled in this session.",
+    "summary": "Wave 34: WITHDREW the Wave 33 launch blocker on measurement. The generated contract IS reproducible from the active chain - 0 contract columns, 0 relations, 0 callables lack chain provenance out of 5275 columns / 402 relations / 100 callables; the chain (401 tables + 14 views, 5335 columns, 224 routines) is a strict superset and regeneration would ADD 13 relations / 54 columns / 42 callables and DELETE 0. The 42-vs-19 venue_profiles figure and the 130-column figure were four defects in my own 138-line Wave 33 column replay (case-sensitive 'add column' inside matchAll, 'constraint' recorded as a column, alter-if-exists-before-create treated as creating, and DROP/CREATE applied in per-kind rather than file order). Replaced it with supabase/tests/db008_chain_contract_replay.mjs, gated by db008_contract_reproducibility.harness.sh (33 checks incl. 13 instrument self-assertions, 5 negative controls, 6 post-state re-assertions) and cross-checked by db008_contract_attribution_audit.mjs (5170 attributions, 0 unsupported). Also fixed 2 counting defects in the Wave 33 surface replay, refreshed the inventory with the retraction and the inverse finding, and turned the Wave 33 storage harness's false green (0 scenarios, exit 0) into a hard failure. Gates: check:migration-chain PASS 305 files, check:migration-validation PASS repo-wide, check:migration-ledger PASS 305/15/290, agents:validate PASS 17/151/0/0, eslint exit 0, git diff --check clean.",
     "completed": [
       "Added hosted-history-ledger.json and check-hosted-migration-ledger.mjs with normal and --require-reconciled modes.",
-      "Added active-chain, database-type source, and migration manifest validation tooling without resets or invented hosted evidence."
+      "Added active-chain, database-type source, and migration manifest validation tooling without resets or invented hosted evidence.",
+      "Chain reconstruction (supabase/tests/db008_chain_surface_replay.mjs, an ordered CREATE/DROP/RENAME event replay over the numbered migrations): 411 live public relations, 141 callable routines, 82 trigger functions. 9 relations and 16 callables are created by the chain and absent from lib/database.types.ts; ZERO relations or routines exist in the types that the chain does not create, so the types are a strict subset and the file is stale, not divergent.",
+      "Staleness watermark: the committed contract reflects the chain through 20260910000001_get_active_organizer_account_for_org.sql. It cannot be reproduced from the chain: public.venue_profiles declares 42 columns in the types and 19 are created by the chain, so a chain-only regeneration would DELETE real coverage. Recorded as knownGaps, not fixed.",
+      "Only 2 of the 107 object literals tsc rejects (ticket_shares, ticket_referrals, both from DB-005's 20260910230339) are created by the chain. The other 105 are absent from the chain AND the types, so regeneration cannot satisfy them and 9 relations + 16 callables of real chain objects are missing from the types.",
+      "Inventory docs/engineering/database-type-inventory-2026-09-25.json: 128 items (107 relation-or-rpc, 21 table-column pairs) classified as 107 code-drift / 9 schema-missing / 10 unknown / 2 stale-types, each with its evidence, consumer files, entry-reachability verdict and canonical replacement. Validated against EVERY diagnostic in the preserved CI log: 0 objects or column pairs in the log that the inventory omits, 0 in the inventory that the log does not name, and every recorded consumer path and evidence source verified to exist on disk.",
+      "CP-059 applied to all ten storage-owning migrations: 20250115000001 (8 policy pairs, 2 bucket seeds), 20250122000000 (2 policies), 20250816141000 (4 policies, 1 bucket), 20260413000000 (44 policies, 10 buckets), 20260413300002 (3 policies), 20260414130000 (5 policies), 20260625020000 (1 policy), 20260630211500 (4 policies, 1 bucket), 20260717194541 (1 policy, 1 bucket), 20260825130000 (3 policies, 1 bucket).",
+      "Replay-safety harness (supabase/tests/db008_storage_replay_guard.harness.sh) on a throwaway PostgreSQL 16.15 cluster emulating the Supabase storage bootstrap: 10/10 pass. Every ORIGINAL form aborts under a non-owner replay role (the PR #14 failure mode); every GUARDED form completes with a warning carrying sqlstate/sqlerrm; the owner-applied policy set is identical to the original wherever the original worked, 75 policies compared; idempotent over three applies; and 5 policies are RECOVERED from the four migrations whose relowner = current_user + raise notice guard had silently created none.",
+      "New additive migration 20260925210000_venue_profile_presentation_columns.sql (SHA-256 db0e3f3c6d3a11d8dc6f9a502c0b6e3d3c9f7c91d1fbda83ad792e70b88e6c37) adds public.venue_profiles.social_links jsonb NOT NULL DEFAULT '{}'::jsonb and public.venue_profiles.cover_image_url text. Applied twice against the throwaway cluster; supabase/tests/db008_venue_profile_presentation_columns_contract.sql returned 0 violations across 8 checks plus venue_profile_presentation_columns_ready = true, and pre-existing rows read back '{}'.",
+      "Hosted-history ledger reconciled to the real chain: sourceSnapshot re-derived (302 active, last 20260925210000_venue_profile_presentation_columns.sql, digest 5eb33574... recomputed after the CP-059 edits) and launch.required grown from 9 to 12 by classifying the three migrations added since the previous snapshot, each with a named task, a planned manifest and a launch rationale. unclassified.count is 290, which is 302 minus the 12 genuinely classified, not a number chosen to satisfy the gate.",
+      "Expired migration-validation exception job-posting-scope-not-null renewed to 2026-10-25 with a renewalHistory entry. It could not simply be deleted: the marker in the migration SQL is load-bearing, because check-migration-validation accepts a SET NOT NULL only with a validated precheck or a reviewed lock-budget marker. Its own recorded evidence already states the waived step completed, so this is an evidence-consistent renewal; admin-platform remains the owner of HIRING-SCOPED-JOBS-AND-SEATS."
     ],
     "next_steps": [
-      "Populate staging and production Supabase environment values, then reconcile hosted migration history and strict ledger state before QA-004 live simulation."
+      "Operator: run npm run generate:database-types against a reachable staging target. The deletion-direction gate now passes, so regeneration is safe; the blocker is purely reachability (no linked/project-id target, Docker unavailable here). Then record the staging history disposition in hosted-history-ledger.json. Still open: the seven unmigrated schema-missing objects (zero contracts landed - HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED), the scheduled_posts live-vs-fresh divergence (HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE), and the weaker view-column surface (13 relations proven by name occurrence, not replay). Regenerate the shared maps with agents:generate once the worktree settles."
     ],
     "blockers": [
-      "Strict release validation currently fails because 287 migrations remain unclassified and both environments default to unverified.",
-      "No authorized hosted schema/history access was available in this batch."
+      "npm run typecheck was not run and no pass is claimed: 68m18s on a 16GB CI runner, OOMs on this 8GB box, and four lanes share it.",
+      "29 of the 173 SelectQueryError log lines are truncated inside the printed union, so those column drifts need a scoped tsc run to enumerate."
     ],
     "checkpoints": [
       {
@@ -136,10 +205,94 @@
         "blockers": [
           "No independent staging project, protected database URL, or exact deployed SHA is recorded; strict ledger validation fails by design."
         ]
+      },
+      {
+        "at": "2026-09-25T20:52:24.763Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: root-caused the 1,384-diagnostic typecheck failure as a TWO-SIDED generated-contract defect (the chain creates 9 relations + 16 callables the types omit, AND the types declare columns the chain never creates), classified all 128 named objects with evidence (107 code-drift / 9 schema-missing / 10 unknown / 2 stale-types) into docs/engineering/database-type-inventory-2026-09-25.json, routed them via 23 handoffs, authored 20260925210000_venue_profile_presentation_columns.sql for the only two provable column pairs, applied CP-059 to all ten storage-owning migrations and proved it 10/10 on a throwaway PostgreSQL 16.15 cluster (75 policies identical where the original worked, 5 recovered from silent loss), and reconciled the hosted-history ledger to the real 302-migration chain. Gates green: check:migration-chain, check:migration-validation (repo-wide, exit 0), check:migration-ledger, agents:validate. No typecheck pass is claimed.",
+        "completed": [],
+        "next_steps": [
+          "Two blockers gate type regeneration and both must clear first: (1) reconcile the out-of-band DDL, because public.venue_profiles declares 42 columns in the contract and the chain creates 19, so a chain-only regeneration would DELETE real coverage; (2) obtain a reachable target, because Docker is unavailable and no linked/project-id target is configured. Then apply 20260925210000, run npm run generate:database-types, then check:database-types. Then work the 23 handoffs and re-measure the typecheck baseline."
+        ],
+        "blockers": [
+          "npm run typecheck was not run and no pass is claimed: 68m18s on a 16GB CI runner, OOMs on this 8GB box, and four lanes share it.",
+          "29 of the 173 SelectQueryError log lines are truncated inside the printed union, so those column drifts need a scoped tsc run to enumerate."
+        ]
+      },
+      {
+        "at": "2026-09-25T21:38:56.295Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: WITHDREW the Wave 33 launch blocker on measurement. The generated contract IS reproducible from the active chain - 0 contract columns, 0 relations, 0 callables lack chain provenance out of 5275 columns / 402 relations / 100 callables; the chain (401 tables + 14 views, 5335 columns, 224 routines) is a strict superset and regeneration would ADD 13 relations / 54 columns / 42 callables and DELETE 0. The 42-vs-19 venue_profiles figure and the 130-column figure were four defects in my own 138-line Wave 33 column replay (case-sensitive 'add column' inside matchAll, 'constraint' recorded as a column, alter-if-exists-before-create treated as creating, and DROP/CREATE applied in per-kind rather than file order). Replaced it with supabase/tests/db008_chain_contract_replay.mjs, gated by db008_contract_reproducibility.harness.sh (33 checks incl. 13 instrument self-assertions, 5 negative controls, 6 post-state re-assertions) and cross-checked by db008_contract_attribution_audit.mjs (5170 attributions, 0 unsupported). Also fixed 2 counting defects in the Wave 33 surface replay, refreshed the inventory with the retraction and the inverse finding, and turned the Wave 33 storage harness's false green (0 scenarios, exit 0) into a hard failure. Gates: check:migration-chain PASS 305 files, check:migration-validation PASS repo-wide, check:migration-ledger PASS 305/15/290, agents:validate PASS 17/151/0/0, eslint exit 0, git diff --check clean.",
+        "completed": [],
+        "next_steps": [
+          "Operator: run npm run generate:database-types against a reachable staging target. The deletion-direction gate now passes, so regeneration is safe; the blocker is purely reachability (no linked/project-id target, Docker unavailable here). Then record the staging history disposition in hosted-history-ledger.json. Still open: the seven unmigrated schema-missing objects (zero contracts landed - HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED), the scheduled_posts live-vs-fresh divergence (HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE), and the weaker view-column surface (13 relations proven by name occurrence, not replay). Regenerate the shared maps with agents:generate once the worktree settles."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
-    "Provide reconciled staging schema and migration-ledger evidence to DB-002, DB-005, DB-006, USER-005, TICKET-005, MKT-004, and QA-003."
-  ]
+    "23 handoffs filed under docs/engineering/handoffs/pending/ routing the code-drift, schema-missing and unknown shares to their owning domains: HF-DB008-TYPECHECK-{LIBRARY,SHARED-UI,ARTIST,WORK,MARKETPLACE,VENUE,APP-SURFACE,ANALYTICS,AUTH-IDENTITY,EVENTS,SEO,ADMIN,TICKETING,SEARCH,LOGISTICS,INTEGRATIONS}, HF-DB008-SCHEMA-MISSING-{ARTIST,QA,ADMIN,WORK}, HF-DB008-UNRESOLVED-{QA,ADMIN,GENERAL-USER}. Each names the objects, the canonical replacement where the repository records one, and whether a LIVE entry-reachable consumer blocks deletion.",
+    "HF-DB008-TYPECHECK-VENUE supersedes and extends HF-DB-008-VENUE-CREW-CONTRACTOR-SURFACE with three objects Wave 32 had not reached (venue_shift_templates, venues.city, venue_profiles.name) and the canonical replacement for each.",
+    "HF-DB008-UNRESOLVED-QA and HF-DB008-SCHEMA-MISSING-QA carry the credential-adjacent objects (user_mfa_methods, user_mfa_setup_temp, user_mfa_backup_codes, password_reset_requests, pending_password_resets, password_change_log, health_check). The chain already carries mfa_verification_codes from 20260918213707, so the older user_mfa_* generation looks superseded; the database lane will not create a credential surface without a security review.",
+    "exec_sql is recorded as never-create in HF-DB008-UNRESOLVED-QA: it is arbitrary-SQL execution and its only repository reference is the 20260717194541 revoke list.",
+    "Consumed and closed: HF-QA-003-TYPECHECK-BLOCKER, HF-RELEASE-DB-TYPECHECK and HF-DB-008-VENUE-CREW-CONTRACTOR-SURFACE, each with an explicit record of what was actioned and what was deliberately not done."
+  ],
+  "wave34": {
+    "headline": "The Wave 33 launch blocker is WITHDRAWN. The generated contract IS reproducible from the active chain: 0 contract columns, 0 relations and 0 callables lack chain provenance. The chain is a strict SUPERSET, so a regeneration can only add coverage.",
+    "retracted": "Wave 33 reported public.venue_profiles as 42 contract columns vs 19 chain columns, and generalised that to 130 out-of-band columns across 23 relations, on the strength of supabase/tests/db008_chain_column_replay.mjs. That script had four defects, all inflating apparent drift: case-sensitive `add column` matching inside matchAll() (so every upper-case-DDL migration contributed zero columns), `add constraint` recorded as a column named `constraint`, `alter table if exists` before a relation CREATE treated as having created it, and DROP/CREATE applied in per-kind loop order so `drop view; create view` in one migration inverted. The 42-vs-19 figure and the 130-column figure are both artefacts and are withdrawn.",
+    "measured": {
+      "chain": "305 migrations -> 401 tables + 14 views, 5335 columns, 224 routines (142 callable + 82 RETURNS trigger, which gen types never emits)",
+      "contract": "402 relations, 5275 columns, 100 callables",
+      "outOfBand": {
+        "columns": 0,
+        "relations": 0,
+        "callables": 0,
+        "viewColumnsWithoutProvenance": 0
+      },
+      "regenerationWould": {
+        "add": "13 relations, 54 columns, 42 callables",
+        "delete": 0
+      },
+      "independentAttributionAudit": "5170 contract columns re-verified against the cited migration file, requiring it to mention both relation and column: 0 unsupported",
+      "categoryTally": {
+        "captured": 0,
+        "remove": 0,
+        "undecidable": 0,
+        "explanation": "Nothing in the contract lacks provenance, so no object falls into any of the three Wave 34 categories. The honest answer to the brief is the inverse of the Wave 33 one: the drift runs chain -> contract, not contract -> chain."
+      }
+    },
+    "instrumentCorrected": [
+      "supabase/tests/db008_chain_contract_replay.mjs - new, replaces db008_chain_column_replay.mjs. Case-insensitive, single ordered event stream with byte offsets, existence-guard modelling (`alter table if exists` and to_regclass-guarded ALTERs are modelled as no-ops), constraint keywords excluded from the column set, RENAME COLUMN handled, an audited dynamic-DDL supplement for the one `execute format` loop, and per-surface reproducibility reporting (table columns, relations, callables, view columns).",
+      "supabase/tests/db008_contract_reproducibility.harness.sh - new. 33 checks: 13 instrument self-assertions (positive controls on each defect class), 5 negative controls, 6 post-state re-assertions, and a cross-implementation agreement check against the Wave 33 surface replay.",
+      "supabase/tests/db008_contract_attribution_audit.mjs - new. Independently re-reads the cited migration for every one of 5170 contract columns and requires it to mention both the relation and the column.",
+      "supabase/tests/db008_chain_surface_replay.mjs - two Wave 33 counting defects fixed: contract callables 125 -> 100 (it counted only functions with a literal `Args: {` block and so missed every zero-argument callable), and its output now agrees with the new replay on the relation count (415).",
+      "supabase/tests/db008_storage_replay_guard.harness.sh - the Wave 33 harness reported `replay-safety: 0 passed, 0 failed` and EXITED 0 because its scenario manifest and 00-bootstrap fixture were never committed, so it iterated zero times. Zero scenarios is now a hard failure with the missing prerequisites named. It currently exits 1 with those names; the fixture still has to be committed or regenerated."
+    ],
+    "negativeControlDefectFoundInMyOwnHarness": "The first revision of the reproducibility harness built all five negative controls by REMOVING contract surface. A superset check can only be broken by an ADDITION, so all five passed against a gate that could not fail. The controls are now additions (extra column, extra relation, extra callable, extra view column) plus a fifth that asserts a removal is TOLERATED, so an over-strict gate is caught too. Same lesson class as the Wave 33 note about a harness that passed 7/7 while its emulation had silently failed to rebuild.",
+    "residualHonestGaps": [
+      "13 view relations are proven by column-name occurrence in their defining migration, not by replaying the SELECT list. All 13 currently have 0 columns without an occurrence and a negative control pins that half of the gate, but it is the one surface where a regeneration could still remove coverage.",
+      "Six ALTERs are skipped by a fresh replay because version order is not calendar order (20250904110000 runs before 20260413200000). All six are guarded, so none is a chain abort. Five are harmless because the later CREATE supplies the columns. ONE is a genuine live-versus-fresh divergence: scheduled_posts.platform_status / platform_errors. The contract does not declare them either, so the two agree today; if any live target has them, regeneration would drop them. Routed as HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE.",
+      "No hosted evidence of any kind. Docker unavailable, no linked or project-id target, so supabase gen types cannot run here at all."
+    ],
+    "notDoneAndNotClaimed": [
+      "lib/database.types.ts was NOT regenerated and NOT hand-edited. The gate that made regeneration dangerous now passes; the gate that makes it possible (a reachable target) does not.",
+      "npm run typecheck was not run (68m18s on CI, OOMs locally, four lanes share one 8GB box). npm run generate:database-types and npm run check:database-types were not run. supabase db lint --local was not run.",
+      "agents:generate was deliberately not run (shared-map race with 6 concurrent lanes). The generated maps now trail 3 new migrations, 3 new manifests, 3 new handoffs and the refreshed inventory.",
+      "The seven unmigrated schema-missing objects were NOT migrated. Zero of the seven contracts landed; see HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED."
+    ],
+    "schemaMissingReclassified": "The open set is 7, not 9. venue_profiles.social_links and venue_profiles.cover_image_url were captured by 20260925210000 in the same wave and are now reclassified migrated; they need only regeneration. event_staff was named in Wave 33 prose but is not in the inventory schema-missing bucket. The 7 are event_equipment, event_tasks, artist_licensing_deals, artist_license_templates (artist, 75 hits), hiring_candidates (work, 4), pending_password_resets (qa, 14), error_reports (admin, 6).",
+    "verification": [
+      "bash supabase/tests/db008_contract_reproducibility.harness.sh -> 33 PASS, 0 FAIL, exit 0, measured out-of-band columns 0",
+      "node supabase/tests/db008_contract_attribution_audit.mjs . -> exit 0, 5170 attributions, 0 without provenance, 0 unsupported",
+      "node supabase/tests/db008_chain_surface_replay.mjs . <out> -> 415 relations, 142 callables, 82 trigger functions, 402 contract relations, 100 contract callables, 13 stale relations, 42 stale callables",
+      "npm run check:migration-chain -> pass, 305 files, no duplicate policy creations",
+      "npm run check:migration-validation -> pass, repository-wide, exit 0",
+      "npm run check:migration-ledger -> pass, 305 active, 15 classified, 290 explicitly unreconciled",
+      "npm run agents:validate -> pass, 17 agents, 151 tasks, 0 warnings, 0 errors",
+      "npx eslint on the three authored .mjs files -> exit 0",
+      "git diff --check on supabase/ and docs/engineering/ -> clean",
+      "bash supabase/tests/db008_storage_replay_guard.harness.sh -> NOW exits 1 (was a false green at exit 0); the fix is that zero scenarios is a failure, the missing manifest.json and 00-bootstrap.sql are named"
+    ]
+  }
 }

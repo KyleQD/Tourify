@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB-011-SCHEMA-MISSING-CONTRACTS-NOT-DELIVERED",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-26T00:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree; 6 concurrent lanes)",
+  "summary": "Objective 3 of the Wave 34 dispatch produced a negative result that needs a decision from you rather than more work from me. Zero of the seven unmigrated `schema-missing` contracts landed. The four outbound handoffs the database lane raised in Wave 33 are still status=pending with no reply from artist, work, qa or admin, and I re-checked all 53 pending handoffs for an inbound contract: there is none. I did not migrate them, and this handoff exists so the non-delivery is visible rather than absorbed into a green gate.",
+  "working_set": [
+    "docs/engineering/handoffs/pending/HF-DB008-SCHEMA-MISSING-ARTIST.json",
+    "docs/engineering/handoffs/pending/HF-DB008-SCHEMA-MISSING-WORK.json",
+    "docs/engineering/handoffs/pending/HF-DB008-SCHEMA-MISSING-QA.json",
+    "docs/engineering/handoffs/pending/HF-DB008-SCHEMA-MISSING-ADMIN.json",
+    "docs/engineering/database-type-inventory-2026-09-25.json"
+  ],
+  "completed": [
+    "Checked all 53 handoffs under docs/engineering/handoffs/pending/ for an inbound column contract addressed to the database lane. Result: zero. The four SCHEMA-MISSING handoffs are outbound (from: database) and unanswered.",
+    "Re-classified the 9 Wave 33 `schema-missing` items. Two of them are RESOLVED at the database layer and were miscounted as still-open: venue_profiles.social_links and venue_profiles.cover_image_url were captured as 20260925210000 in Wave 33, the chain now creates them, and they are reclassified `migrated` in the refreshed inventory. They need only CP-016 regeneration, not a contract.",
+    "So the true open set is 7 objects, and the honest count is 7, not 9.",
+    "event_staff is NOT in the inventory's schema-missing list. It appears only in HF-DB008-TYPECHECK-ARTIST as a different class. Wave 33's STATE.md prose listed it among the 9; the inventory does not. Flagged so nobody chases a contract for an object that was never in this bucket."
+  ],
+  "next_steps": [
+    "Unblock the four domains, or reassign. The exact ask, unchanged from Wave 33, is: for each object, the column list with types, nullability and defaults that the product code ALREADY selects, plus the file and line that selects it. That is a read-the-caller task, not a design task, and each domain can answer it from code it already owns.",
+    "The 7 objects and their owning domains: event_equipment, event_tasks, artist_licensing_deals, artist_license_templates (artist, 75 diagnostic hits); hiring_candidates (work, 4); pending_password_resets (qa, 14); error_reports (admin, 6).",
+    "If a domain cannot supply a contract, the correct outcome is NOT a migration. It is a decision to delete the product code that queries the object, because the Wave 33 evidence is that the repository holds no archived definition of any of the seven, so nothing was ever applied and nothing depends on them at the data layer. That decision belongs to the owning domain and to release, not to the database lane.",
+    "Do not let this sit behind a green gate. check:migration-chain, check:migration-validation and check:migration-ledger are all green right now and none of them knows these seven objects exist. The only artefacts that track them are the inventory and these handoffs."
+  ],
+  "blockers": [
+    "The seven objects remain absent from both the active chain and lib/database.types.ts. Every tsc diagnostic they cause is still in the preserved Lint And Build log, and will still be there after any regeneration, because regeneration can only add what the chain creates.",
+    "The Wave 33 refusal to invent a column contract stands. Authoring a plausible-looking table to silence a type error is how a schema becomes a fiction that later code trusts."
+  ],
+  "verification": [
+    "For each of the 7 objects, `rg -l \"<object>\" docs/engineering/handoffs/pending/*.json` returns no handoff with to_agent = database. Confirmed by a scan of every pending handoff's to_agent field.",
+    "docs/engineering/database-type-inventory-2026-09-25.json totals.classificationCounts now reads code-drift 107, unknown 10, schema-missing 7, stale-types 0, migrated 2 (126 of 128 items; the 2 remaining are the ticket_shares / ticket_referrals stale-types pair, which regeneration fixes).",
+    "All 128 consumer paths in the refreshed inventory were re-verified to exist on disk: 0 missing."
+  ]
+}

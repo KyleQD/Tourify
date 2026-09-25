@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   buildSiteMapElementInsert,
   crossMapElementIds,
+  isMissingSiteMapElementSyncFunction,
   siteMapElementBatchCommandSchema,
   siteMapElementCreateSchema,
   siteMapElementRouteParamsSchema,
+  syncSiteMapElementsWithoutRpc,
 } from "@/lib/admin/site-map-elements";
+import { resolveAuthorizedOrgLogisticsScope } from "@/lib/admin/resolve-authorized-org";
 import { adminErrorResponse, withAdminCapability } from "@/lib/auth/api-auth";
 import type { Json } from "@/lib/database.types";
 import { getSiteMapAccess, requireSiteMapAccess } from "@/lib/site-map/access";
@@ -183,7 +186,7 @@ export async function POST(
             }
           }
 
-          const { data: savedElements, error: syncError } = await supabase.rpc(
+          let { data: savedElements, error: syncError } = await supabase.rpc(
             "sync_site_map_elements",
             {
               p_site_map_id: siteMapId,
@@ -191,6 +194,37 @@ export async function POST(
               p_delete_missing: parsedCommand.data.sync,
             },
           );
+
+          if (isMissingSiteMapElementSyncFunction(syncError)) {
+            try {
+              const scope = await resolveAuthorizedOrgLogisticsScope({
+                userId: user.id,
+                requestedOrgId: admin.orgId,
+                eventId: access.siteMap?.event_v2_id || null,
+                tourId: access.siteMap?.tour_id || null,
+                allowedTourIds: admin.allowedTourIds,
+              });
+              const compatibilityResult = await syncSiteMapElementsWithoutRpc({
+                dataClient: scope.service,
+                siteMapId,
+                rows: rows as Array<Record<string, unknown>>,
+                deleteMissing: parsedCommand.data.sync,
+              });
+              savedElements = compatibilityResult.data;
+              syncError = compatibilityResult.error;
+            } catch (compatibilityError) {
+              console.error("[Site-map elements] Compatibility sync failed", {
+                correlationId: admin.correlationId,
+                error: compatibilityError,
+              });
+              return adminErrorResponse(
+                503,
+                "dependency_unavailable",
+                "Unable to save site-map elements.",
+                admin.correlationId,
+              );
+            }
+          }
 
           if (syncError) {
             console.error("[Site-map elements] Atomic sync failed", {

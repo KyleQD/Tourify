@@ -200,6 +200,64 @@ export interface WorkModeEventPayload {
   workerActionsAvailable: boolean
 }
 
+export interface WorkModeHistoryAttendance {
+  /** Shift lifecycle status from the canonical staff_shifts row (scheduled/confirmed/completed/cancelled). */
+  shiftStatus: string | null
+  checkIns: number
+  checkOuts: number
+  lastCheckInAt: string | null
+  lastCheckOutAt: string | null
+  /** worker_actions when persisted check-in/out events are readable; shift_status when only the shift row exists. */
+  source: "worker_actions" | "shift_status" | "none"
+  workerActionsAvailable: boolean
+}
+
+export interface WorkModeHistoryEvaluation {
+  attendanceRate: number | null
+  performanceRating: number | null
+  supervisorRating: number | null
+  customerFeedbackScore: number | null
+  commendationsCount: number | null
+  incidentsCount: number | null
+  trainingCompleted: boolean | null
+  certificationsValid: boolean | null
+  notes: string | null
+  reviewedAt: string | null
+  metricDate: string | null
+  /** staff_performance_metrics when a reviewed metric exists for the worker's staff row. */
+  source: "staff_performance_metrics" | "none"
+}
+
+export interface WorkModeHistoryItem {
+  id: string
+  roleTitle: string
+  department: string | null
+  status: EmploymentAssignmentStatus
+  eventId: string | null
+  eventTitle: string | null
+  organizationId: string | null
+  organizationName: string | null
+  venueId: string | null
+  venueName: string | null
+  tourId: string | null
+  staffShiftId: string | null
+  startsAt: string | null
+  endsAt: string | null
+  attendance: WorkModeHistoryAttendance
+  evaluation: WorkModeHistoryEvaluation
+  updatedAt: string | null
+}
+
+export interface WorkModeHistoryPayload {
+  /** invited/confirmed/active assignments, soonest first. */
+  upcoming: WorkModeHistoryItem[]
+  /** completed/cancelled/declined assignments, most recent first. */
+  completed: WorkModeHistoryItem[]
+  sourceAvailability: WorkModeSourceAvailability
+  generatedAt: string
+  workerActionsAvailable: boolean
+}
+
 export interface WorkModeApiResponse<T> {
   data?: T
   error?: string

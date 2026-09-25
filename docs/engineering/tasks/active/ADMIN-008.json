@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-008",
+  "title": "Build the organization maps library",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:10.587Z",
+  "updated_at": "2026-09-24T00:38:33Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (24 entries)",
+  "goal": "Provide an organization-wide site-map library with filters, canonical scoped creation, builder deep links, and duplicate-surface consolidation.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": ["npm exec vitest run __tests__/admin/admin-acting-request.test.tsx __tests__/admin/site-map-collection.test.ts __tests__/admin/site-map-acting-org-access.test.ts"],
+    "evidence": ["Maps is now an organization library with Library/Draft/Published/Archived views, search/sort, canonical creation scope, and siteMapId deep links into the existing builder."],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "passed"
+  },
+  "progress": {
+    "summary": "Organization Maps library is integrated and uses the ADMIN-003 acting-context and scoped-creation contract.",
+    "completed": ["Organization library loads without event/tour scope.", "Creation and image import remain disabled until canonical scope is selected.", "Event entry points reuse the authoritative library and builder."],
+    "next_steps": ["Verify blank and image-backed persistence in an authenticated browser session."],
+    "blockers": [],
+    "checkpoints": [{"at":"2026-09-24T00:38:33Z","summary":"Integrated the organization-wide Maps library and status navigation without changing the server authorization boundary.","next":"Complete authenticated builder persistence regression under QA-007."}]
+  },
+  "handoffs": []
+}

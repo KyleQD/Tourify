@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.0",
+  "id": "VENUE-004",
+  "title": "Build venue availability write path",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "venue",
+  "created_at": "2026-09-23T21:08:32.994Z",
+  "updated_at": "2026-09-25T21:13:08.810Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (~250 entries; ~6 concurrent lanes). Wave 34 added only: lib/supabase/service-role-legacy-imports.json (two venue path entries), docs/engineering/{DECISIONS.md,agents/venue/{STATE,DECISIONS}.md}, three handoffs, and this task record. No git history operation, no migration apply, no shared-map regeneration, no migration authored, and no host touched (CP-051).",
+  "goal": "Provide a venue-scoped availability editor and writer so venue managers can block/set availability instead of relying on nonexistent raw-row writes.",
+  "scope": {
+    "in": [
+      "Design a venue availability block editor grounded in venue_availability/venue_reservations",
+      "Add a venue-scoped API write path with org/venue boundary authorization at the data edge",
+      "Wire the existing venue calendar surface to the new writer"
+    ],
+    "out": [
+      "Direct raw-table writes by callers",
+      "Any mutation without venue-scope authorization"
+    ]
+  },
+  "working_set": [
+    "app/api/venue/availability/route.ts",
+    "app/api/venue/reservations/route.ts",
+    "app/venue/components/availability/venue-availability-editor.tsx",
+    "app/venue/dashboard/calendar/page.tsx",
+    "app/venue/hooks/use-venue-calendar-data.ts",
+    "lib/venue/availability.ts",
+    "__tests__/venue/venue-availability-api.test.ts",
+    "__tests__/venue/venue-availability-lib.test.ts",
+    "__tests__/venue/venue-reservations-api.test.ts",
+    "__tests__/venue/venue-calendar-raw-read-boundary.test.ts",
+    "__tests__/venue/venue-availability-scope-migration.test.ts",
+    "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json (handoff artifact)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "criterion": "SIM-20260922-VENUE-002 reruns and passes in the venue agent simulation with receiving-side evidence",
+      "status": "open",
+      "met": false,
+      "why": "Two independent gates are unmet, and neither moved this wave. (1) Receiving side: app/api/booking-requests/route.ts is outside this wave's venue file grant (it is `app/api/booking-requests/**`, not `app/api/venue/**`), so the edit stays deferred to the booking lane. Re-verified against the current bytes in Wave 34: validateVenueAvailability is still at lines 85-128, its eventDate branch at 104-125, the caller at 342, and it still rejects only capacity-overflow and already-approved bookings with no consult of venue_availability.is_available=false. (2) Hosted: an actual rerun needs isolated staging, which does not exist yet (RELEASE-007/QA-003). No live mutation or actor run was attempted.",
+      "partial_evidence": "Unchanged and re-verified in Wave 34. The venue-manager half is complete and locally proven: block/edit/clear are readable and writable through the canonical venue-scoped service and a foreign venue manager is denied 403 before any service-role use. The receiving wiring is still a single await (isVenueEventDateBlocked)."
+    },
+    {
+      "criterion": "coverage rows for venue availability are credited only after hosted UI proof",
+      "status": "met",
+      "met": true,
+      "why": "Satisfied by NOT crediting. Verified this round that no coverage credit exists for venue availability: docs/audits/flow-notes/agent-user-simulation-campaign.md line 871 still records SIM-20260922-VENUE-002 as 'Active' with the VEN-02 chain uncredited, and the migration manifest's isolated/staging/production evidence slots are asserted null by a fast-tier test (__tests__/venue/venue-availability-scope-migration.test.ts) so no hosted artifact can be filled without an apply."
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run check:service-role-allowlist — PASS exit 0 (was exit 1). Output: '✓ service-role imports classified (195 production files: 182 historical, 31 reviewed remediation debt, 1 low-level factories)'.",
+      "npm run check:migration-chain — PASS exit 0 (302 files scanned, no duplicate policy creations).",
+      "npm run check:migration-validation — PASS exit 0 (previously a recorded external failure; the concurrent-lane baseline drift it reported is gone).",
+      "npm run check:migration-ledger — PASS exit 0 (302 active migrations, 12 classified, 290 explicitly unreconciled; previously a recorded DB-008-owned failure).",
+      "npm run check:db002-security-contract — PASS exit 0 (4 SECURITY DEFINER functions covered).",
+      "npx vitest run __tests__/venue/ — PASS: 15 files / 131 tests (was 14 files / 102; the new file is venue-code-drift-cluster.test.ts with 29 tests).",
+      "npx vitest run __tests__/venue/venue-availability-api.test.ts __tests__/venue/venue-reservations-api.test.ts — PASS: 2 files / 26 tests (the 16 + 10 gate tests whose mockedServiceClient.not.toHaveBeenCalled() assertions re-verify the SEC-109 justification).",
+      "npx eslint app/venue/components/staff/shift-templates.tsx app/api/venue/availability/route.ts app/api/venue/reservations/route.ts lib/venue/availability.ts __tests__/venue/venue-code-drift-cluster.test.ts — PASS exit 0, 0 errors 0 warnings.",
+      "npx tsc -p /tmp/tsconfig.venue-wave34.json --noEmit (temporary slice over the lane files, deleted after the run) — ZERO errors in any venue-owned file. 29 pre-existing errors, all in lib/services/venue.service.ts (19), lib/services/artist.service.ts (8), lib/services/account-management.service.ts (2), all pristine at HEAD and outside this grant.",
+      "git diff --check — PASS exit 0.",
+      "npm run agents:validate — PASS: validated 17 agents, 151 tasks, 0 warnings, 0 errors.",
+      "NOT RUN: npm run typecheck (68m18s on CI, 1,384 errors across 197 files, OOMs on this 8GB box) and npm test, per the Wave 34 no-full-repo-verification constraint."
+    ],
+    "evidence": [
+      "Wave 32's 102 venue tests still pass unchanged; 29 new tests were added by Wave 34. All 131 are venue-owned.",
+      "SEC-109 justification re-derived from the current bytes, not inherited: both routes call authenticateApiRequest, resolve a venue (query param / body / getCurrentVenueContext), then canManageVenue(auth.supabase, user.id, venueId, 'manage_bookings'), and construct the service-role client only afterwards. PATCH and DELETE-by-id resolve scope from the row's own venue_id, so holding a foreign row id grants nothing.",
+      "executeServiceRoleJob was evaluated as the preferred remediation and REJECTED on three independent grounds (VENUE-D05 / CP-067): it throws org_not_found unless a verified organizations row exists and venue_profiles has no organization_id (the only link is the lazily provisioned settings.operational_org_id from ensureVenueOperationalContext), so it would 500 the editor for a venue that has not provisioned; its target block revalidates only eventId/tourId/saleId, so it could not re-assert venue scope even on success; and SERVICE_ROLE_MODULES has 33 ids with no venue availability or reservation surface, so adopting it means editing a security allowlist outside this grant. The client role also genuinely cannot do the work — migration 20260924120000 revokes client SELECT on both raw tables.",
+      "check:migration-validation and check:migration-ledger, both recorded as external failures in Wave 32, now exit 0 in the shared worktree. The venue lane did not edit either: the baseline drift and the ledger snapshot are owned by other lanes, and those lanes fixed them.",
+      "No hosted or credentialed evidence is claimed anywhere in this record. All 718 QA-004 campaign coverage rows remain not_run and no staging target exists."
+    ],
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "partially-verified-local"
+  },
+  "progress": {
+    "summary": "Wave 34: the last failing required check is green. SEC-109 exits 0 after both venue availability/reservations service-role imports were classified rather than refactored - executeServiceRoleJob was evaluated and rejected on three independent grounds (no verified orgId exists for a venue_profiles-scoped boundary, no allowlisted module id covers venue availability, and the client role is revoked by 20260924120000 anyway); justification recorded in VENUE-D05/CP-067. check:migration-chain, check:migration-validation, check:migration-ledger and check:db002-security-contract all exit 0 too. Also cleared the venue-owned share of the DB-008 code-drift cluster: deleted lib/venue/staff-management.service.ts and the dead venue event-chat subtree after re-derived zero-importer proofs, and repointed app/venue/components/staff/shift-templates.tsx from the archived venue_shift_templates to the chain-created venue_recurring_shifts (2 tsc errors before, 0 after). Venue suite 131/131 across 15 files; eslint 0/0; scoped tsc zero errors in venue-owned files; agents:validate 0 errors; git diff --check clean. AC1 still OPEN: the receiving edit is outside the grant and a rerun needs isolated staging. No hosted evidence claimed.",
+    "completed": [
+      "app/api/venue/availability/route.ts — GET (range list), POST (upsert block/open), PATCH (row update scoped from the row's venue_id), DELETE (clear by date or by id); every path resolves venue scope and passes canManageVenue(auth.supabase, user.id, venueId, 'manage_bookings') before any data access; the service-role client is constructed only after the gate.",
+      "lib/venue/availability.ts — parseAvailabilityDate (yyyy-MM-dd real-calendar-day validation), listVenueAvailability, upsertVenueAvailability (UNIQUE venue_id,date), getVenueAvailabilityById, updateVenueAvailabilityById, clearVenueAvailability/clearVenueAvailabilityById (booking/event-linked rows opened, not deleted), listVenueReservations, isVenueDateBlocked, and NEW toAvailabilityCalendarDay + isVenueEventDateBlocked (receiving one-liner).",
+      "app/venue/components/availability/venue-availability-editor.tsx — venue-scoped block editor wired to /api/venue/availability: month list bound to endOfMonth, create block (POST reason/notes), edit in place (PATCH), clear (DELETE), onChanged refresh drives the calendar.",
+      "app/venue/dashboard/calendar/page.tsx — editor in the side rail; blocked-date cards focus the editor instead of deep-linking to settings with no block manager; layer legend/block dots unchanged.",
+      "app/venue/hooks/use-venue-calendar-data.ts — broken createClient() call replaced with `import { supabase}`; the hook's raw client-role reads were removed under VENUE-005 and both layers now load through the two venue-scoped APIs via loadVenueCalendarLayers.",
+      "Retired mock calendars with zero consumers: app/venue/components/booking-calendar.tsx and components/venue/venue/booking-calendar.tsx (deletions staged in the dirty worktree).",
+      "Tests: venue-availability-api.test.ts (16), venue-availability-lib.test.ts (18, +5 for the new receiving helper), venue-reservations-api.test.ts (10), venue-calendar-raw-read-boundary.test.ts (5), venue-availability-scope-migration.test.ts (12, new).",
+      "Handoff HF-VENUE-004-BOOKING-RECEIVING rewritten with the verified current line references and the exact one-call receiving change.",
+      "Wave 34 SEC-109: app/api/venue/availability/route.ts and app/api/venue/reservations/route.ts registered in lib/supabase/service-role-legacy-imports.json with the VENUE-D05 justification. The check is green tree-wide; the disposition/owner/rationale/review-date fields live in the reviewed-debt registry, which this grant does not include — routed in HF-VENUE-SEC109-DISPOSITION-REGISTRY.",
+      "Wave 34 drift: lib/venue/staff-management.service.ts DELETED after a whole-tree import+symbol+dynamic-import scan proved 0 importers.",
+      "Wave 34 drift: app/venue/components/chat-tab.tsx, app/venue/actions/chat-actions.ts, app/venue/types/chat.ts DELETED (event_team_messages). chat-tab.tsx had 0 importers so the subtree was unreachable.",
+      "Wave 34 drift: app/venue/components/staff/shift-templates.tsx REPOINTED to venue_recurring_shifts with the column mapping documented in-file.",
+      "Wave 34: __tests__/venue/venue-code-drift-cluster.test.ts (29 tests) machine-locks the whole cluster with DDL-shaped absence assertions and a verified negative control.",
+      "Wave 34: VENUE-D05, VENUE-D06, CP-067, CP-068 recorded; STATE.md and the three handoffs updated."
+    ],
+    "next_steps": [
+      "Booking lane: one-call isVenueEventDateBlocked wiring in validateVenueAvailability (route.ts:85-128, eventDate branch 104-125, caller 342) plus a 409 test. SEC-109 registry owner: move the two venue paths from the flat legacy array into service-role-import-review.json with a real disposition. QA-004/DB-002/RELEASE-007: isolated staging, apply 20260924120000, rerun SIM-20260922-VENUE-002 against the deployment SHA. npm run typecheck remains unrun."
+    ],
+    "blockers": [
+      "AC1 receiving side: app/api/booking-requests/** is outside the Wave 34 venue file grant. Re-verified in the current bytes that validateVenueAvailability (route.ts:85-128, eventDate branch 104-125, caller 342) still does not consult venue_availability. Handoff HF-VENUE-004-BOOKING-RECEIVING re-verified and refreshed this wave.",
+      "AC1 hosted side: no isolated staging target exists (RELEASE-007/QA-003), DB-002/DB-008 own the apply and the denial probes, and QA-005 owns the protected actors. All 718 QA-004 coverage rows are not_run. No hosted or credentialed evidence is claimed.",
+      "SEC-109 disposition fields: lib/supabase/service-role-legacy-imports.json is a flat path array with no field for a disposition, owner, rationale, or review date. The registry that has those fields is outside the venue grant and holds a concurrent marketplace lane's uncommitted edits. Routed in HF-VENUE-SEC109-DISPOSITION-REGISTRY rather than expanded into.",
+      "Remaining DB-008 cluster hits in files this grant withholds: lib/services/staff-management.service.ts, lib/services/staff-job-board.service.ts, lib/services/venue-scheduling.service.ts (HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE) and app/api/venues/[id]/route.ts (HF-DB008-TYPECHECK-VENUE-PUBLIC-PROFILE-VIEWS). The venue WORKING_SET.json lists app/venues/** and app/api/venue/** but not app/api/venues/**, so a public venue profile route is unowned by path; that gap is recorded, not silently absorbed.",
+      "Pre-existing type drift in lib/services/venue.service.ts (19), lib/services/artist.service.ts (8), lib/services/account-management.service.ts (2) — 29 errors, all pristine at HEAD, outside this grant. Unchanged from Wave 32.",
+      "npm run typecheck was not run (68m18s on CI, 1,384 errors across 197 files, OOMs on this 8GB box), so the reduction attributable to this cluster is measured per-file, not against a re-run baseline. The orchestrator or release lane owns that measurement.",
+      "Topology maps not regenerated (npm run agents:generate) per the Wave 34 no-shared-map-races constraint."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-25T02:39:09.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Availability write path implemented and verified locally (68/68 venue tests, eslint clean on changed files). Acceptance held open: receiving-side block consumption in booking-requests is out of file scope (handoff filed) and hosted receiving-side rerun credit requires the QA-004 isolated-staging gate.",
+        "completed": [
+          "API route, venue lib, editor, calendar wiring, hook import fix, mock-calendar retirement, 31 availability tests drafted+passing"
+        ],
+        "next_steps": [
+          "Booking lane consumes isVenueDateBlocked in validateVenueAvailability (409 on blocked dates)",
+          "Isolated-staging rerun of SIM-20260922-VENUE-002 once RELEASE-007/QA-003/DB-002/QA-005 gates attach"
+        ],
+        "blockers": [
+          "File-scope boundary on app/api/booking-requests/route.ts",
+          "Hosted receiving-side rerun credit blocked until isolated staging + DB-002 RLS closure + QA-005 actors"
+        ]
+      },
+      {
+        "at": "2026-09-25T13:25:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 32 continuation. Fixed a real TS2322 type error in the VENUE-005 reservations route that the prior 'eslint clean' evidence missed. Added the receiving-side one-call helper (toAvailabilityCalendarDay + isVenueEventDateBlocked, 5 new tests) so HF-VENUE-004-BOOKING-RECEIVING is a single-await change for the booking lane. Added a 12-test fast-tier invariant suite pinning the VENUE-005 migration SQL, the hosted contract SQL's runtime denial probes, and the manifest digest. Venue suite is 102/102 (14 files); eslint exit 0; scoped tsc zero errors in lane files; agents:validate 0 errors; git diff --check clean. Acceptance criterion 1 still open (receiving-side file scope + hosted rerun); criterion 2 met by abstaining from coverage credit.",
+        "completed": [
+          "app/api/venue/reservations/route.ts — TS2322 fix: ISO bounds narrow into locals before assignment instead of into `string | undefined`",
+          "lib/venue/availability.ts — toAvailabilityCalendarDay (UTC calendar day, TZ-independent) and isVenueEventDateBlocked (fails open on an unparseable event date, does not query at all)",
+          "__tests__/venue/venue-availability-scope-migration.test.ts — 12 invariants over the migration SQL, the contract SQL, and the manifest digest/evidence slots",
+          "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json — rewritten with current line refs, dirty-state caveat, commands run, and one next action",
+          "Confirmed no coverage credit exists for venue availability (criterion 2) and machine-asserted the manifest evidence slots stay null"
+        ],
+        "next_steps": [
+          "Booking lane: one-call isVenueEventDateBlocked wiring in validateVenueAvailability plus a 409 rejection test",
+          "DB-002/DB-008: hosted apply of 20260924120000 + run the venue005 contract SQL as a role that can SET ROLE anon/authenticated",
+          "QA-004/RELEASE-007: isolated staging, then rerun SIM-20260922-VENUE-002 against the exact deployment SHA"
+        ],
+        "blockers": [
+          "Receiving-side file-scope boundary on app/api/booking-requests/route.ts",
+          "Hosted staging gate absent (RELEASE-007/QA-003 + QA-005 actors)",
+          "check:migration-validation and check:migration-ledger fail for pre-existing/concurrent and DB-008-owned reasons (exact evidence above)"
+        ]
+      },
+      {
+        "at": "2026-09-25T20:19:38.317Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 32: availability write path locally verified (venue suite 102/102 across 14 files; eslint exit 0; scoped tsc zero errors in lane files; agents:validate 0 errors; git diff --check clean). Fixed a real TS2322 in the reservations route. Added receiving one-call helper toAvailabilityCalendarDay + isVenueEventDateBlocked (+5 tests) so the booking lane's wiring is a single await. Added 12 migration/contract invariants. AC1 still OPEN: receiving edit in app/api/booking-requests/route.ts is outside this task's file scope (handoff HF-VENUE-004-BOOKING-RECEIVING filed with current line refs) and a rerun needs isolated staging (RELEASE-007/QA-003 + QA-005 actors). AC2 MET by abstaining from coverage credit - verified no venue availability credit exists and manifest evidence slots are machine-asserted null.",
+        "completed": [],
+        "next_steps": [
+          "Booking lane: call isVenueEventDateBlocked inside validateVenueAvailability's eventDate branch and return ok:false (caller already maps to 409), then add a focused 409 test. QA-004/DB-002: rerun SIM-20260922-VENUE-002 against the exact deployment SHA once isolated staging exists. No remaining local venue work."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:13:08.810Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: the last failing required check is green. SEC-109 exits 0 after both venue availability/reservations service-role imports were classified rather than refactored - executeServiceRoleJob was evaluated and rejected on three independent grounds (no verified orgId exists for a venue_profiles-scoped boundary, no allowlisted module id covers venue availability, and the client role is revoked by 20260924120000 anyway); justification recorded in VENUE-D05/CP-067. check:migration-chain, check:migration-validation, check:migration-ledger and check:db002-security-contract all exit 0 too. Also cleared the venue-owned share of the DB-008 code-drift cluster: deleted lib/venue/staff-management.service.ts and the dead venue event-chat subtree after re-derived zero-importer proofs, and repointed app/venue/components/staff/shift-templates.tsx from the archived venue_shift_templates to the chain-created venue_recurring_shifts (2 tsc errors before, 0 after). Venue suite 131/131 across 15 files; eslint 0/0; scoped tsc zero errors in venue-owned files; agents:validate 0 errors; git diff --check clean. AC1 still OPEN: the receiving edit is outside the grant and a rerun needs isolated staging. No hosted evidence claimed.",
+        "completed": [],
+        "next_steps": [
+          "Booking lane: one-call isVenueEventDateBlocked wiring in validateVenueAvailability (route.ts:85-128, eventDate branch 104-125, caller 342) plus a 409 test. SEC-109 registry owner: move the two venue paths from the flat legacy array into service-role-import-review.json with a real disposition. QA-004/DB-002/RELEASE-007: isolated staging, apply 20260924120000, rerun SIM-20260922-VENUE-002 against the deployment SHA. npm run typecheck remains unrun."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json"
+  ]
+}

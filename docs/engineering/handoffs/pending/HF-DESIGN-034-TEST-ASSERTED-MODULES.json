@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DESIGN-034-TEST-ASSERTED-MODULES",
+  "task_id": "DESIGN-034",
+  "from_agent": "design-system",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-25T15:36:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "Concurrent Wave 34 multi-lane dirty tree. Both test files below belong to other lanes' paths (__tests__/admin/** is the admin lane's) and were not modified.",
+  "summary": "Two zero-importer modules under lib/services/** are each a live security/behaviour contract that a test asserts by reading the module's SOURCE TEXT. They are not deletable by the design-system lane, and the zero-importer claim alone would have hidden that. Both are held. This is the class of dependency that a bare import-graph sweep silently breaks, so the finding is recorded rather than resolved.",
+  "working_set": [
+    "lib/services/organization-social-integrations.service.ts",
+    "__tests__/admin/content-hub.test.ts:214-227",
+    "app/api/admin/content-hub/integrations/sync/route.ts",
+    "lib/services/social-interactions.service.ts",
+    "__tests__/social/profile-follow-route.test.ts:147-158",
+    "app/api/social/follow/route.ts"
+  ],
+  "completed": [
+    "organization-social-integrations.service.ts: 0 importers, but __tests__/admin/content-hub.test.ts:216 does readFileSync on it and asserts the token-envelope select contract (the route-mirroring select must not carry the legacy plaintext access_token/refresh_token columns, must select account_handle, token_envelope, refresh_token_envelope, and disconnect must null token_envelope and refresh_token_envelope rather than the plaintext columns). Deleting the file would fail the admin lane's test. Also listed in docs/engineering/workspace-ownership/manifest.json and in scripts/agent-tools/generate-workspace-ownership.mjs:409. Zero database diagnostics.",
+    "social-interactions.service.ts: 0 importers, but __tests__/social/profile-follow-route.test.ts:151 reads its source text and asserts it stays on the canonical /api/social/follow request shape (contains '/api/social/follow' and 'followingId', does not contain '\"/api/follow\"'), alongside components/profile/public-profile-view.tsx, components/feed/social-feed.tsx and apps/mobile/lib/api/follow.ts. Deleting the file would fail that test. Zero database diagnostics."
+  ],
+  "next_steps": [
+    "Admin: decide whether organization-social-integrations.service.ts should be adopted by the content-hub integrations sync route (in which case give it a real importer) or retired along with its test assertion. It currently duplicates a route the admin lane owns and has no production caller.",
+    "Social or QA: same decision for social-interactions.service.ts against /api/social/follow.",
+    "Whichever way each decision goes, this lane then either gains the importer and keeps the module, or deletes the module in the same change that retires the test."
+  ],
+  "blockers": [
+    "Both test files are outside the design-system grant, and __tests__/admin/** is explicitly the admin lane's, so the design-system lane cannot retire the assertions that make these modules undeletable."
+  ],
+  "verification": [
+    "PASS: `rg` for the module stems across the whole repository found exactly the two test files plus documentation; no other consumer of either module exists in any spelling.",
+    "PASS: npx vitest run __tests__/admin/content-hub.test.ts and __tests__/social/profile-follow-route.test.ts are included in the 32-file / 248-test focused run that passed both before and after this lane's deletions."
+  ],
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json"
+}

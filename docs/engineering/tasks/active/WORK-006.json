@@ -6,9 +6,9 @@
   "priority": "P1",
   "owner_agent": "work",
   "created_at": "2026-09-22T15:20:20.910Z",
-  "updated_at": "2026-09-22T16:16:47Z",
+  "updated_at": "2026-09-25T21:04:54.708Z",
   "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-  "working_tree_status": "dirty (81 entries)",
+  "working_tree_status": "dirty (320 entries, 6 concurrent lanes)",
   "goal": "Enable worker check-in, check-out, and packet acknowledgement only after reviewed additive SQL, staging feature flag, and scoped denial probes",
   "scope": {
     "in": [
@@ -43,24 +43,26 @@
   "verification": {
     "tier": "feature",
     "commands": [
-      "Focused work-mode API tests",
-      "Migration validation and staging denial probes",
-      "Staging worker/manager rerun"
+      "npx vitest run __tests__/work-mode/",
+      "npx vitest run __tests__/jobs/ __tests__/hiring/ __tests__/work-mode/",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run agents:validate"
     ],
     "evidence": [
-      "Local: 18 focused work-mode tests passed; scoped ESLint, admin route registry, and scoped diff checks passed.",
-      "Worker GET is assignment-and-user scoped; manager read requires workforce.view, acting organization/event access, and revalidated allowlisted service-role target before filtering event attendance.",
-      "Scoped typecheck reported pre-existing unrelated errors; global service-role allowlist check is blocked by a stale marketplace reviewed-debt entry in the shared worktree.",
-      "No hosted SQL, feature flag, database, or actor mutation was performed.",
-      "Worker actions and manager attendance Vitest suites passed locally (2 files, 15 tests); broader Work Mode and staffing selection passed (9 files, 47 tests). Focused action-route lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; flag and hosted SQL unchanged.",
-      "QA-004 product repair validation rerun (2026-09-22): Work Mode action/manager attendance Vitest: 2 files, 15 tests passed; DB-010 migration, RLS probes, staging flag, and actor rerun remain open."
+      "Wave 34 re-run: 43 test files / 231 tests pass across __tests__/jobs/ + __tests__/hiring/ + __tests__/work-mode/, including the 15 worker-action and manager-attendance assertions in the work-mode API and manager-attendance suites.",
+      "Staged and fail-closed, confirmed by reading app/api/work-mode/assignments/[id]/actions/route.ts: both GET and POST check `process.env.FEATURE_WORK_MODE_WORKER_ACTIONS !== '1'` as their first statement and return 503 { code: 'unavailable' } before any client is constructed; the suite asserts createClient was never called on that path. FEATURE_WORK_MODE_WORKER_ACTIONS remains unset.",
+      "No service-role privilege on the worker mutation path: the action route uses the request-scoped createClient() only, so check-in/out and acknowledgement writes are subject to RLS as the signed-in worker. The manager attendance read is the only privileged path and it is gated on workforce.view plus revalidated organization/event access.",
+      "Authorization precedes mutation: the assignment is resolved from the caller's own read model (404 outside it), then the per-assignment permissions.check_in_out capability is checked (403 when absent), and only then does the insert run. Idempotent replay is limited to the same request id + same action + same assignment, and a request id reused for a different action or packet is rejected.",
+      "Type-surface blocker, not an auth blocker: work_mode_check_in_events and work_mode_publication_acknowledgements are created by the active chain (20260922155356_worker_actions_scope_reconciliation.sql) but are absent from lib/database.types.ts, so both the action route and the history read model reach them through documented local any-escapes. They are the only two chain-created relations missing from the generated contract in the whole DB-008 inventory. Handed off to the database lane as HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE.",
+      "No hosted SQL was applied, no feature flag was enabled, no database was reset, and no actor was run."
     ],
-    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty shared working tree)",
     "last_run_at": "2026-09-22T15:56:34Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "Worker/manager attendance read-back local contracts reverified; staged SQL, flag activation, and scoped denial proof remain pending.",
+    "summary": "Worker and manager attendance contracts re-verified in Wave 34 and still staged and fail-closed. Authorization is server-side and ordered before every mutation, the worker path never uses a service-role client, and the feature flag stays unset so nothing is reachable until the reviewed SQL is proven hosted. All four acceptance criteria require hosted evidence (applied migration ledger, persisted idempotency, wrong-tenant denial probes, reload-visible UI), so the task stays active. The new finding is a generated-contract gap that blocks nothing operationally but does block typed access to the two worker-actions relations.",
     "completed": [
       "Worker action retry rejects a request ID reused for another action or packet; publication scope includes its matching event or tour.",
       "Worker attendance GET returns only the signed-in worker’s owned assignment events; both Work Mode views reload persisted history.",
@@ -68,12 +70,14 @@
       "Eighteen focused tests, scoped lint, route registry, and scoped diff checks passed."
     ],
     "next_steps": [
-      "Wait for DB-010 to review archived local-only worker-actions SQL, event/tour/audience policy, event identity mapping, and an additive active migration before any application.",
-      "After RELEASE-007, DB-008, and DB-002 proof, apply reviewed migration manually, enable flag in isolated staging, and rerun worker/manager/wrong-tenant actors on exact SHA."
+      "Wait for DB-010 to review the archived local-only worker-actions SQL, event/tour/audience policy, event identity mapping and an additive active migration before any application.",
+      "After RELEASE-007, DB-008 and DB-002 proof, apply the reviewed migration manually, enable the flag on isolated staging only, and rerun worker, manager and wrong-tenant actors on an exact SHA.",
+      "Drop the local any-escapes once the database lane reconciles the generated contract for the two worker-actions relations."
     ],
     "blockers": [
       "Archived SQL is marked local_only_unapplied and lacks hosted ledger proof; its event-only policy needs tour/audience and event identity review.",
-      "Isolated staging, hosted schema/RLS and denial probes, and campaign actors are pending."
+      "Isolated staging, hosted schema/RLS and denial probes, and campaign actors are all pending; no staging target exists, so every QA-004 campaign coverage row stays not_run.",
+      "The generated contract does not declare work_mode_check_in_events or work_mode_publication_acknowledgements although the active chain creates them; until DB-008 reconciles it, worker action code cannot be type-checked against the real contract."
     ],
     "checkpoints": [
       {
@@ -117,11 +121,22 @@
         "blockers": [
           "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
         ]
+      },
+      {
+        "at": "2026-09-25T21:04:54.708Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Denial proof re-verified locally and kept staged and fail-closed; no hosted action taken. Confirmed by reading the code and re-running the suites: the flag gate is the first statement in both handlers, so with FEATURE_WORK_MODE_WORKER_ACTIONS unset the route returns 503 with code unavailable and never constructs a Supabase client at all, which the suite asserts directly; the worker action route uses the request-scoped createClient only and never a service-role client, so every worker mutation stays inside RLS; and authorization runs before any write - the assignment is resolved from the caller's own read model (404), then the per-assignment capability is checked (403), and only then does the insert happen. Idempotent replay and request-id reuse across a different action or packet are already rejected. The one new durable fact is a type-surface blocker, not an auth blocker: work_mode_check_in_events is created by the active chain but missing from the generated contract, so the reads reach it through a documented local any-escape.",
+        "completed": [],
+        "next_steps": [
+          "Hold FEATURE_WORK_MODE_WORKER_ACTIONS off until the database lane reconciles the worker-actions relations and DB-010 supplies hosted postflight plus exact-SHA persona denial probes; then enable on isolated staging only and rerun the worker/manager/wrong-tenant actors."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
     "Return focused verification and exact-SHA actor rerun evidence to QA-004.",
-    "DB-010 must provide exact-SHA schema and denial proof before staging flag activation."
+    "DB-010 must provide exact-SHA schema and denial proof before staging flag activation.",
+    "HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE to the database lane: reconcile the generated contract for the two chain-created worker-actions relations so the work lane can drop its local any-escapes."
   ]
 }

@@ -33,7 +33,17 @@ jobs:
     if: github.event_name != 'workflow_dispatch'
     needs: unit-tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Wave 32: this was 30m. `npm run build` runs `next build`, and next.config.ts
+    # sets `eslint.ignoreDuringBuilds: false` + `typescript.ignoreBuildErrors: false`,
+    # so the build performs a FULL-repo ESLint and a FULL `tsc --noEmit` inline.
+    # Measured on this SHA in the ci.yml "Lint And Build" job: Lint 48s,
+    # Typecheck 68m18s. The webpack compile itself is only 3.0m. A 30m budget can
+    # therefore never reach `npm run test:e2e`: the 2026-09-22 run of this job spent
+    # 25m31s silent inside "Linting and checking validity of types ..." and was
+    # killed by the job cap, with every E2E step reported as `skipped`.
+    # Budget now matches measured cost, and each expensive step carries its own cap
+    # so a hang is attributed to a named step instead of an ambiguous cancelled job.
+    timeout-minutes: 115
     environment: staging
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -45,7 +55,14 @@ jobs:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
       INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
-      PLAYWRIGHT_BASE_URL: ${{ secrets.STAGING_URL || 'http://localhost:3000' }}
+      # Wave 32: this used a secrets expression that substituted STAGING_URL when
+      # present and otherwise fell back to localhost. That fallback let a
+      # pull-request run silently retarget its mutating specs at a hosted
+      # environment (while `environment: staging` secrets stayed loaded) and hid
+      # the real target. PR E2E is pinned to the artifact this job builds; hosted
+      # certification is the separate launch-certification job.
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,23 +73,58 @@ jobs:
         run: npm install --global npm@11.17.0
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Build app
-        run: npm run build
+
+      - name: Refuse a hosted E2E target (fail closed)
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          set -euo pipefail
+          # Fail fast and diagnostically instead of discovering a misconfigured
+          # target 30+ minutes later inside a browser timeout.
+          if [ -n "${STAGING_URL:-}" ]; then
+            echo "::error::E2E Tests (Playwright) refuses hosted target '${STAGING_URL}'. This job builds and serves its own app at http://localhost:3000. Hosted release certification must use the 'Launch Certification (exact staging SHA)' job (workflow_dispatch, release_sha)."
+            exit 1
+          fi
+          echo "E2E target: ${PLAYWRIGHT_BASE_URL} (artifact built by this job)"
+
+      - name: Build app
+        # Build is the dominant cost. Cap it explicitly so a slow or hung build
+        # fails as "Build app" with a retained log rather than as a cancelled job.
+        timeout-minutes: 80
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-app.log
+        env:
+          # `npm run build` hardcodes NODE_OPTIONS='--max-old-space-size=6144'
+          # inline, which overrides any value set here. The previous
+          # '--max-old-space-size=4096' step value was therefore dead config;
+          # it is removed so the effective heap is visible in one place.
+          NEXT_TELEMETRY_DISABLED: '1'
+
       - name: Start app
         run: npm run start &
         env:
           PORT: 3000
+
       - name: Wait for app
+        # wait-on already caps at 60s; the step cap makes a stuck server
+        # attributable to this step.
+        timeout-minutes: 5
         run: npx wait-on http://localhost:3000 --timeout 60000
+
       - name: Run E2E tests
+        # playwright.config.ts globalTimeout (20m) is the real bound; this step
+        # cap leaves room for report collection before the job cap.
+        timeout-minutes: 25
         run: npm run test:e2e
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            build-app.log
           retention-days: 7
 
   launch-certification:

@@ -11,6 +11,7 @@ import { resolveActingContext } from "@/lib/auth/acting-context"
 import { resolveMarketplaceEntitlements } from "@/lib/marketplace/entitlement-resolver"
 import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
 import { enforceFeaturedRankCap } from "@/lib/marketplace/storefront-curation"
+import { getStorefrontStorageCompatibilityIssue } from "@/lib/marketplace/storefront-identity"
 import { getTrackFullStoragePath, getTrackPreviewStoragePath, getTrackStorageBucket } from "@/lib/music/music-access"
 
 const updateVariantSchema = z.object({
@@ -91,11 +92,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const ctx = await resolveActingContext(request)
     if (ctx instanceof NextResponse) return ctx
-    const { user: { id: userId }, accountType, supabase } = ctx
+    const { userId, accountType, supabase } = ctx
     const user = { id: userId }
 
     const accountGuard = requireMarketplaceEnabledForAccount(accountType)
     if (accountGuard) return accountGuard
+    const storageIssue = getStorefrontStorageCompatibilityIssue(ctx)
+    if (storageIssue) {
+      return jsonError({
+        status: 503,
+        code: storageIssue.code,
+        message: storageIssue.message,
+        retryable: false,
+        issues: storageIssue.owner,
+      })
+    }
 
     // Account-type entitlement check
     const entitlements = resolveMarketplaceEntitlements(accountType)

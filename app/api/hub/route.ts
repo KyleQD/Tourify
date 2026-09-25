@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import {
+  fetchInternalJson,
+  type InternalUpstreamRoute,
+} from '@/lib/discover/internal-json-fetch'
+import { parseAllowedOrigins, type AllowedOrigin } from '@/lib/discover/outbound-guard'
+
+/**
+ * The hub fan-out runs on `node:https` / `node:dns` (resolve-then-pin), so this
+ * handler must stay on the Node.js runtime.
+ */
+export const runtime = 'nodejs'
+
+/** A forwarded `Cookie` header is bounded so the hop has a fixed cost ceiling. */
+const MAX_FORWARDED_COOKIE_BYTES = 8 * 1024
 
 type HubIntent = 'grow' | 'network' | 'book' | 'learn'
 
@@ -63,32 +77,43 @@ function normalizeIntent(value: string | null): HubIntent {
   return 'grow'
 }
 
-async function fetchJson({
-  request,
-  pathname,
-  searchParams,
+/**
+ * Security decision DISC-SSRF-002 — port of the `/api/discover` guard.
+ *
+ * The previous implementation built the outbound base from
+ * `request.nextUrl.origin`, which reflects the inbound `Host` /
+ * `X-Forwarded-Host` header, and then issued
+ * `fetch(`${baseUrl}${fullPath}`)`. A caller who could set that header chose
+ * the destination of three server-side requests, and the plain `fetch` would
+ * also follow a redirect from the first hop. CodeQL did not flag it because
+ * `js/request-forgery` treats `request.url` as a remote-flow source but not
+ * `request.nextUrl.origin`.
+ *
+ * The destination is now an operator-declared exact origin
+ * (`INTERNAL_API_ORIGIN` -> `NEXT_PUBLIC_APP_URL` ->
+ * `VERCEL_PROJECT_PRODUCTION_URL` -> `VERCEL_URL`), the pathname is a
+ * compile-time constant, and the transport is resolve-then-pin over
+ * `node:https` with structural redirect denial, a wall-clock timeout, a 2 MiB
+ * cap, and a JSON content-type requirement. Denials log the route key and the
+ * reason only — never a parameter value and never a resolved URL.
+ */
+async function fetchUpstream({
+  route,
+  params,
+  headers,
+  allowlist,
 }: {
-  request: NextRequest
-  pathname: string
-  searchParams?: URLSearchParams
+  route: InternalUpstreamRoute
+  params?: Record<string, string | number | boolean | null | undefined>
+  headers: Record<string, string>
+  allowlist: readonly AllowedOrigin[]
 }) {
-  const baseUrl = request.nextUrl.origin
-  const fullPath = searchParams ? `${pathname}?${searchParams.toString()}` : pathname
-  const headers: HeadersInit = {}
-  const cookie = request.headers.get('cookie')
-  if (cookie) headers.cookie = cookie
-
-  try {
-    const response = await fetch(`${baseUrl}${fullPath}`, {
-      headers,
-      cache: 'no-store',
-    })
-    if (!response.ok) return null
-    return response.json()
-  } catch (error) {
-    console.error(`[Hub API] Failed to fetch ${pathname}:`, error)
+  const result = await fetchInternalJson({ route, params, headers, allowlist })
+  if (!result.ok) {
+    console.error(`[Hub API] Upstream "${route}" denied: ${result.denial}`)
     return null
   }
+  return result.data
 }
 
 export async function GET(request: NextRequest) {
@@ -96,28 +121,38 @@ export async function GET(request: NextRequest) {
   const location = request.nextUrl.searchParams.get('location')?.trim() || ''
   const intent = normalizeIntent(request.nextUrl.searchParams.get('intent'))
 
-  const discoverParams = new URLSearchParams({
-    limit: '8',
-    intent,
-  })
-  if (location) discoverParams.set('location', location)
+  // Plain records, not `URLSearchParams`: `buildUpstreamUrl` re-encodes each
+  // declared key through `URLSearchParams`, so a value can only ever reach the
+  // query string of the frozen pathname.
+  const discoverParams: Record<string, string> = { limit: '8', intent }
+  if (location) discoverParams.location = location
 
-  const newsParams = new URLSearchParams({
+  const newsParams: Record<string, string> = {
     facet: location ? 'local' : 'top',
     limit: '8',
-  })
-  if (location) newsParams.set('query', location)
+  }
+  if (location) newsParams.query = location
 
-  const jobsParams = new URLSearchParams({
-    per_page: '6',
-    page: '1',
-  })
-  if (location) jobsParams.set('query', location)
+  const jobsParams: Record<string, string> = { per_page: '6', page: '1' }
+  if (location) jobsParams.query = location
+
+  // The three upstreams are session-aware, so the caller's own cookie is
+  // forwarded — but only to an origin the operator allowlisted.
+  const headers: Record<string, string> = {}
+  const cookie = request.headers.get('cookie')
+  if (cookie) headers.cookie = cookie.slice(0, MAX_FORWARDED_COOKIE_BYTES)
+
+  const allowlist = parseAllowedOrigins()
+  if (allowlist.length === 0) {
+    console.warn(
+      '[Hub API] No internal upstream origin is allowlisted; the hub fan-out is disabled. Set INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_URL).'
+    )
+  }
 
   const [discoverRaw, newsRaw, jobsRaw] = await Promise.all([
-    fetchJson({ request, pathname: '/api/discover', searchParams: discoverParams }),
-    fetchJson({ request, pathname: '/api/news/feed', searchParams: newsParams }),
-    fetchJson({ request, pathname: '/api/artist-jobs', searchParams: jobsParams }),
+    fetchUpstream({ route: 'hubDiscover', params: discoverParams, headers, allowlist }),
+    fetchUpstream({ route: 'hubNewsFeed', params: newsParams, headers, allowlist }),
+    fetchUpstream({ route: 'hubArtistJobs', params: jobsParams, headers, allowlist }),
   ])
 
   const discover = (discoverRaw || {}) as DiscoverPayload

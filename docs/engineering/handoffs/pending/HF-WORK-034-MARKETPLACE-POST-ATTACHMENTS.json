@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-WORK-034-MARKETPLACE-POST-ATTACHMENTS",
+  "task_id": "WORK-007",
+  "from_agent": "work",
+  "to_agent": "marketplace",
+  "status": "pending",
+  "created_at": "2026-09-25T22:08:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The `marketplace_post_attachments` object was routed to the work lane twice (DB-008 events and DB-008 logistics clusters). This closes the work lane's share with a corrected consumer set: the two files the inventory records as LIVE consumers for this object, `lib/events/canonical-event-service.ts` and `lib/logistics/plans.ts`, contain NO reference to `marketplace_post_attachments` anywhere in the working tree, and both are unmodified from the CI SHA d2176904, so their diagnostic hits were downstream type noise from a missing relation rather than direct references. The only real references are one live route the marketplace lane owns and one dead module it also owns.",
+  "working_set": [
+    "app/api/marketplace/share-to-feed/route.ts (READ ONLY - marketplace lane owns it)",
+    "lib/marketplace/feed-attachment.ts (READ ONLY - marketplace lane owns it)",
+    "lib/events/canonical-event-service.ts (READ ONLY)",
+    "lib/logistics/plans.ts (READ ONLY)",
+    "docs/engineering/database-type-inventory-2026-09-25.json (READ ONLY)"
+  ],
+  "evidence": {
+    "corrected_reference_set": "rg for the literal `marketplace_post_attachments` across all code (excluding docs/ and supabase/) returns exactly two code files: app/api/marketplace/share-to-feed/route.ts and lib/marketplace/feed-attachment.ts.",
+    "logistics_share_is_empty": "lib/logistics/plans.ts and lib/events/canonical-event-service.ts have zero matches for the object name, and `git status --porcelain` reports both unmodified, so the working tree matches the d2176904 tree the CI log was produced from. The 18 diagnostic hits attributed to the logistics cluster are not references to this object in these files.",
+    "live_reference": "app/api/marketplace/share-to-feed/route.ts is a Next route handler, therefore entry-reachable and LIVE. Deleting is not an option; it needs either a repoint or an additive migration.",
+    "dead_reference": "lib/marketplace/feed-attachment.ts has two importers, components/marketplace/feed-listing-card.tsx and components/marketplace/feed-storefront-card.tsx, and NEITHER card has any importer in the repository. With the third importer being its own unit test, the module is unreachable from every entry point and can be deleted whole.",
+    "object_verdict": "Absent from the active migration chain and from lib/database.types.ts. The only SQL that ever defined it is archived: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260728000008_marketplace_post_attachments.sql and .../20260728000012_marketplace_p2_fk_index_remediation.sql. Regeneration cannot satisfy it.",
+    "no_canonical_replacement_recorded": "The inventory records canonicalReplacement: null. Feed attachments in the current product appear to be carried by event_posts, which is a separate object the events lane already owns; confirming that is the marketplace lane's call, not a work-lane assumption."
+  },
+  "next_steps": [
+    "Decide the live route's fate: repoint app/api/marketplace/share-to-feed/route.ts to whatever relation now carries feed attachments, or ask the database lane for an additive forward-only migration if the relation is genuinely required.",
+    "Delete lib/marketplace/feed-attachment.ts together with its unreachable importers and its unit test, or keep it and record why. Either way, 18 of the diagnostics attributed to this object stop being reachable once the dead pile goes.",
+    "Correct the logistics and events cluster attribution in the next inventory refresh so no lane spends time on files that never referenced the object."
+  ],
+  "blockers": [
+    "No canonical replacement is recorded in the repository, so a repoint cannot be prescribed from evidence by the work lane; that decision needs the marketplace/events owners.",
+    "The inventory's consumerLivenessMethod attributes hits to files by diagnostic text, which over-reports here. Until a real tsc run happens (see inventory knownGaps), liveness claims for this object should be read as indicative."
+  ],
+  "verification": [
+    "PASS: rg reference set, git status unmodified check, and an import-graph walk from 1,441 entry points all agree on the two-file reference set and on feed-attachment.ts being unreachable.",
+    "NOT RUN: no typecheck, no test run against marketplace surfaces, no migration, no hosted action."
+  ]
+}

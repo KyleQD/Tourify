@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import {
   Building, Loader2, Check, Copy, Link
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 import { cn } from "@/lib/utils"
 
 interface Collaborator {
@@ -51,6 +52,9 @@ export function SiteMapShareDialog({
   eventId
 }: SiteMapShareDialogProps) {
   const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
+  const actingContextKeyRef = useRef(actingContextKey)
+  actingContextKeyRef.current = actingContextKey
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
@@ -61,30 +65,40 @@ export function SiteMapShareDialog({
   const [venueUser, setVenueUser] = useState<any>(null)
   const [publicLink, setPublicLink] = useState('')
 
+  useEffect(() => {
+    setCollaborators([])
+    setVenueUser(null)
+    setPublicLink('')
+  }, [actingContextKey])
+
   const loadCollaborators = useCallback(async () => {
+    if (!isAdminReady) return
+    const requestContextKey = actingContextKey
     setIsLoading(true)
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/collaborators`, {
-        credentials: 'include'
-      })
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/collaborators`)
       const data = await resp.json()
-      if (data.success) setCollaborators(data.data || [])
+      if (actingContextKeyRef.current === requestContextKey && data.success) {
+        setCollaborators(data.data || [])
+      }
     } catch {} finally {
-      setIsLoading(false)
+      if (actingContextKeyRef.current === requestContextKey) setIsLoading(false)
     }
-  }, [siteMapId])
+  }, [actingContextKey, adminFetch, isAdminReady, siteMapId])
 
   // Load venue user for the event (if eventId provided)
   useEffect(() => {
-    if (!eventId || !open) return
+    if (!eventId || !open || !isAdminReady) return
+    let cancelled = false
     async function loadVenue() {
       try {
-        const resp = await fetch(`/api/admin/events/${eventId}`, { credentials: 'include' })
+        const resp = await adminFetch(`/api/admin/events/${eventId}`)
         const data = await resp.json()
+        if (cancelled) return
         if (data.venue_id) {
-          const venueResp = await fetch(`/api/admin/venues?id=${data.venue_id}`, { credentials: 'include' })
+          const venueResp = await adminFetch(`/api/admin/venues?id=${data.venue_id}`)
           const venueData = await venueResp.json()
-          if (venueData.data?.[0]?.user_id) {
+          if (!cancelled && venueData.data?.[0]?.user_id) {
             setVenueUser({
               id: venueData.data[0].user_id,
               name: venueData.data[0].name || 'Event Venue',
@@ -94,8 +108,11 @@ export function SiteMapShareDialog({
         }
       } catch {}
     }
-    loadVenue()
-  }, [eventId, open])
+    void loadVenue()
+    return () => {
+      cancelled = true
+    }
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, open])
 
   useEffect(() => {
     if (open) loadCollaborators()
@@ -125,7 +142,7 @@ export function SiteMapShareDialog({
   const shareWith = async (userId: string, permissions: 'view' | 'edit' | 'admin') => {
     setIsSharing(true)
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/share`, {
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -149,7 +166,7 @@ export function SiteMapShareDialog({
 
   const removeCollab = async (userId: string) => {
     try {
-      const resp = await fetch(
+      const resp = await adminFetch(
         `/api/admin/logistics/site-maps/${siteMapId}/collaborators?userId=${userId}`,
         { method: 'DELETE', credentials: 'include' }
       )
@@ -169,7 +186,7 @@ export function SiteMapShareDialog({
 
   const generatePublicLink = async () => {
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/public-link`, {
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/public-link`, {
         method: 'POST',
         credentials: 'include',
       })

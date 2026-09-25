@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-007",
+  "title": "Consolidate logistics domain workspaces",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:10.297Z",
+  "updated_at": "2026-09-24T00:38:33Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (23 entries)",
+  "goal": "Organize Travel and Transport plus Production panels, lazy-load detailed domains, and standardize their states and deep links.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": ["npx eslint app/admin/dashboard/logistics/logistics-control-tower-client.tsx components/admin/logistics hooks/use-travel-coordination.ts hooks/use-lodging.ts hooks/use-rentals.ts"],
+    "evidence": ["Travel and Production panels mount only when active and require explicit event/tour scope before detailed records load."],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "passed"
+  },
+  "progress": {
+    "summary": "Travel & Transport and Production workspaces are consolidated behind lazy, scope-safe secondary navigation.",
+    "completed": ["Added the required secondary panels.", "Prevented detailed reads without explicit scope.", "Kept vendor/catalog prototypes out of visible navigation."],
+    "next_steps": ["Continue detailed per-domain UX refinements only when backed by active persistent contracts."],
+    "blockers": [],
+    "checkpoints": [{"at":"2026-09-24T00:38:33Z","summary":"Consolidated active domain tools and removed organization-wide detailed-data fan-out.","next":"Verify each scoped mutation in authenticated QA."}]
+  },
+  "handoffs": []
+}

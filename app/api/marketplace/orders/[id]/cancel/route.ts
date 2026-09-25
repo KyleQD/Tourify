@@ -35,9 +35,11 @@ export async function POST(
     return jsonError({ status: 403, code: "forbidden", message: "You cannot cancel this order." })
   }
 
+  const actorRole = order.buyer_user_id === userId ? "buyer" : order.seller_user_id === userId ? "seller" : "unknown"
   const transition = getCancellationLifecycleTransition({
     orderStatus: order.status,
     paymentStatus: order.payment_status,
+    actorRole,
   })
   if (!transition.allowed) {
     if (transition.reason === "already_cancelled") {
@@ -46,9 +48,12 @@ export async function POST(
     return jsonError({
       status: 409,
       code: transition.reason,
-      message: transition.reason === "refund_required"
-        ? "Paid orders must use the refund workflow."
-        : "This order can no longer be cancelled.",
+      message:
+        transition.reason === "refund_required"
+          ? "Paid orders must use the refund workflow."
+          : transition.reason === "buyer_required"
+            ? "Only the buyer can cancel an unpaid marketplace order."
+            : "This order can no longer be cancelled.",
       retryable: false,
     })
   }
@@ -56,13 +61,22 @@ export async function POST(
   if (order.stripe_checkout_session_id) {
     try {
       await getStripeClient().checkout.sessions.expire(order.stripe_checkout_session_id)
-    } catch {
-      return jsonError({
-        status: 409,
-        code: "checkout_session_not_cancellable",
-        message: "The payment session can no longer be cancelled. Refresh the order before retrying.",
-        retryable: false,
-      })
+    } catch (error) {
+      const stripeCode = typeof error === "object" && error ? (error as { code?: string }).code : undefined
+      const stripeMessage = typeof error === "object" && error ? (error as { message?: string }).message : undefined
+      const alreadyExpired =
+        stripeCode === "resource_missing" ||
+        stripeCode === "checkout_session_expired" ||
+        /expire|expired/i.test(stripeMessage || "")
+
+      if (!alreadyExpired) {
+        return jsonError({
+          status: 409,
+          code: "checkout_session_not_cancellable",
+          message: "The payment session can no longer be cancelled. Refresh the order before retrying.",
+          retryable: false,
+        })
+      }
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 import { cn } from "@/lib/utils"
 
 interface TourOption {
@@ -13,6 +14,7 @@ interface StopOption {
   id: string
   name: string
   legLabel?: string | null
+  tourId?: string | null
 }
 
 interface LogisticsScopeBarProps {
@@ -43,7 +45,6 @@ interface LogisticsScopeBarProps {
 export function LogisticsScopeBar({
   orgLabel,
   actingOrgId,
-  actingHeaders,
   isActingReady = true,
   tourId,
   eventId,
@@ -51,6 +52,7 @@ export function LogisticsScopeBar({
   onChange,
   className,
 }: LogisticsScopeBarProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [tours, setTours] = useState<TourOption[]>([])
   const [stops, setStops] = useState<StopOption[]>([])
   const [isLoadingTours, setIsLoadingTours] = useState(false)
@@ -60,15 +62,11 @@ export function LogisticsScopeBar({
   useEffect(() => {
     let active = true
     async function loadTours() {
-      if (!isActingReady) return
+      if (!isActingReady || !isAdminReady) return
       setIsLoadingTours(true)
       setScopeError(null)
       try {
-        const res = await fetch("/api/admin/tours?limit=100", {
-          credentials: "include",
-          cache: "no-store",
-          headers: { ...(actingHeaders || {}) },
-        })
+        const res = await adminFetch("/api/admin/tours?limit=100", { cache: "no-store" })
         if (!res.ok) {
           const body = await res.json().catch(() => null)
           console.warn("[LogisticsScopeBar] tours load failed", res.status, body?.code || body?.error)
@@ -100,23 +98,18 @@ export function LogisticsScopeBar({
     return () => {
       active = false
     }
-  }, [actingOrgId, actingHeaders, isActingReady])
+  }, [actingContextKey, actingOrgId, adminFetch, isActingReady, isAdminReady])
 
   useEffect(() => {
     let active = true
     async function loadStops() {
-      if (!tourId) {
-        setStops([])
-        return
-      }
+      if (!isActingReady || !isAdminReady) return
       setIsLoadingStops(true)
       try {
-        const res = await fetch(`/api/admin/tours/${tourId}/events`, {
-          credentials: "include",
-          cache: "no-store",
-          headers: { ...(actingHeaders || {}) },
-        })
-        if (!res.ok) throw new Error("Failed to load stops")
+        const params = new URLSearchParams({ limit: "100" })
+        if (tourId) params.set("tour_id", tourId)
+        const res = await adminFetch(`/api/admin/events?${params.toString()}`, { cache: "no-store" })
+        if (!res.ok) throw new Error("Failed to load events")
         const data = await res.json()
         const rows = Array.isArray(data.events)
           ? data.events
@@ -131,10 +124,13 @@ export function LogisticsScopeBar({
             leg_label?: string
             stop_label?: string
             city?: string
+            tour_id?: string | null
+            primary_tour_id?: string | null
           }) => ({
             id: String(e.id),
             name: String(e.name || e.title || "Untitled stop"),
             legLabel: e.leg_label || e.stop_label || e.city || null,
+            tourId: e.tour_id || e.primary_tour_id || tourId || null,
           }),
         )
         if (active) setStops(list)
@@ -148,7 +144,7 @@ export function LogisticsScopeBar({
     return () => {
       active = false
     }
-  }, [tourId, actingHeaders])
+  }, [actingContextKey, adminFetch, isActingReady, isAdminReady, tourId])
 
   const handleTourChange = useCallback(
     (value: string) => {
@@ -176,6 +172,7 @@ export function LogisticsScopeBar({
       }
       const stop = stops.find((s) => s.id === value)
       onChange({
+        tourId: stop?.tourId || null,
         eventId: value,
         legId: stop?.legLabel || null,
         eventName: stop?.name || null,
@@ -217,21 +214,19 @@ export function LogisticsScopeBar({
         <Select
           value={eventId || "__all__"}
           onValueChange={handleStopChange}
-          disabled={!tourId || isLoadingStops}
+          disabled={!isActingReady || !isAdminReady || isLoadingStops}
         >
           <SelectTrigger className="h-9 border-slate-600 bg-slate-900/70 text-slate-200">
             <SelectValue
               placeholder={
-                !tourId
-                  ? "Select a tour first"
-                  : isLoadingStops
+                isLoadingStops
                     ? "Loading stops…"
-                    : "Stop / event"
+                    : "Event (optional)"
               }
             />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All stops</SelectItem>
+            <SelectItem value="__all__">All events</SelectItem>
             {stops.map((stop) => (
               <SelectItem key={stop.id} value={stop.id}>
                 {stop.name}

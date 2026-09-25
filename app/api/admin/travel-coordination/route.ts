@@ -7,6 +7,7 @@ import {
 } from '@/lib/admin/travel-command-schemas'
 import {
   resolveTravelScopeOrgId,
+  resolveOrgIdFromParent,
   withParentOrgId,
 } from '@/lib/admin/travel-tenant-keys'
 import {
@@ -19,6 +20,10 @@ import {
   projectTravelerNestedRecord,
   projectTravelerRecords,
 } from '@/lib/admin/traveler-field-projection'
+import {
+  authorizedOrgScopeErrorResponse,
+  resolveAuthorizedOrgLogisticsScope,
+} from '@/lib/admin/resolve-authorized-org'
 
 function ok(data: unknown, message?: string) {
   return NextResponse.json({ success: true, data, ...(message ? { message } : {}) })
@@ -48,7 +53,7 @@ function assertOrgMatch(actingOrgId: string, recordOrgId: string | null | undefi
 }
 
 function stripCommandMeta(data: Record<string, unknown>) {
-  const { action: _a, id: _i, ...rest } = data
+  const { action: _a, id: _i, org_id: _orgId, ...rest } = data
   return rest
 }
 
@@ -59,6 +64,7 @@ function stripCommandMeta(data: Record<string, unknown>) {
 export async function GET(request: NextRequest) {
   const { denied, auth, admin } = await requireAuth(request)
   if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.view')) return err('Forbidden', 403)
 
   const { searchParams } = new URL(request.url)
   const type = searchParams.get('type') || 'groups'
@@ -73,31 +79,42 @@ export async function GET(request: NextRequest) {
   const capabilities = admin.capabilities
 
   try {
+    if (!eventId && !tourId) return err('Select a tour or event to view travel logistics.', 422)
+    await resolveAuthorizedOrgLogisticsScope({
+      userId: auth.user.id,
+      requestedOrgId: admin.orgId,
+      eventId,
+      tourId,
+      allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+    })
+    const scopedFilters = { limit, offset, status, groupType, eventId, tourId, dateFrom, dateTo }
     switch (type) {
       case 'groups':
-        return await getGroups(auth.supabase, { limit, offset, status, groupType, eventId, tourId, dateFrom, dateTo })
+        return await getGroups(auth.supabase, scopedFilters)
       case 'group_members':
-        return await getGroupMembers(auth.supabase, { limit, offset, status, groupType }, capabilities)
+        return await getGroupMembers(auth.supabase, scopedFilters, capabilities)
       case 'flights':
-        return await getFlights(auth.supabase, { limit, offset, status, eventId, tourId, dateFrom, dateTo })
+        return await getFlights(auth.supabase, scopedFilters)
       case 'flight_passengers':
-        return await getFlightPassengers(auth.supabase, { limit, offset, status }, capabilities)
+        return await getFlightPassengers(auth.supabase, scopedFilters, capabilities)
       case 'transportation':
-        return await getTransportation(auth.supabase, { limit, offset, status, eventId, tourId, dateFrom, dateTo })
+        return await getTransportation(auth.supabase, scopedFilters)
       case 'transportation_passengers':
-        return await getTransportationPassengers(auth.supabase, { limit, offset, status }, capabilities)
+        return await getTransportationPassengers(auth.supabase, scopedFilters, capabilities)
       case 'hotel_assignments':
-        return await getHotelAssignments(auth.supabase, { limit, offset, status }, capabilities)
+        return await getHotelAssignments(auth.supabase, scopedFilters, capabilities)
       case 'timeline':
-        return await getTimeline(auth.supabase, { limit, offset, dateFrom, dateTo })
+        return await getTimeline(auth.supabase, scopedFilters)
       case 'analytics':
-        return await getAnalytics(auth.supabase)
+        return await getAnalytics(auth.supabase, scopedFilters)
       case 'utilization':
-        return await getUtilization(auth.supabase, { limit, offset })
+        return await getUtilization(auth.supabase, scopedFilters)
       default:
         return err(`Unknown type: ${type}`, 400)
     }
   } catch (error: any) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error(`[Travel Coordination] GET (${type}) error:`, error)
     return err(error.message || 'Failed to fetch travel coordination data')
   }
@@ -110,6 +127,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { denied, auth, admin } = await requireAuth(request)
   if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.manage')) return err('Forbidden', 403)
 
   try {
     const rawBody = await request.json()
@@ -128,6 +146,7 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'create_travel_group': {
         const groupData = stripCommandMeta(body)
+        if (!groupData.tour_id && !groupData.event_id) return err('Select a tour or event before creating a travel group.', 422)
         const parentOrgId = await resolveTravelScopeOrgId({
           supabase: auth.supabase,
           tourId: typeof groupData.tour_id === 'string' ? groupData.tour_id : null,
@@ -137,10 +156,9 @@ export async function POST(request: NextRequest) {
           const mismatch = assertOrgMatch(actingOrgId, parentOrgId, 'Tour/event parent')
           if (mismatch) return mismatch
         }
-        const orgId = parentOrgId || actingOrgId
         const { data, error } = await auth.supabase
           .from('travel_groups')
-          .insert({ ...groupData, created_by: auth.user.id, org_id: orgId })
+          .insert({ ...groupData, created_by: auth.user.id })
           .select('*')
           .single()
         if (error) throw error
@@ -179,7 +197,6 @@ export async function POST(request: NextRequest) {
         const rows = members.map((m) => ({
           ...m,
           group_id,
-          org_id: orgId,
         }))
         const { data, error } = await auth.supabase
           .from('travel_group_members')
@@ -191,6 +208,7 @@ export async function POST(request: NextRequest) {
 
       case 'create_flight': {
         const flightData = stripCommandMeta(body)
+        if (!flightData.tour_id && !flightData.event_id && !flightData.group_id) return err('Select a tour, event, or travel group before creating a flight.', 422)
         const parentOrgId = await resolveTravelScopeOrgId({
           supabase: auth.supabase,
           tourId: typeof flightData.tour_id === 'string' ? flightData.tour_id : null,
@@ -201,10 +219,9 @@ export async function POST(request: NextRequest) {
           const mismatch = assertOrgMatch(actingOrgId, parentOrgId, 'Flight parent')
           if (mismatch) return mismatch
         }
-        const orgId = parentOrgId || actingOrgId
         const { data, error } = await auth.supabase
           .from('flight_coordination')
-          .insert({ ...flightData, assigned_by: auth.user.id, org_id: orgId })
+          .insert({ ...flightData, assigned_by: auth.user.id })
           .select('*')
           .single()
         if (error) throw error
@@ -240,7 +257,7 @@ export async function POST(request: NextRequest) {
           const mismatch = assertOrgMatch(actingOrgId, scopeOrgId, 'Flight parent')
           if (mismatch) return mismatch
         }
-        const memberOrgId = scopeOrgId || actingOrgId
+        if (!tour_id && !event_id && !groupId) return err('Select a tour, event, or travel group before creating a flight.', 422)
 
         if (!groupId) {
           const { data: group, error: groupError } = await auth.supabase
@@ -252,9 +269,8 @@ export async function POST(request: NextRequest) {
               tour_id,
               created_by: auth.user.id,
               status: 'planning',
-              org_id: memberOrgId,
             })
-            .select('id, org_id')
+            .select('id')
             .single()
           if (groupError) throw groupError
           groupId = group.id
@@ -268,7 +284,6 @@ export async function POST(request: NextRequest) {
             member_email: passenger_email || null,
             user_id: passenger_user_id,
             status: 'confirmed',
-            org_id: memberOrgId,
           })
           .select('*')
           .single()
@@ -291,7 +306,6 @@ export async function POST(request: NextRequest) {
             tour_id,
             group_id: groupId,
             assigned_by: auth.user.id,
-            org_id: memberOrgId,
           })
           .select('*')
           .single()
@@ -303,7 +317,6 @@ export async function POST(request: NextRequest) {
           group_member_id: member.id,
           passenger_name: passenger_name.trim(),
           status: 'confirmed',
-          org_id: memberOrgId,
         }
         const firstAttempt = await auth.supabase
           .from('flight_passenger_assignments')
@@ -329,6 +342,7 @@ export async function POST(request: NextRequest) {
 
       case 'create_ground_transportation': {
         const transportData = stripCommandMeta(body)
+        if (!transportData.tour_id && !transportData.event_id && !transportData.group_id) return err('Select a tour, event, or travel group before creating transport.', 422)
         const parentOrgId = await resolveTravelScopeOrgId({
           supabase: auth.supabase,
           tourId: typeof transportData.tour_id === 'string' ? transportData.tour_id : null,
@@ -339,10 +353,9 @@ export async function POST(request: NextRequest) {
           const mismatch = assertOrgMatch(actingOrgId, parentOrgId, 'Transport parent')
           if (mismatch) return mismatch
         }
-        const orgId = parentOrgId || actingOrgId
         const { data, error } = await auth.supabase
           .from('ground_transportation_coordination')
-          .insert({ ...transportData, assigned_by: auth.user.id, org_id: orgId })
+          .insert({ ...transportData, assigned_by: auth.user.id })
           .select('*')
           .single()
         if (error) throw error
@@ -414,6 +427,7 @@ export async function POST(request: NextRequest) {
 
       case 'create_timeline_entry': {
         const timelineData = stripCommandMeta(body)
+        if (!timelineData.tour_id && !timelineData.event_id && !timelineData.group_id) return err('Select a tour, event, or travel group before adding a timeline entry.', 422)
         const parentOrgId = await resolveTravelScopeOrgId({
           supabase: auth.supabase,
           tourId: typeof timelineData.tour_id === 'string' ? timelineData.tour_id : null,
@@ -424,10 +438,9 @@ export async function POST(request: NextRequest) {
           const mismatch = assertOrgMatch(actingOrgId, parentOrgId, 'Timeline parent')
           if (mismatch) return mismatch
         }
-        const orgId = parentOrgId || actingOrgId
         const { data, error } = await auth.supabase
           .from('travel_coordination_timeline')
-          .insert({ ...timelineData, created_by: auth.user.id, org_id: orgId })
+          .insert({ ...timelineData, created_by: auth.user.id })
           .select('*')
           .single()
         if (error) throw error
@@ -444,14 +457,12 @@ export async function POST(request: NextRequest) {
           .single()
         if (groupError) throw groupError
 
-        const coordinateOrgId =
-          (typeof group.org_id === 'string' && group.org_id)
-          || (await resolveTravelScopeOrgId({
+        const coordinateOrgId = await resolveTravelScopeOrgId({
             supabase: auth.supabase,
             groupId: group_id,
             tourId: group.tour_id || null,
             eventId: group.event_id || null,
-          }))
+          })
         const mismatch = assertOrgMatch(actingOrgId, coordinateOrgId, 'Travel group')
         if (mismatch) return mismatch
 
@@ -475,7 +486,6 @@ export async function POST(request: NextRequest) {
             event_id: group.event_id,
             tour_id: group.tour_id,
             created_by: auth.user.id,
-            org_id: coordinateOrgId,
           })
         draftsCreated.push('timeline_review')
 
@@ -498,7 +508,6 @@ export async function POST(request: NextRequest) {
             status: 'scheduled',
             assigned_by: auth.user.id,
             vehicle_capacity: group.total_members || null,
-            org_id: coordinateOrgId,
           })
           .select('id')
           .maybeSingle()
@@ -511,7 +520,6 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', group_id)
-          .eq('org_id', actingOrgId)
 
         const message = formatAutoCoordinateMessage({
           groupName: group.name,
@@ -547,6 +555,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const { denied, auth, admin } = await requireAuth(request)
   if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.manage')) return err('Forbidden', 403)
 
   try {
     const rawBody = await request.json()
@@ -570,7 +579,19 @@ export async function PUT(request: NextRequest) {
         .eq('id', id)
         .single()
       if (error) throw error
-      const mismatch = assertOrgMatch(actingOrgId, data?.org_id, table)
+      const recordOrgId = table === 'hotel_room_assignments'
+        ? await resolveOrgIdFromParent({
+            supabase: auth!.supabase,
+            parentTable: 'lodging_bookings',
+            parentId: String(data?.lodging_booking_id || ''),
+          })
+        : await resolveTravelScopeOrgId({
+            supabase: auth!.supabase,
+            eventId: typeof data?.event_id === 'string' ? data.event_id : null,
+            tourId: typeof data?.tour_id === 'string' ? data.tour_id : null,
+            groupId: typeof data?.group_id === 'string' ? data.group_id : null,
+          })
+      const mismatch = assertOrgMatch(actingOrgId, recordOrgId, table)
       if (mismatch) return { before: null as never, denied: mismatch }
       if (
         typeof updateData.status === 'string'
@@ -596,7 +617,6 @@ export async function PUT(request: NextRequest) {
           .from('travel_groups')
           .update({ ...updateData, updated_at: new Date().toISOString() })
           .eq('id', id)
-          .eq('org_id', actingOrgId)
           .select('*')
           .single()
         if (error) throw error
@@ -612,7 +632,6 @@ export async function PUT(request: NextRequest) {
           .from('flight_coordination')
           .update({ ...updateData, updated_at: new Date().toISOString() })
           .eq('id', id)
-          .eq('org_id', actingOrgId)
           .select('*')
           .single()
         if (error) throw error
@@ -638,7 +657,6 @@ export async function PUT(request: NextRequest) {
           .from('ground_transportation_coordination')
           .update({ ...updateData, updated_at: new Date().toISOString() })
           .eq('id', id)
-          .eq('org_id', actingOrgId)
           .select('*')
           .single()
         if (error) throw error
@@ -652,7 +670,6 @@ export async function PUT(request: NextRequest) {
           .from('hotel_room_assignments')
           .update({ ...updateData, updated_at: new Date().toISOString() })
           .eq('id', id)
-          .eq('org_id', actingOrgId)
           .select('*')
           .single()
         if (error) throw error
@@ -675,6 +692,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const { denied, auth, admin } = await requireAuth(request)
   if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.manage')) return err('Forbidden', 403)
 
   const { searchParams } = new URL(request.url)
   const action = searchParams.get('action')
@@ -687,17 +705,21 @@ export async function DELETE(request: NextRequest) {
       case 'delete_travel_group': {
         const { data: existing, error: loadError } = await auth.supabase
           .from('travel_groups')
-          .select('id, org_id')
+          .select('id, event_id, tour_id')
           .eq('id', id)
           .single()
         if (loadError) throw loadError
-        const mismatch = assertOrgMatch(admin.orgId, existing?.org_id, 'Travel group')
+        const existingOrgId = await resolveTravelScopeOrgId({
+          supabase: auth.supabase,
+          eventId: existing?.event_id || null,
+          tourId: existing?.tour_id || null,
+        })
+        const mismatch = assertOrgMatch(admin.orgId, existingOrgId, 'Travel group')
         if (mismatch) return mismatch
         const { error } = await auth.supabase
           .from('travel_groups')
           .delete()
           .eq('id', id)
-          .eq('org_id', admin.orgId)
         if (error) throw error
         return ok(null, 'Travel group deleted successfully')
       }
@@ -739,14 +761,14 @@ async function getGroups(supabase: any, f: GroupFilters) {
 
 async function getGroupMembers(
   supabase: any,
-  f: Pagination & { status?: string | null; groupType?: string | null },
+  f: GroupFilters,
   capabilities: readonly AdminCapability[],
 ) {
   let query = supabase
     .from('travel_group_members')
     .select(`
       *,
-      travel_groups(name, group_type, department),
+      travel_groups!inner(name, group_type, department, event_id, tour_id),
       staff_profiles:staff_id(first_name, last_name, email),
       venue_crew_members:crew_member_id(name, specialty),
       venue_team_members:team_member_id(name, role)
@@ -756,6 +778,8 @@ async function getGroupMembers(
 
   if (f.status) query = query.eq('status', f.status)
   if (f.groupType) query = query.eq('travel_groups.group_type', f.groupType)
+  if (f.eventId) query = query.eq('travel_groups.event_id', f.eventId)
+  if (f.tourId) query = query.eq('travel_groups.tour_id', f.tourId)
 
   const { data, error } = await query
   if (error) throw error
@@ -787,20 +811,22 @@ async function getFlights(supabase: any, f: GroupFilters) {
 
 async function getFlightPassengers(
   supabase: any,
-  f: Pagination & { status?: string | null },
+  f: GroupFilters,
   capabilities: readonly AdminCapability[],
 ) {
   let query = supabase
     .from('flight_passenger_assignments')
     .select(`
       *,
-      flight_coordination:flight_id(flight_number, airline, departure_airport, arrival_airport),
+      flight_coordination:flight_id!inner(flight_number, airline, departure_airport, arrival_airport, event_id, tour_id),
       travel_group_members:group_member_id(member_name, member_email, member_role)
     `)
     .order('created_at', { ascending: false })
     .range(f.offset, f.offset + f.limit - 1)
 
   if (f.status) query = query.eq('status', f.status)
+  if (f.eventId) query = query.eq('flight_coordination.event_id', f.eventId)
+  if (f.tourId) query = query.eq('flight_coordination.tour_id', f.tourId)
 
   const { data, error } = await query
   if (error) throw error
@@ -831,20 +857,22 @@ async function getTransportation(supabase: any, f: GroupFilters) {
 
 async function getTransportationPassengers(
   supabase: any,
-  f: Pagination & { status?: string | null },
+  f: GroupFilters,
   capabilities: readonly AdminCapability[],
 ) {
   let query = supabase
     .from('transportation_passenger_assignments')
     .select(`
       *,
-      ground_transportation_coordination:transportation_id(transport_type, provider_name, pickup_location, dropoff_location),
+      ground_transportation_coordination:transportation_id!inner(transport_type, provider_name, pickup_location, dropoff_location, event_id, tour_id),
       travel_group_members:group_member_id(member_name, member_email, member_role)
     `)
     .order('created_at', { ascending: false })
     .range(f.offset, f.offset + f.limit - 1)
 
   if (f.status) query = query.eq('status', f.status)
+  if (f.eventId) query = query.eq('ground_transportation_coordination.event_id', f.eventId)
+  if (f.tourId) query = query.eq('ground_transportation_coordination.tour_id', f.tourId)
 
   const { data, error } = await query
   if (error) throw error
@@ -857,20 +885,22 @@ async function getTransportationPassengers(
 
 async function getHotelAssignments(
   supabase: any,
-  f: Pagination & { status?: string | null },
+  f: GroupFilters,
   capabilities: readonly AdminCapability[],
 ) {
   let query = supabase
     .from('hotel_room_assignments')
     .select(`
       *,
-      lodging_bookings:lodging_booking_id(booking_number, lodging_providers(name)),
+      lodging_bookings:lodging_booking_id!inner(booking_number, event_id, tour_id, lodging_providers(name)),
       travel_group_members:group_member_id(member_name, member_email, member_role)
     `)
     .order('created_at', { ascending: false })
     .range(f.offset, f.offset + f.limit - 1)
 
   if (f.status) query = query.eq('status', f.status)
+  if (f.eventId) query = query.eq('lodging_bookings.event_id', f.eventId)
+  if (f.tourId) query = query.eq('lodging_bookings.tour_id', f.tourId)
 
   const { data, error } = await query
   if (error) throw error
@@ -881,7 +911,7 @@ async function getHotelAssignments(
   )
 }
 
-async function getTimeline(supabase: any, f: Pagination & { dateFrom?: string | null; dateTo?: string | null }) {
+async function getTimeline(supabase: any, f: GroupFilters) {
   let query = supabase
     .from('travel_coordination_timeline')
     .select('*, travel_groups:group_id(name, group_type)')
@@ -890,20 +920,39 @@ async function getTimeline(supabase: any, f: Pagination & { dateFrom?: string | 
 
   if (f.dateFrom) query = query.gte('start_time', f.dateFrom)
   if (f.dateTo) query = query.lte('start_time', f.dateTo)
+  if (f.eventId) query = query.eq('event_id', f.eventId)
+  if (f.tourId) query = query.eq('tour_id', f.tourId)
 
   const { data, error } = await query
   if (error) throw error
   return ok(data || [])
 }
 
-async function getAnalytics(supabase: any) {
+async function getAnalytics(supabase: any, f: GroupFilters) {
   const now = new Date().toISOString()
 
+  let groupsQuery = supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members')
+  let flightsQuery = supabase.from('flight_coordination').select('id, status, total_cost, booked_seats')
+  let transportQuery = supabase.from('ground_transportation_coordination').select('id, status, total_cost, assigned_passengers')
+  let hotelQuery = supabase.from('hotel_room_assignments').select('id, check_in_status, status, lodging_bookings:lodging_booking_id!inner(event_id, tour_id)')
+  if (f.eventId) {
+    groupsQuery = groupsQuery.eq('event_id', f.eventId)
+    flightsQuery = flightsQuery.eq('event_id', f.eventId)
+    transportQuery = transportQuery.eq('event_id', f.eventId)
+    hotelQuery = hotelQuery.eq('lodging_bookings.event_id', f.eventId)
+  }
+  if (f.tourId) {
+    groupsQuery = groupsQuery.eq('tour_id', f.tourId)
+    flightsQuery = flightsQuery.eq('tour_id', f.tourId)
+    transportQuery = transportQuery.eq('tour_id', f.tourId)
+    hotelQuery = hotelQuery.eq('lodging_bookings.tour_id', f.tourId)
+  }
+
   const [groupsRes, flightsRes, transportRes, hotelRes] = await Promise.all([
-    supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members'),
-    supabase.from('flight_coordination').select('id, status, total_cost, booked_seats'),
-    supabase.from('ground_transportation_coordination').select('id, status, total_cost, assigned_passengers'),
-    supabase.from('hotel_room_assignments').select('id, check_in_status, status'),
+    groupsQuery,
+    flightsQuery,
+    transportQuery,
+    hotelQuery,
   ])
 
   if (groupsRes.error) throw groupsRes.error
@@ -954,12 +1003,15 @@ async function getAnalytics(supabase: any) {
   return ok(analytics)
 }
 
-async function getUtilization(supabase: any, f: Pagination) {
-  const { data: groups, error: groupsError } = await supabase
+async function getUtilization(supabase: any, f: GroupFilters) {
+  let groupsQuery = supabase
     .from('travel_groups')
     .select('id, name, group_type, department, priority_level, total_members, confirmed_members, coordination_status, status')
     .order('priority_level', { ascending: false })
     .range(f.offset, f.offset + f.limit - 1)
+  if (f.eventId) groupsQuery = groupsQuery.eq('event_id', f.eventId)
+  if (f.tourId) groupsQuery = groupsQuery.eq('tour_id', f.tourId)
+  const { data: groups, error: groupsError } = await groupsQuery
 
   if (groupsError) throw groupsError
   if (!groups || groups.length === 0) return ok([])
@@ -967,9 +1019,9 @@ async function getUtilization(supabase: any, f: Pagination) {
   const groupIds = groups.map((g: any) => g.id)
 
   const [flightsRes, transportRes, hotelRes] = await Promise.all([
-    supabase.from('flight_coordination').select('id, group_id, total_cost, booked_seats, total_seats'),
-    supabase.from('ground_transportation_coordination').select('id, group_id, total_cost, assigned_passengers, vehicle_capacity'),
-    supabase.from('hotel_room_assignments').select('id, group_member_id, travel_group_members!inner(group_id)'),
+    supabase.from('flight_coordination').select('id, group_id, total_cost, booked_seats, total_seats').in('group_id', groupIds),
+    supabase.from('ground_transportation_coordination').select('id, group_id, total_cost, assigned_passengers, vehicle_capacity').in('group_id', groupIds),
+    supabase.from('hotel_room_assignments').select('id, group_member_id, travel_group_members!inner(group_id)').in('travel_group_members.group_id', groupIds),
   ])
 
   const flights = flightsRes.data || []

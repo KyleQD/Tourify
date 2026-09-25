@@ -4,6 +4,7 @@ import {
   assertLogisticsScopeOrgConsistency,
   buildLogisticsScopeSearchParams,
   formatLogisticsScopeBadge,
+  normalizeLogisticsTab,
   parseLogisticsScopeParams,
 } from "@/lib/admin/logistics-scope"
 
@@ -21,7 +22,26 @@ describe("LOG-104 logistics tour-first scope", () => {
       stopId: null,
       panel: null,
       issueId: null,
+      recordId: null,
+      siteMapId: null,
     })
+  })
+
+  it("normalizes legacy tabs into the five primary destinations", () => {
+    expect(normalizeLogisticsTab("transportation")).toEqual({ tab: "travel", panel: "ground", isAlias: true })
+    expect(normalizeLogisticsTab("catering")).toEqual({ tab: "production", panel: "catering", isAlias: true })
+    expect(normalizeLogisticsTab("communication")).toEqual({ tab: "communications", panel: null, isAlias: true })
+    expect(normalizeLogisticsTab("site-maps")).toEqual({ tab: "maps", panel: null, isAlias: true })
+    expect(normalizeLogisticsTab("maps")).toEqual({ tab: "maps", panel: null, isAlias: false })
+  })
+
+  it("preserves a standalone event when a tour is explicitly cleared", () => {
+    const next = buildLogisticsScopeSearchParams({
+      current: new URLSearchParams("tourId=t1&eventId=e1"),
+      updates: { tourId: null, eventId: "standalone-event" },
+    })
+    expect(next.get("tourId")).toBeNull()
+    expect(next.get("eventId")).toBe("standalone-event")
   })
 
   it("clears dependent stop/leg when tour is cleared", () => {

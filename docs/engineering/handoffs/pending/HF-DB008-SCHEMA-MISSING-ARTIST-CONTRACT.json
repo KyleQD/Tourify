@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT",
+  "task_id": "DB-008",
+  "from_agent": "artist",
+  "to_agent": "database",
+  "status": "pending",
+  "created_at": "2026-09-25T15:05:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "Answer to HF-DB008-SCHEMA-MISSING-ARTIST. All four objects are confirmed schema-missing: no archived or out-of-chain SQL defines them anywhere in the repository (verified with a repo-wide search under supabase/**), so the product code is the only contract source. The exact column list, types, nullability, defaults and check domains are below, derived from the live consumers. The artist lane did NOT repoint them: no in-chain relation carries their semantics without corrupting meaning, and the one near match (event_tasks -> logistics_tasks) is rejected below with evidence. Wave 34 separately cleared the artist code-drift cluster (artist_photos, artist_videos, artist_merchandise, artist_works, event_staff, event_crew_assignments, get_enhanced_artist_stats plus the events/logistics/financial column pairs); the events cluster this lane cannot reach is in HF-ARTIST-DB008-UNREACHABLE-CONSUMERS.",
+  "working_set": [
+    "app/artist/events/actions/manage-equipment.ts",
+    "app/artist/events/actions/manage-tasks.ts",
+    "app/artist/features/licensing/page.tsx",
+    "app/artist/events/operations/page.tsx"
+  ],
+  "completed": [
+    "Stated the exact column contract for event_equipment, event_tasks, artist_licensing_deals and artist_license_templates, read out of the code that reads and writes them.",
+    "Rejected event_tasks -> logistics_tasks with evidence: logistics_tasks.type is NOT NULL with a 7-value check (transportation|equipment|lodging|catering|communication|backline|rental) that has no general-task value, and assigned_to_user_id references auth.users while app/artist/events/components/task-modal.tsx supplies a staff_members id.",
+    "Left all four consumers unchanged so this contract is the single source of truth for the migration."
+  ],
+  "next_steps": [
+    "Author additive forward-only migrations for the four contracts below, with validation manifests and contract tests, then regenerate lib/database.types.ts after the apply.",
+    "event_tasks and event_equipment must carry the status/priority/quantity check domains listed below, or the operations page writes will violate them.",
+    "artist_licensing_deals.track_name is a free-text label today. If a real reference is preferred, the in-chain target is artist_music(id) and the artist lane will switch the form to a track picker in a follow-up."
+  ],
+  "blockers": [
+    "The artist lane cannot author migrations: supabase/** and lib/database.types.ts are database-lane owned.",
+    "Regenerating lib/database.types.ts remains blocked by knownGaps in docs/engineering/database-type-inventory-2026-09-25.json (the generated contract contains columns the active chain does not create)."
+  ],
+  "verification": [
+    "PASS: every column below was read from the live consumer at the recorded file:line and cross-checked against the modal components that produce the values.",
+    "NOT RUN: no migration authored, no migration applied, and no tsc run for these four objects - the consumers are unchanged and still report errors."
+  ],
+  "column_contracts": {
+    "event_equipment": {
+      "consumers": [
+        "app/artist/events/actions/manage-equipment.ts:20,38,57,68,85",
+        "app/artist/events/operations/page.tsx:48"
+      ],
+      "columns": {
+        "id": "uuid primary key default gen_random_uuid()",
+        "event_id": "uuid not null references events(id) on delete cascade",
+        "name": "text not null",
+        "description": "text null",
+        "quantity": "integer not null default 1",
+        "status": "text not null default 'available' check (status in ('available','in_use','maintenance'))",
+        "notes": "text null",
+        "created_at": "timestamptz not null default now()",
+        "updated_at": "timestamptz not null default now()"
+      },
+      "notes": "The scoped select at manage-equipment.ts:85 orders by name, so name should be indexed or the read should order by created_at."
+    },
+    "event_tasks": {
+      "consumers": [
+        "app/artist/events/actions/manage-tasks.ts:21,39,58,69,86",
+        "app/artist/events/operations/page.tsx:47"
+      ],
+      "columns": {
+        "id": "uuid primary key default gen_random_uuid()",
+        "event_id": "uuid not null references events(id) on delete cascade",
+        "title": "text not null",
+        "description": "text null",
+        "assigned_to": "uuid null - the UI passes a staff_members.id from the crew list produced by app/artist/events/actions/manage-staff.ts, not an auth.users id",
+        "due_date": "date null",
+        "status": "text not null default 'pending' check (status in ('pending','in_progress','completed'))",
+        "priority": "text not null default 'medium' check (priority in ('low','medium','high'))",
+        "created_at": "timestamptz not null default now()",
+        "updated_at": "timestamptz not null default now()"
+      },
+      "rejected_repoint": "logistics_tasks is the closest in-chain relation and is already read by app/artist/events/[id]/page.tsx, but it cannot stand in: type is NOT NULL with a 7-value check and no general-task value, and assigned_to_user_id references auth.users while the operations UI supplies a staff_members id."
+    },
+    "artist_licensing_deals": {
+      "consumers": [
+        "app/artist/features/licensing/page.tsx:131,142-157,193-208,249"
+      ],
+      "columns": {
+        "id": "uuid primary key default gen_random_uuid()",
+        "user_id": "uuid not null references auth.users(id) on delete cascade",
+        "track_name": "text not null (free-text label today, not a foreign key)",
+        "licensee_name": "text not null",
+        "licensee_company": "text null",
+        "license_type": "text not null default 'custom' (the form seeds 'sync')",
+        "usage_context": "text null",
+        "territory": "text not null default 'Worldwide'",
+        "duration_months": "integer null",
+        "fee": "numeric not null default 0",
+        "royalty_percentage": "numeric null",
+        "status": "text not null default 'pending' (the page totals revenue for status = 'active')",
+        "notes": "text null",
+        "created_at": "timestamptz not null default now()"
+      }
+    },
+    "artist_license_templates": {
+      "consumers": [
+        "app/artist/features/licensing/page.tsx:136,159-167,228-235"
+      ],
+      "columns": {
+        "id": "uuid primary key default gen_random_uuid()",
+        "user_id": "uuid not null references auth.users(id) on delete cascade",
+        "name": "text not null",
+        "license_type": "text not null default 'custom' (the form seeds 'sync')",
+        "base_fee": "numeric not null default 0",
+        "royalty_percentage": "numeric not null default 0",
+        "terms": "text not null default ''",
+        "created_at": "timestamptz not null default now()"
+      }
+    }
+  },
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json"
+}

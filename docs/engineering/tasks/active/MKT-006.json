@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0",
+  "id": "MKT-006",
+  "title": "Build guest order claim flow and fix dead CTAs",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "marketplace",
+  "created_at": "2026-09-23T21:08:51.905Z",
+  "updated_at": "2026-09-25T20:33:23.422Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (84 entries)",
+  "goal": "Let guests claim/view a purchased order by claim token and fix dead sign-in CTAs, per SIM-20260922-MKT-002 and SIM-20260922-USER-001.",
+  "scope": {
+    "in": [
+      "Fix guest claim and checkout CTA links that currently point to dead /auth/sign-in and /auth/sign-up routes",
+      "Implement guest order claim by token with entitlement resolution",
+      "Add guest claim tests (success, bad token, expired, social login variants)"
+    ],
+    "out": [
+      "Guest access to order data beyond the claim token"
+    ]
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md",
+    "docs/engineering/tasks/active/MKT-005.json"
+  ],
+  "acceptance_criteria": [
+    "SIM-20260922-MKT-002 and SIM-20260922-USER-001 rerun and pass with receiving-side evidence"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/marketplace/",
+      "npx jest app/api/marketplace/checkout/__tests__",
+      "npx jest lib/marketplace/__tests__/checkout-p6.test.ts",
+      "npx eslint <changed files>",
+      "npx vitest run __tests__/marketplace/guest-order-claim.test.ts __tests__/marketplace/order-claim-cta.test.ts",
+      "npx vitest run lib/marketplace/__tests__ __tests__/marketplace",
+      "npx eslint (focused marketplace files)"
+    ],
+    "evidence": [
+      "Vitest __tests__/marketplace/: 2 files / 16 tests passed (guest-order-claim.test.ts, order-claim-cta.test.ts).",
+      "Jest app/api/marketplace/checkout/__tests__: 3 suites / 11 tests passed.",
+      "Jest lib/marketplace/__tests__/checkout-p6.test.ts: 1 suite / 12 tests passed (4 suites / 23 tests combined run).",
+      "Vitest lib/marketplace/__tests__ baseline: 15 files / 147 tests passed (no regression).",
+      "ESLint on all six changed files: exit 0.",
+      "No hosted run; staged rerun of SIM-20260922-MKT-002 / SIM-20260922-USER-001 pending isolated staging evidence.",
+      "Acceptance criterion status: NOT MET. It is a hosted simulation rerun with receiving-side evidence and no staging was available to this lane. Local implementation and link-contract coverage are complete.",
+      "npx vitest run __tests__/marketplace/guest-order-claim.test.ts: 1 file, 15 tests passed (was 11 before this wave added the unsettled-payment and lost-race cases).",
+      "npx vitest run lib/marketplace/__tests__ __tests__/marketplace: 19 files, 186 tests passed. npx eslint on 12 focused marketplace files: exit 0. git diff --check on the marketplace working set: exit 0."
+    ],
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T20:33:23.422Z",
+    "result": "fail"
+  },
+  "progress": {
+    "summary": "Wave 33: the guest claim flow and dead-CTA fix are complete locally and the claim route was hardened twice. It now refuses to claim an order whose payment has not settled, and refuses a claim that loses the buyer_user_id race rather than reporting success and backfilling entitlements under the losing user. Focus went from 11 to 15 tests in the claim suite. The acceptance criterion itself is a hosted simulation rerun and remains unmet.",
+    "completed": [
+      "Wired guest order claim: new client trigger (app/marketplace/order/components/guest-order-claim.tsx) with post-login auto-claim (?claim=1), manual claim for signed-in visitors, and canonical login CTAs via lib/marketplace/order-claim.ts URL helpers.",
+      "Fixed dead CTAs in app/marketplace/order/[token]/page.tsx: /auth/sign-up and /auth/sign-in replaced with /login?tab=signup|signin&redirectTo=/marketplace/order/<token>?claim=1 (canonical route; no new auth routes created).",
+      "Extended claim route to resolve guest entitlements to the claimant: updates marketplace_entitlements.buyer_user_id from null to the user for the order's digital items only; idempotent same-user retry re-resolves entitlements; entitlement backfill failure returns 500 so retry completes it.",
+      "Added Vitest suites: __tests__/marketplace/guest-order-claim.test.ts (success incl. entitlement scoping, bad token, signed-out 401, unconfirmed email 403, expired 410, not-found 404, other-user 409, email mismatch 403, idempotent retry, no-digital-items, backfill failure 500) and __tests__/marketplace/order-claim-cta.test.ts (no /auth/sign-* links remain, claim prompt renders, canonical hrefs, redirect normalization).",
+      "Claim route now requires payment_status paid or refunded before linking an order to an account or resolving its digital entitlements; pending and failed orders return 409. This closed a fail-open path where an abandoned unpaid guest order could be claimed and have its delivery unlocked.",
+      "Claim route now verifies the guarded buyer_user_id write with select/maybeSingle and returns 409 when a concurrent request won the race, so the losing caller is never told it claimed the order and never runs entitlement backfill under its own user id.",
+      "Added 4 focused cases: unpaid refusal, failed-payment refusal, refunded-order still claimable, and lost-race refusal asserting no entitlement update was issued."
+    ],
+    "next_steps": [
+      "Run SIM-20260922-MKT-002 and SIM-20260922-USER-001 on isolated staging: guest checkout, claim CTAs, sign-up with the matching email, order visible in /marketplace/purchases, digital download working after token expiry, and a different-email sign-in denied.",
+      "Confirm against the live marketplace_entitlements schema that the buyer_user_id backfill behaves as coded; it has never been exercised against a real table."
+    ],
+    "blockers": [
+      "The acceptance criterion requires receiving-side actor evidence on isolated staging with protected Stripe test mode and campaign actors. None were provisioned, so the criterion is not met and no hosted rerun is claimed.",
+      "The entitlement backfill is code-level only and has never run against the live marketplace_entitlements schema; no hosted mutation, migration or SQL was executed (CP-051 respected)."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-25T03:53:58Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Guest order claim flow wired and dead auth CTAs fixed; local claim and link-contract tests plus focused Jest checkout suites pass. Acceptance rerun with receiving-side staging evidence remains open.",
+        "completed": [
+          "Claim trigger: new client component renders canonical /login CTAs with ?claim=1 redirect, auto-claims after login, and offers manual claim for signed-in visitors; success reloads the clean order URL so the server page re-renders claimed.",
+          "Dead CTAs removed from app/marketplace/order/[token]/page.tsx (lines 282/287) and pointed at /login?tab=signup|signin&redirectTo=<claim redirect>.",
+          "Claim route resolves guest digital entitlements to the claimant scoped to the order's digital items; idempotent same-user retries re-resolve.",
+          "Vitest: __tests__/marketplace/ 2 files / 16 tests passed (claim variants incl. success/bad token/expired/login-variant + CTA link contract). Jest: lib/marketplace/__tests__/checkout-p6.test.ts and app/api/marketplace/checkout/__tests__ 4 suites / 23 tests passed. Vitest lib/marketplace baseline 15 files / 147 tests passed. ESLint on all changed files exit 0.",
+          "Confirmed marketplace_entitlements delivery path serves claimed buyers: order.buyer_user_id set by claim, entitlement buyer_user_id backfilled, /api/marketplace/delivery requires matched buyer id."
+        ],
+        "next": "Staging rerun of SIM-20260922-MKT-002 and SIM-20260922-USER-001 with campaign actors: guest checkout -> save-your-order sign-up -> order visible in purchases -> download works; wrong-email denied.",
+        "blockers": [
+          "Isolated staging + protected Stripe test mode + campaign actors (RELEASE-007/QA-003/QA-004/QA-005) not provisioned; no live rerun this round.",
+          "No hosted mutation run; live schema behavior of marketplace_entitlements backfill unverified."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:33:23.422Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: the guest claim flow and dead-CTA fix are complete locally and the claim route was hardened twice. It now refuses to claim an order whose payment has not settled, and refuses a claim that loses the buyer_user_id race rather than reporting success and backfilling entitlements under the losing user. Focus went from 11 to 15 tests in the claim suite. The acceptance criterion itself is a hosted simulation rerun and remains unmet.",
+        "completed": [
+          "Claim route now requires payment_status paid or refunded before linking an order to an account or resolving its digital entitlements; pending and failed orders return 409. This closed a fail-open path where an abandoned unpaid guest order could be claimed and have its delivery unlocked.",
+          "Claim route now verifies the guarded buyer_user_id write with select/maybeSingle and returns 409 when a concurrent request won the race, so the losing caller is never told it claimed the order and never runs entitlement backfill under its own user id.",
+          "Added 4 focused cases: unpaid refusal, failed-payment refusal, refunded-order still claimable, and lost-race refusal asserting no entitlement update was issued."
+        ],
+        "next_steps": [
+          "Run SIM-20260922-MKT-002 and SIM-20260922-USER-001 on isolated staging: guest checkout, claim CTAs, sign-up with the matching email, order visible in /marketplace/purchases, digital download working after token expiry, and a different-email sign-in denied.",
+          "Confirm against the live marketplace_entitlements schema that the buyer_user_id backfill behaves as coded; it has never been exercised against a real table."
+        ],
+        "blockers": [
+          "The acceptance criterion requires receiving-side actor evidence on isolated staging with protected Stripe test mode and campaign actors. None were provisioned, so the criterion is not met and no hosted rerun is claimed.",
+          "The entitlement backfill is code-level only and has never run against the live marketplace_entitlements schema; no hosted mutation, migration or SQL was executed (CP-051 respected)."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

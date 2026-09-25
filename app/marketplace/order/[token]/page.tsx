@@ -3,6 +3,7 @@ import Link from "next/link"
 import { loadMarketplaceOrder } from "../order-access"
 import { requireMarketplaceEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 import { Button } from "@/components/ui/button"
+import { GuestOrderClaim } from "../components/guest-order-claim"
 import { CheckCircle, Clock, XCircle, ShoppingBag, ArrowRight } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -268,29 +269,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
         )}
 
         {/* Guest claim prompt */}
-        {isGuest && isPaid && (
-          <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/30 p-5 space-y-3">
-            <div>
-              <h3 className="text-white font-semibold text-sm">Save your order to a Tourify account</h3>
-              <p className="text-slate-400 text-sm mt-1">
-                Create a free account or sign in to permanently link this order, get faster future
-                checkouts, and access your digital downloads any time.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                <Link href={`/auth/sign-up?redirect=/marketplace/order/${token}`}>
-                  Create account
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="border-slate-700 text-slate-300 hover:text-white">
-                <Link href={`/auth/sign-in?redirect=/marketplace/order/${token}`}>
-                  Sign in
-                </Link>
-              </Button>
-            </div>
-          </div>
-        )}
+        {isGuest && isPaid && <GuestOrderClaim token={token} />}
 
         {/* Failed payment retry */}
         {isFailed && (

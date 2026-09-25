@@ -2,9 +2,10 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
-  LayoutDashboard,
   Contact,
   FileText,
+  History,
+  LayoutDashboard,
   Map,
   Megaphone,
   Plane,
@@ -24,6 +25,7 @@ export const WORK_MODE_VIEWS = [
   { id: "pay", label: "Pay", icon: WalletCards },
   { id: "contacts", label: "Contacts", icon: Contact },
   { id: "check-in", label: "Check-in", icon: CheckCircle2 },
+  { id: "history", label: "History", icon: History },
 ] as const
 
 export type WorkModeView = (typeof WORK_MODE_VIEWS)[number]["id"]

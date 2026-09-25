@@ -72,7 +72,7 @@
     "result": "pass"
   },
   "progress": {
-    "summary": "The bounded local ORG-006 contract is implemented and verified. All four exports have explicit retain dispositions, H8 authorization is preserved and strengthened for stale event targets, and lifecycle time/calendar binding tests pass. The task remains active for owner adoption/retirement decisions and hosted DB/QA evidence.",
+    "summary": "The bounded local ORG-006 contract is implemented and verified. All four exports have explicit retain dispositions, H8 authorization is preserved and strengthened for stale event targets, and lifecycle time/calendar binding tests pass. The task remains active for owner adoption/retirement decisions and hosted DB/QA evidence. QA-004 2026-09-23 launch round routed SIM-20260922-ORG-001 (org event publish dead surface) and SIM-20260922-ORG-002 (event PATCH is creator-only with no org capability) to this task.",
     "completed": [
       "Assigned the org-scoped event/calendar/hold action surface to the organization agent through this explicit bounded task.",
       "Recorded the live-consumer inventory and durable H8 authorization evidence without treating unused exports as authorized deletions.",

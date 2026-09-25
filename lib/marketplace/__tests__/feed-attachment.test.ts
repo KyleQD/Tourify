@@ -4,6 +4,8 @@
  * Tests the pure CTA inference without any Supabase calls.
  */
 
+import { isFeedListingAvailable, resolveFeedListingRedirectHref } from '../feed-attachment'
+
 // The CTA resolver is an internal function — we test it via the exported
 // type system by constructing mock attachment objects and verifying the
 // correct CTA label is rendered by FeedListingCard.
@@ -104,5 +106,41 @@ describe('feed attachment attribution', () => {
 
     expect(insertedAttachment.original_seller_user_id).toBe(originalSellerId)
     expect(insertedAttachment.original_seller_user_id).not.toBe(resharerId)
+  })
+})
+
+describe('feed external listing redirect hardening', () => {
+  const externalListing = {
+    id: 'listing-external-1',
+    listing_kind: 'external',
+    status: 'published',
+    moderation_status: 'approved',
+  }
+
+  it('only marks published and moderation-approved listings as available', () => {
+    expect(isFeedListingAvailable(externalListing)).toBe(true)
+    expect(isFeedListingAvailable({ ...externalListing, status: 'paused' })).toBe(false)
+    expect(isFeedListingAvailable({ ...externalListing, moderation_status: 'flagged' })).toBe(false)
+    expect(isFeedListingAvailable(null)).toBe(false)
+  })
+
+  it('does not expose a provider redirect for unavailable external listings', () => {
+    expect(
+      resolveFeedListingRedirectHref(
+        { ...externalListing, status: 'paused' },
+        { safety_status: 'approved' }
+      )
+    ).toBeNull()
+  })
+
+  it('does not expose a provider redirect when external safety is not approved', () => {
+    expect(resolveFeedListingRedirectHref(externalListing, { safety_status: 'blocked' })).toBeNull()
+    expect(resolveFeedListingRedirectHref(externalListing, null)).toBeNull()
+  })
+
+  it('exposes the feed redirect only for available approved external listings', () => {
+    expect(resolveFeedListingRedirectHref(externalListing, { safety_status: 'approved' })).toBe(
+      '/api/marketplace/listings/listing-external-1/redirect?from=feed'
+    )
   })
 })

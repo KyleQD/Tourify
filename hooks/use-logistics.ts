@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/auth-context'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 interface Transportation {
   id: string
@@ -62,6 +63,7 @@ interface UseLogisticsReturn {
 
 export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsReturn {
   const { user } = useAuth()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [data, setData] = useState<LogisticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,6 +106,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
   }
 
   const fetchLogisticsData = useCallback(async () => {
+    if (!isAdminReady) {
+      setData(null)
+      setError(null)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -126,7 +135,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'transportation')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
+        const response = await adminFetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -151,7 +160,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'equipment')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
+        const response = await adminFetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -177,7 +186,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'assignments')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
+        const response = await adminFetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -203,7 +212,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'analytics')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
+        const response = await adminFetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -230,10 +239,10 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         const baseQuery = baseParams.toString()
 
         const [transportationRes, equipmentRes, assignmentsRes, analyticsRes] = await Promise.all([
-          fetch(`/api/admin/logistics/items?type=transportation&${baseQuery}`, readRequestInit),
-          fetch(`/api/admin/logistics/items?type=equipment&${baseQuery}`, readRequestInit),
-          fetch(`/api/admin/logistics/items?type=assignments&${baseQuery}`, readRequestInit),
-          fetch(`/api/admin/logistics/metrics?${baseQuery}`, readRequestInit)
+          adminFetch(`/api/admin/logistics/items?type=transportation&${baseQuery}`, readRequestInit),
+          adminFetch(`/api/admin/logistics/items?type=equipment&${baseQuery}`, readRequestInit),
+          adminFetch(`/api/admin/logistics/items?type=assignments&${baseQuery}`, readRequestInit),
+          adminFetch(`/api/admin/logistics/metrics?${baseQuery}`, readRequestInit)
         ])
 
         const coreFailed = [transportationRes, equipmentRes].find((res) => !res.ok)
@@ -264,19 +273,20 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
 
       setData(transformedData)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       console.error('[useLogistics] Error fetching logistics data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch logistics data')
     } finally {
       setLoading(false)
     }
-  }, [eventId, tourId, type, status, category, availability, limit, offset])
+  }, [actingContextKey, adminFetch, eventId, tourId, type, status, category, availability, limit, offset, isAdminReady])
 
   // Create transportation record
   const createTransportation = useCallback(async (transportationData: Partial<Transportation>) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/logistics/items',
         buildWriteRequestInit('POST', {
           type: 'transportation',
@@ -293,14 +303,14 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       console.error('[useLogistics] Error creating transportation:', err)
       throw err
     }
-  }, [user, fetchLogisticsData])
+  }, [adminFetch, user, fetchLogisticsData])
 
   // Update transportation record
   const updateTransportation = useCallback(async (id: string, updateData: Partial<Transportation>) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         `/api/admin/logistics/items/${encodeURIComponent(id)}`,
         buildWriteRequestInit('PUT', {
           type: 'transportation',
@@ -317,14 +327,14 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       console.error('[useLogistics] Error updating transportation:', err)
       throw err
     }
-  }, [user, fetchLogisticsData])
+  }, [adminFetch, user, fetchLogisticsData])
 
   // Create equipment record
   const createEquipment = useCallback(async (equipmentData: Partial<Equipment>) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/logistics/items',
         buildWriteRequestInit('POST', {
           type: 'equipment',
@@ -341,14 +351,14 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       console.error('[useLogistics] Error creating equipment:', err)
       throw err
     }
-  }, [user, fetchLogisticsData])
+  }, [adminFetch, user, fetchLogisticsData])
 
   // Update equipment record
   const updateEquipment = useCallback(async (id: string, updateData: Partial<Equipment>) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         `/api/admin/logistics/items/${encodeURIComponent(id)}`,
         buildWriteRequestInit('PUT', {
           type: 'equipment',
@@ -365,14 +375,14 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       console.error('[useLogistics] Error updating equipment:', err)
       throw err
     }
-  }, [user, fetchLogisticsData])
+  }, [adminFetch, user, fetchLogisticsData])
 
   // Assign equipment
   const assignEquipment = useCallback(async (assignmentData: Partial<EquipmentAssignment>) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         `/api/admin/logistics/items/${assignmentData.id}/equipment`,
         buildWriteRequestInit('POST', assignmentData)
       )
@@ -386,14 +396,14 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       console.error('[useLogistics] Error assigning equipment:', err)
       throw err
     }
-  }, [user, fetchLogisticsData])
+  }, [adminFetch, user, fetchLogisticsData])
 
   // Update assignment
   const updateAssignment = useCallback(async (id: string, updateData: Partial<EquipmentAssignment>) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         `/api/admin/logistics/items/${encodeURIComponent(id)}`,
         buildWriteRequestInit('PUT', {
           type: 'assignment',
@@ -410,23 +420,28 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       console.error('[useLogistics] Error updating assignment:', err)
       throw err
     }
-  }, [user, fetchLogisticsData])
+  }, [adminFetch, user, fetchLogisticsData])
+
+  useEffect(() => {
+    setData(null)
+    setError(null)
+  }, [actingContextKey])
 
   // Initial fetch
   useEffect(() => {
-    fetchLogisticsData()
+    void fetchLogisticsData()
   }, [fetchLogisticsData])
 
   // Auto-refresh
   useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh || !isAdminReady) return
 
     const interval = setInterval(() => {
       fetchLogisticsData()
     }, refreshInterval)
 
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, fetchLogisticsData])
+  }, [autoRefresh, refreshInterval, fetchLogisticsData, isAdminReady])
 
   return {
     data,
@@ -457,4 +472,4 @@ export function useEquipmentAssignments(options: Omit<UseLogisticsOptions, 'type
 
 export function useLogisticsAnalytics(options: Omit<UseLogisticsOptions, 'type'> = {}) {
   return useLogistics({ ...options, type: 'analytics' })
-} 
+}

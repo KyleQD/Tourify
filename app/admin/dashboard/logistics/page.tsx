@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { BrandLoadingScreen } from '@/components/ui/brand-loading-screen'
-import LogisticsPageClient from './logistics-page-client'
+import LogisticsPageClient from './logistics-control-tower-client'
 
 export default function LogisticsPage() {
   return (

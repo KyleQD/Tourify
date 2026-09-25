@@ -66,6 +66,19 @@ values (
 )
 on conflict (id) do nothing;
 
+-- CREATE POLICY requires pg_class_ownercheck on the target relation, which the
+-- server satisfies for the exact owner, a superuser, OR any member of the owning
+-- role. A replay role that satisfies none of those aborts the whole chain with
+-- SQLSTATE 42501 "must be owner of table objects", because CREATE POLICY cannot
+-- be pre-checked without re-deriving that predicate. So each policy is attempted
+-- inside its own subtransaction and the server's own verdict is used: whenever the
+-- replay role may create the policy it is still created (identical to the
+-- unguarded body), and otherwise the failure is absorbed and reported instead of
+-- aborting the migration.
+--
+-- Skips are raised as WARNING, not NOTICE: line 1 sets client_min_messages to
+-- warning, so NOTICE is suppressed and an invisible skip would hide this block
+-- failing in CI.
 do $app_docs_storage$
 begin
   if not exists (
@@ -73,14 +86,20 @@ begin
     where schemaname = 'storage' and tablename = 'objects'
       and policyname = 'application_documents_insert_own'
   ) then
-    create policy "application_documents_insert_own"
-      on storage.objects
-      for insert
-      to authenticated
-      with check (
-        bucket_id = 'application-documents'
-        and (storage.foldername(name))[1] = auth.uid()::text
-      );
+    begin
+      create policy "application_documents_insert_own"
+        on storage.objects
+        for insert
+        to authenticated
+        with check (
+          bucket_id = 'application-documents'
+          and (storage.foldername(name))[1] = auth.uid()::text
+        );
+    exception when others then
+      raise warning
+        'Skipping policy application_documents_insert_own on %.%: % %',
+        'storage', 'objects', sqlstate, sqlerrm;
+    end;
   end if;
 
   if not exists (
@@ -88,9 +107,21 @@ begin
     where schemaname = 'storage' and tablename = 'objects'
       and policyname = 'application_documents_public_read'
   ) then
-    create policy "application_documents_public_read"
-      on storage.objects
-      for select
-      using (bucket_id = 'application-documents');
+    begin
+      create policy "application_documents_public_read"
+        on storage.objects
+        for select
+        using (bucket_id = 'application-documents');
+    exception when others then
+      raise warning
+        'Skipping policy application_documents_public_read on %.%: % %',
+        'storage', 'objects', sqlstate, sqlerrm;
+    end;
   end if;
-end $app_docs_storage$;;
+exception when others then
+  -- Backstop: the pg_policies existence reads above can themselves fail for a
+  -- replay role with restricted catalog access. Never abort the chain here.
+  raise warning
+    'Could not reconcile application document storage policies on %.%: % %',
+    'storage', 'objects', sqlstate, sqlerrm;
+end $app_docs_storage$;

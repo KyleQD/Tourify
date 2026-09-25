@@ -52,8 +52,10 @@ export async function POST(request: NextRequest) {
       const stripe = getStripe()
       const webhookSecret = getWebhookSecret()
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-    } catch (err) {
-      console.error('Webhook signature verification failed:', err)
+    } catch {
+      // Never log the provider verification error object: it can echo request
+      // material. Response shape is unchanged.
+      console.error('Webhook signature verification failed', { kind: 'invalid_signature' })
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
@@ -94,14 +96,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (claim.kind !== 'degraded') {
-      await markLedgerProcessed(supabase, event.id, priorAttempts)
+      // Replay-safe completion: a completion write that is not persisted leaves
+      // the claim incomplete, so a Stripe retry would resume and reprocess. Fail
+      // closed instead so the retry path is the resume path, and the guarded
+      // purchase transitions below keep the resume a no-op re-apply.
+      const completionError = await markLedgerProcessed(supabase, event.id, priorAttempts)
+      if (completionError) {
+        console.error('[Photos Webhook] Ledger completion failed', { kind: 'internal_error' })
+        return NextResponse.json({ error: 'Ledger completion failed' }, { status: 500 })
+      }
     }
 
     const outcome =
       claim.kind === 'duplicate' ? 'resumed' : claim.kind === 'degraded' ? 'degraded' : 'processed'
     return NextResponse.json({ received: true, outcome })
-  } catch (error) {
-    console.error('Webhook error:', error)
+  } catch {
+    console.error('Webhook error', { kind: 'internal_error' })
     return NextResponse.json(
       { error: 'Webhook handler failed' },
       { status: 500 }
@@ -151,8 +161,8 @@ async function markLedgerProcessed(
   supabase: any,
   eventId: string,
   priorAttempts: number | null
-) {
-  await supabase
+): Promise<{ code?: string; message?: string } | null> {
+  const { error } = await supabase
     .from('platform_webhook_events')
     .update({
       processing_status: 'processed',
@@ -161,6 +171,7 @@ async function markLedgerProcessed(
     })
     .eq('provider', 'stripe')
     .eq('provider_event_id', eventId)
+  return error ?? null
 }
 
 async function processEvent(

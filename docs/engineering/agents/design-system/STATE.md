@@ -1,14 +1,17 @@
 # Design System state
 
-- Last reviewed SHA: `ea5c36a3b468afb82d83809746d01ad479d38541`
-- Last reviewed at: 2026-09-20 (DESIGN-034: token-registry CI regression gate
-  implemented — 126 role rows, 69 active runtime variables, 41 exact Tailwind
-  projections, and 2 registered global token sources verified locally; no
-  runtime token values or Tailwind configuration changed)
-- Active task: DESIGN-033 — apply owner-approved `--radius` token (C-03 gate);
-  code change + registry/inventory/state updates DONE, status stays active
-  (QA visual check of critical surfaces is the final gate; handoff
-  HF-DESIGN-033-QA pending)
+- Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f` (branch `codex/qa004-staging-campaign`)
+- Last reviewed at: 2026-09-25 (Wave 34: DESIGN-037 orphaned `lib/services/**` pile
+  swept — 15 zero-importer modules / 5,554 lines deleted and 1 module repointed
+  onto the recorded canonical column, removing 211 measured primary tsc
+  diagnostics; DESIGN-033 re-verified with the C-03 owner approval recorded as
+  an unevidenced gate; DESIGN-036 acceptance criteria written for the first time,
+  which surfaced two of its eight pattern families as undelivered)
+- Active tasks: DESIGN-037 (lib/services orphaned-pile sweep; result pass, handoffs
+  open) — DESIGN-033 (C-03 owner approval is NOT independently evidenced; HF-DESIGN-034-C03-APPROVAL-PROVENANCE
+  open, plus the still-pending HF-DESIGN-033-QA) — DESIGN-036 (6 of 8 pattern
+  families delivered; navigation and scope cannot be written inside the current
+  grant, QA evidence handed to QA-007)
 - Confidence: **working / partial** — the shared Radix/shadcn primitive library and
   shared state contracts are real and focused-tested, but token authority, domain
   adoption, i18n, and broad accessibility gates remain open. The venue-ui compatibility
@@ -19,6 +22,81 @@
 
 ## Durable facts
 
+- **`lib/services/**` was an orphaned pile and is now swept (DESIGN-034/Wave 34).**
+  Durable artifact: `docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json`
+  (machine-readable, 92 rows, one disposition each). At the start: **92 files,
+  41,770 lines, 22 zero-importer, 12 dead-but-imported, 58 live**. Disposition split
+  after the sweep: **15 deleted / 5,554 lines, 1 repointed, 58 live-retained,
+  12 held-pending-owner, 4 held-or-deferred-to-venue, 3 vitest roots**.
+  The three reusable liveness rules that took real work and should be reused:
+  (a) a zero-importer claim must be re-proven by a *second, different* extraction
+  path, not by re-reading the same graph; (b) a module can be zero-importer and
+  still undeletable, because a test in another lane's path may assert on its
+  **source text** (`organization-social-integrations.service.ts` and
+  `social-interactions.service.ts` are both held for exactly this reason — an
+  import-graph sweep alone would have silently broken two test suites);
+  (c) deleting a module whose only importers are dead files owned by *other* lanes
+  trades its diagnostics for a new TS2307 in a file you do not own, so it is a
+  net loss and a handoff, not a delete.
+- **211 primary tsc diagnostics were removed from the `lib/services` pile**, all
+  counted from real scoped-tsc runs (a generated per-run `tsconfig` whose `include`
+  is exactly the named roots, with `tsFilesParsed` recorded so a short-circuiting
+  run cannot masquerade as a clean one): 209 with the 15 deleted files, 2 from the
+  repoint. Per file: staff-management 52, staff-job-board 42, password-management 31,
+  advanced-analytics 30, onboarding-workflow 14, security-compliance 12,
+  session-management 10, real-time-staff 6, enhanced-staff-analytics 5, locations 3,
+  equipment-assets 2, event-participants 2. **The 1,384-diagnostic whole-repo
+  baseline was NOT re-measured** — a full `npm run typecheck` is prohibited in a
+  multi-lane wave (CI 68m18s, OOMs on 8GB) and 211 is a scoped figure, not a
+  projection of a full run.
+- **Every code-drift object that had a recorded canonical replacement and a
+  surviving `lib/services` consumer is now resolved.** All 11 such objects
+  resolved either to a dead consumer (deleted) or to the single repoint
+  (`venue_profiles.name` → `venue_profiles.venue_name` in
+  `lib/services/staff-onboarding.service.ts`, verified against
+  `lib/database.types.ts` and `20260721120000_venue_profiles_url_slug.sql:5`).
+  23 database objects now have zero on-disk reference under `lib/services`.
+- **50 objects still reference `lib/services` and 28 of them have no canonical
+  home at all** (`canonicalReplacement: null` in the database lane's artifact).
+  These were NOT repointed: the discipline is that a lane repoints only onto an
+  object the repository already names, and never invents a table to silence a
+  diagnostic. `hiring_candidates` and the three `user_mfa_*` tables were
+  independently confirmed to have **no CREATE TABLE in the active chain, in any
+  archive, backup, or script** — genuinely undecidable, routed to the database
+  lane as HF-DESIGN-034-SCHEMA-NO-HOME.
+- **Two database-lane inventory file attributions are stale**
+  (`docs/engineering/database-type-inventory-2026-09-25.json` is a read-only input
+  and was not edited): `pending_password_resets` was attributed to
+  `optimized-notification-service.ts` and `submit_verification_request` to
+  `venue.service.ts`, but `git show HEAD` on both files shows no such reference
+  and both are clean at HEAD. The CI log the inventory was derived from is from a
+  different tree revision than the current HEAD, so per-object file attributions
+  must be re-verified before they are acted on. Deleting
+  `password-management.service.ts` incidentally removed the only on-disk consumer
+  of `pending_password_resets`, so that `schema-missing` object now needs no
+  schema decision at all.
+- **C-03 (`--radius`) is a governance gap, not an engineering gap (Wave 34).**
+  `--radius: 0.5rem` is at `app/globals.css:76` and is **committed at HEAD**
+  (both `app/globals.css` and `tailwind.config.ts` are clean); the Tailwind
+  formulas are 1:1 and a scoped build re-confirms 8/6/4px with the staff scope
+  unchanged at 0.625rem/10px. What is missing is an **independent owner record**:
+  `docs/engineering/DECISIONS.md` has no C-03 or `--radius` entry, and
+  `HF-DESIGN-033-QA` has been `pending` since 2026-09-13 with no acceptance.
+  Every affirmative statement about the owner approval is a document this lane
+  wrote. **A lane must not be the accepting lane for its own visual-regression
+  gate**; the durable fix is to record the owner decision in the cross-domain
+  decision log, and the standing rule for this domain is that owner-gated
+  decisions get a DECISIONS.md entry with a named approver, not only a token-registry
+  row written by the implementing lane.
+- **DESIGN-036's goal names eight logistics pattern families; six exist.**
+  Delivered and test-guarded: attention, readiness, source-health, summary,
+  loading, empty, error (+ the overview panel). **Missing: navigation and scope.**
+  The only scope UI is `components/admin/logistics/logistics-scope-bar.tsx`, which
+  sits outside `command-center/`, is not exported from the barrel, is not
+  test-covered, and lives in the admin lane's path. The lesson: an empty
+  `acceptance_criteria` array plus `result: "passed"` with `last_run_at: null` is
+  a pass claim with nothing behind it, and it hid a two-day-old gap. Write the
+  criteria down and the gap shows up immediately.
 - Canonical shared primitive library: `components/ui/**` (74 files; inventory in
   `docs/engineering/generated/components.md`).
 - Layout: `components/layout/**` (9 files); surface: `components/surface/surface-primitives.tsx`.
@@ -524,3 +602,25 @@ durable target. Venue wrappers must not fork shared interaction/state contracts.
 - Reduced-motion contract: the landing surface carries no essential motion; the only
   animation is Tailwind `transition-opacity` (0s under `prefers-reduced-motion`) and
   `animate-pulse` inside the `aria-hidden` Suspense fallback.
+
+## Wave 34 verification baseline (2026-09-25)
+
+- `npx vitest run __tests__/design-system __tests__/services __tests__/venue/venue-code-drift-cluster.test.ts __tests__/integrations/mfa.service.test.ts __tests__/events __tests__/feed`:
+  **33 files / 253 tests passed** (32 files / 248 tests before
+  `__tests__/design-system/lib-services-orphaned-pile.test.ts` was added).
+- The new `__tests__/design-system/lib-services-orphaned-pile.test.ts` (5 tests) is
+  the durable guard for the sweep: it fails if a deleted module returns, if a
+  held module disappears, if any file in the repository imports a `lib/services`
+  module that does not resolve, if the `venue_profiles.venue_name` repoint is
+  reverted, or if the inventory's totals stop reconciling. **Its negative control
+  was run**: injecting a file that imports `@/lib/services/staff-management.service`
+  makes it fail with exactly that specifier, and removing the probe returns it to
+  5/5. A guard that has never been seen to fail is not a guard.
+- `npm run check:migration-chain` exit 0 · `npm run check:migration-validation`
+  exit 0 · `npm run check:service-role-allowlist` exit 0 ·
+  `npm run agents:validate` 17 agents / 152 tasks / 0 warnings / 0 errors ·
+  `npx eslint` on the changed and new files exit 0 · `git diff --check` clean.
+- NOT RUN in this wave, by rule: full `npm run typecheck`, full `npm test`,
+  `npm run agents:generate`. Scoped per-file tsc via a generated
+  `tsconfig.ds-scope.json` is the sanctioned substitute and is what produced the
+  211-diagnostic figure.

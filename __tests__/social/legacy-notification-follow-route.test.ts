@@ -1,24 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 
-const { checkAuth, canonicalPost, getUser, from } = vi.hoisted(() => ({
+const { checkAuth, canonicalPost, getUser, from, serviceFrom } = vi.hoisted(() => ({
   checkAuth: vi.fn(),
   canonicalPost: vi.fn(),
   getUser: vi.fn(),
   from: vi.fn(),
+  serviceFrom: vi.fn(),
 }))
 
 vi.mock('@/lib/auth/api-auth', () => ({ checkAuth }))
 vi.mock('@/app/api/social/follow/route', () => ({ POST: canonicalPost }))
 vi.mock('@/lib/supabase/service-role', () => ({
-  serviceRoleClient: { auth: { getUser }, from },
+  serviceRoleClient: { auth: { getUser }, from: serviceFrom },
 }))
 
 import { GET, POST } from '@/app/api/notifications/social/route'
 
 const targetUserId = '22222222-2222-4222-8222-222222222222'
 const postId = '33333333-3333-4333-8333-333333333333'
-
 function request(body: object) {
   return new NextRequest('http://localhost/api/notifications/social', {
     method: 'POST',
@@ -43,6 +43,7 @@ describe('legacy notification social follow envelope', () => {
     }))
     getUser.mockReset()
     from.mockReset()
+    serviceFrom.mockReset()
   })
 
   it.each(['follow', 'unfollow'])('delegates %s to the canonical authenticated route', async (type) => {
@@ -68,24 +69,24 @@ describe('legacy notification social follow envelope', () => {
     expect(canonicalPost).not.toHaveBeenCalled()
   })
 
-  it('keeps the notification post-interaction read path available', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'actor-id' } }, error: null })
-    from.mockImplementation(() => ({
-      select: () => ({
-        eq: () => ({ order: async () => ({ data: [], error: null }) }),
-      }),
-    }))
+  it('keeps the follow envelope free of any service-role read', async () => {
+    await POST(request({ action: 'follow', type: 'follow', targetUserId }))
+    expect(serviceFrom).not.toHaveBeenCalled()
+    expect(getUser).not.toHaveBeenCalled()
+  })
+
+  it('fails closed on the post-interaction read with no authenticated session', async () => {
+    checkAuth.mockResolvedValue(null)
     const response = await GET(new NextRequest(
       `http://localhost/api/notifications/social?postId=${postId}`,
       { headers: { authorization: 'Bearer actor-token' } },
     ))
-    expect(response.status).toBe(200)
-    expect((await response.json()).interactions).toEqual({
-      likes: { count: 0, users: [] },
-      comments: { count: 0, users: [] },
-      shares: { count: 0, users: [] },
-    })
-    expect(from).toHaveBeenCalledTimes(3)
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    // The read never reaches a service-role client or the canonical follow
+    // route, so an unauthenticated caller cannot probe a post.
+    expect(serviceFrom).not.toHaveBeenCalled()
+    expect(from).not.toHaveBeenCalled()
     expect(canonicalPost).not.toHaveBeenCalled()
   })
 })

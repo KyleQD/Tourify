@@ -99,13 +99,17 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
     const actionUrl = resolveTaskLink(taskAction, linkContext)
     const sensitive = validated.is_sensitive || isTaskSensitive(taskAction)
 
+    // `profiles` has no `display_name` column in the active migration chain or in
+    // the generated contract. Selecting it made PostgREST reject the whole read,
+    // so `senderProfile` was always null and every task message was recorded with
+    // the literal sender name "Admin" instead of the real sender.
     const { data: senderProfile } = await svc
       .from('profiles')
-      .select('full_name, display_name, username')
+      .select('full_name, username')
       .eq('id', user.id)
       .single()
 
-    const senderName = senderProfile?.display_name || senderProfile?.full_name || senderProfile?.username || 'Admin'
+    const senderName = senderProfile?.full_name || senderProfile?.username || 'Admin'
 
     const { data: taskMsg, error: insertError } = await svc
       .from('event_task_messages')

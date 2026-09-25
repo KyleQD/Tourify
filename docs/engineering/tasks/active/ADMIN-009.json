@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-009",
+  "title": "Integrate the logistics Comms workspace",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:11.265Z",
+  "updated_at": "2026-09-24T00:38:33Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (26 entries)",
+  "goal": "Mount standalone operational Comms in Logistics with scope-aware actions and a clear handoff to the global inbox.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": ["npx eslint components/admin/logistics/communications-command-center.tsx app/api/admin/logistics/communications-command-center/route.ts app/admin/dashboard/logistics/logistics-control-tower-client.tsx"],
+    "evidence": ["Standalone Comms includes Attention, Announcements, Mentions, and Acknowledgements views plus an explicit handoff to the global direct-message inbox."],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "passed"
+  },
+  "progress": {
+    "summary": "Operational Comms is a first-class, scope-aware Logistics workspace and does not replace the global inbox.",
+    "completed": ["Aggregated existing threads, bulletins, task messages, mentions, and pending acknowledgements.", "Added source/remediation links and recipient visibility for pending acknowledgements.", "Preserved the canonical global inbox handoff."],
+    "next_steps": ["Verify acknowledgement and mention rows against pilot organization data."],
+    "blockers": [],
+    "checkpoints": [{"at":"2026-09-24T00:38:33Z","summary":"Mounted operational Comms with its four secondary views and global inbox boundary.","next":"Run pilot-data QA for delivery and acknowledgement states."}]
+  },
+  "handoffs": []
+}

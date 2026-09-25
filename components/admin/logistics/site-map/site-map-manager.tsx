@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Map, Loader2, Copy, Trash2, Upload, Download, Send, AlertCircle, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useSiteMaps } from '@/hooks/use-site-maps'
@@ -20,58 +22,156 @@ import {
   type MapTemplateOption,
 } from './site-map-create-sheet'
 import { featureUnavailableMessage, isFeatureUnavailableResponse } from '@/lib/api/feature-unavailable'
+import { useAdminActingRequest } from '@/hooks/use-admin-acting-request'
 
 interface SiteMapManagerProps {
   eventId?: string
   tourId?: string
   compact?: boolean
   eventLabel?: string | null
+  libraryStatus?: 'all' | 'draft' | 'published' | 'archived'
 }
 
-export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }: SiteMapManagerProps) {
+export function SiteMapManager({ eventId, tourId, compact = false, eventLabel, libraryStatus = 'all' }: SiteMapManagerProps) {
   const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [createForm, setCreateForm] = useState<SiteMapCreateFormState>(defaultCreateForm)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [creationError, setCreationError] = useState<string | null>(null)
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null)
   const [templates, setTemplates] = useState<MapTemplateOption[]>([])
   const [openingBuilder, setOpeningBuilder] = useState(false)
+  const [librarySearch, setLibrarySearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>(libraryStatus)
+  const [sortOrder, setSortOrder] = useState<'updated' | 'event-date' | 'name'>('updated')
+  const hasCreationScope = Boolean(eventId || tourId)
+  const scopeKey = `${actingContextKey}:${eventId || ''}:${tourId || ''}`
+  const scopeKeyRef = useRef(scopeKey)
+  scopeKeyRef.current = scopeKey
+  const previousScopeKeyRef = useRef<string | null>(isAdminReady ? scopeKey : null)
+  const blockedDeepLinkRef = useRef<{ scopeKey: string; siteMapId: string } | null>(null)
 
-  const { siteMaps, loading, error, createSiteMap, deleteSiteMap, refreshSiteMaps, getSiteMapById, upsertSiteMap } = useSiteMaps({
+  const {
+    siteMaps,
+    selectedSiteMap: hookSelectedSiteMap,
+    loading,
+    error,
+    createSiteMap,
+    deleteSiteMap,
+    selectSiteMap,
+    refreshSiteMaps,
+    getSiteMapById,
+    upsertSiteMap,
+  } = useSiteMaps({
     eventId,
     tourId,
     includeData: false,
   })
 
-  const selectedSiteMap = useMemo(
-    () => siteMaps.find((siteMap) => siteMap.id === selectedMapId) ?? null,
-    [siteMaps, selectedMapId]
-  )
+  useEffect(() => {
+    setStatusFilter(libraryStatus)
+  }, [libraryStatus])
+
+  const selectedSiteMap = useMemo(() => {
+    if (!selectedMapId) return null
+    if (hookSelectedSiteMap?.id === selectedMapId) return hookSelectedSiteMap
+    return siteMaps.find((siteMap) => siteMap.id === selectedMapId) ?? null
+  }, [hookSelectedSiteMap, siteMaps, selectedMapId])
+  const visibleSiteMaps = useMemo(() => {
+    const needle = librarySearch.trim().toLowerCase()
+    const rows = siteMaps.filter((siteMap) => {
+      const eventContext = (siteMap as any).event_context || {}
+      const tourContext = (siteMap as any).tour_context || {}
+      const matchesSearch = !needle || [
+        siteMap.name,
+        siteMap.description,
+        eventContext.title,
+        eventContext.venue_name,
+        eventContext.venue_city,
+        tourContext.name,
+      ].some((value) => String(value || '').toLowerCase().includes(needle))
+      const matchesStatus = statusFilter === 'all' || (siteMap.status || 'draft') === statusFilter
+      return matchesSearch && matchesStatus
+    })
+    return [...rows].sort((a, b) => {
+      if (sortOrder === 'name') return String(a.name || '').localeCompare(String(b.name || ''))
+      if (sortOrder === 'event-date') {
+        return Date.parse(String((a as any).event_context?.start_at || '9999')) - Date.parse(String((b as any).event_context?.start_at || '9999'))
+      }
+      return Date.parse(String(b.updated_at || b.created_at || 0)) - Date.parse(String(a.updated_at || a.created_at || 0))
+    })
+  }, [librarySearch, siteMaps, sortOrder, statusFilter])
+
+  useEffect(() => {
+    if (!isAdminReady) return
+    if (previousScopeKeyRef.current === null) {
+      previousScopeKeyRef.current = scopeKey
+      return
+    }
+    if (previousScopeKeyRef.current === scopeKey) return
+    previousScopeKeyRef.current = scopeKey
+    const staleDeepLinkId = searchParams.get('siteMapId')
+    if (staleDeepLinkId) {
+      blockedDeepLinkRef.current = { scopeKey, siteMapId: staleDeepLinkId }
+      const next = new URLSearchParams(searchParams.toString())
+      next.set('tab', 'maps')
+      next.delete('siteMapId')
+      if (eventId) next.set('eventId', eventId)
+      else next.delete('eventId')
+      if (tourId) next.set('tourId', tourId)
+      else next.delete('tourId')
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+    }
+    setSelectedMapId(null)
+    setOpeningBuilder(false)
+    setShowCreateDialog(false)
+    setCreationError(null)
+  }, [eventId, isAdminReady, pathname, router, scopeKey, searchParams, tourId])
 
   useEffect(() => {
     const deepLinkId = searchParams.get('siteMapId')
-    if (!deepLinkId) return
+    if (!deepLinkId) {
+      blockedDeepLinkRef.current = null
+      return
+    }
+    if (
+      blockedDeepLinkRef.current?.scopeKey === scopeKey
+      && blockedDeepLinkRef.current.siteMapId === deepLinkId
+    ) return
     setSelectedMapId(deepLinkId)
-    if (!siteMaps.some((map) => map.id === deepLinkId) && !loading) {
+    const knownMap = siteMaps.find((map) => map.id === deepLinkId)
+    if (knownMap) {
+      selectSiteMap(deepLinkId)
+    } else if (hookSelectedSiteMap?.id !== deepLinkId && !loading) {
       void getSiteMapById(deepLinkId)
     }
-  }, [searchParams, siteMaps, loading, getSiteMapById])
+  }, [getSiteMapById, hookSelectedSiteMap, loading, scopeKey, searchParams, selectSiteMap, siteMaps])
 
   useEffect(() => {
+    let cancelled = false
     async function loadTemplates() {
-      try {
-        const response = await fetch('/api/admin/logistics/site-map-templates', { credentials: 'include' })
-        const data = await response.json()
-        if (data.success) setTemplates(data.data || [])
-      } catch {
+      if (!isAdminReady) {
         setTemplates([])
+        return
+      }
+      setTemplates([])
+      try {
+        const response = await adminFetch('/api/admin/logistics/site-map-templates')
+        const data = await response.json()
+        if (!cancelled && data.success) setTemplates(data.data || [])
+      } catch {
+        if (!cancelled) setTemplates([])
       }
     }
     void loadTemplates()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [actingContextKey, adminFetch, isAdminReady])
 
   useEffect(() => {
     if (!showCreateDialog || !eventLabel) return
@@ -92,7 +192,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
   function syncSiteMapQuery(siteMapId: string | null) {
     const next = new URLSearchParams(searchParams.toString())
-    next.set('tab', 'site-maps')
+    next.set('tab', 'maps')
     if (siteMapId) next.set('siteMapId', siteMapId)
     else next.delete('siteMapId')
     const query = next.toString()
@@ -102,6 +202,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
   function openSiteMap(siteMapId: string) {
     // Mount editor immediately from local state; URL sync is secondary
     setOpeningBuilder(true)
+    selectSiteMap(siteMapId)
     setSelectedMapId(siteMapId)
     syncSiteMapQuery(siteMapId)
     // Overlay is dismissed reactively by the useEffect below once selectedSiteMap resolves
@@ -113,12 +214,26 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
   }
 
   async function handleCreateSiteMap() {
+    if (!isAdminReady) {
+      toast({ title: 'Select an organization account before continuing.', variant: 'destructive' })
+      return
+    }
+    if (!hasCreationScope) {
+      toast({
+        title: 'Select an event or tour first',
+        description: 'Admin site maps must be linked to an event or tour.',
+        variant: 'destructive',
+      })
+      return
+    }
     if (!createForm.name.trim()) {
       toast({ title: 'Site map name is required', variant: 'destructive' })
       return
     }
 
     setIsCreating(true)
+    setCreationError(null)
+    const createScopeKey = scopeKey
     try {
       const world = resolveCreateWorldSize(createForm)
 
@@ -140,14 +255,14 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
         if (eventId) formData.append('eventId', eventId)
         if (tourId) formData.append('tourId', tourId)
         formData.append('backgroundImage', createForm.backgroundImage)
-        response = await fetch('/api/admin/logistics/site-maps', {
+        response = await adminFetch('/api/admin/logistics/site-maps', {
           method: 'POST',
           credentials: 'include',
           body: formData,
         })
       } else {
         // JSON path — no multipart overhead for the common case
-        response = await fetch('/api/admin/logistics/site-maps', {
+        response = await adminFetch('/api/admin/logistics/site-maps', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -169,9 +284,13 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
         })
       }
       const data = await response.json().catch(() => ({}))
+      if (scopeKeyRef.current !== createScopeKey) return
       if (!response.ok || !data.success || !data.data?.id) {
+        setOpeningBuilder(false)
+        const message = data.error || 'Failed to create site map'
+        setCreationError(data.details ? `${message}: ${data.details}` : message)
         toast({
-          title: data.error || 'Failed to create site map',
+          title: message,
           description: data.details || undefined,
           variant: 'destructive',
         })
@@ -181,14 +300,18 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
       // Seed list immediately so the editor can mount without waiting on GET
       upsertSiteMap(data.data)
       toast({ title: 'Site map created — opening builder' })
+      setCreationError(null)
       setCreateForm(defaultCreateForm)
       setShowCreateDialog(false)
       openSiteMap(data.data.id)
       void getSiteMapById(data.data.id)
     } catch (err) {
+      setOpeningBuilder(false)
+      const message = err instanceof Error ? err.message : 'Network error'
+      setCreationError(`Failed to create site map: ${message}`)
       toast({
         title: 'Failed to create site map',
-        description: err instanceof Error ? err.message : 'Network error',
+        description: message,
         variant: 'destructive',
       })
     } finally {
@@ -198,10 +321,10 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
   async function copyChildResources(sourceId: string, targetId: string) {
     const [zonesRes, tentsRes, layersRes, elemsRes] = await Promise.all([
-      fetch(`/api/admin/logistics/site-maps/${sourceId}/zones`, { credentials: 'include' }),
-      fetch(`/api/admin/logistics/site-maps/${sourceId}/tents`, { credentials: 'include' }),
-      fetch(`/api/admin/logistics/site-maps/layers?siteMapId=${sourceId}`, { credentials: 'include' }),
-      fetch(`/api/admin/logistics/site-maps/${sourceId}/elements`, { credentials: 'include' }),
+      adminFetch(`/api/admin/logistics/site-maps/${sourceId}/zones`),
+      adminFetch(`/api/admin/logistics/site-maps/${sourceId}/tents`),
+      adminFetch(`/api/admin/logistics/site-maps/layers?siteMapId=${sourceId}`),
+      adminFetch(`/api/admin/logistics/site-maps/${sourceId}/elements`),
     ])
 
     const zonesData = zonesRes.ok ? await zonesRes.json() : { data: [] }
@@ -211,7 +334,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
     const layers = layersData?.data ?? []
     for (const layer of layers) {
-      await fetch('/api/admin/logistics/site-maps/layers', {
+      await adminFetch('/api/admin/logistics/site-maps/layers', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -229,7 +352,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
     const zones = zonesData?.data ?? []
     for (const zone of zones) {
-      await fetch(`/api/admin/logistics/site-maps/${targetId}/zones`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${targetId}/zones`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -250,7 +373,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
     const tents = tentsData?.data ?? []
     for (const tent of tents) {
-      await fetch(`/api/admin/logistics/site-maps/${targetId}/tents`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${targetId}/tents`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -268,7 +391,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
     const elements: any[] = elemsData?.data ?? []
     if (elements.length > 0) {
-      await fetch(`/api/admin/logistics/site-maps/${targetId}/elements`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${targetId}/elements`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -322,7 +445,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
     const templateName = window.prompt('Template name')
     if (!templateName?.trim()) return
 
-    const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/save-template`, {
+    const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/save-template`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -342,7 +465,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
   }
 
   async function handlePublishToWorkMode(siteMap: any) {
-    const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/publish-work-mode`, {
+    const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/publish-work-mode`, {
       method: 'POST',
       credentials: 'include',
     })
@@ -372,6 +495,19 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
     toast({ title: 'Site map deleted' })
   }
 
+  function openCreateDialog() {
+    if (!hasCreationScope) {
+      toast({
+        title: 'Select an event or tour first',
+        description: 'Use the logistics scope controls before creating a site map.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setCreationError(null)
+    setShowCreateDialog(true)
+  }
+
   const scopeLabel = eventLabel || (eventId ? 'Event scoped' : tourId ? 'Tour scoped' : 'No event linked')
 
   return (
@@ -394,18 +530,30 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
             </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <label className="cursor-pointer">
+            <label
+              aria-disabled={!hasCreationScope || !isAdminReady}
+              className={cn(
+                'cursor-pointer',
+                (!hasCreationScope || !isAdminReady) && 'cursor-not-allowed opacity-50',
+              )}
+            >
               <input
                 type="file"
                 accept=".json,.sitemapjson"
                 className="hidden"
+                disabled={!hasCreationScope || !isAdminReady}
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
                   try {
                     const text = await file.text()
                     const importData = JSON.parse(text)
-                    const res = await fetch('/api/admin/logistics/site-maps/import', {
+                    if (!hasCreationScope) {
+                      toast({ title: 'Select an event or tour before importing.', variant: 'destructive' })
+                      e.target.value = ''
+                      return
+                    }
+                    const res = await adminFetch('/api/admin/logistics/site-maps/import', {
                       method: 'POST',
                       credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },
@@ -423,7 +571,11 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
                   e.target.value = ''
                 }}
               />
-              <Button variant="outline" className="border-slate-600 text-slate-200" asChild>
+              <Button
+                variant="outline"
+                className="border-slate-600 text-slate-200"
+                asChild
+              >
                 <span>
                   <Upload className="mr-2 h-4 w-4" />
                   Import
@@ -432,7 +584,8 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
             </label>
             <Button
               className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
-              onClick={() => setShowCreateDialog(true)}
+              onClick={openCreateDialog}
+              disabled={!hasCreationScope || !isAdminReady}
             >
               <Plus className="mr-2 h-4 w-4" />
               New Site Map
@@ -457,7 +610,8 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
           <Button
             size="sm"
             className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
-            onClick={() => setShowCreateDialog(true)}
+            onClick={openCreateDialog}
+            disabled={!hasCreationScope || !isAdminReady}
           >
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             New
@@ -467,7 +621,10 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
       <SiteMapCreateSheet
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open)
+          if (!open) setCreationError(null)
+        }}
         form={createForm}
         onFormChange={setCreateForm}
         templates={templates}
@@ -475,8 +632,46 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
         tourId={tourId}
         eventLabel={eventLabel}
         isCreating={isCreating}
+        errorMessage={creationError}
         onSubmit={handleCreateSiteMap}
       />
+
+      {!isAdminReady ? (
+        <AdminSurfaceCard className="border-amber-500/30 bg-amber-950/20 p-4">
+          <div className="flex items-center gap-3 text-sm text-amber-100">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-300" />
+            Select an organization account before loading or creating site maps.
+          </div>
+        </AdminSurfaceCard>
+      ) : null}
+
+      {!compact && siteMaps.length > 0 ? (
+        <div className="grid gap-2 rounded-xl border border-slate-700/70 bg-slate-950/40 p-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+          <Input
+            aria-label="Search site maps"
+            onChange={(event) => setLibrarySearch(event.target.value)}
+            placeholder="Search maps, events, tours, or venues"
+            value={librarySearch}
+          />
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+            <SelectTrigger aria-label="Filter site maps by status"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as typeof sortOrder)}>
+            <SelectTrigger aria-label="Sort site maps"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="updated">Recently updated</SelectItem>
+              <SelectItem value="event-date">Event date</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       {error ? (
         <AdminSurfaceCard className="border-rose-500/30 bg-rose-950/20 p-6">
@@ -507,12 +702,23 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
         <AdminEmptyState
           icon={Map}
           title="No site maps yet"
-          description="Create a layout to assign zones, pin load-in tasks, and publish to Work Mode."
-          action={{ label: 'Create site map', onClick: () => setShowCreateDialog(true) }}
+          description={hasCreationScope
+            ? 'Create a layout to assign zones, pin load-in tasks, and publish to Work Mode.'
+            : 'Select an event or tour in the logistics scope controls before creating a site map.'}
+          action={hasCreationScope && isAdminReady
+            ? { label: 'Create site map', onClick: openCreateDialog }
+            : undefined}
+        />
+      ) : visibleSiteMaps.length === 0 ? (
+        <AdminEmptyState
+          icon={Map}
+          title="No maps match these filters"
+          description="Clear the search or choose another status to see more maps."
+          action={{ label: 'Clear filters', onClick: () => { setLibrarySearch(''); setStatusFilter('all') } }}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {siteMaps.map((siteMap) => (
+          {visibleSiteMaps.map((siteMap) => (
             <AdminSurfaceCard
               key={siteMap.id}
               className="group cursor-pointer border-slate-700/50 bg-slate-950/60 p-4 transition hover:-translate-y-0.5 hover:border-cyan-400/30"
@@ -524,6 +730,17 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
                   <p className="mt-1 line-clamp-2 text-xs text-slate-400">
                     {siteMap.description || 'No description'}
                   </p>
+                  <p className="mt-2 text-[11px] text-cyan-200/80">
+                    {(siteMap as any).event_context?.title
+                      || (siteMap as any).tour_context?.name
+                      || ((siteMap as any).event_v2_id ? `Event ${String((siteMap as any).event_v2_id).slice(0, 8)}` : `Tour ${String((siteMap as any).tour_id || '').slice(0, 8)}`)}
+                  </p>
+                  {(siteMap as any).event_context?.venue_name ? (
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {(siteMap as any).event_context.venue_name}
+                      {(siteMap as any).event_context.start_at ? ` · ${formatSafeDate((siteMap as any).event_context.start_at)}` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <Badge
                   className={cn(
@@ -559,9 +776,7 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
                     onClick={async (event) => {
                       event.stopPropagation()
                       try {
-                        const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/export`, {
-                          credentials: 'include',
-                        })
+                        const res = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/export`)
                         if (res.ok) {
                           const data = await res.json()
                           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })

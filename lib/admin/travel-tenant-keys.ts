@@ -126,6 +126,19 @@ export async function resolveOrgIdFromParent(args: {
   parentId: string
 }): Promise<string | null> {
   if (!args.parentId?.trim()) return null
+  if (["travel_groups", "flight_coordination", "ground_transportation_coordination", "lodging_bookings", "rental_agreements", "travel_coordination_timeline"].includes(args.parentTable)) {
+    const { data, error } = await args.supabase
+      .from(args.parentTable)
+      .select("event_id, tour_id")
+      .eq("id", args.parentId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return resolveTravelScopeOrgId({
+      supabase: args.supabase,
+      eventId: typeof data?.event_id === "string" ? data.event_id : null,
+      tourId: typeof data?.tour_id === "string" ? data.tour_id : null,
+    })
+  }
   const { data, error } = await args.supabase
     .from(args.parentTable)
     .select("org_id")
@@ -142,13 +155,19 @@ export async function withParentOrgId<T extends Record<string, unknown>>(args: {
   parentId: string | null | undefined
   payload: T
 }): Promise<T & { org_id?: string | null }> {
-  if (!args.parentId) return { ...args.payload, org_id: (args.payload.org_id as string | null | undefined) ?? null } as T & { org_id?: string | null }
-  const orgId = await resolveOrgIdFromParent({
-    supabase: args.supabase,
-    parentTable: args.parentTable,
-    parentId: args.parentId,
-  })
-  return { ...args.payload, org_id: orgId }
+  const result = { ...args.payload } as T & { org_id?: string | null }
+  const orgId = args.parentId
+    ? await resolveOrgIdFromParent({
+        supabase: args.supabase,
+        parentTable: args.parentTable,
+        parentId: args.parentId,
+      })
+    : null
+  // Active migrations scope these child rows through their parent foreign key.
+  // Keep the resolved value available to callers for authorization without
+  // serializing the archived/local-only org_id column into the insert payload.
+  Object.defineProperty(result, "org_id", { value: orgId, enumerable: false })
+  return result
 }
 
 /** Resolve org from tour → event → travel group (first non-null wins; never invent). */

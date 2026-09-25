@@ -2,6 +2,7 @@ import {
   getCancellationLifecycleTransition,
   getFailedPaymentPatch,
   getPaidLifecycleTransition,
+  getRefundLifecycleTransition,
   getRefundPatch,
   isFullStripeChargeRefund,
 } from "../order-lifecycle"
@@ -73,9 +74,43 @@ describe("marketplace order lifecycle transitions", () => {
       allowed: false,
       reason: "refund_required",
     })
+    expect(getCancellationLifecycleTransition({ orderStatus: "pending", paymentStatus: "processing", actorRole: "seller" })).toEqual({
+      allowed: false,
+      reason: "buyer_required",
+    })
     expect(getCancellationLifecycleTransition({ orderStatus: "fulfilled", paymentStatus: "paid" })).toEqual({
       allowed: false,
       reason: "refund_required",
+    })
+  })
+
+  it("allows only sellers to refund paid orders", () => {
+    expect(getRefundLifecycleTransition({
+      orderStatus: "confirmed",
+      paymentStatus: "paid",
+      paymentReference: "pi_123",
+      actorRole: "seller",
+    })).toEqual({
+      allowed: true,
+      payoutPatch: { payout_status: "on_hold" },
+    })
+    expect(getRefundLifecycleTransition({
+      orderStatus: "confirmed",
+      paymentStatus: "paid",
+      paymentReference: "pi_123",
+      actorRole: "buyer",
+    })).toEqual({
+      allowed: false,
+      reason: "seller_required",
+    })
+    expect(getRefundLifecycleTransition({
+      orderStatus: "pending",
+      paymentStatus: "processing",
+      paymentReference: null,
+      actorRole: "seller",
+    })).toEqual({
+      allowed: false,
+      reason: "order_not_refundable",
     })
   })
 

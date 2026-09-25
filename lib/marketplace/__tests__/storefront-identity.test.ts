@@ -1,5 +1,6 @@
 import {
   getCanonicalStorefrontOwner,
+  getStorefrontStorageCompatibilityIssue,
   getStorefrontEntityType,
   isCanonicalStorefrontOwner,
 } from '@/lib/marketplace/storefront-identity'
@@ -47,5 +48,32 @@ describe('storefront identity contract', () => {
         accountType: 'artist',
       })
     ).toBe(false)
+  })
+
+  it('allows active-schema storage only for general-user storefronts', () => {
+    expect(
+      getStorefrontStorageCompatibilityIssue({
+        userId: 'user-1',
+        profileId: 'user-1',
+        accountType: 'general',
+      })
+    ).toBeNull()
+  })
+
+  it('fails closed when active storage would collapse a persona storefront to the user', () => {
+    const issue = getStorefrontStorageCompatibilityIssue({
+      userId: 'user-1',
+      profileId: 'artist-1',
+      accountType: 'artist',
+    })
+
+    expect(issue).toMatchObject({
+      code: 'persona_storefront_schema_not_ready',
+      owner: {
+        sellerEntityId: 'artist-1',
+        sellerEntityType: 'artist',
+        sellerUserId: 'user-1',
+      },
+    })
   })
 })

@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-INTG-033-CODEQL-TRIAGE-RESULT",
+  "task_id": "INTG-006",
+  "from_agent": "integrations",
+  "to_agent": "release",
+  "status": "pending",
+  "created_at": "2026-09-25T14:12:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
+  "dirty_state_caveat": "Triage only for the two integrations-owned alerts. integrations fixed no code for CodeQL in this wave, dismissed nothing, and closed nothing on GitHub. All 96 open alerts remain open, undismissed and unfixed; the numbers below were re-read live from the API during this wave rather than copied from the request.",
+  "summary": "Response to HF-RELEASE-SEC-CODEQL. integrations owns exactly 2 of the 96 open alerts, triaged both, and registered both in security/security-scan-exceptions.json with decision not_exploitable, a real owner, a real rationale, an issue reference, a mitigation and a 2026-11-24 expiry. Neither is a defect in integrations ownership, so no code changed. The critical discover-owned SSRF (#16) was left untouched and undismissed as instructed. Independent of the 2 owned alerts, integrations assessment is that the gate is currently NOT actionable as a merge signal: refs/heads/main has zero recorded analyses, so with ~900 changed files the platform attributes the entire tree to PR #14 and 94 of 96 alerts sit in files the PR never touched. That is a governance decision above this lane.",
+  "working_set": [
+    "security/security-scan-exceptions.json — the 2 entries integrations registered",
+    "app/api/social/oauth/callback/route.ts — alert #102, integrations-owned (Wave 32 working set: app/api/social/oauth/callback/**)",
+    "__tests__/integrations/security.test.ts — alert #94, integrations-owned (__tests__/integrations/**)"
+  ],
+  "completed": [
+    "Re-read the live alert population: 96 open alerts across 5 pages of `code-scanning/alerts?pr=14&state=open&per_page=100`; `dismissed_reason` null x96 and `fixed_at` null x96. Confirms 0 dismissed, 0 fixed — unchanged from the request.",
+    "Bucketed all 96 by file and matched each file against the integrations Wave 33 strict file set. Exactly 2 alerts are integrations-owned: #102 app/api/social/oauth/callback/route.ts:44 (error, js/user-controlled-bypass) and #94 __tests__/integrations/security.test.ts:52 (warning, js/insufficient-password-hash). Zero alerts fall in app/api/webhooks/**, app/api/{subscriptions,ticketing,photos,marketplace}/**webhook*/**, app/api/{institutional,licensing,rights-admin}/**webhooks/**, or lib/integrations/** — the Wave 32 hardened webhook surface is clean under security-extended.",
+    "Triaged #102 against executable source: the reported guard is the `if (!code)` presence check at line 44 and the reported sensitive action is verifySignedOAuthState(stateRaw, user.id) at line 59. Every path to the token exchange (line 78) and to the organization_social_integrations upsert (line 167) passes the fail-closed `if (!signed)` block at lines 60-63. The user-controlled `code` narrows the paths that reach the sensitive action rather than widening it, and no attacker-supplied value can skip the HMAC check. Not exploitable; no code change is warranted and inventing one would be a behaviour change without a defect.",
+    "Triaged #94: the sink is createHmac('sha256', <test secret>) in a vitest file that never ships, and the value is a fixed test-only literal. A keyed HMAC is a MAC, not a password hash. Not exploitable; registered as a governance record rather than silenced in code.",
+    "Registered 2 entries in security/security-scan-exceptions.json and validated them: `node scripts/ci/check-security-exceptions.mjs` exit 0 (`2 active exception(s)`) and `node --test scripts/ci/check-security-exceptions.test.mjs` 3/3 pass. Nothing was dismissed on GitHub.",
+    "Routed the sibling alert whose sink is admin-owned: #95 js/insufficient-password-hash on lib/admin/content-hub/oauth-state.ts:96 is raised entirely from createSignedOAuthState calls inside the integrations test file, so only test-fixture material reaches the sink. See HF-INTG-033-CODEQL-OAUTH-STATE-HASH (to admin).",
+    "Left the discover-owned critical #16 js/request-forgery at app/api/discover/route.ts:351 untouched and undismissed; app/api/discover/** is outside the integrations working set and the dispatch routed it to the discover lane."
+  ],
+  "next_steps": [
+    "Release: the 94 remaining alerts need owners, not integrations. Routing table with exact ids below — general-user (app/auth/callback/route.ts:37 #85, app/auth/confirm/route.ts:50 #103), marketplace (app/api/stripe/connect/route.ts #82 #83 #84), venue/general-user (js/clear-text-storage-of-sensitive-data: lib/services/venue.service.ts:180, hooks/use-multi-account.tsx:74), admin (lib/admin/content-hub/oauth-state.ts:96 #95, already handed off), discover (app/api/discover/route.ts:351 #16 critical), plus the js/client-side-request-forgery (18) and js/xss-through-dom (10) component clusters in the admin/artist/component trees.",
+    "Release + security: establish a refs/heads/main CodeQL baseline before treating the Advanced Security `CodeQL` gate as a merge signal. Until main has an analysis, `?ref=refs/heads/main` returns 0 analyses and the platform attributes the whole tree to any PR large enough to trigger the documented 'code changes were too large' behaviour. This is why 94 of 96 alerts are in files the PR never touched; the volume is an attribution artifact, and individual findings still need real triage.",
+    "Release: integrations has no authority over GHAS enablement or alert policy, so the two registry entries integrations added are the whole integrations contribution to this backlog. If the security lane prefers GitHub `dismissed_reason` over a registry entry for not_exploitable findings, that is a policy decision integrations will follow, but it must be applied by the security lane, not by the owning engineer quietly."
+  ],
+  "blockers": [
+    "The 96-alert backlog cannot be made actionable from a PR-level check while main has no recorded analysis; integrations cannot change GHAS enablement, the alert policy, or the workflow trigger.",
+    "94 of 96 alerts are in files the integrations lane does not own and did not triage; integrations dispositions are limited to the 2 it registered.",
+    "HF-RELEASE-SEC-CODEQL remains pending until release records the routing decisions above. integrations made no change that turns the CodeQL gate green, and does not claim one."
+  ],
+  "routing_table": [
+    "integrations (dispositioned, not dismissed): #102 app/api/social/oauth/callback/route.ts:44 js/user-controlled-bypass; #94 __tests__/integrations/security.test.ts:52 js/insufficient-password-hash",
+    "discover (critical, deliberately untouched): #16 app/api/discover/route.ts:351 js/request-forgery",
+    "admin: #95 lib/admin/content-hub/oauth-state.ts:96 js/insufficient-password-hash (HF-INTG-033-CODEQL-OAUTH-STATE-HASH)",
+    "general-user: #85 app/auth/callback/route.ts:37 and #103 app/auth/confirm/route.ts:50, both js/user-controlled-bypass",
+    "marketplace: #82 app/api/stripe/connect/route.ts:48, #83 :111, #84 :145, all js/user-controlled-bypass",
+    "venue / general-user: js/clear-text-storage-of-sensitive-data on lib/services/venue.service.ts:180 and hooks/use-multi-account.tsx:74",
+    "organization: app/api/creator-federation/credentials/route.ts (credential boundary, outside the integrations Wave 33 file set)",
+    "unassigned component clusters needing an owner: js/client-side-request-forgery (18), js/insecure-randomness (15), js/xss-through-dom (10), js/incomplete-url-substring-sanitization (6), js/file-system-race (6) — concentrated in components/admin/logistics/real-time-equipment-tracker.tsx (10), app/admin/dashboard/tours/builder/page.tsx (7), components/admin/tours/tour-quick-start-wizard.tsx (6), app/api/link-preview/route.ts (5)"
+  ],
+  "verification": [
+    "gh api 'repos/KyleQD/Tourify/code-scanning/alerts?pr=14&state=open&per_page=100' pages 1-5 — 96 rows written to a local temp file; awk over dismissed_reason/fixed_at gives `96 null/null`.",
+    "awk over the path column matched against the integrations Wave 33 path globs — 2 rows, #102 and #94; zero matches under app/api/webhooks/, lib/integrations/, or any *webhook* route glob.",
+    "gh api repos/KyleQD/Tourify/code-scanning/alerts/102 — js/user-controlled-bypass at app/api/social/oauth/callback/route.ts:44, sink L59C18-L59C59, source L34C23-L34C30, state open.",
+    "gh api repos/KyleQD/Tourify/code-scanning/alerts/94 — js/insufficient-password-hash at __tests__/integrations/security.test.ts:52, source createSignedOAuthState at L44, state open.",
+    "node scripts/ci/check-security-exceptions.mjs — exit 0, `Security exception registry OK — 2 active exception(s)`.",
+    "node --test scripts/ci/check-security-exceptions.test.mjs — 3 tests, 3 pass, 0 fail.",
+    "npx vitest run __tests__/integrations — 8 files / 173 tests passed, including the security.test.ts file that is the subject of alert #94."
+  ]
+}

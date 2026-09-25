@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "integrations",
   "created_at": "2026-09-09T09:35:08.272Z",
-  "updated_at": "2026-09-18T21:50:57.000Z",
+  "updated_at": "2026-09-25T20:34:10.062Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Deliver deterministic, persistent, rate-limited MFA backup and verification-code behavior that remains correct across deploys and replays",
@@ -76,14 +76,18 @@
       "The focused TypeScript slice exhausted the default 2 GB heap, so no typecheck pass is claimed.",
       "Migration checksum rendering was not available because MIGRATION_CHECKSUM_BASE_SHA is not set in this local task environment.",
       "Local database-type drift could not be certified because there is no reconciled local Supabase target and the CLI could not write its sandboxed telemetry file; DB-008 owns type regeneration from staged schema.",
-      "No hosted Supabase environment was mutated and no staged account-lifecycle evidence is claimed."
+      "No hosted Supabase environment was mutated and no staged account-lifecycle evidence is claimed.",
+      "Wave 33 (2026-09-25): npx vitest run __tests__/integrations — 8 files / 173 tests passed, including __tests__/integrations/mfa.service.test.ts and __tests__/integrations/mfa-verification-code-migration.test.ts.",
+      "Wave 33 (2026-09-25): npm run check:migration-validation — this task migration scans clean (\"✓ scanned supabase/migrations/20260918213707_mfa_verification_code_store.sql with planned manifest\") and the Wave 32 history-baseline drift blocker is gone. The single remaining failure is the foreign hiring manifest exception job-posting-scope-not-null.",
+      "Wave 33 (2026-09-25): npx eslint over the integrations-owned TS set including __tests__/integrations/security.test.ts — exit 0.",
+      "Wave 33 (2026-09-25): npm run agents:validate — exit 0 (17 agents, 151 tasks, 0 warnings, 0 errors). No code, migration, or manifest for this task was changed in Wave 33."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-18T21:50:57.000Z",
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T21:20:00.000Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "Implemented the authoritative additive MFA verification-code schema and wired the production MFA singleton to a server-only Supabase repository. Codes are bcrypt-hashed before persistence; service-role-only atomic RPCs enforce issue limits, user scoping, expiry, three-attempt lockout, replay prevention, revocation, and retention-aware cleanup behind an RLS/default-deny table boundary.",
+    "summary": "Wave 33 review only; no production code, migration, or manifest for this task was changed. Re-read the four acceptance criteria against the landed code: backup-code bcrypt cost-12 hashing with conditional one-time redemption, the server-only Supabase verification-code repository behind the additive mfa_verification_codes migration, and the deterministic expiry/attempt/rate-limit/replay/user-scope/cleanup contract tests are all present and green inside the 8 files/173 tests integrations suite. The one change in this wave is shared-gate scope: the history-baseline checksum drift on 20260701021033_job_application_profile_snapshot.sql that blocked this task in Wave 32 is fixed by the database lane and is now retired from this task's blockers. Re-ran check:migration-validation end to end: 20260918213707_mfa_verification_code_store.sql scans clean with its planned manifest, the drift is gone, and the sole remaining failure is a foreign hiring manifest exception (job-posting-scope-not-null, expired 2026-09-21, owner admin-platform) handed off as HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY. The hosted acceptance step is unchanged and still operator-gated: DB-008 must apply the migration one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql plus lifecycle/concurrency fixtures and both advisors, update the hosted ledger, and regenerate canonical database types; USER-005/QA-003 must run the deployed account-lifecycle and restart/deploy persistence certification. Nothing was simulated and no hosted evidence is claimed.",
     "completed": [
       "Replaced the djb2 backup-code hash with bcryptjs hashing at cost factor 12.",
       "Changed backup-code verification to compare against stored bcrypt hashes and conditionally mark a matching unused row as used.",
@@ -96,12 +100,13 @@
       "Added repository, migration-contract, security-probe, migration-manifest, and hosted-ledger evidence."
     ],
     "next_steps": [
-      "DB-008 must apply the additive migration one-at-a-time to approved isolated staging, run the SQL security probe plus lifecycle/concurrency fixtures and advisors, update hosted evidence, and regenerate canonical database types.",
-      "USER-005 and QA-003 must run the staged account lifecycle and restart/deploy persistence certification."
+      "DB-008 applies 20260918213707_mfa_verification_code_store.sql one-at-a-time to approved isolated staging under CP-051, runs the security probe and lifecycle/concurrency fixtures plus advisors, attaches ledger evidence, and regenerates lib/database.types.ts from that exact staged schema; USER-005/QA-003 run the deployed MFA account-lifecycle suite including restart/deploy persistence and negative user-scope/replay cases. INTG-003 stays active until that hosted evidence exists."
     ],
     "blockers": [
-      "No isolated-staging migration, advisor, generated-type, restart/deploy persistence, or account-lifecycle evidence is available in this environment.",
-      "The focused TypeScript slice exhausted the default 2 GB heap; focused tests, lint, and static migration checks passed."
+      "No isolated-staging migration, advisor, generated-type, restart/deploy persistence, or account-lifecycle evidence is available in this environment; the hosted acceptance step stays blocked and was not simulated in the 2026-09-25 review.",
+      "The focused TypeScript slice for the MFA files exhausted the default 2 GB heap in the original run; focused tests, lint, and static migration checks passed. INTG-006 and INTG-033 focused suites plus ESLint exited 0, so the shared release lane still owns the full typecheck/build.",
+      "RETIRED in Wave 33: the history-baseline checksum drift on 20260701021033_job_application_profile_snapshot.sql that made check:migration-validation exit 1 before reaching this task migration is fixed by the database lane. The gate now reaches and scans 20260918213707_mfa_verification_code_store.sql clean.",
+      "NEW, foreign: check:migration-validation still exits 1 on the expired hiring manifest exception job-posting-scope-not-null (owner admin-platform). Handed off as HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY; not this task to fix."
     ],
     "checkpoints": [
       {
@@ -159,11 +164,74 @@
           "No hosted staging access or deployed evidence was available; INTG-003 cannot close without the staged lifecycle acceptance criterion.",
           "The focused TypeScript slice exhausted the default 2 GB heap; the release lane owns the shared full typecheck/build."
         ]
+      },
+      {
+        "at": "2026-09-25T13:45:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave-32 review: re-read the four acceptance criteria against the landed code and re-ran the focused MFA suites. No locally-achievable acceptance criterion remains open. Backup-code bcrypt cost-12 hashing and one-time conditional redemption, the server-only Supabase verification-code repository behind the additive mfa_verification_codes migration, and the deterministic expiry/attempt/rate-limit/replay/user-scope/cleanup contract tests are all present and green. The remaining work is entirely hosted and stays blocked: DB-008 must apply the migration one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql plus lifecycle/concurrency fixtures and the advisors, update the hosted ledger, and regenerate canonical database types; USER-005/QA-003 must run the deployed account-lifecycle and restart/deploy persistence certification. No production code, migration, or migration-validation manifest was changed in this review, and no hosted evidence is claimed or fabricated.",
+        "completed": [
+          "Re-verified that every locally-achievable acceptance criterion is already met, so no new local work was started.",
+          "Confirmed the hosted blocker is unchanged and remains operator-gated rather than simulated."
+        ],
+        "next_steps": [
+          "DB-008: apply mfa_verification_code_store to isolated staging under CP-051, run the security probe and lifecycle/concurrency fixtures plus advisors, attach ledger evidence, and regenerate canonical database types.",
+          "USER-005/QA-003: run the deployed MFA account-lifecycle suite including restart/deploy persistence and negative user-scope/replay cases before INTG-003 can close."
+        ],
+        "blockers": [
+          "No isolated-staging migration, advisor, generated-type, restart/deploy persistence, or account-lifecycle evidence is available in this environment; the hosted acceptance step is intentionally left blocked and was not faked."
+        ],
+        "verification": [
+          "npx vitest run __tests__/integrations/mfa.service.test.ts __tests__/integrations/mfa-verification-code-migration.test.ts — included in the 8 files / 173 tests integrations suite that passed in this wave.",
+          "npm run agents:validate — exit 0 (17 agents, 151 tasks, 0 warnings, 0 errors) after this record was updated."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:23:14.756Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave-32 review only: re-read the four acceptance criteria against the landed code. No locally-achievable criterion remains open. Backup-code bcrypt cost-12 hashing with conditional one-time redemption, the server-only Supabase verification-code repository behind the additive mfa_verification_codes migration, and deterministic expiry/attempt/rate-limit/replay/user-scope/cleanup contract tests are all present and green (covered by the 8 files/173 tests integrations suite that passed in this wave, and agents:validate reports 0 errors). No production code, migration, or manifest was changed. The hosted application step is intentionally left blocked and was not faked: DB-008 must apply the migration one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql plus lifecycle/concurrency fixtures and the security/performance advisors, update the hosted ledger, and regenerate canonical database types; USER-005/QA-003 must run the deployed account-lifecycle and restart/deploy persistence certification.",
+        "completed": [],
+        "next_steps": [
+          "DB-008 applies the migration to isolated staging and attaches advisor/ledger evidence plus regenerated canonical types; USER-005/QA-003 run the deployed account-lifecycle and restart/deploy persistence certification. INTG-003 stays active until that hosted evidence exists."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:20:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33 review: no locally-achievable acceptance criterion remains open, so no new local work was started. The one change in this wave is shared-gate scope: the history-baseline checksum drift on 20260701021033_job_application_profile_snapshot.sql that blocked this task in Wave 32 is fixed by the database lane, confirmed by re-running the gate. 20260918213707_mfa_verification_code_store.sql scans clean with its planned manifest, and the focused MFA suites are green inside the 8 files/173 tests integrations run. The hosted acceptance step is unchanged and still operator-gated: DB-008 applies the migration one-at-a-time to approved isolated staging, runs the security probe plus lifecycle/concurrency fixtures and both advisors, updates the hosted ledger, and regenerates canonical types; USER-005/QA-003 run the deployed account-lifecycle and restart/deploy persistence certification. Nothing was simulated and no hosted evidence is claimed.",
+        "completed": [
+          "Re-verified that every locally-achievable acceptance criterion is still met, so no new local work was needed.",
+          "Confirmed the Wave 32 history-baseline blocker is resolved by the database lane and retired it from this task blockers."
+        ],
+        "next_steps": [
+          "DB-008: apply 20260918213707_mfa_verification_code_store.sql one-at-a-time to approved isolated staging under CP-051, run the security probe and lifecycle/concurrency fixtures plus advisors, attach ledger evidence, and regenerate lib/database.types.ts from that exact staged schema.",
+          "USER-005/QA-003: run the deployed MFA account-lifecycle suite including restart/deploy persistence and negative user-scope/replay cases before INTG-003 can close."
+        ],
+        "blockers": [
+          "No hosted staging, advisor, generated-type, or account-lifecycle evidence is available; the hosted acceptance step is intentionally left blocked.",
+          "check:migration-validation still exits 1 on a foreign hiring manifest exception (HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY)."
+        ],
+        "verification": [
+          "npx vitest run __tests__/integrations — 8 files / 173 tests passed.",
+          "npm run check:migration-validation — 20260918213707_mfa_verification_code_store.sql scanned clean with planned manifest; history-baseline drift gone; 1 foreign failure remains.",
+          "npm run agents:validate — exit 0."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:34:10.062Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33 review only; no production code, migration, or manifest for this task was changed. Re-read the four acceptance criteria against the landed code: backup-code bcrypt cost-12 hashing with conditional one-time redemption, the server-only Supabase verification-code repository behind the additive mfa_verification_codes migration, and the deterministic expiry/attempt/rate-limit/replay/user-scope/cleanup contract tests are all present and green inside the 8 files/173 tests integrations suite. The one change in this wave is shared-gate scope: the history-baseline checksum drift on 20260701021033_job_application_profile_snapshot.sql that blocked this task in Wave 32 is fixed by the database lane and is now retired from this task's blockers. Re-ran check:migration-validation end to end: 20260918213707_mfa_verification_code_store.sql scans clean with its planned manifest, the drift is gone, and the sole remaining failure is a foreign hiring manifest exception (job-posting-scope-not-null, expired 2026-09-21, owner admin-platform) handed off as HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY. The hosted acceptance step is unchanged and still operator-gated: DB-008 must apply the migration one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql plus lifecycle/concurrency fixtures and both advisors, update the hosted ledger, and regenerate canonical database types; USER-005/QA-003 must run the deployed account-lifecycle and restart/deploy persistence certification. Nothing was simulated and no hosted evidence is claimed.",
+        "completed": [],
+        "next_steps": [
+          "DB-008 applies 20260918213707_mfa_verification_code_store.sql one-at-a-time to approved isolated staging under CP-051, runs the security probe and lifecycle/concurrency fixtures plus advisors, attaches ledger evidence, and regenerates lib/database.types.ts from that exact staged schema; USER-005/QA-003 run the deployed MFA account-lifecycle suite including restart/deploy persistence and negative user-scope/replay cases. INTG-003 stays active until that hosted evidence exists."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
     "DB-008 must apply 20260918213707_mfa_verification_code_store.sql one-at-a-time to approved isolated staging, run supabase/tests/intg003_mfa_verification_code_security.sql and deterministic lifecycle/concurrency fixtures, capture security/performance advisor evidence, update the hosted ledger, and regenerate lib/database.types.ts from that exact staged schema.",
-    "USER-005 and QA-003 must run the deployed MFA account-lifecycle suite, including restart/deploy persistence and negative user-scope/replay cases, before INTG-003 can close."
+    "USER-005 and QA-003 must run the deployed MFA account-lifecycle suite, including restart/deploy persistence and negative user-scope/replay cases, before INTG-003 can close.",
+    "HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY (pending, to admin): not an INTG-003 change, recorded here because INTG-003 was blocked by the same check:migration-validation run in Wave 32. The remaining gate failure is the expired hiring manifest exception job-posting-scope-not-null, not the MFA migration."
   ]
 }

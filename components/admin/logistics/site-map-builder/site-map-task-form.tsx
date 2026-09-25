@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MapPin, UserPlus, X } from 'lucide-react'
+import { useAdminActingRequest } from '@/hooks/use-admin-acting-request'
 
 export interface SiteMapTaskFormSubmit {
   title: string
@@ -39,6 +40,7 @@ export function SiteMapTaskForm({
   onSubmit,
   onCancel,
 }: SiteMapTaskFormProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
@@ -53,9 +55,9 @@ export function SiteMapTaskForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!tourId) return
+    if (!tourId || !isAdminReady) return
     let cancelled = false
-    fetch(`/api/admin/tours/teams?tour_id=${encodeURIComponent(tourId)}`, { credentials: 'include' })
+    adminFetch(`/api/admin/tours/teams?tour_id=${encodeURIComponent(tourId)}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return
@@ -64,7 +66,7 @@ export function SiteMapTaskForm({
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [tourId])
+  }, [actingContextKey, adminFetch, isAdminReady, tourId])
 
   useEffect(() => {
     if (assigneeSearch.length < 2) {

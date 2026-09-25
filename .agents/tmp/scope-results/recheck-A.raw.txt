@@ -1,0 +1,93 @@
+lib/services/advanced-analytics.service.ts(175,17): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(176,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"analytics_snapshots"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"analytics_snapshots"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(193,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'AnalyticsSnapshot[]'.
+  Type 'ResultOne' is not assignable to type 'AnalyticsSnapshot'.
+lib/services/advanced-analytics.service.ts(201,12): error TS2345: Argument of type '"create_daily_analytics_snapshot"' is not assignable to parameter of type '"_tourify_has_columns" | "accept_org_invite" | "accept_tour_collaboration_invitation" | "accept_venue_ownership_transfer" | "admin_commit_domain_with_outbox" | "admin_publication_outbox_claim" | ... 125 more ... | "write_venue_lifecycle_audit"'.
+lib/services/advanced-analytics.service.ts(233,12): error TS2345: Argument of type '"get_account_analytics"' is not assignable to parameter of type '"_tourify_has_columns" | "accept_org_invite" | "accept_tour_collaboration_invitation" | "accept_venue_ownership_transfer" | "admin_commit_domain_with_outbox" | "admin_publication_outbox_claim" | ... 125 more ... | "write_venue_lifecycle_audit"'.
+lib/services/advanced-analytics.service.ts(262,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(263,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"growth_trends"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"growth_trends"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(271,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'GrowthTrend[]'.
+  Type 'ResultOne' is not assignable to type 'GrowthTrend'.
+lib/services/advanced-analytics.service.ts(282,17): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(283,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"engagement_analytics"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"engagement_analytics"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(299,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'EngagementAnalytics[]'.
+  Type 'ResultOne' is not assignable to type 'EngagementAnalytics'.
+lib/services/advanced-analytics.service.ts(309,17): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(310,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"content_performance"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"content_performance"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(322,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'ContentPerformance[]'.
+  Type 'ResultOne' is not assignable to type 'ContentPerformance'.
+lib/services/advanced-analytics.service.ts(335,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(336,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"audience_analytics"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"audience_analytics"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(343,5): error TS2322: Type 'ResultOne | null' is not assignable to type 'AudienceAnalytics | null'.
+  Type 'ResultOne' is not assignable to type 'AudienceAnalytics | null'.
+    Type 'ResultOne' is not assignable to type 'AudienceAnalytics'.
+lib/services/advanced-analytics.service.ts(351,12): error TS2345: Argument of type '"generate_weekly_analytics_report"' is not assignable to parameter of type '"_tourify_has_columns" | "accept_org_invite" | "accept_tour_collaboration_invitation" | "accept_venue_ownership_transfer" | "admin_commit_domain_with_outbox" | "admin_publication_outbox_claim" | ... 125 more ... | "write_venue_lifecycle_audit"'.
+lib/services/advanced-analytics.service.ts(356,5): error TS2322: Type 'Json | string[] | { already_accepted: boolean; invitation_id: string; tour_id: string; }[] | { already_existed: boolean; outbox_id: string; transaction_id: string; }[] | { aggregate_id: string; ... 18 more ...; status: string; }[] | ... 31 more ... | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+lib/services/advanced-analytics.service.ts(366,17): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(367,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"analytics_reports"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"analytics_reports"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(379,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'AnalyticsReport[]'.
+  Type 'ResultOne' is not assignable to type 'AnalyticsReport'.
+lib/services/advanced-analytics.service.ts(392,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(393,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"engagement_analytics"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"engagement_analytics"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/advanced-analytics.service.ts(405,27): error TS2339: Property 'hour_of_day' does not exist on type 'ResultOne'.
+lib/services/advanced-analytics.service.ts(406,26): error TS2339: Property 'day_of_week' does not exist on type 'ResultOne'.
+lib/services/advanced-analytics.service.ts(411,42): error TS2339: Property 'engagement_24h' does not exist on type 'ResultOne'.
+lib/services/advanced-analytics.service.ts(412,40): error TS2339: Property 'engagement_24h' does not exist on type 'ResultOne'.
+lib/services/advanced-analytics.service.ts(511,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/advanced-analytics.service.ts(512,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"competitor_analysis"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"competitor_analysis"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/equipment-assets.service.ts(28,3): error TS2322: Type '{ category: string | null; created_at: string | null; description: string | null; id: string; is_available: boolean | null; metadata: Json; name: string; owner_id: string; owner_type: string; serial_number: string | null; updated_at: string | null; }[]' is not assignable to type 'EquipmentAsset[]'.
+  Type '{ category: string | null; created_at: string | null; description: string | null; id: string; is_available: boolean | null; metadata: Json; name: string; owner_id: string; owner_type: string; serial_number: string | null; updated_at: string | null; }' is not assignable to type 'EquipmentAsset'.
+    Types of property 'is_available' are incompatible.
+      Type 'boolean | null' is not assignable to type 'boolean'.
+        Type 'null' is not assignable to type 'boolean'.
+lib/services/equipment-assets.service.ts(50,3): error TS2322: Type '{ category: string | null; created_at: string | null; description: string | null; id: string; is_available: boolean | null; metadata: Json; name: string; owner_id: string; owner_type: string; serial_number: string | null; updated_at: string | null; }' is not assignable to type 'EquipmentAsset'.
+  Types of property 'is_available' are incompatible.
+    Type 'boolean | null' is not assignable to type 'boolean'.
+      Type 'null' is not assignable to type 'boolean'.
+Files:               910
+Lines:            246683
+Identifiers:      257081
+Symbols:          204049
+Types:             26498
+Instantiations: 40077957
+Memory used:     567063K
+I/O read:          0.20s
+I/O write:         0.00s
+Parse time:        1.13s
+Bind time:         0.42s
+Check time:      132.56s
+Emit time:         0.00s
+Total time:      134.12s

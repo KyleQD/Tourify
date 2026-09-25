@@ -30,7 +30,7 @@ export function EventWizardDialog({ open, onOpenChange, onSubmit, initialData }:
     location: "",
     venue: "",
     capacity: 100,
-    cover_image_url: "",
+    poster_url: "",
     description: "",
     ...initialData
   })
@@ -48,7 +48,7 @@ export function EventWizardDialog({ open, onOpenChange, onSubmit, initialData }:
         location: "",
         venue: "",
         capacity: 100,
-        cover_image_url: "",
+        poster_url: "",
         description: "",
       })
     } catch (error) {
@@ -160,11 +160,11 @@ export function EventWizardDialog({ open, onOpenChange, onSubmit, initialData }:
           {step === 3 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="cover_image_url">Cover Image URL (Optional)</Label>
+                <Label htmlFor="poster_url">Cover Image URL (Optional)</Label>
                 <Input
-                  id="cover_image_url"
-                  value={formData.cover_image_url}
-                  onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
+                  id="poster_url"
+                  value={formData.poster_url}
+                  onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
                 />
               </div>
               <div className="space-y-2">

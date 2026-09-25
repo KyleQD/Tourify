@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "marketplace",
   "created_at": "2026-09-09T09:35:15.656Z",
-  "updated_at": "2026-09-16T19:24:55.761Z",
+  "updated_at": "2026-09-25T20:33:44.464Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Make the canonical per-persona storefront contract match the marketplace launch paths and gate every incompatible storefront variant",
@@ -34,32 +34,38 @@
     "commands": [
       "npm test -- --runInBand lib/marketplace/__tests__/storefront-identity.test.ts",
       "npx eslint lib/marketplace/storefront-identity.ts lib/marketplace/__tests__/storefront-identity.test.ts",
-      "npm run typecheck"
+      "npm run typecheck",
+      "npx vitest run lib/marketplace/__tests__/storefront-identity.test.ts",
+      "npx vitest run lib/marketplace/__tests__ __tests__/marketplace"
     ],
     "evidence": [
-      "Focused storefront identity suite passed: 1 suite, 4 tests, 0 snapshots.",
-      "Focused ESLint passed with exit code 0.",
-      "Typecheck started but emitted no output; interrupted after approximately 3 minutes with exit code 130. No typecheck result claimed."
+      "Focused storefront identity suite passed: 1 suite, 6 tests, 0 snapshots.",
+      "Focused ESLint passed for storefront identity plus touched marketplace storefront/listing routes with exit code 0.",
+      "Typecheck started but emitted no output; interrupted after approximately 60 seconds with exit code 130. No typecheck result claimed.",
+      "Criterion status. (1) canonical contract documented and used by every enabled launch path: PARTIALLY MET, the contract exists and gates every persona launch mutation, but the canonical storage columns do not exist. (2) seller ownership and tenant scope enforced at server and data boundaries: PARTIALLY MET for user-scoped seller ownership, NOT MET for tenant scope. (3) incompatible or archive-only variants removed or disabled through RELEASE-008: MET at code level via the fail-closed gate. (4) focused identity tests and the MKT-004 deployed staging lifecycle: 6 identity tests pass, deployed lifecycle blocked.",
+      "npx vitest run lib/marketplace/__tests__/storefront-identity.test.ts: 1 file, 6 tests passed. npx vitest run lib/marketplace/__tests__ __tests__/marketplace: 19 files, 186 tests passed. No product code changed in this task this wave."
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-11T00:13:32.000Z",
-    "result": "partial"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T20:33:44.464Z",
+    "result": "fail"
   },
   "progress": {
-    "summary": "Production-readiness audit promoted MKT-002 to P1. The canonical persona storefront must drive every enabled marketplace launch path; incompatible variants remain gated until MKT-004 certification.",
+    "summary": "Wave 33: no MKT-002 product change. The persona storefront contract and its active-schema fail-closed gate were re-verified, and the criterion assessment was sharpened: incompatible variants are correctly gated, but seller ownership and tenant scope are explicitly NOT met because the canonical seller_entity_id/seller_entity_type columns are still archive-only, which is now also a named blocker on MKT-004's tenant-authorization criterion.",
     "completed": [
       "Added canonical owner mapping from verified acting context to seller entity id/type, including ownership comparison.",
       "Documented the accepted per-persona model and the deferred archive-only schema boundary in marketplace state, gaps, and questions.",
-      "Added focused coverage for artist, service, venue, organization, general-user, and cross-user/persona ownership cases."
+      "Added focused coverage for artist, service, venue, organization, general-user, and cross-user/persona ownership cases.",
+      "Added a reusable active-schema storage compatibility gate so non-user persona storefront writes fail closed instead of collapsing to seller_user_id.",
+      "Applied the compatibility gate to storefront save, listing create/update/lifecycle, and external-listing import/confirm launch mutations.",
+      "Re-verified the canonical persona gate without change: non-user persona storefront and listing launch mutations return persona_storefront_schema_not_ready instead of collapsing into seller_user_id, and the focused identity suite still passes at 6 tests."
     ],
     "next_steps": [
-      "Keep MKT-002 active until the additive schema task lands seller_entity_id/seller_entity_type and runtime readiness evidence is available.",
-      "When schema reconciliation is approved, wire storefront reads/writes and listing scoping to the canonical owner contract behind existing marketplace feature flags.",
-      "Run a bounded typecheck again in an environment where the repository-wide command completes; preserve account-type, acting-context, resource-ownership, and guest-checkout boundaries."
+      "Land the additive seller_entity_id/seller_entity_type reconciliation, then replace the fail-closed storage gate with canonical persona reads and writes behind the existing marketplace feature flags.",
+      "Once persona storage lands, add tenant (organization/venue) scope to the marketplace order lifecycle so MKT-004's buyer, seller and tenant authorization criterion can be met rather than only its buyer and seller half."
     ],
     "blockers": [
-      "Active marketplace_storefronts schema still has seller_user_id with unique-per-user ownership; seller_entity_id/seller_entity_type remain archive-only and were intentionally not enabled or migrated.",
-      "Repository-wide npm run typecheck did not complete after approximately 3 minutes and was interrupted; focused lint/tests passed."
+      "Active marketplace_storefronts and marketplace_listings storage still has seller_user_id with unique-per-user ownership; seller_entity_id and seller_entity_type remain archive-only and were intentionally not enabled or migrated. This is the direct cause of the unmet tenant-scope half of MKT-004 criterion 2.",
+      "The MKT-004 deployed staging lifecycle half of the fourth acceptance criterion stays open: no isolated staging, no Stripe test-mode credentials, no hosted schema truth."
     ],
     "checkpoints": [
       {
@@ -94,6 +100,50 @@
         "completed": [],
         "next_steps": [],
         "blockers": []
+      },
+      {
+        "at": "2026-09-25T18:03:26Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Added active-schema fail-closed gating for persona storefront launch mutations while preserving general-user storefront compatibility.",
+        "changed_paths": [
+          "lib/marketplace/storefront-identity.ts",
+          "lib/marketplace/__tests__/storefront-identity.test.ts",
+          "app/api/marketplace/storefront/route.ts",
+          "app/api/marketplace/listings/route.ts",
+          "app/api/marketplace/listings/[id]/route.ts",
+          "app/api/marketplace/listings/[id]/lifecycle/route.ts",
+          "app/api/marketplace/listings/import-external/route.ts",
+          "docs/engineering/tasks/active/MKT-002.json"
+        ],
+        "verification": [
+          "npm test -- --runInBand lib/marketplace/__tests__/storefront-identity.test.ts — passed (1 suite, 6 tests).",
+          "npx eslint lib/marketplace/storefront-identity.ts lib/marketplace/__tests__/storefront-identity.test.ts app/api/marketplace/storefront/route.ts app/api/marketplace/listings/route.ts 'app/api/marketplace/listings/[id]/route.ts' 'app/api/marketplace/listings/[id]/lifecycle/route.ts' app/api/marketplace/listings/import-external/route.ts — passed (exit 0).",
+          "npm run typecheck — inconclusive; no output after approximately 60 seconds, interrupted with exit 130."
+        ],
+        "blockers": [
+          "Active marketplace_storefronts and marketplace_listings storage still lacks seller_entity_id/seller_entity_type, so non-user persona storefront launch mutations now return persona_storefront_schema_not_ready.",
+          "Full repository typecheck did not finish in the bounded run."
+        ],
+        "next_steps": [
+          "Land additive seller_entity_id/seller_entity_type schema reconciliation with runtime evidence.",
+          "After schema reconciliation, replace fail-closed storage compatibility gating with canonical persona reads/writes and re-run full MKT-004 lifecycle verification."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:33:44.464Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: no MKT-002 product change. The persona storefront contract and its active-schema fail-closed gate were re-verified, and the criterion assessment was sharpened: incompatible variants are correctly gated, but seller ownership and tenant scope are explicitly NOT met because the canonical seller_entity_id/seller_entity_type columns are still archive-only, which is now also a named blocker on MKT-004's tenant-authorization criterion.",
+        "completed": [
+          "Re-verified the canonical persona gate without change: non-user persona storefront and listing launch mutations return persona_storefront_schema_not_ready instead of collapsing into seller_user_id, and the focused identity suite still passes at 6 tests."
+        ],
+        "next_steps": [
+          "Land the additive seller_entity_id/seller_entity_type reconciliation, then replace the fail-closed storage gate with canonical persona reads and writes behind the existing marketplace feature flags.",
+          "Once persona storage lands, add tenant (organization/venue) scope to the marketplace order lifecycle so MKT-004's buyer, seller and tenant authorization criterion can be met rather than only its buyer and seller half."
+        ],
+        "blockers": [
+          "Active marketplace_storefronts and marketplace_listings storage still has seller_user_id with unique-per-user ownership; seller_entity_id and seller_entity_type remain archive-only and were intentionally not enabled or migrated. This is the direct cause of the unmet tenant-scope half of MKT-004 criterion 2.",
+          "The MKT-004 deployed staging lifecycle half of the fourth acceptance criterion stays open: no isolated staging, no Stripe test-mode credentials, no hosted schema truth."
+        ]
       }
     ]
   },

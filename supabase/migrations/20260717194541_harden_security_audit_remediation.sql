@@ -129,23 +129,35 @@ create policy notification_events_insert_service
   to service_role
   with check (true);
 
-update storage.buckets
-   set public = false,
-       file_size_limit = coalesce(file_size_limit, 10485760)
- where id = 'application-documents';
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay
+-- role outside the owning role set warns (sqlstate/sqlerrm) instead of aborting
+-- the whole chain with SQLSTATE 42501.
+do $application_documents_bucket_private$
+begin
+  update storage.buckets
+     set public = false,
+         file_size_limit = coalesce(file_size_limit, 10485760)
+   where id = 'application-documents';
+exception when others then
+  raise warning
+    'Skipping application-documents bucket hardening on %.%: % %',
+    'storage', 'buckets', sqlstate, sqlerrm;
+end
+$application_documents_bucket_private$;
 
-drop policy if exists "application_documents_public_read" on storage.objects;
-drop policy if exists application_documents_public_read on storage.objects;
-
+-- [CP-059 replay guard] The previous guard here compared
+-- pg_get_userbyid(relowner) = current_user and then reported with `raise notice`.
+-- `relowner = current_user` is a strict SUBSET of the server's
+-- pg_class_ownercheck predicate (which also admits a superuser and any member of
+-- the owning role), and `raise notice` is suppressed by
+-- `set client_min_messages = warning`, so a fresh replay silently skipped the
+-- public-read drop while reporting nothing. The server is now asked directly.
 do $application_documents_select_own$
 begin
-  if not exists (
-    select 1
-      from pg_policies
-     where schemaname = 'storage'
-       and tablename = 'objects'
-       and policyname = 'application_documents_select_own'
-  ) then
+  begin
+    drop policy if exists "application_documents_public_read" on storage.objects;
+    drop policy if exists application_documents_public_read on storage.objects;
+
     create policy "application_documents_select_own"
       on storage.objects
       for select
@@ -154,8 +166,13 @@ begin
         bucket_id = 'application-documents'
         and (storage.foldername(name))[1] = auth.uid()::text
       );
-  end if;
-end $application_documents_select_own$;
+  exception when others then
+    raise warning
+      'Skipping application document select-own storage policy on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+end
+$application_documents_select_own$;
 
 do $revoke_anon_security_definer$
 declare

@@ -11,6 +11,9 @@ import type {
   WorkModeCommunication,
   WorkModeEventPayload,
   WorkModeEventSummary,
+  WorkModeHistoryEvaluation,
+  WorkModeHistoryItem,
+  WorkModeHistoryPayload,
   WorkModeOverviewPayload,
   WorkModePublication,
   WorkModeReminder,
@@ -22,6 +25,12 @@ const ACTIVE_ASSIGNMENT_STATUSES: EmploymentAssignmentStatus[] = [
   "invited",
   "confirmed",
   "active",
+]
+
+const TERMINAL_ASSIGNMENT_STATUSES: EmploymentAssignmentStatus[] = [
+  "completed",
+  "cancelled",
+  "declined",
 ]
 
 function asRecord(value: Json | null): Record<string, unknown> {
@@ -608,4 +617,309 @@ export function findWorkModeAssignment(
   assignmentId: string,
 ): WorkModeAssignmentListItem | null {
   return payload.assignments.find((assignment) => assignment.id === assignmentId) ?? null
+}
+
+interface HistoryAssignmentRow {
+  id: string
+  role_title: string
+  department: string | null
+  event_id: string | null
+  event_v2_id: string | null
+  tour_id: string | null
+  staff_shift_id: string | null
+  staff_member_id: string | null
+  venue_id: string | null
+  organizer_id: string | null
+  starts_at: string | null
+  ends_at: string | null
+  status: string
+  updated_at: string
+}
+
+interface HistoryShiftRow {
+  id: string
+  event_id: string | null
+  shift_date: string
+  start_time: string
+  end_time: string
+  status: string
+}
+
+interface HistoryMetricRow {
+  id: string
+  staff_member_id: string | null
+  event_id: string | null
+  metric_date: string
+  attendance_rate: number | null
+  performance_rating: number | null
+  supervisor_rating: number | null
+  customer_feedback_score: number | null
+  commendations_count: number | null
+  incidents_count: number | null
+  training_completed: boolean | null
+  certifications_valid: boolean | null
+  notes: string | null
+  reviewed_at: string | null
+}
+
+interface HistoryAttendanceRow {
+  id: string
+  assignment_id: string
+  action: "check_in" | "check_out"
+  occurred_at: string
+}
+
+/**
+ * Worker-owned work history: every employment assignment the signed-in worker has,
+ * bucketed into upcoming (invited/confirmed/active) and completed
+ * (completed/cancelled/declined) jobs. Enrichment reuses the canonical shift
+ * (staff_shifts), event/org/venue context, staff performance metrics, and the
+ * gated worker check-in/out event table — no new tracking data is created.
+ *
+ * Authorization is server-side by construction: the query is always scoped with
+ * `eq("user_id", userId)` and the route only ever calls this with the
+ * authenticated user id.
+ */
+export async function getWorkModeHistory(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<WorkModeHistoryPayload> {
+  const availability = sourceAvailability()
+  const workerActionsAvailable = process.env.FEATURE_WORK_MODE_WORKER_ACTIONS === "1"
+
+  const { data: assignmentRows, error: assignmentError } = await supabase
+    .from("employment_assignments")
+    .select(
+      "id, role_title, department, event_id, event_v2_id, tour_id, staff_shift_id, staff_member_id, venue_id, organizer_id, starts_at, ends_at, status, updated_at",
+    )
+    .eq("user_id", userId)
+    .order("starts_at", { ascending: true, nullsFirst: false })
+
+  if (assignmentError) {
+    console.error("[work-mode] work history assignment read failed", assignmentError.message)
+    throw new WorkModeReadError()
+  }
+
+  const knownRows = (assignmentRows ?? []).filter((row) =>
+    ACTIVE_ASSIGNMENT_STATUSES.includes(row.status as EmploymentAssignmentStatus)
+    || TERMINAL_ASSIGNMENT_STATUSES.includes(row.status as EmploymentAssignmentStatus),
+  ) as HistoryAssignmentRow[]
+
+  const shiftIds = Array.from(new Set(knownRows
+    .map((row) => row.staff_shift_id)
+    .filter((id): id is string => Boolean(id))))
+  const shiftById = new Map<string, HistoryShiftRow>()
+  if (shiftIds.length > 0) {
+    const { data: shiftRows, error: shiftError } = await supabase
+      .from("staff_shifts")
+      .select("id, event_id, shift_date, start_time, end_time, status")
+      .in("id", shiftIds)
+    if (shiftError) {
+      console.warn("[work-mode] work history shift context read failed", shiftError.message)
+      availability.events = "unavailable"
+    } else {
+      for (const shift of (shiftRows ?? []) as HistoryShiftRow[]) shiftById.set(shift.id, shift)
+    }
+  }
+
+  const eventIds = Array.from(new Set(knownRows.map((row) => {
+    const shift = row.staff_shift_id ? shiftById.get(row.staff_shift_id) : undefined
+    return row.event_v2_id || row.event_id || shift?.event_id || null
+  }).filter((id): id is string => Boolean(id))))
+  const staffMemberIds = Array.from(new Set(knownRows.map((row) => row.staff_member_id).filter((id): id is string => Boolean(id))))
+
+  // Events and evaluation metrics load in parallel. Venue ids come from both the
+  // assignment rows and the loaded events (assignments usually carry the venue
+  // on the event, not the row), so venues load in a follow-up pass.
+  const [eventResult, metricResult] = await Promise.all([
+    eventIds.length
+      ? supabase.from("events_v2").select("id, title, org_id, venue_id, start_at, end_at").in("id", eventIds)
+      : Promise.resolve({ data: [], error: null }),
+    staffMemberIds.length
+      ? supabase
+          .from("staff_performance_metrics")
+          .select(
+            "id, staff_member_id, event_id, metric_date, attendance_rate, performance_rating, supervisor_rating, customer_feedback_score, commendations_count, incidents_count, training_completed, certifications_valid, notes, reviewed_at",
+          )
+          .in("staff_member_id", staffMemberIds)
+          .order("metric_date", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+  ])
+
+  const venueIds = Array.from(new Set(
+    [
+      ...knownRows.map((row) => row.venue_id),
+      ...(eventResult.data ?? []).map((event) => event.venue_id),
+    ].filter((id): id is string => Boolean(id)),
+  ))
+
+  const venueResult = venueIds.length
+    ? await supabase.from("venues_v2").select("id, name").in("id", venueIds)
+    : { data: [], error: null }
+
+  if (eventResult.error) {
+    availability.events = "unavailable"
+    console.warn("[work-mode] work history event context read failed", eventResult.error.message)
+  }
+  if (venueResult.error) {
+    availability.events = "unavailable"
+    console.warn("[work-mode] work history venue context read failed", venueResult.error.message)
+  }
+
+  // The org read is a follow-up pass because org ids are only known after events load.
+  const orgIds = Array.from(new Set((eventResult.data ?? []).map((event) => event.org_id).filter((id): id is string => Boolean(id))))
+  let organizationById = new Map<string, string>()
+  if (orgIds.length > 0) {
+    const { data: orgRows, error: orgError } = await supabase
+      .from("organizations")
+      .select("id, name")
+      .in("id", orgIds)
+    if (orgError) {
+      console.warn("[work-mode] work history organization read failed", orgError.message)
+      availability.events = "unavailable"
+    } else {
+      organizationById = new Map((orgRows ?? []).map((org) => [org.id, org.name]))
+    }
+  }
+
+  const venueById = new Map((venueResult.data ?? []).map((venue) => [venue.id, venue.name]))
+  const eventById = new Map((eventResult.data ?? []).map((event) => [event.id, event]))
+
+  // Evaluation: most recent metric for the staff member, preferring an event-scoped one.
+  const metricsByEvent = new Map<string, HistoryMetricRow>()
+  const metricsByStaff = new Map<string, HistoryMetricRow>()
+  for (const metric of (metricResult.data ?? []) as HistoryMetricRow[]) {
+    const eventKey = metric.staff_member_id && metric.event_id ? `${metric.staff_member_id}:${metric.event_id}` : null
+    if (eventKey && !metricsByEvent.has(eventKey)) metricsByEvent.set(eventKey, metric)
+    if (metric.staff_member_id && !metricsByStaff.has(metric.staff_member_id)) {
+      metricsByStaff.set(metric.staff_member_id, metric)
+    }
+  }
+  if (metricResult.error) {
+    console.warn("[work-mode] work history evaluation read failed", metricResult.error.message)
+    availability.events = "unavailable"
+  }
+
+  // Attendance: gated worker check-in/out events. The table and its RLS are owned
+  // by DB-010, which is not applied to any hosted project; the read is skipped
+  // unless the reviewed feature is explicitly enabled, mirroring the action route.
+  let attendanceRows: HistoryAttendanceRow[] = []
+  if (workerActionsAvailable && knownRows.length > 0) {
+    const eventDb = supabase as SupabaseClient<Database> & {
+      from(table: "work_mode_check_in_events"): any
+    }
+    const attendanceResult = (await eventDb
+      .from("work_mode_check_in_events")
+      .select("id, assignment_id, action, occurred_at")
+      .eq("user_id", userId)
+      .in("assignment_id", knownRows.map((row) => row.id))
+      .order("occurred_at", { ascending: true })
+      .limit(500)) as { data: HistoryAttendanceRow[] | null; error: { message: string } | null }
+    if (attendanceResult.error) {
+      console.warn("[work-mode] work history attendance read failed", attendanceResult.error.message)
+    } else {
+      attendanceRows = attendanceResult.data ?? []
+    }
+  }
+  const attendanceByAssignment = new Map<string, HistoryAttendanceRow[]>()
+  for (const event of attendanceRows) {
+    const list = attendanceByAssignment.get(event.assignment_id) ?? []
+    list.push(event)
+    attendanceByAssignment.set(event.assignment_id, list)
+  }
+
+  function evaluationFor(row: HistoryAssignmentRow): WorkModeHistoryEvaluation {
+    const assignmentEventId = row.event_v2_id || row.event_id || null
+    const eventKey = row.staff_member_id && assignmentEventId ? `${row.staff_member_id}:${assignmentEventId}` : null
+    const metric = (eventKey && metricsByEvent.get(eventKey)) || (row.staff_member_id ? metricsByStaff.get(row.staff_member_id) : null)
+    if (!metric) {
+      return {
+        attendanceRate: null,
+        performanceRating: null,
+        supervisorRating: null,
+        customerFeedbackScore: null,
+        commendationsCount: null,
+        incidentsCount: null,
+        trainingCompleted: null,
+        certificationsValid: null,
+        notes: null,
+        reviewedAt: null,
+        metricDate: null,
+        source: "none",
+      }
+    }
+    return {
+      attendanceRate: metric.attendance_rate,
+      performanceRating: metric.performance_rating,
+      supervisorRating: metric.supervisor_rating,
+      customerFeedbackScore: metric.customer_feedback_score,
+      commendationsCount: metric.commendations_count,
+      incidentsCount: metric.incidents_count,
+      trainingCompleted: metric.training_completed,
+      certificationsValid: metric.certifications_valid,
+      notes: metric.notes,
+      reviewedAt: metric.reviewed_at,
+      metricDate: metric.metric_date,
+      source: "staff_performance_metrics",
+    }
+  }
+
+  const items: WorkModeHistoryItem[] = knownRows.map((row) => {
+    const shift = row.staff_shift_id ? shiftById.get(row.staff_shift_id) : undefined
+    const eventId = row.event_v2_id || row.event_id || shift?.event_id || null
+    const event = eventId ? eventById.get(eventId) : undefined
+    const attendanceEvents = attendanceByAssignment.get(row.id) ?? []
+    const checkIns = attendanceEvents.filter((item) => item.action === "check_in").length
+    const checkOuts = attendanceEvents.filter((item) => item.action === "check_out").length
+    let lastCheckIn: string | null = null
+    let lastCheckOut: string | null = null
+    for (const item of attendanceEvents) {
+      if (item.action === "check_in") lastCheckIn = item.occurred_at
+      else lastCheckOut = item.occurred_at
+    }
+    const attendanceSource: WorkModeHistoryItem["attendance"]["source"] =
+      attendanceEvents.length > 0 ? "worker_actions" : shift?.status ? "shift_status" : "none"
+    return {
+      id: row.id,
+      roleTitle: row.role_title,
+      department: row.department,
+      status: row.status as EmploymentAssignmentStatus,
+      eventId,
+      eventTitle: event?.title || null,
+      organizationId: event?.org_id || null,
+      organizationName: event?.org_id ? organizationById.get(event.org_id) || null : null,
+      venueId: event?.venue_id || row.venue_id,
+      venueName: (event?.venue_id || row.venue_id) ? venueById.get((event?.venue_id || row.venue_id) as string) || null : null,
+      tourId: row.tour_id,
+      staffShiftId: row.staff_shift_id,
+      startsAt: row.starts_at || (shift ? `${shift.shift_date}T${shift.start_time}` : null),
+      endsAt: row.ends_at || (shift ? `${shift.shift_date}T${shift.end_time}` : null),
+      attendance: {
+        shiftStatus: shift?.status || null,
+        checkIns,
+        checkOuts,
+        lastCheckInAt: lastCheckIn,
+        lastCheckOutAt: lastCheckOut,
+        source: attendanceSource,
+        workerActionsAvailable,
+      },
+      evaluation: evaluationFor(row),
+      updatedAt: row.updated_at,
+    }
+  })
+
+  const upcoming = items
+    .filter((item) => ACTIVE_ASSIGNMENT_STATUSES.includes(item.status))
+    .sort((left, right) => String(left.startsAt || "9999").localeCompare(String(right.startsAt || "9999")))
+  const completed = items
+    .filter((item) => TERMINAL_ASSIGNMENT_STATUSES.includes(item.status))
+    .sort((left, right) => String(right.startsAt || "").localeCompare(String(left.startsAt || "")))
+
+  return {
+    upcoming,
+    completed,
+    sourceAvailability: availability,
+    generatedAt: new Date().toISOString(),
+    workerActionsAvailable,
+  }
 }

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260701021033_job_application_profile_snapshot.sql",
+  "taskId": "DB-008",
+  "status": "planned",
+  "manualApplyStatus": "replay-safety correction to already-applied history - no re-apply is required or permitted (CP-051); the operator only needs to confirm the two policies exist on the target",
+  "sha256": "d38c2bcd4e67e15d5ed4a293e51318583532a9351be3067f56583609e333f943",
+  "revisedFromSha256": "f94846e9c2056d5a50889e0d480e554e3cbed69a177f459c9d239b4248031cd3",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["hiring", "storage", "migration-replay", "data-integrity"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "Static source review plus an executed permission matrix for the application-document storage policies in the active migration 20260701021033_job_application_profile_snapshot.sql. The migration adds job_applications snapshot/star/reviewer columns (guarded by to_regclass), a partial index on the employer/starred pair, a job_applications_status_check rebuild, the application-documents storage bucket insert, and the do $app_docs_storage$ block that creates the two storage.objects policies application_documents_insert_own (INSERT to authenticated, WITH CHECK bucket_id = 'application-documents' AND (storage.foldername(name))[1] = auth.uid()::text) and application_documents_public_read (SELECT USING bucket_id = 'application-documents'). The failing statement was the unqualified CREATE POLICY: CREATE POLICY enforces pg_class_ownercheck on the target relation, which the server satisfies for the exact owner, a superuser, OR any member of the owning role, and raises SQLSTATE 42501 'must be owner of table objects' otherwise. The pre-fix block had no permission pre-check and no exception handler, so such a replay role aborted the migration and the whole CI replay. Reproduced on PostgreSQL 16.15 with a faithful local emulation of the Supabase storage bootstrap (storage.buckets and storage.objects owned by supabase_storage_admin, storage.foldername(name) text[], auth.users/auth.uid, and the anon/authenticated/replay roles). The in-flight alternative that compared pg_get_userbyid(c.relowner) = current_user was also executed: it stops the 42501 but returns false for a superuser and for a member of the owning role, both of which the server accepts, so it silently dropped both policies in the standard Supabase layout. Contract-test source: __tests__/database/ci-replay-and-retired-workforce-migration.test.ts",
+    "evidenceArtifact": "static-review:DB-008-APP-DOCS-STORAGE-REPLAY-SAFETY-2026-09-25 (migration SHA-256 d38c2bcd4e67e15d5ed4a293e51318583532a9351be3067f56583609e333f943, previous SHA-256 f94846e9c2056d5a50889e0d480e554e3cbed69a177f459c9d239b4248031cd3)"
+  },
+  "assumptions": [
+    "This is a historical migration (version 20260701021033) that is already applied on hosted environments and pinned in docs/engineering/migration-validation/history-baseline.json. Editing it is the only place a full CI replay can be repaired, because a forward-only migration cannot prevent an earlier statement from aborting the chain. The edit is confined to the do $app_docs_storage$ block and changes no schema object.",
+    "The permission decision is delegated to the server rather than re-derived. A pre-check predicate can only be a guess at pg_class_ownercheck; the executed matrix shows the common guess (relowner = current_user) is a strict subset of the server predicate and therefore produces silent skips. Attempting the statement in a subtransaction and reading the server's verdict cannot diverge from the server.",
+    "Absorbing the failure is the correct behavior for this block specifically: both policies are best-effort conveniences on a storage-service-owned relation, they are re-asserted idempotently by the pg_policies existence checks, and the later active migration 20260717194541_harden_security_audit_remediation.sql already hardens application_documents_public_read into application_documents_select_own. Aborting the chain on a storage-ownership boundary blocks every unrelated migration behind it.",
+    "Skips are raised as WARNING rather than NOTICE because line 1 of the migration sets client_min_messages = warning, which suppresses NOTICE. Verified on PostgreSQL 16: with client_min_messages = warning a NOTICE is dropped and a WARNING is emitted. A NOTICE-only guard would have failed invisibly.",
+    "The pre-existing fresh-apply evidence docs/admin-audit/evidence/2026/raw-fresh-apply-manifest-2026-09-08.txt records 27 failing active migrations, 11 of which are unguarded storage.objects policy creators including this one. That manifest predates the current chain tip, so it is corroborating rather than current evidence, and the sibling migrations are outside this lane's ownership.",
+    "Line 52-67 (insert into storage.buckets for the application-documents bucket) is deliberately left unchanged. It is outside the reported failure and altering it would change schema semantics; if a replay role can create policies on storage.objects but cannot insert into storage.buckets, that statement remains a residual abort risk recorded below."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm the two policies' current state and the relation owner on the target: SELECT schemaname, tablename, policyname, cmd, roles, qual, with_check FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'application_documents%'; SELECT pg_get_userbyid(c.relowner) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'storage' AND c.relname = 'objects';",
+    "Layer 1 (apply): none. The migration is already applied on hosted environments and is not re-applied (CP-051). No reset, no forced replay, no chain rewrite. The corrected bytes only affect future fresh replays such as the CI 'Database Types' job.",
+    "Layer 2 (postflight, read-only, operator): run the Layer 0 catalog query on staging and production and confirm both policies are present with the expected cmd/roles/qual. If a target's policies are absent, the operator creates them once as the storage relation owner; the corrected migration then leaves them untouched on any later replay because of the pg_policies existence checks.",
+    "Layer 3 (CI certification, release/ops): confirm the 'Database Types' job passes, which runs supabase start and therefore replays the full active chain from zero, then npm run check:migration-chain and npm run check:database-types. This is the gate that actually proves the fix."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT count(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'application_documents_insert_own'",
+      "SELECT count(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'application_documents_public_read'",
+      "SELECT pg_get_userbyid(c.relowner) AS storage_objects_owner FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'storage' AND c.relname = 'objects'"
+    ],
+    "expectedAffectedRows": "No rows are written and no schema object changes. On a fresh replay the two policies are created only when the replay role satisfies pg_class_ownercheck, which is exactly the set of replay roles under which the pre-fix migration already succeeded; on every other replay role the block emits two WARNINGs and leaves the catalog unchanged.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 1000,
+    "statementTimeoutMs": 30000,
+    "batchSize": 0,
+    "resumeStrategy": "Not an apply target. The migration is already applied on hosted environments; under CP-051 no re-apply, reset, or forced replay is performed. The corrected bytes are picked up automatically by the next fresh replay (CI 'Database Types', or an operator-approved disposable stack).",
+    "resumeCursor": "Supabase migration version 20260701021033 (already applied; not re-applied)",
+    "idempotency": "The pg_policies existence checks make the block a no-op once both policies exist. Verified by applying the corrected file three times in one database as a permitted role: 2 policies after each run, exit 0. Verified three times as a non-permitted role: 0 policies, 2 WARNINGs and exit 0 after each run, with no partial policy left behind."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement. When the replay role cannot create the policies, nothing is created and nothing is dropped; the skip is reported as a WARNING carrying the SQLSTATE and message so the CI log states exactly why the policies are absent rather than failing opaquely."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No constraint is added, altered, or dropped. The job_applications_status_check rebuild and the job_applications column additions earlier in the file are untouched.",
+      "No policy is dropped. validatePolicyReplacement in scripts/ci/check-migration-validation.mjs is satisfied because the block contains no DROP POLICY."
+    ],
+    "indexes": [
+      "No index is added, altered, or dropped. The partial index idx_job_apps_starred earlier in the file is untouched."
+    ],
+    "validationPlan": "Static source assertions in __tests__/database/ci-replay-and-retired-workforce-migration.test.ts lock the replay-safety property: both policies still created, one local exception handler per policy plus an outer backstop, no RAISE NOTICE, a WARNING carrying sqlstate and sqlerrm, and no self-derived permission predicate. A negative control was executed against the pre-fix bytes and against the alternative relowner = current_user guard; both fail the assertions, and the corrected file passes. Runtime confirmation is the CI 'Database Types' job, which performs the full fresh replay."
+  },
+  "recovery": {
+    "rollback": "Revert the file to the pinned previous bytes d38c2bcd -> f94846e9 in history-baseline.json together with the migration body. That restores the aborting behavior, so it is only correct if the chain is also protected another way; the preferred forward direction is to keep the corrected file and resolve the remaining sibling storage-policy migrations.",
+    "forwardFix": "If a target needs the policies and its replay role cannot create them, the operator creates both policies once as the storage.objects owner and then re-pins history-baseline.json only if the bytes change again. No new migration is required, because the corrected block is already idempotent and will not re-create existing policies."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT policyname, cmd, roles, qual, with_check FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'application_documents%' ORDER BY policyname",
+      "SELECT count(*) AS violations FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'application_documents_public_read' AND qual IS DISTINCT FROM '(bucket_id = ''application-documents''::text)'",
+      "npm run check:migration-chain",
+      "npm run check:database-types (regenerates lib/database.types.ts from the replayed local schema; the storage policies are not part of the generated type contract, so this job is the replay gate rather than a type-drift gate)"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "residualRisks": [
+    "The insert into storage.buckets at lines 52-67 is not guarded. A replay role that satisfies pg_class_ownercheck on storage.objects but lacks INSERT on storage.buckets would still abort the chain there, with SQLSTATE 42501 'new row violates row-level security policy for table \"buckets\"'. This is a different error text from the reported failure and was left unchanged deliberately.",
+    "Ten further active migrations create policies on storage.objects without an equivalent guard (20250115000001, 20250122000000, 20250816141000, 20260413000000, 20260413300002, 20260414130000, 20260625020000, 20260630211500, 20260717194541, 20260825130000). Eight of them are still unguarded at HEAD. Under a non-owner replay role the chain aborts at the first of them, 20250115000001, so the corrected 20260701021033 alone may not turn the 'Database Types' job green. Those files are outside this lane's ownership and need an orchestrator decision."
+  ],
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -87,6 +87,14 @@ interface MarketplaceOrder {
   total_amount: number
   currency: string
   created_at: string
+  metadata?: {
+    lifecycleAudit?: Array<{
+      action?: string
+      idempotencyKey?: string
+      refundId?: string
+    }>
+    [key: string]: unknown
+  } | null
   shipping_address?: Record<string, unknown> | null
   marketplace_order_items?: Array<{
     id: string
@@ -292,6 +300,14 @@ function getListingActionLabel(listing: Pick<MarketplaceListing, "category" | "p
   return "Buy"
 }
 
+function canRefundSellerOrder(order: MarketplaceOrder) {
+  return order.payment_status === "paid" && order.status !== "refunded" && !hasRefundRequest(order)
+}
+
+function hasRefundRequest(order: MarketplaceOrder) {
+  return Boolean(order.metadata?.lifecycleAudit?.some(entry => entry?.action === "refund_requested"))
+}
+
 export function SellerStoreDashboard({
   storeTitle = "Marketplace",
   storeDescription = "Sell products, services, tickets, and more from your storefront",
@@ -364,6 +380,8 @@ export function SellerStoreDashboard({
   })
   const [storefrontSections, setStorefrontSections] = useState<string[]>([...DEFAULT_STOREFRONT_SECTIONS])
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null)
+  const [refundRequestKeys, setRefundRequestKeys] = useState<Record<string, string>>({})
   const [announceOnPublish, setAnnounceOnPublish] = useState(false)
   const [marketplaceAnalytics, setMarketplaceAnalytics] = useState<SellerAnalyticsSummary | null>(null)
 
@@ -900,6 +918,72 @@ export function SellerStoreDashboard({
       await loadData()
     } finally {
       setIsDeletingListingId(null)
+    }
+  }
+
+  function getRefundRequestKey(orderId: string) {
+    const existing = refundRequestKeys[orderId]
+    if (existing) return existing
+    const random =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const next = `seller-refund-${orderId}-${random}`
+    setRefundRequestKeys(current => ({ ...current, [orderId]: next }))
+    return next
+  }
+
+  async function refundOrder(order: MarketplaceOrder) {
+    if (!canRefundSellerOrder(order)) {
+      setSyncMessage("Only paid orders can be refunded.")
+      return
+    }
+
+    setRefundingOrderId(order.id)
+    setSyncMessage(null)
+    try {
+      const idempotencyKey = getRefundRequestKey(order.id)
+      const response = await fetch(`/api/marketplace/orders/${order.id}/refund`, buildNoStoreInit({
+        method: "POST",
+        body: JSON.stringify({
+          idempotencyKey,
+          reason: "requested_by_customer",
+        }),
+      }))
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setSyncMessage(extractApiError(body, "Unable to submit refund."))
+        return
+      }
+
+      setOrders(current =>
+        current.map(item =>
+          item.id === order.id
+            ? {
+                ...item,
+                metadata: {
+                  ...(item.metadata || {}),
+                  lifecycleAudit: [
+                    ...(item.metadata?.lifecycleAudit || []),
+                    {
+                      action: "refund_requested",
+                      idempotencyKey,
+                      refundId: body.data?.refundId,
+                    },
+                  ],
+                },
+              }
+            : item,
+        ),
+      )
+      setSyncMessage(body.data?.alreadyRequested ? "Refund request already submitted." : "Refund submitted. Payout is on hold while Stripe processes it.")
+      setRefundRequestKeys(current => {
+        const { [order.id]: _removed, ...rest } = current
+        return rest
+      })
+      await loadData()
+    } finally {
+      setRefundingOrderId(null)
     }
   }
 
@@ -1726,6 +1810,30 @@ export function SellerStoreDashboard({
                           ) : (
                             <div className="text-xs text-slate-500">No shipping address on this order.</div>
                           )}
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
+                            <div>
+                              <div className="text-sm font-medium text-slate-200">Refund</div>
+                              <div className="text-xs text-slate-500">
+                                {canRefundSellerOrder(order)
+                                  ? "Submit a Stripe refund and hold the seller payout while it processes."
+                                  : hasRefundRequest(order)
+                                    ? "Refund request submitted. Payout is on hold while Stripe processes it."
+                                  : order.status === "refunded" || order.payment_status === "refunded"
+                                    ? "This order has already been refunded."
+                                    : "Refunds become available after payment is complete."}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="border-rose-500/50 text-rose-100 hover:bg-rose-500/10"
+                              disabled={!canRefundSellerOrder(order) || refundingOrderId === order.id}
+                              onClick={() => void refundOrder(order)}
+                            >
+                              {refundingOrderId === order.id ? "Submitting..." : "Refund order"}
+                            </Button>
+                          </div>
                         </div>
                       ) : null}
                     </div>

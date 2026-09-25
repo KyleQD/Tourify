@@ -1,0 +1,158 @@
+lib/services/staff-management.service.ts(117,5): error TS2322: Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }[]' is not assignable to type 'StaffMember[]'.
+  Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }' is not assignable to type 'StaffMember'.
+    Types of property 'user_id' are incompatible.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+lib/services/staff-management.service.ts(132,5): error TS2322: Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }' is not assignable to type 'StaffMember'.
+  Types of property 'user_id' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+lib/services/staff-management.service.ts(138,8): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: { canonical_staff_member_id?: string | null | undefined; created_at?: string | null | undefined; department?: string | null | undefined; email: string; employment_type?: string | null | undefined; ... 7 more ...; venue_id: string; }, options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type 'Partial<StaffMember>[]' is not assignable to parameter of type '{ canonical_staff_member_id?: string | null | undefined; created_at?: string | null | undefined; department?: string | null | undefined; email: string; employment_type?: string | null | undefined; ... 7 more ...; venue_id: string; }'.
+      Type 'Partial<StaffMember>[]' is missing the following properties from type '{ canonical_staff_member_id?: string | null | undefined; created_at?: string | null | undefined; department?: string | null | undefined; email: string; employment_type?: string | null | undefined; ... 7 more ...; venue_id: string; }': email, name, role, venue_id
+  Overload 2 of 2, '(values: { canonical_staff_member_id?: string | null | undefined; created_at?: string | null | undefined; department?: string | null | undefined; email: string; employment_type?: string | null | undefined; ... 7 more ...; venue_id: string; }[], options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Type 'Partial<StaffMember>' is not assignable to type '{ canonical_staff_member_id?: string | null | undefined; created_at?: string | null | undefined; department?: string | null | undefined; email: string; employment_type?: string | null | undefined; ... 7 more ...; venue_id: string; }'.
+      Types of property 'email' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+lib/services/staff-management.service.ts(147,5): error TS2322: Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }' is not assignable to type 'StaffMember'.
+  Types of property 'user_id' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+lib/services/staff-management.service.ts(163,5): error TS2322: Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }' is not assignable to type 'StaffMember'.
+  Types of property 'user_id' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+lib/services/staff-management.service.ts(183,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(184,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(194,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'CrewMember[]'.
+  Type 'ResultOne' is not assignable to type 'CrewMember'.
+lib/services/staff-management.service.ts(198,17): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(199,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(215,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'CrewMember[]'.
+  Type 'ResultOne' is not assignable to type 'CrewMember'.
+lib/services/staff-management.service.ts(219,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(220,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(234,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(235,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(250,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(251,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"event_crew_assignments"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"event_crew_assignments"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(265,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(266,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"event_crew_assignments"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"event_crew_assignments"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(278,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'EventCrewAssignment[]'.
+  Type 'ResultOne' is not assignable to type 'EventCrewAssignment'.
+lib/services/staff-management.service.ts(286,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(287,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(297,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'TeamContractor[]'.
+  Type 'ResultOne' is not assignable to type 'TeamContractor'.
+lib/services/staff-management.service.ts(301,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(302,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(316,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(317,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(338,14): error TS2345: Argument of type '"get_staff_dashboard_stats"' is not assignable to parameter of type '"_tourify_has_columns" | "accept_org_invite" | "accept_tour_collaboration_invitation" | "accept_venue_ownership_transfer" | "admin_commit_domain_with_outbox" | "admin_publication_outbox_claim" | ... 125 more ... | "write_venue_lifecycle_audit"'.
+lib/services/staff-management.service.ts(346,7): error TS2322: Type 'string | number | true | { [key: string]: Json | undefined; } | Json[] | { already_accepted: boolean; invitation_id: string; tour_id: string; }[] | { already_existed: boolean; outbox_id: string; transaction_id: string; }[] | ... 19 more ... | { ...; }' is not assignable to type 'StaffDashboardStats'.
+  Type 'string' is not assignable to type 'StaffDashboardStats'.
+lib/services/staff-management.service.ts(363,7): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(363,21): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(364,7): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(364,21): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_team_contractors"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(375,41): error TS2339: Property 'is_available' does not exist on type 'ResultOne'.
+lib/services/staff-management.service.ts(377,38): error TS2339: Property 'is_active' does not exist on type 'ResultOne'.
+lib/services/staff-management.service.ts(386,35): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(387,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"staff_applications"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"staff_applications"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(413,14): error TS2345: Argument of type '"hire_from_job_board"' is not assignable to parameter of type '"_tourify_has_columns" | "accept_org_invite" | "accept_tour_collaboration_invitation" | "accept_venue_ownership_transfer" | "admin_commit_domain_with_outbox" | "admin_publication_outbox_claim" | ... 125 more ... | "write_venue_lifecycle_audit"'.
+lib/services/staff-management.service.ts(426,7): error TS2322: Type 'Json | string[] | { already_accepted: boolean; invitation_id: string; tour_id: string; }[] | { already_existed: boolean; outbox_id: string; transaction_id: string; }[] | { aggregate_id: string; ... 18 more ...; status: string; }[] | ... 31 more ... | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+lib/services/staff-management.service.ts(441,58): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(442,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"staff_applications"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"staff_applications"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(457,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"staff_applications"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"staff_applications"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(469,28): error TS2339: Property 'applicant_id' does not exist on type 'NonNullable<ResultOne>'.
+lib/services/staff-management.service.ts(470,25): error TS2339: Property 'applicant' does not exist on type 'NonNullable<ResultOne>'.
+lib/services/staff-management.service.ts(471,26): error TS2339: Property 'applicant' does not exist on type 'NonNullable<ResultOne>'.
+lib/services/staff-management.service.ts(478,27): error TS2339: Property 'job' does not exist on type 'NonNullable<ResultOne>'.
+lib/services/staff-management.service.ts(488,32): error TS2339: Property 'job' does not exist on type 'NonNullable<ResultOne>'.
+lib/services/staff-management.service.ts(502,27): error TS2339: Property 'job' does not exist on type 'NonNullable<ResultOne>'.
+lib/services/staff-management.service.ts(557,5): error TS2322: Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }[]' is not assignable to type 'StaffMember[]'.
+  Type '{ canonical_staff_member_id: string | null; created_at: string | null; department: string | null; email: string; employment_type: string | null; id: string; name: string; permissions: Json; ... 4 more ...; venue_id: string; }' is not assignable to type 'StaffMember'.
+    Types of property 'user_id' are incompatible.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+lib/services/staff-management.service.ts(568,25): error TS2589: Type instantiation is excessively deep and possibly infinite.
+lib/services/staff-management.service.ts(569,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(relation: "accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"accounts" | "profiles" | "achievements" | "organizations" | "organizer_accounts" | "admin_publication_recipients" | "admin_publication_share_tokens" | "admin_publication_snapshots" | ... 380 more ... | "world_track_places"'.
+  Overload 2 of 2, '(relation: "entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"): PostgrestQueryBuilder<...>', gave the following error.
+    Argument of type '"venue_crew_members"' is not assignable to parameter of type '"entities_individuals" | "friend_suggestions_view" | "entities_artists" | "entities_venues" | "unified_staff_roster" | "forum_threads_hot_mv" | "forum_threads_top_mv" | ... 5 more ... | "work_hub_integrity_issues"'.
+lib/services/staff-management.service.ts(592,5): error TS2322: Type 'ResultOne[]' is not assignable to type 'CrewMember[]'.
+  Type 'ResultOne' is not assignable to type 'CrewMember'.
+Files:               907
+Lines:            244926
+Identifiers:      255257
+Symbols:          491869
+Types:            310969
+Instantiations: 74605051
+Memory used:     974207K
+I/O read:          0.52s
+I/O write:         0.00s
+Parse time:        2.45s
+Bind time:         1.71s
+Check time:      476.34s
+Emit time:         0.00s
+Total time:      480.50s

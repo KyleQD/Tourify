@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "ORG-007",
+  "title": "Build canonical organization vendor services",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "organization",
+  "created_at": "2026-09-23T19:16:12.444Z",
+  "updated_at": "2026-09-23T19:16:12.444Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (30 entries)",
+  "goal": "Replace mock or local-only vendor behavior with persistent organization-scoped contracts after DB-012.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": [],
+    "evidence": [],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "progress": {
+    "summary": "Created; implementation not started.",
+    "completed": [],
+    "next_steps": [],
+    "blockers": [],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

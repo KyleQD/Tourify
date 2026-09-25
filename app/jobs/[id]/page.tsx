@@ -566,9 +566,15 @@ export default function JobDetailPage() {
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="min-w-0 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/15 text-cyan-200">
-                  Venue staffing
-                </Badge>
+                {job.employer_entity_type === 'organization' ? (
+                  <Badge variant="outline" className="border-purple-500/30 bg-purple-500/15 text-purple-200">
+                    Organization
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/15 text-cyan-200">
+                    Venue staffing
+                  </Badge>
+                )}
                 {job.department ? (
                   <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-300">
                     {job.department}

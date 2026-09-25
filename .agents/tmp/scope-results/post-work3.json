@@ -1,0 +1,30 @@
+{
+  "label": "post-work3",
+  "roots": [
+    "lib/services/venue.service.ts",
+    "lib/services/artist.service.ts",
+    "lib/services/account-management.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 24,
+  "primaryDiagnosticLines": 29,
+  "filesWithDiagnostics": 3,
+  "byFile": {
+    "lib/services/venue.service.ts": 19,
+    "lib/services/artist.service.ts": 8,
+    "lib/services/account-management.service.ts": 2
+  },
+  "byCode": {
+    "TS2322": 14,
+    "TS2769": 4,
+    "TS2739": 4,
+    "TS2589": 2,
+    "TS2551": 2,
+    "TS2345": 1,
+    "TS2740": 1,
+    "TS2339": 1
+  },
+  "tsFilesParsed": "913",
+  "tsLines": null,
+  "stderr": ""
+}

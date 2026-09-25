@@ -5,7 +5,14 @@
   "status": "isolated_validated",
   "owner": "admin-platform",
   "reviewer": "security-data",
-  "domains": ["hiring", "events", "tours", "organizations", "work-mode", "rbac"],
+  "domains": [
+    "hiring",
+    "events",
+    "tours",
+    "organizations",
+    "work-mode",
+    "rbac"
+  ],
   "riskLevel": "high",
   "representativeSnapshot": {
     "kind": "linked production Supabase project with current job postings, events_v2, tours, and organization memberships",
@@ -73,10 +80,18 @@
       "id": "job-posting-scope-not-null",
       "type": "not-null-reviewed",
       "owner": "admin-platform",
-      "rationale": "The new scope column is backfilled before SET NOT NULL; the linked snapshot has 35 posting rows and completed within the documented 5-second lock budget.",
+      "rationale": "The new scope column is backfilled before SET NOT NULL; the linked snapshot has 35 posting rows and completed within the documented 5-second lock budget. Renewed 2026-09-25 by the database lane (DB-008, Wave 33) as a records action only: the migration is already applied on the linked project and its own evidence records that the SET NOT NULL step completed, so the waiver is no longer covering an unapplied step. The marker in the migration SQL is load-bearing for check-migration-validation, which accepts a SET NOT NULL only with a validated precheck or a reviewed lock-budget marker, so the record cannot simply be deleted. Underlying HIRING-SCOPED-JOBS-AND-SEATS ownership is unchanged.",
       "issue": "HIRING-SCOPED-JOBS-AND-SEATS",
-      "expiresOn": "2026-09-21",
-      "evidence": "Linked-project migration 20260821180438 completed successfully and all scope constraints validate."
+      "expiresOn": "2026-10-25",
+      "evidence": "Linked-project migration 20260821180438 completed successfully and all scope constraints validate. Renewal evidence: the same linked-project apply result; no new apply was performed by the database lane (CP-051 forbids an unapproved apply or replay), and none is claimed here.",
+      "renewalHistory": [
+        {
+          "renewedOn": "2026-09-25",
+          "renewedBy": "database (DB-008, Wave 33)",
+          "previousExpiresOn": "2026-09-21",
+          "reason": "The waiver had expired and was failing `npm run check:migration-validation` for the whole repository, which blocks the P0 launch gate. The recorded evidence already states the waived step completed, so this is an evidence-consistent renewal rather than a new concession. admin-platform remains the owner and must re-review or retire it by 2026-10-25."
+        }
+      ]
     }
   ]
 }

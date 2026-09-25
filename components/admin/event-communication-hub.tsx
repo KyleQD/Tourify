@@ -27,6 +27,7 @@ import { EventTaskMessages } from "@/components/admin/event-task-messages"
 import { EventSecureUploads } from "@/components/admin/event-secure-uploads"
 import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import { supabase } from "@/lib/supabase"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 import {
   Megaphone,
   MessageSquare,
@@ -1010,22 +1011,31 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
 function SiteMapSection({ eventId, eventName, isAdmin, userRole }: {
   eventId: string; eventName: string; isAdmin: boolean; userRole: string
 }) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [maps, setMaps] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let active = true
     async function loadMaps() {
+      if (!isAdminReady) {
+        setMaps([])
+        setLoading(false)
+        return
+      }
+      setLoading(true)
       try {
         const params = new URLSearchParams({ eventId, includeData: 'false' })
-        const resp = await fetch(`/api/admin/logistics/site-maps?${params}`, buildFetchInit())
+        const resp = await adminFetch(`/api/admin/logistics/site-maps?${params}`, buildFetchInit())
         const data = await resp.json()
-        if (data.success) setMaps(data.data || [])
+        if (active && data.success) setMaps(data.data || [])
       } catch { /* */ } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
-    loadMaps()
-  }, [eventId])
+    void loadMaps()
+    return () => { active = false }
+  }, [actingContextKey, adminFetch, eventId, isAdminReady])
 
   if (loading) {
     return (

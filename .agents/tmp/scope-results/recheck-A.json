@@ -1,0 +1,25 @@
+{
+  "label": "recheck-A",
+  "roots": [
+    "lib/services/advanced-analytics.service.ts",
+    "lib/services/equipment-assets.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 135.1,
+  "primaryDiagnosticLines": 32,
+  "filesWithDiagnostics": 2,
+  "byFile": {
+    "lib/services/advanced-analytics.service.ts": 30,
+    "lib/services/equipment-assets.service.ts": 2
+  },
+  "byCode": {
+    "TS2322": 9,
+    "TS2589": 8,
+    "TS2769": 8,
+    "TS2339": 4,
+    "TS2345": 3
+  },
+  "tsFilesParsed": "910",
+  "tsLines": null,
+  "stderr": ""
+}

@@ -1,0 +1,32 @@
+{
+  "label": "pre-del-A",
+  "roots": [
+    "lib/services/advanced-analytics.service.ts",
+    "lib/services/enhanced-staff-analytics.service.ts",
+    "lib/services/equipment-assets.service.ts",
+    "lib/services/event-page.service.ts",
+    "lib/services/event-participants.service.ts",
+    "lib/services/locations.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 121.4,
+  "primaryDiagnosticLines": 42,
+  "filesWithDiagnostics": 5,
+  "byFile": {
+    "lib/services/advanced-analytics.service.ts": 30,
+    "lib/services/enhanced-staff-analytics.service.ts": 5,
+    "lib/services/locations.service.ts": 3,
+    "lib/services/equipment-assets.service.ts": 2,
+    "lib/services/event-participants.service.ts": 2
+  },
+  "byCode": {
+    "TS2322": 14,
+    "TS2339": 9,
+    "TS2589": 8,
+    "TS2769": 8,
+    "TS2345": 3
+  },
+  "tsFilesParsed": "931",
+  "tsLines": null,
+  "stderr": ""
+}

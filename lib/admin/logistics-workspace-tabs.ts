@@ -1,19 +1,16 @@
 /**
  * Logistics Workspace Navigation
  *
- * Grouped primary + secondary navigation for Logistics pages.
- * Reduces 8 flat tabs to 4 primary groups.
+ * Compatibility navigation for the legacy Logistics client.
+ * Comms and Maps are deliberately independent primary destinations.
  * Fixes: AUX-LOG-002
  */
 
 import {
   Truck,
-  Building,
   Box,
   MessageSquare,
   MapPin,
-  Zap,
-  Utensils,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,7 +34,7 @@ export interface LogisticsWorkspaceGroup {
 
 /**
  * Grouped workspace navigation for Logistics pages.
- * Reduces 8 flat tabs to 4 primary groups with secondary items.
+ * Retains legacy tab ids while keeping Comms and Maps separate.
  */
 export const LOGISTICS_WORKSPACE_GROUPS: LogisticsWorkspaceGroup[] = [
   {
@@ -69,14 +66,18 @@ export const LOGISTICS_WORKSPACE_GROUPS: LogisticsWorkspaceGroup[] = [
     ],
   },
   {
-    id: "comms-maps",
-    label: "Comms & Maps",
+    id: "communications",
+    label: "Comms",
     icon: MessageSquare,
     primaryTab: "communication",
-    secondary: [
-      { id: "communication", label: "Comms" },
-      { id: "site-maps", label: "Site Maps" },
-    ],
+    secondary: [],
+  },
+  {
+    id: "maps",
+    label: "Maps",
+    icon: MapPin,
+    primaryTab: "site-maps",
+    secondary: [],
   },
 ];
 

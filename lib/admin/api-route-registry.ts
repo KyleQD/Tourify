@@ -979,6 +979,15 @@ export const ADMIN_API_ROUTE_REGISTRY: AdminRouteContract[] = [
     owner: "ops-logistics",
   },
   {
+    route: "/api/admin/logistics/overview",
+    methods: ["GET"],
+    authClass: "capability_gated",
+    capability: "logistics.view",
+    idempotency: false,
+    audit: false,
+    owner: "ops-logistics",
+  },
+  {
     route: "/api/admin/logistics/plans",
     methods: ["GET"],
     authClass: "capability_gated",

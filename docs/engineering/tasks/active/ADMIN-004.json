@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-004",
+  "title": "Converge logistics acting context",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:09.162Z",
+  "updated_at": "2026-09-24T00:38:33Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (19 entries)",
+  "goal": "Make mounted admin logistics clients and APIs honor the selected organization, cancel stale work, and harden legacy organization boundaries.",
+  "scope": {
+    "in": [
+      "Mounted admin logistics data hooks and panels for logistics items, transport, travel, lodging, rentals, metrics, and alerts",
+      "Selected-organization request headers, readiness gating, request cancellation, and stale-response discard",
+      "Explicit acting-organization constraints for the corresponding admin API routes where active schema ownership is available",
+      "Focused client and route contract tests for acting context and cross-organization denial"
+    ],
+    "out": [
+      "Site-map hooks, components, routes, tests, and ADMIN-003 implementation files",
+      "Logistics page navigation, Overview UI, and the new overview aggregate API",
+      "Venue and artist logistics surfaces",
+      "Supabase migrations and archived schema promotion"
+    ]
+  },
+  "working_set": [
+    "hooks/use-logistics.ts",
+    "hooks/use-travel-coordination.ts",
+    "hooks/use-lodging.ts",
+    "hooks/use-rentals.ts",
+    "components/admin/logistics/transport/transport-manager.tsx",
+    "components/admin/logistics/travel/",
+    "components/admin/logistics/logistics-alerts-panel.tsx",
+    "components/admin/logistics/logistics-metrics-card.tsx",
+    "components/admin/logistics/travel-slo-banner.tsx",
+    "components/admin/lodging-management.tsx",
+    "app/api/admin/travel-coordination/route.ts",
+    "app/api/admin/lodging/route.ts",
+    "app/api/admin/rentals/route.ts",
+    "app/api/admin/logistics/alerts/route.ts",
+    "app/api/admin/logistics/metrics/route.ts",
+    "__tests__/admin/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    "Mounted logistics requests do not fire before a selected organization account is ready",
+    "Mounted logistics reads and mutations carry selected profile, account type, organization, correlation, and included-credentials request context",
+    "Changing acting organizations clears prior organization state, aborts in-flight work, and discards stale responses",
+    "Travel, lodging, rental, metric, and alert API reads cannot return records outside the acting organization",
+    "Mutations validate record or parent ownership against the acting organization before writing",
+    "Focused tests cover readiness gating, acting headers, stale response handling, and cross-organization boundaries"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/admin/admin-logistics-acting-context.test.tsx __tests__/admin/admin-logistics-organization-boundaries.test.ts",
+      "npx eslint <touched implementation and test files>",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "__tests__/admin/admin-acting-request.test.tsx covers unresolved organization readiness, acting headers, FormData, organization switching, aborts, and stale response discard.",
+      "__tests__/logistics/logistics-route-contract.test.ts verifies active parent-scope contracts for travel, lodging, and rentals.",
+      "Focused Vitest run passed 63 tests before the final readiness and Comms additions; final rerun is tracked in QA-007."
+    ],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "passed"
+  },
+  "progress": {
+    "summary": "Mounted Logistics requests now wait for a canonical organization, carry acting context, discard stale responses, and use active-schema parent authorization.",
+    "completed": [
+      "Read the admin charter/state, development workflow, builder methodology, and current mounted Logistics request paths",
+      "Confirmed ADMIN-003 owns the shared acting-request helper and all site-map files; those files remain untouched",
+      "Adopted the acting-request path across mounted logistics, travel, lodging, rentals, transport, production, Comms, and map collaboration clients.",
+      "Required a resolved x-acting-org-id before any admin logistics request can fire.",
+      "Hardened travel, lodging, and rental APIs with logistics capabilities and event/tour parent validation.",
+      "Added stale-response and organization-switch coverage; focused suite passes."
+    ],
+    "next_steps": [
+      "Run authenticated browser organization-switch regression when a test session is available."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-23T20:00:00.000Z",
+        "summary": "Converted the skeletal task into a bounded implementation packet after tracing the mounted Logistics clients and APIs.",
+        "next": "Implement request-context convergence without editing the parent-owned Logistics page or ADMIN-003 site-map files."
+      },
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Completed acting-context convergence and active-schema boundary hardening. Focused tests and lint pass.",
+        "next": "Use QA-007 for the authenticated cross-organization browser pass."
+      }
+    ]
+  },
+  "handoffs": []
+}

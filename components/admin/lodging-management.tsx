@@ -81,7 +81,7 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
     createGuestAssignment,
     updateGuestAssignment,
     deleteGuestAssignment
-  } = useLodging()
+  } = useLodging({ event_id: eventId, tour_id: tourId })
 
   // Form states
   const [bookingForm, setBookingForm] = useState({
@@ -831,4 +831,4 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
       </Dialog>
     </div>
   )
-} 
+}

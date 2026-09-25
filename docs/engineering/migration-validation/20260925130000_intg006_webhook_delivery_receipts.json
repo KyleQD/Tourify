@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260925130000_intg006_webhook_delivery_receipts.sql",
+  "taskId": "INTG-006",
+  "status": "planned",
+  "owner": "integrations",
+  "reviewer": "database-auth-security",
+  "domains": ["integrations", "notifications", "security", "rls"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated Supabase target with public.notification_delivery_log present and the Supabase Database Webhook enabled on public.notifications",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT count(*) FROM public.notification_delivery_log",
+      "SELECT to_regclass('public.webhook_delivery_receipts') IS NOT NULL",
+      "SELECT count(*) FROM public.notifications"
+    ],
+    "expectedAffectedRows": "Zero existing rows are read, updated, or deleted. One new table, one primary key, one check constraint, and one non-unique index are created.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 2000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 1,
+    "resumeStrategy": "Apply to isolated staging first under CP-051, then to production BEFORE the webhook route change is deployed: app/api/webhooks/supabase/notifications claims from this table before any delivery and intentionally returns 500 'Delivery claim failed' while the table is absent, so shipping the route first is an intentional hard failure, not a silent one. CREATE TABLE IF NOT EXISTS plus CREATE INDEX IF NOT EXISTS make a partial apply safe to re-run; a failed apply is corrected with a later additive forward fix, never a reset or destructive replay.",
+    "resumeCursor": "Supabase migration version 20260925130000",
+    "idempotency": "All object creation uses IF NOT EXISTS and grants/RLS statements are deterministic and repeatable."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No new quarantine table. The new receipt table is append-only per (provider, delivery_id) and is written only by service_role webhook routes."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "One new primary key (provider, delivery_id) on the new table",
+      "One new check constraint limiting status to processing|delivered|failed on the new table",
+      "No existing constraint is added, altered, or dropped"
+    ],
+    "indexes": [
+      "One new non-unique index webhook_delivery_receipts_provider_status_idx on the new table",
+      "No existing index is altered or dropped"
+    ],
+    "validationPlan": "After apply, run the inline postflight queries: the table exists, RLS is enabled, has_table_privilege for anon/authenticated is false, service_role has full privileges, and the claim/duplicate/reclaim probe behaves as documented. Then re-run npx vitest run __tests__/integrations."
+  },
+  "recovery": {
+    "rollback": "The migration only creates a new table, so rollback is DROP TABLE public.webhook_delivery_receipts. That also disables replay suppression for the Supabase notification webhook, so the route must be reverted with it — never leave the route claiming into a dropped table.",
+    "forwardFix": "If the check constraint or status vocabulary needs to widen, issue a later additive migration that drops and recreates the constraint on the new table only."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT to_regclass('public.webhook_delivery_receipts')",
+      "SELECT relrowsecurity FROM pg_class WHERE oid = 'public.webhook_delivery_receipts'::regclass",
+      "SELECT has_table_privilege('anon', 'public.webhook_delivery_receipts', 'SELECT') AS anon_select, has_table_privilege('authenticated', 'public.webhook_delivery_receipts', 'SELECT') AS authenticated_select, has_table_privilege('service_role', 'public.webhook_delivery_receipts', 'SELECT,INSERT,UPDATE,DELETE') AS service_role_all",
+      "INSERT INTO public.webhook_delivery_receipts (provider, delivery_id) VALUES ('intg006_probe', 'probe-1')",
+      "INSERT INTO public.webhook_delivery_receipts (provider, delivery_id) VALUES ('intg006_probe', 'probe-1') -- expect 23505 duplicate key",
+      "SELECT count(*) FROM public.webhook_delivery_receipts WHERE provider = 'intg006_probe'",
+      "DELETE FROM public.webhook_delivery_receipts WHERE provider = 'intg006_probe'",
+      "Re-run npx vitest run __tests__/integrations"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "INTG006-WEBHOOK-RECEIPT-DEPLOY-ORDERING",
+      "type": "blocking-constraint-reviewed",
+      "owner": "integrations",
+      "rationale": "The only constraint this migration creates is the new-table CHECK webhook_delivery_receipts_status_check, declared inline on a table that does not yet exist, so no existing relation is locked and no scanner suppression is requested for this entry (no migration-validation marker comment and no sourceSha256 are present in the SQL, so this entry cannot suppress a future blocking-constraint finding). This exception is registered instead to time-box the deploy-ordering coupling: app/api/webhooks/supabase/notifications claims from public.webhook_delivery_receipts before any delivery, and intentionally fails closed with HTTP 500 while the table is absent, so this migration must be applied before that route change is deployed. The requirement is also restated in execution.resumeStrategy, where it is semantically correct, so deleting this entry loses no information. Delete this entry once version 20260925130000 is applied to the target environment and the notification route is confirmed enabled.",
+      "issue": "INTG-006",
+      "evidence": "executable:__tests__/integrations/webhook-route-behavior.test.ts:419 'fails closed with 500 when the receipt claim cannot be persisted' (asserts 500 and zero delivery calls when the receipt claim errors 42P01); route:app/api/webhooks/supabase/notifications/route.ts; migration:supabase/migrations/20260925130000_intg006_webhook_delivery_receipts.sql",
+      "expiresOn": "2026-10-09"
+    }
+  ]
+}

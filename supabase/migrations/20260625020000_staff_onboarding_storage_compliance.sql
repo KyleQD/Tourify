@@ -272,34 +272,26 @@ end $$;
 -- validating token/session scope. This policy allows authenticated writes only to
 -- the private staff buckets. Tighten path-specific rules if the app later supports
 -- direct browser-to-storage uploads.
+-- [CP-059 replay guard] The previous guard here compared
+-- pg_get_userbyid(relowner) = current_user and then reported with `raise notice`.
+-- `relowner = current_user` is a strict SUBSET of the server's
+-- pg_class_ownercheck predicate (which also admits a superuser and any member of
+-- the owning role), and `raise notice` is suppressed by
+-- `set client_min_messages = warning`, so a fresh replay silently skipped this
+-- policy and reported nothing. The server is now asked directly.
 do $$
-declare
-  v_storage_objects_owned_by_current_role boolean := false;
 begin
-  select pg_get_userbyid(c.relowner) = current_user
-  into v_storage_objects_owned_by_current_role
-  from pg_class c
-  join pg_namespace n on n.oid = c.relnamespace
-  where n.nspname = 'storage'
-    and c.relname = 'objects';
-
-  if not coalesce(v_storage_objects_owned_by_current_role, false) then
-    raise notice 'Skipping staff_onboarding_storage_authenticated_write because %.% is not owned by %', 'storage', 'objects', current_user;
-    return;
-  end if;
-
-  if not exists (
-    select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'staff_onboarding_storage_authenticated_write'
-  ) then
+  begin
     create policy "staff_onboarding_storage_authenticated_write"
-    on storage.objects
-    for insert
-    to authenticated
-    with check (bucket_id in ('staff-documents', 'staff-certifications', 'staff-id-documents', 'staff-waivers'));
-  end if;
-exception
-  when insufficient_privilege then
-    raise notice 'Skipping staff_onboarding_storage_authenticated_write because % cannot create policies on %.%', current_user, 'storage', 'objects';
+      on storage.objects
+      for insert
+      to authenticated
+      with check (bucket_id in ('staff-documents', 'staff-certifications', 'staff-id-documents', 'staff-waivers'));
+  exception when others then
+    raise warning
+      'Skipping policy staff_onboarding_storage_authenticated_write on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
 end $$;
 
 commit;

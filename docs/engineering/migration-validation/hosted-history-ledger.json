@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "sourceDirectory": "supabase/migrations",
   "sourceSnapshot": {
-    "capturedAt": "2026-09-22T15:57:33Z",
-    "activeCount": 299,
+    "capturedAt": "2026-09-25T21:33:15.056Z",
+    "activeCount": 305,
     "firstMigration": "20240410000000_migration_replay_suppress_notices.sql",
-    "lastMigration": "20260922155356_worker_actions_scope_reconciliation.sql",
-    "digestSha256": "ba0ecbbb0453fe31c10fceb6f5d439e66cfc21750d15482e9c4b4a90a097867d"
+    "lastMigration": "20260926120200_marketplace_entitlement_download_increment_rpc.sql",
+    "digestSha256": "63be169b68fd4e2abc5cfe0aeb11fa958ff20a4a11ecf1a75103a1715f6b0220"
   },
   "environments": {
     "staging": {
@@ -100,12 +100,48 @@
         "taskId": "DB-010",
         "rationale": "Worker action storage and data-boundary authorization must be proven before WORK-006 can enable the feature in isolated staging",
         "nextAction": "Inspect hosted archive/table history, apply this exact active migration one at a time only to approved isolated staging, then run db010 catalog and distinct-persona denial probes before any flag enablement"
+      },
+      {
+        "migration": "20260924120000_venue_availability_reservations_scope_rls.sql",
+        "taskId": "VEN-005",
+        "rationale": "Adds the reservation-conflict engine scope RLS on public_venue_availability and venue_reservations. Launch-relevant because the public availability projection is read by the ticketing checkout surface, and the raw rows behind it are organization-scoped; the migration is in the active chain with a planned manifest (20260924120000_venue_availability_reservations_scope_rls.json) and is not optional for a safe public read.",
+        "nextAction": "Owned by the venue lane. Apply additively in staging, run supabase/tests/venue005_availability_reservations_scope_contract.sql, then record the staging history disposition here before any production reconciliation."
+      },
+      {
+        "migration": "20260925130000_intg006_webhook_delivery_receipts.sql",
+        "taskId": "INTG-006",
+        "rationale": "Creates public.webhook_delivery_receipts, the idempotency and audit surface for third-party webhook delivery. Launch-relevant because the money-adjacent integration paths depend on a durable delivery receipt, and the relation is already queried by product code (so its absence is a live typecheck and runtime gap, not a cosmetic one).",
+        "nextAction": "Owned by the integrations lane. Apply additively in staging, run its contract test, then record the staging history disposition here before any production reconciliation."
+      },
+      {
+        "migration": "20260925210000_venue_profile_presentation_columns.sql",
+        "taskId": "DB-008",
+        "rationale": "Adds public.venue_profiles.social_links and public.venue_profiles.cover_image_url. Launch-relevant because the public venue projection (app/api/venues/[id]/route.ts) and the SEO preview reader (lib/seo/public-preview-readers.ts) both select them, so their absence is a live typecheck and runtime gap on a public surface, and because lib/database.types.ts cannot declare them until the chain carries them.",
+        "nextAction": "Owned by the database lane, reviewed by the venue domain. Apply additively in staging, run supabase/tests/db008_venue_profile_presentation_columns_contract.sql, then regenerate lib/database.types.ts and record the staging history disposition here before any production reconciliation."
+      },
+      {
+        "migration": "20260926120000_marketplace_checkout_idempotency_and_guest_checkout.sql",
+        "taskId": "DB-011",
+        "rationale": "Creates public.marketplace_checkout_attempts (ten columns, unique idempotency_key, forced RLS, buyer-scoped SELECT only) and adds the six P6 guest-checkout columns to public.marketplace_orders. Launch-blocking: app/api/marketplace/checkout/route.ts reads, updates and upserts the attempts table at lines 99, 154 and 464 and inserts the six order columns at line 377, and lib/marketplace/webhook-processor.ts:369 updates it. The route fails closed with 503 schema_not_ready, so checkout cannot reach the payment provider on any environment built from the active chain.",
+        "nextAction": "Owned by the database lane, reviewed by the marketplace domain. Apply additively in staging, run supabase/tests/db011_marketplace_checkout_surface_contract.sql plus supabase/tests/db011_marketplace_surface.harness.sh, then regenerate lib/database.types.ts (CP-016) and record the staging history disposition here before any production reconciliation."
+      },
+      {
+        "migration": "20260926120100_marketplace_external_listing_surface.sql",
+        "taskId": "DB-011",
+        "rationale": "Adds public.marketplace_listings.listing_kind (and service_mode, public_slug, optimistic_version), widens the status CHECK to a strict superset, and creates public.marketplace_external_listings and public.marketplace_external_clicks with forced RLS and a column-limited public projection. Launch-blocking for the dead-CTA redirect: app/api/marketplace/listings/[id]/redirect/route.ts selects marketplace_external_listings as an embedded relation and gates on listing_kind, neither of which any active migration creates.",
+        "nextAction": "Owned by the database lane, reviewed by the marketplace domain and the security-data reviewer for the projection, which deliberately narrows the archived DDL. Apply additively in staging, run supabase/tests/db011_marketplace_external_listing_contract.sql plus the anon-caller probes in the harness, then regenerate lib/database.types.ts and record the staging history disposition here."
+      },
+      {
+        "migration": "20260926120200_marketplace_entitlement_download_increment_rpc.sql",
+        "taskId": "DB-011",
+        "rationale": "Adds public.record_marketplace_entitlement_download(uuid,text,timestamptz): a buyer-scoped, single-statement download increment with search_path pinned to public and EXECUTE revoked from PUBLIC and anon. Replaces the privileged service-role compare-and-swap at app/api/marketplace/delivery/[orderItemId]/route.ts:89-120 and is the fix for the SEC-109 replace_with_rpc reviewed-debt entry. Not launch-blocking on its own, but it is the authorization primitive the marketplace delivery surface is meant to be built on, and it must exist before the route is switched over.",
+        "nextAction": "Owned by the database lane, reviewed by security-data. Apply additively in staging, run supabase/tests/db011_marketplace_entitlement_rpc_contract.sql and the harness stage-3 caller assertions, rerun the Supabase security advisor, then have the marketplace lane switch the route to the authenticated client and retire the SEC-109 entry. Record the staging history disposition here."
       }
     ],
     "deferred": [],
     "unclassified": {
       "count": 290,
-      "blocker": "No authoritative staging and production migration-history snapshots or owner-approved launch/deferred disposition exist for the remaining active migrations; do not infer application state or deferment from repository presence"
+      "blocker": "No authoritative staging and production migration-history snapshots or owner-approved launch/deferred disposition exist for the remaining active migrations; do not infer application state or deferment from repository presence. Wave 34 re-derived the source snapshot from the real active chain after adding the three DB-011 marketplace migrations, and classified only migrations whose owning task, planned manifest and launch rationale are all present in this repository."
     }
   }
 }

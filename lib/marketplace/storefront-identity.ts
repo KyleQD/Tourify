@@ -25,6 +25,12 @@ export interface CanonicalStorefrontOwner {
   sellerUserId: string
 }
 
+export interface StorefrontStorageCompatibilityIssue {
+  code: 'persona_storefront_schema_not_ready'
+  message: string
+  owner: CanonicalStorefrontOwner
+}
+
 /**
  * Convert a verified acting account into the stable storefront entity key.
  * `service` uses the artist persona storage family, matching acting-context
@@ -66,4 +72,25 @@ export function isCanonicalStorefrontOwner(
     owner.sellerEntityType === expected.sellerEntityType &&
     owner.sellerUserId === expected.sellerUserId
   )
+}
+
+/**
+ * Active storage can only represent general-user storefronts because it stores
+ * `seller_user_id` without the canonical persona entity key. Non-user personas
+ * must fail closed until the additive seller_entity_* schema lands.
+ */
+export function getStorefrontStorageCompatibilityIssue(
+  context: StorefrontOwnerContext
+): StorefrontStorageCompatibilityIssue | null {
+  const owner = getCanonicalStorefrontOwner(context)
+  if (owner.sellerEntityType === 'user' && owner.sellerEntityId === owner.sellerUserId) {
+    return null
+  }
+
+  return {
+    code: 'persona_storefront_schema_not_ready',
+    message:
+      'Per-persona marketplace storefront storage is not ready for this account type. Switch to a general account or wait for persona storefront schema reconciliation.',
+    owner,
+  }
 }

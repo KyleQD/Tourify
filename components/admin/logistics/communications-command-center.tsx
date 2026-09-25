@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertTriangle,
   Bell,
@@ -23,10 +23,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useAdminLogisticsRequest } from "@/hooks/use-admin-logistics-request"
 
 interface CommandCenterFeedItem {
   id: string
-  source: "group_thread" | "event_bulletin" | "event_channel" | "event_task" | "external_event"
+  source: "group_thread" | "event_bulletin" | "event_channel" | "event_task" | "external_event" | "mention" | "acknowledgement"
   title: string
   summary: string | null
   priority: string | null
@@ -71,6 +72,7 @@ interface CommunicationsCommandCenterProps {
   threadId?: string
   onThreadProvisioned?: (threadId: string) => void
   actingHeaders?: Record<string, string>
+  view?: "attention" | "announcements" | "mentions" | "acknowledgements"
 }
 
 const sourceLabels: Record<CommandCenterFeedItem["source"], string> = {
@@ -79,6 +81,8 @@ const sourceLabels: Record<CommandCenterFeedItem["source"], string> = {
   event_channel: "Channel",
   event_task: "Task",
   external_event: "External",
+  mention: "Mention",
+  acknowledgement: "Acknowledgement",
 }
 
 function formatRelative(value: string | null) {
@@ -100,51 +104,72 @@ export function CommunicationsCommandCenter({
   isOwner = false,
   threadId,
   onThreadProvisioned,
-  actingHeaders = {},
+  view = "attention",
 }: CommunicationsCommandCenterProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [data, setData] = useState<CommandCenterPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
+  const requestIdRef = useRef(0)
 
   const loadCommandCenter = useCallback(async () => {
+    const requestId = ++requestIdRef.current
+    if (!isAdminReady) {
+      setData(null)
+      setError(null)
+      setLoading(false)
+      return
+    }
     const params = new URLSearchParams({ limit: "12" })
     if (tourId) params.set("tourId", tourId)
     if (eventId) params.set("eventId", eventId)
 
     setLoading(true)
     setError(null)
+    setData(null)
     try {
-      const response = await fetch(`/api/admin/logistics/communications-command-center?${params.toString()}`, {
-        credentials: "include",
-        headers: { ...actingHeaders },
-      })
+      const response = await adminFetch(`/api/admin/logistics/communications-command-center?${params.toString()}`)
       const payload = await response.json().catch(() => null)
+      if (requestIdRef.current !== requestId) return
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || "Communications command center is unavailable")
       }
       setData(payload as CommandCenterPayload)
     } catch (err) {
+      if (requestIdRef.current !== requestId) return
+      if (err instanceof Error && err.name === "AbortError") return
       setData(null)
       setError(err instanceof Error ? err.message : "Communications command center is unavailable")
     } finally {
-      setLoading(false)
+      if (requestIdRef.current === requestId) setLoading(false)
     }
-  }, [actingHeaders, eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
     void loadCommandCenter()
   }, [loadCommandCenter])
 
   const filteredFeed = useMemo(() => {
+    const viewItems = (data?.feed ?? []).filter((item) => {
+      if (view === "announcements") return item.source === "event_bulletin"
+      if (view === "mentions") return item.source === "mention"
+      if (view === "acknowledgements") {
+        return item.source === "acknowledgement" || item.status === "ack_required"
+      }
+      return item.source === "acknowledgement"
+        || item.source === "mention"
+        || ["urgent", "emergency", "critical", "high"].includes(item.priority || "")
+        || ["blocked", "pending", "ack_required", "unread"].includes(item.status || "")
+    })
     const needle = query.trim().toLowerCase()
-    if (!needle) return data?.feed ?? []
-    return (data?.feed ?? []).filter((item) => {
+    if (!needle) return viewItems
+    return viewItems.filter((item) => {
       return `${item.title} ${item.summary ?? ""} ${sourceLabels[item.source]}`
         .toLowerCase()
         .includes(needle)
     })
-  }, [data?.feed, query])
+  }, [data?.feed, query, view])
 
   return (
     <div className="space-y-6">
@@ -257,7 +282,7 @@ export function CommunicationsCommandCenter({
                   <Inbox className="mx-auto mb-2 h-8 w-8 text-slate-600" />
                   <p className="text-sm font-medium text-slate-300">No operational communications found</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Native Team Comms, bulletins, task messages, and provider events will appear here.
+                    Nothing currently matches this communications view and scope.
                   </p>
                 </div>
               ) : (

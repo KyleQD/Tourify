@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926120200_marketplace_entitlement_download_increment_rpc.sql",
+  "taskId": "DB-011",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "3bfddff98b0405842fd5bebe317ebc23acea9bc131a5088cc39df950d7e47fd7",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["marketplace", "authorization", "security"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Static source review of the marketplace delivery download path. app/api/marketplace/delivery/[orderItemId]/route.ts:89-120 builds a service-role UPDATE that re-asserts every field it read: .eq('id', entitlement.id).eq('buyer_user_id', user.id).eq('status','active').eq('download_count', entitlement.download_count) plus .lt('download_count', max_downloads) when the quota is finite, and returns 409 'Download was already claimed by another request' when the update matches no row. That cannot double-count or lose a count, but it needs the service role to write a row the buyer is entitled to write, and two simultaneous legitimate downloads make one buyer receive 409 instead of their file. public.marketplace_entitlements is created by 20260410120000_marketplace_core.sql:124 with 12 columns (id, order_item_id, buyer_user_id, asset_url, watermarked_asset_url, signed_url, signed_url_expires_at, max_downloads, download_count, status, created_at, updated_at) and RLS with exactly two policies: marketplace_entitlements_buyer_read (SELECT, auth.uid() = buyer_user_id) and marketplace_entitlements_seller_manage (FOR ALL, seller of the order). There is NO buyer UPDATE policy, which is why the function is SECURITY DEFINER. last_downloaded_at, listing_id, music_track_id, asset_bucket, asset_path, preview_bucket and preview_path are added by 20260410183000_music_commerce_expansion.sql; that provenance is asserted by the harness rather than assumed. The CAS is recorded as reviewed debt under the SEC-109 replace_with_rpc exception, which this function is the fix for. Contract test SHA-256 3dafbbba52e9849a37134bb502bf59463b40dc4908e23b17c910cde0c2f91737. Executed evidence: supabase/tests/db011_marketplace_surface.harness.sh, PostgreSQL 16.15 local emulation, including a real concurrent two-caller race.",
+    "evidenceArtifact": "static-review:DB-011-MARKETPLACE-ENTITLEMENT-RPC-2026-09-26 (migration SHA-256 3bfddff98b0405842fd5bebe317ebc23acea9bc131a5088cc39df950d7e47fd7)"
+  },
+  "assumptions": [
+    "The buyer's identity is the only acceptable authority for this write. auth.uid() is read inside the function and never accepted as a parameter, so a caller cannot increment a download for somebody else by passing their id.",
+    "max_downloads = 0 does not mean unlimited in this schema. The chain's column is `max_downloads integer not null default 5` and the route treats 0 as a finite quota (`if (entitlement.max_downloads > 0) ... .lt(...)` skips the filter only when the value is 0 or negative, which is the route's own reading). The function enforces `download_count < max_downloads` unconditionally, so a row with max_downloads = 0 is NOT downloadable through it. This is a deliberate difference from the route and is called out as a decision the marketplace lane must confirm before switching over: if 0 is meant to be unlimited, the function needs an explicit branch and the route's current behaviour is the bug.",
+    "A signed URL is not always refreshable. p_signed_url and p_signed_url_expires_at are coalesced against the stored values, so a caller that has no new URL (storage refresh failed) still records the download and keeps the existing URL, exactly as the route does today when shouldRefresh is false.",
+    "The single error message for all four refusal causes (no row, someone else's row, wrong status, quota exhausted) is intentional. Distinct messages would let the endpoint be used as an oracle for whether an order item exists and whether it belongs to the caller.",
+    "SECURITY DEFINER without a buyer UPDATE policy is the only way to express this write in SQL. The alternative - adding a narrow `for update using (auth.uid() = buyer_user_id)` policy - would grant the buyer UPDATE on every column of the row, including signed_url, which is strictly more privilege than the increment needs. The function is therefore the authorization boundary and must be treated as one."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm exactly one record of public.record_marketplace_entitlement_download does not exist; count marketplace_entitlements rows by status and by (download_count < max_downloads); record the distinct max_downloads values in use so the Layer 3 decision about 0 is made on real data, not on the schema default.",
+    "Layer 1 (apply, single run, operator): CREATE OR REPLACE FUNCTION public.record_marketplace_entitlement_download(uuid, text, timestamptz) RETURNS public.marketplace_entitlements, plpgsql, SECURITY DEFINER, SET search_path = public; COMMENT ON FUNCTION; REVOKE EXECUTE FROM public; REVOKE EXECUTE FROM anon; GRANT EXECUTE TO authenticated. No table, column, policy, grant or trigger is altered. The REVOKEs are part of the same transaction as the CREATE, so there is no window in which the function exists with PUBLIC execute.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db011_marketplace_entitlement_rpc_contract.sql; expect zero violation rows and exactly one summary row marketplace_entitlement_download_rpc_ready. Then run supabase/supabase/tests/db011_marketplace_surface.harness.sh stage 3, which as a caller proves anon has no EXECUTE, authenticated does, an anonymous call raises 42501, a signed-in non-buyer is refused, the quota sequence is 1 then 2 then refused at max_downloads = 2, and two concurrent callers at the last remaining credit produce at least one refusal. Re-run the Supabase security advisor afterwards and confirm the function is not listed.",
+    "Layer 3 (runtime certification, marketplace): switch app/api/marketplace/delivery/[orderItemId]/route.ts from the service-role compare-and-swap to this function, called with the AUTHENTICATED client (not the service role - a service-role JWT carries no sub claim, so auth.uid() would be null and every call would raise). The service-role path must keep working until that switch lands, because the migration is independently safe to apply first. After the switch, retire the SEC-109 replace_with_rpc reviewed-debt entry rather than renewing it."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname='public' AND p.proname='record_marketplace_entitlement_download'",
+      "SELECT status, count(*) FROM public.marketplace_entitlements GROUP BY status ORDER BY status",
+      "SELECT count(*) FROM public.marketplace_entitlements WHERE download_count < max_downloads",
+      "SELECT max_downloads, count(*) FROM public.marketplace_entitlements GROUP BY max_downloads ORDER BY max_downloads",
+      "SELECT count(*) FROM public.marketplace_entitlements WHERE max_downloads <= 0"
+    ],
+    "expectedAffectedRows": "Zero rows are changed by the apply itself. The function has no side effect until it is called; at call time it updates exactly one row, or zero rows and raises.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 1000,
+    "statementTimeoutMs": 30000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with this exact file or a targeted psql apply. The whole file is one transaction. It is safe to apply before the marketplace lane changes the route: the route's existing service-role path is untouched, so there is no ordering dependency between the migration and the code change.",
+    "resumeCursor": "Supabase migration version 20260926120200",
+    "idempotency": "Deterministic and repeatable. CREATE OR REPLACE FUNCTION, COMMENT ON FUNCTION, REVOKE and GRANT are all idempotent; a second apply replaces the body with the same body and re-asserts the same privileges. Verified by applying the file twice on a throwaway PostgreSQL 16.15 cluster in supabase/tests/db011_marketplace_surface.harness.sh with zero errors on both applies."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement. The function touches one row per call, only when the caller is that row's buyer, only while the row is active and under quota. There is no batch, no backfill and no partial-application state to quarantine. The only target state that changes behaviour is a pre-existing overload of the same name with a different argument list; the contract test asserts that exactly one three-argument overload exists and fails otherwise, so an operator applying onto such a target sees a violation rather than a silent ambiguity."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No constraint is added, altered or dropped anywhere in this migration. marketplace_entitlements keeps its exact constraint set.",
+      "The increment's invariants are expressed as WHERE predicates inside the UPDATE rather than as database constraints, because they depend on the caller's identity (buyer_user_id = auth.uid()), which no CHECK or table constraint can express.",
+      "REVOKE EXECUTE FROM public and FROM anon, GRANT EXECUTE TO authenticated. This is the same control DB-002 identified as a release blocker on four existing SECURITY DEFINER functions, applied correctly here at author time rather than after an advisor finding."
+    ],
+    "indexes": [
+      "No index is added. The function looks up by order_item_id, and the route's existing read already filters on it; the chain's idx_marketplace_entitlements_buyer on (buyer_user_id, created_at desc) does not serve this predicate, so if the postflight shows a sequential scan on a large entitlements table the operator should add a partial index on (order_item_id) where status = 'active' in a follow-up migration rather than editing this file."
+    ],
+    "validationPlan": "supabase/tests/db011_marketplace_entitlement_rpc_contract.sql asserts, as violation rows only: exactly one three-argument overload exists; it is SECURITY DEFINER with proconfig pinning search_path to public; neither the pseudo-role public nor anon retains EXECUTE; authenticated does retain EXECUTE; the body contains the single guarded UPDATE (download_count = e.download_count + 1, buyer_user_id = v_actor, download_count < e.max_downloads, status = 'active'); and the body reads auth.uid(). It emits exactly one summary row and only when the function exists, so an unapplied target cannot pass vacuously. The behavioural half - that the predicates actually refuse - is the harness's stage 3, which exercises the function as anon, as a signed-in non-buyer, as the buyer at and past the quota, and as two concurrent buyers at the last credit. One negative control grants anon EXECUTE and confirms the postflight reports it."
+  },
+  "recovery": {
+    "rollback": "REVOKE EXECUTE ON FUNCTION public.record_marketplace_entitlement_download(uuid, text, timestamptz) FROM authenticated; DROP FUNCTION public.record_marketplace_entitlement_download(uuid, text, timestamptz); - issued as a later forward migration, never as an edit to this file. Because the migration adds no column, no policy and no constraint, dropping the function restores the prior state exactly and the route's existing service-role compare-and-swap continues to work untouched.",
+    "forwardFix": "Any correction is a new additive migration carrying a CREATE OR REPLACE FUNCTION with a higher version. The two corrections most likely to be needed are (a) an explicit unlimited-quota branch if the marketplace lane confirms max_downloads = 0 means unlimited, and (b) an extra argument carrying a caller-supplied reason, which would change the signature and therefore require a DROP of the three-argument overload in the same forward migration."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db011_marketplace_entitlement_rpc_contract.sql",
+      "SELECT has_function_privilege('anon','public.record_marketplace_entitlement_download(uuid,text,timestamptz)','execute') AS anon_execute",
+      "SELECT has_function_privilege('authenticated','public.record_marketplace_entitlement_download(uuid,text,timestamptz)','execute') AS buyer_execute",
+      "SELECT prosecdef, proconfig FROM pg_proc WHERE oid = 'public.record_marketplace_entitlement_download(uuid,text,timestamptz)'::regproc",
+      "SELECT count(*) AS over_quota FROM public.marketplace_entitlements WHERE download_count >= max_downloads AND status = 'active'"
+    ]
+  },
+  "verificationOwner": "security-data reviewer for the privilege grant and the SECURITY DEFINER boundary; release/ops operator for the staging apply, the postflight and the security-advisor rerun; marketplace lane for the route switch and the retirement of the SEC-109 replace_with_rpc entry",
+  "evidence": [
+    "supabase/tests/db011_marketplace_surface.harness.sh - executed on a throwaway PostgreSQL 16.15 cluster: 33/33 checks pass. Stage 3 proves, as a real caller, that anon lacks EXECUTE, that an anonymous call raises 42501, that a signed-in non-buyer receives the refusal error, that the buyer's sequence is 1 then 2 then refused at max_downloads = 2, and that two concurrent callers at the last remaining credit produce at least one refusal rather than both succeeding. One negative control grants anon EXECUTE and the postflight reports it. LOCAL EMULATION ONLY: not Supabase, not a hosted project, not a chain replay, no `supabase db reset` (CP-051).",
+    "The concurrency assertion is the substantive one: it is the failure mode the marketplace lane documented (two simultaneous legitimate downloads, one buyer receives 409) and it is exercised with two genuinely concurrent sessions against one row, not simulated.",
+    "Not proven here, and required before this is called ledger-grade: behaviour against a real Supabase target with real concurrent HTTP load, and the security-advisor result on the hosted project."
+  ],
+  "exceptions": []
+}

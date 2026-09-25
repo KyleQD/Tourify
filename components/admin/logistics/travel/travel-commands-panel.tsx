@@ -6,7 +6,7 @@ import { CheckCircle2, Plane, RefreshCw, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useActingContext } from "@/hooks/use-acting-context"
+import { useAdminLogisticsRequest } from "@/hooks/use-admin-logistics-request"
 
 function extractErrorMsg(json: unknown, fallback: string): string {
   if (typeof json === "object" && json !== null) {
@@ -60,7 +60,8 @@ const COMMANDS = ["confirm", "cancel", "change", "reinstate"] as const
  * TRAVEL-302 / TRAVEL-104 — Segment state machine panel with command buttons.
  */
 export function TravelCommandsPanel({ tourId, eventId }: { tourId?: string | null; eventId?: string | null }) {
-  const { actingAccount } = useActingContext()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
+  const hasScope = Boolean(tourId || eventId)
   const [state, setState] = useState<"idle" | "loading" | "ready" | "unavailable" | "error">("idle")
   const [segments, setSegments] = useState<TravelSegment[]>([])
   const [summary, setSummary] = useState<SegmentSummary>({ total: 0, proposed: 0, confirmed: 0, cancelled: 0, changed: 0 })
@@ -70,13 +71,18 @@ export function TravelCommandsPanel({ tourId, eventId }: { tourId?: string | nul
   const [commandState, setCommandState] = useState<Record<string, "idle" | "loading">>({})
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setSegments([])
+      setState("idle")
+      return
+    }
     setState("loading")
     setErrorMsg(null)
     try {
       const params = new URLSearchParams()
       if (tourId) params.set("tour_id", tourId)
       if (eventId) params.set("event_id", eventId)
-      const res = await fetch(`/api/admin/travel/segments?${params}&limit=50`)
+      const res = await adminFetch(`/api/admin/travel/segments?${params}&limit=50`)
       const json = (await res.json()) as SegmentsResponse & { error?: string }
       if (!res.ok) {
         setErrorMsg(extractErrorMsg(json, "Failed to load segments"))
@@ -92,20 +98,21 @@ export function TravelCommandsPanel({ tourId, eventId }: { tourId?: string | nul
       setSummary(json.summary ?? { total: 0, proposed: 0, confirmed: 0, cancelled: 0, changed: 0 })
       setFreshAt(json.freshAt)
       setState("ready")
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return
       setErrorMsg("Network error loading travel segments")
       setState("error")
     }
-  }, [tourId, eventId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
-    if (actingAccount !== undefined) void load()
-  }, [actingAccount, load])
+    void load()
+  }, [load])
 
   async function runCommand(segmentId: string, command: string) {
     setCommandState((prev) => ({ ...prev, [segmentId]: "loading" }))
     try {
-      const res = await fetch("/api/admin/travel/segments", {
+      const res = await adminFetch("/api/admin/travel/segments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ segmentId, command }),
@@ -216,7 +223,7 @@ export function TravelCommandsPanel({ tourId, eventId }: { tourId?: string | nul
                       variant="ghost"
                       size="sm"
                       className="h-6 text-[10px] px-2 text-slate-300"
-                      disabled={commandState[seg.id] === "loading"}
+                      disabled={!isAdminReady || !hasScope || commandState[seg.id] === "loading"}
                       onClick={() => void runCommand(seg.id, cmd)}
                     >
                       {cmd}

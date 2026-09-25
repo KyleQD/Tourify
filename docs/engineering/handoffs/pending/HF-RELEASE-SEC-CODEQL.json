@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-RELEASE-SEC-CODEQL",
+  "task_id": "RELEASE-005",
+  "from_agent": "release",
+  "to_agent": "integrations",
+  "status": "pending",
+  "created_at": "2026-09-25T20:19:07Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The `CodeQL` check that fails on PR #14 is NOT a workflow job and must not be dismissed. Check-run 106862973938 is a GitHub Advanced Security code-scanning gate (app slug `github-advanced-security`, app id 57789, check suite 96831076767) with no workflow run behind it, which is why `gh run view --job 106862973938` returns HTTP 404. It reports 96 open, undismissed, unfixed CodeQL alerts, including 1 critical. The repository's own `CodeQL (JavaScript/TypeScript)` workflow job uses the same `security-extended` suite and PASSED, because that job asserts the analysis uploaded, while the platform check asserts no new alerts. This handoff requests owner triage of the alert backlog; the release lane made no code change and dismissed nothing.",
+  "working_set": [
+    "app/api/discover/route.ts",
+    "app/auth/callback/route.ts",
+    "app/auth/confirm/route.ts",
+    "app/api/social/oauth/callback/route.ts",
+    "lib/admin/content-hub/oauth-state.ts",
+    "hooks/use-multi-account.tsx",
+    "lib/services/venue.service.ts",
+    "scripts/qa/provision-campaign-actors.ts",
+    "scripts/ci/check-security-exceptions.mjs"
+  ],
+  "completed": [
+    "Identified the check surface: GET /repos/KyleQD/Tourify/check-runs/106862973938 -> app.slug `github-advanced-security`, no workflowName, check_suite 96831076767, before 72107cee93ee734edf7725f2fce7936114053d22 -> after d2176904.",
+    "Retrieved all 48 check-run annotations and all 96 open code-scanning alerts with rule id, severity, and location.",
+    "Verified disposition state: 0 dismissed, 0 fixed, and `dismissed_reason` is null on all 96 open alerts.",
+    "Verified the workflow surface is healthy: `.github/workflows/security-scans.yml` job `CodeQL (JavaScript/TypeScript)` (run 35761777850, job 106861311612) completed SUCCESS with `queries: security-extended`."
+  ],
+  "next_steps": [
+    "Triage the 1 CRITICAL alert first: #16 `js/request-forgery`, `app/api/discover/route.ts:351` - 'The URL of this request depends on a user-provided value.' That path is discover-lane owned; route it there or fix the outbound-URL allowlist at the data boundary.",
+    "Triage the credential-boundary and auth highs in integrations scope: `app/auth/callback/route.ts:37`, `app/auth/confirm/route.ts:50`, `app/api/social/oauth/callback/route.ts:44` (js/user-controlled-bypass); `lib/admin/content-hub/oauth-state.ts:96` (js/insufficient-password-hash); `hooks/use-multi-account.tsx:74` and `lib/services/venue.service.ts:180` (js/clear-text-storage-of-sensitive-data).",
+    "Decide per alert whether to fix or to register a time-bounded exception in the existing registry validated by `scripts/ci/check-security-exceptions.mjs` (the `Security exception governance` check is a required check on main).",
+    "Establish a `refs/heads/main` CodeQL baseline so the platform gate stops attributing the whole tree to each large PR. No analysis has ever been recorded for `refs/heads/main`; the `Security scans` workflow triggers `on: push: branches: [main]`, so confirm whether that job's SARIF upload is reaching code scanning."
+  ],
+  "blockers": [
+    "No alert is in a required check, so nothing currently blocks merge on this security backlog. The Advanced Security `CodeQL` gate is absent from main's required-check list.",
+    "Attribution is imprecise because there is no main baseline: `?branch=main` returns 0 alerts in any state and `?ref=refs/heads/main` returns 0 analyses. With 900 changed files in the PR, the platform check's own summary says 'Alerts not introduced by this pull request might have been detected because the code changes were too large.' Only `__tests__/qa/campaign-actor-provisioner.test.ts` (#93) is actually in the PR's 900-file diff; the critical `app/api/discover/route.ts:351` is not. This explains volume only - no individual finding is dismissed.",
+    "CodeQL Advanced Security is a paid GitHub feature; the release lane has no authority to change its enablement or its alert policy."
+  ],
+  "verification": [
+    "gh api repos/KyleQD/Tourify/check-runs/106862973938 -> github-advanced-security app, 48 annotations, output.title '48 new alerts including 1 critical severity security vulnerability'.",
+    "gh api 'repos/KyleQD/Tourify/code-scanning/alerts?pr=14&state=open&per_page=100' (10 pages) -> 96 alerts; `?state=dismissed` -> 0; `?state=fixed` -> 0; `dismissed_reason` -> null x96.",
+    "gh api 'repos/KyleQD/Tourify/code-scanning/alerts?pr=14&severity=critical' -> 1 alert: #16 js/request-forgery at app/api/discover/route.ts:351.",
+    "gh run view --repo KyleQD/Tourify --job 106862973938 -> HTTP 404 (confirms check-run id, not job id).",
+    "gh api 'repos/KyleQD/Tourify/code-scanning/analyses?per_page=100' (5 pages) -> refs only refs/pull/{14,6,5,4}/merge; no refs/heads/main."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md"
+}

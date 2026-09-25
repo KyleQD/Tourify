@@ -1,0 +1,20 @@
+{
+  "label": "post-staff-onboarding",
+  "roots": [
+    "lib/services/staff-onboarding.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 4.5,
+  "primaryDiagnosticLines": 2,
+  "filesWithDiagnostics": 1,
+  "byFile": {
+    "lib/services/staff-onboarding.service.ts": 2
+  },
+  "byCode": {
+    "TS2304": 1,
+    "TS2769": 1
+  },
+  "tsFilesParsed": "907",
+  "tsLines": null,
+  "stderr": ""
+}

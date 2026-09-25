@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DESIGN-034-C03-APPROVAL-PROVENANCE",
+  "task_id": "DESIGN-033",
+  "from_agent": "design-system",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-25T15:45:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "No source change accompanies this handoff. app/globals.css and tailwind.config.ts are both CLEAN at HEAD.",
+  "summary": "DESIGN-033 cannot close, and this lane will not close it by asserting its own gate. The C-03 code change is applied, committed, and re-verified today, but the owner approval that authorises the app-wide 0 -> 8/6/4px corner change is recorded ONLY in design-system lane documents. There is no cross-domain owner record. The orchestrator needs to either record the owner decision in docs/engineering/DECISIONS.md, or state that the acceptance was never actually given so the token can be reverted.",
+  "working_set": [
+    "app/globals.css:76",
+    "tailwind.config.ts:80-84",
+    "docs/engineering/DECISIONS.md (needs the decision entry; the design-system section is this lane's to write once the owner decides)",
+    "docs/engineering/handoffs/pending/HF-DESIGN-033-QA.json",
+    "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md (Table C)",
+    "docs/implementation/ui-ux-completion/TOKEN_AUTHORITY_INVENTORY.md"
+  ],
+  "the_finding": [
+    "app/globals.css:76 declares --radius: 0.5rem inside :root, and tailwind.config.ts:80-84 maps lg/md/sm onto it. BOTH FILES ARE CLEAN AT HEAD, so this is committed repository state, not pending work.",
+    "Re-verified today with a scoped tailwindcss v3.4.17 build (exit 0): the three utilities emit var(--radius), calc(var(--radius) - 2px), calc(var(--radius) - 4px) verbatim, resolving to 8/6/4px. The .staff-scheduling-prototype scope keeps its own 0.625rem (10px) and is unaffected.",
+    "The blast radius is real and irreversible-by-accident: roughly 3,068 rounded-{lg,md,sm} utility usages across 923 files now render 8/6/4px where they previously rendered 0px. Before DESIGN-033 those corners were square app-wide because --radius was undefined at :root.",
+    "`rg -n 'C-03|--radius|rounded-lg' docs/engineering/DECISIONS.md` returns ZERO matches. The cross-domain decision log has never recorded this acceptance.",
+    "HF-DESIGN-033-QA has been status=pending since 2026-09-13T19:40:00Z and has never been accepted.",
+    "Every affirmative statement about the owner approval - in TOKEN_REGISTRY.md, TOKEN_AUTHORITY_INVENTORY.md, DESIGN-033.json, and this lane's STATE.md - was written by this lane. None of it is an owner-authored or orchestrator-endorsed record."
+  ],
+  "completed": [
+    "Established that the change is committed and correct, so the only open question is governance, not engineering.",
+    "Established that the approval evidence is circular: the implementing lane is also the sole claimant of the approval that authorises its implementation.",
+    "Routed the decision instead of resolving it. The design-system lane does not self-approve a C-03 gate."
+  ],
+  "next_steps": [
+    "If the owner did approve the delta: record it as a dated cross-domain decision in docs/engineering/DECISIONS.md under the design-system section, naming who approved it and when. The design-system lane will then write that entry and flip HF-DESIGN-033-QA's precondition from 'owner-accepted' to 'owner-recorded'.",
+    "If the owner did NOT approve it, or cannot be identified: say so, and the design-system lane will revert --radius: 0.5rem from app/globals.css :root, restoring 0px corners app-wide, and update TOKEN_REGISTRY.md Table C, the inventory, and STATE.md accordingly. That revert is a one-line change with the same 3,068-usage blast radius in the opposite direction, so it needs the same explicit owner decision.",
+    "Independently of the above, QA still owns the visual pass. HF-DESIGN-033-QA is blocked on the venue surface (terms-gate save failing with duplicate key value violates unique constraint accounts_account_type_display_name_key, plus repeated 'Error fetching venue stats: Object'), which is venue-domain or hosted-state repair."
+  ],
+  "blockers": [
+    "The design-system lane is the implementing lane and therefore cannot be the accepting lane for a visual-regression gate. Self-approval is explicitly out of bounds for this wave.",
+    "No hosted or browser evidence is claimed by this lane. Nothing was served, no session was provisioned, and no screenshot was taken in Wave 34; all DESIGN-033 evidence here is static build and test output."
+  ],
+  "verification": [
+    "PASS: git status --porcelain -- app/globals.css tailwind.config.ts returns nothing; git show HEAD:app/globals.css contains --radius: 0.5rem at line 76.",
+    "PASS: scoped tailwindcss build exit 0, three border-radius declarations emitted verbatim.",
+    "PASS: node numeric resolution 0.5rem -> 8px, calc(-2px) -> 6px, calc(-4px) -> 4px; staff scope 0.625rem -> 10px unchanged.",
+    "PASS: npx vitest run over 33 files / 253 tests including all four __tests__/design-system files.",
+    "NOT RUN: no dev server, no browser, no hosted session, no screenshot. DESIGN-033's visual gate is therefore still exactly as open as it was on 2026-09-13."
+  ],
+  "evidence_document": "docs/engineering/tasks/active/DESIGN-033.json"
+}

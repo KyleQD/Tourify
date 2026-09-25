@@ -1,0 +1,25 @@
+{
+  "label": "pre-del-C1",
+  "roots": [
+    "lib/services/password-management.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 688.1,
+  "primaryDiagnosticLines": 72,
+  "filesWithDiagnostics": 3,
+  "byFile": {
+    "lib/services/mfa.service.ts": 40,
+    "lib/services/password-management.service.ts": 31,
+    "lib/services/mfa-verification-code-store.server.ts": 1
+  },
+  "byCode": {
+    "TS2339": 31,
+    "TS2769": 27,
+    "TS2589": 10,
+    "TS2353": 3,
+    "TS2322": 1
+  },
+  "tsFilesParsed": "923",
+  "tsLines": null,
+  "stderr": ""
+}

@@ -77,10 +77,10 @@ export default function EventOperationsPage() {
   }
 
   const handleUpdateStaff = async (data: Omit<StaffMember, "id" | "event_id">) => {
-    if (!selectedStaff) return
+    if (!selectedStaff || !eventId) return
     try {
-      const updatedStaff = await updateStaffMember(selectedStaff.id, data)
-      setStaff(staff.map(s => s.id === updatedStaff.id ? updatedStaff : s))
+      const updatedStaff = await updateStaffMember(selectedStaff.id, { ...data, event_id: eventId })
+      setStaff(staff.map(s => s.id === updatedStaff.id ? { ...s, ...updatedStaff } : s))
       toast({
         title: "Success",
         description: "Staff member updated successfully",
@@ -95,8 +95,9 @@ export default function EventOperationsPage() {
   }
 
   const handleDeleteStaff = async (id: string) => {
+    if (!eventId) return
     try {
-      await deleteStaffMember(id)
+      await deleteStaffMember(id, eventId)
       setStaff(staff.filter(s => s.id !== id))
       toast({
         title: "Success",

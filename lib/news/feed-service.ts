@@ -13,9 +13,27 @@ import { parsePressFormat } from '@/lib/press/formats'
 import type { NewsCategory, NewsFeedItem, NewsFeedQuery, NewsSortMode, RankedNewsFeedResult } from '@/lib/news/types'
 import { chooseFanoutStrategy } from '@/lib/news/scale/hybrid-fanout'
 import { fetchFeedPostsWithFallback } from '@/lib/feed/feed-posts-query'
+import { fetchInternalJson } from '@/lib/discover/internal-json-fetch'
+import { parseAllowedOrigins } from '@/lib/discover/outbound-guard'
+
+/** Frozen key into `INTERNAL_UPSTREAM_ROUTES`; the pathname is never caller-supplied. */
+const RSS_NEWS_UPSTREAM_ROUTE = 'newsRssFeed' as const
 
 interface BuildNewsFeedParams extends NewsFeedQuery {
-  requestOrigin: string
+  /**
+   * @deprecated Ignored. Security decision DISC-SSRF-003.
+   *
+   * This used to seed the base origin of the RSS fan-out
+   * (`new URL('/api/feed/rss-news', params.requestOrigin)`), so a caller who
+   * controlled `Host` / `X-Forwarded-Host` controlled the destination of N
+   * concurrent server-side requests. The base is now the operator-declared
+   * exact-origin allowlist in `lib/discover/outbound-guard` and nothing reads
+   * this field. It is retained only as an optional, ignored property so
+   * out-of-lane callers (`app/api/news/feed/route.ts`,
+   * `app/api/feed/for-you/route.ts`) keep compiling; those call sites should stop
+   * passing it.
+   */
+  requestOrigin?: string
   supabase: SupabaseClient
 }
 
@@ -39,7 +57,6 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
 
   const [externalCandidates, blogCandidates, postCandidates, musicCandidates, eventCandidates] = await Promise.all([
     fetchExternalCandidates({
-      requestOrigin: params.requestOrigin,
       limit: 240,
       subscribedTopics: userSignals.subscribedTopics,
       preferredLocations: userSignals.preferredLocations
@@ -657,8 +674,28 @@ async function fetchCanonicalEventCandidates(params: { supabase: SupabaseClient;
   }
 }
 
+/**
+ * Security decision DISC-SSRF-003 — port of the `/api/discover` guard.
+ *
+ * The previous body built `new URL('/api/feed/rss-news', params.requestOrigin)`
+ * and passed `endpoint.toString()` to the global `fetch` once per derived
+ * category. `requestOrigin` was `request.nextUrl.origin` at both callers, which
+ * reflects the inbound `Host` / `X-Forwarded-Host` header, so a caller chose the
+ * destination of N concurrent server-side requests; and the global `fetch`
+ * follows redirects, so a 3xx from the first hop reached anywhere. CodeQL did
+ * not flag it: `js/request-forgery` treats `request.url` as a remote-flow
+ * source but not `request.nextUrl.origin`.
+ *
+ * The destination is now the operator-declared exact origin
+ * (`INTERNAL_API_ORIGIN` -> `NEXT_PUBLIC_APP_URL` ->
+ * `VERCEL_PROJECT_PRODUCTION_URL` -> `VERCEL_URL`), the pathname is a
+ * compile-time constant, and the transport is resolve-then-pin over
+ * `node:https` with structural redirect denial, a 5s wall clock, a 2 MiB cap,
+ * and a JSON content-type requirement. With no allowlisted origin the fan-out
+ * performs no outbound request at all and the news feed simply loses its
+ * external candidates.
+ */
 async function fetchExternalCandidates(params: {
-  requestOrigin: string
   limit: number
   subscribedTopics: Set<string>
   preferredLocations: Set<string>
@@ -669,25 +706,36 @@ async function fetchExternalCandidates(params: {
       preferredLocations: params.preferredLocations
     })
 
-    const requests = categories.map(category => {
-      const endpoint = new URL('/api/feed/rss-news', params.requestOrigin)
-      endpoint.searchParams.set('limit', String(Math.max(12, Math.ceil(params.limit / categories.length))))
-      endpoint.searchParams.set('category', category)
-      return fetch(endpoint.toString(), {
-        headers: {
-          'User-Agent': 'TourifyNewsAggregator/1.0'
-        }
-      })
-    })
+    const allowlist = parseAllowedOrigins()
+    if (allowlist.length === 0) {
+      console.warn(
+        '[News feed] No internal upstream origin is allowlisted; external RSS candidates are disabled. Set INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_URL).'
+      )
+      return []
+    }
 
-    const results = await Promise.allSettled(requests)
+    const perCategoryLimit = Math.max(12, Math.ceil(params.limit / categories.length))
+    const results = await Promise.all(
+      categories.map(async category => {
+        // Denials log the route key and the reason only — never a category value.
+        const result = await fetchInternalJson({
+          route: RSS_NEWS_UPSTREAM_ROUTE,
+          params: { limit: perCategoryLimit, category },
+          headers: { 'user-agent': 'TourifyNewsAggregator/1.0' },
+          allowlist
+        })
+        if (!result.ok) {
+          console.error(`[News feed] Upstream "${RSS_NEWS_UPSTREAM_ROUTE}" denied: ${result.denial}`)
+          return null
+        }
+        const payload = result.data as { news?: unknown } | null
+        return Array.isArray(payload?.news) ? payload.news : null
+      })
+    )
+
     const rssItems: any[] = []
-    for (const result of results) {
-      if (result.status !== 'fulfilled') continue
-      if (!result.value.ok) continue
-      const payload = await result.value.json()
-      if (Array.isArray(payload.news))
-        rssItems.push(...payload.news)
+    for (const news of results) {
+      if (news) rssItems.push(...news)
     }
 
     const deduped = dedupeExternalItems(rssItems).slice(0, params.limit)

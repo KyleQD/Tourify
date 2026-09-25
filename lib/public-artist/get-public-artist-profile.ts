@@ -7,41 +7,20 @@ import type {
   PublicArtistStatsDTO,
   PublicArtistTrackDTO,
 } from './public-artist-types'
+import { epkMediaItemsFromRows, type EpkMediaSourceRow } from './artist-epk-media'
+import { derivePublicArtistStats } from './artist-stats'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
 import { getAccountAuthor, getAccountAuthorPath } from '@/lib/accounts/account-author'
 import { isArtistEventDiscoverable } from '@/lib/artist/artist-event-visibility'
 import { hydratePostsWithPolls } from '@/lib/polls/hydrate-polls'
 import { listPublicSocialLinks } from '@/lib/artist/resolve-public-social-url'
+import { isArtistProfilePublic } from '@/lib/artist/profile-visibility'
 import { readPublicArtistAppearanceFromSettings } from '@/lib/public-artist/public-artist-appearance'
 import { resolveProfileCoverUrl } from '@/lib/profile/profile-image-events'
 import { readArtistProfileDesignState } from '@/lib/public-artist/artist-profile-appearance'
 import { resolvePostStyleFlags } from '@/lib/post-style-flags'
 import { encodeFeedCursor } from '@/lib/feed/feed-cursor'
 import { getStoredTrackPreview } from '@/lib/feed/music-post-preview'
-
-function buildStatsDTO(rpcStats: any, fallback: PublicArtistStatsDTO): PublicArtistStatsDTO {
-  if (!rpcStats) return fallback
-
-  const followersCount = Number(rpcStats.total_fans ?? fallback.followersCount) || 0
-  const futureMonthlyListeners = Number(rpcStats.monthly_listeners ?? fallback.futureMonthlyListeners) || 0
-  const totalPlays = Number(rpcStats.total_plays ?? fallback.totalPlays) || 0
-  const totalStreams = Number(rpcStats.total_streams ?? fallback.totalStreams) || 0
-  const engagementRate = Number(rpcStats.engagement_rate ?? fallback.engagementRate) || 0
-  const totalTracks = Number(rpcStats.total_tracks ?? fallback.totalTracks) || 0
-  const totalEvents = Number(rpcStats.total_events ?? fallback.totalEvents) || 0
-  const totalRevenue = Number(rpcStats.total_revenue ?? fallback.totalRevenue) || 0
-
-  return {
-    followersCount,
-    futureMonthlyListeners,
-    totalPlays,
-    totalStreams,
-    engagementRate,
-    totalTracks,
-    totalEvents,
-    totalRevenue
-  }
-}
 
 function buildTrackDTO(trackRow: any, listingByTrackId: Record<string, any> = {}): PublicArtistTrackDTO {
   const stats = trackRow?.stats || {}
@@ -182,6 +161,46 @@ async function loadBandMembers(
     .filter(Boolean) as PublicArtistBandMemberDTO[]
 }
 
+/**
+ * Accepted band members whose content may be aggregated onto the band page.
+ *
+ * Honors the ARTIST-005 visibility gate for member content: members whose own
+ * artist profile is hidden (`settings.public_profile === false`) are excluded
+ * so a private member's music/storefront/media never leaks onto the band page.
+ * The Members list in the DTO is intentionally unchanged — this only scopes
+ * content aggregation, not membership display.
+ */
+async function resolveBandContentUserIds(
+  supabase: any,
+  organizerAccountId: string
+): Promise<string[]> {
+  const { data: rows } = (await supabase
+    .from('organization_artist_members')
+    .select('artist_profiles(id, user_id, settings)')
+    .eq('organizer_account_id', organizerAccountId)
+    .eq('status', 'accepted')) as {
+    data: Array<{ artist_profiles: { user_id: string; settings?: unknown } | null }> | null
+  }
+
+  return Array.from(
+    new Set(
+      (rows || [])
+        .map(row => row.artist_profiles)
+        .filter((profile): profile is { user_id: string; settings?: unknown } =>
+          Boolean(profile?.user_id)
+        )
+        .filter(profile => {
+          const settings =
+            profile.settings && typeof profile.settings === 'object'
+              ? (profile.settings as Record<string, unknown>)
+              : {}
+          return isArtistProfilePublic(settings)
+        })
+        .map(profile => String(profile.user_id))
+    )
+  )
+}
+
 async function getPublicBandProfileDTO(params: {
   supabase: any
   slug: string
@@ -293,6 +312,154 @@ async function getPublicBandProfileDTO(params: {
   const specialties = Array.isArray(band.specialties) ? band.specialties.map(String) : []
   const members = membersResult
 
+  // --- Band catalog aggregation (ARTIST-006) ---------------------------------
+  // Aggregate public music/media/storefront from accepted members who have a
+  // public artist profile. Filters mirror the single-artist public path
+  // (is_public/is_visible/moderation_status='approved'/rights_confirmed=true)
+  // and the marketplace public listing query (status='published' +
+  // moderation_status='approved') so band pages never surface draft or hidden
+  // content. When no member is eligible all sections stay empty and the page
+  // falls back to its coherent empty state.
+  const contentMemberUserIds = await resolveBandContentUserIds(supabase, band.id)
+
+  let bandTracks: PublicArtistTrackDTO[] = []
+  let bandFeaturedTrack: PublicArtistTrackDTO | null = null
+  let bandDefaultTrackId: string | null = null
+  let bandTotalPlays = 0
+  let bandMediaItems: PublicArtistPageDTO['media']['items'] = []
+  let bandProducts: PublicArtistPageDTO['products']['products'] = []
+  let bandFeaturedProducts: PublicArtistPageDTO['products']['featuredProducts'] = []
+
+  if (contentMemberUserIds.length > 0) {
+    const [musicResult, epkMediaResult, listingResult] = await Promise.all([
+      supabase
+        .from('artist_music')
+        .select(`
+          id,
+          title,
+          genre,
+          release_date,
+          duration,
+          file_url,
+          cover_art_url,
+          spotify_url,
+          apple_music_url,
+          soundcloud_url,
+          youtube_url,
+          stats,
+          created_at,
+          is_featured,
+          is_pinned,
+          is_public,
+          is_visible,
+          moderation_status,
+          rights_confirmed,
+          access_mode,
+          preview_mode,
+          preview_duration_seconds,
+          allow_library_add,
+          allow_profile_feature,
+          origin_status,
+          certification_status,
+          certification_level,
+          certification_public_id,
+          metadata
+        `)
+        .in('user_id', contentMemberUserIds)
+        .eq('is_public', true)
+        .eq('is_visible', true)
+        .eq('moderation_status', 'approved')
+        .eq('rights_confirmed', true)
+        .order('is_pinned', { ascending: false })
+        .order('is_featured', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(20),
+      // Canonical artist media store (DB-008: artist_photos / artist_videos are
+      // not in the active chain). Only public EPK documents are aggregated.
+      supabase
+        .from('artist_epk_settings')
+        .select('id, user_id, settings')
+        .in('user_id', contentMemberUserIds)
+        .eq('is_public', true)
+        .order('updated_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('marketplace_listings')
+        .select(`
+          id,
+          seller_user_id,
+          storefront_id,
+          title,
+          description,
+          category,
+          product_type,
+          currency,
+          base_price,
+          cover_image_url,
+          media_urls,
+          tags,
+          featured_rank,
+          created_at,
+          status,
+          moderation_status,
+          marketplace_listing_variants (id, title, price, inventory_count)
+        `)
+        .in('seller_user_id', contentMemberUserIds)
+        .eq('status', 'published')
+        .eq('moderation_status', 'approved')
+        .order('featured_rank', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .limit(30),
+    ])
+
+    const trackRows = musicResult?.data || []
+    const trackIds = trackRows.map((track: any) => track.id).filter(Boolean)
+    let listingByTrackId: Record<string, any> = {}
+    if (trackIds.length > 0) {
+      const { data: listings } = await supabase
+        .from('marketplace_listings')
+        .select('id, music_track_id, status, base_price, currency')
+        .in('music_track_id', trackIds)
+        .eq('category', 'music')
+        .eq('status', 'published')
+
+      listingByTrackId = (listings || []).reduce((acc: Record<string, any>, listing: any) => {
+        if (listing.music_track_id) acc[String(listing.music_track_id)] = listing
+        return acc
+      }, {})
+    }
+    bandTracks = trackRows.map((track: any) => buildTrackDTO(track, listingByTrackId))
+    bandFeaturedTrack = bandTracks.find(track => track.isFeatured) ?? null
+    bandDefaultTrackId = bandFeaturedTrack?.id ?? bandTracks[0]?.id ?? null
+    bandTotalPlays = bandTracks.reduce((sum, track) => sum + track.playCount, 0)
+
+    bandMediaItems = epkMediaItemsFromRows((epkMediaResult?.data || []) as EpkMediaSourceRow[], { limit: 12 })
+
+    const listingRows = listingResult?.data || []
+    bandProducts = listingRows.map((listing: any) => ({
+      id: String(listing.id),
+      name: String(listing.title || 'Untitled'),
+      description: listing.description ? String(listing.description) : null,
+      type: listing.product_type ? String(listing.product_type) : null,
+      price: listing.base_price != null ? Number(listing.base_price) : null,
+      currency: listing.currency ? String(listing.currency) : null,
+      inventoryCount: null,
+      imageUrl: listing.cover_image_url ? String(listing.cover_image_url) : null,
+      isFeatured: listing.featured_rank != null && Number(listing.featured_rank) >= 0,
+      status: 'published',
+      category: listing.category ? String(listing.category) : null,
+      productType: listing.product_type ? String(listing.product_type) : null,
+      featuredRank: listing.featured_rank != null ? Number(listing.featured_rank) : null,
+      variants: (listing.marketplace_listing_variants || []).map((variant: any) => ({
+        id: String(variant.id),
+        title: String(variant.title || ''),
+        price: Number(variant.price || 0),
+        inventoryCount: variant.inventory_count != null ? Number(variant.inventory_count) : null,
+      })),
+    }))
+    bandFeaturedProducts = bandProducts.filter(product => product.isFeatured)
+  }
+
   return {
     pageKind: 'band',
     viewer: {
@@ -330,19 +497,19 @@ async function getPublicBandProfileDTO(params: {
     },
     socialLinks,
     tracks: {
-      featuredTrack: null,
-      tracks: [],
-      defaultTrackId: null,
+      featuredTrack: bandFeaturedTrack,
+      tracks: bandTracks,
+      defaultTrackId: bandDefaultTrackId,
     },
     events: {
       upcomingEvents,
     },
     media: {
-      items: [],
+      items: bandMediaItems,
     },
     products: {
-      featuredProducts: [],
-      products: [],
+      featuredProducts: bandFeaturedProducts,
+      products: bandProducts,
     },
     posts: {
       pinnedPosts: postsPublic.filter((post: PublicArtistPageDTO['posts']['posts'][number]) => post.isPinned),
@@ -352,10 +519,10 @@ async function getPublicBandProfileDTO(params: {
     stats: {
       followersCount: Number(account?.follower_count || 0),
       futureMonthlyListeners: members.length,
-      totalPlays: 0,
-      totalStreams: 0,
+      totalPlays: bandTotalPlays,
+      totalStreams: bandTotalPlays,
       engagementRate: 0,
-      totalTracks: 0,
+      totalTracks: bandTracks.length,
       totalEvents: upcomingEvents.length,
       totalRevenue: 0,
     },
@@ -515,14 +682,12 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     totalRevenue: 0
   }
 
-  const [rpcStatsResult, tracksResult, eventsResult, photosResult, videosResult, postsResult, epkResult, postStyleFlags] = await Promise.all([
-    (async () => {
-      try {
-        return await supabase.rpc('get_enhanced_artist_stats', { artist_user_id: artistUserId })
-      } catch {
-        return null
-      }
-    })(),
+  // DB-008: `get_enhanced_artist_stats` is not created by the active migration
+  // chain (only `supabase/migrations/archive/**` and
+  // `supabase/optimize-artist-backend.sql` define it), so the RPC always failed
+  // and the page silently fell back to zeros. Public stats are now derived from
+  // the canonical rows this function already reads.
+  const [tracksResult, eventsResult, postsResult, epkResult, postStyleFlags] = await Promise.all([
     supabase
       .from('artist_music')
       .select(`
@@ -579,6 +744,7 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
         country,
         ticket_url,
         status,
+        revenue,
         producer_settings,
         is_public
       `)
@@ -587,40 +753,6 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
       .gte('event_date', today)
       .order('event_date', { ascending: true })
       .limit(8),
-    supabase
-      .from('artist_photos')
-      .select(`
-        id,
-        image_url,
-        thumbnail_url,
-        title,
-        description,
-        is_featured,
-        is_public,
-        created_at
-      `)
-      .eq('user_id', artistUserId)
-      .eq('is_public', true)
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(10),
-    supabase
-      .from('artist_videos')
-      .select(`
-        id,
-        video_url,
-        thumbnail_url,
-        title,
-        description,
-        is_featured,
-        is_public,
-        created_at
-      `)
-      .eq('user_id', artistUserId)
-      .eq('is_public', true)
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(10),
     supabase
       .from('posts')
       .select(`
@@ -656,9 +788,6 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     resolvePostStyleFlags(supabase, userId || artistUserId),
   ])
 
-  const rpcStats = rpcStatsResult?.data
-  const stats = buildStatsDTO(rpcStats, fallbackStats)
-
   const tracksRows = tracksResult?.data || []
   const trackIds = tracksRows.map((track: any) => track.id).filter(Boolean)
   let listingByTrackId: Record<string, any> = {}
@@ -680,34 +809,47 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
   const featuredTrack = tracks.find(t => t.isFeatured) ?? null
   const defaultTrackId = featuredTrack?.id ?? tracks[0]?.id ?? null
 
-  const photos = photosResult?.data || []
-  const videos = videosResult?.data || []
+  const eventsRows = (eventsResult?.data || []).filter(row =>
+    isArtistEventDiscoverable({
+      status: row.status,
+      is_public: row.is_public,
+      // `events.producer_settings` is Json in the contract; narrow it to the
+      // visibility document the visibility helper reads.
+      producer_settings:
+        row.producer_settings && typeof row.producer_settings === 'object' && !Array.isArray(row.producer_settings)
+          ? (row.producer_settings as { visibility?: string })
+          : null,
+    }),
+  )
 
-  const mediaItems = [
-    ...photos.map((p: any) => ({
-      id: p.id,
-      kind: 'photo' as const,
-      url: p.image_url,
-      thumbnailUrl: p.thumbnail_url,
-      caption: p.title ?? p.description ?? null,
-      isHero: Boolean(p.is_featured)
-    })),
-    ...videos.map((v: any) => ({
-      id: v.id,
-      kind: 'video' as const,
-      url: v.video_url,
-      thumbnailUrl: v.thumbnail_url,
-      caption: v.title ?? v.description ?? null,
-      isHero: Boolean(v.is_featured)
-    }))
-  ]
+  // DB-008: media comes from the canonical artist EPK document
+  // (`artist_epk_settings.settings.photoItems`, already privacy-gated by
+  // `epkService.getPublicEPKDataForUser`, which returns null unless the EPK row
+  // has is_public = true) instead of `artist_photos` / `artist_videos`, which the
+  // active chain never created.
+  const mediaItems = epkMediaItemsFromRows(
+    epkResult?.photos
+      ? [{ id: artistId, user_id: artistUserId, settings: { photoItems: epkResult.photos } }]
+      : [],
+    { limit: 12 },
+  )
+
+  // Public stats are derived from the canonical rows loaded above: the RPC
+  // `get_enhanced_artist_stats` does not exist in the active chain.
+  const stats: PublicArtistStatsDTO = {
+    ...fallbackStats,
+    ...derivePublicArtistStats({
+      followerCount: Number(resolvedProfile.followers_count ?? 0) || 0,
+      tracks: tracks.map((track) => ({ playCount: track.playCount, likesCount: track.likesCount })),
+      events: eventsRows,
+    }),
+  }
 
   // Storefront catalog lives in marketplace_listings (loaded client-side via discover).
   // Legacy artist_merchandise is no longer rendered on the public profile.
   const products: PublicArtistPageDTO['products']['products'] = []
   const featuredProducts: PublicArtistPageDTO['products']['featuredProducts'] = []
 
-  const eventsRows = (eventsResult?.data || []).filter(isArtistEventDiscoverable)
   const upcomingEvents = eventsRows.map((e: any) => ({
     id: e.id,
     title: e.title || e.name || null,
@@ -798,7 +940,7 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
   )
   const collaboratorUserIds = Array.from(
     new Set(collaboratorRows.map((row: any) => row.collaborator_user_id).filter(Boolean)),
-  )
+  ).filter((id): id is string => typeof id === 'string')
   const collaboratorProfilesResult = collaboratorUserIds.length > 0
     ? await supabase
         .from('profiles')

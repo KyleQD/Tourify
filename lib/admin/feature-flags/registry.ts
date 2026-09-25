@@ -35,6 +35,18 @@ export const ADMIN_FEATURE_FLAG_REGISTRY = [
     expiresAt: "2027-12-31T23:59:59.000Z",
     removalIssue: "LOG-PLAN-001",
   },
+  {
+    key: "admin_logistics_control_tower_v1",
+    displayName: "Logistics control tower",
+    purpose: "Roll out the organization logistics overview, split Comms and Maps workspaces, and scoped domain navigation.",
+    owner: "Operations Platform",
+    environments: ["staging", "pilot", "production"],
+    safeDefault: false,
+    metrics: ["overview_latency_ms", "overview_error_rate", "degraded_source_rate", "map_creation_failure_rate"],
+    rollback: "Disable the organization assignment and return that organization to the previous Logistics overview while preserving all logistics records.",
+    expiresAt: "2027-12-31T23:59:59.000Z",
+    removalIssue: "RELEASE-009",
+  },
 ] as const
 
 export type AdminFeatureFlagKey = (typeof ADMIN_FEATURE_FLAG_REGISTRY)[number]["key"]

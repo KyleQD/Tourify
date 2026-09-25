@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE",
+  "task_id": "VENUE-005",
+  "from_agent": "venue",
+  "to_agent": "design-system",
+  "status": "pending",
+  "created_at": "2026-09-25T22:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "Venue lane cleared its own half of the DB-008 code-drift cluster 'venue' (7 objects, 135 diagnostic hits). Three archived objects still have consumers under lib/services/**, which the Wave 34 design-system lane owns as the orphaned shared pile. This handoff is that remaining share. The venue lane verified the zero-importer claim on all of them and deleted its own copies; the lib/services copies are identical twins and were not touched because lib/services/** is outside venue file ownership this wave.",
+  "working_set": [
+    "lib/services/staff-management.service.ts",
+    "lib/services/staff-job-board.service.ts",
+    "lib/services/venue-scheduling.service.ts"
+  ],
+  "completed": [
+    "Verified the zero-importer claim myself rather than trusting the inventory: `rg` for '@/lib/services/staff-management.service', '@/lib/services/staff-job-board.service' and any relative form returns 0 importers. The only remaining mentions of StaffManagementService / StaffDashboardStats / TeamContractor are in docs/staff-management-system.md, and the only mention of StaffJobBoardService is in docs/staff-management-backend-setup.md. Neither file has a dynamic import() or require().",
+    "Deleted lib/venue/staff-management.service.ts (200 lines, in HEAD) after the same zero-importer proof. It declared its own StaffManagementService class with getCrewMembers/createCrewMember (venue_crew_members), getTeamContractors/createTeamContractor (venue_team_contractors) and getStaffDashboardStats + a fallback that read get_staff_dashboard_stats, venue_crew_members and venue_team_contractors. It also read the LEGACY venue_team_members (VEN-103) through the module-level browser/server supabase singleton.",
+    "Deleted the dead event-chat subtree (app/venue/components/chat-tab.tsx, app/venue/actions/chat-actions.ts, app/venue/types/chat.ts). chat-tab.tsx had 0 importers, so the only importer of chat-actions.ts was itself unreachable, and types/chat.ts was imported only by those two.",
+    "Repointed app/venue/components/staff/shift-templates.tsx from the archived venue_shift_templates to the canonical venue_recurring_shifts. Measured with a scoped tsc probe on the HEAD bytes: 2 errors (TS2589 + TS2769) before, 0 after.",
+    "Added __tests__/venue/venue-code-drift-cluster.test.ts (29 tests) which machine-locks all of the above and fails if any archived venue object reappears under app/venue, app/api/venue or lib/venue."
+  ],
+  "next_steps": [
+    "lib/services/staff-management.service.ts: delete it. It is a byte-level twin of the lib/venue/staff-management.service.ts the venue lane just deleted (both declare `export class StaffManagementService` and reference venue_crew_members, venue_team_contractors and get_staff_dashboard_stats), and it has 0 importers. If the design-system lane wants a verified duplicate first, diff the two against the venue lane's deleted file in git history before removing.",
+    "lib/services/staff-job-board.service.ts: its only drift is the get_staff_dashboard_stats RPC. Delete the file (0 importers) or repoint that one call onto the canonical staff_members roster — 20260823070000_staff_members_canonical_roster.sql created it and lib/database.types.ts declares it. Do NOT author a migration to recreate get_staff_dashboard_stats: the database lane proved it appears in no active migration and in no generated type, so regeneration can never satisfy it.",
+    "lib/services/venue-scheduling.service.ts: VenueSchedulingService.getShiftTemplates/createShiftTemplate/updateShiftTemplate/deleteShiftTemplate read the archived venue_shift_templates. Repoint them onto venue_recurring_shifts (created 20260413200000_port_missing_tables.sql:158, declared lib/database.types.ts:21442) with the column mapping the venue lane already applied: template_name -> shift_title, department/start_time/end_time/staff_needed unchanged. Note the file already targets venue_recurring_shifts in the adjacent createRecurringShift method, so the two methods would then read the same canonical table. No test currently exercises these four methods.",
+    "After the edits, re-run a scoped typecheck over the three files and report the diagnostic delta so the 1,384 baseline can be re-measured."
+  ],
+  "blockers": [
+    "The database lane cannot clear these diagnostics: every remaining consumer file is outside the database lane's file ownership.",
+    "Venue cannot clear them either: lib/services/** is explicitly excluded from venue file ownership in the Wave 34 brief and is owned by the design-system lane.",
+    "The full `npm run typecheck` is still unmeasured (68m18s on CI, OOM on this 8GB box), so the reduction from this cluster cannot be quantified until a scoped or full run happens."
+  ],
+  "commands_run": [
+    "rg importer scan over the whole tree for all three modules — 0 importers, 0 dynamic imports.",
+    "npx tsc over a temporary slice including app/venue/components/staff/shift-templates.tsx (HEAD bytes vs repointed bytes) — 2 errors before, 0 after.",
+    "npx vitest run __tests__/venue/ — 15 files / 131 tests passed.",
+    "npx eslint on the changed venue files — exit 0.",
+    "npm run check:migration-chain / check:migration-validation / check:migration-ledger / check:service-role-allowlist — all exit 0."
+  ],
+  "verification": [
+    "__tests__/venue/venue-code-drift-cluster.test.ts — 29 tests. It asserts each archived object is never CREATEd by an active migration (DDL-shaped regex, so a mere string mention in the 20260414223233 RLS-lint name array does not satisfy it), is absent from lib/database.types.ts, and still exists in the archive/backup SQL that proves it was never in the chain. Negative control verified: a known-present routine (refresh_forum_mviews) matches the same declaration pattern."
+  ]
+}

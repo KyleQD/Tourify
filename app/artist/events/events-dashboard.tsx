@@ -18,18 +18,18 @@ import { formatSafeCurrency } from "@/lib/format/number-format"
 function EventCard({ event, onEdit, onDelete }: { event: Event; onEdit: (event: Event) => void; onDelete: () => void }) {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const progress = Math.round((event.tickets_sold / event.capacity) * 100)
-  
+
   function handleDelete() {
     setIsDialogOpen(false)
     onDelete()
   }
-  
+
   return (
     <div className="bg-[#13151c] border border-gray-800 rounded-lg p-4 flex flex-col gap-2">
-      {event.cover_image_url && (
-        <img 
-          src={event.cover_image_url} 
-          alt={event.name} 
+      {event.poster_url && (
+        <img
+          src={event.poster_url}
+          alt={event.name}
           className="w-full h-32 object-cover rounded-lg mb-2"
         />
       )}
@@ -108,26 +108,26 @@ export function EventsDashboard({ userId }: { userId: string }) {
         setIsLoading(false)
       }
     }
-    
+
     loadEvents()
   }, [userId])
 
   React.useEffect(() => {
     let filtered = [...events]
-    
+
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter(event => 
+      filtered = filtered.filter(event =>
         event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
-    
+
     // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(event => event.status === statusFilter)
     }
-    
+
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -143,7 +143,7 @@ export function EventsDashboard({ userId }: { userId: string }) {
           return 0
       }
     })
-    
+
     setFilteredEvents(filtered)
   }, [events, searchQuery, statusFilter, sortBy])
 
@@ -155,7 +155,7 @@ export function EventsDashboard({ userId }: { userId: string }) {
         description: "Event created successfully"
       })
       setIsCreateOpen(false)
-      
+
       // Refresh events
       const fetchedEvents = await fetchEvents(userId)
       setEvents(fetchedEvents)
@@ -176,7 +176,7 @@ export function EventsDashboard({ userId }: { userId: string }) {
         title: "Success",
         description: "Event updated successfully"
       })
-      
+
       // Refresh events
       const fetchedEvents = await fetchEvents(userId)
       setEvents(fetchedEvents)
@@ -197,7 +197,7 @@ export function EventsDashboard({ userId }: { userId: string }) {
         title: "Success",
         description: "Event deleted successfully"
       })
-      
+
       // Refresh events
       const fetchedEvents = await fetchEvents(userId)
       setEvents(fetchedEvents)
@@ -283,4 +283,4 @@ export function EventsDashboard({ userId }: { userId: string }) {
       />
     </div>
   )
-} 
+}

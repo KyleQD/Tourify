@@ -268,3 +268,154 @@ export function crossMapElementIds(
     .filter((row) => row.site_map_id !== siteMapId)
     .map((row) => row.id);
 }
+
+type SiteMapElementSyncError = {
+  code: string;
+  message: string;
+};
+
+export function isMissingSiteMapElementSyncFunction(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; message?: unknown; details?: unknown };
+  const text = [candidate.message, candidate.details]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  return (
+    (candidate.code === "PGRST202" || /does not exist/i.test(text)) &&
+    /sync_site_map_elements/i.test(text)
+  );
+}
+
+function syncError(code: string, message: string): SiteMapElementSyncError {
+  return { code, message };
+}
+
+function elementUpdateFields(row: Record<string, unknown>) {
+  const { id: _id, site_map_id: _siteMapId, ...fields } = row;
+  return fields;
+}
+
+/**
+ * Compatibility path for deployments that have not installed the atomic sync
+ * RPC yet. The caller must pass a service client only after map edit access and
+ * acting-organization scope have both been verified server-side.
+ */
+export async function syncSiteMapElementsWithoutRpc(args: {
+  dataClient: any;
+  siteMapId: string;
+  rows: Array<Record<string, unknown>>;
+  deleteMissing: boolean;
+}): Promise<{ data: unknown[] | null; error: SiteMapElementSyncError | null }> {
+  const { dataClient, siteMapId, rows, deleteMissing } = args;
+  const ids = rows.map((row) => String(row.id));
+
+  const existingById = ids.length > 0
+    ? await dataClient
+        .from("site_map_elements")
+        .select("id, site_map_id")
+        .in("id", ids)
+    : { data: [], error: null };
+  if (existingById.error) {
+    return {
+      data: null,
+      error: syncError("dependency_unavailable", existingById.error.message),
+    };
+  }
+
+  const conflictingIds = crossMapElementIds(existingById.data ?? [], siteMapId);
+  if (conflictingIds.length > 0) {
+    return {
+      data: null,
+      error: syncError("23505", "Element id belongs to another site map"),
+    };
+  }
+
+  const existingIds = new Set(
+    (existingById.data ?? []).map((row: { id: string }) => row.id),
+  );
+  const newRows = rows.filter((row) => !existingIds.has(String(row.id)));
+  const changedRows = rows.filter((row) => existingIds.has(String(row.id)));
+
+  if (newRows.length > 0) {
+    const inserted = await dataClient.from("site_map_elements").insert(newRows);
+    if (inserted.error) {
+      return {
+        data: null,
+        error: syncError(inserted.error.code || "dependency_unavailable", inserted.error.message),
+      };
+    }
+  }
+
+  // Bound concurrency so a large canvas cannot fan out hundreds of simultaneous
+  // requests while this compatibility mode is active.
+  for (let offset = 0; offset < changedRows.length; offset += 20) {
+    const batch = changedRows.slice(offset, offset + 20);
+    const updates = await Promise.all(
+      batch.map(async (row) => {
+        const result = await dataClient
+          .from("site_map_elements")
+          .update(elementUpdateFields(row))
+          .eq("id", row.id)
+          .eq("site_map_id", siteMapId)
+          .select("id")
+          .maybeSingle();
+        if (result.error) return result.error;
+        if (!result.data) return syncError("element_not_found", "Element update missed its site map");
+        return null;
+      }),
+    );
+    const failedUpdate = updates.find(Boolean);
+    if (failedUpdate) {
+      return {
+        data: null,
+        error: syncError(
+          (failedUpdate as { code?: string }).code || "dependency_unavailable",
+          (failedUpdate as { message?: string }).message || "Unable to update a site-map element",
+        ),
+      };
+    }
+  }
+
+  if (deleteMissing) {
+    const current = await dataClient
+      .from("site_map_elements")
+      .select("id")
+      .eq("site_map_id", siteMapId);
+    if (current.error) {
+      return {
+        data: null,
+        error: syncError("dependency_unavailable", current.error.message),
+      };
+    }
+    const wantedIds = new Set(ids);
+    const staleIds = (current.data ?? [])
+      .map((row: { id: string }) => row.id)
+      .filter((id: string) => !wantedIds.has(id));
+    if (staleIds.length > 0) {
+      const deleted = await dataClient
+        .from("site_map_elements")
+        .delete()
+        .eq("site_map_id", siteMapId)
+        .in("id", staleIds);
+      if (deleted.error) {
+        return {
+          data: null,
+          error: syncError("dependency_unavailable", deleted.error.message),
+        };
+      }
+    }
+  }
+
+  const saved = await dataClient
+    .from("site_map_elements")
+    .select("*")
+    .eq("site_map_id", siteMapId)
+    .order("created_at", { ascending: true });
+  if (saved.error) {
+    return {
+      data: null,
+      error: syncError("dependency_unavailable", saved.error.message),
+    };
+  }
+  return { data: saved.data ?? [], error: null };
+}

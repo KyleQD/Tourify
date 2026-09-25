@@ -46,7 +46,7 @@ export const DASHBOARD_DOMAIN_DEFINITIONS: readonly DashboardDomainDefinition[] 
   { id: "logistics", label: "Logistics", href: "/admin/dashboard/logistics", countLabel: "open tasks", capability: "logistics.view" },
   { id: "ticketing", label: "Ticketing", href: "/admin/dashboard/ticketing", countLabel: "ticketing records", capability: "ticketing.view" },
   { id: "finance", label: "Finance", href: "/admin/dashboard/finances", countLabel: "transactions", capability: "finance.view" },
-  { id: "vendors", label: "Vendors", href: "/admin/dashboard/logistics?tab=vendors", countLabel: "vendors", capability: "vendor.view" },
+  { id: "vendors", label: "Vendors", href: "/admin/dashboard/tours", countLabel: "vendors", capability: "vendor.view" },
   { id: "contracts", label: "Contracts", href: "/admin/dashboard/finances?tab=contracts", countLabel: "contracts", capability: "contract.view" },
   { id: "publication", label: "Publication", href: "/admin/dashboard/publications/deliveries", countLabel: "pending deliveries", capability: "tour.view" },
   { id: "audit", label: "Audit", href: "/admin/dashboard/settings/audit", countLabel: "recent actions", capability: "audit.view" },

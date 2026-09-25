@@ -17,6 +17,7 @@ import { jsonError, fromZodError } from "@/lib/api/route-helpers"
 import { requireMarketplaceEnabled, requireExternalListingsEnabled } from "@/lib/marketplace/require-marketplace-enabled"
 import { resolveMarketplaceEntitlements } from "@/lib/marketplace/entitlement-resolver"
 import { fetchExternalListingMetadata } from "@/lib/marketplace/external-import"
+import { getStorefrontStorageCompatibilityIssue } from "@/lib/marketplace/storefront-identity"
 
 export const dynamic = "force-dynamic"
 
@@ -34,6 +35,16 @@ export async function POST(request: NextRequest) {
     const ctx = await resolveActingContext(request)
     if (ctx instanceof NextResponse) return ctx
     const { accountType } = ctx
+    const storageIssue = getStorefrontStorageCompatibilityIssue(ctx)
+    if (storageIssue) {
+      return jsonError({
+        status: 503,
+        code: storageIssue.code,
+        message: storageIssue.message,
+        retryable: false,
+        issues: storageIssue.owner,
+      })
+    }
 
     const entitlements = resolveMarketplaceEntitlements(accountType)
     if (!entitlements.canCreateExternalListings) {
@@ -106,7 +117,17 @@ export async function PUT(request: NextRequest) {
   try {
     const ctx = await resolveActingContext(request)
     if (ctx instanceof NextResponse) return ctx
-    const { user: { id: userId }, accountType, supabase } = ctx
+    const { userId, accountType, supabase } = ctx
+    const storageIssue = getStorefrontStorageCompatibilityIssue(ctx)
+    if (storageIssue) {
+      return jsonError({
+        status: 503,
+        code: storageIssue.code,
+        message: storageIssue.message,
+        retryable: false,
+        issues: storageIssue.owner,
+      })
+    }
 
     const entitlements = resolveMarketplaceEntitlements(accountType)
     if (!entitlements.canCreateExternalListings) {

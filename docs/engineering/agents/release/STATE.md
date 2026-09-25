@@ -434,3 +434,122 @@ required e2e governance remain promotion-scoped.
 - Read-only Vercel inspection maps both `demo.tourify.live` and `tourify.live` to production deployment `dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK` in project `tourify-beta-k2` (`prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n`). Separate staging deployment/project isolation is disproven for the current aliases.
 - Both public health endpoints return 200 without release SHA, deployment ID, Supabase-origin, or Stripe-mode headers. Both CSPs advertise `https://auqddrodjezjlypkzfpi.supabase.co`; staging runtime database and test-payment mode remain unproven.
 - GitHub staging and production environments have no variables, secrets, or protection rules; main branch protection is absent. The field-by-field packet and operator checklist are at `docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md`. No deployment, database write, actor, or payment action occurred.
+
+## Wave 32 PR #14 release-lane check triage — 2026-09-25
+
+Read-only diagnosis of the three non-passing release-lane checks on PR #14
+(`codex/qa004-staging-campaign`, head `d2176904`, 900 changed files). No product
+code, workflow, `vercel.json`, manifest, lockfile, branch-protection, or hosted
+setting was changed. Full transcript:
+`docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md`.
+
+- **`Vercel` — 45-minute Vercel build-duration ceiling, not a defect.** Deployment
+  `dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY` reports `readyState: ERROR`,
+  `errorCode: BUILD_EXCEEDED_MAXIMUM_TIME`, plan `pro`, `buildingAt → ready`
+  = 2738.605 s = **45.64 min**. Webpack had already reported
+  `Compiled successfully in 4.4min`; the last log line is
+  `Linting and checking validity of types ...`. All four candidate causes are ruled
+  out with direct evidence: compile succeeded; the GitHub link resolves
+  (`link.type github`, `productionBranch main`); the production environment contract
+  **passed** in the build (`[env-check] Production build environment contract passed.`)
+  and the project env carries all six required variable *names*; and the build ran
+  a full 45 min on `pro` with no paywall or permission message.
+- **The PR is wired to the PRODUCTION Vercel project, not staging.** `tourify-beta-k2`
+  = `prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n`, and `targets.production.alias` =
+  `[tourify.live, demo.tourify.live, www.tourify.live, …]` with
+  `link.productionBranch: main`. `d2176904` is a `target: preview` deployment inside
+  it. This **supersedes** the earlier "legacy/archival scratch clone"
+  characterisation: `demo.tourify.live` is a production alias, so RELEASE-007
+  acceptance criterion 1 is still unmet, and the Vercel Git integration is still
+  building arbitrary PR branches inside the production project, which
+  `docs/DEPLOYMENT_ROUTINE.md` §4 forbids. **Not changed** — hosted mutation needs
+  owner authorization (`HF-RELEASE-007-VERCEL-HOSTED`).
+- **Mitigation already in place:** the controlled promotion path is immune to the
+  ceiling. `.github/workflows/deploy-demo.yml` runs `vercel build --prod` (line 105)
+  in GitHub Actions and `vercel deploy --prebuilt --prod` (line 115), which uploads an
+  artifact and performs no Vercel-side build. Only the uncontrolled auto-preview path
+  is wall-clock bounded.
+- **`Lint And Build` — genuine typecheck failure, correct pipeline.** Step 11
+  `Typecheck` ran 17:38:34Z→18:46:52Z (**68m18s** of a 70m40s job) and emitted
+  **1,384 primary diagnostics across 407 files** (TS2339 ×495, TS2769 ×265,
+  TS2322 ×180, TS2589 ×163, TS2345 ×161, TS18047 ×26). The invocation
+  `NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit` on a 4-core/16 GB
+  `ubuntu-latest` runner is correct; the log has **zero** heap-out-of-memory /
+  `FATAL ERROR` / `ENOMEM` / `Killed` / `SIGKILL` matches; no job sets
+  `timeout-minutes`, so the 360-minute default applied and nothing timed out. The
+  1h10m40s is real single-pass `tsc` work, matching the known slow-typecheck profile
+  in RELEASE-006. **No timeout and no memory value was changed** — see `REL-001`.
+- **Root cause is upstream and owned by `database`.** TS2345 on `venue_crew_members`,
+  `venue_team_contractors`, and `get_staff_dashboard_stats` — objects in no migration
+  and no generated type — plus a TS2339/TS2345/TS2322 flood across
+  `lib/services/**` + `lib/venue/**` (132 files), `app/**` (148), `components/**`
+  (74), `hooks/**` (18), `contexts/**` (10). The `Database Types` job failed earlier
+  in the same run at `supabase start`. **The release gate is correctly failing and must
+  not be bypassed** (`HF-RELEASE-DB-TYPECHECK`).
+- **Consequence worth carrying forward:** steps 12–27 (15 release-gate steps plus
+  `Build`) were all `skipped` behind the `Typecheck` failure, so **PR #14 has no
+  production-build evidence at all** and RELEASE-006's deterministic typecheck/build
+  criterion cannot be observed on this SHA.
+- **`CodeQL` is NOT a workflow job and is NOT dismissible.** Check-run `106862973938`
+  is a **GitHub Advanced Security code-scanning gate** (app slug
+  `github-advanced-security`, app id 57789, check suite 96831076767, no workflow run
+  behind it) — which is exactly why `gh run view --job 106862973938` returns
+  `HTTP 404: Not Found`. It reports **96 open, undismissed, unfixed alerts** (0
+  dismissed, 0 fixed, `dismissed_reason` null on all 96) including **1 critical**:
+  alert #16, `js/request-forgery`, `app/api/discover/route.ts:351` (SSRF — outbound URL
+  depends on a user-provided value; `discover`-owned). The repository's own
+  `CodeQL (JavaScript/TypeScript)` job in `security-scans.yml` uses the same
+  `security-extended` suite and **passed** — that job asserts the analysis uploaded,
+  the platform check asserts no new alerts. Routed to `integrations` as
+  `HF-RELEASE-SEC-CODEQL`.
+- **CodeQL attribution caveat, stated precisely:** `main` has **0 alerts in any
+  state** and **0 recorded analyses**; every recorded analysis is against a
+  `refs/pull/*/merge` ref. With no baseline and 900 changed files, the platform check
+  attributes the whole tree to the PR, as its own summary admits. Only
+  `__tests__/qa/campaign-actor-provisioner.test.ts` (#93) is actually in the diff; the
+  critical is not. This explains volume only — **no individual finding is dismissed.**
+- **`main` IS now branch-protected — the recorded 404 is retired.**
+  `GET /repos/KyleQD/Tourify/branches/main/protection` returns **200** with
+  `required_status_checks.strict: true` over 10 contexts
+  (`Production Debug Scan`, `Vitest`, `Database Types`, `Lint And Build`,
+  `Unit Tests (Vitest)`, `E2E Tests (Playwright)`,
+  `Security exception governance`, `Secret scan`,
+  `CodeQL (JavaScript/TypeScript)`, `Generate SBOM`), plus
+  `required_approving_review_count: 1`, `dismiss_stale_reviews`, `require_last_push_approval`,
+  `enforce_admins`, `required_linear_history`, no force pushes, no deletions,
+  `required_conversation_resolution`. `required_signatures` is **false**.
+  STATE.md and RELEASE-005 both still record `404 Branch not protected`; that baseline
+  is obsolete.
+- **Merge blockers on PR #14 are exactly three required checks:** `Database Types`
+  (FAILURE), `Lint And Build` (FAILURE), `E2E Tests (Playwright)` (CANCELLED).
+  `mergeStateStatus: BLOCKED`. The `Vercel` and Advanced Security `CodeQL` failures
+  **do not block the merge** — neither is a required check.
+- **Newly recorded RELEASE-006 determinism defects (none changed):** the repo tracks
+  **both** `package-lock.json` (npm, lockfile v3, the enforced contract) and a stale
+  332 KB `pnpm-lock.yaml`, and the hosted build warned
+  `Detected pnpm-lock.yaml 9 … Using pnpm@10.x based on project creation date`; the
+  hosted project setting is `nodeVersion: 22.x` while `engines.node` is `24.x` and
+  `.nvmrc` is `24`; and three declared heap ceilings cover one workload
+  (`vercel.json build.env` 4096, `build:vercel` 6144, `typecheck` 8192) on a
+  4-core/8 GB Vercel build machine.
+- **New fact that reframes a prior blocker:** the hosted build environment is
+  **correctly provisioned** — the production env contract and the
+  Node 24.19.0 / npm 11.17.0 / lockfile v3 toolchain contract both pass on Vercel. The
+  previously recorded local `build:vercel` failure is therefore local
+  **credential availability**, not a build-contract defect.
+
+### Wave 32 open items
+
+1. Owner: move PR preview builds off the production Vercel project and remove
+   `demo.tourify.live` from its production aliases (`HF-RELEASE-007-VERCEL-HOSTED`).
+2. Owner: decide required-check additions — the Advanced Security `CodeQL` gate,
+   `Dependency review`, `Migrations And RLS Matrix` — and whether to split production
+   build / migration checks / service-role audit into independent required jobs
+   (`HF-RELEASE-005-REQUIRED-CHECKS`).
+3. `database`: resolve the generated-type drift and the three missing objects, then
+   re-run `Lint And Build` (`HF-RELEASE-DB-TYPECHECK`).
+4. `integrations` (+ `discover` for the critical): triage 96 code-scanning alerts
+   (`HF-RELEASE-SEC-CODEQL`).
+5. RELEASE-006: remove or pin the stale tracked `pnpm-lock.yaml`; align the hosted
+   `nodeVersion`; collapse the heap ceilings only after a green-run duration is
+   measured.

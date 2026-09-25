@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-RELEASE-007-VERCEL-HOSTED",
+  "task_id": "RELEASE-007",
+  "from_agent": "release",
+  "to_agent": "owner",
+  "status": "pending",
+  "created_at": "2026-09-25T20:19:07Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The failing `Vercel` check on PR #14 is a 45-minute Vercel build-duration ceiling, not a product defect, a broken project link, a missing preview env var, or a quota/plan/permission problem. However, read-only inspection proves the PR is wired to the PRODUCTION Vercel project: `tourify-beta-k2` = `prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n`, whose `targets.production.alias` still includes `demo.tourify.live`, and the Vercel Git integration is still building PR preview deployments inside it. That contradicts RELEASE-007 acceptance criterion 1 and docs/DEPLOYMENT_ROUTINE.md section 4. No hosted setting was changed; every item below needs owner authorization.",
+  "working_set": [
+    "vercel.json",
+    ".github/workflows/deploy-demo.yml",
+    ".github/workflows/deploy-production.yml",
+    "docs/DEPLOYMENT_ROUTINE.md",
+    "docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md"
+  ],
+  "completed": [
+    "Diagnosed the failure: GET /v13/deployments/dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY -> readyState ERROR, errorCode BUILD_EXCEEDED_MAXIMUM_TIME, plan pro, buildingAt->ready 2738.605s = 45.64 minutes.",
+    "Ruled out the four candidate causes with direct evidence: webpack compile succeeded ('Compiled successfully in 4.4min'); the GitHub project link resolves (link.type github, repo Tourify/KyleQD, productionBranch main, repoId 1166070718); `[env-check] Production build environment contract passed.` at 17:37:03.133 and the project env contains all six required variable NAMES; the build ran a full 45 minutes on the pro plan with no paywall or permission message.",
+    "Established that the controlled promotion path is immune to this ceiling: deploy-demo.yml line 105 runs `vercel build --prod` in GitHub Actions and line 115 runs `vercel deploy --prebuilt --prod`, which uploads an artifact and performs no Vercel-side build. Only the uncontrolled Git-triggered auto-preview path is bounded by 45 minutes.",
+    "Confirmed the wrong-project binding: GET /v9/projects/tourify-beta-k2 -> targets.production.alias = [tourify.live, demo.tourify.live, www.tourify.live, ...] and link.type = github with productionBranch main, so any PR branch auto-builds into the production project.",
+    "Recorded three configuration-drift items that were deliberately NOT changed: (1) the repo tracks BOTH package-lock.json (npm, lockfile v3) and a stale 332KB pnpm-lock.yaml, and the hosted build warned `Detected pnpm-lock.yaml 9 ... Using pnpm@10.x based on project creation date`; (2) the hosted project setting is nodeVersion `22.x` while engines.node is `24.x` and .nvmrc is `24`; (3) three declared heap ceilings for one workload - vercel.json build.env 4096, package.json build:vercel 6144, package.json typecheck 8192 - on a 4-core/8GB Vercel build machine."
+  ],
+  "next_steps": [
+    "Move PR preview builds off the production project: either disable the Vercel Git integration on `tourify-beta-k2` or reassign the repository link to the dedicated staging project (`tourifydemo`), so no PR branch can auto-deploy into the production project. This is the item that makes RELEASE-007 criterion 1 and DEPLOYMENT_ROUTINE section 4 satisfiable.",
+    "Remove `demo.tourify.live` from `tourify-beta-k2`'s production alias list and bind it only to the isolated staging project, then re-verify both aliases resolve to different `dpl_` IDs.",
+    "Decide the production build-duration posture. Either accept that only the `--prebuilt` controlled path is deployable and disable the auto-preview path, or raise the project's maximum build duration if the plan allows. Note the type surface is currently broken, so the 45-minute ceiling is a symptom that will clear once HF-RELEASE-DB-TYPECHECK lands - do not tune memory before that.",
+    "Align the hosted project `nodeVersion` setting from `22.x` to the pinned `24.x` contract, and resolve the dual lockfile (remove the stale `pnpm-lock.yaml`, or add an explicit `packageManager`). Both are RELEASE-006 dependency-baseline items; the pnpm-lock.yaml is a tracked root file and was not deleted by the release lane."
+  ],
+  "blockers": [
+    "Every action here is a hosted mutation in `kyleqdaley-gmailcoms-projects` and is outside agent authority. No deployment, alias change, project setting change, or Git-link change was made.",
+    "Vercel CLI is authenticated locally as `kyleqdaley-4994` and CAN read the `kyleqdaley-gmailcoms-projects` scope, so read-only inspection was possible; write scope was not exercised.",
+    "The current production/demo aliases still share the existing deployment until the binding is changed."
+  ],
+  "verification": [
+    "vercel whoami -> kyleqdaley-4994 (authenticated).",
+    "vercel inspect dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY -> name tourify-beta-k2, target preview, readyState Error, Builds '.' [0ms].",
+    "vercel inspect dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY --logs -> 99 lines; last line 'Linting and checking validity of types ...'.",
+    "GET /v13/deployments/dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY -> errorCode BUILD_EXCEEDED_MAXIMUM_TIME, 45.64 min, projectId prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n.",
+    "GET /v9/projects/tourify-beta-k2 -> nodeVersion 22.x, link.type github productionBranch main, targets.production.alias includes demo.tourify.live, env var NAMES include all six production-required variables.",
+    "GET /repos/KyleQD/Tourify/commits/d2176904/status -> single StatusContext 'Vercel' = failure, target https://vercel.com/kyleqdaley-gmailcoms-projects/tourify-beta-k2/2zPXya6iLnXhdgDPeHu7mX3cbQdY.",
+    "git cat-file -e d2176904:pnpm-lock.yaml and :package-lock.json -> both exist at the PR head."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md"
+}

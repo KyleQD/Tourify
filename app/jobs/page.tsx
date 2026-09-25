@@ -218,19 +218,25 @@ export default function JobsPage() {
       } else if (result.success && Array.isArray(result.data?.staff_postings)) {
         const rows = result.data.staff_postings as Record<string, unknown>[]
         setStaffingJobs(
-          rows.map((r) => ({
-            source: 'venue',
-            id: r.id,
-            title: r.title,
-            organization_name: (r as { venue?: { name?: string } }).venue?.name ?? null,
-            location: r.location,
-            experience_level: r.experience_level,
-            employment_type: r.employment_type,
-            applications_count: Number(r.applications_count ?? 0),
-            views_count: Number(r.views_count ?? 0),
-            urgent: Boolean(r.urgent),
-            detail_href: `/jobs/${r.id}?source=venue`,
-          }))
+          rows.map((r) => {
+            const isOrg = r.employer_entity_type === 'organization'
+            const orgName = isOrg
+              ? (r as { organization?: { name?: string } }).organization?.name ?? null
+              : (r as { venue?: { name?: string } }).venue?.name ?? null
+            return {
+              source: isOrg ? 'organization' : 'venue',
+              id: r.id,
+              title: r.title,
+              organization_name: orgName,
+              location: r.location,
+              experience_level: r.experience_level,
+              employment_type: r.employment_type,
+              applications_count: Number(r.applications_count ?? 0),
+              views_count: Number(r.views_count ?? 0),
+              urgent: Boolean(r.urgent),
+              detail_href: `/jobs/${r.id}?source=${isOrg ? 'organization' : 'venue'}`,
+            }
+          })
         )
       } else setStaffingJobs([])
     } catch (error) {
@@ -822,10 +828,16 @@ export default function JobsPage() {
                                               'text-xs capitalize',
                                               (job as any).source === 'artist'
                                                 ? 'border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-200'
-                                                : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'
+                                                : (job as any).source === 'organization'
+                                                  ? 'border-purple-500/30 bg-purple-500/15 text-purple-200'
+                                                  : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'
                                             )}
                                           >
-                                            {(job as any).source === 'artist' ? 'Artist board' : 'Venue staffing'}
+                                            {(job as any).source === 'artist'
+                                              ? 'Artist board'
+                                              : (job as any).source === 'organization'
+                                                ? 'Organization'
+                                                : 'Venue staffing'}
                                           </Badge>
                                         )}
                                       </div>

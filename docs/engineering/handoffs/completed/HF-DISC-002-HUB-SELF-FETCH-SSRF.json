@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DISC-002-HUB-SELF-FETCH-SSRF",
+  "task_id": "DISC-002",
+  "from_agent": "discover",
+  "to_agent": "integrations",
+  "status": "completed",
+  "created_at": "2026-09-25T21:10:00Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "RETURNED TO DISCOVER AND FIXED IN WAVE 34, not handed off. This handoff was filed by discover in Wave 33 after finding the same SSRF defect class as CodeQL #16 at app/api/hub/route.ts, unflagged because js/request-forgery treats request.url as a remote-flow source but not request.nextUrl.origin. The orchestrator returned it because app/api/hub/** is inside the Wave 34 discover file ownership, so discover fixed it in place rather than describing the fix. The taint path was confirmed, not assumed: request.nextUrl.searchParams -> request.nextUrl.origin at the old line 75 (reflects the inbound Host / X-Forwarded-Host header) -> fetch(`${baseUrl}${fullPath}`) at the old line 82, once each for /api/discover, /api/news/feed and /api/artist-jobs. No validation or allowlist intervened. Both the source and the sink are gone: app/api/hub/route.ts no longer contains nextUrl.origin, no baseUrl, and no fetch( call, and it now selects upstreams by key from a frozen route map. The fix is a port of the Wave 33 guard, not a second approach.",
+  "working_set": [
+    "app/api/hub/route.ts:1-160 (rewritten fan-out; 167 -> 205 lines)",
+    "lib/discover/internal-json-fetch.ts (HUB_UPSTREAM_ROUTES added to the frozen registry)",
+    "lib/discover/outbound-guard.ts (unchanged, reused as-is)",
+    "__tests__/discover/hub-news-self-fetch-ssrf.test.ts (new, 25 tests)",
+    "__tests__/discover/discover-ssrf.test.ts (regression reference, 40 tests)"
+  ],
+  "completed": [
+    "Confirmed the taint path in the file itself: request.nextUrl.origin (Host / X-Forwarded-Host) -> fetch(`${baseUrl}${fullPath}`) for three internal fan-out targets.",
+    "Reused lib/discover/outbound-guard.ts and lib/discover/internal-json-fetch.ts as-is; added only three frozen entries (hubDiscover -> /api/discover, hubNewsFeed -> /api/news/feed, hubArtistJobs -> /api/artist-jobs) to the existing INTERNAL_UPSTREAM_ROUTES registry, so the pathname is still a compile-time constant and the pathname union remains derived from the frozen map.",
+    "Every bypass class the Wave 33 guard closes is closed here too: exact-origin allowlist with no prefix/substring match, http/https only, no embedded credentials, inet_aton IP normalization (127.1 / 0177.0.0.1 / 0x7f000001 / 2130706433 all collapse), IPv4-mapped/NAT64/6to4/ULA/link-local rejection, internal-hostname and reserved-TLD rejection, numeric CIDR blocking, path-traversal rejection, structurally impossible redirects (node:https never follows and any 3xx is a hard denial), resolve-then-pin DNS against rebinding, 5s wall clock, 2 MiB cap, and a JSON content-type requirement.",
+    "Closed a second, previously unrecorded gap: the hub forwarded the caller's raw Cookie header to the attacker-chosen origin, which would have been credential exfiltration on top of the SSRF. The cookie is still forwarded, but only to an operator-allowlisted origin, and is bounded to 8 KiB.",
+    "Preserved the deny-log discipline: denials log the route key and the reason only, never a parameter value and never a resolved URL. The old catch block logged the pathname and the raw error object.",
+    "Added export const runtime = 'nodejs' because the fan-out now runs on node:https / node:dns.",
+    "25 new tests in __tests__/discover/hub-news-self-fetch-ssrf.test.ts. Every rejection path asserts that node:https and node:http were never called, and the file also carries source-text regression guards that strip comments first so the prose documenting the removed pattern cannot satisfy them.",
+    "Scoped tsc over the 8 changed/added files: 0 errors (full `npm run typecheck` deliberately not run; see blockers)."
+  ],
+  "next_steps": [
+    "Release/infra: INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL) must be set in every deployed environment. /api/hub now fails closed to empty sections with no allowlisted origin, by design.",
+    "Release: push and re-run CodeQL. No alert is confirmed closed by this work — GitHub Advanced Security has no local engine, and the hub defect was never an alert to begin with, so it will not even appear as a new alert on the PR.",
+    "Discover follow-up: none for this defect class. app/api/hub no longer contains a self-fetch sink."
+  ],
+  "blockers": [
+    "Cannot be confirmed closed by any local check. CodeQL treated this as clean, which is the whole reason the defect survived; only a deliberate grep for nextUrl.origin reaching a network sink, and human review, can attest to it.",
+    "The full `npm run typecheck` was not run by design (CI 68m18s, 1,384 pre-existing errors across 197 files, and it OOMs on this shared 8GB box with six concurrent lanes). Evidence is a scoped tsc project over the 8 changed/added files, which is 0 errors.",
+    "app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27 still pass requestOrigin: request.nextUrl.origin into buildNewsFeed. The taint path is severed inside lib/news/** so those values are now read by nothing, but the two call sites are outside the Wave 34 discover file ownership and still need the property removed. Tracked in HF-DISC-002-NEWSELF-FETCH-SSRF."
+  ],
+  "verification": [
+    "npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/ -> 11 files, 98 tests passed (Wave 33 closed at 10 files / 73 tests; the delta is this file's 25 tests).",
+    "npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/ __tests__/news/ __tests__/profile/artist-public-profile-parity.test.ts -> 14 files, 136 tests passed.",
+    "npx tsc -p <scoped project over app/api/hub/route.ts, app/api/discover/route.ts, app/api/search/enhanced/route.ts, lib/discover/outbound-guard.ts, lib/discover/internal-json-fetch.ts, lib/news/feed-service.ts, lib/news/text-sanitize.ts, components/feed/rss-news-item.tsx> -> 0 errors. It first reported 3 real errors in this file (URLSearchParams is not assignable to the params record type) which were fixed, not suppressed.",
+    "npx eslint over all 11 changed/added files -> 0 errors, 0 warnings.",
+    "git diff --check over the modified files -> no whitespace errors; new files checked for trailing whitespace -> 0 lines.",
+    "npm run agents:validate -> 17 agents, 151 tasks, 0 warnings, 0 errors.",
+    "NOT RUN: no hosted or credentialed test, no migration, no migration validation, and no CodeQL re-analysis. No hosted evidence is claimed."
+  ],
+  "resolved_at": "2026-09-25T22:20:00.000Z",
+  "consumed_by": "discover (DISC-002, Wave 34) — returned to discover because app/api/hub/** is discover file ownership this wave; fixed in place, not described"
+}

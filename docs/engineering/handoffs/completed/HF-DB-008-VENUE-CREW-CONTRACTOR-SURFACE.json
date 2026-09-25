@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB-008-VENUE-CREW-CONTRACTOR-SURFACE",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "venue",
+  "status": "completed",
+  "created_at": "2026-09-25T00:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The PR #14 'Lint And Build' failure in lib/venue/staff-management.service.ts is a genuine schema/type gap, not stale generated types. The tables venue_crew_members and venue_team_contractors and the RPC get_staff_dashboard_stats exist in no active migration and in no generated type: they are defined only in supabase/migrations/archive/enhanced_staff_management_schema.sql (tables at lines 29 and 55, function at line 304) and in supabase/migrations_backup/. docs/engineering/generated/database-objects.md, the database agent's own generated object map, already classifies all three with source supabase/migrations/archive/enhanced_staff_management_schema.sql, i.e. archived rather than active. The database lane therefore did NOT author a migration to create them, because the repository's own architecture maps name different canonical destinations and re-creating these objects would resurrect a surface that those maps exist to retire. lib/venue/staff-management.service.ts is venue-owned and was not edited. The database lane needs the venue domain to remove or repoint the dead surface; the retirement decision is the venue domain's to make, not the database lane's.",
+  "working_set": [
+    "lib/venue/staff-management.service.ts (venue-owned; NOT edited by the database lane)",
+    "lib/venue/staff-dto.ts (venue-owned)",
+    "lib/services/staff-management.service.ts (older twin of the same service; also unimported)",
+    "lib/services/staff-job-board.service.ts (only other get_staff_dashboard_stats caller)",
+    "app/api/tours/planner/crew/route.ts",
+    "app/api/admin/lodging/route.ts",
+    "app/api/admin/travel-coordination/route.ts",
+    "lib/admin/workforce-identity-map.ts (read-only evidence of the canonical destination)",
+    "lib/admin/legacy-tour-route-inventory.ts (read-only evidence that the crew route is flagged legacy)",
+    "supabase/migrations/20260823070000_staff_members_canonical_roster.sql (read-only evidence that venue_team_members is legacy)",
+    "__tests__/database/ci-replay-and-retired-workforce-migration.test.ts (database-owned classification lock)"
+  ],
+  "completed": [
+    "Confirmed zero occurrences of venue_crew_members, venue_team_contractors and get_staff_dashboard_stats across supabase/migrations/*.sql and zero across lib/database.types.ts and types/database.types.ts.",
+    "Confirmed the generated type file is lib/database.types.ts (types/database.types.ts is the hand-authored application view-model file and types/supabase.ts re-exports lib/database.types); no hand edit to any generated type was made.",
+    "Confirmed the typed client is the reason this fails tsc: lib/supabase/client.ts types supabase with Database from ../database.types, so .from('venue_crew_members') and .rpc('get_staff_dashboard_stats') are compile errors against the real schema contract.",
+    "Confirmed lib/venue/staff-management.service.ts and lib/services/staff-management.service.ts have zero importers anywhere in the repository, and lib/services/staff-job-board.service.ts is referenced only from docs/staff-management-backend-setup.md.",
+    "Classified the three objects as retired archive-only schema rather than intended schema that never got a migration, and recorded the classification in a contract test instead of creating the objects.",
+    "SUPERSEDED AND EXTENDED, not withdrawn. The database lane's Wave 32 conclusion is unchanged and is now backed by the full chain reconstruction: venue_crew_members, venue_team_contractors and get_staff_dashboard_stats have zero occurrences across the 302 active migrations and zero in lib/database.types.ts, and they are NOT stale types, because regenerating the types cannot create them either. The classification lock in __tests__/database/ci-replay-and-retired-workforce-migration.test.ts still holds. The venue domain's share is now carried by HF-DB008-TYPECHECK-VENUE, which adds three objects Wave 32 had not reached (venue_shift_templates, venues.city, venue_profiles.name) and records the canonical replacement for each: organization_people for crew and contractors, staff_members for the roster, venue_profiles.city and venue_profiles.venue_name for the two column drifts. One venue item was resolved by the database lane rather than handed off: venue_profiles.social_links and venue_profiles.cover_image_url are genuinely missing columns, not drift, and 20260925210000_venue_profile_presentation_columns.sql adds them. The live runtime references the Wave 32 report listed (app/api/tours/planner/crew/route.ts, app/api/admin/lodging/route.ts, app/api/admin/travel-coordination/route.ts, hooks/use-lodging.ts, hooks/use-travel-coordination.ts) are unaffected by that migration and remain the venue domain's to repoint."
+  ],
+  "next_steps": [
+    "Venue: act on HF-DB008-TYPECHECK-VENUE. Four of its seven objects have a LIVE entry-reachable consumer, so the modules cannot simply be deleted; repoint them to organization_people / staff_members / venue_profiles.city / venue_profiles.venue_name.",
+    "Venue: if instead the venue domain decides these objects must exist as real schema, raise a NEW database task. The database lane will author the additive migration then. It will not do so while the retirement maps still name organization_people as the destination.",
+    "Venue: the classification lock does not need relaxing. Nothing was re-created."
+  ],
+  "blockers": [
+    "The database lane cannot clear the 'Lint And Build' failure on its own: lib/venue/staff-management.service.ts is venue-owned and explicitly out of the database lane's file ownership, so the tsc error stays until the venue domain acts.",
+    "lib/services/staff-management.service.ts and lib/services/staff-job-board.service.ts reference the same missing objects and are outside the database lane's working set; they need an owner decision too, otherwise the same class of error will reappear from a second file.",
+    "hooks/use-lodging.ts (line 166) and hooks/use-travel-coordination.ts (line 82) declare venue_crew_members type shapes; they are hand-authored and do not fail tsc, but they document a relation that does not exist."
+  ],
+  "verification": [
+    "PASS: rg over supabase/migrations/*.sql returns zero matches for venue_crew_members, venue_team_contractors and get_staff_dashboard_stats; the only sources are supabase/migrations/archive/enhanced_staff_management_schema.sql and supabase/migrations_backup/.",
+    "PASS: rg over lib/database.types.ts and types/database.types.ts returns zero matches for all three names.",
+    "PASS: rg for importers of lib/venue/staff-management.service and lib/services/staff-management.service returns zero matches, so no live caller depends on the surface.",
+    "PASS: npx vitest run __tests__/database/ci-replay-and-retired-workforce-migration.test.ts - 12 tests passed, including the assertions that the active chain creates none of the three objects, that the generated types declare none of them, and that the documented canonical destinations (staff_members for the venue roster, organization_people for crew) stay in place.",
+    "NOT RUN: the full repo typecheck was not executed by design, because six concurrent lanes share one 8GB machine and a full npm run typecheck would OOM. The tsc error is established from the typed-client source (lib/supabase/client.ts) plus the zero-match scans, not from an observed tsc run in this lane."
+  ],
+  "resolved_at": "2026-09-25T21:45:00.000Z",
+  "consumed_by": "database (DB-008, Wave 33)"
+}

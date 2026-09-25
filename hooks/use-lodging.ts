@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -305,6 +306,7 @@ interface UseLodgingOptions {
 
 export function useLodging(options: UseLodgingOptions = {}) {
   const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const { event_id, tour_id, fetchOnMount } = options
   const mountSlices = fetchOnMount ?? ['providers', 'bookings', 'analytics', 'utilization']
   const shouldFetchProviders = mountSlices.includes('providers')
@@ -368,7 +370,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
       if (params?.status) searchParams.append('status', params.status)
       if (params?.provider_id) searchParams.append('provider_id', params.provider_id)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -398,7 +400,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setProvidersLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, toast])
 
   const fetchRoomTypes = useCallback(async (params?: {
     limit?: number
@@ -419,7 +421,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
       if (params?.status) searchParams.append('status', params.status)
       if (params?.provider_id) searchParams.append('provider_id', params.provider_id)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -440,7 +442,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setRoomTypesLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, toast])
 
   const fetchBookings = useCallback(async (params?: {
     limit?: number
@@ -464,12 +466,14 @@ export function useLodging(options: UseLodgingOptions = {}) {
       
       if (params?.status) searchParams.append('status', params.status)
       if (params?.provider_id) searchParams.append('provider_id', params.provider_id)
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const scopedEventId = params?.event_id || event_id
+      const scopedTourId = params?.tour_id || tour_id
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -490,13 +494,15 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setBookingsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, event_id, tour_id, toast])
 
   const fetchGuestAssignments = useCallback(async (params?: {
     limit?: number
     offset?: number
     status?: string
     provider_id?: string
+    event_id?: string
+    tour_id?: string
   }) => {
     setGuestAssignmentsLoading(true)
     setGuestAssignmentsError(null)
@@ -510,8 +516,12 @@ export function useLodging(options: UseLodgingOptions = {}) {
       
       if (params?.status) searchParams.append('status', params.status)
       if (params?.provider_id) searchParams.append('provider_id', params.provider_id)
+      const scopedEventId = params?.event_id || event_id
+      const scopedTourId = params?.tour_id || tour_id
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -532,13 +542,15 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setGuestAssignmentsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, event_id, tour_id, toast])
 
   const fetchPayments = useCallback(async (params?: {
     limit?: number
     offset?: number
     status?: string
     provider_id?: string
+    event_id?: string
+    tour_id?: string
   }) => {
     setPaymentsLoading(true)
     setPaymentsError(null)
@@ -552,8 +564,12 @@ export function useLodging(options: UseLodgingOptions = {}) {
       
       if (params?.status) searchParams.append('status', params.status)
       if (params?.provider_id) searchParams.append('provider_id', params.provider_id)
+      const scopedEventId = params?.event_id || event_id
+      const scopedTourId = params?.tour_id || tour_id
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -574,13 +590,15 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setPaymentsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, event_id, tour_id, toast])
 
   const fetchCalendarEvents = useCallback(async (params?: {
     limit?: number
     offset?: number
     date_from?: string
     date_to?: string
+    event_id?: string
+    tour_id?: string
   }) => {
     setCalendarEventsLoading(true)
     setCalendarEventsError(null)
@@ -594,8 +612,12 @@ export function useLodging(options: UseLodgingOptions = {}) {
       
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
+      const scopedEventId = params?.event_id || event_id
+      const scopedTourId = params?.tour_id || tour_id
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -616,7 +638,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setCalendarEventsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, event_id, tour_id, toast])
 
   const fetchAvailability = useCallback(async (params?: {
     limit?: number
@@ -639,7 +661,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -660,7 +682,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setAvailabilityLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, toast])
 
   const fetchAnalytics = useCallback(async (params?: {
     limit?: number
@@ -678,10 +700,12 @@ export function useLodging(options: UseLodgingOptions = {}) {
         offset: params?.offset?.toString() || '0'
       })
 
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const scopedEventId = params?.event_id || event_id
+      const scopedTourId = params?.tour_id || tour_id
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -706,11 +730,13 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setAnalyticsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, event_id, tour_id, toast])
 
   const fetchUtilization = useCallback(async (params?: {
     limit?: number
     offset?: number
+    event_id?: string
+    tour_id?: string
   }) => {
     setUtilizationLoading(true)
     setUtilizationError(null)
@@ -721,8 +747,12 @@ export function useLodging(options: UseLodgingOptions = {}) {
         limit: params?.limit?.toString() || '50',
         offset: params?.offset?.toString() || '0'
       })
+      const scopedEventId = params?.event_id || event_id
+      const scopedTourId = params?.tour_id || tour_id
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/lodging?${searchParams}`, {
+      const response = await adminFetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include'
       })
 
@@ -743,7 +773,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
     } finally {
       setUtilizationLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, event_id, tour_id, toast])
 
   // =============================================================================
   // CRUD OPERATIONS
@@ -751,7 +781,7 @@ export function useLodging(options: UseLodgingOptions = {}) {
 
   const createProvider = useCallback(async (providerData: Partial<LodgingProvider>) => {
     try {
-      const response = await fetch('/api/admin/lodging', {
+      const response = await adminFetch('/api/admin/lodging', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -784,11 +814,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [fetchProviders, toast])
+  }, [adminFetch, fetchProviders, toast])
 
   const updateProvider = useCallback(async (id: string, providerData: Partial<LodgingProvider>) => {
     try {
-      const response = await fetch('/api/admin/lodging', {
+      const response = await adminFetch('/api/admin/lodging', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -822,11 +852,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [fetchProviders, toast])
+  }, [adminFetch, fetchProviders, toast])
 
   const deleteProvider = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/lodging?action=delete_provider&id=${id}`, {
+      const response = await adminFetch(`/api/admin/lodging?action=delete_provider&id=${id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -853,11 +883,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [fetchProviders, toast])
+  }, [adminFetch, fetchProviders, toast])
 
   const createBooking = useCallback(async (bookingData: Partial<LodgingBooking>) => {
     try {
-      const response = await fetch('/api/admin/lodging', {
+      const response = await adminFetch('/api/admin/lodging', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -890,11 +920,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [event_id, tour_id, fetchBookings, toast])
+  }, [adminFetch, event_id, tour_id, fetchBookings, toast])
 
   const updateBooking = useCallback(async (id: string, bookingData: Partial<LodgingBooking>) => {
     try {
-      const response = await fetch('/api/admin/lodging', {
+      const response = await adminFetch('/api/admin/lodging', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -928,11 +958,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [event_id, tour_id, fetchBookings, toast])
+  }, [adminFetch, event_id, tour_id, fetchBookings, toast])
 
   const deleteBooking = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/lodging?action=delete_booking&id=${id}`, {
+      const response = await adminFetch(`/api/admin/lodging?action=delete_booking&id=${id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -959,11 +989,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [event_id, tour_id, fetchBookings, toast])
+  }, [adminFetch, event_id, tour_id, fetchBookings, toast])
 
   const createGuestAssignment = useCallback(async (assignmentData: Partial<LodgingGuestAssignment>) => {
     try {
-      const response = await fetch('/api/admin/lodging', {
+      const response = await adminFetch('/api/admin/lodging', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -996,11 +1026,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [fetchGuestAssignments, toast])
+  }, [adminFetch, fetchGuestAssignments, toast])
 
   const updateGuestAssignment = useCallback(async (id: string, assignmentData: Partial<LodgingGuestAssignment>) => {
     try {
-      const response = await fetch('/api/admin/lodging', {
+      const response = await adminFetch('/api/admin/lodging', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1034,11 +1064,11 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [fetchGuestAssignments, toast])
+  }, [adminFetch, fetchGuestAssignments, toast])
 
   const deleteGuestAssignment = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/lodging?action=delete_guest_assignment&id=${id}`, {
+      const response = await adminFetch(`/api/admin/lodging?action=delete_guest_assignment&id=${id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -1065,17 +1095,36 @@ export function useLodging(options: UseLodgingOptions = {}) {
       })
       throw error
     }
-  }, [fetchGuestAssignments, toast])
+  }, [adminFetch, fetchGuestAssignments, toast])
 
   // =============================================================================
   // INITIAL DATA LOADING
   // =============================================================================
 
   useEffect(() => {
+    setProviders([])
+    setRoomTypes([])
+    setBookings([])
+    setGuestAssignments([])
+    setPayments([])
+    setCalendarEvents([])
+    setAvailability([])
+    setAnalytics([])
+    setUtilization([])
+  }, [actingContextKey])
+
+  useEffect(() => {
+    if (!isAdminReady) {
+      setProviders([])
+      setBookings([])
+      setAnalytics([])
+      setUtilization([])
+      return
+    }
     if (shouldFetchProviders) fetchProviders()
     if (shouldFetchBookings) fetchBookings({ event_id, tour_id })
     if (shouldFetchAnalytics) fetchAnalytics({ event_id, tour_id })
-    if (shouldFetchUtilization) fetchUtilization()
+    if (shouldFetchUtilization) fetchUtilization({ event_id, tour_id })
   }, [
     event_id,
     tour_id,
@@ -1087,15 +1136,18 @@ export function useLodging(options: UseLodgingOptions = {}) {
     fetchBookings,
     fetchAnalytics,
     fetchUtilization,
+    actingContextKey,
+    isAdminReady,
   ])
 
   // Auto-refresh data every 5 minutes
   useEffect(() => {
+    if (!isAdminReady) return
     const interval = setInterval(() => {
       if (shouldFetchProviders) fetchProviders()
       if (shouldFetchBookings) fetchBookings({ event_id, tour_id })
       if (shouldFetchAnalytics) fetchAnalytics({ event_id, tour_id })
-      if (shouldFetchUtilization) fetchUtilization()
+      if (shouldFetchUtilization) fetchUtilization({ event_id, tour_id })
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
@@ -1110,6 +1162,8 @@ export function useLodging(options: UseLodgingOptions = {}) {
     fetchBookings,
     fetchAnalytics,
     fetchUtilization,
+    actingContextKey,
+    isAdminReady,
   ])
 
   // =============================================================================
@@ -1213,4 +1267,4 @@ export function useLodgingUtilization() {
     fetchOnMount: ['utilization'],
   })
   return { utilization, loading: utilizationLoading, error: utilizationError, fetchUtilization }
-} 
+}

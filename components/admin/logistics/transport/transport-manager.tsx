@@ -11,6 +11,7 @@ import { Truck, AlertTriangle, Plus, RefreshCw } from 'lucide-react'
 import { formatInTimeZone } from '@/lib/logistics/time'
 import { formatLogisticsMoney } from '@/lib/logistics/money'
 import { mapToOperationalStatus } from '@/lib/logistics/status'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 interface TransportManagerProps {
   eventId?: string
@@ -39,6 +40,8 @@ interface LogisticsConflict {
 }
 
 export function TransportManager({ eventId, tourId }: TransportManagerProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
+  const hasScope = Boolean(eventId || tourId)
   const [segments, setSegments] = useState<TransportSegment[]>([])
   const [conflicts, setConflicts] = useState<LogisticsConflict[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -57,23 +60,30 @@ export function TransportManager({ eventId, tourId }: TransportManagerProps) {
   })
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setSegments([])
+      setConflicts([])
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
       if (eventId) params.set('eventId', eventId)
       if (tourId) params.set('tourId', tourId)
-      const res = await fetch(`/api/admin/logistics/transport?${params}`, { credentials: 'include' })
+      const res = await adminFetch(`/api/admin/logistics/transport?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load transport')
       setSegments(data.segments || [])
       setConflicts(data.conflicts || [])
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setError(err.message || 'Failed to load transport')
     } finally {
       setIsLoading(false)
     }
-  }, [eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
     load()
@@ -87,7 +97,7 @@ export function TransportManager({ eventId, tourId }: TransportManagerProps) {
     setIsSaving(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/logistics/transport', {
+      const res = await adminFetch('/api/admin/logistics/transport', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -199,10 +209,11 @@ export function TransportManager({ eventId, tourId }: TransportManagerProps) {
           <Textarea value={form.cargo_notes} onChange={(e) => setForm((f) => ({ ...f, cargo_notes: e.target.value }))} />
         </div>
         <div className="md:col-span-2">
-          <Button onClick={handleCreate} disabled={isSaving}>
+          <Button onClick={handleCreate} disabled={isSaving || !isAdminReady || !hasScope}>
             <Plus className="h-4 w-4 mr-2" />
             {isSaving ? 'Creating…' : 'Create segment'}
           </Button>
+          {!hasScope ? <p className="mt-2 text-xs text-slate-400">Select a tour or event before creating transport.</p> : null}
         </div>
       </div>
 

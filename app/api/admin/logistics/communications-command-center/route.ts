@@ -9,7 +9,7 @@ type SupabaseClientLike = {
 
 interface FeedItem {
   id: string
-  source: "group_thread" | "event_bulletin" | "event_channel" | "event_task" | "external_event"
+  source: "group_thread" | "event_bulletin" | "event_channel" | "event_task" | "external_event" | "mention" | "acknowledgement"
   title: string
   summary: string | null
   priority: string | null
@@ -79,6 +79,7 @@ export const GET = withAdminCapability(
         requestedOrgId: admin.orgId,
         eventId,
         tourId,
+        allowedTourIds: admin.scope === "tour_collaborator" ? admin.allowedTourIds : undefined,
       })
       const supabase = scope.service as SupabaseClientLike
       const scopedEventIds = await getTourEventIds({
@@ -253,6 +254,81 @@ export const GET = withAdminCapability(
             eventId: typeof task.event_id === "string" ? task.event_id : null,
             actionUrl: typeof task.action_url === "string" ? task.action_url : null,
             lastActivity: String(task.updated_at || task.created_at || ""),
+          })
+        }
+      }
+
+      const scopedContextIds = eventId
+        ? [eventId]
+        : scopedEventIds.length > 0
+          ? scopedEventIds
+          : ["00000000-0000-0000-0000-000000000000"]
+      const { data: mentions, error: mentionsError } = await supabase
+        .from("group_messages")
+        .select("id, thread_id, content, created_at, group_threads!inner(id, name, context_id, context_type)")
+        .contains("mentions", [user.id])
+        .eq("group_threads.context_type", "logistics")
+        .in("group_threads.context_id", scopedContextIds)
+        .order("created_at", { ascending: false })
+        .limit(limit)
+
+      if (mentionsError) warnings.push(`group_messages mentions: ${mentionsError.message}`)
+      else {
+        for (const mention of (mentions ?? []) as Array<Record<string, any>>) {
+          const thread = Array.isArray(mention.group_threads) ? mention.group_threads[0] : mention.group_threads
+          feedItems.push({
+            id: String(mention.id),
+            source: "mention",
+            title: `Mention in ${String(thread?.name || "Team Comms")}`,
+            summary: typeof mention.content === "string" ? mention.content : null,
+            priority: null,
+            status: "unread",
+            eventId: typeof thread?.context_id === "string" ? thread.context_id : null,
+            actionUrl: mention.thread_id ? `/groups/${mention.thread_id}` : null,
+            lastActivity: String(mention.created_at || ""),
+          })
+        }
+      }
+
+      let acknowledgementFeedQuery = supabase
+        .from("logistics_acknowledgements")
+        .select("id, event_id, tour_id, source_type, source_id, user_id, status, updated_at")
+        .eq("status", "pending")
+      if (eventId) acknowledgementFeedQuery = acknowledgementFeedQuery.eq("event_id", eventId)
+      else if (tourId) acknowledgementFeedQuery = acknowledgementFeedQuery.eq("tour_id", tourId)
+      else acknowledgementFeedQuery = acknowledgementFeedQuery.eq("org_id", scope.orgId)
+
+      const { data: acknowledgements, error: acknowledgementsError } = await acknowledgementFeedQuery
+        .order("updated_at", { ascending: false })
+        .limit(limit)
+      if (acknowledgementsError) warnings.push(`logistics_acknowledgements feed: ${acknowledgementsError.message}`)
+      else {
+        const acknowledgementRows = (acknowledgements ?? []) as Array<Record<string, any>>
+        const userIds = Array.from(new Set(acknowledgementRows.map((row) => row.user_id).filter(Boolean).map(String)))
+        const { data: profiles, error: profilesError } = userIds.length > 0
+          ? await supabase.from("profiles").select("id, full_name, username").in("id", userIds)
+          : { data: [], error: null }
+        if (profilesError) warnings.push(`acknowledgement profiles: ${profilesError.message}`)
+        const profileById = new Map(
+          ((profiles ?? []) as Array<Record<string, any>>).map((profile) => [
+            String(profile.id),
+            String(profile.full_name || profile.username || "Assigned recipient"),
+          ]),
+        )
+        for (const acknowledgement of acknowledgementRows) {
+          const recipient = profileById.get(String(acknowledgement.user_id || "")) || "Assigned recipient"
+          feedItems.push({
+            id: String(acknowledgement.id),
+            source: "acknowledgement",
+            title: `${recipient} has not acknowledged this update`,
+            summary: acknowledgement.source_type ? `Source: ${String(acknowledgement.source_type).replaceAll("_", " ")}` : null,
+            priority: "high",
+            status: "pending",
+            eventId: typeof acknowledgement.event_id === "string" ? acknowledgement.event_id : null,
+            actionUrl: acknowledgement.event_id
+              ? `/admin/dashboard/events/${acknowledgement.event_id}?tab=communications`
+              : null,
+            lastActivity: String(acknowledgement.updated_at || ""),
           })
         }
       }

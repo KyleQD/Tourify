@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DISC-002-RSS-SANITIZE-ORDERING",
+  "task_id": "DISC-002",
+  "from_agent": "discover",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-25T22:20:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "Five of the six news-surface CodeQL alerts this lane triaged in Wave 33 are still open, and the fix is now a one-line import swap at each of the four remaining call sites. The root-cause helper the Wave 33 dispositions always required was written and tested in Wave 34: lib/news/text-sanitize.ts exports toPlainText, which decodes entities in ONE semicolon-terminated pass, strips markup second, and then removes any residual < or >, so the returned string cannot contain a markup delimiter for any input. components/feed/rss-news-item.tsx (alert #43) was switched to it and is fixed. Addressed to the orchestrator rather than to a single domain because the four remaining files span four ownership claims: app/api/feed/rss-news/route.ts is the feed surface (social), lib/services/rss-feed.service.ts is explicitly lib/services/** (design-system), lib/opportunities/rss-opportunities-service.ts is jobs/opportunities (work), and components/news/news-page.tsx is news charter but was excluded from this wave's discover file ownership. discover cannot edit any of them and did not try.",
+  "working_set": [
+    "lib/news/text-sanitize.ts (the fix, already implemented and tested — 17 tests in __tests__/news/text-sanitize.test.ts)",
+    "app/api/feed/rss-news/route.ts:86-95 — decodeXmlText, alerts #40 (js/double-escaping)",
+    "lib/services/rss-feed.service.ts:138-147 — RSSFeedService.cleanText, alerts #42 and #46 (js/double-escaping, js/incomplete-multi-character-sanitization)",
+    "lib/opportunities/rss-opportunities-service.ts:299-309 — local toPlainText, alert #41 (js/double-escaping)",
+    "components/news/news-page.tsx:698-708 — decodeTextEntity, alert #45 (js/incomplete-multi-character-sanitization)",
+    "components/feed/rss-news-item.tsx (alert #43 — ALREADY FIXED, reference for the shape of the change)",
+    "security/security-scan-exceptions.json (3 discover entries; all 5 alerts below are covered)"
+  ],
+  "completed": [
+    "Wrote and tested the single shared helper the five dispositions named as the required fix, so no receiver has to design anything: lib/news/text-sanitize.ts toPlainText, 17 tests including the payload the dispositions specified (&lt;script&gt;alert(1)&lt;/script&gt; -> inert text) plus nine further entity, hex, double-encoded and unpaired-tag variants.",
+    "Fixed alert #43 in code at components/feed/rss-news-item.tsx, the one call site discover owns, and used it as the reference implementation for the other four.",
+    "Re-confirmed at d2176904 that all five remaining call sites are byte-for-byte unchanged from the Wave 33 triage, so the dispositions still describe the code as it stands.",
+    "Re-confirmed there is still no dangerouslySetInnerHTML in components/news/**, components/feed/rss-news-item.tsx, app/api/feed/rss-news/route.ts, lib/services/rss-feed.service.ts, lib/opportunities/** or lib/news/**, which is the only reason these five are not exploitable XSS today.",
+    "Updated all three discover registry entries in place with the current facts. None was deleted, because none is now unnecessary: each still names at least one open alert."
+  ],
+  "next_steps": [
+    "orchestrator: route to the owning lane per file (app/api/feed/** -> social, lib/services/** -> design-system, lib/opportunities/** -> work, components/news/** -> discover in a wave that grants the file).",
+    "At each call site: delete the local helper and import toPlainText from @/lib/news/text-sanitize. On lib/opportunities/rss-opportunities-service.ts alias the import, because that file already declares a local function with the same name.",
+    "On app/api/feed/rss-news/route.ts, keep the CDATA unwrap — toPlainText strips CDATA wrappers as markup, so the leading .replace(/^<!\\[CDATA\\[...\\]\\]>$/, '$1') is redundant rather than wrong.",
+    "Release: push and re-run CodeQL. Until GitHub reports the analysis, none of #40, #41, #42, #43, #45 or #46 is closed, including #43 whose code fix has landed.",
+    "discover: re-triage and then delete the three registry entries once the last of the five alerts is fixed in code. Do not let them be inherited silently past the 2026-12-25 expiry."
+  ],
+  "blockers": [
+    "discover holds no file ownership over any of the four remaining call sites, so this lane cannot close alerts #40, #41, #42 or #45. The disposition is a time-boxed exception (expiry 2026-12-25), not a dismissal; nothing was dismissed on GitHub.",
+    "The registry entries for #40/#42/#46 and #41 also cover files this lane cannot reach, so the two cannot be deleted even though #43 in the third entry is fixed. The third entry's text now states that explicitly.",
+    "No code-scanning alert is confirmed closed. GitHub Advanced Security has no local engine and the only confirmation is a hosted re-scan; none was run and none is claimed.",
+    "The full `npm run typecheck` was not run by design (CI 68m18s, 1,384 pre-existing errors across 197 files, OOM on this shared 8GB box)."
+  ],
+  "verification": [
+    "npx vitest run __tests__/news/text-sanitize.test.ts -> 17 tests passed, including the no-markup-delimiter invariant across 9 payloads.",
+    "npx vitest run __tests__/news/ __tests__/press/ __tests__/blog/ -> 6 files, 68 tests passed. __tests__/press/press-formats-and-news.test.ts and __tests__/blog/account-aware-publishing.test.ts assert on the text of lib/news/feed-service.ts and app/api/news/feed/route.ts, so they are the regression guard for this cluster's source surface.",
+    "rg for dangerouslySetInnerHTML across components/news, components/feed/rss-news-item.tsx, app/api/feed/rss-news, lib/services/rss-feed.service.ts, lib/opportunities, lib/news -> no matches, re-confirmed in Wave 34.",
+    "rg for decodeXmlText / cleanText / toPlainText / decodeTextEntity at the four call sites -> all still present and unchanged at d2176904.",
+    "node scripts/ci/check-security-exceptions.mjs -> 'Security exception registry OK — 5 active exception(s)', exit 0. node --test scripts/ci/check-security-exceptions.test.mjs -> 3 pass, 0 fail.",
+    "NOT RUN: no hosted or credentialed test, no CodeQL re-analysis, no migration apply. No hosted evidence is claimed."
+  ]
+}

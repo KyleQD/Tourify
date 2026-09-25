@@ -6,7 +6,7 @@ import { MapPin, RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useActingContext } from "@/hooks/use-acting-context"
+import { useAdminLogisticsRequest } from "@/hooks/use-admin-logistics-request"
 
 function extractErrorMsg(json: unknown, fallback: string): string {
   if (typeof json === "object" && json !== null) {
@@ -70,7 +70,7 @@ const CELL_LABEL: Record<CellStatus, string> = {
  * TRAVEL-301 / LODGE-302 — Person × route-leg coverage matrix.
  */
 export function PartyTravelMatrixPanel({ tourId, eventId }: { tourId?: string | null; eventId?: string | null }) {
-  const { actingAccount } = useActingContext()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [state, setState] = useState<"idle" | "loading" | "ready" | "unavailable" | "error">("idle")
   const [matrix, setMatrix] = useState<TravelMatrix>({ legs: [], persons: [], cells: [] })
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null)
@@ -78,13 +78,18 @@ export function PartyTravelMatrixPanel({ tourId, eventId }: { tourId?: string | 
   const [freshAt, setFreshAt] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setMatrix({ legs: [], persons: [], cells: [] })
+      setState("idle")
+      return
+    }
     setState("loading")
     setErrorMsg(null)
     try {
       const params = new URLSearchParams()
       if (tourId) params.set("tour_id", tourId)
       if (eventId) params.set("event_id", eventId)
-      const res = await fetch(`/api/admin/travel/matrix?${params}`)
+      const res = await adminFetch(`/api/admin/travel/matrix?${params}`)
       const json = (await res.json()) as MatrixResponse & { error?: string }
       if (!res.ok) {
         setErrorMsg(extractErrorMsg(json, "Failed to load travel matrix"))
@@ -99,15 +104,16 @@ export function PartyTravelMatrixPanel({ tourId, eventId }: { tourId?: string | 
       setMatrix(json.matrix)
       setFreshAt(json.freshAt)
       setState("ready")
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return
       setErrorMsg("Network error loading travel matrix")
       setState("error")
     }
-  }, [tourId, eventId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
-    if (actingAccount !== undefined) void load()
-  }, [actingAccount, load])
+    void load()
+  }, [load])
 
   if (state === "idle" || state === "loading") {
     return (

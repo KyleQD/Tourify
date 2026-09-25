@@ -1,0 +1,21 @@
+lib/services/staff-onboarding.service.ts(167,74): error TS2304: Cannot find name 'createClient'.
+lib/services/staff-onboarding.service.ts(341,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: { created_at?: string | null | undefined; description?: string | null | undefined; fields?: Json | undefined; flow_type: string; id?: string | undefined; is_active?: boolean | null | undefined; is_default?: boolean | ... 1 more ... | undefined; name: string; updated_at?: string | ... 1 more ... | undefined; }, options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type '{ created_at: string; updated_at: string; name: string; description: string; steps: any[]; estimated_days: number; department: string; position: string; }' is not assignable to parameter of type '{ created_at?: string | null | undefined; description?: string | null | undefined; fields?: Json | undefined; flow_type: string; id?: string | undefined; is_active?: boolean | null | undefined; is_default?: boolean | ... 1 more ... | undefined; name: string; updated_at?: string | ... 1 more ... | undefined; }'.
+      Property 'flow_type' is missing in type '{ created_at: string; updated_at: string; name: string; description: string; steps: any[]; estimated_days: number; department: string; position: string; }' but required in type '{ created_at?: string | null | undefined; description?: string | null | undefined; fields?: Json | undefined; flow_type: string; id?: string | undefined; is_active?: boolean | null | undefined; is_default?: boolean | ... 1 more ... | undefined; name: string; updated_at?: string | ... 1 more ... | undefined; }'.
+  Overload 2 of 2, '(values: { created_at?: string | null | undefined; description?: string | null | undefined; fields?: Json | undefined; flow_type: string; id?: string | undefined; is_active?: boolean | null | undefined; is_default?: boolean | ... 1 more ... | undefined; name: string; updated_at?: string | ... 1 more ... | undefined; }[], options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Object literal may only specify known properties, and 'created_at' does not exist in type '{ created_at?: string | null | undefined; description?: string | null | undefined; fields?: Json | undefined; flow_type: string; id?: string | undefined; is_active?: boolean | null | undefined; is_default?: boolean | ... 1 more ... | undefined; name: string; updated_at?: string | ... 1 more ... | undefined; }[]'.
+Files:              907
+Lines:           244731
+Identifiers:     255004
+Symbols:         191081
+Types:            16945
+Instantiations:   19125
+Memory used:    302619K
+I/O read:         0.32s
+I/O write:        0.00s
+Parse time:       1.61s
+Bind time:        0.51s
+Check time:       1.04s
+Emit time:        0.00s
+Total time:       3.16s

@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-22T17:00:56.458Z
+- Working tree: dirty (423 entries)
+- Generated at: 2026-09-25T22:27:02.069Z
 - Generator: `control-plane.mjs generate`
 
-## Web pages (372)
+## Web pages (373)
 
 | Route | Source |
 | --- | --- |
@@ -251,6 +251,7 @@
 | `/licensing/projects/[id]` | `app/licensing/projects/[id]/page.tsx` |
 | `/login` | `app/login/page.tsx` |
 | `/marketplace` | `app/marketplace/page.tsx` |
+| `/marketplace/delivery/[orderItemId]` | `app/marketplace/delivery/[orderItemId]/page.tsx` |
 | `/marketplace/listing/[listing-slug]` | `app/marketplace/listing/[listing-slug]/page.tsx` |
 | `/marketplace/listings/[id]` | `app/marketplace/listings/[id]/page.tsx` |
 | `/marketplace/order/[token]` | `app/marketplace/order/[token]/page.tsx` |

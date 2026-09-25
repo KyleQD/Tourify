@@ -10,6 +10,7 @@ import { useTravelCoordination } from '@/hooks/use-travel-coordination'
 import { useLodging } from '@/hooks/use-lodging'
 import { buildTravelerMatrix } from '@/lib/logistics/traveler-matrix'
 import { Plane, Hotel, Users, AlertTriangle, Search, Loader2 } from 'lucide-react'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 interface TravelOpsHubProps {
   eventId?: string
@@ -50,6 +51,8 @@ const emptyHotelForm = {
 }
 
 export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
+  const hasScope = Boolean(eventId || tourId)
   const travel = useTravelCoordination({
     event_id: eventId,
     tour_id: tourId,
@@ -71,26 +74,31 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
   const [workforcePeople, setWorkforcePeople] = useState<WorkforcePersonOption[]>([])
 
   const loadTimeline = useCallback(async () => {
+    if (!isAdminReady) {
+      setTimeline([])
+      return
+    }
     const params = new URLSearchParams({ type: 'timeline', limit: '50' })
     if (eventId) params.set('event_id', eventId)
     if (tourId) params.set('tour_id', tourId)
-    const res = await fetch(`/api/admin/travel-coordination?${params}`, { credentials: 'include' })
+    const res = await adminFetch(`/api/admin/travel-coordination?${params}`)
     if (!res.ok) return
     const data = await res.json()
     setTimeline(data.data || [])
-  }, [eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
-    travel.fetchFlights?.({ event_id: eventId, tour_id: tourId })
-    travel.fetchTransportation?.({ event_id: eventId, tour_id: tourId })
-    travel.fetchGroupMembers?.()
-    loadTimeline()
-  }, [eventId, tourId])
+    if (!isAdminReady) return
+    void travel.fetchFlights?.({ event_id: eventId, tour_id: tourId })
+    void travel.fetchTransportation?.({ event_id: eventId, tour_id: tourId })
+    void travel.fetchGroupMembers?.()
+    void loadTimeline()
+  }, [eventId, isAdminReady, loadTimeline, tourId])
 
   useEffect(() => {
     let cancelled = false
     async function loadWorkforcePeople() {
-      if (!eventId && !tourId) {
+      if (!isAdminReady || (!eventId && !tourId)) {
         setWorkforcePeople([])
         return
       }
@@ -98,10 +106,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
         const params = new URLSearchParams()
         if (eventId) params.set('event_id', eventId)
         if (tourId) params.set('tour_id', tourId)
-        const response = await fetch(`/api/admin/workforce/people?${params.toString()}`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
+        const response = await adminFetch(`/api/admin/workforce/people?${params.toString()}`, { cache: 'no-store' })
         const payload = await response.json().catch(() => ({}))
         if (cancelled) return
         const rows = Array.isArray(payload.people)
@@ -128,7 +133,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
     return () => {
       cancelled = true
     }
-  }, [eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   const members = useMemo(() => {
     const fromGroups = (travel.groupMembers || []).map((m) => ({
@@ -169,7 +174,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
         flight_number: flightForm.flight_number.trim(),
       })
       if (flightForm.lookup_date) params.set('flight_date', flightForm.lookup_date)
-      const res = await fetch(`/api/admin/travel/flight-lookup?${params}`, { credentials: 'include' })
+      const res = await adminFetch(`/api/admin/travel/flight-lookup?${params}`)
       const data = await res.json()
       if (!res.ok || data.success === false)
         throw new Error(data.error || 'Flight lookup failed')
@@ -199,7 +204,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
       return
     }
     try {
-      const res = await fetch('/api/admin/travel-coordination', {
+      const res = await adminFetch('/api/admin/travel-coordination', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -247,7 +252,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
       })
       if (eventId) params.set('event_id', eventId)
       if (tourId) params.set('tour_id', tourId)
-      const res = await fetch(`/api/admin/lodging?${params}`, { credentials: 'include' })
+      const res = await adminFetch(`/api/admin/lodging?${params}`)
       const data = await res.json()
       if (!res.ok || data.success === false)
         throw new Error(data.error || 'Reservation lookup failed')
@@ -448,7 +453,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
               <Input value={hotelForm.rooms_booked} onChange={(e) => setHotelForm((f) => ({ ...f, rooms_booked: e.target.value }))} />
             </div>
             <div className="md:col-span-2">
-              <Button onClick={createHotel}><Hotel className="h-4 w-4 mr-2" />Create booking</Button>
+              <Button disabled={!isAdminReady || !hasScope} onClick={createHotel}><Hotel className="h-4 w-4 mr-2" />Create booking</Button>
             </div>
           </div>
           <div className="space-y-2">
@@ -534,7 +539,7 @@ export function TravelOpsHub({ eventId, tourId }: TravelOpsHubProps) {
               </select>
             </div>
             <div className="md:col-span-2">
-              <Button onClick={createFlight}><Plane className="h-4 w-4 mr-2" />Create flight</Button>
+              <Button disabled={!isAdminReady || !hasScope} onClick={createFlight}><Plane className="h-4 w-4 mr-2" />Create flight</Button>
             </div>
           </div>
           <div className="space-y-2">

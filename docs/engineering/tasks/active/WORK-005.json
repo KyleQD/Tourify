@@ -6,9 +6,9 @@
   "priority": "P1",
   "owner_agent": "work",
   "created_at": "2026-09-22T15:20:20.643Z",
-  "updated_at": "2026-09-22T15:56:34Z",
+  "updated_at": "2026-09-25T21:04:40.668Z",
   "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-  "working_tree_status": "dirty (80 entries)",
+  "working_tree_status": "dirty (320 entries, 6 concurrent lanes)",
   "goal": "Make a hired campaign worker appear in the canonical staff roster and persist schedule, attendance, and work history across worker and manager views",
   "scope": {
     "in": [
@@ -40,33 +40,40 @@
   "verification": {
     "tier": "feature",
     "commands": [
-      "Focused staffing and shift tests",
-      "npm run verify:feature -- --changed",
-      "Staging worker/manager rerun"
+      "npx vitest run __tests__/jobs/ __tests__/hiring/ __tests__/work-mode/",
+      "npx vitest run __tests__/logistics/logistics-route-contract.test.ts (read-only run; admin lane owns the suite)",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run agents:validate"
     ],
     "evidence": [
-      "Local: 25 focused hiring tests passed; scoped lint and diff checks passed.",
-      "No migration or hosted database action was taken.",
-      "Four focused hiring/shift Vitest suites passed locally (22 tests); broader Work Mode and staffing selection passed (9 files, 47 tests). Focused shift-sync lint and scoped diff whitespace checks passed. Shared worktree is dirty at HEAD 623b576b7963d4a2eccb2fbf83f24f2011842a83; no actor run.",
-      "QA-004 product repair validation rerun (2026-09-22): Hiring/staff-shift Vitest: 4 files, 23 tests passed; manager/worker persisted-shift and completion UI rerun remains open."
+      "Wave 34: 43 test files / 231 tests pass across __tests__/jobs/ + __tests__/hiring/ + __tests__/work-mode/, including the shift-lifecycle suites (staff-shift-assignment-sync, event-tour-staffing-repair, worker-ops) and the 8 work-mode history tests.",
+      "Worker half of the persisted shift verified by reading lib/work-mode/read-model.ts:120-175: getWorkModeAssignments reads employment_assignments server-side scoped eq(user_id, userId) with ACTIVE_ASSIGNMENT_STATUSES, resolves canonical staff_shifts by the assignment's staff_shift_id, and derives event id, tour and start/end times from the shift when the assignment row does not carry them. That is the row a manager writes and the worker reads back.",
+      "No product change: the hire-to-shift bridge itself lives in app/admin/dashboard/{staff,hiring}/ and app/api/venue/**, which Wave 34 assigns to the admin and venue lanes. The work agent did not edit them.",
+      "Crew/roster replacement settled on the database lane's evidence and re-verified here: organization_people is the crew/contractor destination and staff_members (20260823070000_staff_members_canonical_roster.sql) is the canonical roster; VEN-103 marks venue_team_members LEGACY. get_staff_dashboard_stats exists only in supabase/migrations/archive/enhanced_staff_management_schema.sql and migrations_backup/ and must not be migrated forward.",
+      "Zero-importer claim independently re-derived for lib/venue/staff-management.service.ts (get_staff_dashboard_stats consumer): no importer in the repository, so the venue lane can delete it rather than repoint it.",
+      "check:migration-chain pass (302 files). check:migration-validation pass. agents:validate: 17 agents, 151 tasks, 0 warnings, 0 errors. No migration applied, no database reset, no hosted action, no actor run."
     ],
-    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty shared working tree)",
     "last_run_at": "2026-09-22T15:56:34Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "Canonical hire-to-shift local bridge reverified; persisted cross-actor event/tour shift proof remains pending.",
+    "summary": "Local canonical hire-to-shift evidence still holds and the worker read half was re-verified in Wave 34; the bridge itself is unchanged because it is owned by the admin and venue lanes this round. The four acceptance criteria all need cross-actor evidence on an isolated deployment, so the task stays active. No local defect remains in the work-owned half of the lifecycle.",
     "completed": [
       "Event staff assignment now writes schema-supported confirmed status instead of invalid assigned.",
       "Completed onboarding activates the canonical staff row and syncs persisted shifts into worker employment assignments, preserving confirmed status and surfacing failed links.",
       "Four focused hiring test files passed (25 tests); scoped lint and diff checks passed."
     ],
     "next_steps": [
-      "Verify manager and worker see the same persisted shift after reload on isolated staging.",
-      "Complete WORK-006 attendance read path and staged check-in/out proof before claiming full shift lifecycle."
+      "Verify manager and worker see the same persisted shift after reload on isolated staging at an exact SHA (hired worker + manager actors).",
+      "Complete WORK-006 attendance read path and staged check-in/out proof before claiming the full shift lifecycle.",
+      "Canonical-replacement decision recorded: do not migrate staff_applications, staff_jobs or get_staff_dashboard_stats forward; use staff_members and organization_people."
     ],
     "blockers": [
-      "Campaign-safe actors and isolated staging are required for cross-actor proof."
+      "Campaign-safe actors and an isolated staging deployment are required for the cross-actor proof; none exists this round.",
+      "All four acceptance criteria are receiving-side evidence. No local command can satisfy them, and the work-owned code path is already verified.",
+      "The manager half of the bridge is outside this round's work-agent file grant (app/admin/**, app/api/venue/**), so any defect found there must be handed to the admin or venue lane rather than edited."
     ],
     "checkpoints": [
       {
@@ -97,10 +104,21 @@
           "Focused local regression verification passed; no new product code changes in this lane."
         ],
         "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      },
+      {
+        "at": "2026-09-25T21:04:40.668Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "No product change this round: the canonical hire-to-shift bridge lives in app/admin/** and app/api/venue/**, which Wave 34 assigns to the admin and venue lanes, so the work agent did not touch it. What the work lane did do is verify the worker half of the same persisted shift locally and settle the crew/roster replacement evidence: getWorkModeAssignments (lib/work-mode/read-model.ts:120-175) reads employment_assignments server-side scoped eq(user_id, userId), resolves canonical staff_shifts for context, and derives event/tour/times from the shift when the assignment row does not carry them - so a persisted staff_shifts row is what the worker actually sees after reload. Also independently verified the zero-importer claim for lib/venue/staff-management.service.ts, the get_staff_dashboard_stats consumer the venue lane is clearing.",
+        "completed": [],
+        "next_steps": [
+          "Rerun the hired worker and manager schedule/attendance/history actors on one isolated staging deployment at an exact SHA; the local bridge and the worker read path need no further work from this lane."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
-    "Return focused verification and exact-SHA actor rerun evidence to QA-004."
+    "Return focused verification and exact-SHA actor rerun evidence to QA-004.",
+    "HF-WORK-034-VERIFIED-DEAD-STAFF-MODULES to the design-system lane: independently verified zero-importer evidence for the retired workforce modules, so the deletion does not rest on a single lane's static analysis."
   ]
 }

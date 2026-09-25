@@ -1,0 +1,33 @@
+{
+  "label": "pre-del-B",
+  "roots": [
+    "lib/services/onboarding-workflow.service.ts",
+    "lib/services/real-time-staff.service.ts",
+    "lib/services/rss-feed.service.ts",
+    "lib/services/security-compliance.service.ts",
+    "lib/services/session-management.service.ts",
+    "lib/services/unified-documents.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 254.9,
+  "primaryDiagnosticLines": 42,
+  "filesWithDiagnostics": 4,
+  "byFile": {
+    "lib/services/onboarding-workflow.service.ts": 14,
+    "lib/services/security-compliance.service.ts": 12,
+    "lib/services/session-management.service.ts": 10,
+    "lib/services/real-time-staff.service.ts": 6
+  },
+  "byCode": {
+    "TS2339": 16,
+    "TS2769": 7,
+    "TS2345": 6,
+    "TS2589": 5,
+    "TS2353": 4,
+    "TS2739": 2,
+    "TS2322": 2
+  },
+  "tsFilesParsed": "928",
+  "tsLines": null,
+  "stderr": ""
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DESIGN-036-QA-EVIDENCE",
+  "task_id": "DESIGN-036",
+  "from_agent": "design-system",
+  "to_agent": "qa",
+  "status": "pending",
+  "created_at": "2026-09-25T15:52:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "No code change accompanies this handoff. components/admin/** is the admin lane's path in Wave 34 and was not touched. No dev server was started, no session provisioned, and no screenshot taken by the design-system lane.",
+  "summary": "DESIGN-036 defers its last acceptance criterion to QA-007 in prose only: 'Complete authenticated 200% zoom and show-day mobile review under QA-007.' No handoff linked the two, so the deferral was untrackable. This handoff makes it concrete. It also carries the honest status of the task: 6 of the 8 pattern families its goal names are delivered and test-guarded, and navigation and scope are NOT, because both live under components/admin/** which the design-system grant excludes in this wave.",
+  "working_set": [
+    "components/admin/logistics/command-center/**",
+    "__tests__/design-system/logistics-command-center-patterns.test.tsx",
+    "docs/engineering/tasks/active/DESIGN-036.json",
+    "docs/engineering/tasks/active/QA-007.json"
+  ],
+  "completed": [
+    "Established the exact status of the reusable pattern set from disk: 8 files in components/admin/logistics/command-center (attention-row, error-state, states, status-indicators, summary-stat, types, logistics-overview-panel, index barrel) exporting attention, readiness, source-health, summary, loading, empty, error and the overview panel.",
+    "Established that the pattern test is a real guard rather than a snapshot: 5 tests asserting accessible names, roles, aria-busy, a clamped percentage (140 -> 100), a real href, and an onRetry invocation. npx vitest run on it passed 1 file / 5 tests on 2026-09-25.",
+    "Wrote DESIGN-036's acceptance criteria down for the first time, which is what surfaced the gap."
+  ],
+  "what_qa_is_asked_to_produce": [
+    "An authenticated 200% browser-zoom pass over the logistics Overview that exercises the reusable set: no clipped readiness percentage, no truncated attention reason, no overlap between the scope bar and the command-center content, and no loss of the action affordance on an attention row.",
+    "A show-day mobile pass: attention rows remain readable and tappable, the source-health summary stays legible at mobile width, and the loading/empty/error states do not shift the layout when they swap.",
+    "A keyboard pass over the same surfaces, since the attention row's action is a link and the error state's retry is a button.",
+    "A verdict per pattern family, so a failure names the pattern rather than the page."
+  ],
+  "known_gap_qa_should_not_be_asked_to_cover": [
+    "NAVIGATION AND SCOPE PATTERNS DO NOT EXIST in the reusable set. components/admin/logistics/logistics-scope-bar.tsx is a one-off admin-lane file outside the set, unexported from the barrel and untested, and it is currently modified in the worktree. There is no navigation primitive at all. QA cannot review a pattern that has not been written, so these two are an implementation gap for the admin lane / orchestrator grant, recorded on DESIGN-036 and not on QA-007."
+  ],
+  "next_steps": [
+    "Fold the 200% zoom and show-day mobile journeys into QA-007's existing authenticated logistics pass, or accept this handoff as its own scoped record; either way, record the evidence against DESIGN-036's last acceptance criterion.",
+    "Do not treat a passing visual pass as closing DESIGN-036 on its own: the navigation and scope patterns are still unwritten, so the task is not complete until the admin lane (or a widened design-system grant) adds them."
+  ],
+  "blockers": [
+    "The design-system lane holds no hosted session and produced no browser evidence in Wave 34, so this handoff carries expectations and scope, not results.",
+    "DESIGN-036 cannot reach completed until the navigation and scope patterns exist, which is outside the design-system grant in this wave."
+  ],
+  "verification": [
+    "PASS: npx vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx -> 1 file / 5 tests passed, 2026-09-25.",
+    "PASS: `ls components/admin/logistics/command-center/` and a read of index.ts enumerate the full reusable set; no scope- or navigation-named file exists in it.",
+    "PASS: `rg -l -i 'logistics' components/admin/logistics/*.tsx` locates logistics-scope-bar.tsx as the only scope UI, outside the set and mid-edit by the admin lane.",
+    "NOT RUN: no browser, no 200% zoom, no mobile viewport, no screenshot. All of that is what this handoff asks QA to produce."
+  ],
+  "evidence_document": "docs/engineering/tasks/active/DESIGN-036.json"
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DISC-002-NEWSELF-FETCH-SSRF",
+  "task_id": "DISC-002",
+  "from_agent": "discover",
+  "to_agent": "integrations",
+  "status": "completed",
+  "created_at": "2026-09-25T21:10:00Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "RETURNED TO DISCOVER. Item (1), the SSRF, is FIXED IN TREE in Wave 34 because lib/news/** is discover file ownership. Item (2), the code-sanitization cluster, is PARTIALLY FIXED: the root-cause helper the Wave 33 disposition always required now exists as lib/news/text-sanitize.ts, and alert #43 is closed in code, but alerts #40, #41, #42, #45 and #46 sit in files outside the Wave 34 discover file ownership and remain open, re-routed to HF-DISC-002-RSS-SANITIZE-ORDERING. SSRF taint path, confirmed by reading each file rather than assuming it matched the discover route: request.nextUrl.origin at app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27 -> buildNewsFeed({ requestOrigin }) -> fetchExternalCandidates({ requestOrigin }) at lib/news/feed-service.ts:42 -> new URL('/api/feed/rss-news', params.requestOrigin) at line 673 -> fetch(endpoint.toString()) at line 676, once per derived category inside a categories.map fan-out. The previous transport also followed redirects and had no size, timeout, or content-type bound, so a 3xx from the first hop reached anywhere and a large or non-JSON body was accepted.",
+  "working_set": [
+    "lib/news/feed-service.ts:1-40 (params contract), :660-745 (fetchExternalCandidates)",
+    "lib/discover/internal-json-fetch.ts (NEWS_UPSTREAM_ROUTES added to the frozen registry)",
+    "lib/discover/outbound-guard.ts (unchanged, reused as-is)",
+    "lib/news/text-sanitize.ts (NEW: shared decode-then-strip conversion + link validator)",
+    "components/feed/rss-news-item.tsx (alert #43 fixed; window.open link validated)",
+    "__tests__/discover/hub-news-self-fetch-ssrf.test.ts (new, 25 tests)",
+    "__tests__/news/text-sanitize.test.ts (new, 17 tests)",
+    "app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27 (read-only: the requestOrigin call sites, NOT edited)",
+    "security/security-scan-exceptions.json (3 discover entries re-triaged; the 2 integrations entries untouched)"
+  ],
+  "completed": [
+    "Confirmed the full taint path in the files themselves, and confirmed it is the identical defect class as CodeQL #16 rather than merely a similar shape.",
+    "Reused lib/discover/outbound-guard.ts and lib/discover/internal-json-fetch.ts as-is; added one frozen entry (newsRssFeed -> /api/feed/rss-news, params limit + category) to the existing INTERNAL_UPSTREAM_ROUTES registry.",
+    "Every bypass class the Wave 33 guard closes is closed here too: exact-origin allowlist with no prefix/substring match, http/https only, no embedded credentials, inet_aton IP normalization, IPv4-mapped/NAT64/6to4/ULA/link-local rejection, internal-hostname and reserved-TLD rejection, numeric CIDR blocking, path-traversal rejection, structurally impossible redirects, resolve-then-pin DNS against rebinding, 5s wall clock, 2 MiB cap, and a JSON content-type requirement. The previous global `fetch` had none of the last five.",
+    "requestOrigin is no longer read by anything. It survives only as an optional, explicitly @deprecated field on BuildNewsFeedParams, with the reason documented inline, so the two out-of-lane callers keep compiling instead of being broken by a lane that does not own them.",
+    "Created lib/news/text-sanitize.ts: the shared helper the Wave 33 disposition required. It decodes entities in ONE semicolon-terminated pass (so &amp;lt; stays literal and the js/double-escaping half of the finding cannot recur), strips markup SECOND, then removes any residual < or > so an unpaired or malformed tag cannot survive. It also closes the js/incomplete-multi-character-sanitization half by covering named, decimal and hex entities well past the fixed subset the old call sites used.",
+    "Fixed alert #43 in code: components/feed/rss-news-item.tsx no longer has a local stripHtml and now renders toPlainText(item.description).",
+    "Fixed the residual risk this handoff recorded but did not act on: components/feed/rss-news-item.tsx passed an unvalidated third-party item.link to window.open. It is now validated once per render by normalizeExternalHttpUrl, which requires an absolute http/https URL and rejects javascript:, data:, vbscript:, file:, blob:, about:, protocol-relative, relative, credential-bearing, control-character-bearing and over-long values. Both the Read and Share controls are disabled when the link is unusable, and the title click is a no-op.",
+    "Re-triaged all three discover registry entries in security/security-scan-exceptions.json with the current facts. No entry was deleted, because no entry is now unnecessary. Nothing was dismissed on GitHub.",
+    "25 SSRF tests in __tests__/discover/hub-news-self-fetch-ssrf.test.ts and 17 sanitization tests in __tests__/news/text-sanitize.test.ts. Every rejection path asserts node:https and node:http were never called."
+  ],
+  "next_steps": [
+    "orchestrator: route HF-DISC-002-RSS-SANITIZE-ORDERING to the lanes that own app/api/feed/rss-news/route.ts, lib/services/rss-feed.service.ts, lib/opportunities/rss-opportunities-service.ts and components/news/news-page.tsx. The fix at each is a one-line import swap to toPlainText from lib/news/text-sanitize.ts; nothing about it needs re-deriving.",
+    "discover or the feed owner: remove `requestOrigin` from the two call sites (app/api/news/feed/route.ts:83, app/api/feed/for-you/route.ts:27) and then delete the deprecated field. Until then the property is still on the wire into the service, it is simply read by nothing.",
+    "Release/infra: INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL) must be set in every deployed environment. The news feed's external RSS candidates are dropped entirely with no allowlisted origin, by design.",
+    "Release: push and re-run CodeQL. Alerts #40, #41, #42, #45 and #46 stay open until their files are fixed, and #43 stays open until GitHub reports the analysis — a local code fix is not a closed alert."
+  ],
+  "blockers": [
+    "Alerts #40, #41, #42, #45 and #46 cannot be fixed in this lane. app/api/feed/**, lib/services/** (explicitly another lane's), lib/opportunities/** and components/news/** are all outside the Wave 34 discover file ownership, even though components/news/** is discover charter. Their registry entries are therefore retained, not deleted, and the expiry stays 2026-12-25.",
+    "The two requestOrigin call sites are outside the Wave 34 discover file ownership, so the deprecated field could not be removed outright. This is a deliberate compile-preserving choice, recorded here rather than left as a silent footgun.",
+    "No code-scanning alert is confirmed closed by this work. GitHub Advanced Security has no local engine; a registry disposition is not a dismissal, and a local code fix is not a re-scan. Every statement above about #43 is a statement about the repository, not about GitHub's alert state.",
+    "The full `npm run typecheck` was not run by design (CI 68m18s, 1,384 pre-existing errors across 197 files, OOM on this shared 8GB box). Evidence is a scoped tsc project over the 8 changed/added files: 0 errors."
+  ],
+  "verification": [
+    "npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/ -> 11 files, 98 tests passed (Wave 33 closed at 10 files / 73 tests).",
+    "npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/ __tests__/news/ __tests__/profile/artist-public-profile-parity.test.ts -> 14 files, 136 tests passed.",
+    "npx vitest run __tests__/news/ __tests__/press/ __tests__/blog/ -> 6 files, 68 tests passed; these three suites assert on the text of lib/news/feed-service.ts, so they are the regression guard for that edit.",
+    "npx tsc -p <scoped project over the 8 changed/added files> -> 0 errors.",
+    "npx eslint over all 11 changed/added files -> 0 errors, 0 warnings.",
+    "node scripts/ci/check-security-exceptions.mjs -> 'Security exception registry OK — 5 active exception(s)', exit 0. node --test scripts/ci/check-security-exceptions.test.mjs -> 3 pass, 0 fail.",
+    "git diff --check -> clean. The diff over security/security-scan-exceptions.json removes no line belonging to either integrations entry (verified: 0 removed lines match CODEQL-102 or CODEQL-94).",
+    "Source-text regression guards (comments stripped first): app/api/hub/route.ts and lib/news/feed-service.ts contain no `nextUrl.origin`, no `baseUrl`, no bare `fetch(`, and no `new URL(...requestOrigin)`.",
+    "NOT RUN: no hosted or credentialed test, no migration apply, no CodeQL re-analysis. No hosted evidence is claimed."
+  ],
+  "resolved_at": "2026-09-25T22:20:00.000Z",
+  "consumed_by": "discover (DISC-002, Wave 34) — returned to discover because lib/news/** is discover file ownership; item (1) fixed in place, item (2) partially fixed and re-routed to HF-DISC-002-RSS-SANITIZE-ORDERING"
+}

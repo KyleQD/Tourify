@@ -37,16 +37,10 @@ export async function POST(request: NextRequest) {
 
   const svc = createServiceRoleClient()
 
-  // Verify message belongs to this thread and user is a member
-  const { data: msg } = await svc
-    .from('group_messages')
-    .select('thread_id')
-    .eq('id', messageId)
-    .eq('thread_id', threadId)
-    .maybeSingle()
-
-  if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
-
+  // SOC-007: membership is verified BEFORE the message lookup, and a
+  // non-member receives the same 404 as a missing message. Checking the
+  // message first would turn this endpoint into a message-existence oracle
+  // for outsiders.
   const { data: membership } = await svc
     .from('thread_members')
     .select('user_id')
@@ -55,7 +49,17 @@ export async function POST(request: NextRequest) {
     .is('left_at', null)
     .maybeSingle()
 
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!membership) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
+
+  // Verify message belongs to this thread
+  const { data: msg } = await svc
+    .from('group_messages')
+    .select('thread_id')
+    .eq('id', messageId)
+    .eq('thread_id', threadId)
+    .maybeSingle()
+
+  if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
 
   // Check if reaction already exists
   const { data: existing } = await svc

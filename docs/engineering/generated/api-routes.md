@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-22T17:00:56.458Z
+- Working tree: dirty (423 entries)
+- Generated at: 2026-09-25T22:27:02.069Z
 - Generator: `control-plane.mjs generate`
 
-## Route handlers (947)
+## Route handlers (951)
 
 | Route | Methods | Source |
 | --- | --- | --- |
@@ -128,6 +128,7 @@
 | `/api/admin/logistics/items/[id]/status` | POST | `app/api/admin/logistics/items/[id]/status/route.ts` |
 | `/api/admin/logistics/items/bulk` | PUT | `app/api/admin/logistics/items/bulk/route.ts` |
 | `/api/admin/logistics/metrics` | GET | `app/api/admin/logistics/metrics/route.ts` |
+| `/api/admin/logistics/overview` | GET | `app/api/admin/logistics/overview/route.ts` |
 | `/api/admin/logistics/plans` | GET | `app/api/admin/logistics/plans/route.ts` |
 | `/api/admin/logistics/plans/[tourId]` | GET | `app/api/admin/logistics/plans/[tourId]/route.ts` |
 | `/api/admin/logistics/plans/[tourId]/hydrate` | POST | `app/api/admin/logistics/plans/[tourId]/hydrate/route.ts` |
@@ -897,6 +898,7 @@
 | `/api/ux/telemetry` | POST | `app/api/ux/telemetry/route.ts` |
 | `/api/venue/analytics` | GET | `app/api/venue/analytics/route.ts` |
 | `/api/venue/analytics/export` | GET | `app/api/venue/analytics/export/route.ts` |
+| `/api/venue/availability` | DELETE, GET, PATCH, POST | `app/api/venue/availability/route.ts` |
 | `/api/venue/booking-requests` | GET, PATCH | `app/api/venue/booking-requests/route.ts` |
 | `/api/venue/current` | GET | `app/api/venue/current/route.ts` |
 | `/api/venue/documents/[id]` | GET | `app/api/venue/documents/[id]/route.ts` |
@@ -918,6 +920,7 @@
 | `/api/venue/notification-routing` | GET, PATCH | `app/api/venue/notification-routing/route.ts` |
 | `/api/venue/onboarding/summary` | GET | `app/api/venue/onboarding/summary/route.ts` |
 | `/api/venue/permissions` | GET | `app/api/venue/permissions/route.ts` |
+| `/api/venue/reservations` | GET | `app/api/venue/reservations/route.ts` |
 | `/api/venue/roles` | GET, POST | `app/api/venue/roles/route.ts` |
 | `/api/venue/roles/[id]` | DELETE, PATCH | `app/api/venue/roles/[id]/route.ts` |
 | `/api/venue/shifts` | GET, POST | `app/api/venue/shifts/route.ts` |
@@ -947,6 +950,7 @@
 | `/api/work-mode/assignments/[id]/respond` | POST | `app/api/work-mode/assignments/[id]/respond/route.ts` |
 | `/api/work-mode/communications/[id]/respond` | POST | `app/api/work-mode/communications/[id]/respond/route.ts` |
 | `/api/work-mode/events/[eventId]` | GET | `app/api/work-mode/events/[eventId]/route.ts` |
+| `/api/work-mode/history` | GET | `app/api/work-mode/history/route.ts` |
 | `/api/work-mode/overview` | GET | `app/api/work-mode/overview/route.ts` |
 | `/api/work/site-maps/[id]` | GET | `app/api/work/site-maps/[id]/route.ts` |
 | `/api/workflows/threads` | GET, POST | `app/api/workflows/threads/route.ts` |

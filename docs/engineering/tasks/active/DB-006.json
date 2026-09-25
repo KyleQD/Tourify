@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:07.688Z",
-  "updated_at": "2026-09-21T15:15:00Z",
+  "updated_at": "2026-09-25T21:39:16.324Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Make events_v2 canonical for every core launch flow, explicitly gate incompatible legacy domains, and eliminate runtime schema probing",
@@ -40,27 +40,30 @@
     "Focused contract tests, a repository caller inventory, staging database evidence, and TICKET-005 event lifecycle certification pass"
   ],
   "verification": {
-    "tier": "release",
+    "tier": "database contract + repository gates",
     "commands": [
-      "npx eslint app/api/tours/planner/route.ts lib/services/dashboard.service.ts __tests__/admin/events-v2-canonical-cutover.test.ts app/api/analytics/route.ts app/api/calendar/me/route.ts app/api/community/stats/route.ts app/api/cron/event-reminders/route.ts",
-      "npx vitest run __tests__/admin/events-v2-canonical-cutover.test.ts",
-      "git diff --check -- app/api/tours/planner/route.ts lib/services/dashboard.service.ts __tests__/admin/events-v2-canonical-cutover.test.ts",
-      "! rg -n \"\\.from\\(\\s*['\\\"]events['\\\"]\\s*\\)\" app/api/tours/planner/route.ts lib/services/dashboard.service.ts app/api/analytics/route.ts app/api/calendar/me/route.ts app/api/community/stats/route.ts app/api/cron/event-reminders/route.ts",
-      "node -e \"const fs=require('fs'); const files=['app/api/tours/planner/route.ts','lib/services/dashboard.service.ts','app/api/analytics/route.ts','app/api/calendar/me/route.ts','app/api/community/stats/route.ts','app/api/cron/event-reminders/route.ts']; const legacy=/\\.from\\(\\s*['\\\"]events['\\\"]\\s*\\)/; const missing=files.filter(f=>legacy.test(fs.readFileSync(f,'utf8'))); if(missing.length) throw new Error(missing.join(',')); console.log('DB-006 canonical caller scan: PASS (6 files, 0 legacy events reads)')\""
+      "node supabase/tests/db008_chain_surface_replay.mjs",
+      "npm run check:migration-chain"
     ],
     "evidence": [
-      "2026-09-10T22:47:50Z: ESLint passed for all three DB-006 files.",
-      "2026-09-10T22:47:50Z: focused Vitest passed, 1 file / 2 tests.",
-      "2026-09-10T22:48:06Z: canonical caller assertion found no legacy events reads in the planner or dashboard; planner retains the events_v2 relation and dashboard reads events_v2 directly.",
-      "2026-09-10T22:52:00Z: ESLint passed for four additional active hot paths; scoped legacy-read assertion found no events relation reads and one events_v2 read per route.",
-      "2026-09-11T18:01:06Z: fixed the stale eventsResponse reference left by the calendar cutover; ESLint passed, focused Vitest passed 7 tests, and the six-caller static scan found 0 legacy events reads."
+      {
+        "command": "node supabase/tests/db008_chain_surface_replay.mjs",
+        "result": "pass",
+        "detail": "events and events_v2 are both live in the chain; neither events.start_date nor events.cover_image_url is a chain column."
+      },
+      {
+        "command": "npm run check:migration-chain",
+        "result": "pass",
+        "detail": "302 files, no duplicate policy creations."
+      }
     ],
-    "last_run_sha": "working-tree",
-    "last_run_at": "2026-09-11T18:01:06Z",
-    "result": "pass"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "not-run",
+    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Production-readiness audit promoted DB-006 to P0 and locked events_v2 as canonical for core launch. Every remaining legacy caller must be classified, migrated or gated, and core hot paths may not probe schemas or silently fall back.",
+    "summary": "Wave 34: no new DB-006 work and no change to the canonical events_v2 direction. One measurement correction is relevant: the chain DOES create events_v2.quick_start_batch_id and events_v2.quick_start_ordinal via 20260731193454_streamlined_tour_builder_quick_start.sql. Wave 33 reported them as out-of-band because that ALTER statement leads with 'alter column ... drop not null' rather than 'add', so the whole statement was classified as neither an add nor a drop by the scanner. The columns are not drift and the six-caller cutover is unaffected.",
     "completed": [
       "Confirmed the active events_v2 schema has org-scoped RLS and is already the admin tour event write target.",
       "Removed the tour planner's legacy events fallback after the canonical events_v2 relation read.",
@@ -70,18 +73,17 @@
       "Expanded the regression test to all six bounded callers and fixed the calendar partial-state reference.",
       "Completed the repository-wide caller-classification acceptance gap (2026-09-21): all 52 recorded legacy events/artist_events caller files are classified as 14 compatibility-gated and 38 deferred with named owners and contract rationales; the six canonical hot paths are the migrated callers and carry zero legacy reads. Exact counts reproduced by scan: 45 files with literal .from('events') reads + 14 files with literal .from('artist_events') reads, union 51 literal files, plus app/api/events/_lib/event-reference.ts (dynamic EVENT_REFERENCE_LOOKUP_ORDER) = 52.",
       "Confirmed no clearly-safe in-scope gating change exists for any remaining caller: every remaining legacy caller sits outside the DB-006 working set, no caller whose identifier/authorization contract already matches events_v2 is in-scope-editable for this lane, and the six canonical paths contain zero legacy probes. No code change was made in this lane.",
-      "Recorded adjacent dynamic-table scan findings not captured by the literal 52-file inventory: lib/services/event-page.service.ts (dynamic EventTableName including artist_events/events; no active importer found; ARTIST cleanup review) and app/api/events/[id]/page/route.ts (DB-009 resolver-branched reader, covered by DB-009's 18-importer matrix)."
+      "Recorded adjacent dynamic-table scan findings not captured by the literal 52-file inventory: lib/services/event-page.service.ts (dynamic EventTableName including artist_events/events; no active importer found; ARTIST cleanup review) and app/api/events/[id]/page/route.ts (DB-009 resolver-branched reader, covered by DB-009's 18-importer matrix).",
+      "events.start_date and events.cover_image_url are absent from BOTH the active chain and the generated types, so the product code reading them is reading columns the schema has never had. events.cover_image_url is read by app/artist/events/actions/marketing.ts and app/projects/page.tsx (entry-reachable). Canonical replacements recorded: events_v2 (DB-006's canonical table) and public.tours.cover_image_url, added by 20260720020302_admin_tour_stop_publish.sql.",
+      "event_posts is classified code-drift with conflictLiveConsumer=true: it has zero occurrences in the active chain and zero in the generated types, it exists only in out-of-chain SQL, and it is read by app/api/events/[id]/posts/route.ts and app/api/events/[id]/page/route.ts, both entry-reachable. This corroborates DB-006's earlier finding that no active creation/RLS migration exists for event_posts, and it is now recorded as a concrete object rather than an observation.",
+      "event_equipment, event_tasks, event_staff and event_crew_assignments are classified schema-missing or code-drift and routed in HF-DB008-SCHEMA-MISSING-ARTIST and HF-DB008-TYPECHECK-ARTIST. The first three are schema-missing with a live entry-reachable consumer (app/artist/events/actions/manage-equipment.ts, manage-tasks.ts, manage-staff.ts) and need the artist domain's column contract before a migration can be written; the database lane will not invent one."
     ],
     "next_steps": [
-      "Run the manual, targeted staging migration/postflight checks when an approved environment is available; never reset or force replay.",
-      "Evaluate the remaining legacy callers individually; map identifier and authorization contracts before any cutover and do not invent events_v2 schema.",
-      "Record staging and production evidence before closing the task.",
-      "Sequence the classified deferred callers by named owner for separate bounded reviews: WORK (admin staff-operations/staffing, hiring-onboarding), ARTIST (artist events surfaces/actions/services), TOUR (tour subresource CRUD, tour_id link), SOCIAL (share routes, community activity), VENUE (venue.service), BOOKINGS, COMMUNITY (news feed), ORG public-provider, MUSIC (public-track), INTG (canonical-event-service, event-matcher), ADMIN (event-claims), PAYMENT/TICKET-005 (payment price branch).",
-      "Resolve adjacent findings out of the DB-006 working set: retire or source-qualify lib/services/event-page.service.ts dynamic legacy-capable reads (ARTIST), and keep app/api/events/[id]/page/route.ts under DB-009's resolver contract."
+      "Unchanged: staging and production cutover evidence, and the 38 deferred legacy callers' named-owner reviews. No migration authored or applied this wave."
     ],
     "blockers": [
-      "No staging or production database evidence is available in this workspace; CP-051 forbids automatic migration application or replay.",
-      "The bounded six-caller review has no legacy events reads. The exact app/lib inventory of remaining legacy events or artist_events callers is 52 files, now classified (2026-09-21): 14 compatibility-gated and 38 deferred with named owners and contract rationales. None is a safe in-scope cutover for this lane because each cardinal edge is either already explicitly gated (resolver/event_table/dual-read) or carries a distinct identifier/authorization contract (artist_id/user_id, legacy venue_id columns, legacy events.tour_id, employment-assignment FK) requiring the named owner's review. Cutover therefore remains split across separate bounded owner reviews, not this lane."
+      "DB-006's own staging/production cutover evidence is unchanged and still absent. This lane applied nothing.",
+      "The six bounded DB-006 callers were not re-scanned; the 52-file legacy inventory stands as recorded on 2026-09-21."
     ],
     "checkpoints": [
       {
@@ -187,8 +189,32 @@
           "38 deferred callers require their named owners' separate bounded reviews before any further cutover; 14 gated callers remain gated until their owners source-qualify them."
         ],
         "next": "Orchestrator to sequence the owner-mapped deferred/gated callers as separate bounded tasks; obtain approved staging and production evidence for the six-caller canonical cutover."
+      },
+      {
+        "at": "2026-09-25T20:52:43.640Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: produced new evidence for the canonical-cutover direction without changing it. The legacy events table contributes two column-drift pairs (events.start_date, events.cover_image_url), and event_posts is now classified code-drift with conflictLiveConsumer=true: zero occurrences in the active chain and zero in the types, defined only in out-of-chain SQL, and read by three entry-reachable routes. That turns DB-006's earlier observation about event_posts into a classified object with its archived source and named consumers.",
+        "completed": [],
+        "next_steps": [
+          "DB-006's staging/production cutover evidence is unchanged and still absent. The six bounded callers were not re-scanned; the 52-file legacy inventory from 2026-09-21 stands."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:16.324Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-006 work and no change to the canonical events_v2 direction. One measurement correction is relevant: the chain DOES create events_v2.quick_start_batch_id and events_v2.quick_start_ordinal via 20260731193454_streamlined_tour_builder_quick_start.sql. Wave 33 reported them as out-of-band because that ALTER statement leads with 'alter column ... drop not null' rather than 'add', so the whole statement was classified as neither an add nor a drop by the scanner. The columns are not drift and the six-caller cutover is unaffected.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: staging and production cutover evidence, and the 38 deferred legacy callers' named-owner reviews. No migration authored or applied this wave."
+        ],
+        "blockers": []
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [
+    "HF-DB008-TYPECHECK-EVENTS: artist agent owns event_posts (code-drift with a live entry-reachable consumer) and the events.start_date / events.cover_image_url column drift, whose canonical replacements are events_v2 and public.tours.cover_image_url.",
+    "HF-DB008-SCHEMA-MISSING-ARTIST: artist agent must supply the column contract for event_equipment, event_tasks, event_staff, artist_licensing_deals and artist_license_templates before any migration can be authored."
+  ],
+  "wave34Note": "No new DB-006 work and no change to the canonical events_v2 direction. One measurement correction is relevant to it: the chain DOES create events_v2.quick_start_batch_id and events_v2.quick_start_ordinal (20260731193454_streamlined_tour_builder_quick_start.sql), which Wave 33 reported as out-of-band. The Wave 33 scanner missed them because that ALTER statement leads with alter column rather than add, so the whole statement was classified as neither. The columns are not drift and the six-caller cutover is unaffected."
 }

@@ -6,74 +6,191 @@
   "priority": "P1",
   "owner_agent": "discover",
   "created_at": "2026-09-09T09:35:21.320Z",
-  "updated_at": "2026-09-21T22:22:16.000Z",
+  "updated_at": "2026-09-25T21:20:26.043Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (Wave 31 lane 4: /api/search/enhanced compatibility gating, caller inventory + creator-metadata gap handoff to database; no schema change)",
+  "working_tree_status": "dirty (Wave 34 security+drift lane uncommitted on top of the Wave 33 work: the two unflagged nextUrl.origin SSRF sinks fixed by porting the Wave 33 guard, the news decode-then-strip ordering fix with alert #43 closed in code, the rss-news-item window.open link validation, the search-cluster drift repoint, 2 new handoffs, 2 handoffs consumed. Wave 31 enhanced-search compatibility work preserved unchanged. ~250 other dirty entries belong to 6 concurrent lanes and were not touched.)",
   "goal": "Collapse the 4+ search implementations into one canonical search endpoint/contract with FTS backend and rate limiting",
   "scope": {
     "in": [
       "app/api/search/**",
+      "app/api/discover/**",
+      "app/api/hub/**",
       "lib/search/**",
+      "lib/discover/**",
+      "lib/news/**",
+      "components/feed/rss-news-item.tsx",
       "hooks/use-global-search.ts",
       "components/search/global-search-results.tsx",
       "direct /api/search clients requiring the canonical response shape",
-      "__tests__/search/**"
+      "__tests__/search/**",
+      "__tests__/discover/**",
+      "__tests__/news/**"
     ],
     "out": []
   },
   "working_set": [
     "lib/search/",
+    "lib/discover/",
+    "lib/news/",
     "app/api/search/",
+    "app/api/discover/",
+    "app/api/hub/",
     "hooks/use-global-search.ts",
     "components/search/global-search-results.tsx",
-    "__tests__/search/"
+    "components/feed/rss-news-item.tsx",
+    "__tests__/search/",
+    "__tests__/discover/",
+    "__tests__/news/"
   ],
   "references": [
     "docs/DEVELOPMENT_WORKFLOW.md",
     "docs/engineering/agents/discover/QUESTIONS.md",
-    "docs/engineering/DECISIONS.md"
+    "docs/engineering/DECISIONS.md",
+    "docs/api-security-map.md",
+    "docs/engineering/handoffs/pending/HF-RELEASE-SEC-CODEQL.json",
+    "docs/engineering/handoffs/completed/HF-DISC-002-HUB-SELF-FETCH-SSRF.json",
+    "docs/engineering/handoffs/completed/HF-DISC-002-NEWSELF-FETCH-SSRF.json",
+    "docs/engineering/handoffs/pending/HF-DISC-002-RSS-SANITIZE-ORDERING.json",
+    "docs/engineering/handoffs/pending/HF-DISC-002-DRIFT-SEO-SETTINGS.json",
+    "docs/engineering/handoffs/pending/HF-DISC-002-INTERNAL-API-ORIGIN.json",
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "docs/engineering/handoffs/pending/HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF.json"
   ],
   "acceptance_criteria": [
     "Canonical search endpoint adopted by core launch clients and incompatible legacy paths are retired or explicitly compatibility-gated",
     "Server-side distributed rate limiting is verified against configured Redis",
     "Search results enforce authorization and tenant visibility before returning records",
-    "Supabase-backed deployed staging search, authorization-negative, and 429 behavior pass"
+    "Supabase-backed deployed staging search, authorization-negative, and 429 behavior pass",
+    "No caller-controlled value reaches a network sink in the discover fan-out, redirects are structurally impossible, and the transport fails closed with bounded cost",
+    "BLOCKING PREREQUISITE (Wave 34): INTERNAL_API_ORIGIN, or one of NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL, is set in every deployed environment, and DISCOVER_ALLOW_LOCAL_UPSTREAM is unset there. Until then /api/discover returns empty sections, /api/hub returns zeroed metrics, and the news feed has no external candidates — by design. Owner: release/infra, tracked in HF-DISC-002-INTERNAL-API-ORIGIN. This lane cannot set it and fabricated evidence is not accepted."
   ],
   "verification": {
     "tier": "fast",
     "commands": [
-      "npx vitest run __tests__/search/canonical-search.test.ts __tests__/search/global-search-ranking.test.ts __tests__/search/global-search-results.test.ts",
-      "npx eslint app/api/search/route.ts app/api/search/global/route.ts app/api/search/unified/route.ts app/api/search/enhanced/route.ts lib/search/canonical-search.ts lib/search/canonical-search-route.ts app/admin/dashboard/venues/page.tsx components/admin/enhanced-global-search.tsx __tests__/search/canonical-search.test.ts",
-      "git diff --check -- <task-owned changed files>",
+      "npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/",
+      "npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/ __tests__/news/ __tests__/profile/artist-public-profile-parity.test.ts",
+      "npx vitest run __tests__/news/ __tests__/press/ __tests__/blog/",
+      "npx eslint app/api/discover/route.ts app/api/hub/route.ts app/api/search/enhanced/route.ts lib/discover/outbound-guard.ts lib/discover/internal-json-fetch.ts lib/news/feed-service.ts lib/news/text-sanitize.ts components/feed/rss-news-item.tsx __tests__/discover/discover-ssrf.test.ts __tests__/discover/hub-news-self-fetch-ssrf.test.ts __tests__/news/text-sanitize.test.ts",
+      "npx tsc -p <scoped tsconfig over the 8 changed/added files>",
+      "node scripts/ci/check-security-exceptions.mjs",
+      "node --test scripts/ci/check-security-exceptions.test.mjs",
+      "node scripts/ci/check-service-role-allowlist.mjs",
+      "git diff --check",
       "npm run agents:validate"
     ],
     "evidence": [
-      "3 focused Vitest files passed: 12 tests (re-run green on Wave 31 lane 4).",
-      "Focused ESLint and task-owned diff whitespace check passed.",
-      "agents:validate passed with the pre-existing RELEASE-001 warning only."
+      "PASS — 11 focused Vitest files, 98 tests (Wave 33 closed at 10 files / 73 tests; the delta is 25 new hub/news SSRF tests. No previously-green search test regressed).",
+      "PASS — combined run over __tests__/discover/ __tests__/search/ lib/discover/__tests__/ __tests__/news/ __tests__/profile/artist-public-profile-parity.test.ts: 14 files, 136 tests. The parity test (11 tests) asserts on app/api/discover/route.ts and is the regression guard for that file; it passes.",
+      "PASS — npx vitest run __tests__/news/ __tests__/press/ __tests__/blog/: 6 files, 68 tests. press-formats-and-news and account-aware-publishing assert on the text of lib/news/feed-service.ts, so they are the regression guard for the news edit.",
+      "PASS — focused ESLint over all 11 changed/added files: 0 errors, 0 warnings.",
+      "PASS — scoped tsc project: 0 errors. It first reported 3 REAL errors in app/api/hub/route.ts (URLSearchParams is not assignable to the params record type); they were fixed by building plain param records, not suppressed. Scoped rather than full `npm run typecheck` (CI measured 68m18s, 1384 errors / 197 files pre-existing, and it OOMs on this 8GB box with 6 concurrent lanes).",
+      "PASS — `node scripts/ci/check-security-exceptions.mjs`: \"Security exception registry OK — 5 active exception(s)\", exit 0. `node --test scripts/ci/check-security-exceptions.test.mjs`: 3 pass, 0 fail.",
+      "PASS — `git diff --check` over the modified files: no whitespace errors; the 6 new files checked for trailing whitespace: 0 lines.",
+      "PASS — `npm run agents:validate`: 17 agents, 151 tasks, 0 warnings, 0 errors. `docs/engineering/tasks/TASK_INDEX.json` was deliberately NOT refreshed (shared generated map; orchestrator runs `agents:generate`).",
+      "PASS — `node scripts/ci/check-service-role-allowlist.mjs`: \"service-role imports classified (195 production files: 182 historical, 31 reviewed remediation debt, 1 low-level factories)\", exit 0. This FAILED in Wave 33 on two untracked venue-lane route files; the concurrent venue lane has since fixed them. Discover added no service-role import in either wave.",
+      "PASS — the 2 integrations registry entries are byte-identical: the diff over security/security-scan-exceptions.json removes 0 lines matching CODEQL-102 or CODEQL-94.",
+      "NOT RUN — CodeQL re-analysis. GitHub Advanced Security code scanning is a hosted paid feature with no local engine, so alert #16 — or alert #43, whose code fix has now landed — cannot be confirmed closed from this workspace. No hosted evidence is claimed.",
+      "NOT RUN — full `npm test` and full `npm run typecheck`, by design (see the scoped tsc entry above)."
     ],
-    "last_run_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
-    "last_run_at": "2026-09-21T22:22:16Z",
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:35:00.000Z",
     "result": "pass"
   },
   "progress": {
-    "summary": "Production-readiness audit confirms DISC-002 as a P1 core launch dependency. Closure requires Redis-backed rate-limit evidence, authorization-aware results, and deployed Supabase staging and 429 verification.",
+    "summary": "Wave 34 addendum. Applied the CP-069 rule to itself: ran rg -n \"new URL\\('/api/\" app lib after fixing the two known sinks and found a THIRD live instance of the identical unflagged SSRF class at lib/opportunities/rss-opportunities-service.ts:38 - request.nextUrl.origin at app/api/opportunities/sync/route.ts:13 and app/api/opportunities/route.ts:36 -> ingestOpportunitiesFromRss -> new URL('/api/feed/rss-news', params.origin) -> global fetch six times in a categories.map, with no allowlist, no redirect denial, no resolve-then-pin, no timeout, no size cap and no content-type requirement. lib/opportunities/** is outside this wave's ownership so it is RECORDED, not fixed, and routed in HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF; the receiver needs no new route map entry because the newsRssFeed key already exists. Also triaged every remaining nextUrl.origin hit in app/ and lib/ so the next lane need not re-derive them: lib/auth/request-public-origin.ts is already env-first and refuses the header in production and feeds redirects not a fetch, and app/api/music/share-message/route.ts plus app/api/payment/route.ts are env-first with a request-origin fallback for user-facing links - none is this defect class and none is claimed as a vulnerability. Correction to Wave 33 evidence: node scripts/ci/check-service-role-allowlist.mjs now PASSES (195 production files classified, exit 0); it failed in Wave 33 on two untracked venue-lane files that the concurrent venue lane has since fixed. Still BLOCKING: INTERNAL_API_ORIGIN unset in deployed environments, and no code-scanning alert is confirmable closed without a hosted re-scan.",
     "completed": [
       "Promoted the FTS-backed GlobalSearchResponse to the canonical /api/search endpoint.",
       "Shared a single 60 requests/minute limiter across canonical and compatibility routes.",
       "Migrated internal global-search clients and retained /global and /unified compatibility routes.",
-      "Wave 31 lane 4: inventoried all 7 direct /api/search/enhanced callers (6 creator-filter-bound, 1 migratable now), marked the route as an explicit compatibility surface sharing the canonical 60/min bucket, and precisely recorded the creator-metadata gap with a database handoff (HF-DISC-002-CREATOR-METADATA) for additive accounts/search-projection support."
+      "Wave 31 lane 4: inventoried all 7 direct /api/search/enhanced callers (6 creator-filter-bound, 1 migratable now), marked the route as an explicit compatibility surface sharing the canonical 60/min bucket, and precisely recorded the creator-metadata gap with a database handoff (HF-DISC-002-CREATOR-METADATA) for additive accounts/search-projection support.",
+      "Wave 33: independently confirmed CodeQL #16 via `gh api repos/KyleQD/Tourify/code-scanning/alerts?pr=14&severity=critical` — 1 critical alert, rule js/request-forgery, location app/api/discover/route.ts:351 cols 30-87, message \"The URL of this request depends on a user-provided value.\", most_recent_instance.ref refs/pull/14/merge, commit_sha 5324399bf453f07d6a380bf6effab263383ff17c.",
+      "Wave 33: added lib/discover/outbound-guard.ts (pure, no I/O) and lib/discover/internal-json-fetch.ts (resolve-then-pin over node:https/node:http), and rewrote the /api/discover fan-out to select upstreams by key from a frozen route map.",
+      "Wave 33: added __tests__/discover/discover-ssrf.test.ts — 40 tests covering every bypass class, each rejection asserting that node:https/node:http were never called.",
+      "Wave 33: triaged the 6 discover-charter alerts (#40, #41, #42, #43, #45, #46) and appended 3 time-bounded dispositions to security/security-scan-exceptions.json. Nothing was dismissed on GitHub.",
+      "Wave 33: recorded DOMAIN-011/012/013 in the discover decision log and CP-063 in the cross-domain decision log.",
+      "Wave 34 (Objective 1, hub): confirmed the taint path in the file rather than assuming it matched the discover route — request.nextUrl.origin (reflects the inbound Host / X-Forwarded-Host header) at the old line 75 -> fetch(`${baseUrl}${fullPath}`) at the old line 82, once each for /api/discover, /api/news/feed and /api/artist-jobs, with no validation anywhere between. Replaced with fetchInternalJson keyed on three new frozen entries (hubDiscover, hubNewsFeed, hubArtistJobs). Closed a second gap nobody had recorded: the hub forwarded the caller's raw Cookie header to the attacker-chosen origin, which was credential exfiltration on top of the SSRF — the cookie is still forwarded, but only to an operator-allowlisted origin and bounded to 8 KiB. Added export const runtime = 'nodejs'.",
+      "Wave 34 (Objective 1, news): confirmed the taint path — request.nextUrl.origin at app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27 -> buildNewsFeed({ requestOrigin }) -> fetchExternalCandidates at lib/news/feed-service.ts:42 -> new URL('/api/feed/rss-news', params.requestOrigin) at :673 -> fetch() at :676, once per derived category inside a categories.map fan-out. The previous global fetch also followed redirects and had no size, timeout or content-type bound. Replaced with fetchInternalJson keyed on one new frozen entry (newsRssFeed). requestOrigin is now an optional @deprecated unread field, so the taint path ends at the service boundary while the two out-of-lane callers keep compiling.",
+      "Wave 34: created lib/news/text-sanitize.ts — the shared decode-then-strip helper the Wave 33 dispositions required. Decode in ONE semicolon-terminated pass (so &amp;lt; stays literal and the js/double-escaping half cannot recur), strip second, then remove any residual < or >, which closes the unpaired-tag case a paired regex structurally cannot. Plus normalizeExternalHttpUrl for third-party links. 17 tests.",
+      "Wave 34: fixed alert #43 in code at components/feed/rss-news-item.tsx (local stripHtml removed, toPlainText used) and closed the residual risk the Wave 33 handoff recorded but did not act on — item.link is now validated once per render before window.open / navigator.share / the clipboard, and Read and Share are disabled when the link is unusable.",
+      "Wave 34: re-triaged all 3 discover registry entries with current facts. None was deleted, because none is now unnecessary: #40/#42/#46 and #41 still name open alerts in files this wave does not own. The 2 integrations entries were left byte-identical.",
+      "Wave 34 (Objective 3, search drift): app/api/search/enhanced/route.ts selected artist_profiles.verification_status, a column in neither the active chain nor lib/database.types.ts. PostgREST errors on a select of a non-existent column, so the route silently returned ZERO artist results. Fixed: the select omits the column and verified derives from profiles.is_verified, with an inline comment naming the drift and the destination.",
+      "Wave 34: corrected the inventory attribution. rg across the repository shows calculate_venue_profile_completion has exactly one live consumer, app/api/settings/route.ts:125 — neither search route references it at this SHA, so the discover share of that object is zero, not eight hits. Recorded for the database lane to fix the inventory.",
+      "Wave 34: verified HF-DISC-002-CREATOR-METADATA was consumed by database (DB-005) but the migration is UNAPPLIED — supabase/migrations/20260922120000_creator_search_metadata_projection.sql exists (8865 bytes, 2026-09-22) while lib/database.types.ts still lacks accounts.artist_profile_id / genres / creator_settings / creator_available_for_hire. The creator-filter migration is therefore blocked on a manual CP-051 apply, not on typing.",
+      "Wave 34: recorded CP-069 (a clean scanner run is not evidence of absence) in the cross-domain log and DOMAIN-014/015/016/017 in the discover decision log.",
+      "Wave 34: raised HF-DISC-002-INTERNAL-API-ORIGIN as a named BLOCKING release prerequisite with the exact variable names, and added it to this task's acceptance criteria rather than leaving it only in a handoff.",
+      "Wave 34: ran the CP-069 grep rather than trusting the scanner, and found a THIRD live instance of the same unflagged SSRF class at lib/opportunities/rss-opportunities-service.ts:38 (request.nextUrl.origin at two callers -> new URL('/api/feed/rss-news', origin) -> global fetch in a 6-way fan-out). Out of ownership, so recorded and routed in HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF rather than silently fixed or silently ignored. Also triaged every remaining nextUrl.origin hit in app/ and lib/ so the next lane does not re-derive them: lib/auth/request-public-origin.ts is already env-first and refuses the header in production (and feeds redirects, not a fetch), and app/api/music/share-message/route.ts and app/api/payment/route.ts are env-first with a request-origin fallback for user-facing links. None of those is this defect class, and none is claimed as a vulnerability."
     ],
     "next_steps": [
-      "Database lane: add creator metadata to the canonical search projection via additive migration (accounts projection or a search projection view) carrying artist_profiles.genres, capability-derived skills/availability, artist_profiles.id (artistProfileId), and metadata.subtype; coordinate source fields with the artist agent before applying (CP-051 manual apply).",
-      "Once the projection carries creator metadata, extend lib/search/canonical-search.ts + canonical-search-route.ts with backward-compatible additive genre/creatorType/service/availableForHire filters (no GlobalSearchResponse shape change), then migrate the 6 creator-filter callers off /api/search/enhanced and retire the compatibility surface.",
-      "Release/QA: run local Supabase-backed /api/search smoke and configured-Redis 429 smoke."
+      "Confirm the owner of lib/opportunities/** (the agent registry describes purposes, not paths, so it must be confirmed not inferred) and act on HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF. Unchanged and still blocking: release/infra sets INTERNAL_API_ORIGIN; release pushes and re-runs CodeQL; orchestrator routes HF-DISC-002-RSS-SANITIZE-ORDERING and HF-DISC-002-DRIFT-SEO-SETTINGS; release applies the DB-005 creator projection manually under CP-051; discover then migrates the 6 creator-filter callers off /api/search/enhanced."
     ],
     "blockers": [
-      "Canonical profile metadata lacks creator-only fields (artistProfileId, genres, skills/creatorType/service, availability, subtype) because accounts has no equivalent columns — schema/projection change required, owned by the database lane (CP-052) and coordinated with the artist agent.",
-      "Configured Redis 429 behavior and Supabase-backed local search smoke remain release-gate checks."
+      "BLOCKING RELEASE PREREQUISITE: INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL) must be set in every deployed environment, and DISCOVER_ALLOW_LOCAL_UPSTREAM must be unset there. Until it is, /api/discover returns empty sections, /api/hub returns zeroed metrics, and the news feed has no external RSS candidates — by design, not by bug. Wave 33 raised it and nobody actioned it; Wave 34 made it worse by adding two more surfaces to the same list, and it is now a named acceptance criterion. This lane cannot set it: no deployed environment or credential is reachable from this workspace, and fabricating a value or claiming hosted evidence is forbidden. No env file was created or edited.",
+      "FOUND BY THE CP-069 GREP AND STILL LIVE: lib/opportunities/rss-opportunities-service.ts:38 is a THIRD instance of the unflagged nextUrl.origin SSRF class, found by `rg -n \"new URL\\('/api/\" app lib` after the two known sinks were fixed. Taint path confirmed in the files: request.nextUrl.origin at app/api/opportunities/sync/route.ts:13 and app/api/opportunities/route.ts:36 -> ingestOpportunitiesFromRss({ origin }) -> new URL('/api/feed/rss-news', params.origin) at :38 -> global fetch() at :40, six times in a categories.map, with no allowlist, no redirect denial, no resolve-then-pin, no timeout, no size cap and no content-type requirement. lib/opportunities/** and app/api/opportunities/** are outside the Wave 34 file ownership, so this is recorded, not fixed. The fix needs no new route map entry: the newsRssFeed key already exists. Routed in HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF. Ownership is ambiguous — the agent registry describes purposes, not paths, and no registry entry names lib/opportunities/** — so the receiver must be confirmed by the orchestrator.",
+      "Alerts #40, #41, #42, #45 and #46 cannot be fixed in this lane. app/api/feed/**, lib/services/** (explicitly another lane's), lib/opportunities/** and components/news/** are all outside the Wave 34 file ownership, even though components/news/** is discover charter. Their registry entries are therefore RETAINED, not deleted, expiry stays 2026-12-25, and the work is re-routed to HF-DISC-002-RSS-SANITIZE-ORDERING. Alert #43's code fix has landed but its entry cannot be deleted while #45 is in the same entry.",
+      "app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27 still pass requestOrigin: request.nextUrl.origin into buildNewsFeed. The taint path is severed inside lib/news/** so the value is read by nothing, but the two call sites are outside this wave's ownership and still need the property removed. This is a deliberate compile-preserving choice, recorded rather than left as a silent footgun.",
+      "The seo drift cluster (lib/seo/public-preview-readers.ts, lib/services/account-management.service.ts) and app/api/settings/route.ts are outside discover ownership, so the discover share of the search+seo clusters is 1 file of 3. Re-routed in HF-DISC-002-DRIFT-SEO-SETTINGS.",
+      "The DB-005 creator projection is AUTHORED BUT UNAPPLIED. supabase/migrations/20260922120000_creator_search_metadata_projection.sql exists on disk and lib/database.types.ts still lacks accounts.artist_profile_id, accounts.genres, accounts.creator_settings and accounts.creator_available_for_hire. CP-051 means the apply is a manual release action, so the creator-filter migration is blocked on it regardless of typing. HF-DB-005-ARTIST-CREATOR-FIELDS is also still pending, so the settings-JSON semantics the backfill depends on are unconfirmed.",
+      "No code-scanning alert is confirmed closed. GitHub Advanced Security code scanning is a hosted paid feature with no local engine, so the only confirmation is a re-scan on the PR. A registry disposition is not a dismissal and a local code fix is not a re-scan. No hosted evidence is claimed anywhere in this record.",
+      "Configured Redis 429 behavior and Supabase-backed local search smoke remain release-gate checks.",
+      "The full `npm run typecheck` was not run by design (CI 68m18s, 1,384 pre-existing errors across 197 files, OOM on this shared 8GB box with 6 concurrent lanes), so this lane's contribution to the 1,384-diagnostic reduction cannot be measured. Evidence is a scoped tsc project over the 8 changed/added files: 0 errors.",
+      "check-service-role-allowlist.mjs was not re-run in Wave 34. It failed in Wave 33 on two untracked venue-lane route files outside this lane; discover added no service-role import in either wave and the discover files contain none.",
+      "ATTRIBUTION (governance, surfaced not acted on): `gh api repos/KyleQD/Tourify/code-scanning/analyses` returns only refs/pull/{14,6,5,4}/merge — there is zero recorded analysis for refs/heads/main, and ?branch=main returns 0 alerts in any state. With ~900 changed files in PR #14 the platform attributes the whole tree to the PR, which is why the check reports 48 \"new\" alerts including pre-existing code. Consequence: the Advanced Security CodeQL check is currently NOT actionable as a regression gate — its alert count measures the size of the PR, not newly introduced risk, and per CP-060 it must not be satisfied by bulk dismissal. Establishing a main baseline requires the Security scans workflow to actually upload a SARIF analysis for refs/heads/main (its trigger is `on: push: branches: [main]`, so either main has not been pushed since the workflow was added, or the upload is not reaching code scanning), plus confirming the repository code-scanning settings point the default branch at main. Both are release/infra decisions; this lane changed no branch or analysis configuration."
     ],
     "checkpoints": [
+      {
+        "at": "2026-09-25T22:35:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34. Closed the finding that mattered more than the fix Wave 33 shipped. Both unflagged nextUrl.origin SSRF sinks are fixed by porting the Wave 33 guard unmodified — a new fan-out extends the frozen INTERNAL_UPSTREAM_ROUTES map and calls fetchInternalJson by key; no second allowlist, redirect policy or transport was written. Hub: confirmed the taint path in the file (Host/X-Forwarded-Host -> nextUrl.origin -> fetch of three internal routes, no validation between), replaced it, and additionally closed the credential-exfiltration gap the old code had by forwarding the caller's raw Cookie to the attacker-chosen origin. News: confirmed the taint path across four files including the out-of-lane callers, replaced the fetch fan-out, and severed the path at the service boundary with a documented @deprecated unread field rather than breaking two other lanes' files. 25 new tests, every rejection path asserting zero sockets. News sanitizer root cause fixed at the ordering in lib/news/text-sanitize.ts (decode once, strip second, remove residual delimiters) with 17 tests; alert #43 closed in code; the unvalidated window.open(item.link) residual risk closed. The other five alerts are in files this wave does not own, so their registry entries were re-triaged and re-routed, NOT deleted — deleting them would have been the dishonest option. Search drift: app/api/search/enhanced/route.ts was selecting a column that exists nowhere, which made PostgREST error and the route return zero artist results; repointed to profiles.is_verified. The inventory's attribution for calculate_venue_profile_completion is stale and was corrected by grep. INTERNAL_API_ORIGIN is now a named blocking acceptance criterion and a release handoff with exact variable names, because Wave 33 raised it, nobody actioned it, and Wave 34 added two more surfaces to the same list. No alert is claimed closed; only a hosted re-scan can close one.",
+        "completed": [
+          "Both unflagged SSRF sinks fixed by porting the guard (hub + news)",
+          "Credential-exfiltration gap in the hub cookie forward closed",
+          "25 new SSRF tests, every rejection asserts zero network calls",
+          "lib/news/text-sanitize.ts created; 17 tests; alert #43 fixed in code",
+          "rss-news-item window.open link validated; Read/Share disabled when unusable",
+          "3 registry entries re-triaged; 2 integrations entries byte-identical",
+          "search drift repointed in the one owned file",
+          "Inventory attribution corrected for calculate_venue_profile_completion",
+          "INTERNAL_API_ORIGIN raised as a blocking acceptance criterion + release handoff",
+          "CP-069 and DOMAIN-014/015/016/017 recorded"
+        ],
+        "next_steps": [
+          "Release/infra: set INTERNAL_API_ORIGIN in every deployed environment",
+          "Release: push and re-run CodeQL; #16 and #43 are not closed until GitHub reports it",
+          "orchestrator: route HF-DISC-002-RSS-SANITIZE-ORDERING and HF-DISC-002-DRIFT-SEO-SETTINGS",
+          "Discover, with components/news/** granted: remove the requestOrigin call sites and the deprecated field"
+        ],
+        "blockers": [
+          "INTERNAL_API_ORIGIN unset in deployed environments (release/infra)",
+          "5 of 6 news alerts are in files outside this wave's ownership",
+          "DB-005 creator projection authored but unapplied (CP-051 manual apply)",
+          "No code-scanning alert confirmable closed without a hosted re-scan",
+          "Full typecheck not runnable on this box, so the diagnostic reduction is unmeasured"
+        ]
+      },
+      {
+        "at": "2026-09-25T21:20:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33 security lane. Confirmed CodeQL #16 independently rather than trusting the dispatch summary: the taint source is `origin` from `new URL(request.url)` at app/api/discover/route.ts:328 (reflects the inbound Host / X-Forwarded-Host header) and the sink is `fetch(`${origin}${path}`)` at :351; the path component was separately tainted by the location, creatorType, and service query parameters. No validation or allowlist intervened anywhere between them, so a caller who could set the host header reached internal addresses through the app's own egress. Replaced the transport with an exact-origin allowlist sourced only from server env (no localhost fallback), a frozen key-to-path upstream map, encoding-normalizing address policy (decimal/octal/hex/short IPv4, IPv4-mapped/translated/NAT64/6to4 IPv6, ULA, link-local, CGNAT, metadata, reserved), resolve-then-pin over node:https/node:http with every DNS record range-checked, structural redirect denial (3xx is a hard failure and node:https never follows), a 5s timeout, a 2 MiB response cap, and a JSON content-type requirement. Added 40 negative tests; every rejection path asserts the mocked node:https/node:http were never called. 72 focused discover/search tests pass, focused ESLint clean, scoped tsc clean, security-exception registry validates with 5 entries, agents:validate clean. Triaged 6 discover-charter alerts into 3 registry dispositions, handed off 2 unflagged SSRF-class siblings, and recorded the missing-main-baseline attribution problem as a governance blocker. No alert was dismissed and no hosted evidence is claimed.",
+        "completed": [
+          "SSRF fix at the outbound trust boundary with a fail-closed default",
+          "40 negative/positive tests including no-network-call-on-rejection for every denial path",
+          "3 security-exception dispositions for the discover-charter alerts (expiry 2026-12-25)",
+          "2 handoffs for unflagged SSRF-class siblings",
+          "DOMAIN-011/012/013 and CP-063 recorded"
+        ],
+        "next_steps": [
+          "Re-run CodeQL on the PR to confirm alert #16 resolves",
+          "Set INTERNAL_API_ORIGIN in deployed environments",
+          "Handoff receivers port the guard and fix the RSS entity decoders",
+          "Release/QA run Supabase-backed search + configured-Redis 429 smoke"
+        ],
+        "blockers": [
+          "Cannot verify alert #16 closure without a hosted CodeQL re-scan",
+          "News-surface and hub code fixes are outside this lane file ownership",
+          "No refs/heads/main code-scanning baseline, so the check alert count is not a regression signal",
+          "check-service-role-allowlist.mjs fails on a concurrent venue lane, not on discover"
+        ]
+      },
       {
         "at": "2026-09-21T22:22:16.000Z",
         "sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
@@ -125,16 +242,64 @@
       {
         "at": "2026-09-16T19:24:55.639Z",
         "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-"summary": "Wave 31 lane 4 assessed the creator-filter migration: canonical profile metadata (lib/search/global-search-types.ts profile union) still lacks artistProfileId, genres, skills/creatorType/service, availability, and subtype, which live on artist_profiles (genres, settings) and accounts.metadata — so equivalent canonical filters are not yet expressible without contract drift or a schema/projection change. The lane recorded the 7-caller inventory (6 creator-bound, 1 migratable now), marked /api/search/enhanced as an explicit compatibility surface in the route header, and handed the additive accounts/search-projection change to the database lane (CP-052) with the artist agent coordination note. No behavior or contract change; 12/12 focused search tests and eslint pass. Redis 429 and Supabase-backed search smoke remain release-gate checks.",
+        "summary": "Wave 31 lane 4 assessed the creator-filter migration: canonical profile metadata (lib/search/global-search-types.ts profile union) still lacks artistProfileId, genres, skills/creatorType/service, availability, and subtype, which live on artist_profiles (genres, settings) and accounts.metadata — so equivalent canonical filters are not yet expressible without contract drift or a schema/projection change. The lane recorded the 7-caller inventory (6 creator-bound, 1 migratable now), marked /api/search/enhanced as an explicit compatibility surface in the route header, and handed the additive accounts/search-projection change to the database lane (CP-052) with the artist agent coordination note. No behavior or contract change; 12/12 focused search tests and eslint pass. Redis 429 and Supabase-backed search smoke remain release-gate checks.",
         "completed": [],
         "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T20:38:55.945Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33 security lane: fixed CodeQL critical #16 (js/request-forgery SSRF, CWE-918) at the /api/discover outbound trust boundary - the base origin was new URL(request.url).origin, which reflects the caller-influenced Host header, and no validation intervened before fetch(`${origin}${path}`). Replaced it with an exact-origin allowlist sourced only from INTERNAL_API_ORIGIN / NEXT_PUBLIC_APP_URL / VERCEL_* (no localhost fallback, fail-closed), a frozen key-to-path upstream map, encoding-normalizing address policy, resolve-then-pin over node:https with every DNS record range-checked, structural redirect denial, 5s timeout, 2 MiB cap, and JSON content-type requirement. 40 new negative tests; every rejection asserts no socket was opened. 72 focused discover/search tests pass, focused ESLint 0/0, scoped tsc 0 errors, security-exception registry validates (5 entries), agents:validate clean, git diff --check clean. Triaged 6 discover-charter alerts into 3 time-bounded dispositions, filed 2 handoffs for unflagged SSRF-class siblings at app/api/hub/route.ts:82 and lib/news/feed-service.ts:673, and recorded the missing refs/heads/main baseline as a governance blocker. No alert dismissed; no hosted evidence claimed.",
+        "completed": [],
+        "next_steps": [
+          "Release/infra: set INTERNAL_API_ORIGIN in deployed environments; push and re-run CodeQL to confirm #16 (not closed until GitHub reports it); receivers port the guard to hub/news. Then the existing DISC-002 path: database lane adds creator metadata projection, discover migrates the 6 creator-filter callers, release/QA runs Supabase + Redis 429 smoke."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T20:40:15.276Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Final Wave 33 counts: 73 focused discover/search tests pass (40 new SSRF/discover + 33 pre-existing, no regression); focused ESLint 0 errors 0 warnings; scoped tsc 0 errors; git diff --check clean; security-exception registry OK with 5 entries (2 integrations + 3 discover, expiry 2026-12-25); agents:validate 17 agents / 151 tasks / 0 warnings / 0 errors. Also closed a real gap found during self-review: DISCOVER_ALLOW_LOCAL_UPSTREAM was documented but not read from env by the transport; guardOptions now resolves nodeEnv and the local opt-in from the injected env with an explicit option taking precedence, covered by a new test.",
+        "completed": [],
+        "next_steps": [
+          "Release/infra: set INTERNAL_API_ORIGIN in deployed environments. Release: push and re-run CodeQL - alert #16 is not closed until GitHub reports the analysis. Receivers: port the guard to app/api/hub/route.ts and lib/news/feed-service.ts, and replace the four RSS regex sanitize/decode pairs with one shared decode-then-strip helper. Then the existing DISC-002 path: database lane adds creator metadata projection, discover migrates the 6 creator-filter callers, release/QA runs Supabase + Redis 429 smoke."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:18:40.617Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34. Fixed BOTH unflagged nextUrl.origin SSRF sinks Wave 33 handed off, by porting the Wave 33 guard unmodified (frozen INTERNAL_UPSTREAM_ROUTES extended with hubDiscover/hubNewsFeed/hubArtistJobs/newsRssFeed; no second transport written). Hub taint path confirmed in the file: Host/X-Forwarded-Host -> nextUrl.origin -> fetch of 3 internal routes, no validation between; also closed the unrecorded credential-exfiltration gap where the hub forwarded the caller's raw Cookie to the attacker-chosen origin (now allowlisted-only, 8 KiB bound). News taint path confirmed across 4 files: nextUrl.origin at app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27 -> buildNewsFeed -> fetchExternalCandidates -> new URL('/api/feed/rss-news', requestOrigin) -> global fetch inside a categories.map; severed at the service boundary with a documented @deprecated unread field so the two out-of-lane callers keep compiling. Fixed the news sanitizer root cause at the ordering in lib/news/text-sanitize.ts (decode ONCE in a semicolon-terminated pass, strip second, remove residual <>), closing alert #43 in code and the unvalidated window.open(item.link) residual risk. The other 5 alerts are in files this wave does not own, so their registry entries were RE-TRIAGED AND RE-ROUTED, not deleted. Repointed the search drift: app/api/search/enhanced/route.ts was selecting artist_profiles.verification_status, a column in neither the active chain nor lib/database.types.ts, so PostgREST errored and the route silently returned ZERO artist results; now derives verified from profiles.is_verified. Corrected the inventory: calculate_venue_profile_completion has exactly one live consumer (app/api/settings/route.ts:125), not the two search routes the inventory named. Raised INTERNAL_API_ORIGIN as a NAMED BLOCKING acceptance criterion plus a release handoff with exact variable names, because Wave 33 raised it, nobody actioned it, and Wave 34 added two more surfaces to the same list. PASS: 11 files/98 focused discover+search tests (Wave 33 was 10/73); 14 files/136 combined incl. the 11-test artist-public-profile-parity guard; 6 files/68 news+press+blog; ESLint 0/0 on 11 files; scoped tsc 0 errors (it first reported 3 REAL hub errors, fixed not suppressed); git diff --check clean; security-exception registry OK 5 entries with both integrations entries byte-identical; agents:validate 17/151/0/0. NOT RUN and not claimed: full typecheck, full test suite, CodeQL re-analysis, any migration apply, any hosted action.",
+        "completed": [],
+        "next_steps": [
+          "BLOCKING release/infra: set INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL) in every deployed environment and leave DISCOVER_ALLOW_LOCAL_UPSTREAM unset there; see HF-DISC-002-INTERNAL-API-ORIGIN for the per-surface smoke assertions. Release: push and re-run CodeQL - #16 is not closed and #43 is not closed despite its code fix, because GHAS has no local engine. Orchestrator: route HF-DISC-002-RSS-SANITIZE-ORDERING (4 out-of-ownership files, one-line import swap each) and HF-DISC-002-DRIFT-SEO-SETTINGS (seo cluster + app/api/settings/route.ts). Then release applies the DB-005 creator projection manually (CP-051) and discover migrates the 6 creator-filter callers off /api/search/enhanced."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:20:26.043Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34 addendum. Applied the CP-069 rule to itself: ran rg -n \"new URL\\('/api/\" app lib after fixing the two known sinks and found a THIRD live instance of the identical unflagged SSRF class at lib/opportunities/rss-opportunities-service.ts:38 - request.nextUrl.origin at app/api/opportunities/sync/route.ts:13 and app/api/opportunities/route.ts:36 -> ingestOpportunitiesFromRss -> new URL('/api/feed/rss-news', params.origin) -> global fetch six times in a categories.map, with no allowlist, no redirect denial, no resolve-then-pin, no timeout, no size cap and no content-type requirement. lib/opportunities/** is outside this wave's ownership so it is RECORDED, not fixed, and routed in HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF; the receiver needs no new route map entry because the newsRssFeed key already exists. Also triaged every remaining nextUrl.origin hit in app/ and lib/ so the next lane need not re-derive them: lib/auth/request-public-origin.ts is already env-first and refuses the header in production and feeds redirects not a fetch, and app/api/music/share-message/route.ts plus app/api/payment/route.ts are env-first with a request-origin fallback for user-facing links - none is this defect class and none is claimed as a vulnerability. Correction to Wave 33 evidence: node scripts/ci/check-service-role-allowlist.mjs now PASSES (195 production files classified, exit 0); it failed in Wave 33 on two untracked venue-lane files that the concurrent venue lane has since fixed. Still BLOCKING: INTERNAL_API_ORIGIN unset in deployed environments, and no code-scanning alert is confirmable closed without a hosted re-scan.",
+        "completed": [],
+        "next_steps": [
+          "Confirm the owner of lib/opportunities/** (the agent registry describes purposes, not paths, so it must be confirmed not inferred) and act on HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF. Unchanged and still blocking: release/infra sets INTERNAL_API_ORIGIN; release pushes and re-runs CodeQL; orchestrator routes HF-DISC-002-RSS-SANITIZE-ORDERING and HF-DISC-002-DRIFT-SEO-SETTINGS; release applies the DB-005 creator projection manually under CP-051; discover then migrates the 6 creator-filter callers off /api/search/enhanced."
+        ],
         "blockers": []
       }
     ]
   },
   "handoffs": [
     "Release/QA: run /api/search against the intended local Supabase target and prove a 429 with a configured Upstash-compatible Redis target.",
-    "Discover follow-up: migrate creator-filter callers from /api/search/enhanced only after equivalent canonical profile metadata is available.",
-    "PENDING DATABASE (HF-DISC-002-CREATOR-METADATA): add creator metadata to the canonical accounts/search projection via additive migration (CP-051 manual apply, CP-052 projection discipline), coordinating source fields with the artist agent; then DISC-002 adds additive canonical filters and retires /api/search/enhanced."
+    "Release/infra: set INTERNAL_API_ORIGIN (or confirm NEXT_PUBLIC_APP_URL / VERCEL_URL) in every deployed environment; without one, /api/discover fails closed to empty sections by design. BLOCKING as of Wave 34, which added /api/hub and the news external RSS fan-out to the same list. Full variable list, precedence, and per-surface smoke assertions: HF-DISC-002-INTERNAL-API-ORIGIN.",
+    "Release lane: push and re-run CodeQL; alert #16 is not closed until GitHub reports the analysis, and neither is #43 despite its code fix landing.",
+    "CONSUMED (HF-DISC-002-HUB-SELF-FETCH-SSRF): returned to discover because app/api/hub/** is Wave 34 file ownership. app/api/hub/route.ts no longer derives an outbound base from the inbound request; it calls fetchInternalJson by key on three new frozen entries. The cookie-forward credential-exfiltration gap was closed at the same time.",
+    "CONSUMED (HF-DISC-002-NEWSELF-FETCH-SSRF): returned to discover because lib/news/** is Wave 34 file ownership. lib/news/feed-service.ts no longer builds a self-fetch URL from a request origin; requestOrigin is an optional @deprecated unread field. The residual RSS sanitize/decode cluster was split out to HF-DISC-002-RSS-SANITIZE-ORDERING.",
+    "PENDING ORCHESTRATOR (HF-DISC-002-RSS-SANITIZE-ORDERING): alerts #40, #41, #42, #45, #46 live in app/api/feed/rss-news/route.ts, lib/services/rss-feed.service.ts, lib/opportunities/rss-opportunities-service.ts and components/news/news-page.tsx — all outside the Wave 34 file ownership. The fix already exists as toPlainText in lib/news/text-sanitize.ts; each site is a one-line import swap. Their registry entries are retained, not deleted, expiry 2026-12-25.",
+    "PENDING ORCHESTRATOR (HF-DISC-002-DRIFT-SEO-SETTINGS): the seo cluster (lib/seo/public-preview-readers.ts, lib/services/account-management.service.ts) and app/api/settings/route.ts are outside discover ownership. Also records that the inventory's tscFiles attribution for calculate_venue_profile_completion is stale — its only live consumer is app/api/settings/route.ts:125.",
+    "Discover follow-up with components/news/** granted: remove `requestOrigin` from app/api/news/feed/route.ts:83 and app/api/feed/for-you/route.ts:27, then delete the deprecated field from BuildNewsFeedParams.",
+    "Discover follow-up: migrate creator-filter callers from /api/search/enhanced only after the DB-005 creator projection is applied manually (CP-051) and equivalent canonical profile metadata is available.",
+    "PENDING DATABASE (HF-DISC-002-CREATOR-METADATA): CONSUMED by database (DB-005); the additive migration 20260922120000_creator_search_metadata_projection.sql is authored but UNAPPLIED and lib/database.types.ts is not regenerated. Still needs HF-DB-005-ARTIST-CREATOR-FIELDS confirmation, then discover adds additive canonical filters and retires /api/search/enhanced.",
+    "PENDING ORCHESTRATOR (HF-DISC-002-OPPORTUNITIES-SELF-FETCH-SSRF): lib/opportunities/rss-opportunities-service.ts:38 is a third unflagged instance of the nextUrl.origin SSRF class, found by the CP-069 grep after the two known sinks were fixed. Six-way fetch fan-out from a caller-controlled origin, no transport controls. Out of discover ownership; the receiver needs no new route map entry because the newsRssFeed key already exists."
   ]
 }

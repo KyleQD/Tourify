@@ -180,15 +180,6 @@
     "reviewedAt": "2026-08-27"
   },
   {
-    "file": "app/marketplace/order/[token]/page.tsx",
-    "disposition": "replace_with_rpc",
-    "workflowId": "ADM-WF-020",
-    "findingId": "ADM-M-013",
-    "owner": "marketplace-platform",
-    "rationale": "The public order page needs a minimal token projection and must not instantiate a privileged client.",
-    "reviewedAt": "2026-08-27"
-  },
-  {
     "file": "lib/rebuild/workforce-activity-notify.ts",
     "disposition": "migrate_to_job",
     "workflowId": "ADM-WF-012",
@@ -268,5 +259,23 @@
     "owner": "identity-platform",
     "rationale": "Agent credential lookup and audit attribution need a narrow server RPC instead of a generally privileged client boundary.",
     "reviewedAt": "2026-09-21"
+  },
+  {
+    "file": "app/marketplace/order/order-access.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Only the guest capability-token lookup is privileged; signed-in buyer reads run as the verified buyer under marketplace_orders_participant_read RLS. The opaque guest token is not expressible as an RLS policy, so the read must move to a token-bound RPC that returns the minimal projection.",
+    "reviewedAt": "2026-09-25"
+  },
+  {
+    "file": "app/api/marketplace/delivery/[orderItemId]/route.ts",
+    "disposition": "replace_with_rpc",
+    "workflowId": "ADM-WF-020",
+    "findingId": "ADM-M-013",
+    "owner": "marketplace-platform",
+    "rationale": "Recording a download mutates marketplace_entitlements, which has no buyer update policy, so the compare-and-swap count guard needs a single-statement buyer-scoped increment RPC to be atomic under concurrency rather than a read-modify-write under a privileged client.",
+    "reviewedAt": "2026-09-25"
   }
 ]

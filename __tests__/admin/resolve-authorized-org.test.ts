@@ -81,7 +81,7 @@ describe('applyOrgLogisticsTaskFilter', () => {
     expect(calls).toEqual([{ method: 'eq', args: ['event_id', 'evt-1'] }])
   })
 
-  it('uses created_by when org has no events or tours', () => {
+  it('returns an impossible match when org has no events or tours', () => {
     const { builder, calls } = mockQuery()
     applyOrgLogisticsTaskFilter({
       query: builder,
@@ -89,10 +89,10 @@ describe('applyOrgLogisticsTaskFilter', () => {
       eventIds: [],
       tourIds: [],
     })
-    expect(calls).toEqual([{ method: 'eq', args: ['created_by', 'user-1'] }])
+    expect(calls).toEqual([{ method: 'eq', args: ['id', '00000000-0000-0000-0000-000000000000'] }])
   })
 
-  it('ors org event/tour ids with created_by for logistics_tasks', () => {
+  it('scopes logistics tasks only to authorized event and tour parents', () => {
     const { builder, calls } = mockQuery()
     applyOrgLogisticsTaskFilter({
       query: builder,
@@ -101,7 +101,7 @@ describe('applyOrgLogisticsTaskFilter', () => {
       tourIds: ['t1'],
     })
     expect(calls[0]?.method).toBe('or')
-    expect(String(calls[0]?.args[0])).toContain('created_by.eq.user-1')
+    expect(String(calls[0]?.args[0])).not.toContain('created_by')
     expect(String(calls[0]?.args[0])).toContain('event_id.in.(e1,e2)')
     expect(String(calls[0]?.args[0])).toContain('tour_id.in.(t1)')
   })

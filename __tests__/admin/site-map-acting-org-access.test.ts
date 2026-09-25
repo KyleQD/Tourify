@@ -4,6 +4,7 @@ import { getSiteMapAccess } from "@/lib/site-map/access";
 
 function siteMapClient(rows: {
   siteMap: Record<string, unknown>;
+  canonicalSiteMapError?: Record<string, unknown> | null;
   event?: Record<string, unknown> | null;
   tour?: Record<string, unknown> | null;
   collaborator?: Record<string, unknown> | null;
@@ -21,10 +22,23 @@ function siteMapClient(rows: {
               : table === "site_map_collaborators"
                 ? (rows.collaborator ?? null)
                 : null;
+      let selected = "";
       const query = {
-        select: () => query,
+        select: (columns: string) => {
+          selected = columns;
+          return query;
+        },
         eq: () => query,
-        maybeSingle: async () => ({ data, error: null }),
+        maybeSingle: async () => {
+          if (
+            table === "site_maps" &&
+            selected.includes("event_v2_id") &&
+            rows.canonicalSiteMapError
+          ) {
+            return { data: null, error: rows.canonicalSiteMapError };
+          }
+          return { data, error: null };
+        },
       };
       return query;
     },
@@ -156,5 +170,32 @@ describe("site-map acting organization binding", () => {
         requiredOrgId: orgA,
       }),
     ).resolves.toMatchObject({ role: "none", canRead: false });
+  });
+
+  it("uses event_id only when the deployed schema reports event_v2_id missing", async () => {
+    const client = siteMapClient({
+      siteMap: {
+        id: "map-compatible",
+        created_by: userId,
+        is_public: false,
+        event_id: "event-a",
+        tour_id: null,
+      },
+      canonicalSiteMapError: {
+        code: "PGRST204",
+        message: "Could not find the 'event_v2_id' column of 'site_maps' in the schema cache",
+      },
+      event: { org_id: orgA },
+    });
+
+    await expect(
+      getSiteMapAccess(client as never, "map-compatible", userId, {
+        requiredOrgId: orgA,
+      }),
+    ).resolves.toMatchObject({
+      role: "owner",
+      canRead: true,
+      siteMap: { event_v2_id: "event-a" },
+    });
   });
 });

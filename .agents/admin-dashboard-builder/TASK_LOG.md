@@ -186,3 +186,11 @@ Append-only. Newest entries at the bottom.
 - **Files:** `app/admin/dashboard/components/optimized-sidebar.tsx`, `__tests__/admin/admin-navigation-accessibility.test.ts`, `docs/admin-audit/registry/baselines.json`, `docs/admin-audit/generated/`
 - **Verification:** Focused Vitest 6/6; scoped ESLint clean; `npm run check:admin-audit` clean; `npm run agents:validate` clean with the pre-existing RELEASE-001 warning
 - **Status:** Local implementation complete; task remains active pending governed VoiceOver/TalkBack and immutable/external ADM-B13 evidence
+
+### 2026-09-24 — `ops-logistics-control-tower` site-map element persistence repair
+
+- **Surface:** Admin Logistics site-map builder and `/api/admin/logistics/site-maps/[id]/elements`
+- **Purpose:** Make canvas autosave work while the linked database is missing the planned atomic element-sync function
+- **Change:** Added a narrowly triggered missing-RPC compatibility save with canonical organization revalidation, cross-map ID denial, bounded updates, insert and deletion synchronization, while preserving the atomic RPC as the preferred path
+- **Integration:** Reuses the existing site-map access contract and authorized organization scope service; live schema inspection confirmed the fallback matches the deployed element table without weakening admin authorization
+- **Files:** `app/api/admin/logistics/site-maps/[id]/elements/route.ts`, `lib/admin/site-map-elements.ts`, focused site-map tests

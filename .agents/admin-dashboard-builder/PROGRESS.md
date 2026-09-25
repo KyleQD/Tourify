@@ -1,8 +1,8 @@
 # Admin Dashboard Builder — Progress Ledger
 
-**Current pointer:** `COMPLETE`
-**Last updated:** 2026-09-10
-**Session note:** Legacy inventory remains complete. Active bounded UX task `ADMUX-0102` hardened the Admin mobile drawer and collapsed navigation; local verification passes, while governed ADM-B13 promotion remains pending immutable/external evidence. No DB reset. No commits.
+**Current pointer:** `ops-logistics-control-tower`
+**Last updated:** 2026-09-24
+**Session note:** New owner-requested Admin Logistics overhaul is active under ORCH-003 and DB/ADMIN/DESIGN/SOCIAL/WORK/QA/RELEASE follow-up tasks. ADMIN-003 now includes guarded compatibility for the linked database's canonical event column and missing atomic element-sync RPC. No DB reset. No commits.
 
 Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 
@@ -38,6 +38,7 @@ Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 | `ops-events-command` | done | Hiring hub + show-day ops links |
 | `ops-calendar` | done | Accept tourId/eventId scope aliases |
 | `ops-logistics` | done | Clearable tour-scoped chip; lodging panel wired |
+| `ops-logistics-control-tower` | in_progress | Portfolio-first Overview with first-class Travel, Production, Comms, and Maps tabs |
 | `ops-logistics-sitemap-redirect` | done | Forward entity/venue params |
 
 ## 3. Workforce
@@ -161,8 +162,17 @@ Statuses: `pending` | `in_progress` | `done` | `wont-fix` | `blocked`
 | Status | Count |
 |--------|-------|
 | pending | 0 |
-| in_progress | 0 |
+| in_progress | 1 |
 | done | 73 |
 | wont-fix | 22 |
 | blocked | 0 |
-| **total** | **95** |
+| **total** | **96** |
+
+## 2026-09-23 — Logistics control tower overhaul
+
+- Replaced the widget-heavy Logistics shell with five visible primary workspaces and independent tour/event scope.
+- Added the organization portfolio Overview aggregate, unified attention queue, readiness reasons, source health, event/tour drill-down, and canonical remediation links.
+- Split operational Comms and the organization Maps library into first-class tabs with their required secondary views.
+- Converged mounted Logistics requests on the selected acting organization, including unresolved-org gating and stale response cancellation.
+- Hardened travel, lodging, and rental access through active event/tour parents; no archived migration was promoted.
+- Automated verification currently passes 9 files / 67 tests, scoped lint, exact admin route registry validation, and control-plane validation. Authenticated browser, show-day, staffing aggregate, and staged rollout gates remain tracked in ADMIN-010, WORK-007, QA-007, and RELEASE-009.

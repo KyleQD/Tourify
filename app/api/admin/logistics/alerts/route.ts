@@ -63,11 +63,16 @@ export const GET = withAdminCapability(
         }
       }
 
-      const logisticsBase = tourId ? `/admin/dashboard/logistics?tour_id=${tourId}` : eventId ? `/admin/dashboard/logistics?event_id=${eventId}` : "/admin/dashboard/logistics"
+      const logisticsHref = (panel: string) => {
+        const params = new URLSearchParams({ tab: "production", panel })
+        if (tourId) params.set("tourId", tourId)
+        if (eventId) params.set("eventId", eventId)
+        return `/admin/dashboard/logistics?${params.toString()}`
+      }
 
-      add("overdue_equipment_service", overdueEquip ?? 0, 0, "warning", `${overdueEquip ?? 0} equipment item(s) past service date`, `${logisticsBase}&tab=equipment`)
-      add("overdue_rental_return", overdueRentals ?? 0, 0, "critical", `${overdueRentals ?? 0} rental(s) overdue for return`, `${logisticsBase}&tab=equipment`)
-      add("catering_approaching_due", cateringDue ?? 0, 2, "warning", `${cateringDue ?? 0} catering service(s) need confirmation`, `${logisticsBase}&tab=catering`)
+      add("overdue_equipment_service", overdueEquip ?? 0, 0, "warning", `${overdueEquip ?? 0} equipment item(s) past service date`, logisticsHref("equipment"))
+      add("overdue_rental_return", overdueRentals ?? 0, 0, "critical", `${overdueRentals ?? 0} rental(s) overdue for return`, logisticsHref("rentals"))
+      add("catering_approaching_due", cateringDue ?? 0, 2, "warning", `${cateringDue ?? 0} catering service(s) need confirmation`, logisticsHref("catering"))
 
       const metrics = {
         overdueEquipmentService: overdueEquip ?? 0,

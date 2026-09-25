@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `788bfaa2d96cedf20c3b29105203778c761fb0bd`
+- Source SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (1 entries)
-- Generated at: 2026-09-22T17:00:56.458Z
+- Working tree: dirty (423 entries)
+- Generated at: 2026-09-25T22:27:02.069Z
 - Generator: `control-plane.mjs generate`
 
-## Objects (708)
+## Objects (714)
 
 | Type | Name | Latest create evidence |
 | --- | --- | --- |
@@ -171,6 +171,7 @@
 | function | `publish_admin_tour` | `supabase/migrations/20260720020302_admin_tour_stop_publish.sql` |
 | function | `reconcile_admin_tour_events` | `supabase/migrations/20260720020302_admin_tour_stop_publish.sql` |
 | function | `record_initial_post_appearance_revision` | `supabase/migrations/20260728224543_harden_post_appearance_v2.sql` |
+| function | `record_marketplace_entitlement_download` | `supabase/migrations/20260926120200_marketplace_entitlement_download_increment_rpc.sql` |
 | function | `record_venue_slug_rename` | `supabase/migrations/20260823100000_slug_rename_history.sql` |
 | function | `refresh_account_display_info` | `supabase/migrations/archive/COMPREHENSIVE_MULTI_ACCOUNT_SYSTEM.sql` |
 | function | `refresh_forum_mviews` | `supabase/migrations/20250816130000_scaling_indexes_forum.sql` |
@@ -468,7 +469,10 @@
 | table | `map_task_assignments` | `supabase/migrations/20250131000002_enhanced_site_map_features.sql` |
 | table | `map_templates` | `supabase/migrations/20250131000002_enhanced_site_map_features.sql` |
 | table | `map_versions` | `supabase/migrations/20250131000002_enhanced_site_map_features.sql` |
+| table | `marketplace_checkout_attempts` | `supabase/migrations/20260926120000_marketplace_checkout_idempotency_and_guest_checkout.sql` |
 | table | `marketplace_entitlements` | `supabase/migrations/20260410120000_marketplace_core.sql` |
+| table | `marketplace_external_clicks` | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
+| table | `marketplace_external_listings` | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
 | table | `marketplace_integrations` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_listing_variants` | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | table | `marketplace_listings` | `supabase/migrations/20260410120000_marketplace_core.sql` |
@@ -676,6 +680,7 @@
 | table | `venues` | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | table | `venues_v2` | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | table | `vote_kind` | `supabase/migrations/20250815120000_forums_production_schema.sql` |
+| table | `webhook_delivery_receipts` | `supabase/migrations/20260925130000_intg006_webhook_delivery_receipts.sql` |
 | table | `work_mode_check_in_events` | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | table | `work_mode_publication_acknowledgements` | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | table | `work_mode_publication_audiences` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
@@ -713,6 +718,7 @@
 | view | `entities_individuals` | `supabase/migrations/20250812094000_entity_views.sql` |
 | view | `entities_venues` | `supabase/migrations/20250812094000_entity_views.sql` |
 | view | `friend_suggestions_view` | `supabase/migrations/20250131000004_friend_suggestions_system.sql` |
+| view | `marketplace_external_listings_public` | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
 | view | `music_tracks` | `supabase/migrations/20260711165607_native_music_player_hardening.sql` |
 | view | `policy` | `supabase/migrations/archive/emergency-fix-safe.sql` |
 | view | `public_venue_availability` | `supabase/migrations/20260823140000_reservation_conflict_engine.sql` |
@@ -721,7 +727,7 @@
 | view | `venue_identity_bridge_audit` | `supabase/migrations/20260823010000_venue_identity_bridge.sql` |
 | view | `work_hub_integrity_issues` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 
-## RLS policies (1303)
+## RLS policies (1309)
 
 | Table | Policy | Latest create evidence |
 | --- | --- | --- |
@@ -1248,8 +1254,11 @@
 | `map_templates` | Users can view public templates | `supabase/migrations/20250131000002_enhanced_site_map_features.sql` |
 | `map_versions` | Users can manage versions for accessible site maps | `supabase/migrations/20250131000002_enhanced_site_map_features.sql` |
 | `map_versions` | Users can view versions for accessible site maps | `supabase/migrations/20250131000002_enhanced_site_map_features.sql` |
+| `marketplace_checkout_attempts` | marketplace_checkout_attempts_buyer_read | `supabase/migrations/20260926120000_marketplace_checkout_idempotency_and_guest_checkout.sql` |
 | `marketplace_entitlements` | marketplace_entitlements_buyer_read | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | `marketplace_entitlements` | marketplace_entitlements_seller_manage | `supabase/migrations/20260410120000_marketplace_core.sql` |
+| `marketplace_external_clicks` | marketplace_external_clicks_seller_read | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
+| `marketplace_external_listings` | marketplace_external_listings_owner_manage | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
 | `marketplace_integrations` | marketplace_integrations_owner_manage | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | `marketplace_listing_variants` | marketplace_variants_owner_manage | `supabase/migrations/20260410120000_marketplace_core.sql` |
 | `marketplace_listing_variants` | marketplace_variants_public_read | `supabase/migrations/20260410120000_marketplace_core.sql` |
@@ -1765,6 +1774,7 @@
 | `team_communications` | update_comms | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | `team_project_assignments` | Team contractors can view their assignments | `supabase/migrations/archive/enhanced_staff_management_schema.sql` |
 | `team_project_assignments` | Venue owners can manage team project assignments | `supabase/migrations/archive/enhanced_staff_management_schema.sql` |
+| `the` | requires pg_class_ownercheck | `supabase/migrations/20260701021033_job_application_profile_snapshot.sql` |
 | `their` | Photo owners can delete any tags | `supabase/migrations/20250208000000_photo_album_marketplace_system.sql` |
 | `thread_members` | thread_members_manage_admin | `supabase/migrations/20260520224000_group_threads_model.sql` |
 | `thread_members` | thread_members_select_members | `supabase/migrations/20260520224000_group_threads_model.sql` |
@@ -1916,6 +1926,7 @@
 | `venue_analytics` | Venue owners can view their analytics | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | `venue_availability` | Anyone can view venue availability | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | `venue_availability` | Venue owners can manage their availability | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
+| `venue_availability` | venue_availability_service_read | `supabase/migrations/20260924120000_venue_availability_reservations_scope_rls.sql` |
 | `venue_booking_lifecycle_history` | vblh_operator_read | `supabase/migrations/20260823130000_booking_lifecycle.sql` |
 | `venue_booking_requests` | booking_requests_delete | `supabase/migrations/20260823130000_booking_lifecycle.sql` |
 | `venue_booking_requests` | booking_requests_insert | `supabase/migrations/20260823130000_booking_lifecycle.sql` |
@@ -1960,6 +1971,7 @@
 | `venue_recurring_templates` | venue_templates_owner | `supabase/migrations/20250814124500_venue_recurring.sql` |
 | `venue_reservations` | venue_reservations_operator | `supabase/migrations/20260823140000_reservation_conflict_engine.sql` |
 | `venue_reservations` | venue_reservations_public_read | `supabase/migrations/20260823140000_reservation_conflict_engine.sql` |
+| `venue_reservations` | venue_reservations_service_read | `supabase/migrations/20260924120000_venue_availability_reservations_scope_rls.sql` |
 | `venue_reviews` | Anyone can view venue reviews | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | `venue_reviews` | Reviewers can update their own reviews | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | `venue_reviews` | Users can create reviews | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |

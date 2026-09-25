@@ -1,0 +1,194 @@
+{
+  "schema_version": "1.0",
+  "id": "ARTIST-005",
+  "title": "Gate artist public profile by visibility selector",
+  "status": "active",
+  "priority": "P1",
+  "owner_agent": "artist",
+  "created_at": "2026-09-23T21:08:40.701Z",
+  "updated_at": "2026-09-25T22:01:49.160Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (79 entries)",
+  "goal": "Make the artist profile visibility selector actually gate the public profile so hidden artists are not discoverable, per SIM-20260922-ARTIST-001.",
+  "scope": {
+    "in": [
+      "Map the visibility selector state to the settings/public_profile flag and read paths",
+      "Deny public access to hidden artist profiles across artist routes and search",
+      "Add client and API tests for visible versus hidden profiles"
+    ],
+    "out": [
+      "Public surfacing of hidden artist profiles",
+      "Changing profile visibility defaults"
+    ]
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    "SIM-20260922-ARTIST-001 reruns and passes in the artist simulation slice with receiving-side evidence"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/artist/",
+      "npx eslint lib/artist/profile-visibility.ts contexts/artist-context.tsx app/artist/profile/page.tsx \"app/api/artist/[artistName]/route.ts\" __tests__/artist/profile-visibility-gate.test.ts",
+      "npx vitest run __tests__/profile/artist-public-profile-parity.test.ts",
+      "npx vitest run __tests__/artist/ __tests__/profile/artist-public-profile-parity.test.ts",
+      "npx eslint <all changed artist files>",
+      "npx tsc -p <scoped slice tsconfigs for lib/public-artist, app/artist/events, contexts/artist-context + app/artist/business/analytics>",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "git diff --check",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "npx vitest run __tests__/artist/ -> 14 files passed, 71 tests passed (includes new __tests__/artist/profile-visibility-gate.test.ts, 12/12)",
+      "npx eslint <changed files> -> 0 errors; 1 pre-existing react-hooks warning in contexts/artist-context.tsx:654 (untouched)",
+      "npx vitest run __tests__/profile/artist-public-profile-parity.test.ts -> 11/11 passed (supplementary visibility/search contract)",
+      "npx vitest run __tests__/artist/ -> 16 files / 118 tests passed; with __tests__/profile/artist-public-profile-parity.test.ts -> 17 files / 129 tests passed",
+      "npx vitest run __tests__/artist/db008-code-drift-repoints.test.ts -> 34/34 passed (new focused suite)",
+      "scoped tsc app/artist/events slice: 26 artist diagnostics after vs 77 before (20 event_tasks/event_equipment schema-missing, 2 in operations/page.tsx from the same relations, 4 pre-existing dead-file interface mismatches)",
+      "scoped tsc contexts/artist-context.tsx + app/artist/business/analytics/page.tsx slice: 0 artist diagnostics after vs 7 before; the 21 remaining diagnostics in the slice are lib/services/venue.service.ts and lib/services/account-management.service.ts, both design-system lane",
+      "scoped tsc lib/public-artist/** slice: 0 diagnostics in artist files after vs 5 before; the 8 remaining are lib/services/epk.service.ts (design-system lane)",
+      "npm run check:migration-chain -> exit 0; npm run check:migration-validation -> exit 0; git diff --check -> exit 0"
+    ],
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:01:49.160Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Wave 34 (DB-008 code-drift cluster 'artist') plus the ARTIST-005 visibility gate. Repointed every artist-owned consumer of a relation/column the active chain never creates: public artist and band galleries now read the canonical EPK document (artist_epk_settings.settings.photoItems) instead of artist_photos/artist_videos; public and dashboard stats are derived from in-chain rows instead of the get_enhanced_artist_stats RPC; merchandise reads/writes marketplace_listings through the mapping the marketplace backfill route already records; artist profile creation calls create_artist_account instead of ensure_artist_profile; artist event crew is staff_members linked by event_participants with a new server-side assertEventScope ownership check; the event detail page reads logistics_tasks.status, artist_financial_transactions.type/occurred_at (scoped by user_id + source_id), venue_profiles and booking_requests without venue_id; the event wizard writes poster_url/start_at/end_time/venue_name/ticket_price_min/event_type and merges social links + ticket types into producer_settings. Three files with zero verified importers were deleted (app/artist/events/actions/marketing.ts, app/artist/events/actions/analytics.ts, app/artist/features/analytics/analytics-dashboard.tsx). The ARTIST-005 visibility gate itself is unchanged and still enforced. Acceptance is still NOT claimed: SIM-20260922-ARTIST-001 needs a hosted rerun and no staging target exists.",
+    "completed": [
+      "lib/artist/profile-visibility.ts: pure mapping helpers (privacy selector <-> settings.public_profile boolean; missing flag defaults public).",
+      "contexts/artist-context.tsx updateDetailedProfile writes settings.public_profile from the selector on every save.",
+      "app/artist/profile/page.tsx buildFormFromProfile round-trips the canonical flag into the selector (settings.public_profile === false -> Private).",
+      "app/api/artist/[artistName]/route.ts: data-boundary gate denies non-owners of hidden profiles (404), keeping the public-by-name API in sync with the DTO gate.",
+      "No visibility defaults changed; verified maps to public (read-side verified-only enforcement does not exist and is recorded in DECISIONS.md DOMAIN-002).",
+      "__tests__/artist/profile-visibility-gate.test.ts: 12 focused tests (mapping unit tests, public/private/verified round-trips, write path, route gate, read/discovery gate source contracts).",
+      "Repointed artist_photos/artist_videos -> artist_epk_settings.settings.photoItems via lib/public-artist/artist-epk-media.ts (public profile + band aggregation)",
+      "Repointed get_enhanced_artist_stats -> derived stats (lib/public-artist/artist-stats.ts, lib/artist/artist-stats.ts); RPC removed from the public profile and the artist dashboard",
+      "Repointed artist_merchandise -> marketplace_listings (contexts/artist-context.tsx createContent, app/artist/business/analytics/page.tsx)",
+      "Repointed event_staff and event_crew_assignments -> staff_members linked by event_participants, with server-side event ownership checks in app/artist/events/actions/manage-staff.ts",
+      "Repointed events.cover_image_url/start_date/venue/base_price/category/social_links/ticket_types -> poster_url/start_at/end_time/venue_name/ticket_price_min/event_type/producer_settings",
+      "Repointed logistics_tasks.completed/assignee, artist_financial_transactions.category/date/event_id, venues.*, booking_requests.venue_id on app/artist/events/[id]/page.tsx",
+      "Repointed ensure_artist_profile -> create_artist_account; removed artist_profiles.verification_status/account_tier from the artist context and read verification from accounts.is_verified",
+      "Deleted 3 zero-importer files (app/artist/events/actions/marketing.ts, app/artist/events/actions/analytics.ts, app/artist/features/analytics/analytics-dashboard.tsx)",
+      "Delivered exact column contracts for event_tasks, event_equipment, artist_licensing_deals, artist_license_templates in HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT",
+      "Routed the events cluster and the bookings relation out in HF-ARTIST-DB008-UNREACHABLE-CONSUMERS (no lane owns app/api/events/**, lib/events/**, app/api/analytics/**, app/api/calendar/**)",
+      "Scoped tsc: app/artist/events/** 77 -> 26 artist diagnostics; contexts/artist-context.tsx + app/artist/business/analytics 7 -> 0; lib/public-artist/** 5 -> 0",
+      "npx vitest run __tests__/artist/ __tests__/profile/artist-public-profile-parity.test.ts -> 17 files / 129 tests passed (parity 11/11 after the discover lane SSRF rewrite)",
+      "npx eslint on every changed file -> 0 errors (1 pre-existing unused-disable warning in contexts/artist-context.tsx)",
+      "npm run check:migration-chain PASS; npm run check:migration-validation PASS; git diff --check PASS"
+    ],
+    "next_steps": [
+      "Rerun SIM-20260922-ARTIST-001 on isolated staging once RELEASE-007/QA-003 attach exact-SHA deployment, a separate Supabase origin and health headers: set Private, save, reload /artist/[slug] as owner (banner) and logged-out (not found), confirm search excludes the artist, return to Public. Expect the public gallery and stat tiles to be populated now, which is a visible change from the pre-fix empty/zero state.",
+      "Database lane: author migrations for event_tasks, event_equipment, artist_licensing_deals and artist_license_templates from HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT, then regenerate lib/database.types.ts (blocked by knownGaps).",
+      "Orchestrator: route HF-ARTIST-DB008-UNREACHABLE-CONSUMERS (event_posts, marketplace_post_attachments, job_posting_templates.application_form_template, bookings) to an owning lane.",
+      "Optional product decision: no in-chain artist video relation exists, so the public profile no longer has a video gallery. Either add one via a database migration or retire the video tile in the media grid."
+    ],
+    "blockers": [
+      "No hosted evidence this round: isolated staging, exact-SHA health headers and a separate Supabase origin (RELEASE-007 / QA-003) are still pending, so SIM-20260922-ARTIST-001 cannot run and acceptance is not claimed.",
+      "event_tasks and event_equipment are still 20 diagnostics in the artist lane and cannot be cleared from code without corrupting their semantics; the contract is delivered and the migration is database-lane owned.",
+      "4 pre-existing diagnostics remain in four zero-importer artist event files (page-simple-broken.tsx, components/events-calendar.tsx, components/event-export.tsx, components/artist-events-dashboard.tsx) that were deliberately not deleted; no named drift object points at them.",
+      "The inventory's tscFiles for column objects is a file-level attribution, not line-level. Verified counter-examples: events.cover_image_url -> app/artist/events/actions/marketing.ts (no such reference) and profiles.custom_url -> lib/public-artist/get-public-artist-profile.ts (no such reference at HEAD or in the worktree). Any other lane acting on those attributions should re-derive with a scoped typecheck first.",
+      "Changes are uncommitted by operating rule; the checkpoint sha is the task base SHA d2176904."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-25T02:32:37.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "ARTIST-005 implemented (uncommitted, base SHA d2176904). The visibility selector now maps to settings.public_profile via lib/artist/profile-visibility.ts: contexts/artist-context.tsx writes public_profile: privacySettingsToPublicProfileFlag(profileData.privacy_settings); app/artist/profile/page.tsx round-trips the canonical flag into the selector; app/api/artist/[artistName]/route.ts gates hidden profiles to owners at the data boundary. The existing read gates (getPublicArtistProfileDTO null for non-owners, enhanced/account search settings.public_profile !== false, owner-only preview banner in public-artist-page.tsx) were already boolean-honoring and required no change. Verified maps to public (no read-side enforcement). Focused vitest: __tests__/artist/ 14 files / 71 tests passed (12 new), parity suite 11/11; eslint 0 errors (1 pre-existing warning in contexts/artist-context.tsx:654). Recorded durable fact in STATE.md and decision DOMAIN-002 in DECISIONS.md.",
+        "completed": [
+          "Map privacy_settings selector to settings.public_profile (public/verified -> true, private -> false) in updateDetailedProfile.",
+          "Round-trip canonical flag to selector in the artist profile settings tab.",
+          "Gate public-by-name API route for hidden profiles (owner-only).",
+          "Focused tests covering public/private/verified mapping, round-trips, and public read/discovery gate contracts.",
+          "Scope-limited lint clean on all changed files."
+        ],
+        "next_steps": [
+          "Rerun SIM-20260922-ARTIST-001 on isolated staging once RELEASE-007/QA-003 attach exact-SHA deployment, separate Supabase origin, and health headers.",
+          "Optional: verified-only read-side enforcement follow-up."
+        ],
+        "blockers": [
+          "Hosted staging evidence unavailable this round (no deployment, no actor rerun).",
+          "Changes uncommitted; checkpoint sha references task base SHA."
+        ],
+        "scope_expansion": [
+          {
+            "paths": [
+              "contexts/artist-context.tsx"
+            ],
+            "reason": "The visibility selector state is persisted in ArtistProvider.updateDetailedProfile; scope-in item 1 ('Map the visibility selector state to the settings/public_profile flag') cannot be satisfied without this file, and no API route or migration is involved."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-25T22:01:49.160Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34 (DB-008 code-drift cluster 'artist') plus the ARTIST-005 visibility gate. Repointed every artist-owned consumer of a relation/column the active chain never creates: public artist and band galleries now read the canonical EPK document (artist_epk_settings.settings.photoItems) instead of artist_photos/artist_videos; public and dashboard stats are derived from in-chain rows instead of the get_enhanced_artist_stats RPC; merchandise reads/writes marketplace_listings through the mapping the marketplace backfill route already records; artist profile creation calls create_artist_account instead of ensure_artist_profile; artist event crew is staff_members linked by event_participants with a new server-side assertEventScope ownership check; the event detail page reads logistics_tasks.status, artist_financial_transactions.type/occurred_at (scoped by user_id + source_id), venue_profiles and booking_requests without venue_id; the event wizard writes poster_url/start_at/end_time/venue_name/ticket_price_min/event_type and merges social links + ticket types into producer_settings. Three files with zero verified importers were deleted (app/artist/events/actions/marketing.ts, app/artist/events/actions/analytics.ts, app/artist/features/analytics/analytics-dashboard.tsx). The ARTIST-005 visibility gate itself is unchanged and still enforced. Acceptance is still NOT claimed: SIM-20260922-ARTIST-001 needs a hosted rerun and no staging target exists.",
+        "completed": [
+          "Repointed artist_photos/artist_videos -> artist_epk_settings.settings.photoItems via lib/public-artist/artist-epk-media.ts (public profile + band aggregation)",
+          "Repointed get_enhanced_artist_stats -> derived stats (lib/public-artist/artist-stats.ts, lib/artist/artist-stats.ts); RPC removed from the public profile and the artist dashboard",
+          "Repointed artist_merchandise -> marketplace_listings (contexts/artist-context.tsx createContent, app/artist/business/analytics/page.tsx)",
+          "Repointed event_staff and event_crew_assignments -> staff_members linked by event_participants, with server-side event ownership checks in app/artist/events/actions/manage-staff.ts",
+          "Repointed events.cover_image_url/start_date/venue/base_price/category/social_links/ticket_types -> poster_url/start_at/end_time/venue_name/ticket_price_min/event_type/producer_settings",
+          "Repointed logistics_tasks.completed/assignee, artist_financial_transactions.category/date/event_id, venues.*, booking_requests.venue_id on app/artist/events/[id]/page.tsx",
+          "Repointed ensure_artist_profile -> create_artist_account; removed artist_profiles.verification_status/account_tier from the artist context and read verification from accounts.is_verified",
+          "Deleted 3 zero-importer files (app/artist/events/actions/marketing.ts, app/artist/events/actions/analytics.ts, app/artist/features/analytics/analytics-dashboard.tsx)",
+          "Delivered exact column contracts for event_tasks, event_equipment, artist_licensing_deals, artist_license_templates in HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT",
+          "Routed the events cluster and the bookings relation out in HF-ARTIST-DB008-UNREACHABLE-CONSUMERS (no lane owns app/api/events/**, lib/events/**, app/api/analytics/**, app/api/calendar/**)",
+          "Scoped tsc: app/artist/events/** 77 -> 26 artist diagnostics; contexts/artist-context.tsx + app/artist/business/analytics 7 -> 0; lib/public-artist/** 5 -> 0",
+          "npx vitest run __tests__/artist/ __tests__/profile/artist-public-profile-parity.test.ts -> 17 files / 129 tests passed (parity 11/11 after the discover lane SSRF rewrite)",
+          "npx eslint on every changed file -> 0 errors (1 pre-existing unused-disable warning in contexts/artist-context.tsx)",
+          "npm run check:migration-chain PASS; npm run check:migration-validation PASS; git diff --check PASS"
+        ],
+        "next_steps": [
+          "Rerun SIM-20260922-ARTIST-001 on isolated staging once RELEASE-007/QA-003 attach exact-SHA deployment, a separate Supabase origin and health headers: set Private, save, reload /artist/[slug] as owner (banner) and logged-out (not found), confirm search excludes the artist, return to Public. Expect the public gallery and stat tiles to be populated now, which is a visible change from the pre-fix empty/zero state.",
+          "Database lane: author migrations for event_tasks, event_equipment, artist_licensing_deals and artist_license_templates from HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT, then regenerate lib/database.types.ts (blocked by knownGaps).",
+          "Orchestrator: route HF-ARTIST-DB008-UNREACHABLE-CONSUMERS (event_posts, marketplace_post_attachments, job_posting_templates.application_form_template, bookings) to an owning lane.",
+          "Optional product decision: no in-chain artist video relation exists, so the public profile no longer has a video gallery. Either add one via a database migration or retire the video tile in the media grid."
+        ],
+        "blockers": [
+          "No hosted evidence this round: isolated staging, exact-SHA health headers and a separate Supabase origin (RELEASE-007 / QA-003) are still pending, so SIM-20260922-ARTIST-001 cannot run and acceptance is not claimed.",
+          "event_tasks and event_equipment are still 20 diagnostics in the artist lane and cannot be cleared from code without corrupting their semantics; the contract is delivered and the migration is database-lane owned.",
+          "4 pre-existing diagnostics remain in four zero-importer artist event files (page-simple-broken.tsx, components/events-calendar.tsx, components/event-export.tsx, components/artist-events-dashboard.tsx) that were deliberately not deleted; no named drift object points at them.",
+          "The inventory's tscFiles for column objects is a file-level attribution, not line-level. Verified counter-examples: events.cover_image_url -> app/artist/events/actions/marketing.ts (no such reference) and profiles.custom_url -> lib/public-artist/get-public-artist-profile.ts (no such reference at HEAD or in the worktree). Any other lane acting on those attributions should re-derive with a scoped typecheck first.",
+          "Changes are uncommitted by operating rule; the checkpoint sha is the task base SHA d2176904."
+        ],
+        "scope_expansion": [
+          {
+            "paths": [
+              "app/artist/events/actions/manage-staff.ts",
+              "app/artist/events/actions/update-event.ts",
+              "app/artist/events/actions.ts",
+              "app/artist/events/actions/marketing.ts (deleted)",
+              "app/artist/events/actions/analytics.ts (deleted)",
+              "app/artist/events/[id]/page.tsx",
+              "app/artist/events/operations/page.tsx",
+              "app/artist/events/event-wizard.tsx",
+              "app/artist/events/events-dashboard.tsx",
+              "app/artist/events/components/artist-events-dashboard.tsx",
+              "app/artist/features/analytics/analytics-dashboard.tsx (deleted)",
+              "app/artist/business/analytics/page.tsx",
+              "lib/artist/artist-stats.ts",
+              "lib/artist/artist-content.ts",
+              "lib/public-artist/artist-epk-media.ts",
+              "lib/public-artist/artist-stats.ts",
+              "__tests__/artist/db008-code-drift-repoints.test.ts",
+              "docs/engineering/handoffs/pending/HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT.json",
+              "docs/engineering/handoffs/pending/HF-ARTIST-DB008-UNREACHABLE-CONSUMERS.json"
+            ],
+            "reason": "The Wave 34 orchestrator assignment for this lane is the DB-008 code-drift cluster 'artist' (16 objects, 237 hits) plus the events cluster, and 14 of those objects are reached from artist-owned files. All of the paths above are either inside the artist working set (app/artist/**, lib/artist/**, lib/public-artist/**, components/public-artist/**, __tests__/artist/**) or are the artist task records, domain decision log and state file. No path outside artist ownership was edited: lib/services/**, lib/database.types.ts, types/**, supabase/**, app/api/events/**, lib/events/**, app/api/analytics/**, app/api/calendar/**, e2e/**, .github/** and the migration ledgers were read at most.",
+            "not_edited_because_out_of_ownership": [
+              "app/artist/debug/page.tsx still selects artist_profiles.verification_status/account_tier on purpose: it is the diagnostic surface whose job is to report missing columns, and the error branch is written for exactly that case.",
+              "app/artist/events/actions/create-event.ts, delete-event.ts, get-event-analytics.ts, manage-equipment.ts, manage-tasks.ts, financial.ts, team.ts were read; only manage-equipment.ts and manage-tasks.ts would need a contract (delivered) and get-event-analytics.ts is already contract-clean."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

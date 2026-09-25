@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
 import { resolveActingAdminContext } from '@/lib/auth/admin-context'
 import {
-  OrgScopedMutationError,
-  orgScopedChildDelete,
-  orgScopedChildUpdate,
-  orgScopedDelete,
-  orgScopedUpdate,
-  resolveChildParentId,
-} from '@/lib/admin/org-scoped-mutation'
+  authorizedOrgScopeErrorResponse,
+  resolveAuthorizedOrgLogisticsScope,
+} from '@/lib/admin/resolve-authorized-org'
 import { withParentOrgId } from '@/lib/admin/travel-tenant-keys'
 import { notifyLodgingChange } from '@/lib/logistics/travel-change-notify'
 import type { AdminCapability } from '@/lib/auth/admin-capabilities'
@@ -72,11 +68,24 @@ async function safeJson(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const { auth, admin, denied } = await requireAuth(request)
   if (denied || !admin) return denied ?? NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!admin.capabilities.includes('logistics.view')) return err('Forbidden', 403)
 
   const p = params(request)
   const capabilities = admin.capabilities
 
   try {
+    const sharedCatalogTypes = new Set(['providers', 'room_types', 'availability'])
+    if (!sharedCatalogTypes.has(p.type)) {
+      if (!p.event_id && !p.tour_id) return err('Select a tour or event to view lodging.', 422)
+      await resolveAuthorizedOrgLogisticsScope({
+        userId: auth.user.id,
+        requestedOrgId: admin.orgId,
+        eventId: p.event_id,
+        tourId: p.tour_id,
+        allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+      })
+    }
+
     switch (p.type) {
       case 'providers':
         return await getProviders(auth.supabase, p)
@@ -103,6 +112,8 @@ export async function GET(request: NextRequest) {
         return err(`Unknown type: ${p.type}`)
     }
   } catch (error: any) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error(`[Lodging API] GET type=${p.type} error:`, error)
     return err(error.message || 'Internal server error', 500)
   }
@@ -210,11 +221,13 @@ async function getGuestAssignments(
 ) {
   let query = supabase
     .from('lodging_guest_assignments')
-    .select('*, lodging_bookings(booking_number, check_in_date, check_out_date), staff_profiles:profiles(first_name, last_name), venue_crew_members(name), venue_team_members(name)')
+    .select('*, lodging_bookings!inner(booking_number, check_in_date, check_out_date, event_id, tour_id), staff_profiles:profiles(first_name, last_name), venue_crew_members(name), venue_team_members(name)')
     .order('created_at', { ascending: false })
     .range(p.offset, p.offset + p.limit - 1)
 
   if (p.status) query = query.eq('status', p.status)
+  if (p.event_id) query = query.eq('lodging_bookings.event_id', p.event_id)
+  if (p.tour_id) query = query.eq('lodging_bookings.tour_id', p.tour_id)
 
   const { data, error } = await query
   if (error) throw error
@@ -233,11 +246,13 @@ async function getPayments(
 ) {
   let query = supabase
     .from('lodging_payments')
-    .select('*, lodging_bookings(booking_number, primary_guest_name), staff_profiles:profiles(first_name, last_name)')
+    .select('*, lodging_bookings!inner(booking_number, primary_guest_name, event_id, tour_id), staff_profiles:profiles(first_name, last_name)')
     .order('payment_date', { ascending: false })
     .range(p.offset, p.offset + p.limit - 1)
 
   if (p.status) query = query.eq('status', p.status)
+  if (p.event_id) query = query.eq('lodging_bookings.event_id', p.event_id)
+  if (p.tour_id) query = query.eq('lodging_bookings.tour_id', p.tour_id)
 
   const { data, error } = await query
   if (error) throw error
@@ -252,12 +267,14 @@ async function getPayments(
 async function getCalendarEvents(supabase: any, p: ReturnType<typeof params>) {
   let query = supabase
     .from('lodging_calendar_events')
-    .select('*, lodging_bookings(booking_number, primary_guest_name, lodging_providers(name))')
+    .select('*, lodging_bookings!inner(booking_number, primary_guest_name, event_id, tour_id, lodging_providers(name))')
     .order('start_time', { ascending: true })
     .range(p.offset, p.offset + p.limit - 1)
 
   if (p.date_from) query = query.gte('start_time', p.date_from)
   if (p.date_to) query = query.lte('end_time', p.date_to)
+  if (p.event_id) query = query.eq('lodging_bookings.event_id', p.event_id)
+  if (p.tour_id) query = query.eq('lodging_bookings.tour_id', p.tour_id)
 
   const { data, error } = await query
   if (error) throw error
@@ -362,9 +379,14 @@ async function getUtilization(supabase: any, _p: ReturnType<typeof params>) {
 
   if (rtErr) throw rtErr
 
-  const { data: bookings, error: bErr } = await supabase
+  let bookingsQuery = supabase
     .from('lodging_bookings')
-    .select('provider_id, room_type_id, total_amount, total_guests')
+    .select('provider_id, room_type_id, total_amount, total_guests, rooms_booked')
+
+  if (_p.event_id) bookingsQuery = bookingsQuery.eq('event_id', _p.event_id)
+  if (_p.tour_id) bookingsQuery = bookingsQuery.eq('tour_id', _p.tour_id)
+
+  const { data: bookings, error: bErr } = await bookingsQuery
 
   if (bErr) throw bErr
 
@@ -374,9 +396,11 @@ async function getUtilization(supabase: any, _p: ReturnType<typeof params>) {
   }
 
   const utilByKey = new Map<string, any>()
+  const scopedKeys = new Set((bookings || []).map((booking: any) => `${booking.provider_id}::${booking.room_type_id}`))
 
   for (const a of (avail || [])) {
     const key = `${a.provider_id}::${a.room_type_id}`
+    if (!scopedKeys.has(key)) continue
     const daySpan = Math.max(1, Math.ceil(
       (new Date(a.date_to).getTime() - new Date(a.date_from).getTime()) / 86_400_000
     ))
@@ -408,7 +432,6 @@ async function getUtilization(supabase: any, _p: ReturnType<typeof params>) {
     const u = utilByKey.get(key)!
     u.total_availability_days += daySpan
     u.total_rooms_available += (a.rooms_available || 0)
-    u.total_rooms_reserved += (a.rooms_reserved || 0)
     u.total_rooms_blocked += (a.rooms_blocked || 0)
   }
 
@@ -417,6 +440,7 @@ async function getUtilization(supabase: any, _p: ReturnType<typeof params>) {
     const u = utilByKey.get(key)
     if (!u) continue
     u.total_bookings += 1
+    u.total_rooms_reserved += (b.rooms_booked || 0)
     u.total_revenue += (b.total_amount || 0)
     u.total_guests += (b.total_guests || 0)
   }
@@ -446,36 +470,33 @@ async function getUtilization(supabase: any, _p: ReturnType<typeof params>) {
 export async function POST(request: NextRequest) {
   const { auth, admin, denied } = await requireAuth(request)
   if (denied) return denied
+  if (!admin.capabilities.includes('logistics.manage')) return err('Forbidden', 403)
 
   const body = await safeJson(request)
   if (!body?.action) return err('Missing action in request body')
 
   try {
     const { action, ...fields } = body
-    const actingOrgId = admin.orgId
 
     switch (action) {
       case 'create_provider':
-        return await createRow(
-          auth.supabase,
-          'lodging_providers',
-          { ...fields, org_id: fields.org_id || actingOrgId },
-          'Provider created',
-        )
       case 'create_room_type':
-        return await createRow(
-          auth.supabase,
-          'lodging_room_types',
-          { ...fields, org_id: fields.org_id || actingOrgId },
-          'Room type created',
-        )
-      case 'create_booking':
-        return await createRow(
-          auth.supabase,
-          'lodging_bookings',
-          { ...fields, org_id: fields.org_id || actingOrgId },
-          'Booking created',
-        )
+      case 'create_availability':
+        return err('Lodging catalog changes require the organization vendor foundation.', 409)
+      case 'create_booking': {
+        delete fields.org_id
+        const eventId = typeof fields.event_id === 'string' ? fields.event_id : null
+        const tourId = typeof fields.tour_id === 'string' ? fields.tour_id : null
+        if (!eventId && !tourId) return err('Select a tour or event before creating a lodging booking.', 422)
+        await resolveAuthorizedOrgLogisticsScope({
+          userId: auth.user.id,
+          requestedOrgId: admin.orgId,
+          eventId,
+          tourId,
+          allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+        })
+        return await createRow(auth.supabase, 'lodging_bookings', fields, 'Booking created')
+      }
       case 'create_guest_assignment': {
         const allowed = [
           'booking_id', 'guest_name', 'guest_email', 'guest_phone', 'guest_type',
@@ -493,6 +514,7 @@ export async function POST(request: NextRequest) {
           parentId: typeof payload.booking_id === 'string' ? payload.booking_id : null,
           payload,
         })
+        if (stamped.org_id !== admin.orgId) return err('Lodging booking belongs to another organization.', 403)
         return await createRow(auth.supabase, 'lodging_guest_assignments', stamped, 'Guest assignment created')
       }
       case 'create_payment': {
@@ -502,6 +524,7 @@ export async function POST(request: NextRequest) {
           parentId: typeof fields.booking_id === 'string' ? fields.booking_id : null,
           payload: fields,
         })
+        if (stamped.org_id !== admin.orgId) return err('Lodging booking belongs to another organization.', 403)
         return await createRow(auth.supabase, 'lodging_payments', stamped, 'Payment created')
       }
       case 'create_calendar_event': {
@@ -511,14 +534,15 @@ export async function POST(request: NextRequest) {
           parentId: typeof fields.booking_id === 'string' ? fields.booking_id : null,
           payload: fields,
         })
+        if (stamped.org_id !== admin.orgId) return err('Lodging booking belongs to another organization.', 403)
         return await createRow(auth.supabase, 'lodging_calendar_events', stamped, 'Calendar event created')
       }
-      case 'create_availability':
-        return await createRow(auth.supabase, 'lodging_availability', fields, 'Availability created')
       default:
         return err(`Unknown action: ${action}`)
     }
   } catch (error: any) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Lodging API] POST error:', error)
     return err(error.message || 'Failed to create record', 500)
   }
@@ -543,6 +567,7 @@ async function createRow(supabase: any, table: string, fields: Record<string, un
 export async function PUT(request: NextRequest) {
   const { auth, admin, denied } = await requireAuth(request)
   if (denied) return denied
+  if (!admin.capabilities.includes('logistics.manage')) return err('Forbidden', 403)
 
   const body = await safeJson(request)
   if (!body?.action) return err('Missing action in request body')
@@ -554,42 +579,51 @@ export async function PUT(request: NextRequest) {
 
     switch (action) {
       case 'update_provider':
-        return await updateRow(auth.supabase, 'lodging_providers', id, fields, 'Provider updated')
       case 'update_room_type':
-        return await updateRow(auth.supabase, 'lodging_room_types', id, fields, 'Room type updated')
+      case 'update_availability':
+        return err('Lodging catalog changes require the organization vendor foundation.', 409)
       case 'update_booking': {
+        delete fields.org_id
         const { data: before, error: beforeError } = await auth.supabase
           .from('lodging_bookings')
           .select('*')
           .eq('id', id)
-          .eq('org_id', orgId)
           .maybeSingle()
         if (beforeError) throw beforeError
         if (!before) return err('Booking not found', 404)
 
-        fields.updated_at = new Date().toISOString()
-        const result = await orgScopedUpdate({
-          supabase: auth.supabase,
-          table: 'lodging_bookings',
-          id,
-          orgId,
-          patch: fields,
+        const eventId = typeof fields.event_id === 'string' ? fields.event_id : before.event_id
+        const tourId = typeof fields.tour_id === 'string' ? fields.tour_id : before.tour_id
+        await resolveAuthorizedOrgLogisticsScope({
+          userId: auth.user.id,
+          requestedOrgId: orgId,
+          eventId,
+          tourId,
+          allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
         })
-        if (result.error) throw result.error
-        if (!result.data) return err('Booking not found', 404)
+
+        fields.updated_at = new Date().toISOString()
+        const { data, error } = await auth.supabase
+          .from('lodging_bookings')
+          .update(fields)
+          .eq('id', id)
+          .select('*')
+          .maybeSingle()
+        if (error) throw error
+        if (!data) return err('Booking not found', 404)
 
         try {
           await notifyLodgingChange({
             supabase: auth.supabase,
             actorUserId: auth.user.id,
             before,
-            after: result.data,
+            after: data,
           })
         } catch (notifyError) {
           console.warn('[Lodging API] booking change notify failed', notifyError)
         }
 
-        return okMsg('Booking updated', result.data)
+        return okMsg('Booking updated', data)
       }
       case 'update_guest_assignment':
         return await updateLodgingChild(auth.supabase, orgId, 'lodging_guest_assignments', id, fields, 'Guest assignment updated')
@@ -597,15 +631,12 @@ export async function PUT(request: NextRequest) {
         return await updateLodgingChild(auth.supabase, orgId, 'lodging_payments', id, fields, 'Payment updated')
       case 'update_calendar_event':
         return await updateLodgingChild(auth.supabase, orgId, 'lodging_calendar_events', id, fields, 'Calendar event updated')
-      case 'update_availability':
-        return await updateRow(auth.supabase, 'lodging_availability', id, fields, 'Availability updated')
       default:
         return err(`Unknown action: ${action}`)
     }
   } catch (error: any) {
-    if (error instanceof OrgScopedMutationError) {
-      return err(error.message, error.status)
-    }
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Lodging API] PUT error:', error)
     return err(error.message || 'Failed to update record', 500)
   }
@@ -619,42 +650,34 @@ async function updateLodgingChild(
   fields: Record<string, unknown>,
   message: string,
 ) {
-  const parentId = await resolveChildParentId({
-    supabase,
-    childTable,
-    childId,
-    parentFkColumn: 'booking_id',
-  })
-  if (!parentId) return err('Record not found', 404)
+  const { data: child, error: childError } = await supabase
+    .from(childTable)
+    .select('id, booking_id')
+    .eq('id', childId)
+    .maybeSingle()
+  if (childError) throw childError
+  if (!child?.booking_id) return err('Record not found', 404)
 
-  fields.updated_at = new Date().toISOString()
-  const result = await orgScopedChildUpdate({
+  const stamped = await withParentOrgId({
     supabase,
-    orgId,
-    chain: {
-      parentTable: 'lodging_bookings',
-      parentId,
-      childTable,
-      childId,
-      parentFkColumn: 'booking_id',
-    },
-    patch: fields,
+    parentTable: 'lodging_bookings',
+    parentId: child.booking_id,
+    payload: fields,
   })
-  if (result.error) throw result.error
-  if (!result.data) return err('Record not found', 404)
-  return okMsg(message, result.data)
-}
+  if (stamped.org_id !== orgId) return err('Lodging booking belongs to another organization.', 403)
 
-async function updateRow(supabase: any, table: string, id: string, fields: Record<string, unknown>, message: string) {
+  delete fields.booking_id
+  delete fields.org_id
   fields.updated_at = new Date().toISOString()
   const { data, error } = await supabase
-    .from(table)
+    .from(childTable)
     .update(fields)
-    .eq('id', id)
+    .eq('id', childId)
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error) throw error
+  if (!data) return err('Record not found', 404)
   return okMsg(message, data)
 }
 
@@ -665,6 +688,7 @@ async function updateRow(supabase: any, table: string, id: string, fields: Recor
 export async function DELETE(request: NextRequest) {
   const { auth, admin, denied } = await requireAuth(request)
   if (denied) return denied
+  if (!admin.capabilities.includes('logistics.manage')) return err('Forbidden', 403)
 
   const p = params(request)
   if (!p.action) return err('Missing action query param')
@@ -690,37 +714,44 @@ export async function DELETE(request: NextRequest) {
     const table = tableMap[p.action]
     if (!table) return err(`Unknown action: ${p.action}`)
 
-    // SEC-110: org-keyed parents/children require id + org (or parent chain).
+    if (table === 'lodging_providers' || table === 'lodging_room_types' || table === 'lodging_availability') {
+      return err('Lodging catalog changes require the organization vendor foundation.', 409)
+    }
+
     if (table === 'lodging_bookings') {
-      const result = await orgScopedDelete({
-        supabase: auth.supabase,
-        table,
-        id: p.id,
-        orgId,
+      const { data: booking, error: bookingError } = await auth.supabase
+        .from('lodging_bookings')
+        .select('id, event_id, tour_id')
+        .eq('id', p.id)
+        .maybeSingle()
+      if (bookingError) throw bookingError
+      if (!booking) return err('Booking not found', 404)
+      await resolveAuthorizedOrgLogisticsScope({
+        userId: auth.user.id,
+        requestedOrgId: orgId,
+        eventId: booking.event_id,
+        tourId: booking.tour_id,
+        allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
       })
-      if (result.error) throw result.error
-      if (!result.data) return err('Booking not found', 404)
+      const { error } = await auth.supabase.from(table).delete().eq('id', p.id)
+      if (error) throw error
     } else if (childTables.has(table)) {
-      const parentId = await resolveChildParentId({
+      const { data: child, error: childError } = await auth.supabase
+        .from(table)
+        .select('id, booking_id')
+        .eq('id', p.id)
+        .maybeSingle()
+      if (childError) throw childError
+      if (!child?.booking_id) return err('Record not found', 404)
+      const stamped = await withParentOrgId({
         supabase: auth.supabase,
-        childTable: table,
-        childId: p.id,
-        parentFkColumn: 'booking_id',
+        parentTable: 'lodging_bookings',
+        parentId: child.booking_id,
+        payload: {},
       })
-      if (!parentId) return err('Record not found', 404)
-      const result = await orgScopedChildDelete({
-        supabase: auth.supabase,
-        orgId,
-        chain: {
-          parentTable: 'lodging_bookings',
-          parentId,
-          childTable: table,
-          childId: p.id,
-          parentFkColumn: 'booking_id',
-        },
-      })
-      if (result.error) throw result.error
-      if (!result.data) return err('Record not found', 404)
+      if (stamped.org_id !== orgId) return err('Lodging booking belongs to another organization.', 403)
+      const { error } = await auth.supabase.from(table).delete().eq('id', p.id)
+      if (error) throw error
     } else {
       const { error } = await auth.supabase
         .from(table)
@@ -733,9 +764,8 @@ export async function DELETE(request: NextRequest) {
     const label = p.action.replace('delete_', '').replace(/_/g, ' ')
     return okMsg(`${label.charAt(0).toUpperCase() + label.slice(1)} deleted`)
   } catch (error: any) {
-    if (error instanceof OrgScopedMutationError) {
-      return err(error.message, error.status)
-    }
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Lodging API] DELETE error:', error)
     return err(error.message || 'Failed to delete record', 500)
   }

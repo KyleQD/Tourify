@@ -6,7 +6,7 @@ import { FileText, Lock, RefreshCw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useActingContext } from "@/hooks/use-acting-context"
+import { useAdminLogisticsRequest } from "@/hooks/use-admin-logistics-request"
 
 function extractErrorMsg(json: unknown, fallback: string): string {
   if (typeof json === "object" && json !== null) {
@@ -40,7 +40,7 @@ interface DocumentsResponse {
  * TRAVEL-501 / TRAVEL-502 — Protected provider documents and unmatched imports.
  */
 export function TravelDocumentsPanel({ tourId, eventId }: { tourId?: string | null; eventId?: string | null }) {
-  const { actingAccount } = useActingContext()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [state, setState] = useState<"idle" | "loading" | "ready" | "unavailable" | "error">("idle")
   const [documents, setDocuments] = useState<TravelDocument[]>([])
   const [unmatched, setUnmatched] = useState(0)
@@ -49,13 +49,18 @@ export function TravelDocumentsPanel({ tourId, eventId }: { tourId?: string | nu
   const [freshAt, setFreshAt] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setDocuments([])
+      setState("idle")
+      return
+    }
     setState("loading")
     setErrorMsg(null)
     try {
       const params = new URLSearchParams()
       if (tourId) params.set("tour_id", tourId)
       if (eventId) params.set("event_id", eventId)
-      const res = await fetch(`/api/admin/travel/documents?${params}`)
+      const res = await adminFetch(`/api/admin/travel/documents?${params}`)
       const json = (await res.json()) as DocumentsResponse & { error?: string }
       if (!res.ok) {
         setErrorMsg(extractErrorMsg(json, "Failed to load travel documents"))
@@ -71,15 +76,16 @@ export function TravelDocumentsPanel({ tourId, eventId }: { tourId?: string | nu
       setUnmatched(json.unmatched ?? 0)
       setFreshAt(json.freshAt)
       setState("ready")
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return
       setErrorMsg("Network error loading travel documents")
       setState("error")
     }
-  }, [tourId, eventId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
-    if (actingAccount !== undefined) void load()
-  }, [actingAccount, load])
+    void load()
+  }, [load])
 
   if (state === "idle" || state === "loading") {
     return (

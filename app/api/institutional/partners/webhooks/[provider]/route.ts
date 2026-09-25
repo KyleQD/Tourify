@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { hashPayload, verifyPartnerWebhookSignature } from "@/lib/music/institutional/partner-adapters"
+import { hashPayload } from "@/lib/music/institutional/partner-adapters"
+import { isUniqueViolation, verifyPrefixedDigestSignature } from "@/lib/integrations/webhook-security"
 import { auditFeatureUnavailable, isAuditFeatureApproved } from "@/lib/config/audit-feature-gates"
 
 export const dynamic = "force-dynamic"
@@ -30,8 +31,11 @@ export async function POST(
     const allowUnsigned = process.env.MUSIC_INSTITUTIONAL_WEBHOOK_ALLOW_UNSIGNED === "true"
 
     let signatureVerified = false
-    if (secret && signature) {
-      signatureVerified = verifyPartnerWebhookSignature({ rawBody: bodyText, signature, secret })
+    if (secret) {
+      // A configured secret is a hard requirement: an absent or invalid
+      // signature is a rejected delivery, never a processing pass. The digest
+      // comparison is constant-time.
+      signatureVerified = verifyPrefixedDigestSignature({ rawBody: bodyText, signature, secret })
       if (!signatureVerified)
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     } else if (!allowUnsigned) {
@@ -66,7 +70,7 @@ export async function POST(
       .select("id")
       .single()
 
-    if (error?.code === "23505" || /duplicate key/i.test(error?.message ?? ""))
+    if (isUniqueViolation(error))
       return NextResponse.json({ data: { providerEventId: externalEventId, idempotent: true } })
     if (error)
       return NextResponse.json({ error: "Event persistence failed" }, { status: 500 })

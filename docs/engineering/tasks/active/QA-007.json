@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-007",
+  "title": "Verify the logistics overhaul",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "qa",
+  "created_at": "2026-09-23T19:16:12.738Z",
+  "updated_at": "2026-09-24T00:38:33Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (31 entries)",
+  "goal": "Validate scope, authorization, organization switching, deep links, partial failures, Maps, Comms, accessibility, mobile behavior, and request budgets.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm exec vitest run __tests__/admin/admin-acting-request.test.tsx __tests__/admin/logistics-overview.test.ts __tests__/admin/logistics-scope.test.ts __tests__/design-system/logistics-command-center-patterns.test.tsx __tests__/admin/resolve-authorized-org.test.ts __tests__/admin/admin-route-capability-matrix.test.ts __tests__/logistics/logistics-route-contract.test.ts __tests__/admin/site-map-collection.test.ts __tests__/admin/site-map-acting-org-access.test.ts",
+      "node scripts/ci/check-admin-route-registry.mjs",
+      "npm run agents:validate"
+    ],
+    "evidence": ["Final focused suite passed 9 files / 67 tests after readiness, Comms, staffing, and show-day additions.", "Scoped lint passed for the active implementation files.", "Admin registry validation passed at 291 route files with exact contracts.", "Control-plane validation passed for 17 agents / 150 tasks with 8 stale generated-map SHA warnings and 0 errors.", "Scoped TypeScript reached only pre-existing account-management and venue-service diagnostics; no changed Logistics file produced a diagnostic.", "Unauthenticated browser smoke redirected cleanly to login with no console error; authenticated regression is still required."],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "partial-local-contract-pass; authenticated-browser-not-run"
+  },
+  "progress": {
+    "summary": "Automated focused verification is passing; authenticated organization-admin browser journeys remain outstanding.",
+    "completed": ["Verified request readiness, headers, FormData, stale-response discard, scope aliases, overview contract, site-map boundaries, and command-center patterns.", "Verified scoped lint and admin route registry earlier in the implementation pass."],
+    "next_steps": ["Rerun the final focused suite after governance edits.", "Run authenticated blank/image map creation, builder persistence, organization switching, Comms, mobile, keyboard, and 200% zoom journeys."],
+    "blockers": [],
+    "checkpoints": [{"at":"2026-09-24T00:38:33Z","summary":"Automated core contracts pass; the available browser session had no admin authentication and redirected to login.","next":"Use an authenticated staging organization to complete the release gate."}]
+  },
+  "handoffs": []
+}

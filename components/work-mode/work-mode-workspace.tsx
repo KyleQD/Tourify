@@ -18,6 +18,7 @@ import { useWorkMode } from "@/hooks/use-work-mode"
 import { WORK_MODE_VIEWS, type WorkModeView } from "@/lib/work-mode/navigation"
 import { WorkModeOverview } from "@/components/work-mode/work-mode-overview"
 import { WorkModeAttendanceHistory } from "@/components/work-mode/work-mode-attendance-history"
+import { WorkModeHistory } from "@/components/work-mode/work-mode-history"
 import { trackUxEvent } from "@/lib/ux/client-telemetry"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -340,14 +341,20 @@ export function WorkModeWorkspace({
                 <span className="text-xs font-semibold uppercase tracking-[0.18em]">Work Mode</span>
               </div>
               <h1 className="mt-2 text-2xl font-semibold">
-                {view === "overview" ? "Your work overview" : activeAssignment?.roleTitle ?? "Choose an assignment"}
+                {view === "overview"
+                  ? "Your work overview"
+                  : view === "history"
+                    ? "Your work history"
+                    : activeAssignment?.roleTitle ?? "Choose an assignment"}
               </h1>
               <p className="mt-1 text-sm text-slate-400">
                 {view === "overview"
                   ? "Upcoming positions, priority actions, and updates from your organizations."
-                  : activeAssignment
-                  ? `${activeAssignment.department || "Crew"} · ${formatDateTime(activeAssignment.startsAt)}`
-                  : "Your employer-published schedule and event information appears here."}
+                  : view === "history"
+                    ? "Completed and upcoming jobs with attendance and evaluation state."
+                    : activeAssignment
+                    ? `${activeAssignment.department || "Crew"} · ${formatDateTime(activeAssignment.startsAt)}`
+                    : "Your employer-published schedule and event information appears here."}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -429,6 +436,10 @@ export function WorkModeWorkspace({
               onAssignmentResponse={(assignmentId, action) => void respond(assignmentId, action)}
               onCommunicationResponse={respondToCommunication}
             />
+          </section>
+        ) : view === "history" ? (
+          <section className="mt-5" aria-live="polite">
+            <WorkModeHistory />
           </section>
         ) : !activeAssignment ? (
           <section className="mt-5" aria-labelledby="assignment-heading">

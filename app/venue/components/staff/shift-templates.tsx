@@ -13,7 +13,7 @@ interface ShiftTemplatesProps {
 
 interface TemplateRow {
   id: string
-  template_name?: string | null
+  shift_title?: string | null
   department?: string | null
   start_time?: string | null
   end_time?: string | null
@@ -21,9 +21,26 @@ interface TemplateRow {
 }
 
 /**
- * VEN-116 — template UI reads the canonical venue_shift_templates table
- * (RLS-scoped). Recurrence service integration continues in VEN-116 phase 2;
- * this replaces the hardcoded sample grid with real persisted rows.
+ * VEN-116 / DB-008 code-drift repoint — shift-template UI reads the canonical
+ * `venue_recurring_shifts` table (RLS-scoped), not the archived
+ * `venue_shift_templates`.
+ *
+ * `venue_shift_templates` exists only in `supabase/migrations_backup/20250122000000_enhanced_scheduling_shifts.sql`;
+ * the active chain never creates it and `lib/database.types.ts` never declares it,
+ * so the previous query failed at PostgREST on every environment (it also ordered
+ * by a non-existent `name` column). The live chain creates `venue_recurring_shifts`
+ * in `20260413200000_port_missing_tables.sql:158` and `lib/database.types.ts:21442`
+ * declares it with a column superset of the archived table: the archived
+ * template-name column becomes `shift_title`, while `department`, `start_time`,
+ * `end_time` and `staff_needed` carry over unchanged. The `is_active` filter
+ * matches the repo's own scheduling read in
+ * `lib/services/venue-scheduling.service.ts#getShiftTemplates`.
+ *
+ * Authorization is unchanged: this is still a browser session client, so
+ * `venue_recurring_shifts_owner` (venue_profiles.user_id = auth.uid()) applies. A
+ * delegated team manager is not in that policy and therefore sees zero rows rather
+ * than an error — widening the policy to venue RBAC is a DB-002 decision, not an
+ * app-code one. Recurrence service integration continues in VEN-116 phase 2.
  */
 export function ShiftTemplates({ venueId }: ShiftTemplatesProps) {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
@@ -37,10 +54,11 @@ export function ShiftTemplates({ venueId }: ShiftTemplatesProps) {
     setError(null)
     try {
       const { data, error: queryError } = await supabase
-        .from('venue_shift_templates')
-        .select('id, template_name, department, start_time, end_time, staff_needed')
+        .from('venue_recurring_shifts')
+        .select('id, shift_title, department, start_time, end_time, staff_needed')
         .eq('venue_id', venueId)
-        .order('name', { ascending: true })
+        .eq('is_active', true)
+        .order('shift_title', { ascending: true })
         .limit(50)
 
       if (queryError) throw queryError
@@ -91,7 +109,7 @@ export function ShiftTemplates({ venueId }: ShiftTemplatesProps) {
             <Card key={template.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{template.template_name || 'Untitled template'}</CardTitle>
+                    <CardTitle className="text-base">{template.shift_title || 'Untitled template'}</CardTitle>
                   {template.department && <Badge variant="secondary">{template.department}</Badge>}
                 </div>
               </CardHeader>

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "SOCIAL-006",
+  "title": "Build operational logistics communications",
+  "status": "active",
+  "priority": "P2",
+  "owner_agent": "social",
+  "created_at": "2026-09-23T19:16:10.916Z",
+  "updated_at": "2026-09-24T00:38:33Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (25 entries)",
+  "goal": "Implement the organization/tour/event operational communications contract for announcements, acknowledgements, mentions, delivery state, and source links.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": ["npx eslint app/api/admin/logistics/communications-command-center/route.ts components/admin/logistics/communications-command-center.tsx"],
+    "evidence": ["Operational feed reuses native group threads/messages, event bulletins, task messages, and logistics acknowledgements; it creates no duplicate message records."],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "passed"
+  },
+  "progress": {
+    "summary": "Operational communications contract implemented over existing records with organization/tour/event scope.",
+    "completed": ["Added scoped announcement and task feed.", "Added current-user mention projection.", "Added pending acknowledgement and non-responder projection.", "Preserved direct/group messaging in the global inbox."],
+    "next_steps": ["Add provider-specific delivery detail only when a configured provider contract exists."],
+    "blockers": [],
+    "checkpoints": [{"at":"2026-09-24T00:38:33Z","summary":"Completed the operational feed contract without copying or duplicating canonical message records.","next":"Validate pilot delivery-state data under QA-007."}]
+  },
+  "handoffs": []
+}

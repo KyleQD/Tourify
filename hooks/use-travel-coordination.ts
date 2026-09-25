@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -340,6 +341,7 @@ export function useTravelCoordination(scope?: {
   tour_id?: string
 }) {
   const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const scopedEventId = scope?.event_id
   const scopedTourId = scope?.tour_id
 
@@ -433,12 +435,14 @@ export function useTravelCoordination(scope?: {
       
       if (params?.status) searchParams.append('status', params.status)
       if (params?.group_type) searchParams.append('group_type', params.group_type)
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const eventId = params?.event_id || scopedEventId
+      const tourId = params?.tour_id || scopedTourId
+      if (eventId) searchParams.append('event_id', eventId)
+      if (tourId) searchParams.append('tour_id', tourId)
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -466,7 +470,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setGroupsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchGroupMembers = useCallback(async (params?: {
     limit?: number
@@ -485,9 +489,11 @@ export function useTravelCoordination(scope?: {
       })
       
       if (params?.status) searchParams.append('status', params.status)
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
       if (params?.group_type) searchParams.append('group_type', params.group_type)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -506,7 +512,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setGroupMembersLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchFlights = useCallback(async (params?: {
     limit?: number
@@ -528,12 +534,14 @@ export function useTravelCoordination(scope?: {
       })
       
       if (params?.status) searchParams.append('status', params.status)
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const eventId = params?.event_id || scopedEventId
+      const tourId = params?.tour_id || scopedTourId
+      if (eventId) searchParams.append('event_id', eventId)
+      if (tourId) searchParams.append('tour_id', tourId)
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -552,7 +560,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setFlightsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchFlightPassengers = useCallback(async (params?: {
     limit?: number
@@ -570,8 +578,10 @@ export function useTravelCoordination(scope?: {
       })
       
       if (params?.status) searchParams.append('status', params.status)
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -590,7 +600,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setFlightPassengersLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchTransportation = useCallback(async (params?: {
     limit?: number
@@ -612,12 +622,14 @@ export function useTravelCoordination(scope?: {
       })
       
       if (params?.status) searchParams.append('status', params.status)
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const eventId = params?.event_id || scopedEventId
+      const tourId = params?.tour_id || scopedTourId
+      if (eventId) searchParams.append('event_id', eventId)
+      if (tourId) searchParams.append('tour_id', tourId)
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -636,7 +648,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setTransportationLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchTransportationPassengers = useCallback(async (params?: {
     limit?: number
@@ -654,8 +666,10 @@ export function useTravelCoordination(scope?: {
       })
       
       if (params?.status) searchParams.append('status', params.status)
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -674,7 +688,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setTransportationPassengersLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchHotelAssignments = useCallback(async (params?: {
     limit?: number
@@ -692,8 +706,10 @@ export function useTravelCoordination(scope?: {
       })
       
       if (params?.status) searchParams.append('status', params.status)
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -712,7 +728,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setHotelAssignmentsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchTimeline = useCallback(async (params?: {
     limit?: number
@@ -732,8 +748,10 @@ export function useTravelCoordination(scope?: {
       
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
+      if (scopedEventId) searchParams.append('event_id', scopedEventId)
+      if (scopedTourId) searchParams.append('tour_id', scopedTourId)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -752,7 +770,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setTimelineLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchAnalytics = useCallback(async (params?: {
     limit?: number
@@ -769,10 +787,12 @@ export function useTravelCoordination(scope?: {
         limit: params?.limit?.toString() || '50',
         offset: params?.offset?.toString() || '0'
       })
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const eventId = params?.event_id || scopedEventId
+      const tourId = params?.tour_id || scopedTourId
+      if (eventId) searchParams.append('event_id', eventId)
+      if (tourId) searchParams.append('tour_id', tourId)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -791,7 +811,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setAnalyticsLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   const fetchUtilization = useCallback(async (params?: {
     limit?: number
@@ -808,10 +828,12 @@ export function useTravelCoordination(scope?: {
         limit: params?.limit?.toString() || '50',
         offset: params?.offset?.toString() || '0'
       })
-      if (params?.event_id) searchParams.append('event_id', params.event_id)
-      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
+      const eventId = params?.event_id || scopedEventId
+      const tourId = params?.tour_id || scopedTourId
+      if (eventId) searchParams.append('event_id', eventId)
+      if (tourId) searchParams.append('tour_id', tourId)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
+      const response = await adminFetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -830,7 +852,7 @@ export function useTravelCoordination(scope?: {
     } finally {
       setUtilizationLoading(false)
     }
-  }, [toast])
+  }, [adminFetch, scopedEventId, scopedTourId, toast])
 
   // =============================================================================
   // CRUD OPERATIONS
@@ -838,7 +860,7 @@ export function useTravelCoordination(scope?: {
 
   const createTravelGroup = useCallback(async (groupData: Partial<TravelGroup>) => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/travel-coordination',
         buildMutationRequestInit({
           method: 'POST',
@@ -872,11 +894,11 @@ export function useTravelCoordination(scope?: {
       })
       throw error
     }
-  }, [fetchGroups, toast])
+  }, [adminFetch, fetchGroups, toast])
 
   const updateTravelGroup = useCallback(async (id: string, groupData: Partial<TravelGroup>) => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/travel-coordination',
         buildMutationRequestInit({
           method: 'PUT',
@@ -911,11 +933,11 @@ export function useTravelCoordination(scope?: {
       })
       throw error
     }
-  }, [fetchGroups, toast])
+  }, [adminFetch, fetchGroups, toast])
 
   const deleteTravelGroup = useCallback(async (id: string) => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         `/api/admin/travel-coordination?action=delete_travel_group&id=${id}`,
         buildMutationRequestInit({ method: 'DELETE' })
       )
@@ -942,11 +964,11 @@ export function useTravelCoordination(scope?: {
       })
       throw error
     }
-  }, [fetchGroups, toast])
+  }, [adminFetch, fetchGroups, toast])
 
   const createGroupMember = useCallback(async (memberData: Partial<TravelGroupMember>) => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/travel-coordination',
         buildMutationRequestInit({
           method: 'POST',
@@ -980,11 +1002,11 @@ export function useTravelCoordination(scope?: {
       })
       throw error
     }
-  }, [fetchGroupMembers, toast])
+  }, [adminFetch, fetchGroupMembers, toast])
 
   const bulkCreateGroupMembers = useCallback(async (groupId: string, members: Partial<TravelGroupMember>[]) => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/travel-coordination',
         buildMutationRequestInit({
           method: 'POST',
@@ -1019,11 +1041,11 @@ export function useTravelCoordination(scope?: {
       })
       throw error
     }
-  }, [fetchGroupMembers, toast])
+  }, [adminFetch, fetchGroupMembers, toast])
 
   const autoCoordinateGroup = useCallback(async (groupId: string) => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         '/api/admin/travel-coordination',
         buildMutationRequestInit({
           method: 'POST',
@@ -1076,13 +1098,32 @@ export function useTravelCoordination(scope?: {
       })
       throw error
     }
-  }, [fetchGroups, fetchFlights, fetchTransportation, fetchHotelAssignments, toast])
+  }, [adminFetch, fetchGroups, fetchFlights, fetchTransportation, fetchHotelAssignments, toast])
 
   // =============================================================================
   // INITIAL DATA LOADING
   // =============================================================================
 
   useEffect(() => {
+    setGroups([])
+    setGroupMembers([])
+    setFlights([])
+    setFlightPassengers([])
+    setTransportation([])
+    setTransportationPassengers([])
+    setHotelAssignments([])
+    setTimeline([])
+    setAnalytics([])
+    setUtilization([])
+  }, [actingContextKey])
+
+  useEffect(() => {
+    if (!isAdminReady || (!scopedEventId && !scopedTourId)) {
+      setGroups([])
+      setAnalytics([])
+      setUtilization([])
+      return
+    }
     const scopeParams = {
       event_id: scopedEventId,
       tour_id: scopedTourId,
@@ -1090,10 +1131,11 @@ export function useTravelCoordination(scope?: {
     fetchGroups(scopeParams)
     fetchAnalytics(scopeParams)
     fetchUtilization(scopeParams)
-  }, [fetchGroups, fetchAnalytics, fetchUtilization, scopedEventId, scopedTourId])
+  }, [actingContextKey, fetchGroups, fetchAnalytics, fetchUtilization, isAdminReady, scopedEventId, scopedTourId])
 
   // Auto-refresh data every 5 minutes
   useEffect(() => {
+    if (!isAdminReady || (!scopedEventId && !scopedTourId)) return
     const interval = setInterval(() => {
       const scopeParams = {
         event_id: scopedEventId,
@@ -1105,7 +1147,7 @@ export function useTravelCoordination(scope?: {
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [fetchGroups, fetchAnalytics, fetchUtilization, scopedEventId, scopedTourId])
+  }, [actingContextKey, fetchGroups, fetchAnalytics, fetchUtilization, isAdminReady, scopedEventId, scopedTourId])
 
   // =============================================================================
   // RETURN OBJECT
@@ -1202,4 +1244,4 @@ export function useTravelAnalytics() {
 export function useTravelUtilization() {
   const { utilization, utilizationLoading, utilizationError, fetchUtilization } = useTravelCoordination()
   return { utilization, loading: utilizationLoading, error: utilizationError, fetchUtilization }
-} 
+}

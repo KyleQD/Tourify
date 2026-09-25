@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { ElementStatus } from "@/types/site-map"
 import { useSiteMapRealtime } from "@/hooks/use-site-map-realtime"
 import { useAuth } from "@/contexts/auth-context"
+import { useAdminLogisticsRequest } from "@/hooks/use-admin-logistics-request"
 
 interface CollabPanelProps {
   siteMapId: string
@@ -75,6 +76,7 @@ export function SiteMapCollaborationPanel({
   selectedElementPosition,
 }: CollabPanelProps) {
   const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [activeTab, setActiveTab] = useState('notes')
   const [notes, setNotes] = useState<ActivityItem[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
@@ -102,42 +104,59 @@ export function SiteMapCollaborationPanel({
   })
 
   const loadNotes = useCallback(async () => {
+    if (!isAdminReady) {
+      setNotes([])
+      return
+    }
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/notes`, { credentials: 'include' })
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/notes`)
       const data = await resp.json()
       if (data.success) setNotes(data.data || [])
     } catch {}
-  }, [siteMapId])
+  }, [actingContextKey, adminFetch, isAdminReady, siteMapId])
 
   const loadActivity = useCallback(async () => {
+    if (!isAdminReady) {
+      setActivity([])
+      return
+    }
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/activity?limit=50`, { credentials: 'include' })
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/activity?limit=50`)
       const data = await resp.json()
       if (data.success) setActivity(data.data || [])
     } catch {}
-  }, [siteMapId])
+  }, [actingContextKey, adminFetch, isAdminReady, siteMapId])
 
   const loadTasks = useCallback(async () => {
+    if (!isAdminReady) {
+      setTasks([])
+      return
+    }
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, { credentials: 'include' })
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`)
       const data = await resp.json()
       if (data.success) setTasks(data.data || [])
     } catch {}
-  }, [siteMapId])
+  }, [actingContextKey, adminFetch, isAdminReady, siteMapId])
 
   const loadIssues = useCallback(async () => {
+    if (!isAdminReady) {
+      setIssues([])
+      return
+    }
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/issues?siteMapId=${siteMapId}`, { credentials: 'include' })
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/issues?siteMapId=${siteMapId}`)
       const data = await resp.json()
       if (data.success) setIssues(data.data || [])
     } catch {}
-  }, [siteMapId])
+  }, [actingContextKey, adminFetch, isAdminReady, siteMapId])
 
   // Register presence
   useEffect(() => {
     const registerPresence = async () => {
+      if (!isAdminReady) return
       try {
-        await fetch(`/api/admin/logistics/site-maps/${siteMapId}/activity`, {
+        await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/activity`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -150,7 +169,7 @@ export function SiteMapCollaborationPanel({
       } catch {}
     }
     registerPresence()
-  }, [siteMapId])
+  }, [actingContextKey, adminFetch, isAdminReady, siteMapId])
 
   // Load data once on mount
   useEffect(() => {
@@ -198,7 +217,7 @@ export function SiteMapCollaborationPanel({
     if (!newNote.trim() || isSending) return
     setIsSending(true)
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/notes`, {
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -227,7 +246,7 @@ export function SiteMapCollaborationPanel({
 
   const updateElementStatus = async (elementId: string, status: ElementStatus, statusNote?: string) => {
     try {
-      await fetch(`/api/admin/logistics/site-maps/${siteMapId}/activity`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -254,7 +273,7 @@ export function SiteMapCollaborationPanel({
     assignedRole?: string
   ) => {
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -287,7 +306,7 @@ export function SiteMapCollaborationPanel({
 
   const completeTask = async (taskId: string, title: string) => {
     try {
-      await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -301,7 +320,7 @@ export function SiteMapCollaborationPanel({
 
   const reportIssue = async (title: string, severity: string, description: string) => {
     try {
-      const resp = await fetch(`/api/admin/logistics/site-maps/issues`, {
+      const resp = await adminFetch(`/api/admin/logistics/site-maps/issues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -816,6 +835,7 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
   elementId?: string | null
   siteMapId?: string
 }) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
@@ -832,8 +852,8 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
     const timer = setTimeout(async () => {
       setIsSearching(true)
       try {
-        if (eventId) {
-          const rosterResp = await fetch(`/api/hiring/roster?event_id=${encodeURIComponent(eventId)}&search=${encodeURIComponent(assigneeSearch)}`, { credentials: 'include' })
+        if (eventId && isAdminReady) {
+          const rosterResp = await adminFetch(`/api/hiring/roster?event_id=${encodeURIComponent(eventId)}&search=${encodeURIComponent(assigneeSearch)}`)
           const rosterData = await rosterResp.json()
           const members = rosterData.data || rosterData.members || []
           setAssigneeResults(members.slice(0, 8).map((member: any) => ({
@@ -855,7 +875,7 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [assigneeSearch, eventId])
+  }, [actingContextKey, adminFetch, assigneeSearch, eventId, isAdminReady])
 
   const submit = () => {
     if (!title.trim()) return

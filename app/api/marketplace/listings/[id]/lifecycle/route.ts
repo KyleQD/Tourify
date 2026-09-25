@@ -10,6 +10,7 @@ import {
   type ListingStatus,
 } from "@/lib/marketplace/listing-lifecycle"
 import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
+import { getStorefrontStorageCompatibilityIssue } from "@/lib/marketplace/storefront-identity"
 import { jsonError } from "@/lib/api/route-helpers"
 
 export const dynamic = "force-dynamic"
@@ -35,6 +36,16 @@ export async function POST(
 
   const accountGuard = requireMarketplaceEnabledForAccount(ctx.accountType)
   if (accountGuard) return accountGuard
+  const storageIssue = getStorefrontStorageCompatibilityIssue(ctx)
+  if (storageIssue) {
+    return jsonError({
+      status: 503,
+      code: storageIssue.code,
+      message: storageIssue.message,
+      retryable: false,
+      issues: storageIssue.owner,
+    })
+  }
 
   const { id: listingId } = await params
   const { userId, supabase } = ctx

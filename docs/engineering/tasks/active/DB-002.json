@@ -6,7 +6,7 @@
   "priority": "P0",
   "owner_agent": "database",
   "created_at": "2026-09-09T09:35:06.653Z",
-  "updated_at": "2026-09-22T16:18:55Z",
+  "updated_at": "2026-09-25T21:39:15.715Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Remove anonymous execution from exposed SECURITY DEFINER and money-path functions and verify the critical hosted authorization migrations in staging and production",
@@ -45,49 +45,36 @@
     "Staging and production postflight probes, security advisors, checksums, migration validation, and forward-repair evidence are recorded"
   ],
   "verification": {
-    "tier": "release",
+    "tier": "database contract + repository gates",
     "commands": [
       "npm run check:migration-chain",
-      "npm run check:migration-validation",
-      "npm run check:migration-checksums",
-      "bash scripts/run-migrations.sh --dry-run",
-      "Management API apply: 20260823210000_harden_hiring_onboarding_pii.sql (HTTP 201)",
-      "Management API apply: 20260823210100_venues_rbac_rls_baseline.sql (HTTP 201 after schema reconciliation)",
-      "Management API apply: 20260823220001_money_path_transactional_rpcs.sql (HTTP 201)",
-      "Management API apply: 20260823221000_event_hq_rls_tighten.sql (HTTP 201)",
-      "Management API apply: 20260823221100_venues_add_identity_columns.sql (HTTP 201)",
-      "Postflight: pg_policies query for hiring tables (no authenticated-wide permissive)",
-      "Postflight: can_view_hiring_pii SECURITY DEFINER + search_path=public confirmed",
-      "Postflight: money-path RPCs SECURITY DEFINER + search_path=public confirmed",
-      "Postflight: event HQ tables zero anon policies confirmed",
-      "Postflight: event HQ write policies creator-scoped + platform-admin confirmed",
-      "Postflight: venues has slug/account_id/created_by with chain-original types",
-      "Postflight: venues_slug_key partial unique index present",
-      "Postflight: venues_public_read + venues_owner_write present; RLS enabled on venues + 6 rbac tables",
-      "Postflight: has_entity_permission SECURITY DEFINER + search_path=public",
-      "Postflight: profiles_privilege_guard trigger enabled",
-      "RLS behavior probes: anon reads slug-published row (1), anon INSERT rejected (42501), probe rows rolled back"
+      "npm run check:db002-security-contract",
+      "bash supabase/tests/db008_storage_replay_guard.harness.sh (20260717194541)"
     ],
     "evidence": [
-      "check:migration-chain: 'active migration chain has no duplicate policy creations (278 files scanned)' — clean",
-      "check:migration-validation: exit 0, no failures — 5 manifests for the staged set record staging_validated with evidence",
-      "check:migration-checksums: 'No changed migration SQL files' — helper diffs committed baseSha...HEAD only; new migration is untracked until committed, so no checksum row is rendered pre-commit (expected; re-run after commit)",
-      "run-migrations.sh --dry-run: 25 files listed (the 4 target migrations NOT in script FILES array — pipeline apply list is owned by DB-003 per owner decision; run-migrations.sh NOT patched)",
-      "Migration 1 (hiring-PII): HTTP 201 — applied successfully. Postflight: vault has 2 policies (pii_admin + service_role), can_view_hiring_pii is SECURITY DEFINER with search_path=public, no authenticated-wide permissive policies on hiring tables, applicant self-read intact.",
-      "Migration 2 (venues/RBAC): HTTP 201 — applied successfully after additive schema reconciliation. Pre-apply probe confirmed deployed venues lacked slug/account_id/created_by and profiles lacked admin_level (has is_admin/role from bootstrap; failed baseline rolled back cleanly). Applied 20260823221100_venues_add_identity_columns (HTTP 201) first: slug text, account_id uuid FK auth.users(id) ON DELETE SET NULL, created_by uuid FK auth.users(id) ON DELETE SET NULL, all nullable; venues_slug_key = CREATE UNIQUE INDEX ... ON public.venues USING btree (slug) WHERE (slug IS NOT NULL). Then re-applied baseline (HTTP 201).",
-      "Migration 3 (money-path RPCs): HTTP 201 — applied successfully. Postflight: replace_ticket_revenue_allocations(uuid, jsonb) and delete_tour_cascade(uuid) exist, both SECURITY DEFINER with search_path=public, grants to authenticated+service_role.",
-      "Migration 4 (event-HQ): HTTP 201 — applied successfully. Postflight: zero anon policies on event_resources/event_calendar_items/event_bulletins; all INSERT/UPDATE/DELETE policies scoped to created_by/author_id = auth.uid() OR is_admin; authenticated reads unchanged.",
-      "Post-apply venues/RBAC probes: venues relrowsecurity=true; rbac_roles/rbac_permissions/rbac_role_permissions/rbac_user_entity_roles/rbac_user_permission_overrides/rbac_permission_audit_log all relrowsecurity=true. Policies present: venues_public_read (SELECT, anon+authenticated, using slug IS NOT NULL OR account_id=auth.uid() OR created_by=auth.uid()), venues_owner_write (ALL, authenticated), rbac_roles_read_authenticated, rbac_permissions_read_authenticated, rbac_role_permissions_read_authenticated, rbac_user_entity_roles_self_read + rbac_user_entity_roles_manage, rbac_overrides_admin_all, rbac_audit_insert_authenticated + rbac_audit_select_admin. has_entity_permission prosecdef=true proconfig=['search_path=public']. profiles_privilege_guard trigger tgenabled='O'.",
-      "RLS behavior probes (transactional, rolled back): anon_visible_published=1 for a slug-published row (anon CAN read via venues_public_read); anon INSERT rejected with 42501 'new row violates row-level security policy for table venues'; probe_rows_remaining=0 after rollback.",
-      "2026-09-22 local static rerun: node scripts/ci/check-db002-security-contract.mjs passed for all four SECURITY DEFINER grant contracts. This does not establish hosted staging or production anonymous-denial after the pending revoke migration.",
-      "Manifests: 20260823210100_venues_rbac_rls_baseline.json advanced planned → staging_validated; 20260823221100_venues_add_identity_columns.json added staging_validated; the 3 previously-staged manifests (hiring-PII, money-path, event-HQ) had their isolated-validated artifact fields populated (validator requires them for staging_validated) — 4 of 4 staged migrations now staging_validated."
+      {
+        "command": "npm run check:migration-chain",
+        "result": "pass",
+        "detail": "302 files, no duplicate policy creations."
+      },
+      {
+        "command": "npm run check:db002-security-contract",
+        "result": "not-run",
+        "detail": "Out of this wave's verification scope; the DB-002 contract is unchanged and no DB-002 migration was authored or modified here."
+      },
+      {
+        "command": "bash supabase/tests/db008_storage_replay_guard.harness.sh (20260717194541)",
+        "result": "pass",
+        "detail": "Original aborts as a replay role; guarded form completes with a warning; the owner-applied application_documents_select_own policy set is identical to the original; idempotent over three applies."
+      }
     ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-13T20:18:00Z",
-    "result": "blocked-release-authz"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "not-run",
+    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Next-phase unblock check confirms DB-002 still needs hosted apply/probe evidence. GitHub staging Supabase secrets are absent and no isolated staging target is recorded, so the anonymous-denial and SECURITY DEFINER postflight probes were not run.",
+    "summary": "Wave 34: no new DB-002 work; its four exposed SECURITY DEFINER functions were not touched. One DB-002 lesson applied rather than repeated: 20260926120200_marketplace_entitlement_download_increment_rpc.sql is a NEW SECURITY DEFINER function written the corrected way at author time - search_path pinned to public, revoke from public, revoke from anon, grant to authenticated - and db011_marketplace_entitlement_rpc_contract.sql fails closed on exactly the DB-002 regression, with a negative control that grants anon EXECUTE to prove the check bites. Same posture on the two new marketplace tables: ENABLE plus FORCE ROW LEVEL SECURITY, so the owner is subject to the deliberate absence of a buyer INSERT policy. The Wave 33 measurement correction touches DB-002's supporting evidence: the out-of-band DDL it attributed to raw Management API application is not visible in the generated contract at all (0 contract columns lack chain provenance), so the metadata drift it recorded in supabase_migrations.schema_migrations is a history-parity question, not a schema-coverage one.",
     "completed": [
       "20260823210000_harden_hiring_onboarding_pii.sql — APPLIED (hiring-PII hardening)",
       "20260823220001_money_path_transactional_rpcs.sql — APPLIED (money-path transactional RPCs)",
@@ -101,15 +88,16 @@
       "Production migration-history drift: target versions are absent from supabase_migrations.schema_migrations because prior raw Management API application did not register history; DB-003 owns reconciliation",
       "Read-only probe cleanup confirmed no residual rows; no migration was applied in this lane under CP-051",
       "Corrected 20260914090000_revoke_public_execute_db002.sql to revoke both PUBLIC and anon direct grants.",
-      "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path."
+      "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path.",
+      "20260717194541_harden_security_audit_remediation.sql previously compared pg_get_userbyid(relowner) = current_user and reported with `raise notice`. Measured on PostgreSQL 16.15 it created ZERO storage.objects policies under an owner while exiting 0 and reporting nothing, because the guard is a strict subset of the server's pg_class_ownercheck and client_min_messages = warning suppresses the NOTICE. The application_documents_public_read drop and the application_documents_select_own hardening are now attempted against the server in their own subtransaction. This is a real authorization improvement for the hiring-PII document bucket, not only a replay fix.",
+      "The insert into storage.buckets for the application-documents bucket is now guarded the same way, so a replay role that cannot write storage.buckets no longer aborts the chain at 20260717194541 before 20260914090000_revoke_public_execute_db002.sql is ever reached."
     ],
     "next_steps": [
-      "After staging Supabase values exist, apply the reviewed revoke migration under CP-051 and record anonymous denial, authenticated/service-role allowed scope, advisors, and migration-history evidence."
+      "Unchanged: DB-002 stays release-blocked on its own hosted evidence. Read-only re-verification of the four functions, the security-advisor rerun, and the migration-history reconciliation remain operator work. Nothing in this wave reduces that blocker."
     ],
     "blockers": [
-      "No staging or production database mutation/probe was performed in this batch.",
-      "Hosted migration-history drift remains unresolved from prior raw Management API applications.",
-      "The task cannot close on static contract evidence alone."
+      "DB-002's own blockers are unchanged: the four SECURITY DEFINER functions still need a reviewed, explicit CP-051 manual authorization fix applied, then hosted probes and an advisor rerun. This lane applied nothing.",
+      "No staging or production evidence was gathered. Environments still default to historyStatus unverified."
     ],
     "checkpoints": [
       {
@@ -199,8 +187,30 @@
         "blockers": [
           "No isolated staging credentials or exact-SHA deployment; full migration-validation is also red on an unrelated expired job-posting exception."
         ]
+      },
+      {
+        "at": "2026-09-25T20:52:43.468Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: no DB-002 migration authored or modified and nothing applied. Indirect contribution only: 20260717194541 previously compared pg_get_userbyid(relowner) = current_user and reported with raise notice, and it created ZERO storage.objects policies under an owner while exiting 0 and reporting nothing. The application_documents_public_read drop and the application_documents_select_own hardening (the hiring-PII document bucket) are now attempted against the server in their own subtransaction and proved to create the policy. The application-documents bucket seed is guarded too, so a replay role can no longer abort the chain before 20260914090000_revoke_public_execute_db002.sql is reached.",
+        "completed": [],
+        "next_steps": [
+          "A reviewed explicit CP-051 manual authorization fix for the four SECURITY DEFINER functions must still be applied by an operator, then hosted probes and an advisor rerun. This lane applied nothing and claims no hosted evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:15.715Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-002 work; its four exposed SECURITY DEFINER functions were not touched. One DB-002 lesson applied rather than repeated: 20260926120200_marketplace_entitlement_download_increment_rpc.sql is a NEW SECURITY DEFINER function written the corrected way at author time - search_path pinned to public, revoke from public, revoke from anon, grant to authenticated - and db011_marketplace_entitlement_rpc_contract.sql fails closed on exactly the DB-002 regression, with a negative control that grants anon EXECUTE to prove the check bites. Same posture on the two new marketplace tables: ENABLE plus FORCE ROW LEVEL SECURITY, so the owner is subject to the deliberate absence of a buyer INSERT policy. The Wave 33 measurement correction touches DB-002's supporting evidence: the out-of-band DDL it attributed to raw Management API application is not visible in the generated contract at all (0 contract columns lack chain provenance), so the metadata drift it recorded in supabase_migrations.schema_migrations is a history-parity question, not a schema-coverage one.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: DB-002 stays release-blocked on its own hosted evidence. Read-only re-verification of the four functions, the security-advisor rerun, and the migration-history reconciliation remain operator work. Nothing in this wave reduces that blocker."
+        ],
+        "blockers": []
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [],
+  "wave34Note": "No new DB-002 work this wave, but one DB-002 lesson was applied rather than repeated. DB-002 found four SECURITY DEFINER functions that kept PUBLIC/anon EXECUTE. 20260926120200_marketplace_entitlement_download_increment_rpc.sql is a new SECURITY DEFINER function written the corrected way at author time: search_path pinned to public, revoke from public, revoke from anon, grant to authenticated, plus a contract postflight that fails closed on exactly the DB-002 regression (db011_marketplace_entitlement_rpc_contract.sql asserts has_function_privilege for public, anon and authenticated and a negative control grants anon EXECUTE to prove the check bites). The same posture is applied to the two new marketplace tables: ENABLE plus FORCE ROW LEVEL SECURITY, because neither has an INSERT policy for the buyer and FORCE makes the owner subject to that absence too.",
+  "unaffected": "DB-002 remains active and release-blocked on its own hosted evidence. The four functions it names were NOT touched this wave."
 }

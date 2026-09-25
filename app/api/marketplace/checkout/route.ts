@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     if (attemptDecision.action === "resume") {
       const { data: existingOrder, error: existingOrderError } = await svc
         .from("marketplace_orders")
-        .select("id, stripe_checkout_session_id")
+        .select("id, status, payment_status, stripe_checkout_session_id, metadata")
         .eq("id", attemptDecision.orderId)
         .maybeSingle()
 
@@ -145,10 +145,79 @@ export async function POST(request: NextRequest) {
           // Closed or unavailable sessions never create another order for the same key.
         }
       }
+      const now = new Date().toISOString()
+      const existingAudit = Array.isArray(existingOrder?.metadata?.lifecycleAudit)
+        ? existingOrder.metadata.lifecycleAudit.slice(-49)
+        : []
+
+      const { error: expireAttemptError } = await svc
+        .from("marketplace_checkout_attempts")
+        .update({ status: "expired", expires_at: now })
+        .eq("idempotency_key", idempotencyKey)
+        .eq("input_hash", inputHash)
+        .eq("status", "pending")
+
+      if (expireAttemptError) {
+        return jsonError({
+          status: 500,
+          code: "checkout_attempt_expire_failed",
+          message: "Unable to recover the expired checkout attempt.",
+          retryable: true,
+        })
+      }
+
+      if (existingOrder?.status === "pending" && existingOrder.payment_status === "processing") {
+        const { error: orderExpireError } = await svc
+          .from("marketplace_orders")
+          .update({
+            status: "cancelled",
+            payment_status: "failed",
+            metadata: {
+              ...(existingOrder.metadata || {}),
+              checkoutRecovery: {
+                at: now,
+                reason: "checkout_session_unavailable",
+                stripeCheckoutSessionId: existingOrder.stripe_checkout_session_id ?? null,
+              },
+              lifecycleAudit: [
+                ...existingAudit,
+                {
+                  action: "checkout_session_unavailable",
+                  at: now,
+                  previousStatus: existingOrder.status,
+                  previousPaymentStatus: existingOrder.payment_status,
+                },
+              ],
+            },
+          })
+          .eq("id", existingOrder.id)
+          .eq("status", "pending")
+          .eq("payment_status", "processing")
+
+        if (orderExpireError) {
+          return jsonError({
+            status: 500,
+            code: "checkout_order_recovery_failed",
+            message: "Unable to recover the expired checkout order.",
+            retryable: true,
+          })
+        }
+
+        await svc
+          .from("marketplace_payout_ledger")
+          .update({ payout_status: "on_hold" })
+          .eq("order_id", existingOrder.id)
+
+        await svc
+          .from("marketplace_order_items")
+          .update({ fulfillment_status: "cancelled" })
+          .eq("order_id", existingOrder.id)
+      }
+
       return jsonError({
         status: 409,
         code: "checkout_session_unavailable",
-        message: "The previous checkout session is no longer available. Use a new idempotency key.",
+        message: "The previous checkout session is no longer available. The abandoned order was closed; start checkout again with a new idempotency key.",
         retryable: false,
       })
     }

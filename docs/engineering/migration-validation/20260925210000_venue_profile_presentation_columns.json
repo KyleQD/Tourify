@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260925210000_venue_profile_presentation_columns.sql",
+  "taskId": "DB-008",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "db0e3f3c6d3a11d8dc6f9a502c0b6e3d3c9f7c91d1fbda83ad792e70b88e6c37",
+  "owner": "database",
+  "reviewer": "venue",
+  "domains": [
+    "venue",
+    "public-projection",
+    "seo"
+  ],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "static source review of the active 302-migration chain: an ordered CREATE/DROP/RENAME replay of supabase/migrations/*.sql reconstructs public.venue_profiles with 19 columns (address, amenities, avatar_url, capacity, city, country, created_at, description, global_search_vector, id, main_profile_id, settings, state, updated_at, user_id, venue_name, venue_types, verification_status) and NO social_links and NO cover_image_url, while lib/database.types.ts declares neither either. app/api/venues/[id]/route.ts line 42-43 selects both columns in the public venue projection and lib/seo/public-preview-readers.ts line 97 selects cover_image_url for the SEO preview image fallback. Migration SHA-256 db0e3f3c6d3a11d8dc6f9a502c0b6e3d3c9f7c91d1fbda83ad792e70b88e6c37; contract-test SHA-256 recorded below.",
+    "evidenceArtifact": "static-review:DB-008-VENUE-PROFILE-PRESENTATION-2026-09-25 (migration SHA-256 db0e3f3c6d3a11d8dc6f9a502c0b6e3d3c9f7c91d1fbda83ad792e70b88e6c37); inventory docs/engineering/database-type-inventory-2026-09-25.json"
+  },
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm public.venue_profiles exists, is RLS-enabled and forced, has at least one policy, and that neither social_links nor cover_image_url already exists. Record the row count so the ADD COLUMN default cost is known; venue_profiles is low cardinality, so a default rewrite is expected to be sub-second.",
+    "Layer 1 (apply, single statement, operator): ALTER TABLE public.venue_profiles ADD COLUMN IF NOT EXISTS social_links jsonb NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS cover_image_url text, plus two COMMENT ON COLUMN statements. No table is created, dropped, renamed or rewritten; no policy, grant or role is touched; only an ACCESS EXCLUSIVE lock is required, for the duration of two catalog-only column additions.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db008_venue_profile_presentation_columns_contract.sql; expect zero violation rows and the single summary row with venue_profile_presentation_columns_ready = true.",
+    "Layer 3 (types + runtime certification, database then venue/release): after the apply, run npm run generate:database-types against the same reconciled target and then npm run check:database-types, which should stop reporting the 27 social_links and 23 cover_image_url diagnostics. Then GET an existing public venue through app/api/venues/[id]/route.ts and confirm the response contains social_links as an object and the cover_image_url key, and confirm lib/seo/public-preview-readers.ts still falls back to avatar_url for a venue with no cover image."
+  ],
+  "verificationOwner": "database",
+  "classificationBasis": {
+    "defect": "schema-missing",
+    "whyNotStaleTypes": "Neither column exists anywhere in the active chain, so no regeneration of lib/database.types.ts can create them. The generated contract is correct to omit them; the chain is short.",
+    "whyNotCodeDrift": "Both columns are read by entry-reachable surfaces, so the code cannot simply be deleted, and the repository already treats them as part of the canonical venue projection (app/api/venues/[id]/route.ts selects 20+ venue_profiles columns, only 3 of which are missing).",
+    "whyOnlyTheseTwo": "These are the only two of the 21 (table, column) pairs where the intended contract is unambiguous from the repository: an equivalent column already exists on a sibling relation with the same shape (profiles.social_links jsonb from 20250819100000_profiles_expand_fields.sql; tours.cover_image_url text from 20260720020302_admin_tour_stop_publish.sql). The other 19 either have a named canonical replacement in docs/engineering/database-type-inventory-2026-09-25.json or have no derivable contract, so they are recorded for the owning domain rather than guessed here.",
+    "diagnosticsResolved": 50
+  },
+  "assumptions": [
+    {
+      "id": "social-links-shape",
+      "assumption": "public.venue_profiles.social_links is jsonb with an object shape, matching public.profiles.social_links.",
+      "basis": "profiles.social_links jsonb default '{}'::jsonb was added by 20250819100000_profiles_expand_fields.sql and is the only social_links column in the chain; the venue projection reads the same field name.",
+      "risk": "low",
+      "ifWrong": "The column is still valid jsonb; only the inner key names could differ, which is a data-shape question for the venue domain, not a migration question."
+    },
+    {
+      "id": "cover-image-type",
+      "assumption": "public.venue_profiles.cover_image_url is a nullable text URL, matching public.tours.cover_image_url.",
+      "basis": "lib/seo/public-preview-readers.ts passes the value to firstString() and falls back to avatar_url, which only works for a string column. tours.cover_image_url text was added by 20260720020302_admin_tour_stop_publish.sql for the same SEO/preview purpose.",
+      "risk": "low",
+      "ifWrong": "Text is the only type that satisfies the existing consumer; a different type would require a code change, not a schema change."
+    },
+    {
+      "id": "nullability-and-default",
+      "assumption": "social_links may be NOT NULL DEFAULT '{}' while cover_image_url stays nullable.",
+      "basis": "A jsonb consumer that indexes the map must not receive NULL; the preview reader treats the image URL as optional and already has a fallback.",
+      "risk": "low",
+      "ifWrong": "Dropping NOT NULL is a one-line forward migration; existing rows are unaffected either way because the default is applied."
+    },
+    {
+      "id": "no-authorization-change",
+      "assumption": "No policy, grant, role or RLS change is required for the new columns.",
+      "basis": "Postgres RLS is row-scoped, not column-scoped, so a new column cannot widen any existing row-level policy. Column-level SELECT is already granted by the existing table-level grants on venue_profiles.",
+      "risk": "low",
+      "ifWrong": "Not applicable: a column cannot widen a row-level policy."
+    },
+    {
+      "id": "public-exposure",
+      "assumption": "Exposing social_links and cover_image_url on the public venue projection does not publish data the public venue route did not already intend to publish.",
+      "basis": "Both columns are already selected by the public venue route (app/api/venues/[id]/route.ts) and by the SEO reader; the route's existing RLS/policy set already governs which rows are public. The columns simply stop being NULL.",
+      "risk": "medium",
+      "ifWrong": "If the venue domain considers social_links private, it must add a projection-level filter in app/api/venues/[id]/route.ts rather than removing the column. Recorded for the venue reviewer."
+    }
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT count(*) FROM public.venue_profiles",
+      "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='venue_profiles' AND column_name IN ('social_links','cover_image_url')",
+      "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='venue_profiles'"
+    ],
+    "expectedAffectedRows": "DDL only: two columns plus two comments; zero existing rows changed. social_links reads back as '{}' for pre-existing rows because of the NOT NULL DEFAULT.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with this exact file or a targeted psql apply. A partial or failed apply is corrected with a later additive forward fix, never a replay or reset.",
+    "resumeCursor": "Supabase migration version 20260925210000",
+    "idempotency": "ADD COLUMN IF NOT EXISTS and COMMENT ON COLUMN are deterministic and repeatable; no object creation requires a pre-check and no DML is executed."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement or quarantine. The migration writes no rows, so there is nothing to quarantine."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No CHECK, FK, UNIQUE or NOT NULL constraint is added to any existing column; only the new social_links column carries its own NOT NULL DEFAULT '{}'::jsonb."
+    ],
+    "indexes": [
+      "No index is added. Neither column is used in an equality predicate by the current consumers, both of which select the full public projection.",
+      "If a later change filters or orders on social_links keys, a GIN index should be added in that change's own forward migration, not here."
+    ],
+    "validationPlan": "Post-apply catalog probes via supabase/tests/db008_venue_profile_presentation_columns_contract.sql assert both columns exist with the exact type, nullability and default; that RLS is still enabled and forced with at least one policy; that anon/authenticated hold no unexpected privilege; that no existing row reads back NULL social_links; and that the mirrored public.profiles.social_links column exists. Runtime behaviour is certified by the Layer 3 public-route and SEO-preview probes."
+  },
+  "recovery": {
+    "rollback": "Not applicable. The migration only adds two nullable/defaulted columns and writes no rows, so there is no state to roll back. Dropping the columns would break the public venue projection and the SEO reader, which already select them, so they must not be dropped. If a column shape proves wrong, add a forward migration.",
+    "forwardFix": "Adjust nullability, default or type through a later additive forward migration; never re-apply, replay or reset the chain (CP-051)."
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/db008_venue_profile_presentation_columns_contract.sql and confirm zero violation rows",
+      "SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='venue_profiles' AND column_name IN ('social_links','cover_image_url')",
+      "Re-run npm run generate:database-types against the same reconciled target, then npm run check:database-types",
+      "Re-run npm run typecheck and confirm the 27 social_links and 23 cover_image_url SelectQueryError diagnostics are gone"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null
+  },
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

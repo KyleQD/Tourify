@@ -18,13 +18,21 @@ const deferredRoutePaths = [
   "app/api/webhooks/music-royalty-payouts/route.ts",
 ] as const
 
+const constantTimeSignatureRoutes = [
+  "app/api/webhooks/music-marketplace/[partner]/route.ts",
+  "app/api/institutional/partners/webhooks/[provider]/route.ts",
+  "app/api/licensing/partners/webhooks/[provider]/route.ts",
+  "app/api/rights-admin/partners/webhooks/[provider]/route.ts",
+] as const
+
 describe("route-local webhook contracts", () => {
   it.each(routePaths)("claims before processing and completes %s", (routePath) => {
     const source = readFileSync(resolve(process.cwd(), routePath), "utf8")
 
     expect(source).toMatch(/verify(?:[A-Z]|Partner|Printful|Shopify)/)
     expect(source).toContain(".insert(")
-    expect(source).toMatch(/23505|duplicate key/)
+    // Duplicate detection goes through the shared unique-violation primitive.
+    expect(source).toMatch(/isUniqueViolation|23505|duplicate key/)
     expect(source).toContain("processed_at")
     expect(source).toMatch(/status: [\"']processed[\"']|processed_at: new Date\(\)/)
   })
@@ -47,8 +55,38 @@ describe("route-local webhook contracts", () => {
 
     expect(source).toContain("notification_delivery_log")
     expect(source).toContain("duplicate: true")
-    expect(source).toContain("timingSafeEqual")
+    // The secret comparison is delegated to the shared constant-time primitive
+    // instead of a local `===` / bare `timingSafeEqual` call.
+    expect(source).toContain("safeCompare(token, secret)")
+    expect(source).not.toMatch(/token\s*===\s*secret/)
   })
+
+  it("claims the Supabase notification delivery atomically before any send", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "app/api/webhooks/supabase/notifications/route.ts"),
+      "utf8",
+    )
+
+    expect(source).toContain("webhook_delivery_receipts")
+    expect(source).toContain("isUniqueViolation")
+    // The claim must precede the outbound delivery call.
+    expect(source.indexOf("claimDelivery(supabase, notificationId)")).toBeLessThan(
+      source.indexOf("deliverNotificationOutbound({"),
+    )
+  })
+
+  it.each(constantTimeSignatureRoutes)(
+    "verifies the partner webhook signature in constant time: %s",
+    (routePath) => {
+      const source = readFileSync(resolve(process.cwd(), routePath), "utf8")
+
+      expect(source).toContain("verifyPrefixedDigestSignature")
+      // A configured secret must reject an absent signature rather than fall
+      // through to the unconfigured path.
+      expect(source).toMatch(/if \(secret\) \{/)
+      expect(source).not.toContain("verifyPartnerWebhookSignature")
+    },
+  )
 
   it.each(deferredRoutePaths)("fails closed behind the advanced webhook release gate: %s", (routePath) => {
     const source = readFileSync(resolve(process.cwd(), routePath), "utf8")

@@ -39,7 +39,9 @@ export interface PublicArtistHeroDTO {
   banner: PublicArtistBannerDTO | null
   followersCount: number
   /**
-   * “Future” monthly listeners as calculated by `get_enhanced_artist_stats`.
+   * “Future” monthly listeners. The legacy `get_enhanced_artist_stats` RPC is
+   * not in the active migration chain (DB-008), so this stays 0 until an
+   * in-chain source exists.
    */
   futureMonthlyListeners: number
 }
@@ -155,6 +157,22 @@ export interface PublicArtistProductDTO {
   imageUrl: string | null
   isFeatured: boolean
   status: string | null
+  /**
+   * Marketplace listing attributes used by the band storefront aggregation
+   * (ARTIST-006). Single-artist pages still load listings client-side through
+   * `/api/marketplace/discover` and leave `products` empty; only band pages
+   * populate these fields so the storefront grid can group by category and
+   * feature listings without a second data source.
+   */
+  category?: string | null
+  productType?: string | null
+  featuredRank?: number | null
+  variants?: Array<{
+    id: string
+    title: string
+    price: number
+    inventoryCount?: number | null
+  }>
 }
 
 export interface PublicArtistProductsDTO {

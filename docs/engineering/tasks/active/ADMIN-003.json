@@ -6,9 +6,9 @@
   "priority": "P0",
   "owner_agent": "admin",
   "created_at": "2026-09-09T09:35:09.553Z",
-  "updated_at": "2026-09-22T15:56:00Z",
+  "updated_at": "2026-09-25T21:39:38.640Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-  "working_tree_status": "dirty (shared workspace; QA-004 admin-scope repair wave)",
+  "working_tree_status": "dirty (shared workspace). Wave 34 added: repairs to app/api/admin/onboarding/add-existing-user/route.ts, app/api/admin/tours/artists/route.ts and app/api/admin/events/[id]/task-messages/route.ts; the new test __tests__/admin/admin-profile-column-drift.test.ts; one append-only entry in security/security-scan-exceptions.json; and two new handoffs. The in-flight logistics overhaul (components/admin/**, app/api/admin/logistics/**, __tests__/logistics/**, .agents/admin-dashboard-builder/*) was preserved and built on, not discarded.",
   "goal": "Require every production admin API to use the canonical server-side guard with explicit role, tenant, and resource scope",
   "scope": {
     "in": [],
@@ -31,15 +31,41 @@
   "verification": {
     "tier": "release",
     "commands": [
-      "npx vitest run __tests__/admin/tour-transition.test.ts __tests__/admin/admin-route-capability-matrix.test.ts __tests__/admin/admin-context.test.ts",
-      "npx eslint app/api/admin/tours/[id]/transitions/[command]/route.ts lib/admin/api-route-registry.ts",
-      "node scripts/ci/check-admin-route-registry.mjs",
-      "npx tsc --noEmit --pretty false --incremental false",
-      "npm exec vitest run __tests__/admin/admin-platform-guard.test.ts __tests__/admin/admin-route-capability-matrix.test.ts",
-      "npm exec eslint app/api/admin/marketplace/orders/route.ts app/api/admin/marketplace/orders/[id]/route.ts __tests__/admin/admin-platform-guard.test.ts",
-      "npm run agents:validate"
+      "npm run check:admin-route-registry",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npx vitest run __tests__/admin __tests__/logistics",
+      "npx vitest run __tests__/admin/admin-profile-column-drift.test.ts",
+      "npx vitest run __tests__/admin/tour-transition.test.ts __tests__/admin/admin-route-capability-matrix.test.ts __tests__/admin/admin-context.test.ts __tests__/admin/admin-platform-guard.test.ts __tests__/admin/admin-team-members-scope.test.ts",
+      "npm run check:admin-audit",
+      "npm run check:admin-execution",
+      "node scripts/ci/check-security-exceptions.mjs",
+      "npx eslint app/api/admin/onboarding/add-existing-user/route.ts app/api/admin/tours/artists/route.ts 'app/api/admin/events/[id]/task-messages/route.ts' __tests__/admin/admin-profile-column-drift.test.ts",
+      "git diff --check -- <admin-owned files>",
+      "npm run agents:validate",
+      "npx tsc --noEmit -p <scoped project over the admin-owned files>  (scoped only; full typecheck not run)"
     ],
     "evidence": [
+      "Wave 34 admin code-drift repair, 2026-09-25. Scoped typecheck over the three repaired files plus collaborators: 39 diagnostic lines before, 36 after. The 3 removed lines are exactly the `profiles.phone` SelectQueryError triple in add-existing-user; no new diagnostic was introduced.",
+      "Wave 34, `admin` cluster root cause proved from the source of truth: `profiles` declares neither `display_name` nor `phone` in the active chain (302 migrations, 305 files scanned) nor in lib/database.types.ts. It declares `show_phone`, a boolean privacy flag, which typechecks and returns nothing usable. Canonical display column is `full_name` (written by four signup triggers); genres live on `artist_profiles.genres` and the chain never spelled `primary_genres`.",
+      "Wave 34, `add-existing-user` was a silent-wrong-data defect, not a fail-open one: the read error was discarded, so `existingUser` was permanently null and the handler wrote name 'Existing User' with an empty email into `staff_onboarding_candidates` and returned 200. Now 502 on read error, 404 on a missing profile, and no insert in either case. The phone is taken from the request body because the canonical source is auth.users.raw_user_meta_data, unreadable from the cookie-scoped client, and reading it would require a service-role escalation this repair does not justify.",
+      "Wave 34, `tours/artists` and `task-messages` drift was invisible to tsc: `withAdminCapability` types its handler client `any` (lib/auth/api-auth.ts:280) and task-messages builds its client without a `Database` generic, so `display_name` and `primary_genres` produced zero diagnostics while breaking both routes at PostgREST. A tsc error count is a lower bound on drift, never an upper bound.",
+      "Wave 34, `tours/artists` keeps `withAdminCapability('tour.view')`, its response shape, its limit clamp and its exact row scope; only the columns changed. The visible cross-tenant read (profiles.role='artist' with no organization predicate) was deliberately NOT tightened in a drift pass and is recorded as a finding with the `organization_artist_members` precedent named.",
+      "Wave 34, `task-messages` sender attribution is repaired: the chain is now `full_name -> username -> 'Admin'`, so task messages stop being recorded with the literal sender name `Admin`.",
+      "Wave 34, new test `__tests__/admin/admin-profile-column-drift.test.ts` (13 tests) hard-codes the `profiles` column list and asserts every selected, iliked and ordered column against it, asserts the fail-closed no-write behaviour, and pins the pre-existing eventId path-segment defect so it cannot be changed silently.",
+      "Wave 34, `auth-identity` determination: the verification family is an unreachable retired island (verification.service.ts has one importer, account-verification.tsx has zero) and all 8 service consumers read `if (error) throw error`, so the cluster is fail-closed. The single real defect is lib/services/project-workspace.service.ts:488, an unchecked channel_participants insert that reports success while never enrolling the collaborator. Live verification surfaces are on different tables (artist_profiles.verification_status, venue_profiles.verification_status, profiles.is_verified) and are unaffected.",
+      "Wave 34, `analytics` correction: `bookings` has at least 5 live consumers, not the 2 recorded, including app/api/payment/route.ts (44, 200, 233) and app/bookings/page.tsx (104, 151, 186). `performance_metrics` is live under /api/analytics/metrics and /api/analytics/errors, which lib/analytics/ux-event-client.ts and lib/performance-monitor.ts POST to. Ten of twelve analytics objects have lib/services/advanced-analytics.service.ts as their only consumer and that file has zero importers.",
+      "Wave 34, the inventory's file-to-object attribution is approximate and was not used as a work list: three files it names for `profiles.display_name` contain no such string, the file it names for `profiles.phone` does not reference phone, and lib/services/venue.service.ts does not call submit_verification_request. Every object was re-established by direct source search and a scoped tsc.",
+      "Wave 34, two authorization-input defects found and deliberately NOT repaired (both change which resource a guard is evaluated against, so both are ADMIN-003 owner decisions): site-maps/import calls has_entity_permission with user_id/entity_type/entity_id/permission where the chain declares p_user_id/p_entity_type/p_entity_id/p_permission_name, which fails closed to 403 but also skips authorization entirely when neither eventId nor tourId is supplied; and task-messages reads eventId from pathname.split('/')[5] instead of [4], so its ownership gate never matches a real event.",
+      "Wave 34, `check:admin-route-registry` exact at 54/54 legacy classifications over 291 admin route files on disk, unchanged by this wave. REL-103 reports route-method contracts exact and legacy debt did not grow.",
+      "Wave 34, `npx vitest run __tests__/admin __tests__/logistics` PASS: 283 test files passed and 1 skipped of 284; 3574 tests passed and 2 skipped of 3576.",
+      "Wave 34, ADMIN-003 recorded focused suites PASS: tour-transition, admin-route-capability-matrix, admin-context, admin-platform-guard, admin-team-members-scope — 5 files, 91 tests.",
+      "Wave 34, `npm run check:migration-chain` PASS (305 files scanned, no duplicate policy creations) and `npm run check:migration-validation` PASS.",
+      "Wave 34, CodeQL alert #95 dispositioned as not_exploitable in security/security-scan-exceptions.json as CODEQL-95-ADMIN-OAUTH-STATE-HMAC-SINK, append-only; registry 5 -> 6 active exceptions, check passes. Retrieved read-only: state open, dismissed_reason null, fixed_at null, rule js/insufficient-password-hash, security_severity_level high, refs/pull/14/merge at 5324399bf453f07d6a380bf6effab263383ff17c, location lib/admin/content-hub/oauth-state.ts:96:76-80, five reported flow paths all originating in the integrations test file. The alert is NOT dismissed on GitHub and no hosted re-scan is claimed.",
+      "Wave 34, `npm run agents:validate` PASS: 17 agents, 151 tasks, 0 warnings, 0 errors.",
+      "Wave 34, `npm run check:admin-audit` FAILS with 3 pre-existing errors and `npm run check:admin-execution` FAILS with 17 pre-existing errors. Neither check reads any file the admin lane modified; the stale hashes trace to lib/admin/api-route-registry.ts and lib/supabase/service-role-import-review.json (dirty from other lanes) and playwright.config.ts. Repairing needs the shared regeneration write forbidden to this lane. Escalated as OB-5.",
+      "Wave 34, `git diff --check` scoped to the admin lane's four tracked files is clean. Unscoped it reports trailing whitespace in three app/artist/events/** files owned by the artist lane.",
+      "Wave 34, full `npm run typecheck` was NOT run: 68m18s on CI and it OOMs on this 8GB box with four concurrent lanes. No typecheck pass is claimed.",
       "withAdminCapability is the organization-scope standard; withPlatformAdmin is the platform-only standard.",
       "The tour lifecycle transition POST route now uses withAdminCapability with a command-derived capability; explicit tour resource scope is enforced by the wrapper and command-specific lifecycle authorization remains in executeTourTransition.",
       "Focused tests passed: 3 files / 18 tests.",
@@ -117,14 +143,15 @@
       "Marketplace order read-family verification (2026-09-18): collection and detail GET use withPlatformAdmin; focused Vitest passed 2 files / 26 tests including role-only profile denial, platform method contracts, and preservation of the detail route's dynamic id predicate; focused ESLint passed; registry CI passed at 289 routes and exact legacy 72/72; npm run agents:validate passed with 17 agents / 109 tasks / 0 warnings / 0 errors; changed-path git diff --check passed. Repository-wide typecheck was intentionally not run for this compute-bounded batch and is not claimed.",
       "2026-09-22 QA-004 admin-scope repair: /api/admin/team-members PATCH now uses withAdminCapability(\"workforce.manage\"), resolves the target venue_team_members row, verifies venue_identity_bridges.operational_org_id matches the acting admin organization, and binds the update by both member id and venue id.",
       "2026-09-22 QA-004 admin-scope repair: /api/admin/venues/[id] GET/PATCH now use withPlatformAdmin, and GET no longer discovers events by venue_name text matching; it only loads events_v2 through a venue_identity_bridges.venues_v2_id bridge.",
-      "2026-09-22 verification: npx vitest run __tests__/admin/admin-team-members-scope.test.ts __tests__/admin/admin-route-capability-matrix.test.ts passed 2 files / 14 tests; node scripts/ci/check-admin-route-registry.mjs passed with 290 route files and legacy classifications 54/54; scoped ESLint on changed admin routes/tests/registry passed."
+      "2026-09-22 verification: npx vitest run __tests__/admin/admin-team-members-scope.test.ts __tests__/admin/admin-route-capability-matrix.test.ts passed 2 files / 14 tests; node scripts/ci/check-admin-route-registry.mjs passed with 290 route files and legacy classifications 54/54; scoped ESLint on changed admin routes/tests/registry passed.",
+      "2026-09-23 admin site-map client repair: organization-aware requests now send selected profile/account/org/correlation headers, defer until organization readiness, preserve JSON and FormData semantics, and cancel or discard stale organization responses across the admin site-map workflow. Creation/import require event_v2 or tour scope; server guards, resource authorization, RLS, and database schema were unchanged. Focused Vitest passed 8 files / 66 tests; scoped ESLint, registry validation, agent validation, and diff checks passed. Repository-wide TypeScript did not complete within available resources and is not claimed; authenticated browser regression remains outstanding."
     ],
     "last_run_sha": "working-tree",
-    "last_run_at": "2026-09-18T21:59:39Z",
+    "last_run_at": "2026-09-25T15:20:00.000Z",
     "result": "partial"
   },
   "progress": {
-    "summary": "ADMIN-003 remains active, but the QA-004 admin findings for top-level team-member PATCH and venue detail scope are locally repaired and registry-classified. Hosted denial and full release verification remain outstanding.",
+    "summary": "Wave 34 admin code-drift repair. Repointed the admin cluster (profiles.display_name, profiles.phone) in three routes with guards untouched: add-existing-user now reads only existing profiles columns, takes the phone from the request, and FAILS CLOSED (502 on read error, 404 on missing profile, no insert either way) instead of writing a fabricated 'Existing User' row into staff_onboarding_candidates; tours/artists keeps tour.view, its response shape and row scope while reading full_name/username and resolving genres from artist_profiles.genres; task-messages now resolves the sender as full_name -> username -> 'Admin'. New test __tests__/admin/admin-profile-column-drift.test.ts (13 tests) pins the profiles column list because withAdminCapability types the client any and the drift was invisible to tsc. Security determination for the auth-identity cluster: the verification_* family is an unreachable retired island and all 8 consumers read if (error) throw error, so it is fail-closed; the one real defect is project-workspace.service.ts:488, an unchecked channel_participants insert that reports success while never enrolling the collaborator. Two authorization-input defects found and deliberately NOT repaired (site-maps/import has_entity_permission argument names; task-messages eventId read from segment 5 instead of 4) - each changes an authorization outcome so both need an ADMIN-003 decision. CodeQL alert #95 dispositioned not_exploitable in the shared security registry (append-only, 5 -> 6 entries) and returned to INTG-006; the signer was not modified and the alert is not dismissed on GitHub. PASS: check:admin-route-registry exact at 54/54 over 291 route files (unchanged); check:migration-chain; check:migration-validation; vitest __tests__/admin + __tests__/logistics 283 files passed 1 skipped / 3574 tests passed 2 skipped; ADMIN-003 recorded focused suites 5 files 91 tests; check-security-exceptions; focused eslint exit 0; git diff --check clean on admin-owned files; agents:validate 17 agents 151 tasks 0 warnings 0 errors. Scoped tsc over the repaired files: 39 diagnostic lines before, 36 after, the 3 removed being exactly the profiles.phone triple. FAIL (pre-existing, not caused by this wave): check:admin-audit 3 errors and check:admin-execution 17 errors, both traceable to lib/admin/api-route-registry.ts, lib/supabase/service-role-import-review.json and playwright.config.ts, none of which this lane touched; repairing needs the shared regeneration write forbidden here. Full npm run typecheck NOT run (68m18s CI, OOMs on this 8GB box) and no typecheck pass is claimed.",
     "completed": [
       "Added withPlatformAdmin for global privileged operations.",
       "Documented and exercised withAdminCapability for acting-organization capability checks.",
@@ -151,13 +178,20 @@
       "Migrated the events communications route family (2 routes, 5 handlers) onto withAdminCapability('event.view'): app/api/admin/events/[id]/communications (GET route.ts:21, POST :105, PATCH :213) and communication-settings (GET route.ts:36, PATCH :76); import swapped from withAuth/withAdminAuth to withAdminCapability from @/lib/auth/api-auth (dead withAdminAuth import removed). All participant/owner membership checks preserved (event_participants, events_v2.created_by, employment_assignments, mark_read/acknowledge, pin/unpin/delete/moderate, settings owner gate). Registry already capability_gated event.view — alignment only, baseline exact 75/75.",
       "Migrated Marketplace moderation GET/PATCH from a role-string profile gate to withPlatformAdmin; preserved query validation, the PATCH queue-item id predicate, and assigned_admin_id attribution. Classified the route platform_admin, lowered the exact legacy baseline to 74/74, and added platform-role denial plus registry/method-contract coverage.",
       "Migrated the platform-global Marketplace order collection/detail GET family to withPlatformAdmin. Preserved list filtering/pagination and the detail route's awaited dynamic id, .eq('id', id) resource predicate, joins, and 404 behavior; classified both registry entries platform_admin and lowered the exact legacy baseline to 72/72.",
-      "Locally repaired QA-004 findings SIM-20260922-ADMIN-001 and SIM-20260922-ADMIN-002 under ADMIN-003: team-member PATCH is workforce.manage plus venue-org scoped; venue detail is platform-admin only with bridged event lookup."
+      "Locally repaired QA-004 findings SIM-20260922-ADMIN-001 and SIM-20260922-ADMIN-002 under ADMIN-003: team-member PATCH is workforce.manage plus venue-org scoped; venue detail is platform-admin only with bridged event lookup.",
+      "Repaired the admin site-map acting-context race: all admin site-map reads and mutations now use the selected organization headers, wait for organization readiness, cancel/discard stale responses across account switches, and require a canonical event or tour before create/import. Added focused GET/JSON/FormData and organization-switch client coverage; no server guard, RLS, migration, venue, or artist surface changed."
     ],
     "next_steps": [
-      "Keep ADMIN-003 active. Resolve the applications venue/employer-to-org precondition before migration, then continue registry order without revisiting analytics/top-performers. Hosted denial and release verification remain outstanding."
+      "Get an ADMIN-003 owner decision on OB-1 (site-maps/import has_entity_permission argument names plus the unauthenticated no-scope branch) and OB-2 (task-messages eventId segment), each with a cross-tenant denial test; then decide the cross-tenant profiles read behind GET /api/admin/tours/artists using the organization_artist_members precedent. ADMIN-004..011 were not advanced by this wave and the logistics overhaul worktree is preserved."
     ],
     "blockers": [
-      "No hosted cross-role/cross-tenant evidence; repository-wide typecheck/release verification remains outstanding; 72 legacy routes remain deferred or await explicit platform classification under the recorded preconditions."
+      "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS OB-1: app/api/admin/logistics/site-maps/import/route.ts calls has_entity_permission with the wrong argument names (chain declares p_user_id/p_entity_type/p_entity_id/p_permission_name). Fail-closed 403, so not a bypass, but the route is inoperable AND authorization is skipped entirely when the caller omits both eventId and tourId, leaving an unscoped site-map write for any authenticated user. Needs an ADMIN-003 owner decision, not a typecheck patch.",
+      "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS OB-2: app/api/admin/events/[id]/task-messages/route.ts:80 reads eventId from pathname.split('/')[5] (the literal 'task-messages') instead of index 4, so its ownership and participant-role gates never match a real event. Pinned by a named regression test; not repaired because the fix changes an authorization outcome.",
+      "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS OB-3: `bookings` has at least 5 live consumers including app/api/payment/route.ts and the entry-reachable app/bookings/page.tsx, none of which is admin-owned. Potential payment-correctness exposure; highest-consequence finding in the analytics cluster.",
+      "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS OB-4: `performance_metrics` backs /api/analytics/metrics and /api/analytics/errors, which lib/analytics/ux-event-client.ts and lib/performance-monitor.ts POST to, so client telemetry and the performance monitor are silently broken.",
+      "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS OB-5: check:admin-audit (3 errors) and check:admin-execution (17 errors) fail on pre-existing stale hashes traceable to lib/admin/api-route-registry.ts, lib/supabase/service-role-import-review.json and playwright.config.ts. Repair needs the shared regeneration write forbidden to this lane.",
+      "The `auth-identity` and `analytics` clusters have no admin-owned consumer except the three files repaired this wave. lib/services/** is the design-system lane's set for this wave; app/api/analytics/**, app/api/payment/**, app/bookings/**, lib/analytics/** and lib/supabase/** are not admin-owned. Routed in HF-ADMIN-034-AUTH-IDENTITY-VERIFICATION-CLUSTER and HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS.",
+      "Pre-existing and unpromoted: ADMIN-003 still has no hosted cross-role, cross-tenant or cross-resource denial evidence, no release verification, and no full typecheck run. 54 legacy routes remain deferred or await explicit platform classification under the recorded preconditions. The analytics/top-performers platform-vs-organization decision and the cross-tenant profiles read behind tours/artists are both still open."
     ],
     "checkpoints": [
       {
@@ -654,8 +688,71 @@
         "blockers": [
           "Hosted denial and release verification still require RELEASE-007 isolated staging, DB-008/DB-002 hosted security proof, and QA-004 campaign-owned actors."
         ]
+      },
+      {
+        "at": "2026-09-23T18:32:00Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Fixed the admin site-map creation/list race without weakening the server boundary: the client now sends the selected organization acting context immediately, waits for a valid organization account, and prevents stale organization data from committing after account switches.",
+        "completed": [
+          "Added hooks/use-admin-acting-request.ts to merge selected profile, account type, organization, and correlation headers; default credentials to include; preserve caller JSON headers and browser-generated FormData boundaries; and abort in-flight requests on acting-context changes.",
+          "Applied the request hook across site-map list/detail/create/update/delete/import/export/share/collaborator operations and the manager, event tab, builder, context drawer, task form, and share dialog admin calls. Added context-key clearing and stale-response guards for organization-scoped reads.",
+          "Aligned creation UX with the route contract: blank, template, duplicate, background-image, and import entry points require an event_v2 or tour scope, and the old attach-later guidance was removed.",
+          "Added client tests for pre-readiness suppression, GET/JSON/FormData acting headers, FormData content-type preservation, account-switch cancellation/refetch/state clearing, plus route/source contracts for creation scope. Focused Vitest passed 8 files / 66 tests; scoped ESLint passed; admin route registry passed at 290 files and exact 54/54 legacy; agents:validate passed with 17 agents / 122 tasks / 0 errors; diff check passed."
+        ],
+        "next_steps": [
+          "Run the authenticated organization-admin browser regression when an authenticated session and browser quota are available: deep link during general-session persistence, create blank and image-backed maps, save an element, refresh, and switch organizations.",
+          "Keep venue and artist site-map surfaces out of this repair; address them in separately scoped work."
+        ],
+        "blockers": [
+          "Repository-wide TypeScript validation did not complete: the default run exhausted its 2 GB heap and the larger-memory retries produced no diagnostics before being interrupted, so typecheck is not claimed.",
+          "Browser regression is not claimed: the local browser reached the sign-in screen without an authenticated session, and the subsequent browser action was denied by the account usage limit."
+        ]
+      },
+      {
+        "at": "2026-09-24T07:04:27.518Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Fixed the deployed site-map schema mismatch without weakening authorization. Live read-only verification showed site_maps has no event_v2_id, while event_id is a foreign key to events_v2; the linked migration history is behind the canonical bridge and many unrelated migrations, so no broad migration push was attempted. The collection route and getSiteMapAccess now prefer event_v2_id, retry event_id only for the exact missing-column error, normalize responses back to event_v2_id, and retain acting-org scope resolution/post-filtering. Image-backed creation now persists the uploaded public URL. Verification: live PostgREST canonical read returned 42703 while event_id/tour_id read succeeded; focused Vitest passed 5 files / 33 tests; scoped ESLint passed; focused TypeScript check passed. Repository-wide TypeScript was interrupted after prolonged no-output execution; no remote mutations, migration push, or commit occurred.",
+        "completed": [],
+        "next_steps": [
+          "Run the authenticated organization-admin regression: list maps, create blank and image-backed event maps, open the builder, save an element, refresh, and verify organization switching. Apply the canonical bridge migration only through a separately reviewed database rollout because the linked database has a large unrelated pending migration backlog."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-24T15:34:01.715Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Hardened the site-map dual-schema adapter after review: event_id compatibility now requires PostgREST relationship proof that site_maps_event_id_fkey targets events_v2; older legacy-event schemas fail closed with site_map_schema_incompatible before any image upload or database insert. Live read-only relationship proof passed. Focused Vitest now passes 5 files / 34 tests, scoped ESLint and focused TypeScript pass, and no remote writes or migration changes occurred.",
+        "completed": [],
+        "next_steps": [
+          "Complete the authenticated admin browser regression and schedule the canonical bridge migration as an isolated database rollout rather than pushing the unrelated pending migration backlog."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-24T16:18:41.109Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Fixed Admin site-map canvas autosave against the linked schema. Live read-only inspection confirmed public.sync_site_map_elements is absent (PostgREST PGRST202) while site_map_elements and its legacy owner/collaborator RLS policies exist. The elements route keeps the atomic RPC as primary, but on only the verified missing-function error it re-resolves the authorized acting organization and uses a service client for a guarded compatibility sync: cross-map IDs are denied, inserts are bulked, existing rows update with id+site_map_id predicates at bounded concurrency, and missing rows are pruned. All other RPC errors remain failures. Live RPC probe confirmed the detector, focused TypeScript and ESLint passed, and 15 site-map suites / 171 tests passed. No database migration, remote data write, reset, or commit occurred.",
+        "completed": [],
+        "next_steps": [
+          "Run the authenticated builder regression: add, move, and delete elements; wait for autosave; refresh; verify persistence and organization switching. Install the existing atomic sync migration only through a separately reviewed database rollout because the linked migration history contains a large unrelated backlog."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:38.640Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34 admin code-drift repair. Repointed the admin cluster (profiles.display_name, profiles.phone) in three routes with guards untouched: add-existing-user now reads only existing profiles columns, takes the phone from the request, and FAILS CLOSED (502 on read error, 404 on missing profile, no insert either way) instead of writing a fabricated 'Existing User' row into staff_onboarding_candidates; tours/artists keeps tour.view, its response shape and row scope while reading full_name/username and resolving genres from artist_profiles.genres; task-messages now resolves the sender as full_name -> username -> 'Admin'. New test __tests__/admin/admin-profile-column-drift.test.ts (13 tests) pins the profiles column list because withAdminCapability types the client any and the drift was invisible to tsc. Security determination for the auth-identity cluster: the verification_* family is an unreachable retired island and all 8 consumers read if (error) throw error, so it is fail-closed; the one real defect is project-workspace.service.ts:488, an unchecked channel_participants insert that reports success while never enrolling the collaborator. Two authorization-input defects found and deliberately NOT repaired (site-maps/import has_entity_permission argument names; task-messages eventId read from segment 5 instead of 4) - each changes an authorization outcome so both need an ADMIN-003 decision. CodeQL alert #95 dispositioned not_exploitable in the shared security registry (append-only, 5 -> 6 entries) and returned to INTG-006; the signer was not modified and the alert is not dismissed on GitHub. PASS: check:admin-route-registry exact at 54/54 over 291 route files (unchanged); check:migration-chain; check:migration-validation; vitest __tests__/admin + __tests__/logistics 283 files passed 1 skipped / 3574 tests passed 2 skipped; ADMIN-003 recorded focused suites 5 files 91 tests; check-security-exceptions; focused eslint exit 0; git diff --check clean on admin-owned files; agents:validate 17 agents 151 tasks 0 warnings 0 errors. Scoped tsc over the repaired files: 39 diagnostic lines before, 36 after, the 3 removed being exactly the profiles.phone triple. FAIL (pre-existing, not caused by this wave): check:admin-audit 3 errors and check:admin-execution 17 errors, both traceable to lib/admin/api-route-registry.ts, lib/supabase/service-role-import-review.json and playwright.config.ts, none of which this lane touched; repairing needs the shared regeneration write forbidden here. Full npm run typecheck NOT run (68m18s CI, OOMs on this 8GB box) and no typecheck pass is claimed.",
+        "completed": [],
+        "next_steps": [
+          "Get an ADMIN-003 owner decision on OB-1 (site-maps/import has_entity_permission argument names plus the unauthenticated no-scope branch) and OB-2 (task-messages eventId segment), each with a cross-tenant denial test; then decide the cross-tenant profiles read behind GET /api/admin/tours/artists using the organization_artist_members precedent. ADMIN-004..011 were not advanced by this wave and the logistics overhaul worktree is preserved."
+        ],
+        "blockers": []
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [
+    "HF-ADMIN-034-AUTH-IDENTITY-VERIFICATION-CLUSTER -> design-system (per-object fail-closed determination, the one real unchecked channel_participants insert, and the disposition of deleting the unreachable verification island rather than resurrecting the schema)",
+    "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS -> release (OB-1..OB-5: two authorization-input defects needing an ADMIN-003 decision, the under-reported live `bookings` consumers including a payment route, the broken performance-metrics telemetry endpoints, and the pre-existing admin registry check failures)",
+    "HF-INTG-033-CODEQL-OAUTH-STATE-HASH -> answered: alert #95 dispositioned not_exploitable as CODEQL-95-ADMIN-OAUTH-STATE-HMAC-SINK; the signer was not modified; the alert is not dismissed on GitHub; disposition returned to INTG-006 for the HF-RELEASE-SEC-CODEQL tally"
+  ]
 }

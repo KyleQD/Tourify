@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { X, MapPin, ListChecks, AlertTriangle, MessageCircle, Settings2, UserPlus } from 'lucide-react'
 import { ElementInspector, type EditorCanvasElement } from './element-inspector'
 import type { ElementStatus } from '@/types/site-map'
+import { useAdminActingRequest } from '@/hooks/use-admin-acting-request'
 
 export type SelectedMapObject =
   | { kind: 'element'; id: string }
@@ -173,6 +174,7 @@ export function SiteMapContextDrawer({
   childrenIssues,
   childrenNotes,
 }: SiteMapContextDrawerProps) {
+  const { adminFetch, isAdminReady } = useAdminActingRequest()
   if (!open) return null
 
   const title =
@@ -314,7 +316,8 @@ export function SiteMapContextDrawer({
                   onClick={async () => {
                     const mapId = siteMapId || String(zone.site_map_id || '')
                     if (!mapId) return
-                    await fetch(`/api/admin/logistics/site-maps/${mapId}/zones/bulk-assign`, {
+                    if (!isAdminReady) return
+                    await adminFetch(`/api/admin/logistics/site-maps/${mapId}/zones/bulk-assign`, {
                       method: 'POST',
                       credentials: 'include',
                       headers: { 'Content-Type': 'application/json' },

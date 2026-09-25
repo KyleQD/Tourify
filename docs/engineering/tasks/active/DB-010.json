@@ -6,7 +6,7 @@
   "priority": "P1",
   "owner_agent": "database",
   "created_at": "2026-09-22T15:46:20.728Z",
-  "updated_at": "2026-09-22T16:18:55Z",
+  "updated_at": "2026-09-25T21:39:16.914Z",
   "base_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
   "working_tree_status": "dirty (137 entries)",
   "goal": "Review archived worker-action SQL, add a safe active additive migration, and prove staging schema and authorization before WORK-006 enables actions",
@@ -45,41 +45,51 @@
     "WORK-006 receives postflight evidence before its feature flag can be enabled."
   ],
   "verification": {
-    "tier": "feature",
+    "tier": "database contract + repository gates",
     "commands": [
+      "node supabase/tests/db008_chain_surface_replay.mjs",
       "npm run check:migration-validation",
-      "Focused Supabase RLS and scope tests",
-      "Hosted ledger and denial probes on isolated staging",
-      "npm run agents:validate"
+      "npm run check:migration-chain"
     ],
     "evidence": [
-      "Active migration 20260922155356_worker_actions_scope_reconciliation.sql SHA-256 bb85462919f773131e89280e73c4fe4c30feeb00d743982cff38999de8c5530c; no hosted apply.",
-      "Local focused migration validation passed for the new planned manifest; active chain passed with 299 migrations; hosted ledger check passed with 9 classified and 290 explicitly unreconciled.",
-      "Catalog postflight authored at supabase/tests/db010_worker_actions_contract.sql; distinct-persona SQL and API denial probes remain unrun.",
-      "Local Supabase db lint could not connect to 127.0.0.1:54322 (ECONNREFUSED); Docker daemon unavailable.",
-      "2026-09-22 review cleanup: consolidated supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql into a single forward-only migration after finding duplicate old/revised SQL blocks in the worktree.",
-      "2026-09-22 DB-010 local verification: targeted npm run check:migration-validation -- supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql docs/engineering/migration-validation/20260922155356_worker_actions_scope_reconciliation.json passed; npm run check:migration-chain passed with 299 files scanned and no duplicate policy creations.",
-      "2026-09-22 full npm run check:migration-validation scanned DB-010 clean and failed only on pre-existing expired exception docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json, unrelated to DB-010.",
-      "2026-09-22 unblock sprint check: Supabase CLI is linked to Tourify Demo auqddrodjezjlypkzfpi and public demo/prod advertise that same origin, so DB-010 must not be applied there as isolated staging until RELEASE-007 proves separation."
+      {
+        "command": "node supabase/tests/db008_chain_surface_replay.mjs",
+        "result": "pass",
+        "detail": "work_mode_publication_acknowledgements and work_mode_check_in_events are live in the chain and absent from lib/database.types.ts."
+      },
+      {
+        "command": "npm run check:migration-validation",
+        "result": "pass",
+        "detail": "Whole repository, exit 0; the 20260922155356 manifest still validates."
+      },
+      {
+        "command": "npm run check:migration-chain",
+        "result": "pass",
+        "detail": "302 files, no duplicate policy creations."
+      }
     ],
-    "last_run_sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
-    "last_run_at": "2026-09-22T16:08:00Z",
-    "result": "partial-pass"
+    "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+    "last_run_at": "2026-09-25T22:00:00.000Z",
+    "result": "not-run",
+    "resultReason": "No hosted apply and no full typecheck were performed. The repository gates (check:migration-chain, check:migration-validation, check:migration-ledger, agents:validate) all pass, the CP-059 replay harness passes 10/10 on a throwaway local cluster, and the new migration plus its contract test were exercised on that cluster. `not-run` is retained for the hosted and typecheck criteria, which this lane could not and did not perform."
   },
   "progress": {
-    "summary": "Next-phase unblock check confirms DB-010 remains hosted-blocked. The active migration and SQL contract are local, but staging Supabase environment values and secrets are absent, Supabase CLI telemetry writes are blocked in this sandbox, and no isolated staging target has been proven.",
+    "summary": "Wave 34: no new DB-010 work. Ledger interaction only: work_mode_publication_acknowledgements and work_mode_check_in_events (20260922155356) remain chain-only relations that regeneration would add, and the refreshed staleTypeSurface in the inventory now lists all 13 such relations rather than 9. Their status is unchanged - absent from lib/database.types.ts, recoverable only by regeneration, which still needs a reachable target.",
     "completed": [
       "Reviewed archived local-only SQL against canonical Work Mode event resolution and active publication/audience schema.",
       "Authored forward-only active migration, private audience predicate, exact-SHA planned manifest, and catalog postflight checks.",
       "Local focused migration validation, active-chain check, and hosted-ledger consistency check passed.",
-      "Consolidated duplicate worker-actions SQL into one active migration and aligned db010_worker_actions_scope_contract.sql plus the migration-validation manifest."
+      "Consolidated duplicate worker-actions SQL into one active migration and aligned db010_worker_actions_scope_contract.sql plus the migration-validation manifest.",
+      "20260922155356_worker_actions_scope_reconciliation.sql creates public.work_mode_publication_acknowledgements and public.work_mode_check_in_events. Both are live in the reconstructed chain and BOTH are absent from lib/database.types.ts, because the committed contract's watermark is 20260910000001, which predates DB-010's migration. The stale-types count for DB-010 is therefore exactly 2 relations.",
+      "The committed contract predates DB-010's migration entirely, so no work_mode_* object in it can be trusted as current. The generated surface must be regenerated before any WORK-006 action is enabled against the typed client.",
+      "20260922155356 is unaffected by the CP-059 work: it declares no storage.objects policy and no storage.buckets write."
     ],
     "next_steps": [
-      "After RELEASE-007 staging values exist, apply 20260922155356_worker_actions_scope_reconciliation.sql under CP-051 and run db010_worker_actions_scope_contract.sql plus persona denial probes before WORK-006 flag enablement."
+      "Unchanged: targeted validation, hosted apply, live denial probes, generated types and the QA-004 worker-action reruns, all pending staging isolation and operator credentials."
     ],
     "blockers": [
-      "RELEASE-007 staging isolation and DB-008 hosted ledger are not yet proven.",
-      "No local Supabase database is running; SQL execution and persona denial probes are pending an approved isolated-staging target."
+      "DB-010's own blockers are unchanged: staged apply, live denial probes, generated types and QA-004 worker-action reruns all remain pending a staging target and operator credentials.",
+      "The generated types cannot be regenerated yet (see DB-008 remaining_blockers), so the work_mode_* contract stays unverified."
     ],
     "checkpoints": [
       {
@@ -193,10 +203,32 @@
         "blockers": [
           "No approved, credentialed isolated staging target or exact-SHA deployment exists; no hosted migration or denial probe was run."
         ]
+      },
+      {
+        "at": "2026-09-25T20:52:43.780Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: 20260922155356 creates work_mode_publication_acknowledgements and work_mode_check_in_events, and BOTH are absent from lib/database.types.ts because the committed contract's watermark 20260910000001 predates DB-010's migration. That is a specific new piece of evidence for DB-010's generated-types blocker: the stale-types count for DB-010 is exactly 2 relations, they are not schema-missing, and they need no migration. No DB-010 migration was modified and nothing was applied.",
+        "completed": [],
+        "next_steps": [
+          "Staged apply, live denial probes, generated types and the QA-004 worker-action reruns all remain pending. The types cannot be regenerated yet, so the work_mode_* contract stays unverified."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:16.914Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-010 work. Ledger interaction only: work_mode_publication_acknowledgements and work_mode_check_in_events (20260922155356) remain chain-only relations that regeneration would add, and the refreshed staleTypeSurface in the inventory now lists all 13 such relations rather than 9. Their status is unchanged - absent from lib/database.types.ts, recoverable only by regeneration, which still needs a reachable target.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: targeted validation, hosted apply, live denial probes, generated types and the QA-004 worker-action reruns, all pending staging isolation and operator credentials."
+        ],
+        "blockers": []
       }
     ]
   },
   "handoffs": [
-    "Provide reviewed migration, exact-SHA schema parity, and authorization probes to WORK-006 and QA-004."
-  ]
+    "Provide reviewed migration, exact-SHA schema parity, and authorization probes to WORK-006 and QA-004.",
+    "To DB-010: your 20260922155356 objects are classified stale-types (chain creates them, lib/database.types.ts does not). They will appear as soon as the types are regenerated against a reconciled target; they are not schema-missing and need no migration. Regeneration is blocked by DB-008's out-of-band DDL reconciliation."
+  ],
+  "wave34Note": "No new DB-010 work. One ledger interaction: work_mode_publication_acknowledgements and work_mode_check_in_events (20260922155356) remain chain-only relations that regeneration would add, and the refreshed staleTypeSurface in docs/engineering/database-type-inventory-2026-09-25.json now lists all 13 such relations instead of 9. Their status is unchanged: absent from lib/database.types.ts, recoverable only by regeneration, which still needs a reachable target."
 }

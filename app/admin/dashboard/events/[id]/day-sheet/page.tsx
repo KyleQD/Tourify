@@ -14,6 +14,7 @@ import { OpsWorkspaceChrome } from "@/components/admin/operations/ops-workspace-
 import { PublicationShareLinkDialog } from "@/components/admin/publication/publication-share-link-dialog"
 import { buildAdminSiteMapHref } from "@/lib/admin/admin-ops-context"
 import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 import { toast } from "sonner"
 import { ArrowLeft, Printer, Download, Send, Clock, MapPin, Utensils, Users, Share2 } from "lucide-react"
 
@@ -68,6 +69,7 @@ const SCHEDULE_ITEMS = [
 export default function DaySheetPage() {
   const params = useParams()
   const eventId = params.id as string
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
 
   const [ds, setDs] = useState<DaySheet>({})
   const [eventTitle, setEventTitle] = useState('')
@@ -90,7 +92,9 @@ export default function DaySheetPage() {
         fetch(`/api/admin/events/${eventId}/day-sheet`, { credentials: 'include' }),
         fetch(`/api/admin/events/${eventId}`, { credentials: 'include' }),
       ])
-      const siteMapsRes = await fetch(`/api/admin/logistics/site-maps?eventId=${eventId}`, { credentials: 'include' }).catch(() => null)
+      const siteMapsRes = isAdminReady
+        ? await adminFetch(`/api/admin/logistics/site-maps?eventId=${eventId}`).catch(() => null)
+        : null
       if (dsRes.status === 'fulfilled' && dsRes.value.ok) {
         const d = await dsRes.value.json()
         setDs(d.day_sheet || {})
@@ -109,7 +113,7 @@ export default function DaySheetPage() {
     } finally {
       setLoading(false)
     }
-  }, [eventId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady])
 
   useEffect(() => { void fetchData() }, [fetchData])
 

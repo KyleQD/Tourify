@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-WORK-034-VERIFIED-DEAD-STAFF-MODULES",
+  "task_id": "WORK-005",
+  "from_agent": "work",
+  "to_agent": "design-system",
+  "status": "pending",
+  "created_at": "2026-09-25T22:09:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "Independent zero-importer verification for the retired workforce surface that the Wave 34 design-system lane is clearing out of `lib/services/**`. The DB-008 inventory classifies `staff_applications`, `staff_jobs`, `get_staff_dashboard_stats` and `calculate_ai_match_score` as code-drift with dead consumers; this handoff re-derives that verdict from the working tree with a reproducible method so the deletion does not rest on one lane's static analysis. One correction: the inventory lists `lib/services/session-management.service.ts` among the `staff_jobs` dead consumers, and that is right, but the inventory's `staff_jobs` file list also omits `components/messages.tsx`, which does reference the object and is also dead.",
+  "working_set": [
+    "lib/services/staff-job-board.service.ts (design-system lane owns it)",
+    "lib/services/staff-management.service.ts (design-system lane owns it)",
+    "lib/services/session-management.service.ts (design-system lane owns it)",
+    "lib/services/event-participants.service.ts (design-system lane owns it)",
+    "components/industry-job-postings.tsx",
+    "components/staff-job-board.tsx",
+    "components/skills-matcher.tsx",
+    "components/messages.tsx",
+    "lib/venue/staff-management.service.ts (venue lane owns it - see below)"
+  ],
+  "verified_zero_importer_claims": [
+    "lib/services/staff-job-board.service.ts - no importer anywhere in the repository. Carries all four of staff_applications, staff_jobs, get_staff_dashboard_stats and calculate_ai_match_score.",
+    "lib/services/staff-management.service.ts - no importer. Carries staff_applications and get_staff_dashboard_stats.",
+    "lib/services/session-management.service.ts - no importer. Carried staff_jobs.",
+    "lib/services/event-participants.service.ts - no importer. Carried job_board_postings.",
+    "components/industry-job-postings.tsx - no importer. Carries staff_applications and staff_jobs.",
+    "components/staff-job-board.tsx - no importer. Carries staff_applications and staff_jobs.",
+    "components/skills-matcher.tsx - no importer. Carries staff_jobs.",
+    "components/messages.tsx - no importer. Carries staff_jobs. NOT recorded in the inventory's staff_jobs file list.",
+    "lib/venue/staff-management.service.ts - no importer. Carries get_staff_dashboard_stats. The venue lane already holds a handoff for it; the work lane verified the zero-importer claim and agrees it is safe to delete rather than repoint."
+  ],
+  "false_positive_cleared": {
+    "claim": "lib/services/hiring-onboarding.service.ts also matches the literal `staff_applications`.",
+    "verdict": "Comment only, not a consumer. The single match is line 345: `// Legacy application_id references staff_applications(id) on some databases, so the ...`. The module is LIVE (it is imported by app/api/hiring/** routes and app/actions/hiring/create-job-posting.ts) but it makes no database call to the retired table, so it must not be repointed or deleted. No tsc diagnostic for staff_applications comes from this file."
+  },
+  "method": {
+    "description": "Import-graph walk from every Next entry point.",
+    "entry_points_count": 1441,
+    "detail": "Every route/page/layout/loading/error/not-found/template/default module, middleware and instrumentation is an entry. Each file's static import specifiers were resolved through the `@/` and relative aliases and walked transitively; a module is LIVE only if an entry reaches it. Route handler files are entries by definition, so 'no importer' does not make a route dead - it is checked separately.",
+    "caveat": "Dynamic imports and runtime-only requires were not resolved, and no test file counts as an entry. Both caveats make the verdict conservative in the safe direction here: the only surviving importers of a dead module are its own unit tests."
+  },
+  "next_steps": [
+    "Delete the zero-importer modules above, together with their own unit tests, and re-run the affected suites.",
+    "Do NOT migrate the retired tables forward. `staff_applications`, `staff_jobs` and `get_staff_dashboard_stats` exist only in archived SQL; re-creating them would resurrect a retired surface. The canonical destinations the repository already names are `staff_members` (20260823070000_staff_members_canonical_roster.sql) and `organization_people` (per the work lane's own evidence and the retired-workforce migration test at __tests__/database/ci-replay-and-retired-workforce-migration.test.ts).",
+    "If any live surface still needs job postings, the canonical objects are `job_board_postings` / `organization_job_postings` and their consumers are LIVE, so they need a repoint or an additive migration, not a resurrection. See HF-DB008-TYPECHECK-SHARED-UI and HF-DB008-TYPECHECK-LIBRARY."
+  ],
+  "blockers": [
+    "None for the deletions above: each claim was re-derived and each is a whole-module delete with no reachable consumer.",
+    "The LIVE `job_board_postings` / `organization_job_postings` / `increment` consumers in lib/services/job-board.service.ts and lib/services/admin-onboarding-staff.service.ts cannot be deleted and are NOT covered by this handoff; they need an owner decision (repoint vs additive migration)."
+  ],
+  "verification": [
+    "PASS: import-graph walk from 1,441 entry points over app/, components/, lib/, hooks/, types/, __tests__/, scripts/ reports zero importers for each module listed.",
+    "PASS: the staff_applications match in lib/services/hiring-onboarding.service.ts was read in full and is a comment.",
+    "NOT RUN: no deletion was performed by the work lane; no test run, typecheck, migration or hosted action."
+  ]
+}
