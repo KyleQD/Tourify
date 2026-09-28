@@ -73,13 +73,29 @@ env:
 # green run that would confirm or replace it. No cap below was chosen to make
 # anything pass.
 #
-# The workflow-level `defaults.run.timeout-minutes` is a ceiling against the
-# 360-minute default that let a hung `run` step burn six hours of runner time.
-# Only the two long static-analysis steps are individually raised above it, and
-# both overrides are visible on the step itself.
-defaults:
-  run:
-    timeout-minutes: 30
+# TIMEOUTS ARE PER-JOB, AND `defaults.run` IS NOT A VALID PLACE FOR THEM
+#
+# This file previously carried a workflow-level ceiling written as
+# `defaults.run.timeout-minutes: 30`. That key does not exist. `defaults.run`
+# accepts only `shell` and `working-directory`, so GitHub rejected the whole
+# workflow at parse time: runs were created, then failed instantly with
+# "This run likely failed because of a workflow file issue" and ZERO jobs. That
+# is the worst possible failure shape here, because it is silent -- every one of
+# the four required contexts this file owns (`Production Debug Scan`, `Vitest`,
+# `Database Types`, `Lint And Build`) simply never reported, and a branch whose
+# required contexts never report cannot merge under `strict: true`.
+# Observed on CI runs 36374219650 and 36374221358 at head 16fb834f.
+#
+# The ceiling is therefore expressed where GitHub actually honours it: every job
+# below sets its own `timeout-minutes`, the tightest being 5 minutes. A job-level
+# cap bounds the job and every step in it, so the original goal -- no hung step
+# burning the 360-minute default -- is met more precisely than the workflow-level
+# version ever was. The two genuinely long steps, `Typecheck` and `Build`, carry
+# explicit step-level overrides that are visible on the step itself.
+#
+# Verify this file before pushing it: `actionlint .github/workflows/ci.yml`.
+# A YAML parser is NOT sufficient -- it accepts `defaults.run.timeout-minutes`
+# and GitHub does not.
 
 jobs:
   # --------------------------------------------------------------------------
