@@ -40,7 +40,20 @@ describe('public artist preview-as-public empty states', () => {
     const page = read('components/public-artist/public-artist-page.tsx')
     const epk = read('components/public-artist/epk/public-artist-epk-section.tsx')
 
-    expect(page).toContain('const showStorefront = !isBand && (!hasLoadedStorefront || marketplaceListings.length > 0)')
+    // Bands render the storefront only when the server-aggregated member catalog
+    // has listings; single artists additionally keep the loading state so the
+    // section renders while fetching. Pinned as two branches rather than one
+    // line so re-wrapping the ternary does not read as a contract change.
+    //
+    // This replaced `!isBand && (...)`, which made the storefront unreachable
+    // for bands outright: a band with a fully populated catalog rendered no
+    // storefront at all. The empty-storesfront contract this test exists to
+    // hold still holds, and is asserted below on the render guard rather than
+    // on the shape of the condition.
+    expect(page).toContain('const showStorefront = isBand')
+    expect(page).toContain('? marketplaceListings.length > 0')
+    expect(page).toContain(': !hasLoadedStorefront || marketplaceListings.length > 0')
+    expect(page).toContain('showStorefront && isSectionVisible("storefront")')
     expect(page).not.toContain('Add your first item')
     expect(page).not.toContain('Add to storefront')
     expect(page).toContain('about.bio && isSectionVisible("about")')

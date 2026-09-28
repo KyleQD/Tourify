@@ -5,8 +5,7 @@
  * and be removed from the inventory.
  */
 
-import { execSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import path from "node:path"
 
 const ROOT = process.cwd()
@@ -17,23 +16,72 @@ const ALLOWED_WITHOUT_INVENTORY = new Set([
   "lib/supabase/service-role-job.ts",
 ])
 
-function listImportingFiles() {
+// The import this gate exists to police.
+const IMPORT_PATTERN = /from\s+['"]@\/lib\/supabase\/service-role['"]/
+
+// Directories the previous ripgrep invocation excluded, plus the VCS metadata
+// and build/test output trees. rg also honoured .gitignore implicitly, so these
+// are the paths that actually mattered in practice.
+const SKIP_DIRS = new Set([
+  "node_modules",
+  ".next",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  "artifacts",
+  "audit-artifacts",
+  "test-results",
+  "playwright-report",
+])
+
+/**
+ * Collect every .ts/.tsx file under `dir`, relative to ROOT.
+ *
+ * This used to shell out to `rg -l`. That made the gate depend on ripgrep
+ * being installed on the runner, and it is not: `ubuntu-latest` has no `rg`, so
+ * the job died with `status: 127 /bin/sh: 1: rg: not found` and reported a
+ * service-role audit failure that had nothing to do with service role. It
+ * passed locally only because ripgrep happens to be installed via Homebrew
+ * here. A gate must not have a different result on a developer machine than on
+ * CI, so the scan is done in-process.
+ */
+function collectSourceFiles(dir, acc = []) {
+  let entries
   try {
-    const out = execSync(
-      "rg -l \"from ['\\\"]@/lib/supabase/service-role['\\\"]\" -g '*.ts' -g '*.tsx' -g '!node_modules' -g '!.next'",
-      { encoding: "utf8", cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
-    )
-    return out
-      .split("\n")
-      .map((s) => s.trim().replace(/^\.\//, ""))
-      .filter(Boolean)
-      .filter((file) => !file.split("/").includes("__tests__"))
-      .filter((file) => !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file))
-      .sort()
-  } catch (error) {
-    if (error?.status === 1) return []
-    throw error
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return acc
   }
+  for (const entry of entries) {
+    const absolute = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name)) continue
+      collectSourceFiles(absolute, acc)
+      continue
+    }
+    if (!entry.isFile()) continue
+    if (!/\.tsx?$/.test(entry.name)) continue
+    acc.push(path.relative(ROOT, absolute))
+  }
+  return acc
+}
+
+function listImportingFiles() {
+  return collectSourceFiles(ROOT)
+    .filter((file) => {
+      let contents
+      try {
+        contents = readFileSync(path.join(ROOT, file), "utf8")
+      } catch {
+        return false
+      }
+      return IMPORT_PATTERN.test(contents)
+    })
+    .map((file) => file.split(path.sep).join("/"))
+    .filter((file) => !file.split("/").includes("__tests__"))
+    .filter((file) => !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file))
+    .sort()
 }
 
 function main() {
