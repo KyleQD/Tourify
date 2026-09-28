@@ -1,0 +1,135 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-003-MISSING-VENDOR-TABLE-READERS-TO-ORCHESTRATOR",
+  "task_id": "WFC-003",
+  "from_agent": "organization",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-26T16:14:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "for_tasks": [
+    "DB-002",
+    "WFC-004",
+    "DB-012",
+    "ORG-007"
+  ],
+  "decision_record": [
+    "CP-102",
+    "CP-098"
+  ],
+  "dirty_state_caveat": "Read-only. No route, no migration, no table and no component was created or modified. The four route files named below are byte-identical to base SHA 16fb834f (git diff over them is empty), so everything recorded here was true at the base SHA and is not a product of a concurrent lane.",
+  "summary": "Six vendor tables have zero CREATE TABLE across the entire migration chain and no entry in lib/database.types.ts. WFC-003's first delivery named the readers from two route files and MISSED three reader sites, and claimed those routes 'return a PostgREST error, not an empty result' when in fact every one of them already handles 42P01 and degrades. Both errors are corrected below and the list is now measured by test, so it cannot be undercounted again.",
+  "the_tables_still_do_not_exist": {
+    "measured": "Zero `create table` matching any of the six names across every file in supabase/migrations, and zero matching row among the 502 table rows in lib/database.types.ts. Re-measured 2026-09-26; still true.",
+    "tables": [
+      "vendors",
+      "org_vendors",
+      "vendor_compliance_documents",
+      "org_contracts",
+      "contract_signature_envelopes",
+      "vendor_aliases"
+    ]
+  },
+  "the_complete_reader_list": {
+    "note": "SEVEN reader sites, not four. The three the first delivery missed are marked. Derived by the WFC-003 test, which enumerates every `.from(<missing table>)` under app/api/** and compares the result to UNPROVEN_VENDOR_TABLE_READERS, so an eighth reader added later turns the suite red.",
+    "readers": [
+      {
+        "table": "vendors",
+        "route": "app/api/admin/vendors/route.ts",
+        "line": 20,
+        "on_42P01": "returns { success: true, vendors: [], unavailable: true, unavailableReason: 'Vendors table not yet migrated.' } at :31-33, and the thrown-error path at :56-58 returns the same shape",
+        "cp_098_compliant": true
+      },
+      {
+        "table": "org_vendors",
+        "route": "app/api/admin/organization/vendor-governance/route.ts",
+        "line": 17,
+        "on_42P01": "null for the whole vendorSummary object at :20, inside safeCatch",
+        "cp_098_compliant": false
+      },
+      {
+        "table": "vendor_compliance_documents",
+        "route": "app/api/admin/organization/vendor-governance/route.ts",
+        "line": 33,
+        "on_42P01": "null for expiringComplianceDocs at :40",
+        "cp_098_compliant": false
+      },
+      {
+        "table": "org_contracts",
+        "route": "app/api/admin/organization/vendor-governance/route.ts",
+        "line": 48,
+        "on_42P01": "null for expiringContracts at :55",
+        "cp_098_compliant": false
+      },
+      {
+        "table": "org_contracts",
+        "route": "app/api/admin/organization/overview/route.ts",
+        "line": 64,
+        "on_42P01": "null for expiringContractCount at :69 - THIS READER WAS MISSED BY THE FIRST DELIVERY",
+        "cp_098_compliant": false,
+        "why_it_matters": "This is the organization health tile. expiringContractCount is one of the six numbers in the health object."
+      },
+      {
+        "table": "org_contracts",
+        "route": "app/api/admin/organization/tours-health/route.ts",
+        "line": 98,
+        "on_42P01": "null for contractRiskCount at :103 - THIS READER WAS MISSED BY THE FIRST DELIVERY",
+        "cp_098_compliant": false,
+        "why_it_matters": "contractRiskCount is a tour-lifecycle risk signal, and the same route already demonstrates the correct pattern with its `lifecycleUnavailable` flag at :125-128."
+      },
+      {
+        "table": "contract_signature_envelopes",
+        "route": "app/api/admin/organization/vendor-governance/route.ts",
+        "line": 64,
+        "on_42P01": "null for stalledEnvelopeCount at :69",
+        "cp_098_compliant": false
+      }
+    ],
+    "non_route_reader": {
+      "table": "vendor_aliases",
+      "where": "lib/admin/vendor-identity.ts:280-286 - VendorMergePlan.aliasesToRetain",
+      "consequence": "Not read at runtime, so there is no 42P01 to handle. planVendorMerge RETURNS the alias rows to its caller and no code path writes them, so a merge can be executed with its alias half unpersisted. That is silent data loss rather than an error, and it is the only one of the six whose failure mode is a WRITE that cannot happen."
+    }
+  },
+  "the_correction_that_matters": {
+    "false_claim": "Contract section 3.3, first delivery: 'a route reading one of these returns a PostgREST error, not an empty result. A UI that renders \"no vendors found\" is therefore not evidence that an organization has no vendors.'",
+    "truth": "Every live reader already handles the undefined-table code 42P01 and fails DEGRADED. One does it correctly and six render an ambiguous null.",
+    "was_it_a_regression_someone_fixed": "No. `git diff 16fb834f -- <the four route files>` is empty, so the 42P01 handling was present at the base SHA. WFC-003's first delivery was wrong on the day it was written, and says so.",
+    "the_consequence_that_survives": "These are not user-visible outages. They are PERMANENTLY UNAVAILABLE health and governance signals, five of which are indistinguishable in the response body from a genuine null. An organization with expiring vendor contracts, lapsed compliance documents or stalled signature envelopes reads as 'nothing to report'. CP-098 is explicit that a plausible zero is the failure this program exists to prevent, so these are launch-graph facts even though no error is thrown."
+  },
+  "what_this_is_not": {
+    "not_a_fix": "WFC-003 created no table, wrote no migration, and changed no route. The routes already handle the condition; whether the tables ship is a schema decision.",
+    "not_a_vendor_identity_decision": "CP-102 reserves vendor identity and vendor-to-organization ownership for WFC-003's contract, and DB-012 and ORG-007 consume it. This handoff carries no identity decision, only the reader list and the absence measurement.",
+    "not_a_verdict_on_one_or_two_tables": "Whether `vendors` and `org_vendors` are one entity or two remains undecided by design (contract ambiguity 3). Guessing they are one table is exactly the merge CP-096 forbids."
+  },
+  "consumers": [
+    {
+      "task": "DB-002",
+      "agent": "database",
+      "instruction": "This is the complete, measured reader list for six tables with no DDL. Fold it into whatever schema-gap inventory you maintain: the launch-relevant fact is not an outage but six permanently-unavailable signals, five of them ambiguous nulls, on the organization health, tour health and vendor governance surfaces."
+    },
+    {
+      "task": "WFC-004",
+      "agent": "database",
+      "instruction": "Contract section 6 items 6 and 7 remain open: a vendor entity table, and a target table for vendor_aliases so planVendorMerge's alias half is persistable. Do not create `vendors` and `org_vendors` as synonyms."
+    },
+    {
+      "task": "DB-012 / ORG-007",
+      "agent": "database / organization",
+      "instruction": "Do not assume any of the six exists. Read contract section 3.3 first; it now records what each reader actually does rather than asserting an error path."
+    }
+  ],
+  "verification": [
+    "PASS: npx vitest run __tests__/admin/workforce-identity-contract.test.ts - 65 passed. One test enumerates every `.from(<missing table>)` under app/api/** and compares it to the recorded reader list; one test asserts that every recorded reader has 42P01 handling within 25 lines of its read; one test asserts the six names still appear in neither the chain nor lib/database.types.ts.",
+    "PASS: npx tsc -p tsconfig.wfc003-slice.json --noEmit and npx eslint on the two WFC-003 source files - no output, exit 0.",
+    "NOT CLAIMED: no runtime evidence. No route was executed. Every claim is a claim about route and migration source text, cited to file:line."
+  ],
+  "evidence_document": "docs/engineering/tasks/active/WFC-003.json",
+  "contract": "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md section 3.3",
+  "next_action": "DB-002 folds the seven reader sites into the schema-gap inventory; WFC-004 decides the vendor entity and the vendor_aliases target table; nobody treats a null in these sections as a zero.",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": [
+    "Preserved recipient 2 of 2 from multi-recipient handoff HF-WFC-003-MISSING-VENDOR-TABLE-READERS: database, orchestrator."
+  ]
+}

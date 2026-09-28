@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-QA-035-E2E-BUILD-HEADROOM",
   "task_id": "RELEASE-005",
   "from_agent": "release",
   "to_agent": "qa",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T23:40:00.000Z",
   "source_sha": "ca3bb0b0",
   "summary": "Declared coordination item, not a silent overwrite. Wave 35 release restructured `.github/workflows/ci.yml` into eleven independent jobs (REL-002) and deliberately did NOT touch `.github/workflows/e2e.yml`, which is QA-owned per QA-032. Having read QA's current state and cross-checked its arithmetic against independently measured figures, this handoff reports ONE residual risk in the E2E budget and the exact recommendation. The `Build app` cap of 80 minutes sits against a measured expected build of ~75.1 minutes, which is about 6 percent headroom derived from a FAILING tree. That is a plausible cap, not a false-red guarantee. No file owned by QA was edited, reverted, or reformatted.",
@@ -39,5 +39,7 @@
     "node --test scripts/ci/release-workflow-contract.test.mjs -> 2/2 pass (this test reads e2e.yml, deploy-demo.yml and deploy-production.yml).",
     "git diff --check -- .github/workflows/ci.yml -> exit 0. git status --porcelain -- .github/workflows/e2e.yml -> empty, i.e. the QA-owned file is untouched."
   ],
-  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md"
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "QA-003",
+  "completion_condition": "Raise the `Build app` step cap from 80 to 95 minutes and the job cap from 115 to 130. This is the only change this handoff asks for, and it is optional rather than urgent: 80 minutes may well be sufficient on a 4-core/16GB ubuntu-latest runner, and this handoff does not assert that it is not."
 }

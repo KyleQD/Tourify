@@ -1,0 +1,86 @@
+{
+  "schema_version": "2.0",
+  "id": "ADM-DESIGN-REVIEW-001",
+  "title": "Validate the sample Admin design review workflow",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P2",
+  "owner_agent": "admin-design-manager",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:25:37.376Z",
+  "updated_at": "2026-09-28T00:26:15.924Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (670 entries)",
+  "goal": "Record and verify the evidence-only design review workflow through Admin triage.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "docs/engineering/admin-reviews/design/sample-design-review.json"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The sample review records evidence, Admin disposition, specialist routing, and linked-task closure.",
+      "owner": "admin-design-manager",
+      "state": "met",
+      "evidence": [
+        "docs/engineering/admin-reviews/design/sample-design-review.json",
+        "node scripts/agent-tools/validate-admin-reviews.mjs passed"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-design-manager",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "node scripts/agent-tools/validate-admin-reviews.mjs"
+        ],
+        "evidence": [
+          "node scripts/agent-tools/validate-admin-reviews.mjs passed"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T00:26:15.924Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Validated the evidence-only design review through Admin triage, specialist routing, and linked-task closure.",
+    "completed": [
+      "Review workflow verified without product-code ownership."
+    ],
+    "next_steps": [
+      "Record and verify the evidence-only design review workflow through Admin triage."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T00:26:15.924Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Validated the evidence-only design review through Admin triage, specialist routing, and linked-task closure.",
+        "completed": [
+          "Review workflow verified without product-code ownership."
+        ],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

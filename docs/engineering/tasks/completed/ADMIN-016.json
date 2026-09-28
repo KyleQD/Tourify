@@ -1,0 +1,420 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-016",
+  "title": "Close the core Admin guard registry",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T23:44:08.398Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Prove every enabled core Admin route has an explicit capability and resource boundary.",
+  "scope": {
+    "in": [
+      "Prove every enabled core Admin route has an explicit capability and resource boundary."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "lib/admin/api-route-registry.ts",
+    "__tests__/admin/**",
+    "tsconfig.admin016-slice.json"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "ADMIN-015"
+  ],
+  "resume_condition": "All dependencies complete: ADMIN-015.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete ADMIN-015.",
+      "dependency_task_ids": [
+        "ADMIN-015"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Prove every enabled core Admin route has an explicit capability and resource boundary.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "__tests__/admin/admin-registry-guard-proof.test.ts (10 tests) proves all 291 route files against lib/admin/api-route-registry.ts entry by entry: per-method enforced guard class vs the guard actually in the source, per-method capability gate literal vs the source gate, and per-route resourceBoundary.verifiedAt / boundBy markers vs the source text.",
+        "Capability: 332 of 483 exported handler methods enforce a named capability, every one verified against a literal gate, a verified resolver marker (capabilityGateEvidence), or a verified multi-literal disjunction. 43 methods enforce a platform-admin principal. The remaining 108 methods are explicit non-capability classes: 81 legacy_pending_migration (a declared, pinned gap), 20 authenticated_user, 7 read_only_compat.",
+        "Resource boundary: 242 of 291 routes declare a boundary whose verifiedAt marker and at least one boundBy marker are present in the route source. 49 routes are recorded none_recorded with a named boundaryOwner and a pinned count; none of them contains a boundary marker, so none can be laundered.",
+        "The verifier is proven able to fail: __tests__/admin/admin-registry-guard-proof.test.ts writes a flipped copy of app/api/admin/marketplace/orders/route.ts (withPlatformAdmin( -> withAuth() ) into an os.tmpdir() mirror and asserts the proof goes red on both the guard class and the boundary verifiedAt, while proveAdminRegistry over the real tree stays green and the shared worktree file is byte-identical before and after.",
+        "A check that had never been seen red would not be evidence: 6 of the 10 proof tests are negative controls (false-green capability_gated over withAuth, wrong declared capability, absent verifiedAt marker, none_recorded over a real marker, missing boundaryOwner, flipped-guard mirror)."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/admin/ -> 275 passed | 1 skipped (276 files); 3651 passed | 12 skipped (3663 tests). Baseline was 274 passed | 1 skipped (275 files), 3640 passed | 12 skipped. No decrease; +11 tests and +1 file from this task.",
+          "npx vitest run __tests__/admin/admin-registry-guard-proof.test.ts -> 10 passed (10), 0 failed.",
+          "npm run check:admin-route-registry -> Admin API route files on disk: 291; Legacy route classifications: 53/53; REL-103 check OK. Identical before and after; scripts/ci/admin-route-registry-baseline.json was not modified.",
+          "npx tsc -p tsconfig.admin016-slice.json --noEmit -> 0 diagnostics.",
+          "npx eslint lib/admin/api-route-registry.ts __tests__/admin/support/admin-route-guard-proof.ts __tests__/admin/admin-registry-guard-proof.test.ts __tests__/admin/admin-route-capability-matrix.test.ts -> clean, no output.",
+          "npm run agents:validate -- --strict -> validated 18 agents, 218 tasks, 103 pending handoffs, 0 warnings, 0 errors."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T23:44:08.398Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Closed the core Admin guard registry: every one of the 291 enabled core admin routes now carries a machine-proved capability and resource boundary, and the proof is verified able to fail.",
+    "completed": [
+      "Added the mandatory resourceBoundary contract to all 291 entries in lib/admin/api-route-registry.ts: kind, boundBy markers, verifiedAt (where the bound resource is checked), and a required boundaryOwner for the 49 admitted none_recorded gaps. Every marker is a literal that must exist in the route source.",
+      "Added per-method truth fields: authClassByMethod (22 routes, the guard class the source actually enforces), capabilityByMethod (94 routes, code-exact per-method capability), capabilityGateByMethod (5 routes whose policy superset is enforced in a command service), and capabilityGateEvidence (2 routes with a resolver gate). The route-level authClass is untouched, so the exact legacy baseline stays at 53/53.",
+      "Reconciled ADMIN-015's two registry notes: /api/admin/tours/artists GET is now recorded as tour.view (code) rather than tour.manage for all methods, and /api/admin/tours/planner/artists is recorded as out of registry scope with a ready-to-run task.",
+      "Corrected 5 capability declarations that contradicted the source: publication share/revoke/retract/supersede/retry/deliveries (registry said tour.publish, code gates tour.manage/tour.view) and organization/security-summary (code is a documented audit.view OR org.roles.manage disjunction, now registered as anyOf).",
+      "Pinned the live gate in check-admin-route-registry: capabilityByMethod is now consulted before ADMIN_COMMAND_CAPABILITY_OVERRIDES, so the code-exact record wins over the policy projection instead of being silently shadowed by it.",
+      "Added __tests__/admin/support/admin-route-guard-proof.ts and __tests__/admin/admin-registry-guard-proof.test.ts: 10 tests, 6 of which are negative controls, plus an on-disk os.tmpdir() mirror that flips withPlatformAdmin( to withAuth( and asserts the proof goes red while the shared worktree file stays byte-identical.",
+      "Corrected the site-map-activity case in __tests__/admin/admin-route-capability-matrix.test.ts, which asserted logistics.view on GET and logistics.manage on POST while the route gates GET on logistics.manage and POST on logistics.view, and split it into a test named for the inversion so it cannot be changed silently."
+    ],
+    "next_steps": [
+      "Dispatch the 7 out-of-scope findings recorded in out_of_scope_findings with their ready-to-run task definitions. ADMIN-016-F1 (four mounted events siblings with the wrong-segment event id) and ADMIN-016-F2 (/api/admin/users/search platform-wide email enumeration) are P0.",
+      "Lower scripts/ci/admin-route-registry-baseline.json legacyRouteLimit from 53 to 49 once ADMIN-022 reclassifies /api/admin/communications and /api/admin/notifications out of legacy_pending_migration; the ADMIN-016 proof already pins 9 legacy route-methods whose source is stronger than the legacy class, so the flip is mechanical.",
+      "Work the 49 none_recorded routes and the 30 capability-gap methods as bounded batches. The proof test fails if either number grows, so no new unscoped route can land without a deliberate baseline edit."
+    ],
+    "blockers": [
+      "Waiting for ADMIN-015."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:07:46.047Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Dependency ADMIN-015 is complete, so ADMIN-016 is unblocked and moved to active/ready. No implementation has been started: this checkpoint only clears the stale waiting_dependency state that the control plane flagged once ADMIN-015 completed, and records the working-set position for whoever executes it next.",
+        "completed": [],
+        "next_steps": [
+          "Do not start implementation under this record without a fresh bounded execution window; ADMIN-016 (close the core Admin guard registry, lib/admin/api-route-registry.ts + __tests__/admin/**) has no ADMIN-015 dependency left and no recorded collision in its working set.",
+          "Known inputs for that work, recorded by ADMIN-015 and not changed here: the registry classifies /api/admin/tours/artists capability_gated with capability tour.manage for all four methods while the code gates GET on tour.view, and /api/tours/planner/artists (withAdminAuth, global profiles/artist_profiles read, returns profile email) is not in the registry at all. check-admin-route-registry does not compare authClass or per-method capability to code."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:07:55.437Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Dependency ADMIN-015 is complete and ADMIN-016 is unblocked to active/ready. No implementation has been started: this is a control-plane state correction only.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:44:08.398Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Closed the core Admin guard registry: every one of the 291 enabled core admin routes now carries a machine-proved capability and resource boundary, and the proof is verified able to fail.",
+        "completed": [
+          "Added the mandatory resourceBoundary contract to all 291 entries in lib/admin/api-route-registry.ts: kind, boundBy markers, verifiedAt (where the bound resource is checked), and a required boundaryOwner for the 49 admitted none_recorded gaps. Every marker is a literal that must exist in the route source.",
+          "Added per-method truth fields: authClassByMethod (22 routes, the guard class the source actually enforces), capabilityByMethod (94 routes, code-exact per-method capability), capabilityGateByMethod (5 routes whose policy superset is enforced in a command service), and capabilityGateEvidence (2 routes with a resolver gate). The route-level authClass is untouched, so the exact legacy baseline stays at 53/53.",
+          "Reconciled ADMIN-015's two registry notes: /api/admin/tours/artists GET is now recorded as tour.view (code) rather than tour.manage for all methods, and /api/admin/tours/planner/artists is recorded as out of registry scope with a ready-to-run task.",
+          "Corrected 5 capability declarations that contradicted the source: publication share/revoke/retract/supersede/retry/deliveries (registry said tour.publish, code gates tour.manage/tour.view) and organization/security-summary (code is a documented audit.view OR org.roles.manage disjunction, now registered as anyOf).",
+          "Pinned the live gate in check-admin-route-registry: capabilityByMethod is now consulted before ADMIN_COMMAND_CAPABILITY_OVERRIDES, so the code-exact record wins over the policy projection instead of being silently shadowed by it.",
+          "Added __tests__/admin/support/admin-route-guard-proof.ts and __tests__/admin/admin-registry-guard-proof.test.ts: 10 tests, 6 of which are negative controls, plus an on-disk os.tmpdir() mirror that flips withPlatformAdmin( to withAuth( and asserts the proof goes red while the shared worktree file stays byte-identical.",
+          "Corrected the site-map-activity case in __tests__/admin/admin-route-capability-matrix.test.ts, which asserted logistics.view on GET and logistics.manage on POST while the route gates GET on logistics.manage and POST on logistics.view, and split it into a test named for the inversion so it cannot be changed silently."
+        ],
+        "next_steps": [
+          "Dispatch the 7 out-of-scope findings recorded in out_of_scope_findings with their ready-to-run task definitions. ADMIN-016-F1 (four mounted events siblings with the wrong-segment event id) and ADMIN-016-F2 (/api/admin/users/search platform-wide email enumeration) are P0.",
+          "Lower scripts/ci/admin-route-registry-baseline.json legacyRouteLimit from 53 to 49 once ADMIN-022 reclassifies /api/admin/communications and /api/admin/notifications out of legacy_pending_migration; the ADMIN-016 proof already pins 9 legacy route-methods whose source is stronger than the legacy class, so the flip is mechanical.",
+          "Work the 49 none_recorded routes and the 30 capability-gap methods as bounded batches. The proof test fails if either number grows, so no new unscoped route can land without a deliberate baseline edit."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "working_set_additions": [
+    {
+      "path": "tsconfig.admin016-slice.json",
+      "reason": "Scoped type check over the two task-owned files plus the one existing admin test this task corrects. Full-repo typecheck is 68m18s with 1384 errors and OOMs on this 8GB box, so a scoped tsconfig is the only viable gate. Pattern matches tsconfig.admin012-slice.json / admin014 / admin015."
+    },
+    {
+      "path": "__tests__/admin/admin-route-capability-matrix.test.ts",
+      "reason": "Already inside __tests__/admin/**. Its site-map-activity case asserted logistics.view on GET / logistics.manage on POST while the route source gates GET on logistics.manage and POST on logistics.view. Corrected to code truth and split into an explicitly named test that pins the inversion so it cannot be changed silently."
+    }
+  ],
+  "coverage": {
+    "measured_at": "2026-09-27",
+    "route_files_on_disk": 291,
+    "registry_entries": 291,
+    "exported_handler_methods": 483,
+    "routes_with_enforced_named_capability": 208,
+    "methods_with_enforced_named_capability": 332,
+    "methods_with_verified_platform_principal": 43,
+    "methods_with_explicit_non_capability_class": 108,
+    "methods_with_enforced_class_proven_equal_to_source": 402,
+    "methods_still_legacy_pending": 81,
+    "routes_with_verified_resource_boundary": 242,
+    "routes_recorded_without_resource_boundary": 49,
+    "routes_with_capability_gap_still_owed_a_migration": 18,
+    "capability_gap_methods": 30,
+    "policy_gate_coherence_gaps": 3,
+    "legacy_route_methods_already_gated_in_source": 9,
+    "methods_with_no_route_level_guard": 4
+  },
+  "baseline_reconciliation": {
+    "legacyRouteLimit": "unchanged at 53; scripts/ci/admin-route-registry-baseline.json not modified",
+    "check_admin_route_registry": "291 route files on disk, 53/53 legacy, REL-103 check OK (before and after)",
+    "authClass_counts": "unchanged: 208 capability_gated, 53 legacy_pending_migration, 24 platform_admin, 5 acting_context_required, 1 authenticated_user",
+    "new_pinned_baselines": "live in the BASELINE object of __tests__/admin/admin-registry-guard-proof.test.ts: 291 route files, 291 entries, 483 methods, 53 legacy routes, 9 legacy guard drifts, 49 routes without a resource boundary, 30 capability-gap methods, 3 policy/gate coherence gaps, 4 methods with no source guard, 0 non-source-comparable classes",
+    "rationale": "Every change was a per-method or per-route reconciliation of a declaration that contradicted the source. No route was added, removed, or reclassified at route level, so the exact legacy baseline stays at 53/53."
+  },
+  "out_of_scope_findings": [
+    {
+      "id": "ADMIN-016-F1",
+      "severity": "P0",
+      "title": "Wrong-segment event id in four mounted siblings of task-messages",
+      "evidence": "app/api/admin/events/[id]/communications/route.ts:23,107,215 | communication-settings/route.ts:38,78 | group-chats/route.ts:27,103 | secure-uploads/route.ts:26,113,243 all read the event id as request.nextUrl.pathname.split(\"/\")[5], which is the literal trailing route name, not the [id] segment at index 4. Every request resolves to a constant, so every read, write, and authorization check runs against event_id = \"communications\" / \"communication-settings\" / \"group-chats\" / \"secure-uploads\". These files are in another lane working set and were not edited.",
+      "registry_state": "Recorded honestly: each route now declares authClassByMethod = authenticated_user (source is withAuth) and an event_membership resource boundary verified at checkEventOwnership / getParticipantRole / event_participants. task-messages is registered capability_gated at route level with authClassByMethod GET/POST/PATCH = authenticated_user, which is the divergence this task was pointed at.",
+      "ready_to_run_task": {
+        "id": "ADMIN-019",
+        "title": "Repair the wrong-segment event id in the four mounted events siblings",
+        "priority": "P0",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Make every app/api/admin/events/[id]/* sibling resolve the event UUID from the [id] segment and verify the resource at the data boundary.",
+        "working_set": [
+          "app/api/admin/events/[id]/communications/route.ts",
+          "app/api/admin/events/[id]/communication-settings/route.ts",
+          "app/api/admin/events/[id]/group-chats/route.ts",
+          "app/api/admin/events/[id]/secure-uploads/route.ts",
+          "__tests__/admin/**"
+        ],
+        "depends_on": [
+          "ADMIN-014"
+        ],
+        "acceptance_criteria": [
+          "AC-1: no route under app/api/admin/events/[id] reads a path segment other than the [id] segment, proven by a test that mounts a real UUID and asserts the event_task_messages / event_group_chats / event_secure_uploads predicate value.",
+          "AC-2: lib/admin/api-route-registry.ts records the enforced class for each repaired method, and __tests__/admin/admin-registry-guard-proof.test.ts stays green.",
+          "AC-3: cross-tenant denial is proven: a user who is not an event participant, event owner, or admin/manager event participant gets 403 on every method of all four routes."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npx tsc -p tsconfig.admin019-slice.json --noEmit",
+          "npm run agents:validate -- --strict"
+        ],
+        "note": "ADMIN-016 already corrected events/[id]/task-messages under ADMIN-014. Do not assume the family is repaired because one sibling is."
+      }
+    },
+    {
+      "id": "ADMIN-016-F2",
+      "severity": "P0",
+      "title": "Unscoped platform-wide profile read on /api/admin/users/search",
+      "evidence": "app/api/admin/users/search/route.ts:5 gates on withAdminCapability(\"workforce.manage\") and then selects id, full_name, email, avatar_url from profiles with an or(full_name.ilike, email.ilike) filter and no organization predicate. profiles is platform-wide and publicly readable (profiles_select ... USING (true)), so any organization admin holding workforce.manage can enumerate every user id, name, and email on the platform. This is the ADMIN-015 defect class on a route ADMIN-015 did not reach.",
+      "registry_state": "Recorded as resourceBoundary kind none_recorded with boundaryOwner admin-misc. The proof test pins the count at 49 so this cannot be quietly reclassified.",
+      "ready_to_run_task": {
+        "id": "ADMIN-020",
+        "title": "Bound the admin user search to the acting organization",
+        "priority": "P0",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Restrict GET /api/admin/users/search to users the acting organization can already see, or remove the route from the core launch surface.",
+        "working_set": [
+          "app/api/admin/users/search/route.ts",
+          "__tests__/admin/**",
+          "lib/admin/api-route-registry.ts"
+        ],
+        "depends_on": [],
+        "acceptance_criteria": [
+          "AC-1: the handler resolves the organization from admin.orgId (never from a request body or query parameter) and pushes the visible user id list into the profiles query, or the route is registered with an explicit non-user principal.",
+          "AC-2: a cross-tenant test proves a second organization admin receives zero rows and zero email values.",
+          "AC-3: adminCommandCapabilities and the registry resourceBoundary for the route are updated in the same change and the ADMIN-016 proof stays green."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npm run agents:validate -- --strict"
+        ],
+        "precondition": "Required precondition is the same venue/employer-to-organization linkage that blocks the applications and staffing families (see the admin STATE precondition handoffs). If the linkage does not exist, the accepted alternative is deleting the route from the core launch surface rather than shipping a platform-wide email enumeration."
+      }
+    },
+    {
+      "id": "ADMIN-016-F3",
+      "severity": "P0",
+      "title": "Read/write capability inversion on the site-map activity log",
+      "evidence": "app/api/admin/logistics/site-maps/[id]/activity/route.ts gates GET on withAdminCapability(\"logistics.manage\") and POST on withAdminCapability(\"logistics.view\"). Any organization admin holding only logistics.view can write a site_map_activity_log row, and a logistics.view holder cannot read the log. The route file is outside the ADMIN-016 working set and was not edited.",
+      "registry_state": "capabilityByMethod records the code truth (GET logistics.manage, POST logistics.view). __tests__/admin/admin-route-capability-matrix.test.ts pins the inversion in a test named for it so it cannot be changed silently in either direction.",
+      "ready_to_run_task": {
+        "id": "ADMIN-021",
+        "title": "Swap the site-map activity read/write capabilities",
+        "priority": "P0",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Gate the site-map activity read on logistics.view and the write on logistics.manage, matching every other site-map sub-resource.",
+        "working_set": [
+          "app/api/admin/logistics/site-maps/[id]/activity/route.ts",
+          "__tests__/admin/**",
+          "lib/admin/api-route-registry.ts"
+        ],
+        "depends_on": [],
+        "acceptance_criteria": [
+          "AC-1: GET requires logistics.view and POST requires logistics.manage, with getSiteMapAccess(..., { requiredOrgId: admin.orgId }) and requireSiteMapAccess unchanged on both.",
+          "AC-2: a test proves a logistics.view-only admin can read and cannot write, and a logistics.manage admin can do both.",
+          "AC-3: capabilityByMethod for the route is removed and adminCommandCapabilities derives GET logistics.view / POST logistics.manage; the ADMIN-016 inversion-pinning test is deleted because the defect it names no longer exists."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npm run agents:validate -- --strict"
+        ],
+        "note": "This is an authorization widening on the read side. Record the accepted-risk note in the task and get the acting-admin owner decision before merge."
+      }
+    },
+    {
+      "id": "ADMIN-016-F4",
+      "severity": "P1",
+      "title": "Admin communications read is gated on a logistics capability",
+      "evidence": "app/api/admin/communications/route.ts:25 gates GET on withAdminCapability(\"logistics.view\") while POST on line 97 is communications.send. A holder of logistics.view and no comms capability can read team_communications for the organization; a comms operator without logistics.view cannot. The resource boundary itself is sound: resolveAuthorizedOrgLogisticsScope with requestedOrgId admin.orgId plus a sender_id fallback.",
+      "registry_state": "capabilityByMethod.GET = logistics.view (code truth) and authClassByMethod GET/POST = capability_gated, so the route appears in adminLegacyGuardDrift() as already gated and owes a reclassification rather than a wrapper migration.",
+      "ready_to_run_task": {
+        "id": "ADMIN-022",
+        "title": "Gate the admin communications read on communications.send",
+        "priority": "P1",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Replace the logistics.view gate on the admin communications read with the comms capability, or split read and send into two capabilities.",
+        "working_set": [
+          "app/api/admin/communications/route.ts",
+          "__tests__/admin/**",
+          "lib/admin/api-route-registry.ts"
+        ],
+        "depends_on": [],
+        "acceptance_criteria": [
+          "AC-1: GET is gated on a communications capability and a test proves a logistics.view-only admin is denied the read while a comms admin is allowed.",
+          "AC-2: the resolveAuthorizedOrgLogisticsScope org boundary and the sender_id fallback are unchanged.",
+          "AC-3: the route and /api/admin/notifications are reclassified out of legacy_pending_migration and legacyRouteLimit drops by the matching amount, re-verified exactly."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npm run agents:validate -- --strict"
+        ]
+      }
+    },
+    {
+      "id": "ADMIN-016-F5",
+      "severity": "P1",
+      "title": "Four exported handler methods have no route-level guard",
+      "evidence": "app/api/admin/logistics/vendor/dashboard POST, app/api/admin/onboarding/documents/[documentId]/review PATCH, app/api/admin/onboarding/enhanced-invite GET, app/api/admin/staffing/job-postings POST. The first three do no authentication of their own; the fourth delegates to a server action that returns Forbidden. None of the four has a resource boundary, so all four are registered resourceBoundary none_recorded.",
+      "registry_state": "Pinned at 4 by the ADMIN-016 proof test (BASELINE.noSourceGuardMethods), so growth is visible.",
+      "ready_to_run_task": {
+        "id": "ADMIN-023",
+        "title": "Give the four unguarded admin handlers an explicit principal and boundary",
+        "priority": "P1",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Move each of the four methods onto a named guard with a resource boundary, or retire the route from the core launch surface.",
+        "working_set": [
+          "app/api/admin/logistics/vendor/dashboard/route.ts",
+          "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+          "app/api/admin/onboarding/enhanced-invite/route.ts",
+          "app/api/admin/staffing/job-postings/route.ts",
+          "__tests__/admin/**",
+          "lib/admin/api-route-registry.ts"
+        ],
+        "depends_on": [],
+        "acceptance_criteria": [
+          "AC-1: each method is on withAdminCapability, withPlatformAdmin, or an explicitly registered non-user principal, proven by the ADMIN-016 proof test with no no_route_guard method left.",
+          "AC-2: each route declares a resource boundary whose verifiedAt marker is present in the source, or is recorded none_recorded with a named owner and a stated reason.",
+          "AC-3: an unauthenticated request to each of the four is proven to receive 401."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npm run agents:validate -- --strict"
+        ]
+      }
+    },
+    {
+      "id": "ADMIN-016-F6",
+      "severity": "P1",
+      "title": "/api/tours/planner/artists reads profiles and artist_profiles globally and returns profile email",
+      "evidence": "Recorded by ADMIN-015 and re-confirmed here. The route is on withAdminAuth, has no organization predicate, and returns profile email inside contact.email. It is mounted by components/admin/event-parties-panel.tsx. It is not in app/api/admin/** so it is not in the registry at all and could not be proven by this task.",
+      "registry_state": "Out of registry scope. Recorded here so it is not lost.",
+      "ready_to_run_task": {
+        "id": "ADMIN-024",
+        "title": "Bound the tour planner artist search to the acting organization",
+        "priority": "P1",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Apply the ADMIN-015 fix (organization from the verified acting-admin context, ids pushed into the profiles and artist_profiles queries, profile email removed from the response) to the tour planner surface.",
+        "working_set": [
+          "app/api/tours/planner/artists/route.ts",
+          "components/admin/event-parties-panel.tsx",
+          "__tests__/admin/**"
+        ],
+        "depends_on": [
+          "ADMIN-015"
+        ],
+        "acceptance_criteria": [
+          "AC-1: no organization predicate means no rows; the response never contains a profile email.",
+          "AC-2: a cross-tenant test proves a second organization receives zero artists.",
+          "AC-3: the existing resolveOrgArtistRosterScope helper is reused rather than a second scoping rule being introduced."
+        ],
+        "verification": [
+          "npx vitest run __tests__/admin/",
+          "npm run agents:validate -- --strict"
+        ]
+      }
+    },
+    {
+      "id": "ADMIN-016-F7",
+      "severity": "P1",
+      "title": "The CI registry check still cannot see a guard or a boundary",
+      "evidence": "scripts/ci/check-admin-route-registry.mjs compares route files, method sets, owner, idempotency, audit, and the legacy ceiling. It never reads the route source for a guard, a capability, or a resource boundary, so a capability_gated entry over a withAuth handler passes it. That gap is now closed by __tests__/admin/admin-registry-guard-proof.test.ts, but that test runs in the admin vitest lane, not in the registry CI script. package.json and .github/workflows/ci.yml are owned by another lane, so the wiring was not changed here.",
+      "registry_state": "Not a registry defect. The proof is a test; the gate wiring is the follow-up.",
+      "ready_to_run_task": {
+        "id": "ADMIN-025",
+        "title": "Wire the ADMIN-016 guard proof into the registry CI gate",
+        "priority": "P1",
+        "outcome_id": "CORE-WEB-LAUNCH",
+        "owner_agent": "admin",
+        "goal": "Make a guard or boundary divergence fail the registry CI check, not only the admin vitest lane.",
+        "working_set": [
+          "package.json",
+          ".github/workflows/ci.yml",
+          "scripts/ci/check-admin-route-registry.mjs"
+        ],
+        "depends_on": [],
+        "acceptance_criteria": [
+          "AC-1: the REL-103 registry CI job runs the ADMIN-016 proof and fails on a guard or boundary divergence.",
+          "AC-2: a deliberate one-line flip of a route guard in a scratch worktree is shown to turn the CI job red."
+        ],
+        "verification": [
+          "npm run check:admin-route-registry",
+          "npx vitest run __tests__/admin/",
+          "npm run agents:validate -- --strict"
+        ],
+        "note": "Coordinate with the lane that owns package.json and .github/workflows/ci.yml."
+      }
+    }
+  ]
+}

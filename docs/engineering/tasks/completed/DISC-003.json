@@ -1,0 +1,185 @@
+{
+  "schema_version": "2.0",
+  "id": "DISC-003",
+  "title": "Close outbound fetch trust boundaries",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "discover",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "discover",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T21:28:51.609Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; discover-owned files only; nothing staged, committed or pushed",
+  "goal": "Finish the SSRF and sanitizer work discovered after canonical search completion.",
+  "scope": {
+    "in": [
+      "Finish the SSRF and sanitizer work discovered after canonical search completion."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope",
+      "Writing or applying a migration for the three schema drifts (database lane, HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS)",
+      "lib/database.types.ts (read-only to this lane)"
+    ]
+  },
+  "working_set": [
+    "app/api/news/**",
+    "app/api/opportunities/**",
+    "__tests__/news/**",
+    "__tests__/discover/**",
+    "lib/news/feed-service.ts"
+  ],
+  "working_set_additions": [
+    {
+      "path": "lib/news/feed-service.ts",
+      "reason": "Both drifted candidate queries (fetchBlogCandidates, fetchMusicCandidates) and getUserPreferenceData live in this service, which is the only implementation behind app/api/news/feed. The three silent-empty conditions named in the task brief are in this file, so no fix is possible from the route alone. The previous wave of this task had already modified it, so the lease was already open; recorded here rather than left implicit.",
+      "recorded_in": "progress.checkpoints (tool-written) and progress.summary"
+    }
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/discover/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Complete. Reopen only if the database lane applies HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS (the three drifts are still live in the chain) or if a new self-fetch sink appears under app/api/news/** or app/api/opportunities/**.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Finish the SSRF and sanitizer work discovered after canonical search completion.",
+      "owner": "discover",
+      "state": "met",
+      "evidence": [
+        "Route-level execution proof added: __tests__/discover/outbound-trust-boundary-routes.test.ts, 78 tests, runs the three exported handlers against real NextRequests with an attacker-chosen inbound origin and counts sockets and DNS lookups. No test in this domain had ever executed a handler.",
+        "Pre-fix proof: the same suite run against base-SHA (16fb834f) sources aliased from a mirror outside the workspace -> 66 of 87 assertions failed, 21 passed. The 21 that passed were exactly the already-committed transport guard (DNS-rebinding pin, 3xx-as-denial, forged-Host does not change the destination) and the file-shape assertions that read the live worktree.",
+        "AC destinations, each asserting rejection with zero sockets and zero DNS lookups: private range (10/8, 172.16/12, 192.168/16), loopback (127.0.0.1, localhost, [::1], [::ffff:127.0.0.1]), cloud metadata (169.254.169.254 and the decimal-encoded 2852039166), link-local, IPv6 unique-local, self-fetch, and redirect-into-private (3 private Locations on a 302, plus a 301 at the opportunities ingest).",
+        "Allowed-host-still-works proof: 'a still allowed host keeps working' asserts a 200 with degradedSources free of 'external' and exactly one upsert from the allowlisted origin, and 'still targets the allowlisted origin when the caller forges <host>' runs for all three handlers.",
+        "Silent-empty closure: 14 new tests. Drifts 1 and 2 (artist_blog_posts.format, music_tracks view trust columns) were already covered; drift 3 was not, and was not even detectable.",
+        "npx vitest run __tests__/news/ __tests__/discover/ -> 8 files passed, 209 tests passed (was 195 before this task's changes).",
+        "Scoped type check over the six task files -> 0 diagnostics. The same check found the two TS2304 errors that motivated the reportMissingSchemaOnce declaration.",
+        "npx eslint over the six task files -> clean, no output.",
+        "rg -n \"new URL\\('/api/\" app lib -> doc-comment prose only; the class has no remaining instance in the repository."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "discover",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/news/ __tests__/discover/",
+          "npx tsc -p /tmp/tsconfig.disc003.json",
+          "npx eslint lib/news/feed-service.ts app/api/news/feed/route.ts app/api/opportunities/route.ts app/api/opportunities/sync/route.ts __tests__/news/news-feed-schema-drift.test.ts __tests__/discover/outbound-trust-boundary-routes.test.ts"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/news/ __tests__/discover/ -> Test Files 8 passed (8), Tests 209 passed (209), duration 791ms. The baseline before this task's changes was 195 tests.",
+          "npx tsc -p /tmp/tsconfig.disc003.json -> 0 lines of output, i.e. 0 diagnostics across lib/news/feed-service.ts, the three route files and the two test files. Scoped deliberately: full-repo npm run typecheck is ~68 min, 1384 errors and OOMs on this 8GB box, and package.json is owned by another lane. This same scoped check is what found the two TS2304 errors in the summary.",
+          "npx eslint over the six task files -> no output",
+          "Pre-fix proof, run without modifying the shared worktree: base-SHA (16fb834f) sources for the three route files, lib/news/feed-service.ts and lib/opportunities/rss-opportunities-service.ts were extracted with git show into a mirror outside the workspace and aliased from a throwaway vitest config. Result: 66 of 87 assertions failed, 21 passed. The 21 that passed were exactly the already-committed transport guard and the file-shape assertions, which read the live worktree.",
+          "NOT RUN and NOT CLAIMED: npm run typecheck (full repo), hosted CodeQL re-scan, deployed-environment smoke.",
+          "npx vitest run __tests__/news/ __tests__/discover/ -> Test Files 8 passed (8), Tests 209 passed (209), 791ms; baseline before this task was 195 tests.",
+          "npx tsc -p /tmp/tsconfig.disc003.json (scoped to the six task files) -> 0 diagnostics; it reported 2 TS2304 before reportMissingSchemaOnce was declared. Full-repo npm run typecheck not run: ~68 min, 1384 errors, OOMs on this 8GB box, and package.json is another lane's.",
+          "npx eslint over the six task files -> no output.",
+          "npx vitest run --config <out-of-workspace mirror>/vitest.prefix.config.ts (base-SHA 16fb834f sources) -> 66 of 87 failed, 21 passed. The 21 that passed were the already-committed transport guard plus file-shape assertions that read the live worktree.",
+          "npm run agents:validate -- --strict -> npm exit 1, 8 errors, all pre-existing and none discover-owned (ADMIN-014 plus 7 handoffs whose accepting task is already completed). Recorded as gate result fail on a separate control_plane gate; not fixed."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T21:28:51.609Z"
+      },
+      {
+        "id": "control_plane",
+        "level": "local",
+        "owner": "discover",
+        "required_for": "task",
+        "result": "fail",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npm run agents:validate -- --strict -> npm exit 1; 'validated 18 agents, 212 tasks, 101 pending handoffs, 0 warnings, 8 errors'.",
+          "Recorded as fail rather than pass, and deliberately not fixed: all 8 errors predate this task and none are discover-owned. ADMIN-014 (waiting_dependency has no unfinished dependency) plus 7 handoffs whose accepting task is already completed: HF-DB008-SCHEMA-MISSING-ADMIN, HF-DB008-TYPECHECK-ADMIN, HF-DB008-TYPECHECK-ANALYTICS, HF-DB008-UNRESOLVED-ADMIN, HF-DESIGN-031-ADMIN, HF-INTG-033-CODEQL-OAUTH-STATE-HASH, HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY. The count is unchanged from the count observed at task start."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T21:41:00.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Closed the reporting layer of the outbound trust boundary and the third silent-empty schema drift. Added the route-level proof that executes the three handlers (no test in this domain had ever executed one), recovered a hard break the previous wave left (reportMissingSchemaOnce called at two sites, never declared: two TS2304 diagnostics and a ReferenceError waiting in a catch block, ungated because vitest does not typecheck), and found drift 3 was worse than recorded: the code reported it only from a catch, and PostgREST resolves an absent relation as { data: null, error } rather than throwing, so the report could never fire and error was destructured away. Both queries now read error, report once naming the table, the PostgREST code and the routing handoff, and degrade a 'preferences' signal that reaches the response and gates the timeline cache. Added lib/news/feed-service.ts to the working set: both drifted candidate queries and getUserPreferenceData live there and app/api/news/feed owns no query of its own, so no fix was possible from the route.",
+    "completed": [
+      "Defined reportMissingSchemaOnce in lib/news/feed-service.ts. Before: two TS2304 diagnostics and a ReferenceError waiting in a catch block. After: 0 scoped diagnostics.",
+      "Made drift 3 detectable: getUserPreferenceData destructures error from both the user_news_preferences and user_news_subscriptions queries, reports each once, and degrades 'preferences'.",
+      "Added 'preferences' to NewsFeedDegradedSource and threaded onDegrade from buildNewsFeed through getUserSignalProfile to getUserPreferenceData, so the dead ranking signal reaches GET /api/news/feed meta.degradedSources.",
+      "Kept the timeline-cache gate: a feed whose personalization signal is dead is not promoted to a cache hit, same rule already applied to the section-level drifts.",
+      "Added 78-test route-level SSRF proof including the two destinations the existing suite did not name: explicit self-fetch (forged Host = the deployment's own hostname, unconfigured and configured) and redirect-into-private (302 with a 169.254.169.254 / 127.0.0.1 / 10.0.0.5 Location, plus a 301 at the opportunities ingest).",
+      "Added allowed-host-still-works proof covering both the news feed and the opportunities ingest in one test.",
+      "Added 4 behavioural tests for drift 3: names both tables in degradedSources and logs each exactly once; does not cache a timeline ranked without personalization; does not report a drift when the same tables answer; does not claim a drift for an anonymous reader who never queries them.",
+      "Added 2 structural guards to __tests__/news/news-feed-schema-drift.test.ts: both un-migrated tables must read error and must degrade, and reportMissingSchemaOnce must be declared in the module that calls it.",
+      "Recorded a caveat that the structural drift suite reads the live worktree and therefore passes against a pre-fix runtime, so only the behavioural suite is a valid pre-fix gate.",
+      "Pre-fix proof executed without touching the shared worktree: base-SHA sources extracted with git show into a mirror outside the workspace and aliased from a throwaway vitest config. 66 of 87 failed, 21 passed.",
+      "Updated docs/engineering/agents/discover/STATE.md with the durable facts, including the PostgREST-does-not-throw lesson and the structural-vs-behavioural guard distinction.",
+      "Defined reportMissingSchemaOnce; scoped type check went from 2 diagnostics to 0.",
+      "getUserPreferenceData now reads error on user_news_preferences and user_news_subscriptions, reports each once, and degrades 'preferences'.",
+      "Added 'preferences' to NewsFeedDegradedSource and threaded onDegrade from buildNewsFeed through getUserSignalProfile to getUserPreferenceData.",
+      "Added 78-test route-level SSRF proof including the two destinations the existing suites did not name: self-fetch and redirect-into-private.",
+      "Added 4 behavioural tests for drift 3 and 2 structural guards in news-feed-schema-drift.test.ts; 14 new tests total, 195 -> 209.",
+      "Pre-fix proof run without touching the shared worktree: base-SHA sources aliased from a mirror outside the workspace -> 66 of 87 assertions failed, 21 passed."
+    ],
+    "next_steps": [
+      "Database lane: HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS. The three drifts are still live in the active chain; additive migration, manual apply only under CP-051, no supabase db reset. This lane made them loud and could not fix them.",
+      "Database lane: regenerate lib/database.types.ts after that apply and reduce the 7-entry ACCEPTED list in __tests__/news/news-feed-schema-drift.test.ts, which this lane is read-only on and deliberately did not shrink.",
+      "Release lane: INTERNAL_API_ORIGIN is still unset on every deployed environment. Until it is set, /api/news/feed reports 'external' degraded and the opportunities RSS ingest upserts zero. Loud now, still a launch prerequisite.",
+      "Security/QA: hosted CodeQL re-scan of the request-forgery cluster. No local engine exists; a local code fix is not a re-scan. Not claimed."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T21:28:51.609Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Closed the reporting layer of the outbound trust boundary and the third silent-empty schema drift. Added the route-level proof that executes the three handlers (no test in this domain had ever executed one), recovered a hard break the previous wave left (reportMissingSchemaOnce called at two sites, never declared: two TS2304 diagnostics and a ReferenceError waiting in a catch block, ungated because vitest does not typecheck), and found drift 3 was worse than recorded: the code reported it only from a catch, and PostgREST resolves an absent relation as { data: null, error } rather than throwing, so the report could never fire and error was destructured away. Both queries now read error, report once naming the table, the PostgREST code and the routing handoff, and degrade a 'preferences' signal that reaches the response and gates the timeline cache. Added lib/news/feed-service.ts to the working set: both drifted candidate queries and getUserPreferenceData live there and app/api/news/feed owns no query of its own, so no fix was possible from the route.",
+        "completed": [
+          "Defined reportMissingSchemaOnce; scoped type check went from 2 diagnostics to 0.",
+          "getUserPreferenceData now reads error on user_news_preferences and user_news_subscriptions, reports each once, and degrades 'preferences'.",
+          "Added 'preferences' to NewsFeedDegradedSource and threaded onDegrade from buildNewsFeed through getUserSignalProfile to getUserPreferenceData.",
+          "Added 78-test route-level SSRF proof including the two destinations the existing suites did not name: self-fetch and redirect-into-private.",
+          "Added 4 behavioural tests for drift 3 and 2 structural guards in news-feed-schema-drift.test.ts; 14 new tests total, 195 -> 209.",
+          "Pre-fix proof run without touching the shared worktree: base-SHA sources aliased from a mirror outside the workspace -> 66 of 87 assertions failed, 21 passed."
+        ],
+        "next_steps": [
+          "Database lane: HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS. The three drifts are still live in the active chain; additive migration, manual apply only under CP-051, no supabase db reset. This lane made them loud and could not fix them.",
+          "Database lane: regenerate lib/database.types.ts after that apply and reduce the 7-entry ACCEPTED list in __tests__/news/news-feed-schema-drift.test.ts, which this lane is read-only on and deliberately did not shrink.",
+          "Release lane: INTERNAL_API_ORIGIN is still unset on every deployed environment. Until it is set, /api/news/feed reports 'external' degraded and the opportunities RSS ingest upserts zero. Loud now, still a launch prerequisite.",
+          "Security/QA: hosted CodeQL re-scan of the request-forgery cluster. No local engine exists; a local code fix is not a re-scan. Not claimed."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS",
+    "HF-DISC-002-INTERNAL-API-ORIGIN",
+    "HF-DISC-002-FORYOU-REQUESTORIGIN-RESIDUAL"
+  ],
+  "transferred_gates": [
+    {
+      "gate": "hosted CodeQL re-scan of the request-forgery cluster",
+      "owner": "security / QA",
+      "reason": "GitHub Advanced Security has no local engine. A registry disposition is not a dismissal and a local code fix is not a re-scan. Unchanged from the prior wave and not claimed here."
+    },
+    {
+      "gate": "deployed INTERNAL_API_ORIGIN smoke",
+      "owner": "release / QA",
+      "reason": "No deployed environment is reachable from this workspace and fabricating hosted evidence is forbidden."
+    }
+  ]
+}

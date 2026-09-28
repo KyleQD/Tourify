@@ -1,8 +1,22 @@
 # Marketplace state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `MKT-002` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-004` — active/in_progress; CORE-WEB-LAUNCH
+- `MKT-006` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-007` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-008` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-009` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `a7193116c5a677b1c2939aa4a66e9415dac6eed1`
 - Last reviewed at: 2026-09-09
-- Active task: MKT-003 (Marketplace side of music commerce split)
+- Historical active-task note (superseded by generated queue summary): MKT-003 (Marketplace side of music commerce split)
 - Confidence: partial (app code ahead of active schema; see GAPS.md M1)
 
 ## Durable facts
@@ -62,3 +76,14 @@ agree. Entitlements require account type plus acting context/resource ownership.
 - **Marketplace has no tenant scope.** The order lifecycle is `seller_user_id`-scoped only; MKT-004's "buyer, seller, and tenant authorization" criterion cannot be met until the MKT-002 persona columns land.
 - **MKT-008 download counting is concurrency-safe but not lossless.** The compare-and-swap can neither double-count nor lose a count, but two simultaneous legitimate downloads make one buyer receive 409. The single-statement increment is requested in `HF-DB-009`, not authored here.
 - Verification this wave: vitest `lib/marketplace/__tests__` + `__tests__/marketplace` 19 files / 186 tests; jest 7 focused marketplace route suites / 25 tests; `check:production-debug` pass; focused ESLint exit 0; scoped `git diff --check` exit 0; `agents:validate` 0 errors. No full typecheck (68m18s / 1,384 errors measured by the control plane) and no hosted or Stripe result is claimed.
+
+## Wave 35 checkpoint — 2026-09-27 (HEAD 16fb834f, dirty worktree)
+
+- **The archive-only money-path schema has landed.** `marketplace_checkout_attempts` and the P6 guest-checkout order columns are in the active chain as `20260926120000`; `marketplace_external_listings` as `20260926120100`; `marketplace_payment_events` and `marketplace_fee_rules` as `20260926140100`. The Wave 33 "checkout fails closed with 503 schema_not_ready" finding no longer holds. `lib/database.types.ts` is still stale, so the `HF-DB-009` types half remains open and the types file is not ours to hand-edit.
+- **`public.record_marketplace_entitlement_download` is in the chain (`20260926120200`) but not in `lib/database.types.ts`,** so `app/api/marketplace/delivery/[orderItemId]/route.ts` still uses the compare-and-swap. The delivery route's buyer scoping and its `buyer_user_id`-filtered increment are proven; the single-statement swap waits on the types regeneration.
+- **A failed webhook delivery was permanently swallowed.** `handleMarketplaceStripeEventIdempotent` treated every unique violation as `duplicate`, so when a handler had thrown and recorded the row as `failed`, Stripe's own retry got a 200 and the captured payment was never fulfilled. The insert is now a claim: a `failed` row is taken over under a conditional update on `processing_status` with `attempts` incremented, and only a `processed` row is a duplicate. Durable replay safety, not a flag.
+- **A failed checkout session burned the buyer's idempotency key for 30 minutes.** The Stripe-init rollback deleted the order but not the `marketplace_checkout_attempts` row, leaving `pending` with a null `order_id`, which `resolveCheckoutAttempt` reported as `checkout_in_progress`. The rollback now releases the key, and `resolveCheckoutAttempt` is expiry-aware with a `reclaim` action for a pending attempt that has no order. Reclaiming is safe: there is no order to duplicate, the partial unique index on `marketplace_orders.idempotency_key` still serialises a concurrent winner, and the Stripe session is keyed by the same client key.
+- **Persona denials now reach the money paths.** `lib/marketplace/order-authorization.ts` is the shared server-boundary rule for the cancel and refund routes: a verified venue, artist, service, or organization persona that owns `seller_user_id` is denied `403 persona_storefront_schema_not_ready` instead of being treated as the seller. The persona gate previously covered the create path (listings, storefront) but not the money paths. **This is a behaviour change for persona sellers transacting today** — they are now denied, and release should confirm no live seller uses a persona account type.
+- **Still true:** the order lifecycle is `seller_user_id`-scoped only. `seller_entity_id`/`seller_entity_type` appear in no active migration, so real tenant authorization is MKT-002 schema, not something this lane can close.
+- **Residual replay risk, recorded not fixed:** a delivery killed mid-processing leaves a `processing` row that the claim does not take over. Reclaiming it safely needs a liveness signal (`processing_started_at`) the schema does not have.
+- Verification this wave: vitest 21 files / 205 tests; jest 11 marketplace suites / 52 tests; `check:service-role-allowlist` exit 0 (194 files) — the recorded venue-file failure is stale and removed; `check:production-debug` pass; focused ESLint exit 0; scoped `git diff --check` exit 0; `agents:validate` 8 pre-existing handoff errors, none marketplace. Scoped `tsc` over `lib/marketplace/**` + `app/api/marketplace/**`: 89 errors, all pre-existing and mostly the stale types file; zero in files created this wave. `npm run test:e2e` not run — no deployment, no Supabase, no Stripe credentials. No hosted or Stripe result is claimed.

@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-WORK-034-VERIFIED-DEAD-STAFF-MODULES",
   "task_id": "WORK-005",
   "from_agent": "work",
   "to_agent": "design-system",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T22:09:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "Independent zero-importer verification for the retired workforce surface that the Wave 34 design-system lane is clearing out of `lib/services/**`. The DB-008 inventory classifies `staff_applications`, `staff_jobs`, `get_staff_dashboard_stats` and `calculate_ai_match_score` as code-drift with dead consumers; this handoff re-derives that verdict from the working tree with a reproducible method so the deletion does not rest on one lane's static analysis. One correction: the inventory lists `lib/services/session-management.service.ts` among the `staff_jobs` dead consumers, and that is right, but the inventory's `staff_jobs` file list also omits `components/messages.tsx`, which does reference the object and is also dead.",
@@ -53,5 +53,8 @@
     "PASS: import-graph walk from 1,441 entry points over app/, components/, lib/, hooks/, types/, __tests__/, scripts/ reports zero importers for each module listed.",
     "PASS: the staff_applications match in lib/services/hiring-onboarding.service.ts was read in full and is a comment.",
     "NOT RUN: no deletion was performed by the work lane; no test run, typecheck, migration or hosted action."
-  ]
+  ],
+  "accepting_task_id": "DESIGN-033",
+  "completion_condition": "Delete the zero-importer modules above, together with their own unit tests, and re-run the affected suites.",
+  "completed": []
 }

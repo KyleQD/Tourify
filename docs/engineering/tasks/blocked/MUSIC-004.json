@@ -1,12 +1,12 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "MUSIC-004",
   "title": "Music worker deployment framework",
   "status": "blocked",
   "priority": "P2",
   "owner_agent": "music",
   "created_at": "2026-09-09T09:35:14.835Z",
-  "updated_at": "2026-09-16T19:24:55.885Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
   "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
   "goal": "Build worker deployment/scheduling framework (retry/DLQ/health + registration) for the current 21 registered Music outbox/processing worker candidates",
@@ -24,27 +24,55 @@
     "docs/engineering/DECISIONS.md"
   ],
   "acceptance_criteria": [
-    "Worker framework with retry/DLQ/health built; scheduling gated on reconciliation"
+    {
+      "id": "AC-1",
+      "criterion": "Worker framework with retry/DLQ/health built; scheduling gated on reconciliation",
+      "owner": "music",
+      "state": "met",
+      "evidence": []
+    }
   ],
   "verification": {
     "tier": "fast",
-    "commands": [
-      "npx vitest run lib/music/__tests__/worker-framework.test.ts",
-      "npx eslint lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
-      "git diff --check -- lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
-      "npm run agents:validate",
-      "npx tsc --noEmit --pretty false --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM lib/music/worker-framework.ts"
-    ],
-    "evidence": [
-      "Focused framework tests passed: 1 test file, 5 tests.",
-      "Changed-file lint and diff check passed.",
-      "The framework-only TypeScript validation passed with skipLibCheck and explicit ES2022/NodeNext settings.",
-      "Control-plane validation passed: 17 agents, 70 tasks, 0 warnings, 0 errors.",
-      "The repository-wide typecheck was intentionally not run; this bounded task used the narrowest feasible validation."
-    ],
-    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
-    "last_run_at": "2026-09-11T18:03:09.000Z",
-    "result": "passed-focused; framework-typecheck-passed"
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "music",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run lib/music/__tests__/worker-framework.test.ts",
+          "npx eslint lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
+          "git diff --check -- lib/music/worker-framework.ts lib/music/creator-outbox-runner.ts lib/music/__tests__/worker-framework.test.ts scripts/music-creator-*-outbox-worker.ts",
+          "npm run agents:validate",
+          "npx tsc --noEmit --pretty false --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM lib/music/worker-framework.ts"
+        ],
+        "evidence": [
+          "Focused framework tests passed: 1 test file, 5 tests.",
+          "Changed-file lint and diff check passed.",
+          "The framework-only TypeScript validation passed with skipLibCheck and explicit ES2022/NodeNext settings.",
+          "Control-plane validation passed: 17 agents, 70 tasks, 0 warnings, 0 errors.",
+          "The repository-wide typecheck was intentionally not run; this bounded task used the narrowest feasible validation.",
+          "Preserved v1 result: passed-focused; framework-typecheck-passed"
+        ],
+        "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "last_run_at": "2026-09-11T18:03:09.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
   },
   "progress": {
     "summary": "Core-web launch scoping blocks production music-worker scheduling. The framework evidence is preserved, but advanced music workers remain disabled until the core release is stable and product/operations approve the launch subset.",
@@ -205,5 +233,20 @@
       }
     ]
   },
-  "handoffs": []
+  "handoffs": [],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "DEFERRED-MUSIC-ADVANCED",
+  "deliverable_class": "implementation",
+  "decision_owner": "music",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Resume only after RELEASE-005 records a stable core-web launch and operations approves worker inventory, cadence, stale-work windows, retry, DLQ, and monitoring.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "music",
+      "condition": "Core web production launch is not yet stable or certified.",
+      "dependency_task_ids": []
+    }
+  ]
 }

@@ -1,0 +1,66 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-004-VENDOR-ENTITY-HOME-APPLY",
+  "task_id": "WFC-004",
+  "from_agent": "database",
+  "to_agent": "release",
+  "cc_agents": [
+    "security-admin",
+    "qa",
+    "orchestrator",
+    "work",
+    "admin",
+    "organization"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T11:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; concurrent lanes present. WFC-004 added ONLY untracked new files under supabase/migrations/**, supabase/tests/** and docs/engineering/migration-validation/**, plus the append-only edits to docs/engineering/migration-validation/hosted-history-ledger.json, docs/engineering/DECISIONS.md and docs/engineering/agents/database/STATE.md. No committed file was modified, no commit was made, agents:generate was deliberately not run.)",
+  "summary": "WFC-004 authored the vendor entity home migration. This is APPLY SEQUENCE 1 OF 3 and it must be applied in that order: 20260927100100's vendor-department foreign key targets 20260927100000's relation, and 20260927100200's backfill reads relations 20260927100000 and 20260927100100 create. Nothing was applied to any environment, hosted or local, and no reset or replay was run (CP-051). Each migration's own manifest carries the full layered plan, the assumptions, the constraints and the labelled probes; this handoff is the apply instruction and the stop conditions.",
+  "operator_manifest": {
+    "apply_exactly_one_file": "supabase/migrations/20260927100000_workforce_vendor_entity_home.sql",
+    "sha256": "31572e0a674be76b1f2217acbf7d7b77008c8a72823e187b58c6d3efbae0ab41",
+    "apply_sequence_position": 1,
+    "order": "Apply EXACTLY the named file, ALONE, once, on top of whatever the target's migration history already reflects. Do NOT apply it as part of a chain replay, `supabase migration up` over the directory, `db push --include-all`, a forced apply, or `supabase db reset`. CP-051: manual, additive, one at a time. Never regenerate types from `--linked` (CP-089, CP-092): it is a DIFFERENT database, and regenerating from it would delete 78 relations, 112 columns and 27 callables and add 285 relations of which 276 no active migration creates.",
+    "stop_conditions": [
+      "STOP if any Layer 0 preflight query in the manifest returns a result the manifest says would make the file wrong for this target. The manifests name the specific stop rather than asking the operator to judge.",
+      "STOP if the apply succeeds but the postflight `psql -f supabase/tests/wfc004_workforce_departments_contract.sql` prints ANY violation row, or a summary row other than `WFC-004 workforce departments|t|0`. The summary is computed from the same materialised violation set it prints, so it cannot disagree with the rows above it.",
+      "A CORRECT RESULT INCLUDES A FAILED APPLY. Each migration's post-condition RAISEs inside the same transaction, so a target whose state differs from what the file was written about fails the apply rather than reporting success. Read the exception: it names the specific assertion. Do not work around it by dropping the assertion.",
+      "NEVER widen org_role_permissions to make a probe return rows. Two of the three migrations' probes are EXPECTED to return zero for an organization administrator, and the reason is a provisioning gap owned by WFC-003 under CP-102. Any org_role_permissions write invalidates every active acting-context session, because capability_version digests perms IN ORDER (20260722002848:180-183,317-320).",
+      "NEVER regenerate lib/database.types.ts from `--linked`. See the type-regeneration specification in this handoff's `type_regeneration` block."
+    ],
+    "postflight": "psql -f supabase/tests/wfc004_workforce_departments_contract.sql — expect ZERO violation rows and exactly one summary row `WFC-004 workforce departments|t|0`. Then the labelled probes in the manifest's postflight.labelledProbes, at the number of distinct identities each names. A denial probe run as the wrong identity is not evidence.",
+    "what_a_correct_denial_looks_like": [
+      "An organization administrator reading ZERO vendor_entities rows. No role matrix row carries vendor.view or vendor.manage; they are in the org_members.permissions CHECK vocabulary only. The working path today is a per-member permissions array, and the harness measures both halves.",
+      "An organization administrator reading 0 of another organization's departments.",
+      "A department manager's UPDATE of a department they do not manage returning `UPDATE 0` and exit 0. READ THE ROW COUNT, NOT THE EXIT CODE — see the affected-row-count handoff.",
+      "A secondary-only member's write being refused, and their UPDATE affecting 0 rows rather than raising.",
+      "A revoked manager's department-scope predicate returning false while their manager row is still open.",
+      "An org administrator seeing FEWER reconciliation rows than the table holds, because rows whose subject has no established organization are invisible by design.",
+      "A DELETE of a department that has status history being refused 23503 — a department is deactivated, never deleted, once it has history."
+    ],
+    "no_hosted_evidence_exists": "This handoff carries NO staging or production evidence. Every behavioural claim in it is from a throwaway PostgreSQL 16.15 cluster in supabase/tests/wfc004_workforce_departments.harness.sh (158 checks, 0 failures). Do not read the manifest's `status: planned` as anything other than authored-and-proven-locally."
+  },
+  "type_regeneration": {
+    "state": "BLOCKED, and the block is NOT a schema problem. lib/database.types.ts is byte-unchanged and this migration DOES require regeneration.",
+    "why_blocked": "scripts/ci/generate-database-types.mjs and check-database-types.mjs call spawnSync without maxBuffer, so Node's 1 MB default aborts both with ENOBUFS on any target whose output exceeds it; this project's output is 1,183,384 bytes. The only reachable target, `--linked`, is a DIFFERENT database (609 relations / 8,020 columns / 151 callables against a 315-migration chain), and regenerating from it would delete real coverage. CP-089, CP-092.",
+    "specification": "docs/engineering/migration-validation/wfc004-type-regeneration-specification.json",
+    "operator_action": "Do not attempt regeneration from this task. The specification names every object the contract must gain, so a regenerated contract is DIFFABLE against this list rather than trusted."
+  },
+  "verification_run_by_this_lane": {
+    "bash supabase/tests/wfc004_workforce_departments.harness.sh": "ALL CHECKS PASSED, 158 PASS / 0 FAIL, exit 0, throwaway PostgreSQL 16.15",
+    "node supabase/tests/wfc004_sweep_exemption_agreement.mjs": "exit 0 — 6/6 exemption patterns agree between 20260823210000:304-309 and the contract postflight's copy",
+    "node supabase/tests/wfc004_sweep_exemption_agreement.mjs --selftest": "ALL CHECKS PASSED, 4 controls",
+    "node scripts/ci/check-never-executed-migration-blocks.mjs (DB-015's, not this lane's)": "exit 0 — 53 never-executed blocks, all with a recorded owned disposition; ZERO findings against 20260927100100 and 20260927100200, and ONE LOW 'would have: (nothing nameable)' against 20260927100000:632, which is a post-condition probe whose subject is EXPECTED to be absent, so a false guard is that assertion succeeding",
+    "npm run check:migration-chain": "pass — 315 files, no duplicate policy creations",
+    "npm run check:migration-validation": "pass, exit 0",
+    "npm run check:migration-validation:all": "exit 1 with 77 pre-existing historic failures (46 2025-era, 31 2026-era). NONE mentions any WFC-004 object and none is caused by this task. Anyone seeing exit 1 should not read it as a WFC-004 regression.",
+    "npm run check:migration-ledger": "pass — 315 active, 21 classified, 294 explicitly unreconciled",
+    "npm run test:rls-matrix": "pass — 3 files passed, 1 skipped (needs ADMIN_RLS_TEST_DATABASE_URL), 16 tests passed, 2 skipped",
+    "npm run agents:validate": "pass — 17 agents, 182 tasks, 0 warnings, 0 errors",
+    "npm run verify:feature -- --changed": "NOT PASSED. The tier ran eslint over the changed TypeScript roots, ran the CP-106 scoped typecheck (17 changed roots, 27 of 4313 repository sources in the program, lib/database.types.ts NOT in the program), and passed `npm run check:migration-validation` — then FAILED at its third step, `npm run check:supabase-target`, with `SUPABASE_PROJECT_ID is required`, `EXPECTED_SUPABASE_PROJECT_ID is required`, `SUPABASE_TARGET_CONFIRMATION must exactly match the approved project ref`. That is a missing operator CREDENTIAL, not a code or schema failure, and supplying it is a release/ops action this lane must not take under CP-051. Reported as a real tier failure at a named step, not as a pass."
+  },
+  "next_action": "Apply 20260927100000, then 20260927100100, then 20260927100200, in that order, one at a time, each followed by its postflight and its labelled probes. Record each result and each stop condition that fired.",
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": []
+}

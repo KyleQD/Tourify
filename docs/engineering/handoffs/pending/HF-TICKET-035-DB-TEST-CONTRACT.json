@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-TICKET-035-DB-TEST-CONTRACT",
   "task_id": "TICKET-005",
   "from_agent": "ticketing",
   "to_agent": "database",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T16:40:00.000Z",
   "updated_at": "2026-09-25T16:40:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
@@ -38,5 +38,7 @@
     "npx vitest run __tests__/ticketing/webhook-completion-migration-contract.test.ts — 17 passed. Its manifest case calls the CI validator directly (validateManifest from scripts/ci/check-migration-validation.mjs) rather than restating its rules, and asserts the manifest sha256 equals the SHA-256 of the migration file, so the manifest cannot silently drift from the SQL it describes.",
     "Mutation check on the migration: restoring a backfill (update ... set completed_at = processed_at) fails the no-backfill contract case AND the checksum case; stamping completed_at at claim time in the insert fails the claim-site contract case.",
     "The migration is not applied and no database was touched from this lane; no hosted or isolated evidence is claimed."
-  ]
+  ],
+  "accepting_task_id": "DB-005",
+  "completion_condition": "database: author supabase/tests/db008_ticketing_webhook_completion_contract.sql from the manifest's postflight.queries. Follow the db005b pattern: assert completed_at exists and is nullable with no default, assert attempts exists as integer NOT NULL default 1, assert processed_at is still NOT NULL with default now() (the P0's root cause, so this is a regression assertion, not a formality), assert idx_ticket_stripe_webhook_events_incomplete is partial on processed_at where completed_at is null, and assert the ticket_stripe_webhook_events_deny policy is unchanged. It should fail closed on the absence of any of them, so a target that skipped the migration cannot pass."
 }

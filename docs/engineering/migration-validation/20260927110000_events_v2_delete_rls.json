@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260927110000_events_v2_delete_rls.sql",
+  "taskId": "EVENTS-001",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "7e772fe79506e04e8de23c6bfa1a3c6441043ce7c296dc3ef8ffeb3a739a38b0",
+  "owner": "events",
+  "reviewer": "security-admin",
+  "domains": [
+    "events",
+    "database",
+    "authorization",
+    "security"
+  ],
+  "riskLevel": "high",
+  "provenance": {
+    "authoredBy": "DB-008",
+    "why": "NOT an events-lane artifact. DB-008 authored this manifest to clear a REPOSITORY-WIDE red gate: `npm run check:migration-validation` fails for every lane on `20260927110000_events_v2_delete_rls.sql: required manifest is missing`. The file is transcribed from the migration's own header comment and from the chain text it cites. No field here was invented, and no executed evidence is claimed: the status is `planned`, the lowest stage, which is exactly what a transcription of an unapplied migration can honestly assert.",
+    "whatTheOwningLaneMustDo": "EVENTS-001 owns completing this manifest. The transcribed fields below are the plan the migration's header already states. What is MISSING and is not DB-008's to supply: a real representative snapshot and its row counts, an executed preflight, an executed postflight, a behavioural harness, and a named security reviewer sign-off on the DELETE boundary. Until those exist the status must stay `planned`.",
+    "doNotReadThisAs": "Verification of any kind. It is a truthful minimum that turns a red repository gate green for an unapplied migration, and nothing more."
+  },
+  "representativeSnapshot": {
+    "kind": "TRANSCRIBED FROM THE MIGRATION HEADER. No representative snapshot was executed by DB-008 and none is claimed. The migration's own header records the defect being fixed: `20250816133000_event_core.sql` granted SELECT, INSERT and UPDATE on `events_v2` but never defined a DELETE policy; with RLS enabled and no DELETE policy, PostgreSQL denies every delete regardless of caller, so the event delete action had NO data-boundary authorization at all - not for the owning organization and not for a cross-tenant caller. The header also records the intent: the new policy reuses the same `public.has_perm(auth.uid(), org_id, 'event.manage')` authority the existing INSERT policy already requires (`20250816133000_event_core.sql:99`), so authorization stays uniform across the event lifecycle. The events lane must replace this field with a real snapshot plus row counts before the manifest can advance past `planned`.",
+    "evidenceArtifact": null
+  },
+  "assumptions": [
+    "`public.has_perm(uuid, uuid, text)` is the authority the surrounding event policies already use. It is defined three times in the chain - `20250816132000_org_rbac.sql:56`, `20260711153040_fix_org_rls_recursion_and_events_audit.sql:15` and `20260821180438_job_posting_scopes_and_organization_seats.sql:122` - and the last definition wins on an ordered replay. This migration does not redefine it, so the new DELETE policy resolves against the same function the existing INSERT and UPDATE policies do.",
+    "`public.has_perm` is a SECURITY DEFINER helper. DB-002 recorded that pattern as a security-advisor finding and its `20260914090000_revoke_public_execute_db002.sql` revokes PUBLIC/anon EXECUTE for four such functions. This migration did not assume that revocation has landed on any target. It does not widen that exposure either: the policy calls has_perm through the CALLING role, so the RLS decision is made for the caller whichever way the grant is set, and a caller that cannot execute the function is denied rather than allowed.",
+    "A FOR DELETE policy has a USING clause and no WITH CHECK. The predicate is written only in USING, which is structurally correct for DELETE, so no WITH CHECK is expected. Any postflight that inspects this policy must branch on `pg_policy.polcmd` before deciding which clause is expected to be NULL - DB-013 and DB-014 each shipped a false failure in this repository by expecting a WITH CHECK on a command that has none.",
+    "RLS is already enabled on `public.events_v2` and is not changed here. The migration creates exactly one policy object and one comment. No table, column, index, constraint, trigger or function is created, altered or dropped, and no data row is read for update or deleted.",
+    "This migration is NOT a type change. It creates no relation, no column and no callable, so it cannot require a change to `lib/database.types.ts`.",
+    "The `do $$ ... if not exists (select 1 from pg_policies where schemaname='public' and tablename='events_v2' and policyname='events_delete') ... create policy ... end $$` body is an IDEMPOTENCY guard, not a permission guard. If the target's replay role is not permitted to create policies on the relation, the statement still raises SQLSTATE 42501 and aborts the transaction. That is the CP-104 guard-ordering class this repository has now hit three times. A replay-guard block must absorb the refusal in its own subtransaction and report it as a warning, not merely test whether the policy exists. Recorded as a finding for the events lane; DB-008 did not rewrite another lane's migration."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator). Run the queries in preflight.rowCountQueries and record the result. Three things decide whether this file is correct for THIS target: (a) which policies actually exist on public.events_v2 and their rendered USING expressions, because a differently-named permissive DELETE policy on the table would OR away the scoped one and the migration would create coverage that never applies; (b) whether RLS is actually enabled and forced on the relation; (c) the row counts, so the postflight comparison has a baseline.",
+    "Layer 1 (apply, single run, operator). One transaction, explicit, this file only - never `supabase db reset`, never `db push --include-all` (CP-051). A `pg_policies`-guarded CREATE POLICY for events_delete on public.events_v2 FOR DELETE, then COMMENT ON POLICY, then the post-condition. No other migration is applied in the same run. Apply with `supabase migration up` against the target environment or via targeted psql, as the migration header directs.",
+    "Layer 2 (postflight, read-only, operator). Run the queries in postflight.queries. Expect: events_delete present, FOR DELETE, scoped to has_perm(..., 'event.manage'), and no other DELETE policy on the table. Then run the two real-caller probes as three DIFFERENT identities: an account holding `event.manage` in the owning organization (must delete), an account that is not a member (must be rejected 42501 with 0 rows affected), and a member of a DIFFERENT organization (must be rejected). A delete that reports 0 rows for the authorized caller is an over-denial and must be rolled forward, not accepted.",
+    "Layer 3 (advisor, operator). Re-run the Supabase security advisor after the apply and attach the output, because this migration adds a policy to a table that carries PII-adjacent event data and the advisor is the only thing that sees the whole table's policy set at once."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT p.polname, p.polcmd, p.polpermissive, p.polroles::regrole[], pg_get_expr(p.polqual, p.polrelid) AS using_expr, pg_get_expr(p.polwithcheck, p.polrelid) AS check_expr FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'events_v2' ORDER BY p.polcmd, p.polname",
+      "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'events_v2'",
+      "SELECT count(*) AS events_v2_rows, count(*) FILTER (WHERE org_id IS NULL) AS null_org_rows, count(DISTINCT org_id) AS distinct_orgs FROM public.events_v2",
+      "SELECT has_table_privilege('authenticated','public.events_v2','delete') AS authenticated_can_delete"
+    ],
+    "expectedAffectedRows": "Zero data rows are changed. One policy is created if and only if it is absent, and one comment is applied. No table, column, index, constraint, trigger or function is created, altered or dropped.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 500,
+    "statementTimeoutMs": 15000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). One transaction, one file. CREATE POLICY takes ACCESS EXCLUSIVE on the pg_class/pg_policy catalog rows, not on the table's data, and no table is rewritten or re-vacuumed, so there is no data-side lock-budget risk. Safe to apply before any consumer change: with RLS enabled and no DELETE policy at HEAD, every delete is already denied, so the only behaviour this migration changes is that a caller WITH `event.manage` in the owning organization can now delete, and a caller without it still cannot. The change is strictly a narrowing of the gap, never a widening of access.",
+    "resumeCursor": "Supabase migration version 20260927110000",
+    "idempotency": "Deterministic and repeatable. The create is guarded on a pg_policies existence check on (schemaname, tablename, policyname) = ('public','events_v2','events_delete'), so a second apply is a no-op on the policy and a no-op on the comment. NOT EXECUTED BY DB-008: unlike the DB-013 and DB-014 manifests in this directory, this idempotency claim is transcribed from the migration's structure and has not been measured on a throwaway cluster, because the file belongs to another lane and DB-008 does not run another lane's migrations. The events lane must apply it twice on a throwaway cluster before advancing the status."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement, no backfill, no batch. The change is one policy object and one comment. There is no partial-application state worth quarantining: the file is one transaction and creates at most one catalog object, so a failure leaves nothing applied.",
+    "lockBudget": "The has_perm call is a SECURITY DEFINER function evaluated per candidate row, executed as the calling role. On an ordered replay the pre-existing INSERT policy already puts the same call behind the same access pattern, so the DELETE path adds no new access shape for the planner."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No constraint is added, altered or dropped.",
+      "The new `events_delete` policy IS the authorization boundary for deletion. It requires `public.has_perm(auth.uid(), org_id, 'event.manage')`, which is the identical authority `events_insert` and `events_update` already require (`20250816133000_event_core.sql:99-101`). Because RLS policies are permissive and OR, the postflight must confirm no OTHER policy on events_v2 carries a DELETE command with an unconditional USING clause - one such policy would nullify this fix entirely, which is the CP-104 shape.",
+      "Because DELETE has no WITH CHECK, the policy is expressed only in USING. A postflight that asserts a WITH CHECK on this policy would report a healthy target as a violation."
+    ],
+    "indexes": [
+      "No index is added. Deletion locates rows by the caller's own DELETE query; the new policy adds a has_perm evaluation against rows the query already selected, not a new access path."
+    ],
+    "validationPlan": "NOT YET AUTHORED. The events lane must add a zero-drift contract postflight in supabase/tests/ that returns violation rows only plus one summary row, asserting: RLS enabled; events_delete present, FOR DELETE, with a USING that renders a has_perm call for 'event.manage'; and no other DELETE policy on the table with an unconditional clause. The postflight must be proven able to fail - by removing events_delete and by adding a permissive DELETE policy alongside it - or it is not evidence. Until that exists this field is a statement of intent, not a plan with a file behind it, and that is why the status is `planned`."
+  },
+  "recovery": {
+    "rollback": "DROP POLICY events_delete ON public.events_v2; - issued as a later forward migration, never as an edit to this file. Rolling back restores the HEAD state, in which every delete on events_v2 is denied to every caller including the owning organization. That is fail-closed, so a rollback removes functionality rather than reopening an exposure.",
+    "forwardFix": "Any correction is a new additive migration with a higher version carrying DROP/CREATE POLICY for public.events_v2. If a later sweep such as `20260823210000_harden_hiring_onboarding_pii.sql` ever reaches this table, it must not drop this policy: it is scoped, not permissive, and it is the only DELETE coverage the chain creates for the table."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT p.polname, p.polcmd, p.polpermissive, p.polroles::regrole[], pg_get_expr(p.polqual, p.polrelid) AS using_expr, pg_get_expr(p.polwithcheck, p.polrelid) AS check_expr FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'events_v2' ORDER BY p.polcmd, p.polname",
+      "SELECT c.relrowsecurity, c.relforcerowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'events_v2'",
+      "-- A CORRECT AUTHORIZED DELETE. Run as an account holding event.manage in the owning organization, with that caller's own JWT. DELETE FROM public.events_v2 WHERE id = '<a row id in that org>'; -> DELETE 1. DELETE 0 means the policy is over-denying and must be rolled forward, not accepted.",
+      "-- A CORRECT CROSS-TENANT DENIAL. Run as an authenticated account that is not a member of the owning organization, with that caller's own JWT. DELETE FROM public.events_v2 WHERE id = '<a row id in the other org>'; -> ERROR 42501: new row violates row-level security policy for table \"events_v2\". The query SUCCEEDING with DELETE 0 is a FAILURE, because it means no policy applies at all rather than this policy denying.",
+      "-- A CORRECT READ-BASED DENIAL, which is the shape an OR-ed permissive policy would take. SELECT count(*) FROM public.events_v2; -> 0 rows for a non-member. If this returns rows the caller could not previously reach, another policy on the table has widened and this migration's fix is masked."
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release/ops operator for the staging apply and every probe in postflight.queries; the events agent (EVENTS-001) for completing this manifest with an executed preflight, a contract postflight and a behavioural harness; security-admin reviewer for the DELETE authorization boundary. DB-008 authored the manifest transcription only and asserts no verification of any kind.",
+  "evidence": [
+    "NONE EXECUTED BY DB-008. This manifest is a transcription of `supabase/migrations/20260927110000_events_v2_delete_rls.sql`'s own header comment plus the chain text it cites (`20250816133000_event_core.sql:98-101` for the INSERT/UPDATE authority it mirrors, and the three `public.has_perm` definitions at `20250816132000:56`, `20260711153040:15` and `20260821180438:122`).",
+    "The migration file's SHA-256 is recorded above and is the file this manifest was written against: 7e772fe79506e04e8de23c6bfa1a3c6441043ce7c296dc3ef8ffeb3a739a38b0. The validator compares the pinned `sha256` against the file, so an edit to the migration turns this manifest red rather than silently stale.",
+    "NOT PROVEN HERE and required before this is launch-grade: that the apply succeeds on a real target; that the delete action's product code path is now authorized where it was previously denied; that no permissive DELETE policy on the table ORs away the new one; the real `has_perm` EXECUTE grant state on any hosted target, which DB-002 recorded as in flux; and that the create block's `pg_policies` guard is a permission guard rather than only an idempotency guard, which it is not - see the last assumption."
+  ],
+  "exceptions": []
+}

@@ -1,0 +1,89 @@
+{
+  "schema_version": "2.0",
+  "id": "ORCH-005",
+  "title": "Curate the release workspace into a recoverable candidate",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P0",
+  "owner_agent": "orchestrator",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "orchestration",
+  "decision_owner": "orchestrator",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Produce the bounded commit and preservation sequence without absorbing release-board narration.",
+  "scope": {
+    "in": [
+      "Produce the bounded commit and preservation sequence without absorbing release-board narration."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/workspace-ownership/**",
+    "docs/engineering/tasks/active/ORCH-005.json"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/orchestrator/CHARTER.md"
+  ],
+  "depends_on": [
+    "ORCH-004"
+  ],
+  "resume_condition": "All dependencies complete: ORCH-004.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "orchestrator",
+      "condition": "Complete ORCH-004.",
+      "dependency_task_ids": [
+        "ORCH-004"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Produce the bounded commit and preservation sequence without absorbing release-board narration.",
+      "owner": "orchestrator",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "orchestrator",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created by the core-launch realignment; implementation has not started.",
+    "completed": [],
+    "next_steps": [
+      "Wait for ORCH-004 and then confirm the working set is collision-free."
+    ],
+    "blockers": [
+      "Waiting for ORCH-004."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB008-SCHEMA-MISSING-QA",
   "task_id": "DB-008",
   "from_agent": "database",
   "to_agent": "qa",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T21:30:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "These objects are classified `schema-missing`: neither the active migration chain nor lib/database.types.ts has them, and the repository holds no archived definition, so the product code is right and the chain is short. pending_password_resets (14 diagnostic hits). The database lane did NOT author migrations for them because the column contract cannot be derived from the repository, and inventing one to make tsc pass would be exactly the failure mode the release lane warned about. It authored only venue_profiles.social_links and venue_profiles.cover_image_url, the two where an equivalent column already exists on a sibling relation. qa must supply the exact column contract before a migration can be written.",
@@ -29,5 +29,7 @@
     "PASS: 20260925210000_venue_profile_presentation_columns.sql was applied twice against a throwaway PostgreSQL 16.15 instance and supabase/tests/db008_venue_profile_presentation_columns_contract.sql returned 0 violations across all 8 checks plus the summary row venue_profile_presentation_columns_ready = true.",
     "NOT RUN: no tsc run and no migration apply to any real or shared environment."
   ],
-  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "QA-003",
+  "completion_condition": "For each object, state the exact column list, types, nullability and defaults the product code already selects, and point at the code that selects them."
 }

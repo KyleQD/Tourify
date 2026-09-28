@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT",
   "task_id": "SOCIAL-007",
   "from_agent": "social",
   "to_agent": "artist",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-26T00:00:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty shared worktree; 6 concurrent lanes)",
   "dirty_state_caveat": "Social changed only app/api/social/post-likes/**, app/api/feed/posts/route.ts (one like read), lib/social/post-like-state.ts, app/api/notifications/social/route.ts (comments only), app/api/social/follow/route.ts, and __tests__/social/**. It edited neither components/artist/** nor components/profile/** nor app/artist/**. Line numbers below were read from this worktree and must be re-confirmed before editing, because those files are shared.",
@@ -45,5 +45,7 @@
     "npx vitest run __tests__/social/interaction-route-gate-inventory.test.ts — 7 passed. The guard was also proven to FAIL by adding a temporary non-compliant route under app/api/social/ (reported as `Unguarded` and `Undeclared`), and the temporary route was removed in the same step.",
     "npx vitest run __tests__/polls __tests__/feed — green after the feed route change; see the SOCIAL-007 checkpoint for the exact count.",
     "No migration was authored and none was applied (CP-051). `npm run test:rls-matrix` was not run, because it applies migrations and starts a database."
-  ]
+  ],
+  "accepting_task_id": "ARTIST-007",
+  "completion_condition": "REQUIRED (artist lane), `components/artist/artist-home-feed.tsx`: delete lines 182-191 (the `const postIds = ...` / `const liked = new Set<string>()` / `supabase.from('post_likes')` block inside `transformPosts`), leaving line 183's `const liked = new Set<string>()` so line 192's `toArtistFeedPost(post, liked)` still compiles. Also delete line 21 (`import { supabase } from '@/lib/supabase'`) — it has no other use in that file. `toArtistFeedPost` already ORs the field in at line 161: `is_liked: likedPostIds.has(post.id) || Boolean(post.is_liked)`, and the rows come from `/api/feed/posts?type=home|tagged&limit=40`, which supplies `is_liked`. `transformPosts` no longer needs `async`, but leaving it async is harmless because `await transformPosts(...)` is already awaited at the call site."
 }

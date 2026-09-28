@@ -1,0 +1,95 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-008",
+  "title": "Build the organization maps library",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:10.587Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (24 entries)",
+  "goal": "Provide an organization-wide site-map library with filters, canonical scoped creation, builder deep links, and duplicate-surface consolidation.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/admin/**",
+    "app/api/admin/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Provide an organization-wide site-map library with filters, canonical scoped creation, builder deep links, and duplicate-surface consolidation.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm exec vitest run __tests__/admin/admin-acting-request.test.tsx __tests__/admin/site-map-collection.test.ts __tests__/admin/site-map-acting-org-access.test.ts"
+        ],
+        "evidence": [
+          "Maps is now an organization library with Library/Draft/Published/Archived views, search/sort, canonical creation scope, and siteMapId deep links into the existing builder.",
+          "Preserved v1 result: passed"
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Organization Maps library is integrated and uses the ADMIN-003 acting-context and scoped-creation contract.",
+    "completed": [
+      "Organization library loads without event/tour scope.",
+      "Creation and image import remain disabled until canonical scope is selected.",
+      "Event entry points reuse the authoritative library and builder."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Integrated the organization-wide Maps library and status navigation without changing the server authorization boundary.",
+        "next": "Complete authenticated builder persistence regression under QA-007."
+      }
+    ]
+  },
+  "handoffs": [],
+  "execution_state": "done",
+  "outcome_id": "POSTLAUNCH-LOGISTICS",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

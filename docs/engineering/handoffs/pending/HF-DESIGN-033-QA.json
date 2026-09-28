@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DESIGN-033-QA",
   "task_id": "DESIGN-033",
   "from_agent": "design-system",
   "to_agent": "qa",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-13T19:40:00.000Z",
   "source_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
   "summary": "The owner-approved C-03 radius change (DESIGN-033) is APPLIED: `--radius: 0.5rem` now lives at app/globals.css `:root`, so the Tailwind radius aliases resolve to 0.5/0.375/0.25rem (8/6/4px) instead of the previous computed 0 (square corners) throughout the app. Blast radius: ~3,068 `rounded-{lg,md,sm}` utility usages across 923 files (1500/966/602), all surfaces except the staff-scheduling prototype scope (which keeps its own 0.625rem and is unaffected). Authenticated QA rechecked general dashboard/settings, organization admin dashboard and staff Scheduling, artist overview, and direct `/artist` via the Codex in-app browser fallback. Direct `/artist` now renders the artist home shell for the clean seeded artist persona without a page-level Loading screen. The seeded venue route still renders underneath the required terms gate whose save fails with `duplicate key value violates constraint accounts_account_type_display_name_key`, with repeated venue-stats errors, so the authenticated visual gate remains open.",
@@ -41,5 +41,7 @@
     "Authenticated visual QA (2026-09-13, localhost:3000): `/dashboard` and `/settings` rendered for QA personas; organization `/admin/dashboard?account=b06240db-f9dd-4bb0-892f-083078914867` and `/admin/dashboard/staff?...&tab=scheduling` rendered with no framework overlay; `/artist/overview` rendered the artist command center. Runtime readback: root `.5rem`, app `rounded-md` 6px / `rounded-lg` 8px, `.staff-scheduling-prototype` `.625rem` with sampled 10px `rounded-lg` controls.",
     "Authenticated blocker follow-up (2026-09-13): clean seeded artist persona `qa-flow-artist1@tourify.test` rendered direct `/artist` with the post composer, quiet-feed loading/empty state, artist navigation, and Overview link; no page-level Loading screen or new artist console error was observed. QA Multi B venue `/venue/dashboard?account=564aaaf9-feb0-4675-a300-305b29f94da7` rendered the Venue workspace underneath the mandatory terms gate, but required terms save reproduced the duplicate-key constraint `accounts_account_type_display_name_key`; repeated `Error fetching venue stats: Object` errors were observed, so venue acceptance was not claimed.",
     "Staff-scheduling follow-up (2026-09-13): organization `/admin/dashboard/staff?account=b06240db-f9dd-4bb0-892f-083078914867&tab=scheduling` rendered Scheduling & Shifts; runtime readback confirmed root `.5rem`, app `rounded-lg` 8px / `rounded-md` 6px, and `.staff-scheduling-prototype` `.625rem` with a sampled 10px control. Focused 27-test suite, static proof, and `npm run agents:validate` (17 agents / 99 tasks / 0 warnings / 0 errors) passed."
-  ]
+  ],
+  "accepting_task_id": "QA-003",
+  "completion_condition": "Provision or repair a clean authenticated venue QA session, then rerun `/venue/dashboard` without the terms-save duplicate-key modal or venue-stats errors; the other required surfaces, including direct `/artist`, are now evidenced."
 }

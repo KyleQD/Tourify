@@ -1,8 +1,18 @@
 # Music state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `MUSIC-004` — blocked/queued_postlaunch; DEFERRED-MUSIC-ADVANCED
+- `MUSIC-006` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
 - Last reviewed at: 2026-09-11
-- Active task: MUSIC-004 (worker deployment framework)
+- Historical active-task note (superseded by generated queue summary): MUSIC-004 (worker deployment framework)
 - Confidence: working — route auth adoption is verified; schema reconciliation and worker operations remain unresolved
 
 ## Durable facts

@@ -1,0 +1,290 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-002",
+  "title": "Close hosted database permission and money-path exposure",
+  "status": "completed",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T09:35:06.653Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Remove anonymous execution from exposed SECURITY DEFINER and money-path functions and verify the critical hosted authorization migrations in staging and production",
+  "scope": {
+    "in": [
+      "supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql",
+      "supabase/migrations/20260823210100_venues_rbac_rls_baseline.sql",
+      "supabase/migrations/20260823220001_money_path_transactional_rpcs.sql",
+      "supabase/migrations/20260823221000_event_hq_rls_tighten.sql",
+      "supabase/migrations/20260823221100_venues_add_identity_columns.sql",
+      "supabase/migrations/20260914090000_revoke_public_execute_db002.sql",
+      "docs/engineering/migration-validation/*.json"
+    ],
+    "out": [
+      "app code",
+      "non-target migration files",
+      "scripts/run-migrations.sh"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/",
+    "docs/engineering/migration-validation/",
+    "scripts/run-migrations.sh"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/DECISIONS.md#CP-006",
+    "docs/engineering/DECISIONS.md#CP-037"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The critical staged migrations and 20260914090000_revoke_public_execute_db002.sql are applied manually and recorded in staging and production migration history",
+      "owner": "database",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Anonymous and PUBLIC callers cannot execute can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, or has_entity_permission",
+      "owner": "database",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Authenticated and service-role access is limited to the documented server-side scope and all negative authorization probes pass",
+      "owner": "database",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Staging and production postflight probes, security advisors, checksums, migration validation, and forward-repair evidence are recorded",
+      "owner": "database",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run check:migration-chain",
+          "npm run check:db002-security-contract",
+          "bash supabase/tests/db008_storage_replay_guard.harness.sh (20260717194541)"
+        ],
+        "evidence": [
+          {
+            "command": "npm run check:migration-chain",
+            "result": "pass",
+            "detail": "302 files, no duplicate policy creations."
+          },
+          {
+            "command": "npm run check:db002-security-contract",
+            "result": "not-run",
+            "detail": "Out of this wave's verification scope; the DB-002 contract is unchanged and no DB-002 migration was authored or modified here."
+          },
+          {
+            "command": "bash supabase/tests/db008_storage_replay_guard.harness.sh (20260717194541)",
+            "result": "pass",
+            "detail": "Original aborts as a replay role; guarded form completes with a warning; the owner-applied application_documents_select_own policy set is identical to the original; idempotent over three applies."
+          }
+        ],
+        "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "last_run_at": "2026-09-25T22:00:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+    "completed": [
+      "20260823210000_harden_hiring_onboarding_pii.sql — APPLIED (hiring-PII hardening)",
+      "20260823220001_money_path_transactional_rpcs.sql — APPLIED (money-path transactional RPCs)",
+      "20260823221000_event_hq_rls_tighten.sql — APPLIED (event-HQ anon-write closure)",
+      "20260823221100_venues_add_identity_columns.sql — APPLIED (additive venues identity-column reconciliation, HTTP 201)",
+      "20260823210100_venues_rbac_rls_baseline.sql — APPLIED (venues/RBAC RLS baseline, HTTP 201) after schema reconciliation",
+      "Validation manifests: all 4 staged migrations staging_validated; new additive migration manifest added; 3 prior manifests' isolated-artifact fields populated to satisfy the staging_validated gate",
+      "RLS behavior verified: anon reads slug-published rows, anon INSERT blocked (42501), probe rows rolled back",
+      "Production verification: target objects, RLS policies, indexes, and SECURITY DEFINER search_path settings confirmed against the registered production target",
+      "Production security blocker: can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, and has_entity_permission have PUBLIC/anon EXECUTE; Supabase security advisor flags all four",
+      "Production migration-history drift: target versions are absent from supabase_migrations.schema_migrations because prior raw Management API application did not register history; DB-003 owns reconciliation",
+      "Read-only probe cleanup confirmed no residual rows; no migration was applied in this lane under CP-051",
+      "Corrected 20260914090000_revoke_public_execute_db002.sql to revoke both PUBLIC and anon direct grants.",
+      "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path.",
+      "20260717194541_harden_security_audit_remediation.sql previously compared pg_get_userbyid(relowner) = current_user and reported with `raise notice`. Measured on PostgreSQL 16.15 it created ZERO storage.objects policies under an owner while exiting 0 and reporting nothing, because the guard is a strict subset of the server's pg_class_ownercheck and client_min_messages = warning suppresses the NOTICE. The application_documents_public_read drop and the application_documents_select_own hardening are now attempted against the server in their own subtransaction. This is a real authorization improvement for the hiring-PII document bucket, not only a replay fix.",
+      "The insert into storage.buckets for the application-documents bucket is now guarded the same way, so a replay role that cannot write storage.buckets no longer aborts the chain at 20260717194541 before 20260914090000_revoke_public_execute_db002.sql is ever reached."
+    ],
+    "next_steps": [
+      "Follow DB-018; do not reopen this record."
+    ],
+    "blockers": [
+      "DB-002's own blockers are unchanged: the four SECURITY DEFINER functions still need a reviewed, explicit CP-051 manual authorization fix applied, then hosted probes and an advisor rerun. This lane applied nothing.",
+      "No staging or production evidence was gathered. Environments still default to historyStatus unverified."
+    ],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-09T12:00:00.000Z",
+        "summary": "Applied 3/4 staged migrations via Management API. Migration 2 blocked by venues schema drift.",
+        "details": "Chain check clean (277 files). Validation scan clean. All 4 SQL files inspected for hazards: transactional, to_regclass-guarded, SECURITY DEFINER with pinned search_path. Migrations 1,3,4 applied (HTTP 201) with postflight verification. Migration 2 failed (HTTP 400: venues.slug missing). Credentials sourced from .env.supabase.local (project ref auqddrodjezjlypkzfpi). No tokens printed.",
+        "next": "Resolve venues schema drift, then apply migration 2."
+      },
+      {
+        "timestamp": "2026-09-09T15:30:00.000Z",
+        "summary": "Resolved the venues schema-drift blocker: additive migration applied, baseline re-applied, all 4 staged migrations now production-applied and verified.",
+        "details": "Created supabase/migrations/20260823221100_venues_add_identity_columns.sql (additive: slug text, account_id uuid references auth.users(id) on delete set null, created_by uuid references auth.users(id) on delete set null; venues_slug_key partial unique index WHERE slug IS NOT NULL). Verified no chain/app collisions: only 20250818120000_admin_staffing_core.sql and the baseline reference these columns; app writes to venues use name/city/capacity only. Pre-apply probe: venues 22 cols (no slug/account_id/created_by), profiles has is_admin/role but not admin_level (failed baseline rolled back cleanly), RBAC tables present. Applied additive (HTTP 201) then baseline (HTTP 201). Postflight probes: columns + index present, venues_public_read + venues_owner_write present, RLS enabled on venues + 6 rbac tables, has_entity_permission SECURITY DEFINER search_path=public, profiles_privilege_guard enabled. RLS behavior: anon_visible_published=1, anon INSERT rejected 42501, probe rows rolled back (0 residue). Checks: chain 278 files clean, validation exit 0. Manifests: baseline + new additive migration staging_validated; 3 prior staging manifests' isolated-artifact fields populated (validator requires them at staging_validated). Pre-existing validation failures on those 3 manifests were fixed in-scope (docs/engineering/migration-validation/*.json) to keep the check clean. Pipeline note recorded: run-migrations.sh FILES list excludes the staged set; per owner decision the authoritative apply list is owned by DB-003 — run-migrations.sh NOT patched.",
+        "next": "Hand off apply-list reconciliation to DB-003; QA/RELEASE behavior verification; regenerate canonical types."
+      },
+      {
+        "timestamp": "2026-09-13T20:18:00Z",
+        "summary": "Read-only QA/release verification against the registered production target found the migration object families and RLS behavior present, but identified two release blockers: target migration versions are absent from production migration history, and four SECURITY DEFINER functions have PUBLIC/anon EXECUTE, including money-mutating RPCs. DB-002 remains active and blocked for explicit authorization remediation and DB-003 history reconciliation.",
+        "details": "Production catalog and policy probes passed for target tables, RLS enablement, event-HQ anon-policy removal, hiring PII restrictions, venues identity columns/index, and anonymous venue INSERT rejection. As anon, delete_tour_cascade reached the function body and returned tour_not_found; replace_ticket_revenue_allocations reached the function body and returned event_id_required, confirming callable exposure. Supabase security advisor flags can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, and has_entity_permission as anon-executable. No migration was applied. check:migration-chain, check:migration-validation, check:migration-checksums with task SHA, target identity, and agents:validate passed; run-migrations.sh --dry-run was blocked only by managed-sandbox telemetry EPERM.",
+        "next": "Have DB-003 reconcile migration-history metadata and apply a reviewed additive/manual revoke or equivalent owner-approved authorization fix; then rerun production probes and advisor evidence."
+      },
+      {
+        "timestamp": "2026-09-14T09:00:00Z",
+        "summary": "Prepared the reviewed additive authorization forward-fix and its postflight regression check.",
+        "details": "Added 20260914090000_revoke_public_execute_db002.sql to revoke inherited PUBLIC/anon EXECUTE from can_view_hiring_pii, replace_ticket_revenue_allocations, delete_tour_cascade, and has_entity_permission, then explicitly retain authenticated and service_role execution. Added db002_security_grants.sql to assert the effective ACLs. No hosted migration was applied because production migration-history reconciliation remains owned by DB-003 and CP-051 forbids an untracked raw SQL apply.",
+        "next": "DB-003 must reconcile the hosted migration history and approve/apply this forward-fix through the governed migration path; then run the DB-002 security-grant and production postflight checks."
+      },
+      {
+        "at": "2026-09-16T19:24:55.147Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted DB-002 to P0 and expanded it to the four exposed SECURITY DEFINER functions plus 20260914090000_revoke_public_execute_db002.sql. Staging and production anonymous-denial, advisor, migration-history, and forward-repair evidence are required before closure.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-17T01:29:01.283Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: the DB-002 migration now revokes EXECUTE from both PUBLIC and anon for all four exposed SECURITY DEFINER functions, grants only authenticated/service_role, and has static migration/postflight contract coverage. Hosted application and probes remain outstanding.",
+        "completed": [
+          "Corrected 20260914090000_revoke_public_execute_db002.sql to revoke both PUBLIC and anon direct grants.",
+          "Added check-db002-security-contract.mjs and postflight SQL assertions for grants, SECURITY DEFINER, and pinned search_path."
+        ],
+        "next_steps": [
+          "Apply the additive migration manually in staging, verify anonymous denial and intended authenticated/service_role access, then repeat in production under CP-051.",
+          "Reconcile migration-history metadata and attach advisor, checksum, and forward-repair evidence."
+        ],
+        "blockers": [
+          "No staging or production database mutation/probe was performed in this batch.",
+          "Hosted migration-history drift remains unresolved from prior raw Management API applications.",
+          "The task cannot close on static contract evidence alone."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:16:47Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "DB-002 static grant contract passes locally; hosted staging and production revocation/denial evidence remain absent. Current local Supabase env files identify the registered production project and were not used for SQL.",
+        "completed": [],
+        "next_steps": [
+          "On approved isolated staging, verify/apply 20260914090000 explicitly if needed, run db002_security_grants.sql plus anon and scoped-auth negative probes, advisors, and DB-008 history reconciliation."
+        ],
+        "blockers": [
+          "Approved isolated-staging Supabase target and credentialed exact-SHA deployment are not recorded."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:56.563Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check confirms DB-002 still needs hosted apply/probe evidence. GitHub staging Supabase secrets are absent and no isolated staging target is recorded, so the anonymous-denial and SECURITY DEFINER postflight probes were not run.",
+        "completed": [],
+        "next_steps": [
+          "After staging Supabase values exist, apply the reviewed revoke migration under CP-051 and record anonymous denial, authenticated/service-role allowed scope, advisors, and migration-history evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-22T16:18:55Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "DB-002 static four-function grant contract passes, but the connected account exposes no verified isolated staging project. The 20260914090000 revoke migration was not applied or probed in this run.",
+        "completed": [
+          "Ran node scripts/ci/check-db002-security-contract.mjs successfully and computed the revoke migration SHA-256 3f290ee45aab87b7300128167c200d169d7a2e90201f4bca5a1ae82102c27a98.",
+          "Kept production and Demo untouched; prior production anonymous-execute and migration-history findings remain unresolved."
+        ],
+        "next_steps": [
+          "On a verified isolated staging target, read history/catalog first; apply only the missing reviewed revoke migration under CP-051, run supabase/tests/db002_security_grants.sql and distinct anon/authenticated denial probes, and retain security advisor output.",
+          "Repeat the reviewed production operator gate only after staging evidence and DB-008 history reconciliation; keep DB-002 active until production postflight passes."
+        ],
+        "blockers": [
+          "No isolated staging credentials or exact-SHA deployment; full migration-validation is also red on an unrelated expired job-posting exception."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:52:43.468Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: no DB-002 migration authored or modified and nothing applied. Indirect contribution only: 20260717194541 previously compared pg_get_userbyid(relowner) = current_user and reported with raise notice, and it created ZERO storage.objects policies under an owner while exiting 0 and reporting nothing. The application_documents_public_read drop and the application_documents_select_own hardening (the hiring-PII document bucket) are now attempted against the server in their own subtransaction and proved to create the policy. The application-documents bucket seed is guarded too, so a replay role can no longer abort the chain before 20260914090000_revoke_public_execute_db002.sql is reached.",
+        "completed": [],
+        "next_steps": [
+          "A reviewed explicit CP-051 manual authorization fix for the four SECURITY DEFINER functions must still be applied by an operator, then hosted probes and an advisor rerun. This lane applied nothing and claims no hosted evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:15.715Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-002 work; its four exposed SECURITY DEFINER functions were not touched. One DB-002 lesson applied rather than repeated: 20260926120200_marketplace_entitlement_download_increment_rpc.sql is a NEW SECURITY DEFINER function written the corrected way at author time - search_path pinned to public, revoke from public, revoke from anon, grant to authenticated - and db011_marketplace_entitlement_rpc_contract.sql fails closed on exactly the DB-002 regression, with a negative control that grants anon EXECUTE to prove the check bites. Same posture on the two new marketplace tables: ENABLE plus FORCE ROW LEVEL SECURITY, so the owner is subject to the deliberate absence of a buyer INSERT policy. The Wave 33 measurement correction touches DB-002's supporting evidence: the out-of-band DDL it attributed to raw Management API application is not visible in the generated contract at all (0 contract columns lack chain provenance), so the metadata drift it recorded in supabase_migrations.schema_migrations is a history-parity question, not a schema-coverage one.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: DB-002 stays release-blocked on its own hosted evidence. Read-only re-verification of the four functions, the security-advisor rerun, and the migration-history reconciliation remain operator work. Nothing in this wave reduces that blocker."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:46.590Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-26T23:00:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "DB-013 CLOSED ITS HALF OF THE staff_members EXPOSURE. Do not duplicate this work. DB-013 (CP-104) authored supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql, which drops read_all_staff / insert_staff / update_staff on public.staff_members and creates three organization-scoped staff_members_scoped_read / _insert / _update policies that fail closed on a null or unresolvable org_id, while preserving staff_members_worker_read_own. Behaviour is proven by execution, not inspection: supabase/tests/db013_staff_members_scope.harness.sh returns 61 PASS / 0 FAIL on a throwaway PostgreSQL 16.15 cluster, including a real negative control (cross-tenant read 5/5, insert, and update all succeed BEFORE the migration) and the measured denial after it. Apply remains a manual CP-051 operator step and is handed over in docs/engineering/handoffs/pending/HF-DB-013-STAFF-MEMBERS-ORG-SCOPE-APPLY.json. THREE FACTS THIS TASK SHOULD CARRY FORWARD. (1) The CP-104 finding as written was partly wrong and DB-013 measured why: on a fully replayed target the three permissive policies are ALREADY ABSENT, dropped by 20260823210000_harden_hiring_onboarding_pii.sql — read_all_staff literally in its v_permissive array (:263) and insert_staff/update_staff in its 'literally authenticated can do anything' sweep (:300-315). Both are dynamic execute format(...) calls, which is why the grep that produced the finding could not see them. Given this task already found out-of-band application on the hosted targets, the authoring lane could not rule out a target where the sweep never ran, so the file is still worth applying. (2) public.staff_performance_metrics carries the IDENTICAL defect, in the SAME source migration (20250818120000:371,405,436 read_all_metrics / insert_metrics / update_metrics), and 20260823210000's sweep does NOT list it. Its correctly-scoped staff_performance_metrics_select / _write from 20250812093500:41-55 are OR'd away by them. That is the strongest single suspect and it is NOT fixed; it is routed, not actioned. (3) public.event_resources and public.event_calendar_items each carry a `for select to authenticated using (true)` policy created by 20260823221000:36,53 that coexists with the scoped *_select_managers policies from 20260717194541, and 20260823221000 is inside THIS TASK's already-recorded event-HQ RLS surface. Three more coexistence pairs (public.events, public.profiles, public.venue_profiles) are in the DB-013 report. No table, column, index, constraint, trigger, function, type or grant was changed by DB-013, and staff_shifts was explicitly left alone.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged for DB-002's own acceptance criteria, with one addition: the staff_members exposure this task carried in its scope is now owned by DB-013's migration and must not be re-opened, re-derived or re-applied by this task. Read HF-DB-013-STAFF-MEMBERS-ORG-SCOPE-APPLY.json before touching staff_members.",
+          "NEW, routed here rather than fixed by DB-013: decide ownership of public.staff_performance_metrics (the same three permissive policies as staff_members, un-swept by 20260823210000) and of public.event_resources / public.event_calendar_items (`using (true)` read policies from 20260823221000 coexisting with the 20260717194541 scoped ones). Both are in DB-013's task record and its report with file:line. Neither has a migration.",
+          "This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "wave34Note": "No new DB-002 work this wave, but one DB-002 lesson was applied rather than repeated. DB-002 found four SECURITY DEFINER functions that kept PUBLIC/anon EXECUTE. 20260926120200_marketplace_entitlement_download_increment_rpc.sql is a new SECURITY DEFINER function written the corrected way at author time: search_path pinned to public, revoke from public, revoke from anon, grant to authenticated, plus a contract postflight that fails closed on exactly the DB-002 regression (db011_marketplace_entitlement_rpc_contract.sql asserts has_function_privilege for public, anon and authenticated and a negative control grants anon EXECUTE to prove the check bites). The same posture is applied to the two new marketplace tables: ENABLE plus FORCE ROW LEVEL SECURITY, because neither has an INSERT policy for the buyer and FORCE makes the owner subject to that absence too.",
+  "unaffected": "DB-002 remains active and release-blocked on its own hosted evidence. The four functions it names were NOT touched this wave.",
+  "execution_state": "superseded",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "contract",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

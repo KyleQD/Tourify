@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.0",
+  "agent": "events",
+  "description": "Own event creation, lifecycle, calendar and holds, public event surfaces, and shared event consumer contracts.",
+  "paths": [
+    "app/events/**",
+    "app/api/events/**",
+    "components/events/**",
+    "lib/events/**",
+    "__tests__/events/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced",
+    "Post-launch paths unless the task outcome authorizes them"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

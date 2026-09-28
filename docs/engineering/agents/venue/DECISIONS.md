@@ -228,3 +228,185 @@ Append decisions using:
   (`venue_profiles.user_id = auth.uid()`) still applies and a delegated team manager now
   sees zero rows instead of an error — strictly better, and widening that policy to venue
   RBAC is a DB-002 decision, not an app-code one.
+
+## VENUE-D07 — A block read error fails OPEN at the booking-request boundary; a narrowing check and a permission gate are different kinds of check and do not share one posture
+
+- Date: 2026-09-28
+- Status: accepted
+- Task: VENUE-007 (ratifying EVENTS-002-D1; overruling the fail-closed instruction in HF-VENUE-004-BOOKING-RECEIVING)
+- Decision owner: venue, as contract owner of `isVenueEventDateBlocked`
+- Decision:
+  1. **RATIFIED — fail OPEN and log.** A venue availability block *read error* at the
+     booking-request boundary does not reject the request. The events lane's
+     `EVENTS-002-D1` implementation is correct as written and **stands unchanged**:
+     `app/api/booking-requests/route.ts:115-117` logs via `console.error` and proceeds.
+     This task ratifies it; it does not re-implement it.
+  2. **OVERRULED — the standing fail-closed order.**
+     `HF-VENUE-004-BOOKING-RECEIVING` `next_steps[1]` ("treat a truthy `error` from the
+     helper as fail-closed") is **withdrawn as a general order** for this boundary. It
+     was a correct statement of the venue lane's instinct and a wrong instruction for
+     this surface. The handoff is annotated, so the next lane sees one position.
+  3. **The dividing line, which is the reusable part of this decision:** at this
+     boundary a check that can only *narrow* what is admitted (block, approved-booking
+     conflict) and a check that is a **permission gate** (`allow_bookings`, capacity)
+     are different classes and get **different** postures. A narrowing check may fail
+     open: its failure admits a request for human review and grants no access. A
+     permission gate must fail closed: its failure silently inverts an operator's
+     expressed intent. The block check is a narrowing filter.
+  4. **The debt this creates is named, not waved at:** fail-open here is acceptable
+     *because the request is not the promise*. There is currently no machine check at
+     the promise point. See the re-evaluation triggers.
+- Evidence (line references are current bytes at base SHA
+  `16fb834f1a03a70f165be470a5f98f389bf6100a`; every read below was measured, not
+  inferred from a task title):
+  1. **The events lane's decisive factual claim is CORRECT and is not disputed here.**
+     All three checks in `validateVenueAvailability` fail open on a read error: the
+     block check (`route.ts:99-118`) proceeds and logs; the capacity read (`:120-126`)
+     destructures only `{ data: venue }` and discards `error`, so a failed read yields
+     `venue === null`, `capacity` computes to `0`, and `capacity > 0` (`:127`) is false
+     — no rejection; the approved-booking read (`:142-150`) destructures only
+     `{ count }`, so a failed read yields `count === null` and `count || 0` is `0` — no
+     rejection. The lane is right that flipping only the new check closed would reject
+     requests the other two would have allowed.
+  2. **A FOURTH fail-open read, in the permissive direction, that the events lane did
+     not name — and it is worse than either read it did name.** The venue *policy* read
+     at `route.ts:327-332` also destructures only `{ data: venueRow }`, and
+     `readVenueBookingPolicies` computes `allowBookings: s.allow_bookings !== false`
+     (`:78`). On a read error `venueRow` is `null`, so `allowBookings` becomes
+     **`true`**: a transient read error silently inverts the venue's explicit "I am not
+     accepting booking requests" switch (`:334-339`) and admits a request the operator
+     refused. That is a permission gate failing open toward permissive.
+  3. **Therefore the "consistency" argument is answered, not accepted as a precedent.**
+     Two accidental violations are not a rule, and the neighbours are not equivalent to
+     the check being decided: the approved-booking count is *more* dangerous to fail
+     open than the block check (it misses a conflict with an already-promised booking),
+     and the policy read fails open on an explicit gate. The inconsistency is the defect
+     to fix; the fix is to classify the checks (Decision point 3), not to freeze the
+     worst behaviour in place.
+  4. **The events lane's severity argument is weaker than stated, in two measurable
+     places.** (a) "The venue manager still reviews and approves it" is **false** for a
+     venue with `booking_policies.auto_approve = "all"`: `route.ts:365` sets
+     `initialStatus = "approved"` at request time with no human in the loop, so there the
+     fail-open residual is not "a request the venue can decline" but a block silently
+     overridden. (b) "VENUE-005's reservation conflict engine is the actual double-booking
+     guard" does not hold on this path: that engine constrains `venue_reservations` via
+     `EXCLUDE USING gist` over `reserved_range`
+     (`20260823140000_reservation_conflict_engine.sql:92-99`) — a **different table**
+     from `venue_availability` — this lane's own state records those RPCs as
+     staged/not applied, and `app/api/venue/booking-requests/route.ts:118-128` gates its
+     lifecycle transition behind `isVenueBookingLifecycleEnabled()` with a 503 "until
+     its database checks pass". Neither mitigation is live on this boundary today.
+  5. **Measured: there is no second machine check between the request and the promise.**
+     The venue-side approval path `app/api/venue/booking-requests/route.ts:106-203` reads
+     only `venue_booking_requests` and calls `transition_venue_booking_lifecycle`
+     (`:159-166`). It never consults `venue_availability`. The request-time block check is
+     therefore currently the *only* place the canonical block contract is enforced
+     anywhere in the product.
+  6. **The fail-closed principle is granted; its application here is refused, for one
+     reason.** The venue lane accepts all three propositions: a block is a promise to the
+     artist; a check that disappears on a read error is not a check; and "we could not
+     read the calendar" is materially different from "the date is open." What it does not
+     accept is the conclusion, because **this boundary is where the request is formed,
+     not where the promise is kept.** The promise is kept when a request becomes an
+     approved booking, on a different surface (evidence 5), which today checks nothing.
+     Failing closed at request time would leave that gap exactly as wide while charging
+     the whole price to artists.
+  7. **One placement fact settles the residue.** The block check runs *first*
+     (`route.ts:99`), ahead of the capacity read, so a blocked date cannot be shadowed by
+     a capacity rejection. That same ordering makes the fail-closed failure mode a
+     *confident false business fact*: the artist receives 409 `The venue is not available
+     on 2026-10-15` for a date the venue never blocked. The 409 vocabulary is a
+     business-fact vocabulary and has no way to say "we could not confirm." A posture that
+     must misstate a fact in its own response to be enforced is the wrong posture for a
+     check that can be enforced later, cheaply, and truthfully.
+- Blast radius — the cost of each posture, named (AC-3):
+  - **Fail CLOSED at this boundary.** One transient `venue_availability` read error denies
+    **100% of venue-targeted booking requests** for the duration: every venue, every date,
+    no discrimination, because this is the highest-fan-out read in the function and it runs
+    first. The denial is **revenue-visible and misattributed** — the artist is told a
+    specific date is unavailable at a named venue, which is false and suppresses the
+    venue's own book; artists re-date or abandon and the venue never learns a sale was
+    lost to an infrastructure error. It is **invisible in the response**: a 409 is
+    indistinguishable from a genuine conflict, so no client can detect it, no retry
+    affordance exists, and nothing alerts on the 409 path. It is **not self-healing for
+    the artist** — a retry on the same date returns a different answer, so the same input
+    yields contradictory facts and the artist's model of the venue's calendar is corrupted,
+    not merely delayed. It cannot be scoped down: a second `venueId` does not help while
+    the read is failing. What it buys is an advisory pre-filter turned into a guarantee —
+    and the guarantee is held *by an outage* and released by recovery, which is backwards.
+  - **Fail OPEN at this boundary.** A manager's block can be ignored for the duration of
+    the read failure, and the resulting request carries **no signal** to the venue that the
+    date was blocked — the request's own record asserts the date is open. The harm is
+    **concentrated in the auto-approve case** (evidence 4a), where fail-open is not a
+    request the venue can decline but a block silently overridden. It is **recoverable and
+    attributable**: the error is logged (`:116`), the request lands in a human queue, the
+    venue can decline it, and the artist's request is not lost. It is **not
+    security-relevant**: the check is service-role scoped to `input.venueId` and is not an
+    authorization gate, so failing open admits a request for review and grants no access —
+    the opposite of VENUE-D01, where a fail-closed rule was required precisely because that
+    surface *is* the authorization gate. What it buys is that the boundary never asserts
+    "the date is open" on the artist's behalf when the system does not know.
+  - **The asymmetry that decides it:** the fail-closed failure mode is invisible to *both*
+    parties and attributes an infrastructure fault to a business fact; the fail-open failure
+    mode is visible to the operator, logged, and correctable by the human already in the
+    loop. Neither cost is neutral. The failure mode invisible to every party is the one to
+    avoid at a boundary whose check is advisory.
+- Re-evaluation triggers — fail-closed becomes correct, and this decision must be
+  re-opened, if ANY of these becomes true (AC-4). A decision with a trigger, not a
+  permanent preference:
+  - **R1 — a block check exists at the promise point.** If the venue-side approval path
+    (`app/api/venue/booking-requests/route.ts` PATCH and/or the
+    `transition_venue_booking_lifecycle` RPC) consults `isVenueEventDateBlocked`, or the
+    reservation engine is applied and writes a `venue_reservations` row for a confirmed
+    booking, then the request-time check is a pure UX pre-filter and fail-open here is
+    unconditionally correct. **This is the near-term trigger and the debt this decision
+    creates; it should be opened regardless of which posture holds.**
+  - **R2 — the read is characterised, not assumed.** What would have to be true about read
+    reliability: this specific query (`venue_availability .eq(venue_id).eq(date).
+    .eq(is_available,false).maybeSingle()`, `lib/venue/availability.ts:129-135`) must have
+    a **measured** error rate on a hosted environment, and the expected number of
+    falsely-denied artist requests per unit time must be lower than the expected number of
+    block overrides per unit time. No such measurement exists in this repository and no
+    hosted evidence is claimed, so this trigger cannot be evaluated today.
+  - **R3 — the response can carry the truth.** Fail-closed is only defensible if the
+    rejection does not assert a false business fact. A flipped posture must return a
+    **retryable** infrastructure error (e.g. 503 with a `RETRY` code) saying the date could
+    not be confirmed, and must **not** reuse the 409 "venue is not available on &lt;date&gt;"
+    vocabulary. If that 409 vocabulary is the only one available, fail-closed is not a
+    posture, it is a lie with a status code.
+  - **R4 — the human-review mitigation is universal.** Fail-open is justified partly by
+    "the venue still reviews it." That is false for `auto_approve = "all"` (`:365`). If
+    auto-approve is reachable in production, or any other path can move a request to
+    `approved` without a human, the mitigation is void and the weight shifts to R1/R3
+    immediately.
+  - **R5 — the permission-gate reads are fixed first.** The `allow_bookings` and capacity
+    reads fail open in the permissive direction today (evidence 1-2). Until they are
+    fail-closed the boundary is not coherent enough for a stricter advisory posture to buy
+    anything, and a strict advisory check sitting behind an open permission gate is the
+    worst of both worlds.
+- Consequences:
+  - `app/api/booking-requests/route.ts` is **unchanged by this decision**. The events
+    lane's implementation is the reference implementation of the ratified posture.
+  - `HF-VENUE-004-BOOKING-RECEIVING` is annotated with the ratified posture; its
+    fail-closed instruction no longer reads as a standing order.
+  - **Two findings routed, not fixed here.** Both alter behaviour no acceptance criterion
+    covers, and the window/gate semantics were deliberately not changed inside a decision
+    task:
+    1. **FIND-1 (raised by EVENTS-002):** the canonical block check uses the UTC calendar
+       day (`toAvailabilityCalendarDay`, VENUE-D03) while the pre-existing approved-booking
+       check uses `[start, start+1day)` (`route.ts:137-150`), so an approved booking
+       **earlier the same UTC day** is missed. A real correctness gap. The decision it
+       needs is whether booking-request conflict detection is a calendar-day question or an
+       interval question. Owner: events, with venue consulted because the venue lane owns
+       the canonical day definition. Candidate for the orchestrator to open; not created
+       here, because a new venue task record is outside this task's `working_set` grant
+       and would collide on the venue `verification` WIP slot.
+    2. **Raised by this decision:** the `allow_bookings` and capacity reads fail open in
+       the permissive direction (evidence 1-2). Under the narrowing-filter /
+       permission-gate rule established above, **these** must fail closed. This is a
+       fail-closed task, and it is the *opposite* task from the one the original handoff
+       asked for — which is the point of ratifying a posture instead of leaving it
+       ambiguous.
+  - Durable rule for future lanes at any availability-consulting boundary: **decide the
+    posture by asking whether the check narrows or gates, not by asking which posture the
+    neighbouring checks happen to use.**

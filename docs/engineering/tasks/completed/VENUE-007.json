@@ -1,0 +1,175 @@
+{
+  "schema_version": "2.0",
+  "id": "VENUE-007",
+  "title": "Ratify the availability read-error posture at the booking boundary",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "venue",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "venue",
+  "created_at": "2026-09-28T01:40:00.000Z",
+  "updated_at": "2026-09-28T19:03:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; decision and verification only, no product rewrite",
+  "goal": "Decide whether a venue availability block read error fails open or closed at the booking-request boundary, and make the three checks at that boundary agree on one posture.",
+  "scope": {
+    "in": [
+      "Ratify or overrule decision EVENTS-002-D1: the events lane deliberately fails OPEN and logs when the availability block read errors, diverging from the fail-CLOSED instruction in HF-VENUE-004-BOOKING-RECEIVING",
+      "Make the venue-lane position explicit and durable, with the reason, so the next lane does not silently pick a third posture",
+      "State the conditions under which fail-closed would become correct, if ever"
+    ],
+    "out": [
+      "Rewriting app/api/booking-requests/route.ts. It is the events lane's completed work and the fix is correct as it stands; this task decides, it does not re-implement",
+      "Changing lib/venue/availability.ts semantics without a separate scoped task",
+      "The UTC-calendar-day versus [start, start+1day) window mismatch the events lane pinned as FIND-1, which alters behaviour no criterion covers and needs its own decision"
+    ]
+  },
+  "working_set": [
+    "lib/venue/availability.ts (READ ONLY for this decision; the venue lane owns it and may change it only under a separate scoped task)",
+    "__tests__/venue/venue-availability-api.test.ts (READ ONLY)",
+    "docs/engineering/agents/venue/STATE.md",
+    "docs/engineering/agents/venue/DECISIONS.md (append-only; never rewrite an existing entry)",
+    "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json (annotate the ratified posture)"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/tasks/completed/EVENTS-002.json",
+    "docs/engineering/tasks/completed/VENUE-004.json",
+    "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json",
+    "docs/engineering/agents/venue/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "COMPLETE. No resume condition. All five acceptance criteria are met with recorded evidence and both local gates are green. Two findings are routed to the orchestrator as candidates (FIND-1 and the fail-closed permission-gate reads) rather than fixed here.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "A dated decision records fail-open or fail-closed for an availability block read error at the booking boundary, and it is attributed to the venue lane as the contract owner rather than left as the events lane's unilateral divergence. If it overrules the events lane, the record says what the correct implementation is and the events lane is handed a handoff to apply it.",
+      "owner": "venue",
+      "state": "met",
+      "evidence": [
+        "docs/engineering/agents/venue/DECISIONS.md VENUE-D07, dated 2026-09-28, Status: accepted, Task: VENUE-007, and carrying an explicit 'Decision owner: venue, as contract owner of isVenueEventDateBlocked' line. It is appended after VENUE-D06; the diff is 182 insertions and 0 deletions, so no existing entry was rewritten or renumbered.",
+        "The decision does NOT overrule the events lane, so the conditional handoff clause does not apply and none was created. Position 1 ratifies EVENTS-002-D1 and states the events lane's implementation is 'correct as written and stands unchanged' at app/api/booking-requests/route.ts:115-117.",
+        "Position 2 overrules the venue lane's OWN earlier instruction: HF-VENUE-004-BOOKING-RECEIVING next_steps[1] is 'withdrawn as a general order'. That is the instruction which caused the divergence, so the divergence is resolved at its source rather than left as a live disagreement between the handoff and the code.",
+        "The file was not rewritten by this task: `git status --porcelain` showed DECISIONS.md clean at HEAD before the append, and the post-edit diff contains no '-' lines."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The record states the argument the events lane actually made, rather than a paraphrase: both pre-existing checks at the same boundary already fail open, so failing only the new check closed would reject requests the other two would have allowed. The decision either accepts that reasoning or answers it.",
+      "owner": "venue",
+      "state": "met",
+      "evidence": [
+        "VENUE-D07 Evidence 1 states the argument in the events lane's own mechanical form and concedes its factual core: 'All three checks in validateVenueAvailability fail open on a read error' — block check route.ts:99-118; capacity read :120-126 destructures only { data: venue } so a failed read yields venue === null, capacity computes to 0, and capacity > 0 (:127) is false; approved-booking read :142-150 destructures only { count } so a failed read yields count === null and count || 0 is 0. 'The lane is right that flipping only the new check closed would reject requests the other two would have allowed.'",
+        "Every one of those claims was verified against the current bytes rather than taken from the events lane's record; the capacity and count destructuring are quoted from the file as read, not from EVENTS-002.json.",
+        "The reasoning is then ANSWERED, not adopted, in Evidence 3: two accidental violations are not a rule, and the neighbours are not equivalent — the approved-booking count is more dangerous to fail open than the block check because it misses a conflict with an already-promised booking. 'The inconsistency is the defect to fix; the fix is to classify the checks, not to freeze the worst behaviour in place.'",
+        "The answer is strengthened with a FOURTH read the events lane did not name (Evidence 2): the venue policy read at :327-332 also discards `error`, and readVenueBookingPolicies computes allowBookings: s.allow_bookings !== false at :78, so a transient read error sets allowBookings to TRUE and inverts the venue's explicit 'not accepting booking requests' switch (:334-339). A permission gate failing open toward permissive is worse than either read the events lane named.",
+        "The severity leg of the events lane's argument is answered specifically, not waved at (Evidence 4): 'the venue manager still reviews and approves it' is FALSE for booking_policies.auto_approve = 'all', because route.ts:365 sets initialStatus = 'approved' at request time with no human in the loop; and the reservation conflict engine does not guard this path because it constrains venue_reservations (20260823140000_reservation_conflict_engine.sql:92-99), a different table, is recorded as staged/not applied, and is gated behind isVenueBookingLifecycleEnabled() with a 503 at app/api/venue/booking-requests/route.ts:118-128.",
+        "The ruling that carries the decision is that the fail-closed PRINCIPLE is granted and its application refused, for one stated reason (Evidence 6): 'this boundary is where the request is formed, not where the promise is kept'. Evidence 5 measures that there is no second machine check — app/api/venue/booking-requests/route.ts:106-203 reads only venue_booking_requests and calls transition_venue_booking_lifecycle, never consulting venue_availability."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "The decision states the blast radius of failing closed: a transient availability read error would deny booking requests to paying artists on sellable dates, which is a revenue-visible failure mode and not a neutral one. The cost of each posture is named in the record.",
+      "owner": "venue",
+      "state": "met",
+      "evidence": [
+        "VENUE-D07 has a dedicated 'Blast radius — the cost of each posture, named' section, and both postures get a full paragraph rather than a one-line summary.",
+        "FAIL-CLOSED cost, stated: one transient read error denies 100% of venue-targeted booking requests for the duration — every venue, every date, no discrimination — because this is the highest-fan-out read in the function and it runs first. Revenue-visible and misattributed: 'the artist is told a specific date is unavailable at a named venue, which is false and suppresses the venue's own book; artists re-date or abandon and the venue never learns a sale was lost to an infrastructure error.' Also: invisible in the response (a 409 is indistinguishable from a genuine conflict, so no client can detect it, no retry affordance exists, nothing alerts on the 409 path); not self-healing for the artist (a retry on the same date returns a different answer, so the same input yields contradictory facts); not scopeable down by venue; and the guarantee is held 'by an outage' and released by recovery, 'which is backwards'.",
+        "FAIL-OPEN cost, stated with equal specificity: a manager's block can be ignored for the duration of the read failure and the request carries no signal that the date was blocked — 'the request's own record asserts the date is open'; the harm is concentrated in the auto_approve = 'all' case where fail-open is 'not a request the venue can decline but a block silently overridden'; it is recoverable and attributable (logged at :116, lands in a human queue); and it is not security-relevant, because the check is service-role scoped to input.venueId and is not an authorization gate, contrasted with VENUE-D01 where fail-closed was required precisely because that surface IS the authorization gate.",
+        "Neither cost is rounded to zero: the record states explicitly 'Neither cost is neutral', and it records the deciding asymmetry — the fail-closed failure mode is invisible to BOTH parties and attributes an infrastructure fault to a business fact, while the fail-open failure mode is visible to the operator, logged, and correctable by the human already in the loop.",
+        "The mechanism that makes the fail-closed cost concrete is pinned (Evidence 7): the block check runs first at :99, ahead of the capacity read, so the artist receives 409 'The venue is not available on 2026-10-15' for a date the venue never blocked, and 'the 409 vocabulary is a business-fact vocabulary and has no way to say we could not confirm'."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The conditions under which fail-closed becomes correct are stated, so the posture is a decision with a re-evaluation trigger rather than a permanent preference. At minimum: what has to be true about read reliability for the safer posture to become the right one.",
+      "owner": "venue",
+      "state": "met",
+      "evidence": [
+        "VENUE-D07 has a dedicated 'Re-evaluation triggers' section with five falsifiable triggers (R1-R5), framed as 'fail-closed becomes correct, and this decision must be re-opened, if ANY of these becomes true' — an explicit re-evaluation trigger, not a permanent preference.",
+        "R2 is the required read-reliability condition and is stated quantitatively: the specific query (venue_availability .eq(venue_id).eq(date).eq(is_available,false).maybeSingle(), lib/venue/availability.ts:129-135) must have a MEASURED error rate on a hosted environment, and the expected number of falsely-denied artist requests per unit time must be lower than the expected number of block overrides per unit time. The record states plainly that no such measurement exists in this repository and no hosted evidence is claimed, so the trigger cannot be evaluated today — it is a real condition, not a rhetorical hedge.",
+        "R1 (a block check at the promise point: the venue-side approval path or the applied reservation engine) is named as the near-term trigger AND as the debt this decision creates — 'it should be opened regardless of which posture holds' — so the ratification is not read as excusing the gap.",
+        "R3 states the condition under which the safer posture stops being a lie: a flipped posture must return a retryable infrastructure error (e.g. 503 with a RETRY code) and must NOT reuse the 409 'venue is not available on <date>' vocabulary. 'If that 409 vocabulary is the only one available, fail-closed is not a posture, it is a lie with a status code.'",
+        "R4 voids the human-review mitigation for auto_approve = 'all' (:365) and requires re-evaluation if auto-approve is reachable in production or any other path can reach 'approved' without a human. R5 makes the permissive permission-gate reads a precondition, since 'a strict advisory check sitting behind an open permission gate is the worst of both worlds'."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "HF-VENUE-004-BOOKING-RECEIVING is annotated with the ratified posture so the instruction that caused the divergence no longer reads as a standing fail-closed order, and so the next lane sees one agreed position rather than two.",
+      "owner": "venue",
+      "state": "met",
+      "evidence": [
+        "The handoff's next_steps[1] — the literal fail-closed order — is no longer an instruction. It is now item [2], prefixed '[SUPERSEDED 2026-09-28 by VENUE-D07 — DO NOT FOLLOW]', which quotes the original text for the historical record and then states the ratified position in its place: log and proceed, with the reference implementation named. Both positions are visible, but only one is actionable.",
+        "A new item [0] was added at the top of next_steps reading 'SUPERSEDED BY VENUE-D07 (2026-09-28) — this handoff no longer carries a fail-closed order', so the first thing a reader sees is the ratification, not the stale instruction further down the array.",
+        "The handoff `summary` now ends with the ratification and a pointer: 'the venue lane, as contract owner, has since ratified that lane's choice to fail OPEN and log on a block READ ERROR and has withdrawn this handoff's fail-closed instruction. Read VENUE-D07 before using this handoff; the one agreed position is recorded there and in next_steps below.'",
+        "A `verification` entry records that the fail-open posture is pinned by a test rather than a comment (EVENTS-002's '__tests__/events/booking-request-availability.test.ts' asserts 200 + a venue insert + an exact console.error on an injected read error), and states that no hosted evidence is claimed and that R2 is explicitly unevaluated.",
+        "The stale line references in `dirty_state_caveat` were corrected in the same pass: they still pointed at route.ts:85-128 / :104-125 / :342 and asserted the function 'still does not consult venue_availability', which EVENTS-002 made false. Leaving them would have actively misled the next lane. Current bytes are now recorded: :86-160, block check :99-118, capacity :120-127, approved-booking window :137-157, policy read :327-332, readVenueBookingPolicies :70-84, auto-approve :365, call site :310-317.",
+        "ANNOTATION ONLY, WITHIN THE EXISTING SCHEMA FIELDS: no new JSON keys were added. The handoff schema sets additionalProperties: false, so the annotation was written into summary, next_steps, verification, dirty_state_caveat and updated_at rather than into a new 'ratification' object. `updated_at` moved 2026-09-25T22:00:00Z -> 2026-09-28T19:05:00Z. The file parses as valid JSON.",
+        "PRESERVATION CHECK: this handoff already carried uncommitted venue-lane work before this task (the 1.0 -> 2.0 migration, to_agent orchestrator, status accepted, accepting_task_id ORCH-004, completion_condition). All of it is intact and asserted programmatically after the edit; nothing this task did not write was reverted, staged or committed."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "venue",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/venue/",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "PASS: npx vitest run __tests__/venue/ -> 'Test Files 15 passed (15) | Tests 131 passed (131)', duration 1.66s. Run before any edit (18:59:19) and again after all four document edits (19:01:59), identical both times, which is expected because this task is documentation-only and touched no source file. The 15 files / 131 tests match the count the venue lane last recorded on 2026-09-25 (VENUE-004/005, Wave 34), so the venue contract owner is green at the count it expects.",
+          "PASS: npm run agents:validate -- --strict -> 'validated 27 agents, 246 tasks, 113 pending handoffs, 0 warnings, 0 errors'. This validates the annotated handoff against the control plane, which is the only artifact this task changed that a validator reads.",
+          "THE CONTRACT OWNER IS GREEN, AND THAT IS THE POINT OF THE GATE. The ratified posture is fail-open-and-log, so the test that pins it lives in the events lane's suite (__tests__/events/booking-request-availability.test.ts), which this task's grant does not cover and did not run. It is cited in VENUE-D07 and in the handoff as existing evidence from EVENTS-002's own recorded run ('18 files, 182 tests, all passing'), NOT as a result of this task. No venue test asserts the fail-open policy, which is a real coverage gap and is noted in progress.next_steps rather than left implicit.",
+          "SCOPE AND SAFETY ASSERTIONS: `git diff --stat docs/engineering/agents/venue/DECISIONS.md` -> '1 file changed, 182 insertions(+)' with zero deletions, confirming append-only. `rg -c \"^-[^-]\"` over that diff -> 0. `rg -n \"^## VENUE-D\"` returns D01-D07 in order with no renumbering and no gap. The handoff parses as valid JSON with 19 keys, unchanged key set.",
+          "NO MIGRATION WAS AUTHORED OR APPLIED. Nothing under supabase/migrations/** was read for modification or touched. No `supabase db reset`, no forced or full-chain replay (CP-051). No hosted environment was contacted and no hosted evidence is claimed. No file under app/, lib/ or __tests__/ was modified by this task.",
+          "SCOPE EXPANSIONS, read-only, recorded for the audit trail: app/api/booking-requests/route.ts (NOT modified — read to measure the three checks and the policy read that the decision turns on), app/api/venue/booking-requests/route.ts (NOT modified — read to establish whether a block check exists at the promise point, which decides Evidence 5 and trigger R1), supabase/migrations/20260823140000_reservation_conflict_engine.sql (NOT modified — read to test the events lane's claim that the reservation engine is the double-booking guard; it constrains venue_reservations, a different table), scripts/agent-tools/control-plane.mjs and control-plane-validation.mjs (NOT modified — read to confirm the task and handoff schemas and the WIP limit before writing). None of these is in the working_set; each was opened because the decision could not be made accurately without it, which is the charter's stated condition for expanding scope."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T19:02:30.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "COMPLETE. All five acceptance criteria met with recorded evidence. DECIDED: a venue availability block READ ERROR fails OPEN and is logged at the booking-request boundary. The events lane's EVENTS-002-D1 implementation is correct as written and stands unchanged; this task ratified it as the venue contract owner rather than re-implementing it, and withdrew the venue lane's OWN fail-closed instruction in HF-VENUE-004-BOOKING-RECEIVING, which was the source of the divergence. app/api/booking-requests/route.ts was not edited. The events lane's decisive factual claim was verified against the current bytes and is CORRECT: all three checks at the boundary fail open, and a fourth read the lane did not name fails open in the permissive direction on an explicit operator gate. The claim is answered rather than adopted — two accidental violations are not a rule, and the real dividing line is narrowing filter vs. permission gate, not which posture the neighbours happen to use. Blast radius is recorded for both postures, and five falsifiable re-evaluation triggers make this a decision with a trigger rather than a permanent preference.",
+    "completed": [
+      "VENUE-D07 appended to docs/engineering/agents/venue/DECISIONS.md: dated 2026-09-28, Status accepted, attributed to venue as contract owner. 182 insertions, 0 deletions, D01-D06 untouched.",
+      "Measured all three checks at the boundary against current bytes rather than trusting either lane's record: block check (route.ts:99-118) fails open and logs; capacity read (:120-126) fails open because only { data: venue } is destructured; approved-booking read (:142-150) fails open because only { count } is destructured.",
+      "Found a fourth fail-open read the events lane did not name, and a worse one: the venue policy read (:327-332) discards `error` and readVenueBookingPolicies defaults allowBookings to TRUE at :78, so a transient error inverts the venue's explicit 'not accepting booking requests' switch.",
+      "Established the reusable rule the decision rests on: a narrowing check may fail open because its failure admits a request for review and grants no access; a permission gate must fail closed because its failure inverts operator intent. This is what makes the consistency argument a non-answer.",
+      "Answered the events lane's severity leg on evidence: 'the venue still reviews it' is false for auto_approve = 'all' (route.ts:365 approves at request time with no human), and the reservation conflict engine guards a different table (venue_reservations), is recorded as staged/not applied, and is 503-gated in the venue approval route.",
+      "Measured that there is no second machine check at the promise point: app/api/venue/booking-requests/route.ts:106-203 never consults venue_availability, so the request-time check is currently the only enforcement of the block contract in the product. Recorded as the load-bearing debt of the decision, not smoothed over.",
+      "Recorded the blast radius of each posture in full, including the fail-closed cost the brief asked to be named explicitly (100% denial of venue-targeted booking requests, revenue-visible, misattributed, invisible in the response, non-self-healing) and the fail-open cost (a block silently ignored, concentrated in the auto-approve case, but logged, attributable and recoverable).",
+      "Recorded five falsification-grade re-evaluation triggers R1-R5, including the required read-reliability condition: this query's error rate must be MEASURED on a hosted environment, and falsely-denied artist requests must be cheaper than block overrides. Stated that no such measurement exists and none is claimed, so the trigger is unevaluated today.",
+      "Annotated HF-VENUE-004-BOOKING-RECEIVING within its existing schema fields so the fail-closed order no longer reads as standing: next_steps[0] announces the ratification, the original order is quarantined as item [2] marked DO NOT FOLLOW with its text quoted for history and the ratified position stated in its place, the summary points at VENUE-D07, and a verification entry records that the posture is test-pinned. Also corrected the stale line references in dirty_state_caveat, which still claimed the function 'does not consult venue_availability'.",
+      "Verified both required gates green against the current bytes: npx vitest run __tests__/venue/ -> 15 files / 131 tests passed; npm run agents:validate -- --strict -> 27 agents, 246 tasks, 113 pending handoffs, 0 warnings, 0 errors.",
+      "Preserved every unrelated change. DECISIONS.md was clean at HEAD before the append and is now append-only. The handoff's and STATE.md's pre-existing uncommitted venue-lane edits were kept and asserted. Nothing was reverted, cleaned, staged or committed."
+    ],
+    "next_steps": [
+      "ORCHESTRATOR — open a task for FIND-1 (pinned by EVENTS-002, deliberately NOT fixed here). The canonical block check uses the UTC calendar day (toAvailabilityCalendarDay, VENUE-D03) while the pre-existing approved-booking check uses [start, start+1day) at route.ts:137-150, so an approved booking EARLIER THE SAME UTC DAY is missed. This is a real correctness gap. The decision it needs: is booking-request conflict detection a calendar-day question or an interval question? Owner: events, with venue consulted because the venue lane owns the canonical day definition. No task record was created for it in this session because a new venue task record is outside this task's working_set grant and would collide on the venue 'verification' WIP slot (the control plane enforces a limit of 1 per owner per bucket).",
+      "ORCHESTRATOR — open a task for the permission-gate reads that VENUE-D07 newly identified. The allow_bookings policy read (route.ts:327-332, defaulting open at :78) and the capacity read (:120-126) fail open in the permissive direction. Under VENUE-D07's narrowing-filter / permission-gate rule these must fail CLOSED. This is the opposite task from the one HF-VENUE-004-BOOKING-RECEIVING originally asked for, and it is the one that actually reduces risk at this boundary.",
+      "ORCHESTRATOR — open a task for R1, the load-bearing debt of this decision: app/api/venue/booking-requests/route.ts:106-203 must consult isVenueEventDateBlocked (or the reservation engine must be applied) before a request may reach 'approved'. Until then a block can still be silently overridden by an auto-approved request, which is the one place the fail-open posture is genuinely costly. Open this regardless of which posture holds.",
+      "ORCHESTRATOR — move HF-VENUE-004-BOOKING-RECEIVING to docs/engineering/handoffs/completed/ and credit SIM-20260922-VENUE-002's receiving-side acceptance. Its completion_condition is satisfied by EVENTS-002 and this lane has annotated it in place; moving another lane's orchestrator-addressed record (accepting_task_id ORCH-004) is not this lane's call, which is EVENTS-002's FIND-3 restated.",
+      "COVERAGE GAP, recorded rather than hidden: no test in __tests__/venue/ asserts the ratified fail-open policy, because the test that pins it (EVENTS-002's __tests__/events/booking-request-availability.test.ts) is outside the venue grant. If a future venue task touches this boundary, the assertion should be mirrored venue-side so the contract owner's own suite fails if the posture is flipped.",
+      "NO HOSTED EVIDENCE IS CLAIMED and none is obtainable locally. R2 requires a measured read error rate for this specific query on a hosted environment. SIM-20260922-VENUE-002 hosted rerun credit still requires the QA-004/DB-002 isolated-staging gate (RELEASE-007/QA-003, DB-002 denial probes, QA-005 actors), exactly as VENUE-004 recorded."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T19:03:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "VENUE-007 complete, all five ACs met. Decided fail-open-and-log for a block read error at the booking boundary; recorded as VENUE-D07 in the venue lane's own log, dated and attributed to venue as contract owner. The events lane did the right thing by flagging rather than smoothing, and the ratification confirms its implementation rather than re-doing it: app/api/booking-requests/route.ts was not touched. What I did not do is accept its reasoning by default. Its decisive factual claim verified CORRECT against current bytes — all three checks fail open — and I said so plainly in the decision rather than looking for a way to disagree. But I answered the argument: two accidental violations are not a rule, the approved-booking count is MORE dangerous to fail open than the check I would have flipped, and a fourth read neither lane had named (the allow_bookings policy read) fails open in the permissive direction, inverting an operator's explicit 'not accepting bookings' switch. That produced the decision's reusable rule — decide by whether a check narrows or gates, not by what the neighbours do — and it also produced a new fail-closed task, which is the opposite of what my own handoff originally asked for. Recorded the blast radius of both postures without rounding either down, including the specific reason fail-closed is bad HERE: the block check runs first, so its failure mode is a confident 409 telling a paying artist a named venue is unavailable on a date it never blocked, and the 409 vocabulary has no way to say 'we could not confirm'. That is why R3 exists. Five falsification-grade triggers keep this from being a permanent preference, with R2 stating exactly what must be true about read reliability — a MEASURED error rate for this query — and stating plainly that no such measurement exists and none is claimed. Recorded honestly that the fail-open posture is only defensible because the request is not the promise, and that app/api/venue/booking-requests/route.ts:106-203 never consults venue_availability, so today there is no second machine check; that gap is the decision's named debt and is routed as R1. FIND-1 routed to the orchestrator as a candidate, not fixed and not renumbered, and not turned into a task record because that is outside the grant and would collide on the venue verification WIP slot. Annotated the handoff inside its existing schema fields (additionalProperties is false) and corrected its stale line references, which still claimed the function did not consult venue_availability — leaving those would have misled the next lane. Both gates green: 15 files / 131 tests, and 0 warnings / 0 errors strict. Append-only respected: 182 insertions, 0 deletions, D01-D06 untouched; an earlier mid-document insertion of my own was reverted with git checkout after confirming the file was clean at HEAD, so only my own edit was discarded. Nothing committed, nothing staged, no migration authored or applied.",
+        "next": "Orchestrator: open tasks for FIND-1, for the fail-closed permission-gate reads, and for R1 (a block check at the promise point); move HF-VENUE-004-BOOKING-RECEIVING to completed/. No further venue-lane work on this boundary without a new task."
+      }
+    ]
+  },
+  "handoffs": []
+}

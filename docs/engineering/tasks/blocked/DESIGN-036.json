@@ -1,0 +1,210 @@
+{
+  "schema_version": "2.0",
+  "id": "DESIGN-036",
+  "title": "Build logistics command-center patterns",
+  "status": "blocked",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-23T19:16:09.435Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (322 entries; six concurrent Wave 34 lanes). Wave 34 added only: the lib/services/** orphaned-pile sweep (see DESIGN-034), __tests__/design-system/lib-services-orphaned-pile.test.ts, this task record, and handoffs HF-DESIGN-034-*. No git history operation, no migration authored or applied, no agents:generate, no types/** or lib/database.types.ts edit (CP-051).",
+  "goal": "Provide accessible reusable logistics navigation, scope, attention, readiness, source-health, loading, empty, and error UI patterns.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "components/admin/logistics/command-center/** (read-only for this lane: the admin lane owns the path; the design-system grant does not include components/admin/**)",
+    "__tests__/design-system/logistics-command-center-patterns.test.tsx (this lane's own test, allowed)",
+    "docs/engineering/tasks/active/QA-007.json (read-only)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Reusable readiness pattern with explicit state, a bounded percentage, and a stated blocker reason. [MET - LogisticsReadinessIndicator; asserted by the pattern test: accessible name 'Readiness: Blocked', 140% clamped to 100%, reason text rendered, role=progressbar with aria-valuenow=100]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Reusable source-health pattern that keeps degraded and unavailable sources visible with their warnings rather than hiding them. [MET - LogisticsSourceHealthIndicator / LogisticsSourceHealthSummary; asserted: role=region 'Data source health' counting '2 sources need attention', per-source accessible labels for Degraded and Unavailable, warning text rendered]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Summary pattern that never renders an unavailable metric as a healthy zero. [MET - LogisticsSummaryStat; asserted: data-availability=unavailable, 'Unavailable' text present, the digit 0 absent from the card]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Reusable attention pattern with severity, domain, owner state, due time, freshness, reason, and an action affordance. [MET - LogisticsAttentionRow; asserted: role=article named by the title, severity/domain/'Unassigned'/due text present, the action link href is the real href]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Reusable loading, empty, and error patterns with correct semantics and a retry affordance. [MET - LogisticsCommandCenterLoading (role=status, aria-busy=true), LogisticsCommandCenterEmpty (role=region named by the title, action slot), LogisticsCommandCenterError (role=alert, 'Try again' invokes onRetry once)]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "criterion": "A summary panel that composes the set for the logistics Overview. [MET - LogisticsOverviewPanel, exported from the command-center barrel]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "criterion": "Reusable NAVIGATION pattern. [NOT MET - no navigation primitive exists in components/admin/logistics/command-center/; the barrel exports attention, error, empty, loading, readiness, source-health, summary-stat, types and the overview panel, and nothing navigation-shaped. Creating it requires components/admin/**, which the admin lane owns and the design-system grant excludes in this wave]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "criterion": "Reusable SCOPE pattern. [NOT MET - components/admin/logistics/logistics-scope-bar.tsx exists but sits one level ABOVE the command-center set, is a one-off admin-lane file, and is currently modified in the worktree by the admin lane. It is not exported from the barrel and is not covered by the pattern test]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-9",
+      "criterion": "Authenticated 200% zoom and show-day mobile review. [NOT MET and NOT THIS LANE'S TO CLOSE - owned by QA-007; the design-system lane holds no hosted session and claims no browser evidence]",
+      "owner": "design-system",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "design-system",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm exec vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx",
+          "WAVE 34: ls components/admin/logistics/command-center/ + read index.ts to enumerate the actual reusable set",
+          "WAVE 34: rg -l -i 'logistics' components/admin/logistics/*.tsx to locate the scope and navigation surfaces outside the set",
+          "npm exec vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx -> 1 file / 5 tests passed",
+          "ls components/admin/logistics/command-center/ + read index.ts -> 8 files, barrel exports complete, no scope- or navigation-named file in the set",
+          "rg -l -i 'logistics' components/admin/logistics/*.tsx -> logistics-scope-bar.tsx is the only scope UI, outside the set and modified in the worktree by the admin lane",
+          "git status --porcelain -- components/admin/ -> no change by this lane (admin lane's path, excluded from the design-system grant)"
+        ],
+        "evidence": [
+          "Reusable summary, attention, readiness, source-health, loading, empty, and error patterns are implemented in components/admin/logistics/command-center.",
+          "WAVE 34 (2026-09-25): the reusable set is 8 source files - attention-row.tsx, error-state.tsx, states.tsx (loading + empty), status-indicators.tsx (readiness + source health), summary-stat.tsx, types.ts, logistics-overview-panel.tsx, and the index.ts barrel. The prior record's phrase 'implemented in components/admin/logistics/command-center' is accurate; what was missing is that the set does not cover two of the eight pattern families its own goal names.",
+          "WAVE 34 (2026-09-25): npx vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx passed 1 file / 5 tests. The five tests assert real accessibility contracts (accessible names, roles, aria-busy, a clamped percentage, an href, an onRetry invocation), not snapshots, so the pattern set is meaningfully guarded.",
+          "WAVE 34 (2026-09-25): the two unmet families are located, not assumed. `ls components/admin/logistics/command-center/` returns no scope- or nav-named file; the barrel exports no navigation or scope primitive; and the only scope UI in the subtree is components/admin/logistics/logistics-scope-bar.tsx, which sits outside the set, is not exported from the barrel, is not covered by the pattern test, and is currently modified in the worktree by the admin lane.",
+          "WAVE 34 (2026-09-25): this lane made NO change under components/admin/**. The admin lane owns that path in this wave and it is listed in the design-system grant's exclusion list, so the two unmet families are recorded as blockers rather than written.",
+          "WAVE 34 (2026-09-25): QA-007 exists as an active task owned by the qa agent, but there was no handoff linking QA-007 to the DESIGN-036 evidence it is supposed to produce. HF-DESIGN-036-QA-EVIDENCE now records that link, naming the authenticated 200% zoom and show-day mobile journeys that DESIGN-036 defers.",
+          "HONESTY CORRECTION (2026-09-25): the prior record carried verification.result 'passed' with last_run_sha null, last_run_at null, an empty acceptance_criteria array, and a single evidence sentence. That combination claims a pass with no criteria and no run attached. The result is now backed by an actual 5-test run, and the acceptance criteria are written down for the first time, which is what surfaced the two unmet families."
+        ],
+        "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "last_run_at": "2026-09-25T22:19:33.516Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Wrote DESIGN-036's acceptance criteria down for the first time, which is what surfaced the real gap: the goal names eight logistics pattern families and only six exist. Delivered and test-guarded are attention, readiness, source-health, summary, loading, empty and error plus the overview panel (8 files in components/admin/logistics/command-center, barrel exports complete, 5 real accessibility assertions passing). NAVIGATION AND SCOPE ARE NOT DELIVERED - there is no navigation primitive at all, and the only scope UI is components/admin/logistics/logistics-scope-bar.tsx, which sits outside the set, is not exported from the barrel, is not test-covered, and is currently mid-edit by the admin lane. Both would have to be written under components/admin/**, which this wave's design-system grant excludes, so the gap is recorded rather than written into the admin lane's path. The record also carried result 'passed' with last_run_sha null, last_run_at null and an empty acceptance_criteria array - a pass claim with nothing behind it; the result is now backed by an actual run and the criteria are stated, which is what made the two-day-old gap visible.",
+    "completed": [
+      "WAVE 34: Wrote the acceptance criteria down for the first time. The record previously had an empty acceptance_criteria array, which is why the two unmet families went unnoticed for two days.",
+      "WAVE 34: Re-verified the delivered set end to end. npx vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx passed 1 file / 5 tests, asserting accessible names, roles, aria-busy, a clamped percentage, a real href, and an onRetry invocation.",
+      "WAVE 34: Enumerated the actual reusable set from disk (8 files) and confirmed the barrel exports it completely.",
+      "WAVE 34: Located the two unmet families with evidence rather than assumption: no navigation primitive exists in the set, and the only scope UI (logistics-scope-bar.tsx) sits outside the set, is not exported from the barrel, is not test-covered, and is mid-edit by the admin lane.",
+      "WAVE 34: Opened HF-DESIGN-036-QA-EVIDENCE so the QA-007 deferral is a tracked handoff rather than a next_steps sentence.",
+      "WAVE 34: Corrected the verification record so 'passed' is backed by a real run with a timestamp, rather than asserted with null run metadata.",
+      "Wrote the acceptance criteria down for the first time; the record previously had an empty acceptance_criteria array, which is why the two unmet families went unnoticed",
+      "Marked each criterion MET or NOT MET with evidence, rather than leaving a bare 'passed'",
+      "Re-verified the delivered set: npx vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx -> 1 file / 5 tests passed, asserting accessible names, roles, aria-busy, a clamped 140->100 percentage, a real href and an onRetry invocation",
+      "Enumerated the actual reusable set from disk (8 files) and confirmed the index.ts barrel exports it completely",
+      "Located the two unmet families with evidence: ls on command-center/ returns no scope- or nav-named file, the barrel exports no navigation or scope primitive, and the only scope UI in the subtree is logistics-scope-bar.tsx outside the set and mid-edit by the admin lane",
+      "Opened HF-DESIGN-036-QA-EVIDENCE so the QA-007 deferral is a trackable handoff instead of a prose next step, naming the 200% zoom, show-day mobile and keyboard passes needed",
+      "Corrected the verification record so 'passed' is backed by a real run with a timestamp rather than asserted with null run metadata"
+    ],
+    "next_steps": [
+      "Admin (or an orchestrator grant widening design-system to components/admin/**): add the navigation and scope primitives to components/admin/logistics/command-center/ and export them from index.ts. Until then this lane cannot write them and will not expand into the admin lane's path.",
+      "QA: accept HF-DESIGN-036-QA-EVIDENCE and produce the authenticated 200% zoom and show-day mobile review it names, inside QA-007.",
+      "Once both patterns exist, this lane extends logistics-command-center-patterns.test.tsx to cover navigation and scope the same way the other six are covered, and DESIGN-036 can move to completed."
+    ],
+    "blockers": [
+      "NAVIGATION AND SCOPE PATTERNS ARE NOT DELIVERED and cannot be delivered inside the design-system grant: both live under components/admin/**, which the admin lane owns in Wave 34. The goal names eight pattern families and six exist.",
+      "The authenticated 200% zoom and show-day mobile review is owned by QA-007. This lane held no hosted session, started no dev server, and claims no browser or screenshot evidence in Wave 34."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Integrated the reusable command-center pattern set into the new Overview.",
+        "next": "Capture accessibility evidence in QA-007."
+      },
+      {
+        "at": "2026-09-25T22:19:33.516Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wrote DESIGN-036's acceptance criteria down for the first time, which is what surfaced the real gap: the goal names eight logistics pattern families and only six exist. Delivered and test-guarded are attention, readiness, source-health, summary, loading, empty and error plus the overview panel (8 files in components/admin/logistics/command-center, barrel exports complete, 5 real accessibility assertions passing). NAVIGATION AND SCOPE ARE NOT DELIVERED - there is no navigation primitive at all, and the only scope UI is components/admin/logistics/logistics-scope-bar.tsx, which sits outside the set, is not exported from the barrel, is not test-covered, and is currently mid-edit by the admin lane. Both would have to be written under components/admin/**, which this wave's design-system grant excludes, so the gap is recorded rather than written into the admin lane's path. The record also carried result 'passed' with last_run_sha null, last_run_at null and an empty acceptance_criteria array - a pass claim with nothing behind it; the result is now backed by an actual run and the criteria are stated, which is what made the two-day-old gap visible.",
+        "completed": [
+          "Wrote the acceptance criteria down for the first time; the record previously had an empty acceptance_criteria array, which is why the two unmet families went unnoticed",
+          "Marked each criterion MET or NOT MET with evidence, rather than leaving a bare 'passed'",
+          "Re-verified the delivered set: npx vitest run __tests__/design-system/logistics-command-center-patterns.test.tsx -> 1 file / 5 tests passed, asserting accessible names, roles, aria-busy, a clamped 140->100 percentage, a real href and an onRetry invocation",
+          "Enumerated the actual reusable set from disk (8 files) and confirmed the index.ts barrel exports it completely",
+          "Located the two unmet families with evidence: ls on command-center/ returns no scope- or nav-named file, the barrel exports no navigation or scope primitive, and the only scope UI in the subtree is logistics-scope-bar.tsx outside the set and mid-edit by the admin lane",
+          "Opened HF-DESIGN-036-QA-EVIDENCE so the QA-007 deferral is a trackable handoff instead of a prose next step, naming the 200% zoom, show-day mobile and keyboard passes needed",
+          "Corrected the verification record so 'passed' is backed by a real run with a timestamp rather than asserted with null run metadata"
+        ],
+        "next_steps": [
+          "Admin (or an orchestrator grant widening design-system to components/admin/**): add the navigation and scope primitives to components/admin/logistics/command-center/ and export them from index.ts. Until then this lane cannot write them and will not expand into the admin lane's path.",
+          "QA: accept HF-DESIGN-036-QA-EVIDENCE and produce the authenticated 200% zoom and show-day mobile review it names, inside QA-007.",
+          "Once both patterns exist, this lane extends logistics-command-center-patterns.test.tsx to cover navigation and scope the same way the other six are covered, and DESIGN-036 can move to completed."
+        ],
+        "blockers": [
+          "NAVIGATION AND SCOPE PATTERNS ARE NOT DELIVERED and cannot be delivered inside the design-system grant: both live under components/admin/**, which the admin lane owns in Wave 34. The goal names eight pattern families and six exist.",
+          "The authenticated 200% zoom and show-day mobile review is owned by QA-007. This lane held no hosted session, started no dev server, and claims no browser or screenshot evidence in Wave 34."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DESIGN-036-QA-EVIDENCE (pending, to_agent qa) — the authenticated 200% zoom and show-day mobile review this task defers; closes the last acceptance criterion once accepted."
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-LOGISTICS",
+  "deliverable_class": "implementation",
+  "decision_owner": "design-system",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Admin (or an orchestrator grant widening design-system to components/admin/**): add the navigation and scope primitives to components/admin/logistics/command-center/ and export them from index.ts. Until then this lane cannot write them and will not expand into the admin lane's path.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "design-system",
+      "condition": "NAVIGATION AND SCOPE PATTERNS ARE NOT DELIVERED and cannot be delivered inside the design-system grant: both live under components/admin/**, which the admin lane owns in Wave 34. The goal names eight pattern families and six exist.",
+      "dependency_task_ids": []
+    }
+  ]
+}

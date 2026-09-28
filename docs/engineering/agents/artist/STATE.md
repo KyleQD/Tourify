@@ -1,8 +1,17 @@
 # Artist state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `ARTIST-007` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
 - Last reviewed at: 2026-09-25
-- Active task: ARTIST-006 (ARTIST-005 implementation + DB-008 code-drift repoints landed; hosted rerun pending)
+- Historical active-task note (superseded by generated queue summary): ARTIST-006 (ARTIST-005 implementation + DB-008 code-drift repoints landed; hosted rerun pending)
 - Confidence: working — ARTIST-001 audit artifacts, artist-music gate adoption, the contract-signing UI, the profile-visibility write-path mapping, the band profile content aggregation, and the DB-008 artist code-drift repoints all have focused verification; the two remaining artist objects (`event_tasks`, `event_equipment`) and the four licensing objects need a database migration
 
 ## Durable facts

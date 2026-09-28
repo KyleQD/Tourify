@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tourify.local/schemas/admin-review.schema.json",
+  "title": "Admin advisory review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_id",
+    "record_status",
+    "reviewer",
+    "review_type",
+    "created_at",
+    "source_sha",
+    "environment",
+    "contains_production_data",
+    "actor_goal",
+    "evidence",
+    "expected_outcome",
+    "severity",
+    "recommendation",
+    "proposed_specialist",
+    "disposition",
+    "disposition_rationale",
+    "linked_task_ids",
+    "verification"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "review_id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9-]+$"
+    },
+    "record_status": {
+      "enum": [
+        "draft",
+        "final",
+        "example"
+      ]
+    },
+    "reviewer": {
+      "enum": [
+        "admin-design-manager",
+        "admin-tour-manager"
+      ]
+    },
+    "review_type": {
+      "enum": [
+        "design_audit",
+        "tour_simulation"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_sha": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|EXAMPLE)$"
+    },
+    "environment": {
+      "enum": [
+        "local",
+        "isolated_staging",
+        "non_production_example"
+      ]
+    },
+    "contains_production_data": {
+      "const": false
+    },
+    "actor_goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "reference",
+          "observation"
+        ],
+        "properties": {
+          "category": {
+            "enum": [
+              "code",
+              "test",
+              "runtime",
+              "screenshot",
+              "accessibility",
+              "reproduction",
+              "receiving_side"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observation": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "expected_outcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    "recommendation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposed_specialist": {
+      "enum": [
+        "admin-governance",
+        "admin-tour-planning",
+        "admin-event-operations",
+        "admin-logistics",
+        "admin-workforce",
+        "admin-commerce",
+        "admin-experience-insights"
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "accepted_and_routed",
+        "deferred_with_rationale",
+        "rejected_with_rationale",
+        "duplicate",
+        "verified"
+      ]
+    },
+    "disposition_rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "linked_task_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9-]+$"
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "verified_by",
+        "verified_at",
+        "evidence"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "pending",
+            "verified"
+          ]
+        },
+        "verified_by": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "admin",
+            "qa",
+            "release",
+            null
+          ]
+        },
+        "verified_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+

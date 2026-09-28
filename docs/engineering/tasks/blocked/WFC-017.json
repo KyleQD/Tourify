@@ -1,0 +1,116 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-017",
+  "title": "Build Workforce communications workspace",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "admin-workforce",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Integrate department communications, recipient preview, delivery, read, acknowledgment, and retry into Workforce operations.",
+  "scope": {
+    "in": [
+      "Organization communications index",
+      "Department channels and contextual compose",
+      "Recipient preview and exclusions",
+      "Receipt, failure, retry, and linked-record states",
+      "Responsive conversation navigation"
+    ],
+    "out": [
+      "Detached raw-recipient modals",
+      "Presenting failed delivery as acknowledged"
+    ]
+  },
+  "working_set": [
+    "components/admin/workforce/communications/**",
+    "app/admin/dashboard/staff/**",
+    "__tests__/admin/workforce/**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-010.json",
+    "docs/engineering/tasks/blocked/WFC-016.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Sender previews included and excluded recipients before sending",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Delivery, read, acknowledgment, failure, and retry remain distinct",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Messages link to shifts, actions, departments, and schedule publications",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Desktop and mobile navigation remain keyboard and screen-reader accessible",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/workforce",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on department workspace and Social communication contracts.",
+    "completed": [],
+    "next_steps": [
+      "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+      "Build communications workspace",
+      "Verify recipient, partial delivery, acknowledgment, and responsive flows"
+    ],
+    "blockers": [
+      "WFC-010 and WFC-016 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Admin → WFC-021: communications E2E and failure-recovery journeys"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "WFC-010 and WFC-016 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

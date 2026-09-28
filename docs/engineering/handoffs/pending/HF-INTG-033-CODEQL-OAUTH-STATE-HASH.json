@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-INTG-033-CODEQL-OAUTH-STATE-HASH",
   "task_id": "INTG-006",
   "from_agent": "integrations",
   "to_agent": "admin",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T14:08:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
   "dirty_state_caveat": "Triage and routing only. INTG-033 changed neither lib/admin/content-hub/oauth-state.ts nor __tests__/integrations/security.test.ts, and dismissed no alert on GitHub. The one security-exception entry integrations registered is for the sibling alert whose sink is in an integrations-owned test file (CODEQL-94-INTEGRATIONS-SECURITY-TEST-HMAC-STATE).",
@@ -34,5 +34,7 @@
     "gh api repos/KyleQD/Tourify/code-scanning/alerts/95 markdown — all five reported sources are createSignedOAuthState calls at __tests__/integrations/security.test.ts lines 20, 28, 38, 44, 62.",
     "node scripts/ci/check-security-exceptions.mjs — exit 0, `Security exception registry OK — 2 active exception(s)`.",
     "npx eslint __tests__/integrations/security.test.ts — exit 0, no output."
-  ]
+  ],
+  "accepting_task_id": "ADMIN-018",
+  "completion_condition": "Admin: register a security-exception entry for #95 in security/security-scan-exceptions.json with owner admin, decision not_exploitable, and a rationale that states the taint sources are test-fixture calls, or apply a CodeQL path-scoped suppression if the security lane prefers suppressions for test-derived flows. Do not dismiss it without recording the disposition."
 }

@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED",
   "task_id": "DB-011",
   "from_agent": "database",
   "to_agent": "marketplace",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-26T00:00:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree; 6 concurrent lanes)",
   "summary": "HF-DB-009-MARKETPLACE-TYPE-AND-RPC-SURFACE is actioned. Three additive forward-only migrations now carry the marketplace checkout money path, the external-listing redirect surface and a buyer-scoped entitlement download increment. Two of your three named objects are now IN the active chain, so they are captured rather than merely inventoried. Nothing was applied: CP-051 keeps the apply with the operator. Two decisions are yours, and one of them is a behavioural difference I could not resolve from the repository.",
@@ -44,5 +44,7 @@
     "npm run check:migration-ledger -> pass, 305 active, 15 classified (the three new ones added with task, rationale and next action), 290 explicitly unreconciled.",
     "node supabase/tests/db008_chain_contract_replay.mjs . <out> --check -> exit 0, 0 contract columns without chain provenance, regeneration would DELETE 0.",
     "NOT run and NOT claimed: npm run generate:database-types, npm run check:database-types (both need a live target), a full typecheck, and any hosted probe."
-  ]
+  ],
+  "accepting_task_id": "MKT-004",
+  "completion_condition": "DECISION 1, yours, and it is behavioural: the function enforces `download_count < max_downloads` UNCONDITIONALLY. app/api/marketplace/delivery/[orderItemId]/route.ts currently applies `.lt('download_count', max_downloads)` only `if (entitlement.max_downloads > 0)`, which means your route treats 0 as unlimited and the new function does not. Either 0 is a real unlimited sentinel in your data model, in which case the function needs an explicit branch and the route's current reading is the bug, or 0 is unreachable, in which case the function is right as written. I could not decide this from the repository: the column is `max_downloads integer not null default 5` and no migration or seed writes 0. Answer this before the route is switched over."
 }

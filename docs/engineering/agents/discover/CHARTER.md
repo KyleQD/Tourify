@@ -4,6 +4,29 @@
 
 Own search, discovery, world data, directories, news, and recommendations.
 
+<!-- product-outcome:start -->
+## Audience
+
+Public and authenticated users finding people, places, events, and content.
+
+## Final product
+
+Canonical search, discovery, directories, news, and recommendations with safe outbound fetching.
+
+## Launch boundary and exclusions
+
+World-data expansion is not a core launch blocker.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
+- Source SHA: `16fb834f1a03a70f165be470a5f98f389bf6100a`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (152 entries)
-- Generated at: 2026-09-25T23:26:47.265Z
+- Working tree: dirty (745 entries)
+- Generated at: 2026-09-28T03:22:14.585Z
 - Generator: `control-plane.mjs generate`
 
 Static detection is a routing aid, not an authorization audit. Missing markers require review; detected markers do not prove correct scope.
@@ -14,10 +14,12 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 
 - `middleware.ts`
 - `lib/auth/__tests__/acting-context.test.ts`
+- `lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts`
 - `lib/auth/__tests__/admin-profile-gates.test.ts`
 - `lib/auth/__tests__/auth-email-redirect-node.test.ts`
 - `lib/auth/__tests__/auth-errors.test.ts`
 - `lib/auth/__tests__/normalize-account-type.test.ts`
+- `lib/auth/__tests__/rel011-global-style.test.ts`
 - `lib/auth/__tests__/request-public-origin.test.ts`
 - `lib/auth/__tests__/route-guards.test.ts`
 - `lib/auth/__tests__/session-init.test.ts`
@@ -87,7 +89,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/calendar/route.ts` | session/auth, admin, entity/RBAC |
 | `app/api/admin/calendar/token/route.ts` | admin, entity/RBAC, service role |
 | `app/api/admin/capabilities/route.ts` | session/auth, entity/RBAC |
-| `app/api/admin/communications/route.ts` | admin, organization, venue, entity/RBAC, service role |
+| `app/api/admin/communications/route.ts` | session/auth, admin, organization, venue, entity/RBAC, service role |
 | `app/api/admin/content-hub/analytics/route.ts` | admin, organization, entity/RBAC |
 | `app/api/admin/content-hub/integrations/route.ts` | admin, organization, entity/RBAC |
 | `app/api/admin/content-hub/integrations/sync/route.ts` | session/auth, admin, entity/RBAC |
@@ -208,7 +210,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/logistics/site-maps/[id]/zones/[zoneId]/route.ts` | admin, entity/RBAC |
 | `app/api/admin/logistics/site-maps/[id]/zones/bulk-assign/route.ts` | admin, entity/RBAC |
 | `app/api/admin/logistics/site-maps/[id]/zones/route.ts` | admin, entity/RBAC |
-| `app/api/admin/logistics/site-maps/import/route.ts` | session/auth |
+| `app/api/admin/logistics/site-maps/import/route.ts` | admin, organization, entity/RBAC |
 | `app/api/admin/logistics/site-maps/issues/[id]/route.ts` | admin, entity/RBAC |
 | `app/api/admin/logistics/site-maps/issues/route.ts` | admin, entity/RBAC |
 | `app/api/admin/logistics/site-maps/layers/[id]/route.ts` | admin, entity/RBAC |
@@ -236,8 +238,8 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/onboarding/candidates/[id]/route.ts` | manual review required |
 | `app/api/admin/onboarding/candidates/route.ts` | session/auth |
 | `app/api/admin/onboarding/dashboard/route.ts` | manual review required |
-| `app/api/admin/onboarding/documents/[documentId]/review/route.ts` | session/auth |
-| `app/api/admin/onboarding/enhanced-invite/route.ts` | manual review required |
+| `app/api/admin/onboarding/documents/[documentId]/review/route.ts` | session/auth, admin, organization, entity/RBAC |
+| `app/api/admin/onboarding/enhanced-invite/route.ts` | session/auth |
 | `app/api/admin/onboarding/initialize-templates/route.ts` | manual review required |
 | `app/api/admin/onboarding/invite-new-user/route.ts` | session/auth, admin, entity/RBAC |
 | `app/api/admin/onboarding/review/route.ts` | manual review required |
@@ -287,7 +289,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/staff-operations/summary/route.ts` | admin, entity/RBAC |
 | `app/api/admin/staff/dashboard/route.ts` | session/auth, venue |
 | `app/api/admin/staff/route.ts` | admin, entity/RBAC |
-| `app/api/admin/staffing/job-postings/route.ts` | manual review required |
+| `app/api/admin/staffing/job-postings/route.ts` | session/auth, admin, entity/RBAC |
 | `app/api/admin/staffing/performance/route.ts` | session/auth, venue, entity/RBAC |
 | `app/api/admin/staffing/shifts/[id]/route.ts` | session/auth, entity/RBAC |
 | `app/api/admin/staffing/shifts/publish/route.ts` | session/auth, admin, venue, entity/RBAC |
@@ -329,7 +331,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/tours/[id]/summary/route.ts` | admin, entity/RBAC |
 | `app/api/admin/tours/[id]/tags/route.ts` | admin, entity/RBAC |
 | `app/api/admin/tours/[id]/transitions/[command]/route.ts` | admin, entity/RBAC |
-| `app/api/admin/tours/artists/route.ts` | admin, entity/RBAC |
+| `app/api/admin/tours/artists/route.ts` | admin, organization, artist, entity/RBAC |
 | `app/api/admin/tours/bulk-preview/route.ts` | admin, entity/RBAC |
 | `app/api/admin/tours/bulk/route.ts` | entity/RBAC |
 | `app/api/admin/tours/events/route.ts` | admin, entity/RBAC |
@@ -350,7 +352,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/admin/travel/matrix/route.ts` | admin, entity/RBAC |
 | `app/api/admin/travel/segments/route.ts` | admin, entity/RBAC |
 | `app/api/admin/travel/slo/route.ts` | admin, entity/RBAC |
-| `app/api/admin/users/search/route.ts` | admin, entity/RBAC |
+| `app/api/admin/users/search/route.ts` | admin, organization, entity/RBAC |
 | `app/api/admin/vendor-requests/[id]/route.ts` | admin, entity/RBAC |
 | `app/api/admin/vendor-requests/route.ts` | admin, entity/RBAC |
 | `app/api/admin/vendors/route.ts` | admin, entity/RBAC |
@@ -559,7 +561,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/events/[id]/group-chats/[chatId]/messages/route.ts` | service role |
 | `app/api/events/[id]/group-chats/route.ts` | service role |
 | `app/api/events/[id]/guestlist/route.ts` | manual review required |
-| `app/api/events/[id]/hq/calendar/route.ts` | service role |
+| `app/api/events/[id]/hq/calendar/route.ts` | manual review required |
 | `app/api/events/[id]/hq/permissions/route.ts` | session/auth, service role |
 | `app/api/events/[id]/hq/resources/route.ts` | service role |
 | `app/api/events/[id]/hq/route.ts` | venue, service role |
@@ -943,7 +945,7 @@ Static detection is a routing aid, not an authorization audit. Missing markers r
 | `app/api/tours/[id]/vendors/[vendorId]/route.ts` | admin, entity/RBAC |
 | `app/api/tours/[id]/vendors/route.ts` | admin, entity/RBAC |
 | `app/api/tours/invitations/[token]/route.ts` | session/auth, service role |
-| `app/api/tours/planner/artists/route.ts` | manual review required |
+| `app/api/tours/planner/artists/route.ts` | admin, organization, artist, entity/RBAC |
 | `app/api/tours/planner/crew/route.ts` | manual review required |
 | `app/api/tours/planner/route.ts` | admin, entity/RBAC, service role |
 | `app/api/tours/planner/venues/route.ts` | manual review required |

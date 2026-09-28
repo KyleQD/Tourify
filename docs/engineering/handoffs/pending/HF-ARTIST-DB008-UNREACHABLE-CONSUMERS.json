@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-ARTIST-DB008-UNREACHABLE-CONSUMERS",
   "task_id": "ARTIST-005",
   "from_agent": "artist",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:10:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "Two DB-008 objects routed to the artist agent cannot be fixed by the artist lane because every real consumer file is outside the artist working set (docs/engineering/agents/artist/WORKING_SET.json) and outside the Wave 34 artist file ownership. (1) The code-drift cluster \"events\": event_posts, marketplace_post_attachments, job_posting_templates.application_form_template (47 diagnostic hits). (2) The `bookings` relation from the artist cluster: the inventory's attribution to app/api/artist-jobs/[id]/applications/route.ts is not reproducible, and the only real consumers are app/api/analytics/route.ts and app/api/calendar/me/route.ts. There is no `events` agent in docs/engineering/agents/registry.yaml and no manifest entry for app/api/events/**, lib/events/**, app/api/analytics/** or app/api/calendar/**, so these files are unowned. The artist lane did not edit them. Orchestrator action: route the files to an owning lane or extend a lane's working set.",
@@ -86,5 +86,7 @@
       "canonical": "booking_requests and venue_booking_requests are both in the active chain and in lib/database.types.ts; lib/bookings/artist-booking-server.ts is the canonical artist-side booking read. `bookings` is only defined in archived SQL (supabase/migrations/archive/02_core_tables.sql and the pre-reconciliation archive), never in the active chain."
     }
   },
-  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Route app/api/events/** and lib/events/** to an owning lane. The database lane's own summary for this cluster already says \"the artist agent owns the artist-side event surfaces, and DB-006 owns the cutover decision\"; the artist-side surfaces are now clean and the remaining files are the shared event surface."
 }

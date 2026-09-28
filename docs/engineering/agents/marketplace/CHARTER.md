@@ -4,6 +4,29 @@
 
 Own marketplace listings, services, carts, checkout, orders, and commerce workflows.
 
+<!-- product-outcome:start -->
+## Audience
+
+Buyers and persona-based sellers.
+
+## Final product
+
+Storefronts, checkout, orders, cancellation/refund, claims, and digital delivery.
+
+## Launch boundary and exclusions
+
+Unverified external fulfilment providers remain disabled.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

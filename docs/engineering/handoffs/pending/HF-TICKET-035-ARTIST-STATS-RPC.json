@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-TICKET-035-ARTIST-STATS-RPC",
   "task_id": "TICKET-005",
   "from_agent": "ticketing",
   "to_agent": "artist",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T16:35:00.000Z",
   "updated_at": "2026-09-25T16:35:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
@@ -33,5 +33,7 @@
     "rg -n 'get_enhanced_artist_stats' over app/ lib/ components/ contexts/ returns 8 hits, every one of them a comment stating the RPC is not in the active chain (contexts/artist-context.tsx:62,446; lib/artist/artist-stats.ts:5; lib/public-artist/public-artist-types.ts:42; lib/public-artist/get-public-artist-profile.ts:685,838; lib/public-artist/artist-stats.ts:4).",
     "rg -no 'create or replace function (public\\.)?get_enhanced_artist_stats' supabase/migrations/*.sql returns no rows; the only definitions are supabase/migrations/archive/fix_artist_music_upload.sql:239 and supabase/optimize-artist-backend.sql:379, neither of which is in the active chain.",
     "Read the artist lane's existing fence: __tests__/artist/db008-code-drift-repoints.test.ts:240-241 asserts artist-owned sources have no rpc('get_enhanced_artist_stats' call."
-  ]
+  ],
+  "accepting_task_id": "ARTIST-007",
+  "completion_condition": "artist: none required. This is a notification, not a request — the object is already fenced by two of your own tests and the remaining inventory hits are the comment text that documents the gap."
 }

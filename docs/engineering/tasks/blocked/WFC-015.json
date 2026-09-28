@@ -1,0 +1,116 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-015",
+  "title": "Build live timeline and Workforce Action Center",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "admin-workforce",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Give managers a unified timeline, manager-status controls, and source-backed organization/department Action Center.",
+  "scope": {
+    "in": [
+      "Timeline events and current-state rollups",
+      "Manager and bulk status updates",
+      "Organization and department action queues",
+      "Saved overdue/blocked/unowned/review views"
+    ],
+    "out": [
+      "Conflating worker evidence with manager state",
+      "Client-owned action truth"
+    ]
+  },
+  "working_set": [
+    "components/admin/workforce/timeline/**",
+    "components/admin/workforce/actions/**",
+    "app/admin/dashboard/staff/**",
+    "__tests__/admin/workforce/**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-010.json",
+    "docs/engineering/tasks/blocked/WFC-014.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Timeline merges shifts, actions, status, attendance evidence, communications, and milestones without conflating sources",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Every event exposes actor, effective time, and source",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Bulk status updates preview impact and identify per-worker failures",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Actions reconcile against their authoritative source and deep-link correctly",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/workforce",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on the department workspace and action projection.",
+    "completed": [],
+    "next_steps": [
+      "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+      "Build timeline and action views",
+      "Test audit, bulk partial-failure, timezone, and source reconciliation behavior"
+    ],
+    "blockers": [
+      "WFC-010 and WFC-014 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Admin → WFC-021: manager-status, timeline, and action E2E journeys"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "WFC-010 and WFC-014 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

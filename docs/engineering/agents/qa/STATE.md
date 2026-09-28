@@ -1,8 +1,24 @@
 # QA state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `QA-003` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `QA-004` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `QA-005` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `QA-006` — blocked/queued_postlaunch; DEFERRED-MOBILE
+- `QA-007` — blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `QA-008` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WFC-002` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-021` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `7cf660ad`
 - Last reviewed at: 2026-09-10
-- Active task: none (QA-001 and QA-002 completed)
+- Historical active-task note (superseded by generated queue summary): none (QA-001 and QA-002 completed)
 - Confidence: high for static inventory and local runner evidence; hosted CI, branch protection, and live Supabase behavior remain unverified
 
 ## Durable facts
@@ -100,3 +116,10 @@ Update this file only when a task establishes a durable fact future work needs.
 - `Launch Certification (exact staging SHA)` skipping on a pull request is **correct**, not a gap: it requires `workflow_dispatch` and asserts the SHA is `origin/main`, and `deploy-production.yml` already hard-requires a successful exact-SHA certification run before production promotion. `Supabase Preview` is an external Supabase App check with no repo config and no promotion-gate role; it is advisory.
 - A campaign-relevant exposure was routed to `release`: the pull-request E2E job uses `environment: staging` while its specs mutate data with hardcoded non-campaign credentials (`test-organizer@tourify.test` and similar).
 - No local Playwright test was executed. Reproducing the hang needs a full production build whose inline typecheck runs 68m18s, which the shared-machine constraint and the underlying type failures both exclude. Verification was the CI log, step timings, config enumeration, a 15-case vitest lock, scoped `tsc`, focused ESLint, and `npm run agents:validate`.
+
+## Workforce Command Center assignment — 2026-09-26
+
+- Goal: own WFC authenticated baselines, persona security, browser-to-database E2E, visual/accessibility evidence, fault/parity testing, and representative-scale performance certification.
+- Queued tasks: `WFC-002`, blocked on `WFC-001` plus an isolated target, and `WFC-021`, blocked on the integrated implementation set.
+- Required handoff: provide Release with exact-SHA evidence and a signed pass/fail recommendation; skipped personas, missing hosted evidence, authorization leakage, false-zero degradation, and unexplained monetary mismatch are failures.
+- Governing plan: `docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md`.

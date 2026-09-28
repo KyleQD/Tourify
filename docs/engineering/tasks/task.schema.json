@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tourify.local/schemas/engineering-task.v1.json",
+  "$id": "https://tourify.local/schemas/engineering-task.v2.json",
   "title": "Tourify engineering task",
   "type": "object",
   "additionalProperties": false,
@@ -9,15 +9,23 @@
     "id",
     "title",
     "status",
+    "execution_state",
     "priority",
     "owner_agent",
+    "outcome_id",
+    "deliverable_class",
+    "decision_owner",
     "created_at",
     "updated_at",
     "base_sha",
     "goal",
     "scope",
     "working_set",
+    "shared_working_set",
     "references",
+    "depends_on",
+    "resume_condition",
+    "blocked_on",
     "acceptance_criteria",
     "verification",
     "progress",
@@ -25,7 +33,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "2.0"
     },
     "id": {
       "type": "string",
@@ -42,6 +50,20 @@
         "completed"
       ]
     },
+    "execution_state": {
+      "enum": [
+        "ready",
+        "in_progress",
+        "verifying",
+        "waiting_dependency",
+        "waiting_external",
+        "waiting_decision",
+        "queued_postlaunch",
+        "done",
+        "superseded",
+        "cancelled"
+      ]
+    },
     "priority": {
       "enum": [
         "P0",
@@ -52,6 +74,30 @@
     },
     "owner_agent": {
       "type": "string"
+    },
+    "outcome_id": {
+      "enum": [
+        "CORE-WEB-LAUNCH",
+        "POSTLAUNCH-LOGISTICS",
+        "POSTLAUNCH-WORKFORCE",
+        "DEFERRED-MOBILE",
+        "DEFERRED-MUSIC-ADVANCED",
+        "MAINTENANCE-DEBT"
+      ]
+    },
+    "deliverable_class": {
+      "enum": [
+        "implementation",
+        "contract",
+        "verification",
+        "release",
+        "orchestration",
+        "maintenance"
+      ]
+    },
+    "decision_owner": {
+      "type": "string",
+      "minLength": 1
     },
     "created_at": {
       "type": "string",
@@ -99,16 +145,104 @@
         "type": "string"
       }
     },
+    "shared_working_set": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "references": {
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "acceptance_criteria": {
+    "depends_on": {
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "resume_condition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "blocked_on": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "owner",
+          "condition",
+          "dependency_task_ids"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "dependency",
+              "external",
+              "decision",
+              "postlaunch"
+            ]
+          },
+          "owner": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "dependency_task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "criterion",
+          "owner",
+          "state",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "criterion": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "met",
+              "failed",
+              "transferred"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "transferred_to": {
+            "type": "string"
+          }
+        }
       }
     },
     "verification": {
@@ -116,11 +250,7 @@
       "additionalProperties": false,
       "required": [
         "tier",
-        "commands",
-        "evidence",
-        "last_run_sha",
-        "last_run_at",
-        "result"
+        "gates"
       ],
       "properties": {
         "tier": {
@@ -130,36 +260,77 @@
             "release"
           ]
         },
-        "commands": {
+        "gates": {
           "type": "array",
+          "minItems": 1,
           "items": {
-            "type": "string"
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "level",
+              "owner",
+              "required_for",
+              "result",
+              "commands",
+              "evidence",
+              "last_run_sha",
+              "last_run_at"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "level": {
+                "enum": [
+                  "local",
+                  "hosted",
+                  "release"
+                ]
+              },
+              "owner": {
+                "type": "string"
+              },
+              "required_for": {
+                "enum": [
+                  "task",
+                  "product"
+                ]
+              },
+              "result": {
+                "enum": [
+                  "not_run",
+                  "pass",
+                  "fail",
+                  "not_applicable"
+                ]
+              },
+              "commands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "last_run_sha": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_run_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
           }
-        },
-        "evidence": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "last_run_sha": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "last_run_at": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "result": {
-          "enum": [
-            "not-run",
-            "pass",
-            "fail"
-          ]
         }
       }
     },

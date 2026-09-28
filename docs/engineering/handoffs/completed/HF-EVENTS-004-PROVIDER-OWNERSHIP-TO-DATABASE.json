@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE",
+  "task_id": "EVENTS-004",
+  "from_agent": "events",
+  "to_agent": "database",
+  "status": "completed",
+  "accepting_task_id": "DB-022",
+  "completion_condition": "DB-022 records an evidence-backed decision on whether public.event_provider_connections can carry a verifiable owning-account reference, and either the additive migration that adds it with a stated predicate, or a recorded finding that the owning-account check stays purely application-side together with the named consumer that must enforce it. This handoff closes only when one of those two is recorded.",
+  "created_at": "2026-09-27T17:55:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "summary": "The events sub-resource audit turned up an ownership boundary that no policy expresses and that one application route does not enforce. public.event_provider_connections is created by the active chain at supabase/migrations/20260927140000_event_provider_connections.sql with the comment 'Authorization for the owning ACCOUNT is not expressed in this table: owner_id is not a foreign key and the owning-account check is the application's, exactly as the archived comment records. Read access is own-rows-only.' Its four policies are all own-rows predicates on created_by: event_provider_connections_owner_read using (auth.uid() = created_by), _owner_insert, _owner_update, and a deliberate absence of any DELETE policy. So the table can say who CREATED a connection, never who the connection is FOR. app/api/events/[id]/claim/route.ts, which is in EVENTS-004's grant, was reading connections through a service-role client that bypasses those policies and was not comparing created_by to the caller, which let any authenticated caller name a stranger's owner_id and have the claim auto-approved. EVENTS-004 closed that specific path by adding .eq('created_by', user.id) to the lookup. The remaining question is not closable in application code and is the reason for this handoff: no column states the owning account, so created_by is only a proxy for control of owner_id. Two facts the database lane needs. First, the proxy is created-time, not current-time: a connection made while a user legitimately managed an account continues to read as theirs after they lose that access, and nothing in the schema expires it. Second, the writer of owner_id does not validate it: app/api/integrations/bandsintown/connect/route.ts inserts owner_type, owner_id and created_by straight from the request body with no account-ownership check. That route is outside EVENTS-004's working set and outside the database lane's, so it is named here for the orchestrator to route rather than fixed here. Exact object names: public.event_provider_connections.owner_id, public.event_provider_connections.created_by, and policies event_provider_connections_owner_read, event_provider_connections_owner_insert, event_provider_connections_owner_update. This is reported, not worked around: EVENTS-004 authored no migration, modified nothing under supabase/migrations/**, and applied nothing to any database.",
+  "working_set": [
+    "supabase/migrations/** (NEW forward-only file only)",
+    "supabase/tests/** (NEW db022-prefixed contract only)",
+    "docs/engineering/agents/database/STATE.md",
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE.json (discharge)"
+  ],
+  "completed": [
+    "Read the active migration's own contract comment and recorded that the owning-account check is assigned to the application by design, not by omission.",
+    "Enumerated the four policies on public.event_provider_connections and confirmed each is an own-rows predicate on created_by, with the missing DELETE policy recorded as deliberate.",
+    "Closed the exploitable path inside the grant by binding the claim route's connection lookup to created_by, and proved the fix is load-bearing with an inverted-check run.",
+    "Identified app/api/integrations/bandsintown/connect/route.ts as an unvalidated writer of owner_id and named it for routing instead of editing outside the grant."
+  ],
+  "next_steps": [
+    "DB-017 decides whether a verifiable owning-account reference can be added to public.event_provider_connections, for example a reference to the account that owner_type resolves to, and states the predicate that would make the existing own-rows policies sufficient.",
+    "If the owning-account check is to remain application-side, the decision should name the single consumer responsible for it, because the claim path and the connect path currently disagree about whether any check is required at all.",
+    "Whoever owns app/api/integrations/bandsintown/connect/route.ts should validate that the caller controls owner_id before the insert, since that is the point at which an unvalidated owner_id enters the table and every later reader inherits it."
+  ],
+  "blockers": [
+    "No hosted or database verification was performed or is claimed. EVENTS-004 is forbidden from applying migrations (CP-051) and applied nothing. The claim here is about the shape of the schema as written in the migration, not about the state of any live environment."
+  ],
+  "verification": [
+    "READ: supabase/migrations/20260927140000_event_provider_connections.sql - create table at :161-182 with owner_type, owner_id uuid not null and no foreign key, created_by uuid not null references auth.users(id); table comment at :190-193 assigns the owning-account check to the application.",
+    "READ: same file - alter table public.event_provider_connections enable row level security at :199 and force row level security at :200; policies event_provider_connections_owner_read at :211-216, _owner_insert at :225-230, _owner_update at :232-238, with an explicit note at :240-243 that no DELETE policy is created on purpose.",
+    "READ: app/api/integrations/bandsintown/connect/route.ts - the insert carries owner_type, owner_id and created_by from request input with no owning-account validation between them.",
+    "PASS (negative control for the claim fix): with .eq('created_by', user.id) removed, the claim test goes red with 'expected approved not to be approved'. Restored and re-verified green."
+  ],
+  "completed_at": "2026-09-28T05:55:00.000Z",
+  "discharged_by": "DB-022",
+  "discharge_note": "Discharged by DB-022 on 2026-09-28. Its completion condition required DB-022 to record an evidence-backed decision on whether public.event_provider_connections can carry a verifiable owning-account reference, plus either the additive migration with its predicate OR a recorded application-side finding naming the responsible consumer. DB-022 recorded the second: the check stays application-side, and app/api/integrations/bandsintown/connect/route.ts is named as the single responsible consumer, routed onward as HF-DB-022-CONNECT-OWNER-VALIDATION to integrations / INTG-008. Evidence is executed, not read: supabase/tests/db022_provider_ownership.harness.sh, 377 checks, 0 failures, with eleven negative controls each demonstrated failing and the instrument itself validated against two deliberately broken copies of the chain."
+}

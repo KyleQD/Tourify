@@ -1,0 +1,35 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS",
+  "task_id": "WFC-004",
+  "from_agent": "database",
+  "to_agent": "organization",
+  "cc_agents": [
+    "database",
+    "orchestrator",
+    "admin",
+    "security-admin",
+    "qa"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T11:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; concurrent lanes present. WFC-004 added ONLY untracked new files under supabase/migrations/**, supabase/tests/** and docs/engineering/migration-validation/**, plus append-only edits to docs/engineering/migration-validation/hosted-history-ledger.json, docs/engineering/DECISIONS.md and docs/engineering/agents/database/STATE.md. No commit was made; agents:generate was deliberately not run.)",
+  "summary": "MEASURED, NOT ASSUMED: `vendor.view` and `vendor.manage` are in NO role's `org_role_permissions` row, so WFC-004's new vendor tables deny an organization administrator. WFC-003 §2.5.2 owns the matrix's content under CP-102 and the rule it derives is scoped to `workforce.*`; extending it to `vendor.*` is WFC-003's decision, not a side effect of a schema task. WFC-004 deliberately did NOT widen the matrix.",
+  "the_measurement": "On a throwaway cluster with the chain's own org_role_permissions, is_org_member and has_perm loaded by line range and DB-016's workforce slice applied as its whole migration file: has_perm(admin, org, 'vendor.view') is FALSE, has_perm(department_manager, org, 'workforce.manage') is FALSE, has_perm(admin, org, 'workforce.manage') is TRUE. The chain seeds five roles (20250816132000:44-49, 20260712005429:219-235) and DB-016 added the `workforce.*` slice to twelve; `vendor.view`/`vendor.manage`/`vendor.sensitive` exist only in the org_members.permissions CHECK vocabulary at 20260821180438:89.",
+  "why_this_is_not_fixed_here": "Two reasons, and the second is a hard constraint rather than a preference. (1) The matrix is WFC-003 §2.5.2's decision under CP-102, and its derivation rule is `seed(role) = catalog(role) ∩ workforce.* − departmentScoped(role)` — a rule about the workforce slice, not a general policy. (2) `admin_acting_context_sessions.capability_version` digests `org_role_permissions.perms` IN ORDER (20260722002848:180-183, 317-320), so ANY matrix write invalidates every active acting-context session for every affected role. DB-016 established that all roles must land in ONE migration with re-activation verified as a PREFLIGHT step. A second matrix write from a schema task would repeat that cost for a decision nobody made.",
+  "what_is_correct_today": "The per-member `org_members.permissions` array is the working path and the harness measures it: a member whose array carries {vendor.view, vendor.manage} reads their organization's vendor entities and can insert into their own organization, while the same organization's `admin` reads zero. That is WFC-003 §2.5.2's own split — the DEFAULT role matrix is schema, the DEVIATION from it is tenant data.",
+  "the_risk_if_nobody_acts": "Fail-closed, not a disclosure: the new tables are unreadable to an org administrator, which is a functional availability gap rather than a mass-disclosure one. It becomes a CP-110 PLAUSIBLE ZERO only when a consumer lands that renders an empty vendor list — and `app/api/admin/vendors/route.ts` is CP-098-correct about that today, returning `unavailable: true` rather than an empty array. So there is no plausible zero in production at present, and the gap is a provisioning task with a named owner rather than a live incident.",
+  "what_the_receiver_must_do": [
+    "WFC-003 decides whether `vendor.view` and `vendor.manage` join the matrix, and if so for which roles. It follows WFC-003's own subtraction rule: a department-scoped capability must NOT be in the matrix, because has_perm takes no target and any permission in the matrix is granted across the whole organization.",
+    "If the answer is yes, it lands in ONE migration covering every affected role at once, and the re-activation path is verified as a PREFLIGHT step before the apply, not after. Do not let a schema lane do it as a side effect."
+  ],
+  "evidence": "executed:supabase/tests/wfc004_workforce_departments.harness.sh — stage 0 asserts all sixteen has_perm/is_org_member preconditions, including has_perm(admin, org, 'vendor.view') IS f and has_perm(a member with the per-member array, org, 'vendor.manage') IS t; stage 3k measures both the positive and the denial on the real tables.",
+  "related_decisions": [
+    "CP-102",
+    "CP-110"
+  ],
+  "next_action": "WFC-003 records the vendor.* matrix decision, and if it is a seed it lands as one migration with the session re-activation preflight.",
+  "accepting_task_id": "ORG-007",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": []
+}

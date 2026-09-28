@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW",
   "task_id": "TICKET-005",
   "from_agent": "ticketing",
   "to_agent": "venue",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T16:30:00.000Z",
   "updated_at": "2026-09-25T16:30:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
@@ -35,5 +35,7 @@
     "rg -n 'track_venue_profile_view' lib/database.types.ts returns no rows.",
     "Read app/api/venues/[id]/route.ts:102-121 directly: the rpc call is inside try/catch with console.warn, confirming the low blast radius.",
     "Not verified from this lane: any typecheck reduction, because the file is outside the ticketing grant and was not in the scoped tsc include set."
-  ]
+  ],
+  "accepting_task_id": "VENUE-006",
+  "completion_condition": "venue: decide between deleting the tracking block and landing track_venue_profile_view in the active chain. Deleting is the correct default under the repository's rule that migrations are the source of truth and an rpc() to a function no migration creates is not a capability the surface has; the analytics loss is the profile-view counter, which nothing else depends on."
 }

@@ -1,42 +1,44 @@
 {
- "schema_version": "1.0",
- "id": "HF-DB-006-SOCIAL-007-STAGE2",
- "task_id": "DB-011",
- "from_agent": "database",
- "to_agent": "social",
- "cc_agents": [
-  "admin"
- ],
- "status": "pending",
- "created_at": "2026-09-26T01:10:00.000Z",
- "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)",
- "summary": "Stage 1 of HF-DB-006-SOCIAL-007 shipped as 20260926140000_interaction_read_scoping.sql: anon is now denied every row of post_likes, comment_likes and post_comments. Stage 2 narrows post_likes and comment_likes to `auth.uid() = user_id`, so a caller can read only their OWN like. Two committed surfaces legitimately read other users' likes and must move to the service-role client first. Stage 2 is deliberately NOT pre-empted: doing it now would break two routes this lane does not own. The harness asserts the remaining cross-user read as a KNOWN residual so it cannot be forgotten.",
- "working_set": [
-  "supabase/migrations/20260926140000_interaction_read_scoping.sql",
-  "supabase/tests/db011_interaction_scope.harness.sh",
-  "app/api/notifications/social/route.ts",
-  "lib/social/post-like-state.ts"
- ],
- "completed": [
-  "Stage 1 authored, contract-tested and executed: anon reads 2 of 2 post_likes rows before the fix and 0 after, 1 of 1 comment_likes rows before and 0 after, 2 of 2 post_comments rows before and 0 after. Local emulation, PostgreSQL 16.15, ALL CHECKS PASSED.",
-  "The browser consumers named in the original handoff are NOT affected and need no coordination: components/artist/artist-home-feed.tsx:186-192 and components/profile/public-profile-view.tsx:284-290 both already filter `.eq('user_id', <the signed-in user>)`, so they read only their own rows under any of the candidate policies. The original handoff's premise that they 'rely on USING (true)' does not hold against the code as written.",
-  "comment_likes was found by the same scan (20241220000010_enhance_feed_system.sql:152-155) and was not named in the handoff. It is the same defect and is included.",
-  "app/api/community/activity/route.ts needs no change: it already uses createServiceRoleClient() (line 21) and bypasses RLS."
- ],
- "next_steps": [
-  "SOCIAL: app/api/notifications/social/route.ts:291-297 lists the LIKERS of a post - `.from('post_likes').select('id, user_id, created_at', {count:'exact'}).eq('post_id', postId).order('created_at', {ascending:false}).range(offset, offset+limit-1)` - through the caller-scoped client from authenticateApiRequest. Switch that read to the service-role client, keeping the existing `authorizePost` fail-closed gate at :277-282 immediately above it, which is already the correct authorization boundary.",
-  "ADMIN: lib/admin/content-hub/org-posts.ts:55 counts every like per post with no user filter, through the caller-scoped client from withAdminCapability. Switch to the service-role client (lib/auth/api-auth.ts already exports the pattern) or fold the count into posts.likes_count, which the same query already selects.",
-  "Then say so here and the database lane authors the stage-2 migration: drop the two parent-scoped SELECT policies and replace each with `to authenticated using (auth.uid() = user_id)`. That is a four-line change to the same file plus one added contract check.",
-  "SOCIAL, separately: the identity graph is still readable by any signed-in account until stage 2 lands. If a launch decision needs that closed before the two consumer changes are scheduled, the alternative is a read-only aggregate that returns counts without identity, which is a product decision and not a database one."
- ],
- "blockers": [
-  "Stage 2 cannot land before the two consumer switches. Shipping it first would make app/api/notifications/social/route.ts return an empty liker list and make the admin content-hub like counts read 0 - a silent, plausible-looking data loss rather than an error.",
-  "The residual is real and measured, not theoretical: supabase/tests/db011_interaction_scope.harness.sh stage 3 asserts that a signed-in caller can still read another user's like, and fails if that ever stops being true without the harness being updated. The finding HF-DB-006-SOCIAL-007 is therefore REDUCED, not closed."
- ],
- "verification": [
-  "bash supabase/tests/db011_interaction_scope.harness.sh - ALL CHECKS PASSED, including the pre-fix negative control (anon reads 2/2, 1/1, 2/2) and the post-fix measurement (0/0/0).",
-  "supabase/tests/db008_interaction_read_scoping_contract.sql - 8 checks, zero violations, one summary row; proven able to fail by dropping a policy and by removing the postflight's green.",
-  "npm run check:migration-chain, check:migration-validation, check:migration-ledger - all exit 0 with the migration and its planned manifest present.",
-  "NOT verified: any hosted behaviour. No apply, no PostgREST check, no advisor run. The operator's manual apply is the gate (CP-051)."
- ]
+  "schema_version": "2.0",
+  "id": "HF-DB-006-SOCIAL-007-STAGE2",
+  "task_id": "DB-011",
+  "from_agent": "database",
+  "to_agent": "social",
+  "cc_agents": [
+    "admin"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-26T01:10:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)",
+  "summary": "Stage 1 of HF-DB-006-SOCIAL-007 shipped as 20260926140000_interaction_read_scoping.sql: anon is now denied every row of post_likes, comment_likes and post_comments. Stage 2 narrows post_likes and comment_likes to `auth.uid() = user_id`, so a caller can read only their OWN like. Two committed surfaces legitimately read other users' likes and must move to the service-role client first. Stage 2 is deliberately NOT pre-empted: doing it now would break two routes this lane does not own. The harness asserts the remaining cross-user read as a KNOWN residual so it cannot be forgotten.",
+  "working_set": [
+    "supabase/migrations/20260926140000_interaction_read_scoping.sql",
+    "supabase/tests/db011_interaction_scope.harness.sh",
+    "app/api/notifications/social/route.ts",
+    "lib/social/post-like-state.ts"
+  ],
+  "completed": [
+    "Stage 1 authored, contract-tested and executed: anon reads 2 of 2 post_likes rows before the fix and 0 after, 1 of 1 comment_likes rows before and 0 after, 2 of 2 post_comments rows before and 0 after. Local emulation, PostgreSQL 16.15, ALL CHECKS PASSED.",
+    "The browser consumers named in the original handoff are NOT affected and need no coordination: components/artist/artist-home-feed.tsx:186-192 and components/profile/public-profile-view.tsx:284-290 both already filter `.eq('user_id', <the signed-in user>)`, so they read only their own rows under any of the candidate policies. The original handoff's premise that they 'rely on USING (true)' does not hold against the code as written.",
+    "comment_likes was found by the same scan (20241220000010_enhance_feed_system.sql:152-155) and was not named in the handoff. It is the same defect and is included.",
+    "app/api/community/activity/route.ts needs no change: it already uses createServiceRoleClient() (line 21) and bypasses RLS."
+  ],
+  "next_steps": [
+    "SOCIAL: app/api/notifications/social/route.ts:291-297 lists the LIKERS of a post - `.from('post_likes').select('id, user_id, created_at', {count:'exact'}).eq('post_id', postId).order('created_at', {ascending:false}).range(offset, offset+limit-1)` - through the caller-scoped client from authenticateApiRequest. Switch that read to the service-role client, keeping the existing `authorizePost` fail-closed gate at :277-282 immediately above it, which is already the correct authorization boundary.",
+    "ADMIN: lib/admin/content-hub/org-posts.ts:55 counts every like per post with no user filter, through the caller-scoped client from withAdminCapability. Switch to the service-role client (lib/auth/api-auth.ts already exports the pattern) or fold the count into posts.likes_count, which the same query already selects.",
+    "Then say so here and the database lane authors the stage-2 migration: drop the two parent-scoped SELECT policies and replace each with `to authenticated using (auth.uid() = user_id)`. That is a four-line change to the same file plus one added contract check.",
+    "SOCIAL, separately: the identity graph is still readable by any signed-in account until stage 2 lands. If a launch decision needs that closed before the two consumer changes are scheduled, the alternative is a read-only aggregate that returns counts without identity, which is a product decision and not a database one."
+  ],
+  "blockers": [
+    "Stage 2 cannot land before the two consumer switches. Shipping it first would make app/api/notifications/social/route.ts return an empty liker list and make the admin content-hub like counts read 0 - a silent, plausible-looking data loss rather than an error.",
+    "The residual is real and measured, not theoretical: supabase/tests/db011_interaction_scope.harness.sh stage 3 asserts that a signed-in caller can still read another user's like, and fails if that ever stops being true without the harness being updated. The finding HF-DB-006-SOCIAL-007 is therefore REDUCED, not closed."
+  ],
+  "verification": [
+    "bash supabase/tests/db011_interaction_scope.harness.sh - ALL CHECKS PASSED, including the pre-fix negative control (anon reads 2/2, 1/1, 2/2) and the post-fix measurement (0/0/0).",
+    "supabase/tests/db008_interaction_read_scoping_contract.sql - 8 checks, zero violations, one summary row; proven able to fail by dropping a policy and by removing the postflight's green.",
+    "npm run check:migration-chain, check:migration-validation, check:migration-ledger - all exit 0 with the migration and its planned manifest present.",
+    "NOT verified: any hosted behaviour. No apply, no PostgREST check, no advisor run. The operator's manual apply is the gate (CP-051)."
+  ],
+  "accepting_task_id": "SOCIAL-007",
+  "completion_condition": "SOCIAL: app/api/notifications/social/route.ts:291-297 lists the LIKERS of a post - `.from('post_likes').select('id, user_id, created_at', {count:'exact'}).eq('post_id', postId).order('created_at', {ascending:false}).range(offset, offset+limit-1)` - through the caller-scoped client from authenticateApiRequest. Switch that read to the service-role client, keeping the existing `authorizePost` fail-closed gate at :277-282 immediately above it, which is already the correct authorization boundary."
 }

@@ -4,6 +4,29 @@
 
 Own feed, posts, follows, friends, groups, messaging, notifications, and collaboration.
 
+<!-- product-outcome:start -->
+## Audience
+
+Users communicating and collaborating.
+
+## Final product
+
+Feed, follows, messaging, notifications, and privacy-safe realtime behavior.
+
+## Launch boundary and exclusions
+
+Logistics and Workforce communications remain post-launch contracts.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

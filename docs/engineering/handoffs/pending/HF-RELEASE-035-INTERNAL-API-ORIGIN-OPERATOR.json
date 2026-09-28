@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-RELEASE-035-INTERNAL-API-ORIGIN-OPERATOR",
   "task_id": "RELEASE-005",
   "from_agent": "release",
-  "to_agent": "owner",
-  "status": "pending",
+  "to_agent": "orchestrator",
+  "status": "accepted",
   "created_at": "2026-09-25T23:46:00.000Z",
   "source_sha": "ca3bb0b0",
   "summary": "BLOCKING, OPERATOR-GATED. Consuming HF-DISC-002-INTERNAL-API-ORIGIN (discover -> release). The Wave 33/34 outbound guard reads INTERNAL_API_ORIGIN, then NEXT_PUBLIC_APP_URL, then VERCEL_PROJECT_PRODUCTION_URL, then VERCEL_URL, and has NO fallback and NO localhost default. An environment with none of them set does not error - /api/discover returns empty sections, /api/hub returns zeroed metrics, and the news feed loses its external RSS candidates, by design. NEW FINDING from this lane: the committed deployment templates do not carry any of the four variable names, so an operator who loads deployment/demo.env or deployment/production.env and deploys will get exactly that fail-closed empty response. No key was added and no value was written, because the correct value is environment-specific and a guessed origin would either be refused (useless) or allowlist something that should not be reachable.",
@@ -42,5 +42,7 @@
     "app/api/discover/route.ts:366 and app/api/hub/route.ts:148 each log a distinct warning naming INTERNAL_API_ORIGIN (and the fallbacks) when the allowlist is empty.",
     "NOT RUN and NOT CLAIMED: no deployed environment was inspected, no variable was set or verified as set, no hosted request was made, no migration was applied, and no CodeQL re-analysis was performed."
   ],
-  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md"
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Set INTERNAL_API_ORIGIN in the PRODUCTION Vercel project prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n: vercel env add INTERNAL_API_ORIGIN production --scope kyleqdaley-gmailcoms-projects. Do this AFTER HF-RELEASE-007-VERCEL-HOSTED completes, so the value is not published to the production project while it is still receiving arbitrary PR preview builds."
 }

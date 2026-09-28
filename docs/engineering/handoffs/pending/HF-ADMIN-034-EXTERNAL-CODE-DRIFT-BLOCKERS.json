@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS",
   "task_id": "ADMIN-003",
   "from_agent": "admin",
   "to_agent": "release",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:05:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
   "dirty_state_caveat": "Read-only triage. The admin lane fixed only the three `admin` cluster files named in the ADMIN-003 checkpoint. Every item below is a NEW finding produced by the Wave 34 scoped typecheck, and none of the files involved was modified by the admin lane this wave. `Lint And Build` is a required check on protected main, so items 1, 2 and 6 are live gate blockers, not documentation debt.",
@@ -78,5 +78,8 @@
     "git diff --check scoped to the admin lane's four tracked files — PASS, exit 0. Unscoped, it reports trailing whitespace in three app/artist/events/** files owned by the artist lane.",
     "npm run agents:validate — PASS, `validated 17 agents, 151 tasks, 0 warnings, 0 errors`.",
     "Scoped tsc over the admin lane's three repaired files plus their immediate collaborators: 39 diagnostic lines before, 36 after. The 3 removed lines are exactly the `profiles.phone` SelectQueryError triple in app/api/admin/onboarding/add-existing-user/route.ts. No new diagnostic was introduced. The 36 remaining lines are pre-existing and belong to other defects, of which OB-1 accounts for 2 and OB-2 for 0 (its file type-checks clean because the Supabase client is created without a Database generic). Full `npm run typecheck` was NOT run: it takes 68m18s on CI and OOMs on this 8GB box with four concurrent lanes."
-  ]
+  ],
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "release: triage OB-1 and OB-2 as ADMIN-003 owner decisions, since both change an authorization outcome and must not be applied as typecheck patches.",
+  "completed": []
 }

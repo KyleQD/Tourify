@@ -1,0 +1,100 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB-015-CI-WIRING",
+  "task_id": "DB-015",
+  "from_agent": "database",
+  "to_agent": "release",
+  "cc_agents": [
+    "orchestrator",
+    "qa",
+    "database"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T04:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (branch codex/qa004-staging-campaign; dirty working tree with concurrent lanes. Every path this task created is listed under working_set. No migration was authored, edited, applied or renumbered; no existing scripts/ci/ file, supabase/tests/ file, or migration-validation manifest was touched.)",
+  "summary": "A detector for CP-109 now exists, is proven to fail, and is run on nobody's behalf because package.json and .github/workflows/ci.yml are outside DB-015's grant (CP-112). This is the wiring request, and it is the same two-line job DB-014 handed over for its own detector. The reason to wire THIS one and not treat it as documentation is in `why_this_one`: the detector re-found, from the version numbers alone, the exact defect DB-014 found by execution the day before, and the class it covers has never had an instrument. It exits 0 today because all 53 findings are routed with a named owner, and it will exit nonzero the moment a new never-executed block appears that nobody has owned — which is the entire point of the disposition table being anchored to path:line.",
+  "why_this_one": "Three reasons, in order of weight. (1) It is the only instrument in the repository that can see this class. CP-104 and CP-085 and CP-109 are all the same failure, and all three were found by hand, by one agent, at the cost of a full chain replay each time. (2) It is anchored so it cannot go quietly stale: a disposition that stops matching its block makes the check FAIL, so the day someone renumbers a migration the check asks a human rather than reporting clean. (3) Its false-negative direction is guarded, which is the direction that matters: there is no code path in the module that can emit the verdict `clean`, and the CLI refuses to report clean unless it has actually found the two instances CP-109 confirmed.",
+  "wiring_request": {
+    "package_json_script": {
+      "name": "check:never-executed-migration-blocks",
+      "command": "node scripts/ci/check-never-executed-migration-blocks.mjs",
+      "note": "No database, no credentials, no environment. It reads the migration chain and exits 0 or 1. Runtime on this chain is a few seconds. Add it to the same scripts block as `check:migration-chain` and `check:sweep-exemption-hazard`."
+    },
+    "package_json_test_script": {
+      "name": "test:never-executed-migration-blocks",
+      "command": "node --test scripts/ci/check-never-executed-migration-blocks.test.mjs",
+      "note": "node's built-in runner, NOT vitest — the vitest include globs do not cover scripts/ci/. This is the convention every other scripts/ci sibling already follows, and the comment at the top of the test file says so. 36 tests, all passing."
+    },
+    "ci_workflow": {
+      "where": ".github/workflows/ci.yml, alongside the existing `check:sweep-exemption-hazard` step that DB-014 wired.",
+      "step": "Run `npm run check:never-executed-migration-blocks` as a required-status step, and `npm run test:never-executed-migration-blocks` in the same job as the other scripts/ci node:test siblings.",
+      "expected_exit_today": "0. All 53 never-executed blocks the detector finds are covered by a recorded disposition in KNOWN_FINDINGS, each with a named owner and a severity.",
+      "expected_exit_tomorrow": "1, for either of two reasons, and both are the check working rather than the check breaking: (a) a NEW never-executed block appears that no disposition covers — a human must route it; (b) a disposition stops matching, because the block it names was fixed, moved or renumbered — a human must re-anchor it. Neither is a regression in the chain's health and neither should be silenced by editing the disposition without looking."
+    },
+    "what_not_to_wire": "Do NOT wire the execution harness into CI. docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh needs a local PostgreSQL 16 and three throwaway clusters, takes about a minute, and its value is as recorded, re-runnable evidence rather than as a gate. If a periodic lane is wanted later, that is a release decision, not this handoff's."
+  },
+  "acceptance_criterion_4_status": "The criterion is 'the detector exits nonzero in CI OR the wiring gap is handed to release as an explicit blocker'. This handoff is the second branch, and it is explicit: the detector's exit codes are specified above, the commands are named exactly, the reason not to wire the harness is stated, and the two ways it can legitimately go red on day one are described so nobody mistakes either for a broken check.",
+  "working_set": [
+    "scripts/ci/check-never-executed-migration-blocks.mjs (NEW)",
+    "scripts/ci/check-never-executed-migration-blocks.test.mjs (NEW)",
+    "docs/engineering/verification/db015-never-executed-migration-blocks/report.json (NEW, generated by the detector and regenerated by the harness)",
+    "docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh (NEW)",
+    "docs/engineering/verification/db015-never-executed-migration-blocks/README.md (NEW)",
+    "docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json (NEW, this file)",
+    "docs/engineering/DECISIONS.md (append-only; one new decision, CP-113)",
+    "docs/engineering/agents/database/STATE.md (one dated section appended)",
+    "docs/engineering/tasks/active/DB-015.json (this task's record)"
+  ],
+  "completed": [
+    "Generalized the DB-014 harness into a detector over every guard-guarded block in the chain, in version order, with the guard's OWN expression executed against a real catalog rather than parsed.",
+    "Found 53 never-executed blocks across 33 migrations, including 15 RLS-policy blocks over 8 tables, 4 `is null then return` guards that skip the rest of their block, 4 `drop policy`-only blocks, and 10 inert post-condition assertions in the chain's three newest migrations.",
+    "Routed every one of the 53 to a named owner with a severity, in 12 groups, mechanically enforced in both directions by assertDispositionsAreComplete().",
+    "Proved the detector can fail: 22 synthetic fixtures with expected verdicts, an order-mutation proof over the REAL chain that renumbers a migration and requires the finding to disappear, two negative controls in the harness on synthetic chains that differ only in order, and an exit-code assertion that an unrouted finding is nonzero.",
+    "Proved the detector cannot see its own target silently: assertAnchorsSeen() makes the CLI refuse to report clean unless it found both CP-109-confirmed instances, and a missing anchor is a failure rather than a pass.",
+    "Recorded five defects this detector had, each pinned by a fixture — three of them false positives in files whose names are security migrations, and one of them a clean report from an instrument that had found zero guard sites in the chain."
+  ],
+  "next_steps": [
+    "RELEASE — wire the two scripts and the CI step per wiring_request above. Nothing else is required, and no decision is pending on this lane's side.",
+    "RELEASE/QA — run docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh once on a host with PostgreSQL 16 and confirm ALL CHECKS PASSED. It is re-runnable and deterministic; the only host dependency is `initdb` on PATH or at PGBIN.",
+    "ORCHESTRATOR — DB-015's 12 disposition groups each name an owner outside the database lane for part of the question (work for staff_zones, admin for the hiring tables, artist/discover for tour_vendors, qa for the tour_vendors exposure window). None of them is a new task and none is a blocker; they are routed so that nobody reads the list without an owner beside it.",
+    "RELEASE — the one finding with a measurable exposure window, 20250813122000_rls_tour_team_access.sql:98, is closed as a live exposure (20260720020544 supersedes it) but its exposure WINDOW is a question only a target can answer. It is routed to qa in DB015-K12 rather than raised as a new task, because DB-002's out-of-band application finding already means the answer is not in the repository."
+  ],
+  "blockers": [
+    "NONE for the wiring. The detector is implemented, tested, executed and routed. This handoff exists because CP-112 puts package.json and .github/workflows/ci.yml outside DB-015's grant, and expanding a grant unilaterally is the collision class CP-112 was written to prevent.",
+    "The detector's static path is a MODEL of execution, not execution. It is kept honest by the harness, which runs both and asserts no guard the static path calls live is called dead by the server — 0 contradictions over 446 executed sites on this run. The executed path itself over-reports by construction (one psql connection cannot hold two catalog states at once), so it is a cross-check and not a second finding set, and the report says so under `replay.caveat`."
+  ],
+  "verification": [
+    "node scripts/ci/check-never-executed-migration-blocks.mjs -> exit 0. 567 guard sites: 53 never executed, 109 guard true, 405 unanalysed. 53 of 53 covered by a recorded, owned disposition. anti-vacuity: anchors seen yes; order-mutation proof holds.",
+    "node --test scripts/ci/check-never-executed-migration-blocks.test.mjs -> 36 tests, 36 pass, 0 fail.",
+    "bash docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh -> ALL CHECKS PASSED, exit 0, three throwaway PostgreSQL 16.15 clusters. Key lines: 'the block executed CLEANLY at 20250812093500's version position and created 0 policies — its guard is false'; 'THE DELTA IS 2. Identical bytes, identical server, identical guard text; the entire difference is which migration ran first'; 'DECISIVE: with read_all_metrics dropped, BOTH the EDIT_EVENT_LOGISTICS holder and the no-role account read 0 rows'; 'INVARIANT HOLDS: no guard the static path calls live is called dead by the server (0 contradictions)'; 'EXIT CODE: nonzero (1) on the broken synthetic chain'.",
+    "node scripts/ci/check-never-executed-migration-blocks.mjs --migrations <synthetic broken chain> -> exit 1 with 1 never-executed block. Same chain with the create moved earlier -> 0 never-executed blocks, exit 1 on the ANTI-VACUITY gate alone.",
+    "NOT RUN AND NOT CLAIMED: npm run verify:feature, a full-repo npm run typecheck (CP-106), npm run generate:database-types, npm run check:database-types, supabase db lint --local, and every hosted probe. No migration was applied to any environment; no reset, replay or push was run; no hosted evidence of any kind exists or is claimed."
+  ],
+  "updated_at": "2026-09-27T20:15:00.000Z",
+  "answered_by": {
+    "at": "2026-09-27",
+    "by": "RELEASE-011",
+    "wiring_done_exactly_as_specified": {
+      "package_json": [
+        "check:never-executed-migration-blocks -> node scripts/ci/check-never-executed-migration-blocks.mjs",
+        "test:never-executed-migration-blocks -> node --test scripts/ci/check-never-executed-migration-blocks.test.mjs"
+      ],
+      "placement": "Both lines are additive, inserted immediately after RELEASE-010's check:sweep-exemption-hazard in the same block as check:migration-chain, exactly as wiring_request.package_json_script asked. No existing line was edited, reordered or removed; `python3 -c json.load` parses the result.",
+      "ci_workflow": "Two steps appended inside the existing job `migration-gates`, after the DB-014 sweep-hazard step whose own comment says to append rather than reorder: `Never-executed migration block fixtures` (npm run test:never-executed-migration-blocks) and `Never-executed migration blocks (DB-015 / CP-118)` (npm run check:never-executed-migration-blocks).",
+      "required_check_names_untouched": "Verified by parsing ci.yml with js-yaml after the edit: the job list is unchanged (11 jobs, same names, same order) and all four required contexts this file owns are still present with their exact names — Production Debug Scan, Vitest, Database Types, Lint And Build. No job was added, renamed or removed, so no required status-check name can have changed."
+    },
+    "today_s_expected_exit_measured": "npm run check:never-executed-migration-blocks -> exit 0 in 5.3s: '567 guard sites: 53 never executed, 109 guard true, 405 unanalysed', '53 of 53 never-executed blocks are covered by a recorded, owned disposition', 'anti-vacuity: anchors seen yes; order-mutation proof holds'. npm run test:never-executed-migration-blocks -> 36 tests, 36 pass, 0 fail, 21.4s.",
+    "both_of_tomorrows_reds_demonstrated": {
+      "how": "In an isolated tree (the repository's package.json, scripts/ci detector and a copy of supabase/migrations, plus a symlinked node_modules) so that the real chain and the real worktree were never modified, the LITERAL CI command line was run: `npm run check:never-executed-migration-blocks`.",
+      "control": "The unmodified copy of the real chain exits 0 with counts identical to the real repository's own run (567/53/109/405), which is what makes the following two runs evidence rather than an artifact of the copy.",
+      "red_a_new_unrouted_block": "Adding one migration containing a CP-109-shaped guarded block over a table that no migration creates produced exit 1 with the finding named: 'UNROUTED ... supabase/migrations/20991231999999_...:6', its subject, its guard text, what it would have created, and 'a never-executed block with no disposition ... Add it to KNOWN_FINDINGS'.",
+      "red_b_a_disposition_that_stopped_matching": "Removing one migration from the copy produced exit 1 with '52 of 53 never-executed blocks are covered by a recorded, owned disposition' — the disposition-completeness gate firing in the other direction, which is the case the handoff predicted.",
+      "restored": "With both breaks reverted the same command exits 0 again, so the two reds were caused by the breaks and not by the environment."
+    },
+    "why_the_step_cannot_be_masked": "Read out of the parsed workflow rather than assumed: the step is a plain `run:` step with `continue-on-error` absent, no `if:` on the step, no `if:` on the job, and no later step in the job carrying `if: always()`. A nonzero exit therefore fails the step, which fails the job. (Machine-checked with a one-off js-yaml read; no permanent check was added, because adding one is outside this handoff's grant.)",
+    "not_wired_on_purpose": "The execution harness is NOT wired, per wiring_request.what_not_to_wire. It needs PostgreSQL 16 and three throwaway clusters and takes about a minute; its value is as re-runnable recorded evidence.",
+    "one_observation_for_db_015": "The unrouted-finding message still ends 'It must be routed to a named owner with a severity, or the check cannot be wired into CI.' That sentence is now stale — the check IS wired, so an unrouted finding does fail CI. It is a one-clause wording fix in scripts/ci/**, which is DB-015's grant under CP-112 and not this lane's, so it is recorded here rather than edited."
+  },
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "RELEASE — wire the two scripts and the CI step per wiring_request above. Nothing else is required, and no decision is pending on this lane's side."
+}

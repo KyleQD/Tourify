@@ -1,0 +1,253 @@
+{
+  "schema_version": "2.0",
+  "id": "INTG-007",
+  "title": "External credential vault and integration gating",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "integrations",
+  "created_at": "2026-09-16T19:20:39.904Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Remove plaintext external credentials and keep every unverified provider disabled until encrypted lifecycle verification passes",
+  "scope": {
+    "in": [
+      "Social OAuth credential persistence, migration or revocation, encryption, rotation, refresh, disconnect, logging, and provider gating"
+    ],
+    "out": [
+      "Enabling providers before credential and lifecycle acceptance passes"
+    ]
+  },
+  "working_set": [
+    "app/api/social",
+    "lib/integrations",
+    "supabase/migrations",
+    "__tests__/integrations"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "No plaintext access or refresh token is persisted or emitted to logs",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Existing plaintext credentials are migrated safely or revoked with recorded disposition",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Encrypted store, rotation, refresh, disconnect, and log-redaction tests pass",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Social OAuth and other unverified providers remain disabled until their acceptance evidence is recorded",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "integrations",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/integrations",
+          "npm run check:production-debug",
+          "npm run check:migration-validation",
+          "npx vitest run __tests__/venue/venue-integrations-api.test.ts",
+          "npx vitest run __tests__/venue __tests__/integrations"
+        ],
+        "evidence": [
+          "Focused npx vitest run __tests__/integrations/intg007-credential-vault.test.ts — 16/16 passed; full npx vitest run __tests__/integrations — 5 files / 50 tests passed.",
+          "npx eslint lib/integrations/token-vault.ts app/api/social/oauth/callback/route.ts __tests__/integrations/intg007-credential-vault.test.ts — exit 0, no output.",
+          "npm run check:migration-validation — exit 0; 20260921000000_intg007_encrypted_social_credential_vault.sql scanned with planned manifest.",
+          "npm run check:migration-chain — exit 0 (296 files scanned, no duplicate policy creations).",
+          "npm run check:production-debug — exit 0 (40 unsafe routes covered by deny registry).",
+          "npm run agents:validate — 17 agents / 113 tasks / 8 SHA-drift warnings / 0 errors.",
+          "git diff --check — clean; rg trailing-whitespace on new files — 0 matches.",
+          "Plaintext-fragment grep over changed paths — 0 matches for access_token: payload.*, refresh_token: payload.*, token_envelope: tokenEnvelope, keyVersion === 0 decode, or venue_social_integrations legacy .update writes.",
+          "Audit baseline superseded: the organization social OAuth callback no longer constructs persistence data containing plaintext access_token/refresh_token; it persists encrypted envelopes only via buildOrganizationCredentialPayload and fails closed on encryption errors.",
+          "Venue lane 2026-09-22: npx vitest run __tests__/venue/venue-integrations-api.test.ts — 9/9 passed; npx vitest run __tests__/venue __tests__/integrations — 16 files / 99 tests passed.",
+          "ADMIN lane 2026-09-22: npx vitest run __tests__/admin/content-hub.test.ts — 14/14 passed (5 new INTG-007 plaintext-boundary guard tests included); scoped tsc (tsconfig.intg007-admin-slice covering the four routes + service + sanitize + analytics helpers + test) — exit 0; npx eslint on the six changed files — exit 0; rg 'access_token|refresh_token' app/api/admin/content-hub — only session?.access_token (user JWT for the Edge call) and refresh_token_envelope field remain; zero org plaintext column references.",
+          "Venue lane grep: rg 'refresh_token|access_token' app/api/venue lib/venue — only OAuth provider-protocol uses remain (grant endpoint URLs, grant_type/payload fields, writeVenueIntegrationSecrets args) in app/api/venue/integrations/route.ts; lib/venue has zero matches. No legacy venue_social_integrations plaintext column select/read/update remains in venue-domain code.",
+          "Venue lane scoped typecheck (npx tsc -p tsconfig.scoped-check.json --noEmit --incremental false covering route + new test) — exit 0; npx eslint app/api/venue/integrations/route.ts __tests__/venue/venue-integrations-api.test.ts — exit 0.",
+          "HF-INTG-007-VENUE consumed: moved to docs/engineering/handoffs/completed/ with resolved_at 2026-09-22; DB lane unblocked to apply migration 20260921000000 once admin/social lanes finish.",
+          "Wave 33 (2026-09-25): npx vitest run __tests__/integrations — 8 files / 173 tests passed (was 5 files / 50 at the INTG-007 checkpoint), including __tests__/integrations/intg007-credential-vault.test.ts. The encrypted-only vault boundary and the org callback credential path are unchanged and green.",
+          "Wave 33 (2026-09-25): npm run check:migration-validation -- supabase/migrations/20260925130000_intg006_webhook_delivery_receipts.sql — exit 0; and the full gate scans 20260921000000_intg007_encrypted_social_credential_vault.sql clean with its planned manifest. The single remaining gate failure is a foreign hiring manifest exception (job-posting-scope-not-null, expired 2026-09-21, owner admin-platform), handed off as HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY. The Wave 32 history-baseline drift blocker is fixed by the database lane.",
+          "Wave 33 (2026-09-25): npm run check:production-debug — exit 0 (40 unsafe routes covered by the deny registry). npm run check:migration-chain — exit 0 (301 files). npx eslint over the integrations-owned TS set including lib/integrations/token-vault.ts and app/api/social/oauth/callback/route.ts — exit 0. Changed-path git diff --check — clean. npm run agents:validate — exit 0.",
+          "Wave 33 (2026-09-25): npm run check:migration-ledger — exit 1 (hosted-history-ledger.json sourceSnapshot mismatch and launch.unclassified.count must be 292). INTG-007 migration 20260921000000 still needs the database lane to refresh the hosted ledger and classify it before the CP-051 manual apply.",
+          "Wave 33 (2026-09-25) CodeQL triage of the credential boundary: of 96 open alerts, exactly 1 falls in a file this task owns — #102 js/user-controlled-bypass on app/api/social/oauth/callback/route.ts:44. Triaged as not exploitable (the reported guard is the if (!code) presence check; every path to the token exchange and the organization_social_integrations upsert passes the fail-closed if (!signed) block) and registered as security-exception CODEQL-102-SOCIAL-OAUTH-CALLBACK-CODE-PRESENCE-GUARD. No plaintext-credential alert exists on any INTG-007 surface. The adjacent production signer lib/admin/content-hub/oauth-state.ts:96 (alert #95) is admin-owned and routed as HF-INTG-033-CODEQL-OAUTH-STATE-HASH."
+        ],
+        "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "last_run_at": "2026-09-25T21:25:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Wave 33 review only; no production code, migration, or manifest for this task was changed. The encrypted-only vault boundary, the org OAuth callback encrypted-only persistence with fail-closed-on-encryption-failure, and all 16 INTG-007 vault tests are intact and green inside the 8 files/173 tests integrations suite. New evidence this wave: the social OAuth callback hardened by INTG-007 is the subject of CodeQL alert #102 (js/user-controlled-bypass at app/api/social/oauth/callback/route.ts:44). Triaged against executable source and found not exploitable: the reported guard is the if (!code) presence check, and every path to the token exchange and the organization_social_integrations upsert passes the fail-closed if (!signed) block, so the attacker-controlled code narrows rather than skips the check. Registered as security-exception CODEQL-102-SOCIAL-OAUTH-CALLBACK-CODE-PRESENCE-GUARD with a 2026-11-24 expiry. Zero alerts fall on a plaintext-credential path, which is the strongest available confirmation that the INTG-007 encryption boundary introduced no new finding. Migration 20260921000000 scans clean with its planned manifest but remains unapplied (CP-051); check:migration-ledger still exits 1 on hosted-history-ledger.json (sourceSnapshot mismatch, launch.unclassified.count must be 292) and the database lane owns that refresh. Social OAuth and analytics remain disabled through RELEASE-008 pending HF-INTG-007-SOCIAL.",
+    "completed": [
+      "Inventoried every external OAuth credential write/read path and recorded disposition: app/api/social/oauth/{start,callback}/route.ts, lib/integrations/token-vault.ts + provider-catalog.ts, app/api/venue/integrations/route.ts, app/api/admin/content-hub/{integrations,overview,analytics}/route.ts + integrations/sync/route.ts, lib/services/organization-social-integrations.service.ts, and supabase/functions/{social-oauth,social-analytics}/index.ts.",
+      "Reworked lib/integrations/token-vault.ts into an encrypted-only boundary: writes never touch legacy venue_social_integrations plaintext columns (dual-write retired), reads fail closed (legacy key_version=0 copies, tampered or wrong-key envelopes, and malformed bytes resolve to null — never to raw token text), server-only key access retained, and audit metadata is redacted through redactCredentialLog before persistence.",
+      "Organization social OAuth callback now persists encrypted envelopes only (buildOrganizationCredentialPayload) and fails the connect when encryption fails instead of degrading to plaintext persistence.",
+      "Authored additive forward-only migration supabase/migrations/20260921000000_intg007_encrypted_social_credential_vault.sql (SUPABASE_TELEMETRY off, superset of the active chain, planned manifest in docs/engineering/migration-validation/) revoking client column SELECT on organization_social_integrations.access_token/refresh_token and revoking legacy plaintext copies (org + venue source columns and key_version=0 vault bytes). NOT applied — CP-051 manual apply is hosted and out of scope.",
+      "Added focused Vitest coverage __tests__/integrations/intg007-credential-vault.test.ts (16 tests): no plaintext persisted/emitted, fail-closed decryption, rotation, refresh/disconnect semantics on the vault contract, log redaction, venue-route API-surface compatibility, and a callback source plaintext guard.",
+      "Created pending handoffs HF-INTG-007-ADMIN, HF-INTG-007-VENUE, HF-INTG-007-SOCIAL so the legacy plaintext reads outside this lane are removed before the migration applies.",
+      "ADMIN lane (HF-INTG-007-ADMIN consumed 2026-09-22): dropped access_token/refresh_token from the user-session selects in app/api/admin/content-hub/{integrations,overview,analytics}/route.ts and integrations/sync/route.ts; the four routes now select token_envelope/refresh_token_envelope/token_expires_at/is_connected only; sync eligibility is is_connected-filtered token_envelope presence (no `!!row.access_token`); integrations DELETE and the shared lib/services/organization-social-integrations.service.ts disconnect now clear envelopes + is_connected only and never reference the retired plaintext columns; sanitizeOrganizationSocialIntegrations' defensive plaintext-strip fallback is preserved and has_token derives from envelope presence for healthy rows; public admin Content Hub UI behavior unchanged (UI consumes sanitized has_token/is_connected/token_expires_at; components/admin/content-hub has zero token-column references).",
+      "Venue lane (HF-INTG-007-VENUE consumed 2026-09-22): POST select reduced to id/venue_id/platform (legacy refresh_token select removed); row.refresh_token fallback removed — refresh reads readVenueIntegrationSecrets().refreshToken only and fails closed with an intentional 400 when the vault holds no refresh grant; disconnect no longer writes access_token/refresh_token nulls to the retired legacy plaintext columns (vault deletion + is_connected toggle only, public contract unchanged); GET health semantics confirmed unchanged (connected/needs_reauth/disconnected derived from row state + vault token presence).",
+      "Added __tests__/venue/venue-integrations-api.test.ts (9 tests) following venue test conventions: vault-derived GET health, vault-only disconnect (asserts no legacy column in select or update), refresh success writing encrypted envelopes only, fail-closed 400 on missing vault refresh grant, 404 owner mismatch, unknown-platform 400, and a route-source guard that no legacy plaintext column reference remains.",
+      "Focused verification for the venue lane: vitest 9/9 + full venue+integrations 16 files / 99 tests; rg refresh_token|access_token over app/api/venue and lib/venue shows OAuth provider-protocol uses only (lib/venue zero matches); scoped tsc exit 0; eslint exit 0."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [
+      "Social OAuth and affected providers must remain disabled through RELEASE-008 until credential migration or revocation and encrypted lifecycle verification pass.",
+      "Hosted migration apply and Edge Function redeployment are out of band (CP-051); the authored migration remains unapplied in this environment.",
+      "supabase/functions/social-oauth|social-analytics still reference legacy org plaintext columns (HF-INTG-007-SOCIAL pending); admin and venue lanes are clean.",
+      "Database lane must refresh docs/engineering/migration-validation/hosted-history-ledger.json before check:migration-ledger can pass: it exits 1 on sourceSnapshot.activeCount / lastMigration / digestSha256 and launch.unclassified.count must be 292.",
+      "Wave 33: check:migration-validation still exits 1 on a foreign hiring manifest exception (job-posting-scope-not-null, expired 2026-09-21, owner admin-platform). This task migration scans clean. Handed off as HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-21T15:15:00.000Z",
+        "sha": "b93967752b4262a2d7441755843eb886514fef26",
+        "summary": "INTG-007 bounded slice complete: reworked lib/integrations/token-vault.ts to an encrypted-only boundary (never dual-writes legacy plaintext columns; reads fail closed — key_version 0/legacy copies and undecryptable envelopes resolve to null; log/audit metadata redacted via redactCredentialLog); organization OAuth callback now persists encrypted envelopes only through buildOrganizationCredentialPayload and fails closed on encryption errors; authored additive forward-only migration 20260921000000 (unapplied, CP-051) revoking client column SELECT on organization_social_integrations.access_token/refresh_token and revoking legacy plaintext copies (org + venue source columns and key_version=0 vault bytes) with a planned manifest; no provider enabled and social OAuth/analytics gating unchanged. Focused Vitest 16/16 (full __tests__/integrations 50/50), focused ESLint exit 0, check:migration-validation and check:migration-chain exit 0, check:production-debug exit 0, git diff --check clean, plaintext-fragment grep 0 matches, agents:validate 0 errors. Handoffs created for admin (4 content-hub routes), venue (legacy refresh fallback), and social (2 Edge Functions) to finish removing legacy plaintext reads before the migration is applied.",
+        "completed": [
+          "Encrypted-only token vault boundary with fail-closed reads and log redaction",
+          "Encrypted-only org OAuth callback persistence",
+          "Additive revocation/column-hardening migration authored with planned manifest (unapplied)",
+          "16-test focused Vitest suite + full integrations suite green",
+          "Three pending handoffs for legacy plaintext readers outside the lane"
+        ],
+        "next_steps": [
+          "DB/ADMIN/VENUE/SOCIAL lanes act on the created handoffs; RELEASE-008 consumes vault evidence before any provider enablement"
+        ],
+        "blockers": [
+          "Migration apply and Edge Function redeploy remain hosted (out of scope); providers stay disabled through RELEASE-008"
+        ]
+      },
+      {
+        "at": "2026-09-22T09:51:45.578Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "INTG-007 progress: vault boundary + encrypted org callback complete; venue lane cleanup complete (2026-09-22) — app/api/venue/integrations/route.ts reads the encrypted vault exclusively (no legacy plaintext column selects/fallbacks), disconnect no longer writes retired legacy columns, GET health semantics unchanged; focused venue test suite (9 tests) proves the encrypted-envelope-only path and intentional fail-closed 400; handoff HF-INTG-007-VENUE consumed (completed). Migration 20260921000000 remains unapplied (CP-051); admin and social lanes pending.",
+        "completed": [
+          "Venue lane (HF-INTG-007-VENUE consumed 2026-09-22): POST select reduced to id/venue_id/platform (legacy refresh_token select removed); row.refresh_token fallback removed — refresh reads readVenueIntegrationSecrets().refreshToken only and fails closed with an intentional 400 when the vault holds no refresh grant; disconnect no longer writes access_token/refresh_token nulls to the retired legacy plaintext columns (vault deletion + is_connected toggle only, public contract unchanged); GET health semantics confirmed unchanged (connected/needs_reauth/disconnected derived from row state + vault token presence).",
+          "Added __tests__/venue/venue-integrations-api.test.ts (9 tests) following venue test conventions: vault-derived GET health, vault-only disconnect (asserts no legacy column in select or update), refresh success writing encrypted envelopes only, fail-closed 400 on missing vault refresh grant, 404 owner mismatch, unknown-platform 400, and a route-source guard that no legacy plaintext column reference remains.",
+          "Focused verification for the venue lane: vitest 9/9 + full venue+integrations 16 files / 99 tests; rg refresh_token|access_token over app/api/venue and lib/venue shows OAuth provider-protocol uses only (lib/venue zero matches); scoped tsc exit 0; eslint exit 0."
+        ],
+        "next_steps": [
+          "Database lane: apply migration 20260921000000 to isolated staging per CP-051 now that the venue lane no longer reads legacy venue plaintext columns (HF-INTG-007-VENUE consumed); regenerate canonical types if needed, and record hosted ledgers.",
+          "Admin lane: drop access_token/refresh_token selects in the four content-hub routes and switch sync eligibility to envelope/expiry presence (HF-INTG-007-ADMIN).",
+          "Social lane: move social-oauth/social-analytics Edge Functions to encrypted envelope persistence + server-side decrypt (HF-INTG-007-SOCIAL).",
+          "Provide credential-vault evidence and provider enablement status to RELEASE-008; enable nothing until encrypted lifecycle acceptance evidence passes."
+        ],
+        "blockers": [
+          "Social OAuth and affected providers must remain disabled through RELEASE-008 until credential migration or revocation and encrypted lifecycle verification pass.",
+          "Hosted migration apply and Edge Function redeployment are out of band (CP-051); the authored migration remains unapplied in this environment.",
+          "app/api/admin/content-hub/* routes and supabase/functions/social-oauth|social-analytics still reference legacy plaintext columns (HF-INTG-007-ADMIN, HF-INTG-007-SOCIAL pending)."
+        ]
+      },
+      {
+        "at": "2026-09-22T09:54:00.000Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "ADMIN lane (HF-INTG-007-ADMIN consumed): all four admin content-hub routes (integrations, integrations/sync, overview, analytics) plus the shared OrganizationSocialIntegrationsService now select encrypted envelope fields only — access_token/refresh_token are never selected through the withAdminCapability user-session client (post-apply client SELECT on those columns is revoked by 20260921000000). Sync eligibility derived from is_connected-filtered token_envelope presence; DELETE/disconnect clear envelopes + is_connected only. 5 plaintext-boundary guard tests added to __tests__/admin/content-hub.test.ts (14/14 passing); scoped tsc exit 0; eslint exit 0; rg evidence clean. Edge Function cleanup remains on the social lane (HF-INTG-007-SOCIAL); lib/integrations/token-vault.ts NOT edited; no migration applied (CP-051).",
+        "completed": [
+          "Dropped plaintext access_token/refresh_token from the user-session selects in the four content-hub routes",
+          "Sync eligibility now derives from token_envelope presence instead of !!row.access_token",
+          "DELETE/disconnect and the shared OrganizationSocialIntegrationsService no longer write the retired plaintext columns",
+          "5 plaintext-boundary guard tests added; focused admin test file 14/14 green",
+          "Handoff HF-INTG-007-ADMIN resolved (status completed, relocated to handoffs/completed/) with Edge Function note for the social lane"
+        ],
+        "next_steps": [
+          "Social lane acts on HF-INTG-007-SOCIAL; DB lane applies migration 20260921000000 per CP-051 once social is clean",
+          "RELEASE-008 consumes vault evidence before any provider enablement"
+        ],
+        "blockers": [
+          "Migration apply and Edge Function redeploy remain hosted (out of scope); providers stay disabled through RELEASE-008",
+          "social-oauth/social-analytics Edge Functions remain on legacy org plaintext reads until HF-INTG-007-SOCIAL"
+        ]
+      },
+      {
+        "at": "2026-09-25T21:25:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33 review: no locally-achievable acceptance criterion changed and no production code, migration, or manifest for this task was modified. The encrypted-only vault boundary, the org OAuth callback encrypted-only persistence with fail-closed-on-encryption-failure, and the 16 INTG-007 vault tests remain intact and green inside the 8 files/173 tests integrations suite. New evidence in this wave: the social OAuth callback hardened by INTG-007 is the subject of CodeQL alert #102 (js/user-controlled-bypass), triaged as not exploitable and registered as security-exception CODEQL-102-SOCIAL-OAUTH-CALLBACK-CODE-PRESENCE-GUARD; zero alerts fall on a plaintext-credential path. Migration 20260921000000 scans clean but stays unapplied (CP-051), the hosted ledger refresh is still owed by the database lane, and social OAuth/analytics remain disabled through RELEASE-008 pending HF-INTG-007-SOCIAL.",
+        "completed": [
+          "Re-verified the encrypted-only vault boundary and the org callback credential path are unchanged and green.",
+          "Triaged and registered the one CodeQL alert in the INTG-007 file set.",
+          "Confirmed no hosted system was mutated, no migration was applied, and no hosted evidence is claimed."
+        ],
+        "next_steps": [
+          "Database lane: apply 20260921000000 to isolated staging under CP-051 once HF-INTG-007-SOCIAL lands, refresh hosted-history-ledger.json, regenerate canonical types if needed.",
+          "Social lane: move social-oauth/social-analytics Edge Functions to encrypted envelope persistence and server-side decrypt (HF-INTG-007-SOCIAL).",
+          "RELEASE-008: no provider is enabled until encrypted lifecycle acceptance evidence passes."
+        ],
+        "blockers": [
+          "Migration apply and Edge Function redeploy remain hosted (out of scope); providers stay disabled through RELEASE-008.",
+          "check:migration-ledger exits 1 on the hosted ledger snapshot; the database lane owns that refresh."
+        ],
+        "verification": [
+          "npx vitest run __tests__/integrations — 8 files / 173 tests passed.",
+          "npm run check:migration-validation — 20260921000000_intg007_encrypted_social_credential_vault.sql scanned clean with planned manifest; 1 foreign failure remains.",
+          "npm run check:production-debug — exit 0; npm run check:migration-chain — exit 0; npx eslint on the integrations-owned set — exit 0; agents:validate — exit 0."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:34:14.714Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33 review only; no production code, migration, or manifest for this task was changed. The encrypted-only vault boundary, the org OAuth callback encrypted-only persistence with fail-closed-on-encryption-failure, and all 16 INTG-007 vault tests are intact and green inside the 8 files/173 tests integrations suite. New evidence this wave: the social OAuth callback hardened by INTG-007 is the subject of CodeQL alert #102 (js/user-controlled-bypass at app/api/social/oauth/callback/route.ts:44). Triaged against executable source and found not exploitable: the reported guard is the if (!code) presence check, and every path to the token exchange and the organization_social_integrations upsert passes the fail-closed if (!signed) block, so the attacker-controlled code narrows rather than skips the check. Registered as security-exception CODEQL-102-SOCIAL-OAUTH-CALLBACK-CODE-PRESENCE-GUARD with a 2026-11-24 expiry. Zero alerts fall on a plaintext-credential path, which is the strongest available confirmation that the INTG-007 encryption boundary introduced no new finding. Migration 20260921000000 scans clean with its planned manifest but remains unapplied (CP-051); check:migration-ledger still exits 1 on hosted-history-ledger.json (sourceSnapshot mismatch, launch.unclassified.count must be 292) and the database lane owns that refresh. Social OAuth and analytics remain disabled through RELEASE-008 pending HF-INTG-007-SOCIAL.",
+        "completed": [],
+        "next_steps": [
+          "Database lane applies 20260921000000 to isolated staging under CP-051 once HF-INTG-007-SOCIAL lands, refreshes hosted-history-ledger.json, and regenerates canonical types if needed; social lane moves social-oauth/social-analytics Edge Functions to encrypted envelope persistence and server-side decrypt; admin disposes CodeQL #95 via HF-INTG-033-CODEQL-OAUTH-STATE-HASH; RELEASE-008 enables nothing until encrypted lifecycle acceptance evidence passes."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide provider enablement status and credential-vault evidence to RELEASE-008; unverified providers remain disabled in the launch capability manifest.",
+    "HF-INTG-007-ADMIN: admin content-hub routes must stop selecting legacy plaintext token columns and switch sync eligibility to envelope/expiry presence.",
+    "HF-INTG-007-VENUE: venue integrations route must drop the legacy refresh_token select/fallback and rely solely on the fail-closed vault.",
+    "HF-INTG-007-SOCIAL: social-oauth and social-analytics Edge Functions must move to encrypted envelope persistence and server-side decrypt.",
+    "HF-INTG-033-CODEQL-OAUTH-STATE-HASH (pending, to admin): CodeQL #95 js/insufficient-password-hash on lib/admin/content-hub/oauth-state.ts:96 — the production signer that mints the signed state this task depends on. All taint sources CodeQL lists are createSignedOAuthState calls in __tests__/integrations/security.test.ts, so only test-fixture material reaches the sink.",
+    "HF-INTG-033-CODEQL-TRIAGE-RESULT (pending, to release): integrations triaged the 2 alerts it owns of 96 and registered both as not_exploitable; the other 94 are routed, not dispositioned. Includes the assessment that the CodeQL gate is not actionable until refs/heads/main has a recorded analysis."
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "integrations",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

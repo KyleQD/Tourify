@@ -1,0 +1,261 @@
+chain: 323 active migrations, 17 matrix writes, 12 roles
+chain functions: 287, policy-reachable: 50, distinct permissions read: 16
+naive cross-check: 16 literals, 0 missed by the balanced extractor (0 required)
+pairs: 504 compared (12 roles x 42 capabilities) — agree 298, gate>matrix 206, matrix>gate 0
+the gate is a SUPERSET of the matrix BY CONSTRUCTION (SEC-102 unions configuredPermissions into the catalog defaults), so gate>matrix is the only reachable direction for a catalog capability and every open pair is a FALSE DENIAL, not a disclosure.
+enforcement measured: {"none":29,"rls_policy":10,"non_row_level_only":1,"rls_policy_via_function":2}
+enforced capabilities: 13 of 42; declared_intent_only decisions: 29
+open pairs by decision class: {"declared_intent_only":148,"catalog_authoritative":58}
+open pairs by role: {"owner":37,"admin":35,"tour_manager":26,"production":23,"production_manager":24,"department_manager":11,"finance":13,"finance_manager":14,"ticketing":7,"ticketing_manager":7,"viewer":9}
+INERT MATRIX GRANTS (declared intent, no reader, grants nothing): 9 — owner/workforce.publish admin/workforce.publish production/workforce.publish tour_manager/workforce.publish production_manager/workforce.publish department_manager/workforce.publish owner/finance.manage admin/finance.manage finance/finance.manage
+
+  advance.manage           declared_intent_only   enforcement=none                   openPairs=5
+  audit.view               declared_intent_only   enforcement=none                   openPairs=8
+  communications.broadcast declared_intent_only   enforcement=none                   openPairs=5
+  communications.send      declared_intent_only   enforcement=none                   openPairs=8
+  content.manage           declared_intent_only   enforcement=none                   openPairs=5
+  content.view             declared_intent_only   enforcement=none                   openPairs=9
+  contract.manage          declared_intent_only   enforcement=none                   openPairs=2
+  contract.sign            declared_intent_only   enforcement=none                   openPairs=1
+  contract.view            declared_intent_only   enforcement=none                   openPairs=9
+  event.live_ops           declared_intent_only   enforcement=none                   openPairs=5
+  event.manage             catalog_authoritative  enforcement=rls_policy             openPairs=1
+  event.publish            declared_intent_only   enforcement=none                   openPairs=5
+  event.view               declared_intent_only   enforcement=none                   openPairs=11
+  finance.approve          declared_intent_only   enforcement=none                   openPairs=4
+  finance.manage           declared_intent_only   enforcement=none                   openPairs=1
+  finance.pay              declared_intent_only   enforcement=none                   openPairs=3
+  finance.view             declared_intent_only   enforcement=none                   openPairs=9
+  hiring.manage            catalog_authoritative  enforcement=rls_policy             openPairs=3
+  logistics.manage         catalog_authoritative  enforcement=rls_policy_via_function openPairs=5
+  logistics.sensitive      declared_intent_only   enforcement=none                   openPairs=5
+  logistics.view           catalog_authoritative  enforcement=rls_policy_via_function openPairs=9
+  org.roles.manage         declared_intent_only   enforcement=none                   openPairs=2
+  org.settings.manage      declared_intent_only   enforcement=none                   openPairs=2
+  routing.manage           catalog_authoritative  enforcement=rls_policy             openPairs=5
+  site_map.edit            declared_intent_only   enforcement=none                   openPairs=5
+  site_map.share           declared_intent_only   enforcement=none                   openPairs=5
+  site_map.view            declared_intent_only   enforcement=none                   openPairs=9
+  ticketing.manage         declared_intent_only   enforcement=none                   openPairs=4
+  ticketing.refund         declared_intent_only   enforcement=none                   openPairs=4
+  ticketing.scan           declared_intent_only   enforcement=none                   openPairs=4
+  ticketing.view           declared_intent_only   enforcement=none                   openPairs=11
+  tour.archive             declared_intent_only   enforcement=none                   openPairs=3
+  tour.delete              catalog_authoritative  enforcement=rls_policy             openPairs=2
+  tour.manage              catalog_authoritative  enforcement=rls_policy             openPairs=5
+  tour.publish             catalog_authoritative  enforcement=non_row_level_only     openPairs=3
+  tour.view                catalog_authoritative  enforcement=rls_policy             openPairs=11
+  vendor.manage            catalog_authoritative  enforcement=rls_policy             openPairs=5
+  vendor.sensitive         declared_intent_only   enforcement=none                   openPairs=4
+  vendor.view              catalog_authoritative  enforcement=rls_policy             openPairs=9
+  workforce.manage         matrix_authoritative   enforcement=rls_policy             openPairs=0
+  workforce.publish        declared_intent_only   enforcement=none                   openPairs=0
+  workforce.view           matrix_authoritative   enforcement=rls_policy             openPairs=0
+
+✗ 206 failures:
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/org.roles.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/org.settings.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/tour.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/tour.publish: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/tour.archive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/tour.delete: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/event.publish: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/event.live_ops: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/routing.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/advance.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/logistics.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/logistics.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/hiring.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/vendor.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/vendor.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/contract.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/contract.sign: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/finance.approve: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/finance.pay: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/ticketing.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/ticketing.scan: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/ticketing.refund: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/site_map.edit: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/site_map.share: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/communications.broadcast: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) owner/content.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/org.roles.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/org.settings.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/tour.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/tour.publish: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/tour.archive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/tour.delete: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/event.publish: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/event.live_ops: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/routing.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/advance.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/logistics.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/logistics.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/hiring.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/vendor.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/vendor.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/contract.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/finance.approve: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/ticketing.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/ticketing.scan: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/ticketing.refund: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/site_map.edit: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/site_map.share: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/communications.broadcast: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) admin/content.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/tour.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/tour.publish: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/tour.archive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/event.publish: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/event.live_ops: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/routing.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/advance.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/logistics.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/logistics.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/hiring.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/vendor.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/site_map.edit: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/site_map.share: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/communications.broadcast: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) tour_manager/content.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/tour.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/event.publish: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/event.live_ops: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/routing.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/advance.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/logistics.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/logistics.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/vendor.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/site_map.edit: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/site_map.share: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/communications.broadcast: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production/content.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/tour.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/event.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/event.publish: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/event.live_ops: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/routing.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/advance.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/logistics.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/logistics.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/vendor.manage: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/site_map.edit: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/site_map.share: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/communications.broadcast: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) production_manager/content.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) department_manager/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/vendor.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/finance.approve: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/finance.pay: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/audit.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/vendor.sensitive: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/finance.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/finance.approve: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/finance.pay: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) finance_manager/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/ticketing.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/ticketing.scan: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/ticketing.refund: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/ticketing.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/ticketing.scan: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/ticketing.refund: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) ticketing_manager/communications.send: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/tour.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/event.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/logistics.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/vendor.view: the two layers disagree (decision class: catalog_authoritative) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/contract.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/finance.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/ticketing.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/site_map.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.
+  [STRICT_PAIR_DISAGREEMENT] (error) viewer/content.view: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.

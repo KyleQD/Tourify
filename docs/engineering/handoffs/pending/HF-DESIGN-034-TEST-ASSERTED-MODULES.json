@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DESIGN-034-TEST-ASSERTED-MODULES",
   "task_id": "DESIGN-034",
   "from_agent": "design-system",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:36:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "dirty_state_caveat": "Concurrent Wave 34 multi-lane dirty tree. Both test files below belong to other lanes' paths (__tests__/admin/** is the admin lane's) and were not modified.",
@@ -33,5 +33,7 @@
     "PASS: `rg` for the module stems across the whole repository found exactly the two test files plus documentation; no other consumer of either module exists in any spelling.",
     "PASS: npx vitest run __tests__/admin/content-hub.test.ts and __tests__/social/profile-follow-route.test.ts are included in the 32-file / 248-test focused run that passed both before and after this lane's deletions."
   ],
-  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Admin: decide whether organization-social-integrations.service.ts should be adopted by the content-hub integrations sync route (in which case give it a real importer) or retired along with its test assertion. It currently duplicates a route the admin lane owns and has no production caller."
 }

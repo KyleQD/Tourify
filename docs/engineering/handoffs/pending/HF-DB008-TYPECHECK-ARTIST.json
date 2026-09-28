@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB008-TYPECHECK-ARTIST",
   "task_id": "DB-008",
   "from_agent": "database",
   "to_agent": "artist",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T21:30:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "The 1,384-diagnostic `tsc --noEmit` failure on d2176904 is a generated-database-contract defect, not stale types alone. The database lane reconstructed the live public-schema surface the active migration chain leaves behind and classified every named missing object. This handoff is your share of the `code-drift` cluster \"artist\": 16 objects, 237 diagnostic hits, of which 14 are reached by a LIVE entry-reachable route or page so deletion is not an option. The full evidence-backed classification is docs/engineering/database-type-inventory-2026-09-25.json; this handoff names your objects and the canonical replacement for each where the repository records one. 16 objects (artist_photos, artist_videos, artist_merchandise, artist_works, artist_licensing_deals, artist_license_templates, artist_fan_interactions, artist_profiles.stage_name, artist_profiles.verification_status) are read by entry-reachable artist surfaces including app/artist/features/licensing/page.tsx, contexts/artist-context.tsx and lib/public-artist/get-public-artist-profile.ts.",
@@ -44,5 +44,7 @@
     "PASS: every consumer path and every recorded evidence source in the inventory was checked to exist on disk.",
     "NOT RUN: no tsc run and no migration apply were performed by the database lane in this wave."
   ],
-  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "ARTIST-007",
+  "completion_condition": "Read the cluster in docs/engineering/database-type-inventory-2026-09-25.json (filter items by owningDomain). Each entry carries classification, basis, canonicalReplacement, liveConsumers, deadConsumers and the non-active SQL that proves the object is archived."
 }

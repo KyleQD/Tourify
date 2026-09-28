@@ -4,6 +4,29 @@
 
 Own Supabase migrations, schema evolution, RLS, RPCs, generated types, and data integrity.
 
+<!-- product-outcome:start -->
+## Audience
+
+Every application and release lane.
+
+## Final product
+
+Authoritative additive migration chain, RLS, RPCs, generated types, reconciliation, and environment parity.
+
+## Launch boundary and exclusions
+
+Database does not invent product contracts or apply destructive resets.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

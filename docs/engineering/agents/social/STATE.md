@@ -1,5 +1,16 @@
 # Social state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `SOCIAL-004` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `SOCIAL-007` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WFC-016` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
 - Last reviewed at: 2026-09-26
 - Completed audit: `SOCIAL-001`
@@ -79,3 +90,10 @@ See `BASELINE.md`, `GAPS.md`, and `QUESTIONS.md` for the evidence-backed invento
 
 - SOCIAL-004 is a P1 core launch dependency. Conversation membership must guard reads, sends, topics, typing, presence, and read state at the server or data boundary.
 - Closure requires cross-user and cross-tenant denial, reconnect/duplicate/offline behavior, and a live two-member isolated-staging verification.
+
+## Workforce Command Center assignment — 2026-09-26
+
+- Goal: own WFC department communication audiences, recipients, delivery, read, acknowledgment, reminder, and retry contracts.
+- Queued task: `WFC-016`, blocked on `WFC-004`; it does not displace SOCIAL-004 or SOCIAL-007 obligations.
+- Required handoff: provide Admin with a department-scoped, auditable communication API and compatibility behavior for current workforce messages; organization membership alone must not reveal every department message.
+- Governing plan: `docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md`.

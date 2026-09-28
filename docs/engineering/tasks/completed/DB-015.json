@@ -1,0 +1,368 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-015",
+  "title": "Detect migration blocks that the ordered chain never executes",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-27T23:07:55.818Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty, shared, with at least three concurrent lanes (WFC-004, DB-016, DB-017). Every path DB-015 created is listed under the checkpoint's paths_changed and every one is an UNTRACKED ADDITION. `git diff --name-only` over scripts/ci, supabase/, package.json and .github/ shows only the two files a concurrent lane modified (it adds DB-014's check:sweep-exemption-hazard to package.json and ci.yml) and neither diff contains a db015 or never-executed line — so DB-015's grant was not expanded and no existing scripts/ci file was edited. No commit, add, checkout, restore, stash, reset, clean, rebase, merge or cherry-pick was issued at any point.",
+  "goal": "Generalize the DB-014 harness into a detector that reports every guard-guarded migration block whose guard is false at that block's own version position.",
+  "scope": {
+    "in": [
+      "Static analysis of guard-guarded DO blocks against chain order",
+      "Execution of those blocks' own guard expressions against a real throwaway PostgreSQL catalog, at their own version positions",
+      "A negative-control fixture battery and a negative control over the REAL chain",
+      "A disposition for every finding, with a named owner and a severity",
+      "A correction to CP-109's framing, measured rather than argued"
+    ],
+    "out": [
+      "Writing any migration that fixes a finding; findings are routed, not fixed here",
+      "Authoring any migration, or any SQL test under supabase/tests/** — WFC-004 owns both for this wave and DB-017 owns its own prefixed files. The execution harness lives under this task's own report directory and says so in its header.",
+      "Editing any existing scripts/ci/ file; DB-014's check-sweep-exemption-hazard.mjs is already wired and DB-017 is landing its own alongside it",
+      "Touching package.json or .github/workflows/ci.yml. Both are shared artefacts in a dirty multi-lane worktree and both are outside this grant under CP-112. The wiring is handed to release as HF-DB-015-CI-WIRING with exact commands and exit codes.",
+      "Running agents:generate. The generated maps are a shared artefact and three lanes are writing; the orchestrator should run it once the worktree settles."
+    ]
+  },
+  "working_set": [
+    "scripts/ci/check-never-executed-migration-blocks.mjs (NEW — this exact filename is yours alone)",
+    "scripts/ci/check-never-executed-migration-blocks.test.mjs (NEW — this exact filename is yours alone)",
+    "docs/engineering/verification/db015-never-executed-migration-blocks/ (NEW — this task's own report directory, chosen because supabase/tests/** belongs to WFC-004 this wave; it holds report.json, execution-harness.sh and README.md)",
+    "docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json (NEW)",
+    "docs/engineering/DECISIONS.md (append-only; CP-118 appended, nothing rewritten)",
+    "docs/engineering/agents/database/STATE.md (one dated section appended)",
+    "docs/engineering/tasks/active/DB-015.json (this record)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md (CP-104 and its two correction blocks, CP-051, CP-109, CP-112, CP-113 through CP-117 as taken by concurrent lanes, and the new CP-118)",
+    "docs/engineering/tasks/active/DB-014.json",
+    "docs/engineering/tasks/active/DB-013.json",
+    "supabase/tests/db014_staff_performance_metrics_scope.harness.sh (the template that was generalized, not rebuilt)",
+    "supabase/tests/db011_emulation_bootstrap.sql (READ-ONLY reuse; the execution harness reads it and writes nothing under supabase/)",
+    "supabase/migrations/20250812093500_entity_rls_policies_more.sql (the confirmed instance, and the four spellings of the class in one file)",
+    "supabase/migrations/20250812093000_entity_rls_policies.sql (the sibling file, and staff_shifts)",
+    "supabase/migrations/20250818120000_admin_staffing_core.sql (the CREATE TABLE five days late, and the three permissive predecessors)",
+    "supabase/migrations/20250813122000_rls_tour_team_access.sql (the one instance with a measured exposure window)",
+    "supabase/migrations/20250818121000_tours_core.sql (tour_vendors created, and tour_vendors_all installed in the same statement)",
+    "supabase/migrations/20260710032714_harden_tour_satellite_rls.sql and 20260720020544_admin_tour_collaboration_security.sql (where the permissive policy was finally dropped)",
+    "supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql and 20260414140000_fix_security_linter_views_and_rls.sql (the drop-policy blocks and the inverted guards that were false positives)"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Generalize the DB-014 harness into a detector that reports every guard-guarded migration block whose guard is false at that block's own version position.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "567 guard sites discovered across the 315-file active chain: 53 never executed, 109 guard-true, 405 unanalysed. 53 of 53 are covered by a recorded disposition. The confirmed instance is reported at 20250812093500:35 with subjectKeys ['relation staff_performance_metrics'] and intendedObjects staff_performance_metrics_select + staff_performance_metrics_write. FIVE further instances of the same shape that nobody had written down: 20250812093500:10 (staff_zones, twenty-five lines above the confirmed one, same file and author), 20250812093000:38/62/86 (event_vendor_requests with a SEVEN-MONTH version gap, job_posting_templates, job_applications), 20250812093500:106 (team_communications), 20250813122000:98 (tour_vendors). Two more classes beyond the single-statement form: FOUR `is null then return` guards that skip the REST of their block, and FOUR `drop policy`-only blocks. 'Every' is bounded honestly and the bound is in the report: 405 sites are `unanalysed` rather than reported, and each unanalysed site names its reason — 172 policy-state-not-replayed, 140 no-catalog-existence-probe, 22 no-control-in-either-branch, 14 unmodelled-conjunct, 13 catalog-attribute, 12 table_constraints/key_column_usage, and a tail. An unanalysed site is a blind spot, never a clean bill of health, and the report says so in those words.",
+        "Preserved v1 criterion metadata: {\"id\":1,\"text\":\"The detector reports every guard-guarded block whose guard is false at its own version position, including the confirmed staff_performance_metrics instance\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Generalize the DB-014 harness into a detector that reports every guard-guarded migration block whose guard is false at that block's own version position.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "FOUR independent mechanisms, because one is not enough and DB-014's own instrument shipped two defects the same way. (1) A 22-case fixture battery inside the check, every case carrying the verdict it MUST produce, run in-process on every invocation: 6 must-fire and 11 must-not-fire cases covering the ordering shape, the inverse, the column form, an unrecognised catalog, a decoy in a COMMENT and in a string, drop-and-recreate, an opaque column set, a pg_policies guard, a function-body create, a guarded-body create, intra-file order in both directions, conjunction polarity, per-conjunct polarity, an unmodelled conjunct, conjunct scoping, an inverted else-arm, and the early-return spelling. (2) The order-mutation proof over the REAL chain: 20250812093500 is renumbered to 20259999999999, NO SQL changes, and the finding must disappear (measured 1 -> 0). It is a gate on the CLI, not a test. (3) The test suite re-derives the same proof from the other end, moving the CREATING migration earlier instead: 1 -> 0. (4) The harness points the detector at two synthetic chains differing only in order and requires 1 finding on the broken one, 0 on the repaired one, and a NONZERO exit on the broken one — the CI behaviour, proven. The negative control is also asserted on the TARGET: the harness measures a cross-tenant read of performance_rating AND an unauthenticated-by-permission INSERT, and then DROPS read_all_metrics and shows that an EDIT_EVENT_LOGISTICS holder and a no-role account both drop to 0 rows, which is the consequence stated as a measurement.",
+        "Preserved v1 criterion metadata: {\"id\":2,\"text\":\"The detector is proven to fail on a known-bad fixture before it is trusted to report clean\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Generalize the DB-014 harness into a detector that reports every guard-guarded migration block whose guard is false at that block's own version position.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "53 findings in 12 disposition groups (DB015-K1 through DB015-K12), each with a named owner drawn from the registry, a severity, a status, a summary, a detail and a routedBecause saying why it is routed rather than fixed. Completeness is MECHANICAL and checked in BOTH directions by assertDispositionsAreComplete(): an uncovered finding fails the check, AND a disposition that matches no block fails the check, so a finding that is repaired, moved or renumbered makes the check go red rather than leaving a disposition pointing at empty space. The test suite proves both directions: a disposition missing any one of owner/severity/status/summary/detail/routedBecause fails; a disposition whose covers[] has been repointed fails; and a synthetic new finding is reported unrouted. Severity distribution: 1 high, 13 medium, 39 low or informational — and the low ones are low for a REASON recorded per finding, not by default. The most useful routing is DB015-K12, tour_vendors: the block's two scoped policies never ran, so the permissive tour_vendors_all was the only policy on that table from 20250818121000 until 20260710032714:90 dropped it — a THREE-MONTH exposure window, closed as a live exposure and routed to qa for the window because only a target can answer that.",
+        "Preserved v1 criterion metadata: {\"id\":3,\"text\":\"Every never-executed block found is routed to a named owner with a severity, not merely listed\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Generalize the DB-014 harness into a detector that reports every guard-guarded migration block whose guard is false at that block's own version position.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "The SECOND branch, explicitly. package.json and .github/workflows/ci.yml are outside DB-015's grant under CP-112, and both are shared artefacts in a dirty multi-lane worktree in which a concurrent lane is already editing them. HF-DB-015-CI-WIRING names the exact script names and commands for both the check and its node:test sibling, the CI step, the expected exit today (0) and the TWO legitimate ways it can go red tomorrow (a new unowned finding; a disposition that stopped matching) so neither is mistaken for a broken check, and why the execution harness must NOT be wired into CI. The nonzero exit is not merely asserted, it is MEASURED: the harness requires exit 1 on the broken synthetic chain and confirms the exit-1 on the repaired chain comes from the ANTI-VACUITY gate alone.",
+        "Preserved v1 criterion metadata: {\"id\":4,\"text\":\"The detector exits nonzero in CI or the wiring gap is handed to release as an explicit blocker\",\"met\":true}"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "node scripts/ci/check-never-executed-migration-blocks.mjs",
+          "node --test scripts/ci/check-never-executed-migration-blocks.test.mjs",
+          "bash docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh",
+          "npm run agents:validate",
+          "npm run check:migration-chain",
+          "bash -n docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [
+          "node scripts/ci/check-never-executed-migration-blocks.mjs -> exit 0. '567 guard sites: 53 never executed, 109 guard true, 405 unanalysed' / '53 of 52... 53 of 53 never-executed blocks are covered by a recorded, owned disposition' / 'anti-vacuity: anchors seen yes; order-mutation proof holds'. The 22-case fixture battery runs in-process on this invocation: 0 failing.",
+          "node --test scripts/ci/check-never-executed-migration-blocks.test.mjs -> tests 36, pass 36, fail 0, exit 0. Includes the order-mutation proof from both ends, the inverted-else false-positive guard, the drop-policy severity rule, per-conjunct polarity, conjunct scoping, and a report-reproducibility assertion.",
+          "bash docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh -> ALL CHECKS PASSED, exit 0, three throwaway PostgreSQL 16.15 clusters, roughly a minute. Key lines, all executed: 'replayed 805 chain DDL statement(s) into the catalog'; '89 did not compile verbatim and were replaced by a STAND-IN of the same schema and name'; 'INVARIANT HOLDS: no guard the static path calls live is called dead by the server (0 contradictions)'; 'both paths independently report 32 of the same blocks as never-executed'; 'the block executed CLEANLY at 20250812093500's version position and created 0 policies — its guard is false'; 'THE DELTA IS 2. Identical bytes, identical server, identical guard text; the entire difference is which migration ran first'; 'DECISIVE: with read_all_metrics dropped, BOTH the EDIT_EVENT_LOGISTICS holder and the no-role account read 0 rows. The permissive policy WAS the only read path'; 'EXIT CODE: nonzero (1) on the broken synthetic chain'; 'post-state re-assertion: the attacker's planted row is still present and the cross-tenant read is still open (3 ratings) — this harness MEASURED the defect and did not fix it'.",
+          "npm run agents:validate -> exit 0, 'validated 17 agents, 182 tasks, 0 warnings, 0 errors'.",
+          "npm run check:migration-chain -> exit 0, 'active migration chain has no duplicate policy creations (315 files scanned)'.",
+          "bash -n on the harness -> exit 0.",
+          "npm run verify:feature -- --changed -> EVERY STEP THIS LANE'S CHANGES CAN REACH PASSED, and the tier then ABORTED on a step that needs credentials this host does not have. Ran and passed: npx eslint over 24 files INCLUDING both of this lane's new .mjs files; the CP-106 scoped typecheck (17 changed roots, 27 of 4313 repository TypeScript sources in the program, lib/database.types.ts NOT in the program, reverse dependents NOT covered — stated by the tier); npm run check:migration-chain; npm run check:migration-validation (5 manifests scanned clean). NOT RUN: npm run check:supabase-target, which requires SUPABASE_PROJECT_ID, EXPECTED_SUPABASE_PROJECT_ID and SUPABASE_TARGET_CONFIRMATION, all unset here, and which the tier runs because the worktree contains supabase/migrations changes from concurrent lanes. The tier's post-abort steps were run individually: check:admin-route-registry PASS; check:admin-audit exit 1 with 3 failures; npx vitest run __tests__/admin exit 1 with 4 failed / 3651 passed. THE 7 ARE NOT DB-015'S: all 4 vitest failures are in __tests__/admin/workforce-identity-contract.test.ts, which is WFC-003's untracked file and imports nothing of this lane's — `rg -n 'check-never-executed|db015' __tests__/admin/` returns nothing. DB-015's complete change set is three untracked additions. RECORDED AS A PARTIAL TIER, NOT A PASS, and the honest summary is: this lane's own files lint clean and its own check and harness pass, and two other lanes' steps are red in a shared worktree.",
+          "TYPES: no TypeScript was authored, so the scoped typecheck's program contains none of this lane's code and none of this lane's code has a type surface. npm run generate:database-types and npm run check:database-types were NOT run: they need a live target (CP-089, CP-092), and this lane changed no table, column or function, so no generated-type change is possible.",
+          "NOT RUN AND NOT CLAIMED: a full-repo npm run typecheck (CP-106), supabase db lint --local (no running target), npm run agents:generate (shared-map race, three concurrent lanes), and every hosted probe. NO MIGRATION WAS APPLIED TO ANY ENVIRONMENT. No supabase db reset, no db push --include-all, no forced apply, no chain replay, no psql session against a hosted target. NO HOSTED EVIDENCE OF ANY KIND EXISTS AND NONE IS CLAIMED."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T04:40:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "DB-015 built the instrument CP-109 asked for and then measured the class it describes. 567 guard sites in the 315-file chain; 53 blocks never execute. The detector re-found DB-014's staff_performance_metrics instance from the version numbers alone, by a different method, a day later — and found FIVE more instances of the same shape in the same two files, including one (tour_vendors) with a MEASURED THREE-MONTH EXPOSURE WINDOW behind it, because the scoped policies that never ran left a permissive `for all` policy as the only one on the table. The class has FOUR spellings, not one, and 47 of the 53 are correctly inert defensive repairs and assertions rather than absent controls, which NARROWS CP-109's framing as much as it widens it; both corrections are recorded in the report and in CP-118. Every one of the 53 is routed to a named owner with a severity, mechanically enforced in both directions. The instrument proved it can fail four independent ways, and recorded FIVE defects in itself — three of them false positives in files whose names are security migrations, and one of them a clean report from a detector that had found zero guard sites in the entire chain. The task stays ACTIVE only for the CI wiring, which is outside this grant.",
+    "completed": [
+      "Read the mandated context: INDEX.md, the database charter and STATE.md, DECISIONS.md including CP-104's two correction blocks, CP-109, CP-112 and the labels CP-113 through CP-117 that concurrent lanes took while this lane worked, DB-014.json, and DB-014's harness in full.",
+      "GENERALIZED DB-014's harness rather than rebuilding it: the same shape — extract the chain's own bytes by line range at run time, replay at the version position, measure the created-object delta, and prove it with a control — generalised from one hand-picked block to every guard site in the chain.",
+      "Built the static path: a length-preserving SQL mask (comments, literals, dollar bodies and quoted identifiers blanked) with every structural decision made against it and every value read by exact offset from the raw text. This is the direct answer to DB-014's bare-`role`-inside-`auth.role()` defect.",
+      "Built the execution path: the chain's own relation DDL applied VERBATIM into a real catalog in version order, with counted stand-ins where a statement will not compile, and each guard site's own expression then executed with only the `if` and the `then` stripped.",
+      "PROVED IT CAN FAIL four ways: a 22-case in-process battery with expected verdicts; the order-mutation proof over the real chain as a CLI GATE; the same proof re-derived from the other end in the test suite; and two synthetic chains in the harness differing only in order, with the exit code measured.",
+      "PROVED IT CANNOT GO QUIETLY CLEAN: assertAnchorsSeen() refuses a clean report unless both CP-109-confirmed instances are found; there is no code path that emits `clean`; and a disposition that stops matching its block is a failure.",
+      "MEASURED THE CLASS and corrected the record in both directions: four spellings, 15 RLS-policy blocks over 8 tables, and 47 of 53 correctly inert.",
+      "Found and routed the tour_vendors exposure window (DB015-K12) — the only instance where the never-executed block caused a measurable exposure rather than a gap in the paperwork.",
+      "Recorded and pinned FIVE defects in this detector, including the two that matter most: three live `enable row level security` policies reported dead because their control sat in the `else` of an inverted guard, and a detector that would have reported zero guard sites in the chain because its mask blanks every dollar-quoted span.",
+      "Wrote the CI wiring handoff with exact commands, exact exit codes, and the two legitimate ways the check can go red on day one."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [
+      "The detector is not wired into package.json or ci.yml. Both are outside DB-015's grant under CP-112 and both are shared artefacts in a dirty worktree a concurrent lane is already editing. Handed to release as HF-DB-015-CI-WIRING. Until it is wired the check runs on nobody's behalf, which is the same position DB-014's detector was in and the reason this is stated as a blocker rather than as a caveat.",
+      "The static path is a MODEL of execution, not execution. It is kept honest by the harness, which runs both paths against one PostgreSQL and asserts that no guard the static path calls live is called dead by the server — 0 contradictions over 446 executed sites. The executed path itself OVER-reports by construction, because one psql connection cannot hold two catalog states at once without a transaction per version; the report says so under replay.caveat and the finding set of record is the static path's. This is the honest cost of splitting the instrument so the CI path needs no database, and it is named rather than buried.",
+      "405 of 567 guard sites are `unanalysed` rather than decided, and 172 of those are guards over pg_policies whose verdict depends on a 1,287-policy replay this module does not perform. That class is owned by DB-014's CP-107 instrument. The remainder are unrecognised shapes, catalog-attribute predicates, unmodelled conjuncts, and conditional or deferred creates. A blind spot is not a clean bill of health and the report uses those words.",
+      "A chain replay cannot tell you what a TARGET contains. DB-002 established that migrations have been applied through the Management API, so a target may hold relations the chain never created and may be missing relations it did. 20260414140500:41 is the live instance: it relocates the moddatetime extension, which the PLATFORM creates, so the block is dead on the chain and possibly live on staging. That is why DB-013's migration ships anyway, and it is why a target-side question needs a preflight query rather than a better static analysis.",
+      "npm run verify:feature -- --changed ABORTS at check:supabase-target, which needs three environment variables this host does not have. Every step this lane's changes can reach passed, including eslint over both new .mjs files and the scoped typecheck. The tier's post-abort steps, run individually, are red on 7 counts — all in WFC-003's untracked __tests__/admin/workforce-identity-contract.test.ts and check:admin-audit, neither of which references anything this lane created. The tier is recorded as a PARTIAL PASS and not as a green tier."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T04:40:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "DB-015 complete against all four acceptance criteria, locally. The detector reports 53 never-executed blocks over 567 guard sites, all 53 routed to a named owner with a severity, all four acceptance criteria met. The finding that was not in the brief and is worth the most: 20250813122000:98, whose two scoped policies never ran and left a permissive `for all` policy as the only one on tour_vendors for three months. The record correction: the class is four spellings wide and only ONE block deep — 47 of 53 are correctly inert. The instrument proved it can fail four ways and recorded five defects in itself, three of them false positives in security-named files. Nothing was applied to any environment.",
+        "scope_expansions": [
+          {
+            "path": "docs/engineering/verification/db015-never-executed-migration-blocks/ (report.json, execution-harness.sh, README.md)",
+            "reason": "The task's own grant names 'a db015-prefixed report under docs/engineering/verification/'. The execution harness is not a SQL test and cannot go under supabase/tests/** (WFC-004, this wave), so it goes under this task's own report directory, which the grant covers, and says so in its own header. The report.json is generated by the detector and regenerated by the harness's stage 8, so it is an artefact rather than prose; the README is the human-readable index of the three."
+          },
+          {
+            "path": "supabase/tests/db011_emulation_bootstrap.sql",
+            "reason": "READ-ONLY reuse, not edited. The harness reads it to create the auth schema, auth.users, auth.uid() and the anon/authenticated roles that the chain's own predicates resolve against, exactly as DB-014's and DB-013's harnesses do. auth.role(), auth.role's uuid extension, the `private` schema, the four tenant relations and the public.has_entity_permission function are created by the harness itself rather than added to a file other harnesses share."
+          },
+          {
+            "path": "supabase/migrations/20250812093500_entity_rls_policies_more.sql, 20250812093000_entity_rls_policies.sql, 20250818120000_admin_staffing_core.sql, 20250812090000_entity_rbac_core.sql, 20260823210100_venues_rbac_rls_baseline.sql",
+            "reason": "READ-ONLY, and mechanically so: the harness extracts the guarded block, the CREATE TABLE and the rbac tables and the authority helper BY LINE RANGE from these files at run time, which is why the emulated authority cannot drift from the chain. No migration was edited, renumbered, reordered or removed."
+          },
+          {
+            "path": "supabase/migrations/20250813122000_rls_tour_team_access.sql, 20250818121000_tours_core.sql, 20260710032714_harden_tour_satellite_rls.sql, 20260720020544_admin_tour_collaboration_security.sql, 20260414120000_security_linter_step3_tighten_rls.sql, 20260414140000_fix_security_linter_views_and_rls.sql, 20260414140500_security_linter_step5_extensions_schema.sql, 20250904110000_scheduled_posts_platform_status.sql, 20250905004500_scheduled_posts_overrides.sql, 20250813121000_extend_staff_invitations_for_tours.sql, 20250816134500_tasks_schedule_fixes.sql, 20250816134710_tasks_add_event_id.sql, 20250816134720_tasks_rls_compat.sql, 20250818122000_logistics_tasks_align.sql, 20250818122010_logistics_tasks_align.sql, 20260609000100_posts_acting_entity_columns.sql, 20260625020000_staff_onboarding_storage_compliance.sql, 20260701021033_job_application_profile_snapshot.sql, 20260701032519_hiring_onboarding_candidate_links.sql, 20260701033141_template_parent_lineage.sql, 20260702210503_account_aware_blog_publishing.sql, 20260710024052_fix_tours_rls_recursion.sql, 20260710125059_admin_tour_event_builder_columns.sql, 20260712005429_organization_public_personas.sql, 20260731194002_quick_start_event_rpc_rls_repair.sql, 20260819205907_connected_worker_work_hub.sql, 20260821181237_hiring_overview_job_lifecycle.sql, 20260822151256_world_detroit_canonical_promotion.sql, 20260822172417_world_kingston_canonical_promotion.sql, 20260822172418_world_lagos_canonical_promotion.sql, 20260822172419_world_london_canonical_promotion.sql, 20260822172420_world_tokyo_canonical_promotion.sql, 20260926140200_scheduled_posts_platform_columns.sql, 20260926200000_org_role_permissions_workforce_seed.sql and 26 more",
+            "reason": "READ-ONLY, for one reason: a finding that names a block and does not name where it is, or why it is inert, is a list. Every one of the 53 findings is anchored to a path and a line in the chain, and each disposition's detail says what the block was trying to do and whether its subject exists. These migrations were read and none was modified. The count is stated in full rather than truncated so the read set is auditable."
+          },
+          {
+            "path": "lib/database.types.ts",
+            "reason": "NOT touched and NOT regenerated. Deliberately confirmed unnecessary rather than skipped: DB-015 authored no migration, changed no table, column or function, and wrote only policies nowhere. Its report does assert, for the seven DB015-K6 findings, that staff_training_records, staff_certifications, betalaunch, event_collaborators and event_page_settings have ZERO rows in that file — which is why the finding is a statement about retired surfaces rather than about drift. Regeneration is separately blocked (CP-089, CP-092) and the `linked` project is a different database."
+          },
+          {
+            "path": "package.json and .github/workflows/ci.yml",
+            "reason": "NOT expanded into, and verified as untouched by this lane. Both are modified in the worktree by a concurrent lane, which adds DB-014's check:sweep-exemption-hazard to each; `git diff` on both contains no db015 or never-executed line. The wiring is handed to release in HF-DB-015-CI-WIRING with the exact script names, commands, CI step and expected exit codes, and with the two legitimate ways the check can go red on day one stated so that neither is mistaken for a broken check."
+          },
+          {
+            "path": "docs/engineering/DECISIONS.md",
+            "reason": "APPEND-ONLY, as CP-112 requires for every lane in this program. CP-113 through CP-117 were taken by concurrent lanes while this lane worked, so the label chosen was CP-118, verified free before use with `rg -c 'CP-118' docs/engineering/DECISIONS.md`. No existing entry was edited or rewritten."
+          }
+        ],
+        "paths_changed_attribution": "git status also lists scripts/ci/check-sweep-exemption-hazard.mjs and scripts/ci/check-sweep-exemption-hazard.test.mjs as untracked. Those are DB-014's files, present before this lane started, and DB-015 did not create, edit or read-modify either. They appear here because an untracked-file listing cannot distinguish them, and the alternative — leaving a reader to wonder whether this lane touched another lane's instrument — is worse than a sentence.",
+        "paths_changed": [
+          "scripts/ci/check-never-executed-migration-blocks.mjs (NEW)",
+          "scripts/ci/check-never-executed-migration-blocks.test.mjs (NEW)",
+          "docs/engineering/verification/db015-never-executed-migration-blocks/report.json (NEW, generated)",
+          "docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh (NEW)",
+          "docs/engineering/verification/db015-never-executed-migration-blocks/README.md (NEW)",
+          "docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json (NEW)",
+          "docs/engineering/DECISIONS.md (CP-118 appended; append-only, nothing rewritten)",
+          "docs/engineering/agents/database/STATE.md (one dated section appended)",
+          "docs/engineering/tasks/active/DB-015.json (this record)"
+        ],
+        "what_was_measured_note": "Every figure below is read back out of report.json and was re-verified against it after the final code change. Three of them were WRONG in an earlier revision of this record — carried over from a run before the last two defects were fixed — and were corrected rather than left, because a report that states a number nobody derived is the same failure this task exists to detect.",
+        "what_was_measured": {
+          "guard_sites": 567,
+          "never_executed": 53,
+          "guard_true": 109,
+          "unanalysed": 405,
+          "routed": 53,
+          "unrouted": 0,
+          "disposition_groups": 12,
+          "severity_distribution": {
+            "high": 1,
+            "medium": 13,
+            "low": 35,
+            "informational": 4
+          },
+          "control_class_distribution": {
+            "schema-compatibility": 20,
+            "rls-policy": 15,
+            "post-condition-assertion": 10,
+            "policy-removal": 4,
+            "early-return-guard": 4
+          },
+          "migrations_carrying_a_finding": 32,
+          "spellings_of_the_class": 4,
+          "instances_with_a_measured_exposure_window": 1
+        },
+        "routed_list": [
+          {
+            "id": "DB015-K1",
+            "severity": "high",
+            "findings": 1,
+            "where": "20250812093500:35",
+            "owner": "database DB-002 + work",
+            "note": "the CP-109 instance; already closed at source by DB-014, open for apply"
+          },
+          {
+            "id": "DB015-K2",
+            "severity": "low",
+            "findings": 1,
+            "where": "20250812093000:12",
+            "owner": "database DB-013 / work",
+            "note": "staff_shifts; superseded by 20260821031214"
+          },
+          {
+            "id": "DB015-K3",
+            "severity": "medium",
+            "findings": 1,
+            "where": "20250812093500:10",
+            "owner": "database DB-013 + work",
+            "note": "staff_zones; a THIRD instance nobody had written down, 25 lines above the confirmed one"
+          },
+          {
+            "id": "DB015-K4",
+            "severity": "medium",
+            "findings": 1,
+            "where": "20250812093500:106",
+            "owner": "database DB-002 + work",
+            "note": "team_communications; compounds an availability gap DB-014 already routed"
+          },
+          {
+            "id": "DB015-K5",
+            "severity": "medium",
+            "findings": 3,
+            "where": "20250812093000:38,62,86",
+            "owner": "database DB-002 + admin + work",
+            "note": "event_vendor_requests has a SEVEN-MONTH version gap"
+          },
+          {
+            "id": "DB015-K6",
+            "severity": "medium",
+            "findings": 7,
+            "where": "20250812093500:60,83; 20260414120000:41,54,544,557,588",
+            "owner": "database DB-002 (retired-surface ledger) + qa",
+            "note": "seven blocks guard on five tables NO migration creates and that are absent from lib/database.types.ts"
+          },
+          {
+            "id": "DB015-K7",
+            "severity": "low",
+            "findings": 4,
+            "where": "20260414120000:517,521,525,537",
+            "owner": "database DB-002 + integrations",
+            "note": "drop-policy-only blocks; the highest-consequence shape in principle, measured LOW because all four aim at policy names no migration creates"
+          },
+          {
+            "id": "DB015-K8",
+            "severity": "low",
+            "findings": 10,
+            "where": "6 files incl. 20260926150000, 20260926200000, 20260927100000",
+            "owner": "database — the authors; three are two days old",
+            "note": "inert post-condition assertions; the chain's NEWEST migrations carry this class in their own post-conditions"
+          },
+          {
+            "id": "DB015-K9",
+            "severity": "informational",
+            "findings": 4,
+            "where": "20250813121000:8,46; 20250904110000:11; 20250905004500:6",
+            "owner": "database + work + social",
+            "note": "is-null-then-return guards; the only findings with a real consequence are two never-created indexes on staff_invitations"
+          },
+          {
+            "id": "DB015-K10",
+            "severity": "low",
+            "findings": 7,
+            "where": "7 files incl. duplicated 20250818122000/20250818122010",
+            "owner": "database + work + admin",
+            "note": "workforce column back-fills; 20250818122000 and 20250818122010 are the same two repairs written twice"
+          },
+          {
+            "id": "DB015-K11",
+            "severity": "low",
+            "findings": 13,
+            "where": "13 files incl. 20250130000001:81",
+            "owner": "database + artist/discover + venue + social",
+            "note": "tour/event/profile column back-fills; 20250130000001:81 is the chain's only INTRA-FILE instance"
+          },
+          {
+            "id": "DB015-K12",
+            "severity": "medium",
+            "findings": 1,
+            "where": "20250813122000:98",
+            "owner": "database + artist/discover + qa",
+            "note": "THE ONE WITH A MEASURED EXPOSURE WINDOW: tour_vendors carried only a permissive for-all policy for three months"
+          }
+        ],
+        "correction_to_the_brief": "The brief asked for the third, fourth or fifth instance, and for the class to be corrected if it were narrower than CP-109 claims. Both halves are answered and they point in opposite directions. WIDER: the class is four spellings, not one, and 15 RLS-policy blocks over 8 tables rather than two. NARROWER: 47 of the 53 are correctly inert, so CP-109's 'not a weaker control, it is an absent one' is right for the high instance and wrong for the other 52 in aggregate. The most useful single result is not a new exposure but a measured historical one: DB015-K12's three-month window on tour_vendors, which is the only place in the chain where a never-executed block demonstrably left a permissive policy in force, and therefore the only place where this class produced a disclosure rather than a gap in the paperwork.",
+        "self_audit": "Five defects in this detector are recorded in report.json under defectsFoundInThisDetector and each is pinned by a fixture or a test. SELF-1 whole-condition polarity inferred from any `not exists`, inverting every conjunction (four false positives in security-named files). SELF-2 only the `then` arm measured, so an inverted guard's `else` control was reported dead (three live enable-row-level-security policies). SELF-3 a drop-policy block at HIGH because a quoted policy name with spaces was read as the next bare word, yielding the policy named `on`. SELF-4 a trailing \\s+ eating the mask's blanks, the same capture from a second site. SELF-5 the mask blanking every dollar-quoted span, so a DO body scanned through it was empty and the detector found ZERO guard sites in the whole chain — a clean report from a broken instrument, caught by the anti-vacuity gate. The general form, which is the reusable part: every one was a matcher slightly too loose producing a confident wrong answer, in the same direction as the answer it was meant to replace. A sixth finding was a test asserting a property the code does not have — that a unit separator protects row boundaries as well as column boundaries — and the test was corrected to assert what is true rather than the check being weakened.",
+        "verification": [
+          "node scripts/ci/check-never-executed-migration-blocks.mjs -> exit 0. 567 guard sites: 53 never executed, 109 guard true, 405 unanalysed; 53/53 routed; anchors seen; order-mutation proof holds; 22/22 in-process fixtures.",
+          "node --test scripts/ci/check-never-executed-migration-blocks.test.mjs -> 36 tests, 36 pass, 0 fail.",
+          "bash docs/engineering/verification/db015-never-executed-migration-blocks/execution-harness.sh -> ALL CHECKS PASSED, exit 0, three throwaway PostgreSQL 16.15 clusters.",
+          "npm run agents:validate -> exit 0, 0 warnings, 0 errors.",
+          "npm run check:migration-chain -> exit 0, 315 files.",
+          "npm run verify:feature -- --changed -> PARTIAL: lint (including both new .mjs files), scoped typecheck, check:migration-chain and check:migration-validation all passed; the tier then aborted at check:supabase-target for want of three unset environment variables. The post-abort steps run individually are red on 7 counts, all in WFC-003's untracked __tests__/admin/workforce-identity-contract.test.ts and check:admin-audit, neither of which references anything this lane created.",
+          "Not run and not claimed: a full-repo npm run typecheck, npm run generate:database-types, npm run check:database-types, supabase db lint --local, npm run agents:generate, and every hosted probe. No migration was applied anywhere."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "id": "HF-DB-015-CI-WIRING",
+      "to": "release",
+      "status": "pending",
+      "path": "docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json",
+      "purpose": "Wire the detector and its node:test sibling into package.json and ci.yml, with the exact commands, the expected exit today, and the two legitimate ways the check can go red on day one stated so neither is mistaken for a broken check. Also why the execution harness must NOT be wired into CI."
+    }
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

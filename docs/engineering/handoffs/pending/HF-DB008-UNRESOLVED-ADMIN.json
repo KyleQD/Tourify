@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB008-UNRESOLVED-ADMIN",
   "task_id": "DB-008",
   "from_agent": "database",
   "to_agent": "admin",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T21:30:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "These objects are recorded `unknown`, not guessed. They are absent from the active migration chain, absent from lib/database.types.ts, absent from every archived or out-of-chain SQL file in the repository, and every consumer is a module nothing imports. The intended contract cannot be decided from the repository, so the database lane recorded them explicitly instead of choosing. audit_logs, access_audit_log, user_roles (16 diagnostic hits). ",
@@ -28,5 +28,7 @@
     "PASS: zero non-active SQL evidence exists for each object (searched supabase/migrations/archive, supabase/migrations_backup, supabase/migration-archive, the legacy root-level scripts and scripts/).",
     "NOT RUN: no tsc run and no migration apply were performed by the database lane in this wave."
   ],
-  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "ADMIN-018",
+  "completion_condition": "Decide per object: delete the dead module, or state the real requirement so a new database task can be raised."
 }

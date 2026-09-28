@@ -1,0 +1,49 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET",
+  "task_id": "TICKET-008",
+  "from_agent": "ticketing",
+  "to_agent": "orchestrator",
+  "status": "pending",
+  "created_at": "2026-09-27T22:35:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "dirty_state_caveat": "Shared dirty worktree: 539 entries at TICKET-008 start (566 by the end, other lanes landing throughout), 8+ lanes. The ticketing lane changed exactly one file outside its own grant (docs/engineering/database-type-inventory-2026-09-25.json, which IS its TICKET-008 working set) and authored no migration. Chain file count moved 317 -> 320 during the session, so another lane is adding migrations concurrently; every absence claim here was re-derived against all 320 and is re-checkable.",
+  "summary": "TICKET-008 dispositioned the `settlements` object of the DB-008 ticketing code-drift cluster as ACCEPTED DEBT, not as a dead consumer, and the reason is a fact only the database lane can settle: the repository contains BOTH 'the active chain never creates public.settlements' AND 'some target already has it'. supabase/migrations/20260720021441_admin_tour_foundation_security.sql:1 is a marker-only migration whose entire body is `select 1;;` and whose single comment line records that the foundation security — including the settlements tables — was 'already applied via execute_sql'. That is an admitted out-of-band apply. So a chain-built target has no settlements, and a target that received 20260720021441's subject matter out of band does, and nothing in the repository distinguishes them. The same live-versus-chain shape DB-008 already recorded for scheduled_posts.platform_status, which is why this is not a guess. Two live consumers depend on the answer, and neither is in the ticketing grant: lib/venue/finance-snapshot.ts:112 and app/api/admin/finances/settlements/route.ts:99. The ticketing share is already closed (the ticketing route reads only ticket_revenue_allocations + financial_transactions and reports settlement: null with settlement_available: false), so this is a target question, not a migration-authoring request.",
+  "working_set": [
+    "supabase/migrations/20260720021441_admin_tour_foundation_security.sql:1 — the marker-only file whose comment records the out-of-band apply of the settlements tables",
+    "supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260602130000_settlements.sql — the archived shape, for reference only; never copy from migration-archive/ into the active chain",
+    "lib/venue/finance-snapshot.ts:104-132 — the venue consumer, read-only here (lib/venue/** is venue's grant)",
+    "app/api/admin/finances/settlements/route.ts:98-118 — the admin consumer, read-only here (app/api/admin/** is admin's grant)",
+    "Read-only disposition record: docs/engineering/database-type-inventory-2026-09-25.json, items[settlements] — disposition, decisionOwner and dispositionEvidence"
+  ],
+  "completed": [
+    "Re-derived the absence with effective-schema resolution instead of a text match: resolved every CREATE in all 320 top-level chain files through each file's own search_path, and public.settlements is created in NO schema. The only two textual mentions in the chain are an RLS policy description (20260720020544:448) and a permission label (20260823050000:39) — neither is a relation, which is why a naive grep produces a false positive here.",
+    "Established the trap explicitly rather than assuming it: 20260821025543 sets `search_path = private, public` before creating ticketing_migration_issues, so that object is a private-schema relation. Absence was therefore re-checked in every schema, not only public, for all four cluster objects.",
+    "Found the out-of-band admission that makes the object undecidable from the repository alone, and confirmed the admitting file performs no DDL of its own (`select 1;;` after comment stripping, and no create/alter/drop/grant/revoke token).",
+    "Proved the object is NOT a dead consumer: two live consumers remain, both outside the ticketing grant, and the fence test pins their existence so the disposition cannot be silently downgraded to 'dead'.",
+    "Recorded the disposition in the inventory with its evidence and named this handoff as the decision path, rather than choosing between the two contradicting repository statements.",
+    "Named the local shapes that would apply if the answer is 'it exists': the archived definition at 20260602130000_settlements.sql, re-authored forward-only, never copied from migration-archive/."
+  ],
+  "next_steps": [
+    "orchestrator (ORCH-004): run a catalog read against a real target — to_regclass('public.settlements') plus information_schema.columns — and record the answer in docs/engineering/migration-validation/hosted-history-ledger.json alongside the regeneration-target decision already tracked in HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE. One read settles the live-versus-chain question for both remaining consumers at once.",
+    "orchestrator (ORCH-004): if the table is absent everywhere, say so in the ledger and the two consumers become pure dead reads; venue (HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO) already owns the venue-side correction and admin owns its own. Do NOT author a settlements migration to make the reads work — absence from the chain is the finding, and creating the table would manufacture a money surface.",
+    "orchestrator (ORCH-004): if the table IS present on any target, capture it as an additive forward-only migration so regeneration can no longer delete it — the same remedy HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE established for scheduled_posts.platform_status. Do not treat the marker file as sufficient provenance: it is a comment, not DDL.",
+    "ticketing (TICKET-008 is closing): none. This lane made no migration and claims no apply. TICKET-006's 20260927120000_ticketing_issuance_slot_dedup.sql is authored-only and unrelated."
+  ],
+  "blockers": [
+    "No deployed target and no credentials exist in this environment, so the catalog read cannot be performed from the ticketing lane; that is the entire reason the disposition is accepted debt rather than a decision. CP-051 forbids manufacturing a local chain replay as a substitute, and `supabase start` is not attempted (disk is tight).",
+    "The `--linked` project is permanently disqualified as a regeneration target (it is a different lineage, 609 relations / 8,020 columns), so it cannot be used to answer the existence question either.",
+    "File-scope boundary: lib/venue/** and app/api/admin/** are outside the ticketing grant, so this lane recorded the two consumers and did not edit either.",
+    "Re-targeted mid-session: this handoff was first filed to DB-019, which the database lane completed while TICKET-008 was running. ORCH-004 already holds the paired question — which target is authoritative, and what does it actually contain — via HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE, and the ledger write is the same artifact, so the two must not be decided separately."
+  ],
+  "verification": [
+    "PASS: effective-schema scan of all 320 top-level files in supabase/migrations resolves public.settlements in NO schema. Method: strip comments, collect every `set search_path` and `create schema` with its statement offset, then resolve each unqualified CREATE to the FIRST search_path entry that exists.",
+    "PASS (negative control, both directions): the same scan finds public.ticket_types, public.venue_profiles, public.ticket_revenue_allocations, public.financial_transactions and public.tickets, and it resolves ticketing_migration_issues to `private` and not `public`. A resolver that could not fail would prove nothing, so the resolver is additionally driven with synthetic input in __tests__/ticketing/db008-drift-cluster-disposition.test.ts.",
+    "PASS: the two mentions of the word in the active chain are 20260720020544:448 (an RLS policy description) and 20260823050000:39 (a permission label); neither is a CREATE.",
+    "PASS: supabase/migrations/20260720021441_admin_tour_foundation_security.sql matches /settlements tables/ and /already applied via execute_sql/i, and its comment-stripped body contains no create/alter/drop/grant/revoke token.",
+    "PASS: lib/database.types.ts has no occurrence of the object, so regeneration cannot fix or detect it either way.",
+    "NOT RUN, and not claimed: no tsc run (the 1,384-diagnostic figure was not re-measured), no migration apply, no catalog read, no full-repo typecheck (68m18s, OOMs on this 8GB box)."
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "orchestrator (ORCH-004): record a catalog read of a real target (to_regclass('public.settlements') plus information_schema.columns) in docs/engineering/migration-validation/hosted-history-ledger.json, alongside the regeneration-target decision already tracked in HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE, and either capture the table as an additive forward-only migration if any target carries it or record that no target carries it so the two remaining consumers are confirmed dead reads. Either answer closes the object; leaving it undecided does not."
+}

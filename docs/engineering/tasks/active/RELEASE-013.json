@@ -1,0 +1,138 @@
+{
+  "schema_version": "2.0",
+  "id": "RELEASE-013",
+  "title": "Finish the reproducible runtime baseline",
+  "status": "active",
+  "execution_state": "in_progress",
+  "priority": "P0",
+  "owner_agent": "release",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "release",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-28T03:09:30.883Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Resolve the lockfile, runtime, generated-type, typecheck, and build evidence still open from RELEASE-006.",
+  "scope": {
+    "in": [
+      "Resolve the lockfile, runtime, generated-type, typecheck, and build evidence still open from RELEASE-006."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "package.json",
+    "package-lock.json",
+    ".github/workflows/ci.yml"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/release/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Selected as the owner's single active implementation or verification lane.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Resolve the lockfile, runtime, generated-type, typecheck, and build evidence still open from RELEASE-006.",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "fail",
+        "commands": [
+          "npm run agents:validate -- --strict",
+          "npm run test:agents",
+          "PGBIN=/opt/homebrew/opt/postgresql@16/bin npm run --silent check:db008-harness"
+        ],
+        "evidence": [
+          "node -e require('./package.json') -> parse OK, scripts['check:db008-harness'] === 'bash supabase/tests/db008_run_all.sh' (file present, mode 755)",
+          "node -e yaml.parse('.github/workflows/ci.yml') -> YAML PARSE OK, 12 jobs; migration-gates name='Migration Gates' steps=10, final step = 'DB-008 reconciliation harness'; grep -n 'needs:' .github/workflows/ci.yml -> NONE (zero matches)",
+          "npm run --silent check:db008-harness -> exit 0, 'grep -c ^PASS ' == 8, 'ran 9, skipped 1, failed 0'; PASS x8 + SKIP view-delta",
+          "env PGBIN=/nonexistent-postgresql-16-bin npm run --silent check:db008-harness -> exit 0, 'grep -c ^PASS ' == 8 (THE ASSERTION DOES NOT FIRE), ran 9/skipped 1/failed 0; all 6 postgres-backed harness logs contain only 'SKIP no local PostgreSQL at /nonexistent...' and 0 scenario-PASS lines -> six no-ops reported as PASS",
+          "required-context byte check: ci.yml names = Agent Control Plane, Production Debug Scan, Vitest, Database Types, Lint And Build, Migration Gates, Service-Role Audit, Route And Registry Gates, Regression Safeguards, Jest Unit Tests, Mobile Typecheck And Lint, Production Build; all 10 recorded required contexts resolve (4 in ci.yml, 2 in e2e.yml, 4 in security-scans.yml); the 6 REL-003 planned additions are byte-identical too",
+          "npm run check:toolchain -> exit 1 with 'npm_config_user_agent is missing or not npm' purely from a stale ambient export (npm/undefined node/v24.3.0) in this shell, NOT a repo defect; with the agent corrected -> 'Node v24.19.0; npm@11.17.0; lockfile v3' exit 0",
+          "npm run --silent check:peer-deps -> exit 0; npm audit --audit-level=high -> exit 0, 34 vulnerabilities (8 low, 26 moderate), 0 high, 0 critical; node scan of ci.yml -> 28 distinct npm scripts referenced, 0 missing",
+          "env -u NEXT_PUBLIC_SITE_URL npm run validate:env:production -- --phase build -> exit 1, fail-closed on NEXT_PUBLIC_SITE_URL; the other 6 required vars are satisfied only by the shared dirty worktree's untracked .env.local, confirming RELEASE-006's local-credential framing",
+          "npm run --silent check:migration-validation -> exit 0 incl. 'scanned 20260925130000_intg006_webhook_delivery_receipts.sql with planned manifest' and 'scanned 20260927120000_ticketing_issuance_slot_dedup.sql with planned manifest'; check:sweep-exemption-hazard exit 0; check:never-executed-migration-blocks exit 0",
+          "shasum -a 256 supabase/migrations/20260927120000_ticketing_issuance_slot_dedup.sql -> b1afcbb00b025ddce4147e406b36a05f03e13995ac31a3f08d1ac1e462b6ea80, byte-identical to the hash HF-TICKET-006-ISSUANCE-DEDUP-APPLY records; both migrations contain 0 drop-table/schema/database or truncate lines; 20260927120000 is the highest version in the 317-file chain",
+          "NOT RUN, with reasons: 'npm ci' (disk 17GiB free now, but a re-extract is not risk-free on a shared 500+ entry dirty worktree and nothing here needs it); 'npm run typecheck' (68m18s, OOMs on this box, explicitly out of bounds); 'npm run build:vercel' (credential-gated; the guard's fail-closed behaviour was proven instead); no 'supabase start', no migration apply, no staging target, no hosted mutation",
+          "typecheck independent static confirmation of DB-008's classification: 'add column if not exists listing_kind' at supabase/migrations/20260926120100_marketplace_external_listing_surface.sql:68 with 0 hits in lib/database.types.ts (regeneration-closable); artist_profiles.stage_name appears only in a comment at 20260925210000:35 and in neither chain DDL nor the contract (NOT closable by any regeneration)",
+          "PGBIN=/nonexistent-pg16 npm run --silent check:db008-harness -> exit 0, grep -c \"^PASS \" == 8, 6 \"SKIP no local PostgreSQL\" lines; old anchored grep -c \"^SKIP no local PostgreSQL\" == 0, new grep -cE \"^[[:space:]]*SKIP no local PostgreSQL\" == 6",
+          "Step body extracted from ci.yml via yaml.parse and executed against fixtures: healthy pg16 log -> exit 0 (8 PASS, 0 SKIP); preflight-passing-but-6-no-op log -> exit 1 \"::error::a DB-008 harness reported no local PostgreSQL\"; missing pg16 -> exit 1 with candidate enumeration",
+          "Negative control, real PostgreSQL 16.15 at /opt/homebrew/opt/postgresql@16/bin: exit 0, 8 PASS, 0 no-op SKIPs, so the new guard is not vacuously true",
+          "bash -n on the extracted step body: SYNTAX OK. yaml.parse(.github/workflows/ci.yml) -> OK, 12 jobs, migration-gates 10 steps, DB-008 step last, zero \"needs:\" anywhere",
+          "actions/runner-images Ubuntu2404-Readme.md fetched 2026-09-27: PostgreSQL 16.15, service disabled by default, so the server binaries including initdb are present under /usr/lib/postgresql/16/bin",
+          "actions/runner-images#14748 and Ubuntu2604-Readme.md fetched 2026-09-27: ubuntu-latest uses Ubuntu 26.04 in November 2026 and the 26.04 image ships PostgreSQL 18.6, so the hardcoded 16 path will not exist then"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T03:09:30.883Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "RELEASE-013 second pass. The blocking item named by the previous checkpoint -- \"Orchestrator, patch 1\" -- was ALREADY APPLIED to .github/workflows/ci.yml at 18:07:55 EDT, BEFORE this task record was created at 19:59, so the previous next_steps were stale on arrival. I re-verified the patch instead of trusting it, and found its fail-closed SKIP guard did not work. ci.yml grepped \"^SKIP no local PostgreSQL\" (anchored, no leading whitespace allowed) but db008_run_all.sh captures each harness to its own log and replays it via \"tail -3 | sed s/^/  /\", so a harness own SKIP line arrives INDENTED BY TWO SPACES after the runner has already printed PASS for it. Measured on this tree: PGBIN=/nonexistent-pg16 yields grep -c \"^PASS \" == 8 and exit 0, with 6 \"SKIP no local PostgreSQL\" lines, of which the old anchored pattern matched 0. The step would have gone green having executed 2 of 8 harnesses -- the exact mode the surrounding comment claims to prevent. FIXED in ci.yml, inside this task working set: the guard is now grep -qE \"^[[:space:]]*SKIP no local PostgreSQL\". Verified by extracting the step own shell body from ci.yml and executing it against captured fixture logs: healthy pg16 log -> exit 0 with 8 genuine PASS; preflight-passing-but-6-harnesses-no-op -> exit 1 with ::error::; missing pg16 -> exit 1. Negative control: a real PostgreSQL 16.15 run gives 8 PASS and 0 SKIP lines, so the guard is not vacuously true. Harness re-run after the edit: exit 0, 8 PASS, 0 no-op SKIPs. NEW DATED RISK FOUND AND RECORDED rather than silently absorbed: the hardcoded PGBIN=/usr/lib/postgresql/16/bin is correct today, verified against actions/runner-images that the Ubuntu 24.04 image (what ubuntu-latest resolves to now) ships PostgreSQL 16.15 with the server package so initdb is present. But ubuntu-latest moves to Ubuntu 26.04 in November 2026 (actions/runner-images#14748) and the 26.04 image ships PostgreSQL 18.6 with no 16 tree, so this step goes red then, by design. The preflight now names that cause and enumerates any candidate bin dirs, because 8 PASS is only evidence if the harnesses ran on the major version they claim. I also caught and fixed a dead diagnostic line of my own making: \"ls ... | sed ... || echo\" can never fire its fallback, because a pipeline status is its last command status and sed always succeeds; that dead line would have hidden the one fact a reader needs, namely whether any PostgreSQL tree exists at all. RESULT RE-ENCODED AS fail for the same reason as the previous checkpoint: AC-1 is compound and its typecheck half still cannot pass (>=1,308 residual diagnostics, 331 not closable by regeneration), and npm ci and build:vercel remain unrun. The fix closes the one gate closable locally; it does not make AC-1 met, so AC-1 stays not_started and this task stays active.",
+    "completed": [
+      "ci.yml DB-008 step: replaced the anchored guard with grep -qE \"^[[:space:]]*SKIP no local PostgreSQL\"; the old pattern matched 0 of 6 real SKIP lines because db008_run_all.sh indents them by two spaces via sed",
+      "ci.yml DB-008 step: made the PGBIN preflight self-diagnosing, naming the November 2026 ubuntu-latest to Ubuntu 26.04 / PostgreSQL 18.6 move as the expected cause and enumerating candidate /usr/lib/postgresql/*/bin directories",
+      "ci.yml DB-008 step: fixed a dead diagnostic line, since \"ls | sed || echo\" can never fire its fallback because a pipeline status is its last command status and sed always succeeds"
+    ],
+    "next_steps": [
+      "CI, re-measure this step on a real GitHub run: the defect was reproduced and the fix verified locally against captured fixtures, but only an actual ubuntu-latest run proves the 8 harnesses execute there. Watch for either the 8-PASS invariant holding or the new self-diagnosing preflight message firing.",
+      "Release decision owner, due before November 2026: choose between pinning runs-on: ubuntu-24.04 for the migration-gates job and installing postgresql-16 from apt.postgresql.org. Both options are recorded in the ci.yml comment. Do NOT accept whatever initdb the image happens to ship, because 8 PASS is only evidence at the claimed major version.",
+      "Owner decision 1, unchanged and still open: the CI typecheck job cannot pass on the current tree. Recommend keeping the job required and recording it red as the true state; do not waive it and do not set typescript.ignoreBuildErrors. Name an owner for the 331 non-regeneration diagnostics via HF-RELEASE-DB-TYPECHECK.",
+      "Owner decision 2, unchanged and still open: provision a CHAIN-BUILT staging target (CP-127: not --linked), then run the Layer 0 preflight and the exactly-once apply of 20260927120000_ticketing_issuance_slot_dedup.sql, both duplicate postflight probes (must return 0 rows), the row-count-unchanged check, and the Layer 3 runtime probe. Then apply 20260925130000_intg006_webhook_delivery_receipts.sql, without which app/api/webhooks/supabase/notifications/route.ts fails closed 500 on every delivery.",
+      "RELEASE-013 stays ACTIVE until a real CI run re-measures this step. Local verification scope is otherwise exhausted."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T22:10:20.967Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "RELEASE-013 verification pass (read/verify only; no file edited). RESULT ENCODED AS 'fail' BECAUSE THE ENUM HAS NO PARTIAL (HF-RELEASE-011-TASK-SCHEMA-HAS-NO-PARTIAL-RESULT): of the gates executed, most passed and one found a real defect, and 'pass' would overstate it. (1) DB-008 harness wiring is BROKEN IN CI, not in YAML: structurally correct (valid YAML, step 10 of 10 inside 'Migration Gates', no 'needs:' anywhere, 12 jobs all independent) and the script key resolves, but six of the eight harnesses are PostgreSQL-16-server-backed and default PGBIN to the macOS Homebrew path /opt/homebrew/opt/postgresql@16/bin. ci.yml sets PGBIN nowhere, and on ubuntu-latest each of those six prints 'SKIP no local PostgreSQL at ...' and exits 0, which the runner converts to 'PASS <name>'. The '==8' invariant cannot distinguish eight executed harnesses from two executed plus six no-ops - the exact Wave-33 mode the script header says it exists to prevent. Exact patch text is recorded in this task's progress.next_steps for the orchestrator. (2) All 10 recorded required contexts resolve byte-identically; the four ci.yml-owned names are unchanged by the appended step, and the six REL-003 planned additions also match byte-for-byte, so no branch-protection change is implied. (3) RELEASE-006: toolchain PASS (after clearing a stale ambient npm_config_user_agent), peer-deps PASS, audit --audit-level=high exit 0 with 0 high/0 critical, all 28 npm scripts referenced by ci.yml exist, env guard fails closed at exit 1, 3 static migration gates PASS including scans of both migrations I gate. npm ci, full typecheck and build:vercel NOT run, with reasons. (4) Typecheck cannot pass: 1,384 measured diagnostics minus at most 76 regeneration-closable leaves >=1,308; I independently confirmed the classification statically. (5) Launch gates: both migration files verified byte-intact, both manifests present, zero destructive statements, but no staging target exists here so every apply/postflight/runtime probe is owner-gated.",
+        "completed": [],
+        "next_steps": [
+          "Orchestrator, patch 1 (blocking, ci.yml step 'DB-008 reconciliation harness'): add 'env: PGBIN: /usr/lib/postgresql/16/bin' to the step and a fail-closed preflight 'test -x \"/initdb\" || { echo ::error::no PostgreSQL 16 server binaries; exit 1; }' before the npm run, so six harnesses actually execute and a future runner-image change surfaces red instead of as six silent no-ops. Full patch text is in the task record.",
+          "Owner decision 1: the CI typecheck job CANNOT pass on the current tree (>=1,308 residual diagnostics, of which 331 are unclosable by any regeneration). Recommend KEEPING the job required and recording it red as the true state; do NOT waive it and do NOT set typescript.ignoreBuildErrors. Name an owner for the 331 non-regeneration diagnostics via HF-RELEASE-DB-TYPECHECK.",
+          "Owner decision 2: provision a CHAIN-BUILT staging target (CP-127: not --linked), then run the Layer 0 preflight + exactly-once apply of 20260927120000_ticketing_issuance_slot_dedup.sql, both duplicate postflight probes (must return 0 rows), the row-count-unchanged check, and the Layer 3 runtime probe. Then apply 20260925130000_intg006_webhook_delivery_receipts.sql, without which app/api/webhooks/supabase/notifications/route.ts fails closed 500 on every delivery.",
+          "RELEASE-013 stays ACTIVE until patch 1 lands and is re-measured on a real CI run. Local verification scope is otherwise exhausted."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-28T03:09:30.883Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "RELEASE-013 second pass. The blocking item named by the previous checkpoint -- \"Orchestrator, patch 1\" -- was ALREADY APPLIED to .github/workflows/ci.yml at 18:07:55 EDT, BEFORE this task record was created at 19:59, so the previous next_steps were stale on arrival. I re-verified the patch instead of trusting it, and found its fail-closed SKIP guard did not work. ci.yml grepped \"^SKIP no local PostgreSQL\" (anchored, no leading whitespace allowed) but db008_run_all.sh captures each harness to its own log and replays it via \"tail -3 | sed s/^/  /\", so a harness own SKIP line arrives INDENTED BY TWO SPACES after the runner has already printed PASS for it. Measured on this tree: PGBIN=/nonexistent-pg16 yields grep -c \"^PASS \" == 8 and exit 0, with 6 \"SKIP no local PostgreSQL\" lines, of which the old anchored pattern matched 0. The step would have gone green having executed 2 of 8 harnesses -- the exact mode the surrounding comment claims to prevent. FIXED in ci.yml, inside this task working set: the guard is now grep -qE \"^[[:space:]]*SKIP no local PostgreSQL\". Verified by extracting the step own shell body from ci.yml and executing it against captured fixture logs: healthy pg16 log -> exit 0 with 8 genuine PASS; preflight-passing-but-6-harnesses-no-op -> exit 1 with ::error::; missing pg16 -> exit 1. Negative control: a real PostgreSQL 16.15 run gives 8 PASS and 0 SKIP lines, so the guard is not vacuously true. Harness re-run after the edit: exit 0, 8 PASS, 0 no-op SKIPs. NEW DATED RISK FOUND AND RECORDED rather than silently absorbed: the hardcoded PGBIN=/usr/lib/postgresql/16/bin is correct today, verified against actions/runner-images that the Ubuntu 24.04 image (what ubuntu-latest resolves to now) ships PostgreSQL 16.15 with the server package so initdb is present. But ubuntu-latest moves to Ubuntu 26.04 in November 2026 (actions/runner-images#14748) and the 26.04 image ships PostgreSQL 18.6 with no 16 tree, so this step goes red then, by design. The preflight now names that cause and enumerates any candidate bin dirs, because 8 PASS is only evidence if the harnesses ran on the major version they claim. I also caught and fixed a dead diagnostic line of my own making: \"ls ... | sed ... || echo\" can never fire its fallback, because a pipeline status is its last command status and sed always succeeds; that dead line would have hidden the one fact a reader needs, namely whether any PostgreSQL tree exists at all. RESULT RE-ENCODED AS fail for the same reason as the previous checkpoint: AC-1 is compound and its typecheck half still cannot pass (>=1,308 residual diagnostics, 331 not closable by regeneration), and npm ci and build:vercel remain unrun. The fix closes the one gate closable locally; it does not make AC-1 met, so AC-1 stays not_started and this task stays active.",
+        "completed": [
+          "ci.yml DB-008 step: replaced the anchored guard with grep -qE \"^[[:space:]]*SKIP no local PostgreSQL\"; the old pattern matched 0 of 6 real SKIP lines because db008_run_all.sh indents them by two spaces via sed",
+          "ci.yml DB-008 step: made the PGBIN preflight self-diagnosing, naming the November 2026 ubuntu-latest to Ubuntu 26.04 / PostgreSQL 18.6 move as the expected cause and enumerating candidate /usr/lib/postgresql/*/bin directories",
+          "ci.yml DB-008 step: fixed a dead diagnostic line, since \"ls | sed || echo\" can never fire its fallback because a pipeline status is its last command status and sed always succeeds"
+        ],
+        "next_steps": [
+          "CI, re-measure this step on a real GitHub run: the defect was reproduced and the fix verified locally against captured fixtures, but only an actual ubuntu-latest run proves the 8 harnesses execute there. Watch for either the 8-PASS invariant holding or the new self-diagnosing preflight message firing.",
+          "Release decision owner, due before November 2026: choose between pinning runs-on: ubuntu-24.04 for the migration-gates job and installing postgresql-16 from apt.postgresql.org. Both options are recorded in the ci.yml comment. Do NOT accept whatever initdb the image happens to ship, because 8 PASS is only evidence at the claimed major version.",
+          "Owner decision 1, unchanged and still open: the CI typecheck job cannot pass on the current tree. Recommend keeping the job required and recording it red as the true state; do not waive it and do not set typescript.ignoreBuildErrors. Name an owner for the 331 non-regeneration diagnostics via HF-RELEASE-DB-TYPECHECK.",
+          "Owner decision 2, unchanged and still open: provision a CHAIN-BUILT staging target (CP-127: not --linked), then run the Layer 0 preflight and the exactly-once apply of 20260927120000_ticketing_issuance_slot_dedup.sql, both duplicate postflight probes (must return 0 rows), the row-count-unchanged check, and the Layer 3 runtime probe. Then apply 20260925130000_intg006_webhook_delivery_receipts.sql, without which app/api/webhooks/supabase/notifications/route.ts fails closed 500 on every delivery.",
+          "RELEASE-013 stays ACTIVE until a real CI run re-measures this step. Local verification scope is otherwise exhausted."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

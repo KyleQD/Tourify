@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
+- Source SHA: `16fb834f1a03a70f165be470a5f98f389bf6100a`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (152 entries)
-- Generated at: 2026-09-25T23:26:47.265Z
+- Working tree: dirty (745 entries)
+- Generated at: 2026-09-28T03:22:14.585Z
 - Generator: `control-plane.mjs generate`
 
-## TSX and JSX files (1945)
+## TSX and JSX files (1954)
 
 | Source | Detected exported components |
 | --- | --- |
@@ -1681,6 +1681,15 @@
 | `components/ui/multi-select.tsx` | MultiSelect |
 | `components/ui/navigation-menu.tsx` | default or inline |
 | `components/ui/neo-date-input.tsx` | NeoDateInput |
+| `components/ui/ops-attention.tsx` | OpsAttentionItem, OpsAttentionList |
+| `components/ui/ops-collection.tsx` | OpsCollection, OpsCollectionItem, OpsBulkActionBar, OpsRowAction |
+| `components/ui/ops-filters.tsx` | OpsSourceStateFilter, OpsStatusFilter |
+| `components/ui/ops-inspector.tsx` | OpsInspectorPanel, OpsInspectorSheet, OpsInspectorSection, OpsInspectorField, OpsInspectorFields |
+| `components/ui/ops-metric.tsx` | OpsMetric, OpsMetricGrid, OpsMetricLoading, OpsDepartmentHealthRow, OpsDepartmentHealthList, OpsDepartmentHealthItem, OpsCountPill |
+| `components/ui/ops-shell.tsx` | OpsSkipLink, OpsShellHeader, OpsShellNav, OpsNavLink, OpsShell, OpsSection, OpsScopeBar, OPS_MAIN_ID |
+| `components/ui/ops-source-state.tsx` | OpsSourceStateBadge, OpsSourceValue, OpsSourceStateRow, OpsSourceHealthPanel, OpsSourceLoading |
+| `components/ui/ops-status-chip.tsx` | OpsStatusChip, OpsStatusDot, OpsStatusMeter, OPS_STATUS_VOCABULARIES |
+| `components/ui/ops-timeline.tsx` | OpsTimelineEntry, OpsTimeline, OpsTimelineGroup, OpsRecordStrip |
 | `components/ui/pagination.tsx` | default or inline |
 | `components/ui/photo-upload.tsx` | PhotoUpload |
 | `components/ui/popover.tsx` | default or inline |

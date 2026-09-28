@@ -1,0 +1,124 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-005",
+  "title": "Implement department membership and status commands",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Provide secure department administration, membership transfer, and append-only manager-controlled workforce status services.",
+  "scope": {
+    "in": [
+      "Department CRUD and manager assignment",
+      "Primary transfer and secondary membership commands",
+      "Audited bulk membership changes",
+      "Append-only status events and latest-state projection"
+    ],
+    "out": [
+      "Worker UI redesign",
+      "Mutable or deletable status history"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/workforce/people/**",
+    "app/api/admin/workforce/health/**",
+    "app/api/admin/workforce/departments/**",
+    "app/api/admin/workforce/memberships/**",
+    "app/api/admin/workforce/status/**",
+    "lib/workforce/** (created by this task: department, membership, and manager-status commands; WFC-006/012/014/019 build their own subtrees under it)",
+    "types/workforce/** (created by this task: department, membership, and status types)",
+    "__tests__/workforce/** (department, membership, and status tests)"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-004.json",
+    "docs/engineering/agents/work/CHARTER.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Admin and department-manager resource scopes are enforced before every read/write",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Primary transfers are transactional and audited",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Status history is append-only and exceptional/retroactive changes require reasons",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Worker evidence cannot overwrite manager state",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "work",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/workforce",
+          "npm run test:rls-matrix",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on the canonical department/membership schema and RLS contract.",
+    "completed": [],
+    "next_steps": [
+      "You create lib/workforce/** and types/workforce/**. Both are absent today. WFC-006, WFC-012, WFC-014, and WFC-019 build their own subtrees under this tree; do not pre-author theirs.",
+      "CP-103 partition: claim only people, health, departments, memberships, and status under app/api/admin/workforce/**. The other four WFC service lanes each own a disjoint set of the seven live routes.",
+      "Disposition the existing app/api/admin/workforce/people and /health routes: adopt, reconcile, or leave to their named owner. Do not write a parallel implementation.",
+      "Accept the WFC-003 identity contract as the only source of organization, manager, and vendor resolution; do not re-derive it (CP-102)."
+    ],
+    "blockers": [
+      "WFC-004 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Work → Admin: typed department, membership, and status contracts for WFC-010/WFC-015",
+    "Work → WFC-006: stable status projection"
+  ],
+  "scope_expansions": [],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "work",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "You create lib/workforce/** and types/workforce/**. Both are absent today. WFC-006, WFC-012, WFC-014, and WFC-019 build their own subtrees under this tree; do not pre-author theirs.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "work",
+      "condition": "WFC-004 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

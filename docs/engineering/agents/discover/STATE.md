@@ -1,9 +1,20 @@
 # Discover state
 
-- Last reviewed SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96` (dirty shared worktree, 6 concurrent lanes)
-- Last reviewed at: 2026-09-25
-- Active task: DISC-002 (canonical search + Wave 35 SSRF/sanitizer/drift lane; focused verification passed 12 files / 117 tests and 8 files / 86 tests; INTERNAL_API_ORIGIN prerequisite, three schema drifts and the hosted re-scan still pending)
-- Confidence: implementation and focused verification re-checked; three newly-found schema drifts are recorded, not fixed, because the fixes are not discover's
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `DISC-004` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DISC-005` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DISC-006` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
+- Last reviewed SHA: `16fb834f1a03a70f165be470a5f98f389bf6100a` (dirty shared worktree, 6 concurrent lanes)
+- Last reviewed at: 2026-09-27
+- DISC-002 and DISC-003 are closed. DISC-003 closed the outbound trust boundary's reporting layer and the three silent-empty news drifts (see "Silent-empty closure" below); the transport guard itself was committed earlier.
+- Confidence: implementation and focused verification re-checked on 2026-09-27 (8 files / 209 tests, scoped tsc clean, scoped eslint clean, pre-fix proof 66/87 failing). The three schema drifts are still live in the active chain: recorded and loud, **not fixed**, because the fixes are not discover's.
 
 ## Durable facts
 
@@ -223,7 +234,7 @@ Update this file only when a task establishes a durable fact future work needs.
   `app/api/feed/posts/route.ts` adds 12 `supabase: any` parameters and 41 bare `any`
   identifiers — the exact `withAdminCapability` shape. Both are outside discover's edit
   scope for a security lane; both are in `HF-DISC-002-TSC-LOWER-BOUND-DRIFT`.
-- The instrument, kept as a gate rather than a report:
+- The   instrument, kept as a gate rather than a report:
   `__tests__/news/news-feed-schema-drift.test.ts` parses `lib/database.types.ts` and
   cross-checks every `.from().select()` in `lib/news/**`, with a 7-entry `ACCEPTED` list so
   it is fail-closed for **new** drift and each accepted exception must stay annotated in
@@ -231,3 +242,42 @@ Update this file only when a task establishes a durable fact future work needs.
   `app/api/feed/music/route.ts:174` selects four `artist_music` columns that exist in the
   active chain but not in the contract, so a guard failure means "contract and chain
   disagree", not always "this select is broken".
+
+## Silent-empty closure — 2026-09-27 (DISC-003, AC-1)
+
+- The SSRF class is closed and the standing check is the grep, not a scanner:
+  `rg -n "new URL\('/api/" app lib` returns doc-comment prose only. Wave 36 added the
+  **route-level** proof that was missing: no test in this repository had ever *executed*
+  a handler in this domain, so "the routes do not smuggle an origin" was a claim about a
+  file's shape. `__tests__/discover/outbound-trust-boundary-routes.test.ts` (78 tests)
+  builds real `NextRequest`s whose inbound origin is attacker-chosen, runs the three
+  exported handlers, and counts sockets and DNS lookups.
+- **PostgREST does not throw for an absent relation.** It resolves `{ data: null, error }`.
+  `getUserPreferenceData` reported its two dead tables only from a `catch`, so the report
+  could not fire and `error` was destructured away — the third drift produced **zero**
+  diagnostics, not a weak one. Both queries now read `error`, report through a one-shot
+  `reportMissingSchemaOnce` that names the table, the PostgREST code and the routing, and
+  add a `preferences` entry to `degradedSources`.
+- `degradedSources` is the durable shape: `'external' | 'blog' | 'music' | 'preferences'`,
+  threaded from `buildNewsFeed` through `getUserSignalProfile` to
+  `getUserPreferenceData`, surfaced in `GET /api/news/feed` `meta.degradedSources`, and it
+  also **gates the timeline cache** — a feed missing a section is never promoted to a cache
+  hit that later serves as a healthy feed with no trace of the failure. The same idea made
+  `POST /api/opportunities/sync` return **503** rather than `{ success: true, upserted: 0 }`
+  for an unconfigured upstream, and gave `GET /api/opportunities?refresh=true` a
+  `meta.ingest` block.
+- **A structural guard is not a behavioural one.** `news-feed-schema-drift.test.ts` reads
+  the live worktree with `process.cwd()`, so it passes against a pre-fix *runtime*; only
+  the route suite fails on pre-fix code. The pre-fix proof therefore has to be a behavioural
+  suite, run against base-SHA sources aliased from a mirror outside the workspace: 66 of 87
+  failed pre-fix, and the 21 that passed were exactly the already-committed transport guard
+  and the file-shape assertions.
+- Wave 35 left a **hard break**: `reportMissingSchemaOnce` was wired at two call sites and
+  never declared — two TS2304 diagnostics and a `ReferenceError` waiting in a `catch` block,
+  with no gate to catch either, because vitest transpiles without checking types and nothing
+  reached that block. A `reportMissingSchemaOnce` declaration assertion now gates it.
+- Residual, social-owned: `app/api/feed/for-you/route.ts:26` calls `buildNewsFeed` and does
+  not propagate `degradedSources`, so that surface still serves a quietly short feed. Not
+  fixed here; it is the same file as the one-line `requestOrigin` residual in
+  `HF-DISC-002-FORYOU-REQUESTORIGIN-RESIDUAL`.
+

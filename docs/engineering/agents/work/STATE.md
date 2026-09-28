@@ -1,8 +1,23 @@
 # Work state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `WFC-005` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-006` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-012` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-014` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-019` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WORK-006` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WORK-010` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f` (dirty working tree, 320 entries, 6 concurrent lanes)
 - Last reviewed at: 2026-09-25 (Wave 34: WORK-005…009 re-verified; WORK-009 merge-mode ordering defect fixed; DB-008 code-drift cluster dispositioned)
-- Active task: WORK-005, WORK-006, WORK-007, WORK-008, WORK-009 — all active, all blocked on hosted evidence that does not exist; no local defect remains in work-owned code
+- Historical active-task note (superseded by generated queue summary): WORK-005, WORK-006, WORK-007, WORK-008, WORK-009 — all active, all blocked on hosted evidence that does not exist; no local defect remains in work-owned code
 - Confidence: working — strong read-model/service/test evidence; live PII vault and worker check-in not verifiable until staged WS-1.1 migrations are applied
 
 ## Durable facts
@@ -49,3 +64,10 @@ Hiring surfaces remain separate where their responsibilities differ until a pari
 contract is evidenced. Staffing table selection remains provisional pending
 Database reconciliation; assignment tables cover shift placement, while employment,
 onboarding, applications, and job postings converge through documented bridges.
+
+## Workforce Command Center assignment — 2026-09-26
+
+- Goal: own WFC services, APIs, scheduling behavior, manager-controlled status, action projection, attendance, actual time, costs, and payroll logic.
+- Queued tasks: `WFC-005`, `WFC-006`, `WFC-012`, `WFC-014`, and `WFC-019`; each remains blocked on the recorded Database or upstream service contract and does not displace WORK-005 through WORK-009.
+- Required handoff: provide Admin with stable typed APIs, authorization behavior, partial-source semantics, audit behavior, and focused contract evidence; never emulate missing schema in production code.
+- Governing plan: `docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md`.

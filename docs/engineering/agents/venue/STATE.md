@@ -1,8 +1,17 @@
 # Venue state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `VENUE-006` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f` (task base_sha)
 - Last reviewed at: 2026-09-25 (VENUE-004 / VENUE-005 wave 34: SEC-109 green, DB-008 venue code-drift cluster cleared)
-- Active task: VENUE-004 (availability write path) and VENUE-005 (availability/reservations raw-read boundary) — both implementation-complete in source, both with hosted gates still open
+- Historical active-task note (superseded by generated queue summary): VENUE-004 (availability write path) and VENUE-005 (availability/reservations raw-read boundary) — both implementation-complete in source, both with hosted gates still open
 - Confidence: high for the availability/reservations boundary and for the SEC-109 classification; the code-drift cluster is closed for every file inside the venue grant, with 14 of 135 hits handed off
 
 ## Durable facts
@@ -223,3 +232,72 @@ Update this file only when a task establishes a durable fact future work needs.
 - Venue suite: **15 files / 131 tests** (was 14 / 102). `npm run typecheck` was **not** run
   (68m18s on CI, 1,384 errors across 197 files, OOMs on this 8GB box), so the cluster's
   contribution to the baseline is measured per-file, not against a re-run.
+
+## The booking-request availability read-error posture is settled: fail OPEN and log — 2026-09-28 (VENUE-007, VENUE-D07)
+
+- **Ratified:** a venue availability block *read error* at the booking-request boundary
+  does not reject the request. The events lane's `EVENTS-002-D1` implementation is correct
+  as written and stands unchanged (`app/api/booking-requests/route.ts:115-117` logs and
+  proceeds). VENUE-007 decided this; it did not re-implement the boundary.
+- **The venue lane's own fail-closed instruction is withdrawn.**
+  `HF-VENUE-004-BOOKING-RECEIVING` `next_steps[1]` was the source of the divergence and is
+  now annotated `DO NOT FOLLOW`, with the original text quoted for history and the ratified
+  position stated in its place. The handoff no longer reads as a standing fail-closed order.
+  Its stale line references were corrected at the same time — they still claimed
+  `validateVenueAvailability` "does not consult venue_availability", which EVENTS-002 made
+  false. Current bytes: `:86-160`, block check `:99-118`, capacity `:120-127`,
+  approved-booking window `:137-157`, policy read `:327-332`, `readVenueBookingPolicies`
+  `:70-84`, auto-approve `:365`, call site `:310-317`.
+- **The reusable rule (this is the part future lanes need):** decide an availability check's
+  read-error posture by asking **whether the check narrows or gates** — not by asking which
+  posture the neighbouring checks happen to use. A *narrowing* check (block, approved-booking
+  conflict) may fail open: its failure admits a request for human review and grants no
+  access. A *permission gate* (`allow_bookings`, capacity) must fail closed: its failure
+  silently inverts an operator's expressed intent. The block check is a narrowing filter.
+- **All three checks at this boundary were measured, and all three fail open.** Capacity
+  read `:120-126` destructures only `{ data: venue }` (a failed read → `capacity` 0 →
+  `capacity > 0` false). Approved-booking read `:142-150` destructures only `{ count }`
+  (a failed read → `count || 0` → 0). A **fourth** read fails open in the *permissive*
+  direction and was not previously named by either lane: the venue policy read `:327-332`
+  discards `error`, and `readVenueBookingPolicies` computes `allowBookings:
+  s.allow_bookings !== false` at `:78`, so a transient read error sets `allowBookings` to
+  **true** and inverts the venue's explicit "not accepting booking requests" switch
+  (`:334-339`). Those two are permission gates and are routed as a fail-closed task.
+- **Why the events lane's consistency argument is not a precedent:** two accidental
+  violations are not a rule, the approved-booking count is *more* dangerous to fail open
+  than the block check (it misses a conflict with an already-promised booking), and the
+  policy read fails open on an explicit gate. Why its severity argument is weaker than
+  stated: `booking_policies.auto_approve = "all"` sets `initialStatus = "approved"` at
+  request time (`:365`) with no human in the loop, and the reservation conflict engine
+  constrains `venue_reservations` (a *different* table, per
+  `20260823140000_reservation_conflict_engine.sql:92-99`), is recorded as staged/not
+  applied, and is 503-gated behind `isVenueBookingLifecycleEnabled()`.
+- **The named debt (trigger R1):** this boundary is where the request is *formed*, not where
+  the promise is *kept*, and `app/api/venue/booking-requests/route.ts:106-203` never consults
+  `venue_availability` — it reads only `venue_booking_requests` and calls
+  `transition_venue_booking_lifecycle`. So the request-time block check is currently the
+  **only** place the canonical block contract is enforced anywhere in the product, and a
+  block can still be silently overridden by an auto-approved request. Fail-open is ratified
+  *because* of this gap, not in spite of it; closing it is routed and should be opened
+  regardless of which posture holds.
+- **Why fail-closed would be worse here specifically:** the block check runs *first* (`:99`,
+  ahead of capacity), so its failure mode is a confident 409 — `The venue is not available
+  on <date>` for a date the venue never blocked. The 409 vocabulary is a business-fact
+  vocabulary with no way to say "we could not confirm", so a fail-closed rejection would
+  misstate a fact to a paying artist and suppress the venue's own book, invisibly, with no
+  retry affordance and no alert on the 409 path.
+- **Five falsification-grade re-evaluation triggers** (R1 block check at the promise point;
+  R2 a *measured* read error rate for this query, which does not exist and is not claimed;
+  R3 a retryable non-409 error vocabulary; R4 auto-approve not universally reachable;
+  R5 the permission-gate reads fixed first). Full argument, both blast radii, and all
+  triggers: `docs/engineering/agents/venue/DECISIONS.md` VENUE-D07.
+- **Coverage gap, recorded not hidden:** no test in `__tests__/venue/` asserts the ratified
+  fail-open policy, because the test that pins it (EVENTS-002's
+  `__tests__/events/booking-request-availability.test.ts`) is outside the venue grant. Venue
+  suite green at 15 files / 131 tests; `npm run agents:validate -- --strict` 0 warnings /
+  0 errors. No hosted evidence is claimed; no migration authored or applied (CP-051).
+- **FIND-1 routed, not fixed:** the canonical block check uses the UTC calendar day
+  (VENUE-D03) while the pre-existing approved-booking check uses `[start, start+1day)`, so
+  an approved booking *earlier the same UTC day* is missed. The window semantics were not
+  changed here — that decision is not covered by any acceptance criterion and needs its own
+  task. Owner: events, venue consulted on the canonical day definition.

@@ -39,7 +39,7 @@
     },
     {
       "gap": "Six ALTERs are skipped by a fresh chain replay",
-      "detail": "Version order is not calendar order, so 20250904110000 (2025-09-04) runs BEFORE 20260413200000 (2026-04-13). 20250813121000 ALTERs public.staff_invitations four times and 20250904110000 / 20250905004500 ALTER public.scheduled_posts, all inside to_regclass or information_schema guards, at points where those relations do not yet exist. A fresh replay therefore skips all six; the staff_invitations columns still arrive from the later CREATE, and the two scheduled_posts columns (platform_status, platform_errors) are absent from both the chain and the contract, so the two agree. A LIVE target that received the tables earlier may carry platform_status / platform_errors, which a chain-built target will not \u2014 a live-versus-fresh divergence that regeneration would remove.",
+      "detail": "Version order is not calendar order, so 20250904110000 (2025-09-04) runs BEFORE 20260413200000 (2026-04-13). 20250813121000 ALTERs public.staff_invitations four times and 20250904110000 / 20250905004500 ALTER public.scheduled_posts, all inside to_regclass or information_schema guards, at points where those relations do not yet exist. A fresh replay therefore skips all six; the staff_invitations columns still arrive from the later CREATE, and the two scheduled_posts columns (platform_status, platform_errors) are absent from both the chain and the contract, so the two agree. A LIVE target that received the tables earlier may carry platform_status / platform_errors, which a chain-built target will not — a live-versus-fresh divergence that regeneration would remove.",
       "resolution": "Operator decision before the next regeneration: does any live target carry scheduled_posts.platform_status? If yes, capture it as an additive migration (or confirm it is dead) rather than letting regeneration delete it. Recorded as a handoff.",
       "evidence": [
         "supabase/tests/db008_chain_contract_replay.mjs report.preCreateAlters"
@@ -829,7 +829,10 @@
         "get_enhanced_artist_stats",
         "settlements",
         "track_venue_profile_view"
-      ]
+      ],
+      "disposition": "complete",
+      "dispositionTask": "TICKET-008",
+      "dispositionSummary": "All four objects dispositioned with re-derived evidence, not from the summary. 2 dead-consumer (get_enhanced_artist_stats, ticket_notifications), 2 accepted-debt (settlements, track_venue_profile_view), 0 canonical-replacement-required. Two of the four file-level attributions in this cluster were false: get_enhanced_artist_stats had four liveConsumers and zero code callers, and track_venue_profile_view was filed under the ticketing webhook route that never referenced it. The ticketing share of this cluster now contributes 0 diagnostics from the ticketing grant, proven by a scoped tsc."
     },
     {
       "owningDomain": "search",
@@ -2367,7 +2370,7 @@
       "kind": "relation-or-rpc",
       "classification": "code-drift",
       "basis": "the object exists only in archived or out-of-chain SQL, so the active chain deliberately never created it; the consumer must be repointed or removed",
-      "canonicalReplacement": null,
+      "canonicalReplacement": "lib/public-artist/artist-stats.ts (the capability is computed locally; there is no RPC to repoint to)",
       "tscDiagnosticHits": 10,
       "tscFiles": [
         "contexts/artist-context.tsx",
@@ -2379,15 +2382,8 @@
       "consumerVerdict": "live",
       "conflictLiveConsumer": true,
       "migratedThisWave": false,
-      "liveConsumers": [
-        "contexts/artist-context.tsx",
-        "lib/marketplace/public-listing-query.ts",
-        "lib/marketplace/ticket-source-adapter.ts",
-        "lib/public-artist/get-public-artist-profile.ts"
-      ],
-      "deadConsumers": [
-        "lib/music/creator-outbox-runner.ts"
-      ],
+      "liveConsumers": [],
+      "deadConsumers": [],
       "evidence": {
         "inActiveChain": false,
         "inGeneratedTypes": false,
@@ -2411,7 +2407,18 @@
         "ticketing": 1,
         "library": 1,
         "artist": 1
-      }
+      },
+      "disposition": "dead-consumer",
+      "decisionOwner": "artist",
+      "dispositionTask": "TICKET-008",
+      "dispositionEvidence": [
+        "active chain (320 files), resolved through each file search_path: created in NO schema — supabase/migrations has no CREATE for it",
+        "lib/database.types.ts: no occurrence",
+        "lib/marketplace/ticket-source-adapter.ts — the one file the inventory filed under the ticketing domain — contains no rpc() call at all (empty rpc surface), so the \"ticketing\" attribution in domainFileCounts is a path-to-domain mapping artefact",
+        "fence: __tests__/ticketing/db008-drift-cluster-disposition.test.ts"
+      ],
+      "consumerVerdictAtDisposition": "zero-code-callers",
+      "basisAtDisposition": "Re-derived by TICKET-008. The wave-35 consumerVerdict \"live\" with four liveConsumers is FALSIFIED: no production code calls the RPC. All surviving occurrences are comments that document its absence, supabase/optimize-artist-backend.sql:379 (not a migration, never applied), supabase/migrations/archive/fix_artist_music_upload.sql:239 (archived), and two artist-lane negative assertions. Already fenced by __tests__/artist/db008-code-drift-repoints.test.ts:241 and __tests__/artist/feed-analytics-scope.test.ts:33, so no new work is required and the remaining attributed hits are comment text."
     },
     {
       "object": "marketplace_external_clicks",
@@ -3903,7 +3910,7 @@
       "kind": "relation-or-rpc",
       "classification": "code-drift",
       "basis": "the object exists only in archived or out-of-chain SQL, so the active chain deliberately never created it; the consumer must be repointed or removed",
-      "canonicalReplacement": null,
+      "canonicalReplacement": "public.ticket_revenue_allocations + public.financial_transactions (the canonical ticketing settlement surface; both created in the active chain)",
       "tscDiagnosticHits": 4,
       "tscFiles": [
         "app/api/ticketing/settlements/route.ts"
@@ -3936,7 +3943,19 @@
       "primaryDomain": "ticketing",
       "domainFileCounts": {
         "ticketing": 1
-      }
+      },
+      "disposition": "accepted-debt",
+      "decisionOwner": "orchestrator (HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET, ORCH-004 — a catalog read of a real target) and venue (HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO, VENUE-006 — the false zero in lib/venue/finance-snapshot.ts)",
+      "dispositionTask": "TICKET-008",
+      "dispositionEvidence": [
+        "active chain: created in NO schema; the only two mentions are an RLS policy description (20260720020544:448) and a permission label (20260823050000:39), neither of which is a relation",
+        "supabase/migrations/20260720021441_admin_tour_foundation_security.sql:1 — marker-only, body is `select 1;;` and performs no DDL, but records an out-of-band apply Owner note: the handoff was first filed to DB-019, which the database lane completed while TICKET-008 was running; it now sits on ORCH-004, which already holds the paired regeneration-target decision and the same hosted-history-ledger write.",
+        "lib/venue/finance-snapshot.ts:117 — `settlementsRes.data || []` turns a failed read into an empty settlement set, so every share reports settlement_status \"unsettled\": a FALSE ZERO on a chain-built target",
+        "app/api/admin/finances/settlements/route.ts:111 — same read, but fails closed with 503 finance_unavailable",
+        "fence: __tests__/ticketing/db008-drift-cluster-disposition.test.ts"
+      ],
+      "consumerVerdictAtDisposition": "live-out-of-grant",
+      "basisAtDisposition": "NOT a dead consumer, and not decidable from the repository. Two live consumers remain outside the ticketing grant: lib/venue/finance-snapshot.ts:112 and app/api/admin/finances/settlements/route.ts:99. The chain itself records an admitted out-of-band apply — supabase/migrations/20260720021441_admin_tour_foundation_security.sql:1 is a marker-only file whose only line says the settlements tables were \"already applied via execute_sql\" — so absence from the chain does not prove absence on a live target, exactly like the scheduled_posts.platform_status live-versus-chain divergence recorded in knownGaps. The ticketing share is closed: app/api/ticketing/settlements/route.ts no longer reads the relation, and reports settlement: null with settlement_available: false so absence can never read as a zero."
     },
     {
       "object": "skill_categories",
@@ -4011,7 +4030,7 @@
       "kind": "relation-or-rpc",
       "classification": "code-drift",
       "basis": "the object exists only in archived or out-of-chain SQL and every consumer is an unreachable module: re-creating it would resurrect a retired surface",
-      "canonicalReplacement": null,
+      "canonicalReplacement": "lib/ticketing/notifications.ts — OptimizedNotificationService.createNotification with an idempotency_key; this is the whole role ticket_notifications played",
       "tscDiagnosticHits": 4,
       "tscFiles": [
         "lib/services/ticketing.service.ts"
@@ -4038,7 +4057,19 @@
       "primaryDomain": "ticketing",
       "domainFileCounts": {
         "ticketing": 1
-      }
+      },
+      "disposition": "dead-consumer",
+      "decisionOwner": "design-system (owns lib/services/**; the deletion is NOT performed by TICKET-008) — HF-TICKET-035-TICKET-NOTIFICATIONS, DESIGN-033",
+      "dispositionTask": "TICKET-008",
+      "dispositionEvidence": [
+        "rg -n sendTicketNotification over the tree: 1 code hit (the definition) + documentation",
+        "rg create table (if not exists )?(public.)?ticket_notifications supabase/migrations/*.sql: no rows; definitions exist only under supabase/migrations_backup/2025012800000{0,1}_*enhanced_ticketing_system.sql",
+        "lib/database.types.ts: no occurrence — this is why the .from() is a TS overload error and not only a runtime problem",
+        "components/ticketing/ticket-purchase-form.tsx proves module liveness; rg confirms it never calls the dead method",
+        "fence: __tests__/ticketing/db008-drift-cluster-disposition.test.ts"
+      ],
+      "consumerVerdictAtDisposition": "live-module-dead-method",
+      "basisAtDisposition": "Re-validated zero use at TICKET-008. Exactly one occurrence in the whole repository: the .from() at lib/services/ticketing.service.ts:343. The enclosing method sendTicketNotification has exactly one occurrence, its own definition, so it is unreachable code. The module itself is LIVE — components/ticketing/ticket-purchase-form.tsx:14 imports it and calls validatePromoCode and purchaseTickets at 133 and 210 — so the wave-35 \"unreachable module\" verdict is wrong and the module must never be deleted. Refinement to the wave-35 recipe: getNotificationTitle (384) and getNotificationMessage (398) are private and each occurs exactly twice, the definition and the one call inside the dead method, so deleting only 340-364 leaves two newly-dead private helpers."
     },
     {
       "object": "track_venue_profile_view",
@@ -4075,7 +4106,19 @@
       "domainFileCounts": {
         "ticketing": 1,
         "venue": 1
-      }
+      },
+      "disposition": "accepted-debt",
+      "decisionOwner": "venue (HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW, VENUE-006 — delete the call or land the function)",
+      "dispositionTask": "TICKET-008",
+      "dispositionEvidence": [
+        "active chain: created in NO schema; sole definition is supabase/migrations_backup/20250120300000_enhance_venue_profiles_comprehensive.sql:377",
+        "venue_profile_views (the table the function inserts into) is also created in NO schema — so the function could not work even if the function existed",
+        "lib/database.types.ts: no occurrence for either name",
+        "app/api/venues/[id]/route.ts:102-119 — the call is inside try/catch with console.warn, confirming the low blast radius",
+        "fence: __tests__/ticketing/db008-drift-cluster-disposition.test.ts"
+      ],
+      "consumerVerdictAtDisposition": "live-venue-route-no-ticketing-consumer",
+      "basisAtDisposition": "The ticketing attribution is false and independently reconfirmed at TICKET-008: app/api/ticketing/webhook/route.ts contains no occurrence anywhere in the tree, and the whole ticketing grant queries none of the four objects. Not a dead consumer either, because app/api/venues/[id]/route.ts:109 is an entry-reachable App Router route. There is no canonical replacement to repoint to — the function AND its backing table venue_profile_views are both created in no schema of the active chain and declared in no generated type, so the rpc() is a guaranteed PGRST202 on a chain-built target. It is guarded by try/catch with console.warn, so it degrades the profile-view counter instead of breaking the route. Whether profile-view tracking is a promised capability is a venue product decision, not a technical one."
     },
     {
       "object": "update_account_stats",
@@ -4351,7 +4394,14 @@
       "primaryDomain": "app-surface",
       "domainFileCounts": {
         "app-surface": 3
-      }
+      },
+      "disposition": "prohibited",
+      "decisionOwner": "none — a prohibition, not a work item",
+      "dispositionTask": "TICKET-008",
+      "dispositionEvidence": [
+        "active chain: created in NO schema. The only repository SQL reference is the revoke in supabase/migrations/20260717194541_harden_security_audit_remediation.sql, which is evidence the function must NOT exist.",
+        "fence: __tests__/ticketing/db008-drift-cluster-disposition.test.ts asserts it stays absent, so creating it fails the suite rather than passing review."
+      ]
     },
     {
       "object": "get_account_analytics",
@@ -5509,6 +5559,12 @@
       "at": "2026-09-26T01:40:00.000Z",
       "by": "database",
       "note": "Wave 35 revised the REGENERATION ANSWER, not the diagnostic inventory. The 1,384 diagnostics were not re-measured (no tsc run: this box has 8 GB and the full typecheck OOMs), and the CI log this inventory was built from is unchanged. What changed is what regeneration would DO, and by how much, and the fact that one of the three regeneration targets is a different database."
+    },
+    {
+      "wave": 36,
+      "at": "2026-09-27T22:30:00.000Z",
+      "by": "ticketing (TICKET-008)",
+      "note": "TICKET-008 dispositioned the 4 objects of the ticketing code-drift cluster. No diagnostic was re-measured and no number here changed: the 1,384 / 407 / 128 figures are untouched, and tscDiagnosticHits and tscFiles are preserved exactly as the wave-35 CI log recorded them. What was added is a per-object disposition with its own evidence, plus corrections to two falsified premises (get_enhanced_artist_stats consumerVerdict, and the ticketing attribution of track_venue_profile_view). All absence claims were re-derived with effective-schema resolution, because \"not in the chain\" and \"not in public\" are different questions: 20260821025543 sets search_path = private, public, so ticketing_migration_issues is a private-schema relation."
     }
   ],
   "outOfBandDdlDelta": {
@@ -5694,5 +5750,5 @@
     ],
     "explicitlyNotDone": "Nothing in the 'undecidable' set was migrated. The database lane will not invent a table to make tsc quieter: the measured evidence from Waves 33 and 34 is that a plausible-looking invented column is found at PostgREST, not at compile time."
   },
-  "lastRevisedAt": "2026-09-26T01:40:00.000Z"
+  "lastRevisedAt": "2026-09-27T22:30:00.000Z"
 }

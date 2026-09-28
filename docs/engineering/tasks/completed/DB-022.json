@@ -1,0 +1,255 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-022",
+  "title": "Decide and express owning-account control for event provider connections",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "database",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "created_at": "2026-09-28T01:05:00.000Z",
+  "updated_at": "2026-09-28T05:55:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; ~690 entries of concurrent lanes' in-flight work, all preserved. DB-022 authored NO migration and applied NOTHING to any environment (CP-051): `ls supabase/migrations/*db022*` matches nothing. It wrote exactly five files, all inside the granted paths: supabase/tests/db022_provider_ownership_contract.sql, supabase/tests/db022_provider_ownership.harness.sh, supabase/tests/db022_provider_ownership.harness.sh.bootstrap.sql, docs/engineering/handoffs/pending/HF-DB-022-CONNECT-OWNER-VALIDATION.json, docs/engineering/agents/database/STATE.md, plus this record. 20260927140000_event_provider_connections.sql is READ ONLY and byte-unchanged: sha256 d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420, identical to DB-020's recorded hash. No app/api/events/**, no app/api/integrations/**, no docs/engineering/DECISIONS.md. Nothing was committed or pushed.",
+  "goal": "Record whether public.event_provider_connections can carry a verifiable owning-account reference, and either author the additive migration that adds it with its predicate, or record that the check stays application-side and name the single consumer that must enforce it.",
+  "scope": {
+    "in": [
+      "Decide, with evidence, whether a verifiable owning-account reference can be added to public.event_provider_connections",
+      "Author the additive migration that expresses the decision, if the decision is to express it at the data boundary",
+      "State the row-level predicate that would make the existing own-rows policies sufficient on their own"
+    ],
+    "out": [
+      "Applying any migration to any environment. CP-051: manual, explicit, operator-driven, one at a time",
+      "Editing app/api/events/[id]/claim/route.ts; EVENTS-004 completed and fixed that specific path",
+      "Editing app/api/integrations/bandsintown/connect/route.ts; the integrations lane owns it and this task reports the requirement as a handoff instead",
+      "The separate question of what owner_type resolves to, unless a decision here depends on it"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/ (NEW forward-only migration file only, if the decision is to express the boundary in the data layer)",
+    "supabase/tests/ (a NEW db022-prefixed contract file only, if a migration is authored)",
+    "docs/engineering/agents/database/STATE.md",
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE.json (discharge when the completion condition is met)"
+  ],
+  "shared_working_set": [
+    "supabase/migrations/20260927140000_event_provider_connections.sql (READ ONLY, never modified -- this task adds forward, it never rewrites an applied migration)"
+  ],
+  "references": [
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE.json",
+    "docs/engineering/tasks/completed/EVENTS-004.json",
+    "docs/engineering/tasks/completed/DB-021.json",
+    "docs/engineering/agents/database/CHARTER.md",
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Not needed. If reopened, the resume condition is the one named in progress.blockers: DB-022 decides the boundary STAYS application-side, so nothing here resumes until the id convention for owner_id is settled by the venue/identity lanes. If that happens the follow-on is a forward-only migration plus a current-control predicate, and it must re-derive this decision rather than inherit it -- supabase/tests/db022_provider_ownership_contract.sql goes red on purpose when the premise changes.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "A dated, evidence-backed decision is recorded stating whether public.event_provider_connections can carry a verifiable owning-account reference, and why the answer is what it is. The evidence must include what the four existing own-rows policies actually constrain, read from the chain rather than assumed.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "DECISION, 2026-09-28, recorded in docs/engineering/agents/database/STATE.md ('DB-022 -- owning-account control for event provider connections is APPLICATION-SIDE, and that is now a decided, asserted fact') and proposed for DECISIONS.md under proposed_decisions below. The orchestrator appends; DB-022 deliberately did not write to that shared file.",
+        "ANSWER: NOT TODAY, and not for the reason the question invites. The control relations all EXIST in the active chain -- artist_profiles.user_id (20240415000000:17), venue_profiles.user_id (:30), venues_v2.created_by (20250816133000:11), organizations.created_by (20250816132000:12) and org_members(org_id, user_id, role) (20250816132000:16-23) -- all asserted present by the harness. The obstacle is that NOTHING states what owner_id IS for a given owner_type, and the candidates are not one per owner_type.",
+        "WHAT THE FOUR POLICIES ACTUALLY CONSTRAIN, read from the chain and then EXECUTED. The four are exactly event_provider_connections_owner_read, _owner_insert, _owner_update and _service_role_all (20260927140000:211-260); a fifth, a DELETE policy, does not exist, and its ABSENCE is asserted as a positive claim by the contract rather than left as an observation. All three own-rows policies are `auth.uid() = created_by`; service_role_all is `USING (true) WITH CHECK (true)` scoped `to service_role`.",
+        "MEASURED, per policy, with the grant issued so the POLICY is the thing under test. READ: U1 (the creator) reads 1 row, unrelated U2 reads 0, and U1 reads the row even though its owner_id names an artist_profiles row owned by a third user U3 -- so owner_id is not part of the constraint. UPDATE: the chain grants authenticated SELECT only, so a first revision of this harness issued the UPDATE and read the resulting 42501 as 'the update policy constrains created_by'. It does not -- the GRANT refused before any policy ran. The harness now issues the UPDATE grant first, and then U1 matches 1 row while U2 matches 0 and the hijack does not land.",
+        "THE ABSENCE OF A DELETE POLICY, CONFIRMED RATHER THAN ASSUMED, and it is subtler than a refusal. With no DELETE grant the statement fails `42501 permission denied for table`. With the grant issued OUT OF BAND it does NOT fail at all: it is a SILENT ZERO-ROW NO-OP, because a DELETE whose USING filters every row away is not an error the way a failed WITH CHECK is. Fail-closed in both cases, which is why the migration's claim that disconnect preserves the row is sound, and asserted rather than believed.",
+        "THE THREE OWN-ROW WRITE POLICIES ARE NOT ON ANY LIVE PATH. All four writers resolve .from() through createServiceRoleClient() (bandsintown/connect:37, disconnect:22, events/[id]/claim:44, cron/events/sync). Measured: a service_role insert naming an owner_id the creator does not control SUCCEEDS and is readable; and with `grant insert, update ... to authenticated` issued out of band an authenticated insert naming a STRANGER's owner_id ALSO SUCCEEDS, because the WITH CHECK never mentions owner_id. The chain's grant is the only thing preventing the second case; the policy is not. That is the escalation primitive 20260927140000:285-289 already names in its own comment, and it is a boundary that is currently UNSTATED at the writer.",
+        "THE AMBIGUITY THAT BLOCKS THE DATA BOUNDARY, EXECUTED RATHER THAN ARGUED. 20260823010000_venue_identity_bridge.sql:36-44 declares a canonical identity TRIANGLE binding venue_profiles, venues_v2 and organizations as three DISTINCT mirrors of one account. Measured: the schema accepts a venue_profiles.id, a venues_v2.id AND an organizations.id under the same owner_type='venue' with zero refusals (5 rows stored, 3 distinct venue owner_ids), and an artist_profiles.id and a BARE auth.users.id under the same owner_type='artist'. Two defensible current-control resolvers, both implementable from the active chain, return DIFFERENT SETS for the same rows -- A `{V4, W4}` reading owner_id as the row's own relation, B `{O1, W4}` reading it as the venue mirror through the bridge. The organization arm disagrees the same way: organizations.created_by alone finds 1 controller, that plus org_members in ('owner','admin') finds 2. The chain has both conventions and picks neither for this table, so there is no single predicate to write.",
+        "WHY A RESOLVER CANNOT BE LIFTED FROM THE CHAIN'S ONE PRECEDENT. 20260825010000_ticketing_owner_account_resolution.sql had to build a 100-line resolver for a DIFFERENT column, and its own header records the defect it fixed: 'ownership only worked when the owner id happened to be a human auth user id'. Its venue arm is EVENT-SCOPED -- it reaches venue_profiles through events_v2.settings->>'venue_profile_id' or venue_identity_bridges -- and a provider connection has no event, so it cannot be reused even if the convention were settled. Writing a resolver here would be inventing the identity convention for a column whose convention the repository has never stated, which is exactly what 20260927140000:221-224 forbids: 'a schema-level owner check here would be invented authorization for a relation whose contract this file does not own'.",
+        "A FALSE ANSWER I ALMOST RECORDED, CORRECTED BEFORE IT REACHED THE RECORD. A first pass grepped the active chain for the control relations with a `public.`-qualified pattern, found none, and was about to conclude that the control relations do not exist. They do; the tables are declared unqualified in their own migrations. The near-miss is recorded because reporting a MISSING control relation where the real problem is an UNSTATED convention would have been the DB-017 error in a new place, and the harness now asserts the control relations' presence first so the tempting wrong answer cannot survive."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Either the additive migration is authored, together with the row-level predicate that makes the existing policies sufficient without the application check, or a recorded finding states that the owning-account check remains purely application-side and names the single consumer responsible for enforcing it. Exactly one of the two, not both, not neither.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "OUTCOME B, AND ONLY B: the owning-account check REMAINS PURELY APPLICATION-SIDE. No migration was authored. `ls supabase/migrations/*db022*` matches nothing, and `git status --porcelain supabase/migrations/` shows no file this task added. This is not both and not neither.",
+        "THE SINGLE CONSUMER RESPONSIBLE, NAMED: app/api/integrations/bandsintown/connect/route.ts. It is the only writer of owner_id (the table's three other consumers only read or update status) and the only point at which an unvalidated owner_id enters the table, which is why the ingress control and not the reader is the responsible consumer. Recorded in STATE.md, in proposed_decisions below, and in the handoff.",
+        "WHY THE ROW-LEVEL PREDICATE WAS STATED RATHER THAN WRITTEN, since the criterion also asks for it. The predicate that would make the existing policies sufficient is a conjunct of the form `auth.uid() = created_by AND <caller currently controls (owner_type, owner_id)>` on all three own-rows policies -- and the second conjunct is NOT WRITABLE today, for the three reasons AC-1 establishes: the id convention is unstated, two implementable resolvers disagree on the same rows, and the writer bypasses the policies entirely, so a new conjunct on them would change no reachable behaviour. It would add a per-row call to the one live caller-side reader (bandsintown/status, which has NO capability gate) and would be a fail-closed availability regression the moment the mapping is wrong. The predicate is therefore recorded as a requirement on the route and as the shape a follow-on migration must take, and NOT authored -- an invented conjunct is precisely what the read-only migration forbids.",
+        "THE DECISION IS AN ASSERTION, NOT PROSE, SO IT CANNOT BE INHERITED BY ACCIDENT. supabase/tests/db022_provider_ownership_contract.sql checks the three decision facts as POSITIVE claims: no foreign key on owner_id; no policy on the table references owner_id; no policy has command DELETE. An absent constraint and an absent conjunct are otherwise indistinguishable from a missing boundary, which is the exact failure DB-017 measured across the capability catalog (9 inert matrix grants believed to be enforced controls). Each violation message names the decision and says it must be re-derived.",
+        "THE THREE READERS ARE RECORDED AS MEASURED, NOT AS SECOND ORDERS. bandsintown/status:19 filters .eq('created_by', user.id) AND reads through the caller's own client, so the RLS read policy also applies; bandsintown/disconnect:32 answers 403 on created_by !== user.id; events/[id]/claim:73 added .eq('created_by', user.id) in EVENTS-004. Stated so that naming ONE responsible consumer is not read as exempting the readers: they carry the created_by bound, which is a DIFFERENT and weaker property than owning-account control, and the handoff says so."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "The created-time-versus-current-time property is addressed explicitly: created_by is a proxy for control of owner_id, and a connection created while a user legitimately held the account says nothing about who holds it now. Any predicate that relies on the proxy records that limit rather than implying current control.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "EXECUTED IN BOTH DIRECTIONS, because one direction alone is a claim the reader could dispute. Direction one, the security half: the seeded connection names an artist_profiles row owned by U3, U1 created it, and U1 can read AND UPDATE it although U1 has never controlled the account. Direction two, the availability half: transfer A1 to U1 and back to U3, and U1's access does not change in either direction -- the policy `auth.uid() = created_by` has no dependency on artist_profiles at all.",
+        "THE CONVERSE, WHICH IS THE HALF THAT IS EASY TO MISS: U3 DOES control A1 right now and is refused the connection for it, because U3 did not create it. So created_by is not a current-control test in EITHER direction, and a report that demonstrated only the first half would have understated the problem.",
+        "NOTHING EXPIRES THE PROXY. The table has no access-expiry, revocation or owner-verification column: asserted as a count of zero over those name patterns, so the claim is checked rather than asserted. created_at is the only recorded time for the ownership assertion, and it is CALLER-SETTABLE: U1 successfully re-pointed it ten years into the past with the UPDATE grant in place, so even the created-time is not an authority.",
+        "HOW THE LIMIT IS EXPRESSED SO IT CANNOT BE READ AS CURRENT CONTROL. Three places, all durable and none of them prose-only: (1) supabase/tests/db022_provider_ownership.harness.sh stage 5 is titled 'created_by IS A CREATED-TIME PROXY, NOT A CURRENT-TIME ONE' and executes the transfer in both directions; (2) the migration's own comment at :191 and the STATE.md entry both say created-time, not ownership; (3) the handoff's note_on_the_claim_route states it as the residual limit of EVENTS-004's fix, which is the exact place a future reader will look.",
+        "NO PREDICATE RESTING ON THE PROXY WAS AUTHORED, SO NO PREDICATE IMPLIES CURRENT CONTROL. The four existing policies do rest on the proxy and the contract asserts their exact rendered predicate, so the proxy is pinned rather than left to drift. The follow-on migration, if the convention is ever settled, must state the created-time limit in its own comment; the contract's column-set assertion (exactly 17 columns) is what forces that to be a deliberate edit, because adding an expiry column without recording the limit would be a contract violation."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "If a migration is authored it is forward-only, additive, re-runnable, and proved against a throwaway PostgreSQL instance with negative controls that fire. Nothing is applied to any project database.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "THE CONDITIONAL IS FALSE AND SAYS SO: no migration was authored, so there is no forward-only/additive/re-runnable property to claim. The instrument clause is honoured anyway and is stronger than required -- the CHAIN'S OWN DDL is applied three times and a full catalog digest (17 columns with types/nullability/defaults, CHECK literal sets, FK targets with delete actions, non-constraint index definitions, every policy's command/roles/rendered USING and WITH CHECK, RLS+FORCE, and the grant set per role per privilege) is compared after each: three identical digests, and the digest is 32 hex characters so it is a value and not an empty string.",
+        "PROVED AGAINST A THROWAWAY INSTANCE, with negative controls that FIRE. bash supabase/tests/db022_provider_ownership.harness.sh -- `checks: 377   failures: 0` / `DB-022 provider-connection ownership: ALL 377 CHECKS PASS`, exit 0, on a throwaway PostgreSQL 16 cluster in a temp dir listening on a unix socket only, created and destroyed by the run. Run TWICE, with a byte-identical sequence of all 377 check names. Eleven negative controls, each demonstrated failing: a permissive USING (true) read; a PARTIAL owner_id-aware conjunct; an owner_id FOREIGN KEY; an added DELETE policy; a re-typed column; a dropped FORCE; the archive's blanket authenticated write grant; a pre-existing table of the wrong shape (in two branches, because the chain's post-condition short-circuits at the RLS check); a revoked dependency grant; and a broken column default.",
+        "THE INSTRUMENT IS PROVEN, WHICH IS WHAT MAKES 377/377 EVIDENCE RATHER THAN A CLAIM. A green first run is the exact condition under which the instrument deserves suspicion, so the same harness was run against two deliberately broken COPIES of the chain in a temp root, same instrument. (a) `event_provider_connections_owner_read` widened to `USING (true)`: the chain's OWN post-condition rejected the fixture and the run ABORTED at stage 1 with `MISSING contract entries: policy:{event_provider_connections_owner_read}:...`. (b) an `owner_id` FOREIGN KEY added in place with NO line shift, so the line-range extraction could not drift and the change was the only variable: the chain's own post-condition stayed SILENT (it never enumerates foreign keys, so the db022 contract is the only thing that catches it), the contract went red with exactly one violation carrying the DECISION DB-022 message, and 24 behavioural checks failed -- including that a service_role insert of a stranger's owner_id is then refused, and that the two disagreeing resolvers stop disagreeing because the ambiguity is gone. The recorded decision is therefore falsifiable by a future migration, and the instrument is shown to notice.",
+        "TWO DEFECTS THE PROOF FOUND IN THIS LANE'S OWN FIRST REVISION, both fixed with controls that keep them fixed. (1) A VACUOUS VIOLATION COUNTER: the harness counted contract violations with `grep -c 'as violation'`, and `as violation` is the column ALIAS, which tuples-only psql does not print -- so that expression was ALWAYS zero, healthy or broken, and it reported 'zero violations' while the contract was emitting them. It was masking (2) a REAL CONTRACT DEFECT: the column comparison put `information_schema`'s `ARRAY` against `format_type`'s `text[]`, so the `scopes` row could never match and the contract reported a violation on a HEALTHY target. Both fixed: a printed `DB022-VIOLATION: ` prefix on all 26 messages, a like-for-like type comparison, a dedicated `pg_attribute` `text[]` assertion (information_schema calls EVERY array `ARRAY`, so it cannot see a `varchar[]` re-type, which N11f demonstrates), and a POSITIONAL prefix-independent count asserted beside the prefix count at every contract run. N11 is the control for the counter itself and is demonstrated moving to 1 and to 2.",
+        "NOTHING WAS APPLIED TO ANY ENVIRONMENT. No `supabase db reset`, no forced or full-chain replay, no `migration up`, no `db push`, no targeted push, no psql against any project database (CP-051). The read-only shared file is byte-unchanged at sha256 d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420, identical to DB-020's recorded hash. A rewritten migration would be a divergent history; none was rewritten.",
+        "DISCLOSED SCOPE EXPANSION, the one departure from the literal working_set. The grant conditions the db022 contract on 'if a migration is authored'; none was, so the clause is false. A contract whose only content is about a migration I did not write would be a contract with nothing to say, and AC-1 demands evidence that the four policies constrain what they are claimed to constrain -- which cannot be established by reading them, given DB-017's 9 believed-enforced inert grants and DB-023's 9-of-13 green controls measuring nothing. So the granted PATH (supabase/tests/, db022-prefixed, new files only) was used for a proof harness, following the exact db008/db023 precedent of harness + contract + bootstrap. Three files, all db022-prefixed, all new, all in the granted path. The reason is recorded in the checkpoint below."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "The requirement that app/api/integrations/bandsintown/connect/route.ts validate caller control of owner_id before the insert is handed to the integrations lane as a handoff, because that is the point at which an unvalidated owner_id enters the table and every later reader inherits it.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "HANDOFF RAISED: docs/engineering/handoffs/pending/HF-DB-022-CONNECT-OWNER-VALIDATION.json, to_agent integrations, accepting_task_id INTG-008, status pending, created_at 2026-09-28T05:40:00.000Z, source_sha 16fb834f1a03a70f165be470a5f98f389bf6100a.",
+        "THE GAP IS CITED TO THE LINE, not paraphrased: app/api/integrations/bandsintown/connect/route.ts:36-54. `connectSchema` is z.object({ ownerType: z.enum(['artist','venue','organization']), ownerId: z.string().uuid(), ... }) at :8-13, so ownerId is validated as a UUID and for nothing else; the only auth is getUser() at :30-34; and between the parse at :36 and the service-role upsert at :39-54 there is no call that resolves the account or compares the caller to it.",
+        "THE HARM IS MEASURED, NOT DESCRIBED. On the throwaway instance: a service_role insert naming an owner_id the creator does not control SUCCEEDED and was readable, and with an `authenticated` INSERT grant issued out of band a caller's insert naming a STRANGER's owner_id ALSO SUCCEEDED. That is the escalation primitive 20260927140000:285-289 names in its own comment, and it is the origin of the value app/api/events/[id]/claim now refuses to trust.",
+        "THE GRANT WAS NOT WIDENED TO CLOSE IT. No file under app/api/integrations/** or app/api/events/** was modified by this task; the record's scope.out names the route explicitly and the handoff is the sanctioned mechanism. The handoff also states why the database lane cannot supply the predicate even if it wanted to, so the request is a requirement and a decision input rather than a patch someone else must reverse-engineer.",
+        "THE READERS ARE NAMED FOR CONTRAST so the request is not misread as 'the read paths are fine': all three already apply the created_by bound (bandsintown/status:19, bandsintown/disconnect:32, events/[id]/claim:73) and the handoff lists them with the reason each is not the responsible consumer. The single responsible consumer is the ingress, because it is the only writer.",
+        "THE REQUEST IS ACTIONABLE AND SCOPED: resolve (ownerType, ownerId) to its authoritative controller set before the upsert, answer a non-disclosing 403 on failure, FAIL CLOSED on an unresolvable pair rather than defaulting permissive, name the id convention in the route, and add a regression test observed to go red when the check is removed. It also flags the one thing the route must not do (widen to trust owner_id from the body in either connection_mode) and states that the claim route is not part of the request."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "bash -n supabase/tests/db022_provider_ownership.harness.sh",
+          "bash supabase/tests/db022_provider_ownership.harness.sh",
+          "npm run check:migration-chain",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "bash -n supabase/tests/db022_provider_ownership.harness.sh -- syntax OK, exit 0.",
+          "bash supabase/tests/db022_provider_ownership.harness.sh -- `checks: 377   failures: 0` / `DB-022 provider-connection ownership: ALL 377 CHECKS PASS`, exit 0, on a throwaway PostgreSQL 16 cluster in a temp dir listening on a unix socket only, created and destroyed by the run. Run TWICE: the sequence of all 377 check names is byte-identical between the two runs (verified by diff of the PASS/FAIL name lists). Eleven negative controls each demonstrated failing, plus the anti-vacuity control N11 for the violation counter itself.",
+          "INSTRUMENT VALIDATION against two deliberately broken COPIES of the chain in a temp root, same harness, same instrument. (a) `event_provider_connections_owner_read` widened to `USING (true)`: the chain's own post-condition rejected the fixture and the run ABORTED at stage 1 (`MISSING contract entries: policy:{event_provider_connections_owner_read}:cmd=select:using=(auth.uid() = created_by):check=-`). (b) an `owner_id` FOREIGN KEY added in place with no line shift: the chain's own post-condition stayed silent, the db022 contract went red with exactly one violation carrying `DECISION DB-022: public.event_provider_connections.owner_id now carries a foreign key...`, and 24 behavioural checks failed. The decision is falsifiable and the instrument is shown to notice it.",
+          "npm run check:migration-chain -- `✓ active migration chain has no duplicate policy creations (324 files scanned)`, exit 0. INFORMATIONAL ONLY: DB-022 authors no migration, so this gate has nothing of mine to scan. Confirmed by `ls supabase/migrations/*db022*` matching nothing.",
+          "npm run agents:validate -- --strict -- see the checkpoint dated 2026-09-28T05:50Z for the recorded output.",
+          "READ-ONLY GUARANTEE VERIFIED: shasum -a 256 of supabase/migrations/20260927140000_event_provider_connections.sql is d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420, byte-identical to the hash DB-020 recorded for it. The read-only shared working set entry was not modified.",
+          "SCOPED AND DELIBERATELY NOT RUN: `npm run typecheck`. CP-106 records that a full-repo typecheck OOMs on this machine by design. No TypeScript file was authored or modified by this task -- the deliverable is SQL, a shell harness and two JSON records -- so there was nothing to scope, and running it would have produced ~1,300 diagnostics attributable to nothing.",
+          "NOT RUN AND NOT CLAIMED: `npm run generate:database-types` and `npm run check:database-types` (both need an applied target, and DB-008's backward-drift finding on public.venue_profiles still blocks a chain-only regeneration); `supabase db lint --local` (no running target). NO HOSTED, DATABASE, OR ADVISORY EVIDENCE IS CLAIMED, and none was gathered: no migration was applied, no policy fact was read off a live catalog, and no environment was contacted. Everything above is a local emulation of a Supabase-shaped target, which is a measurement of the WRITTEN chain and of nothing else."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T05:50:00.000Z"
+      }
+    ],
+    "negative_controls": [
+      "N1 `event_provider_connections_owner_read` recreated as `USING (true)`: the chain's own post-condition raises `MISSING contract entries` naming the policy; the contract raises it too, and its CP-104 message names bandsintown/status as the route with no capability gate; the summary row is withheld.",
+      "N2 ONE policy given an `owner_id is not null and` conjunct: refused as a partial owning-account boundary, with the summary row withheld. This is the half-finished migration the contract's section-5(b) assertion exists for.",
+      "N3 an `owner_id` FOREIGN KEY added: the contract raises `DECISION DB-022: ... owner_id now carries a foreign key, so the recorded application-side owning-account check no longer matches the schema. Re-derive the decision; do not inherit it.` and the summary row is withheld. This control attacks THIS TASK'S OWN DECISION.",
+      "N4 an added DELETE policy: refused by name by the contract (`is a DELETE policy ... undeclared delete path rather than a needed one`) and by the chain's own post-condition as UNEXPECTED.",
+      "N5 a re-typed column: the contract names the type mismatch; the chain's own post-condition names the entry it no longer produces.",
+      "N6 a dropped FORCE ROW LEVEL SECURITY: refused and named, summary row withheld.",
+      "N7 the archive's `grant select, insert, update ... to authenticated` (20260804130000_event_provider_foundation.sql:216), which the chain deliberately narrowed: refused by name, and the reason is stated rather than just the prohibition.",
+      "N8 a pre-existing table in the wrong shape, in TWO branches because the chain's post-condition short-circuits: with no RLS it raises `RLS enabled = false, so the own-row policies are not the access control`; with RLS enabled and forced it reaches the column contract and raises `MISSING contract entries` naming `display_name|text|nullable|-`, a skipped CHECK, and the skipped read policy. The contract fails closed on it in both branches.",
+      "N9 the revoked dependency grant: the caller-side read breaks, and the contract names the missing grant WITH the route that depends on it. The chain's post-condition names it too.",
+      "N10 anti-vacuity, both directions: the contract IS green on a healthy target with zero violations by BOTH the positional and the prefix counter, and a benign comment change leaves it green and the chain's post-condition silent.",
+      "N11 THE COUNTER ITSELF: a sixth column default moves the positional count to exactly 1 with both counters agreeing and the summary withheld; a `scopes` re-type to `character varying[]` moves it to exactly 1 again, via the dedicated text[] assertion, on a change information_schema provably cannot see. A first revision of these controls used changes PostgreSQL silently refused, so they produced a green contract and a passing control for the wrong reason; both were corrected and the corrections are recorded in the harness comments."
+    ]
+  },
+  "proposed_decisions": [
+    "FOR THE ORCHESTRATOR TO APPEND TO docs/engineering/DECISIONS.md. DB-022 did not write to that file: other lanes are appending concurrently this wave and it is a shared claim. Text:",
+    "---",
+    "### DB-022 — event provider connections: the owning-account check stays application-side (2026-09-28)",
+    "",
+    "`public.event_provider_connections.owner_id` is a bare `uuid not null` with no foreign key and no owning-account column. Its four policies are own-rows predicates on `created_by` and on nothing else, and the deliberate ABSENCE of a DELETE policy is a decision, confirmed by execution rather than assumed. Measured on a throwaway instance against the chain's own bytes: a caller can read and update a connection naming an account they do not control, and a caller who DOES currently control that account is refused it, because `created_by` is a CREATED-TIME proxy and never decays.",
+    "",
+    "**Decision.** The owning-account check remains purely application-side. The single consumer responsible for enforcing it is **`app/api/integrations/bandsintown/connect/route.ts`**, the only writer of `owner_id` and the only point at which an unvalidated one enters the table. Routed as `HF-DB-022-CONNECT-OWNER-VALIDATION` to integrations / INTG-008.",
+    "",
+    "**Why not the data boundary.** Not because the control relations are missing -- `artist_profiles.user_id`, `venue_profiles.user_id`, `venues_v2.created_by`, `organizations.created_by` and `org_members` are all created by the active chain. Because **nothing states what `owner_id` IS**: `20260823010000` binds `venue_profiles`, `venues_v2` and `organizations` as three DISTINCT mirrors of one account, and the schema accepts all three under one `owner_type='venue'`, plus an `artist_profiles.id` and a bare `auth.users.id` under one `owner_type='artist'`. Two implementable current-control resolvers return DIFFERENT SETS for the same rows. Writing one would mean inventing the identity convention for a column whose convention the repository has never stated, which is what `20260927140000:221-224` forbids. And it would change no reachable behaviour anyway: every writer resolves `.from()` through the service role, so the three own-row write policies are not on any path today.",
+    "",
+    "**Consequences to carry forward.** (1) The table's INSERT and UPDATE policies are decorative on current code; the GRANT is what denies, and a grant issued out of band immediately exposes a stranger-account insert. (2) A `DELETE` with no grant is `42501`; a `DELETE` WITH a grant is a silent zero-row no-op. Both fail closed, so `status='disconnected'` is the only retirement path. (3) `supabase/tests/db022_provider_ownership_contract.sql` asserts the three decision facts -- no `owner_id` foreign key, no policy referencing `owner_id`, no DELETE policy -- so a future migration that changes the premise turns the contract RED on purpose and must re-derive this decision rather than inherit it.",
+    "",
+    "**Process finding, and it is the most reusable thing here.** The violation counter `grep -c 'as violation'` is VACUOUS: `as violation` is a column ALIAS, which tuples-only `psql` does not print, so the expression is always zero. It was reporting 'zero violations' while masking a real contract defect on a healthy target. The same idiom appears in at least one sibling contract harness in this repository; that lane's substantive `contains` negative controls did fire, so its conclusions stand, but the counter line is decorative there. Any contract harness that counts violations this way is measuring nothing, and a first clean run of one is the reason to distrust it rather than to believe it."
+  ],
+  "progress": {
+    "summary": "The question was whether the owning-account check could move to the data boundary. It cannot, and the reason is not the one the question invites: the control relations all exist, and what is missing is any statement of what owner_id IS. The chain binds venue_profiles, venues_v2 and organizations as three distinct mirrors of one account, the schema accepts all three under one owner_type, and two implementable current-control resolvers return different sets for the same rows -- executed, not argued. So AC-2 outcome B, exactly one of the two: the check stays application-side, and app/api/integrations/bandsintown/connect/route.ts is named as the single responsible consumer. AC-1's evidence is behavioural throughout: the four policies constrain created_by and nothing else, the absent DELETE policy is a silent zero-row no-op rather than a refusal, and the three own-row write policies are not on any live path because every writer uses the service role. AC-3's created-time limit is executed in both directions, including the half that is easy to miss -- a caller who NOW controls the account is refused the connection. The most valuable output is not the decision but the instrument that produced it: a harness that extracts the chain's own bytes by line range and has the chain's OWN post-condition validate the fixture, which caught two defects in this lane's first revision (a vacuous violation counter and a real contract defect it was masking) and was then proven against two deliberately broken copies of the chain. No migration was authored and nothing was applied anywhere.",
+    "completed": [
+      "AC-1 met: the decision is dated, evidence-backed, and the evidence for the four policies is executed rather than read.",
+      "AC-2 met by outcome B alone: no migration authored, the check stays application-side, and one consumer is named.",
+      "AC-3 met: the created-time limit is executed in both directions, with no expiry column, and expressed in the harness stage title, the STATE.md entry and the handoff's note on the claim route.",
+      "AC-4 met: the conditional is false (no migration), and the instrument clause is honoured anyway at 377 checks over three identical digests, with eleven negative controls each demonstrated failing.",
+      "AC-5 met: HF-DB-022-CONNECT-OWNER-VALIDATION raised to integrations / INTG-008, with the gap cited to the line and the harm measured.",
+      "Discharged the inbound handoff HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE -- its completion condition is that the decision be recorded, and it is.",
+      "Caught and fixed two defects in this lane's own first revision, with controls that keep them fixed: a vacuous `grep -c 'as violation'` counter, and the real contract defect it was masking (ARRAY vs text[] on `scopes`).",
+      "Proved the instrument against two deliberately broken copies of the chain, including one the chain's own post-condition cannot see."
+    ],
+    "next_steps": [
+      "orchestrator: append the proposed_decisions text to docs/engineering/DECISIONS.md, and dispatch the integrations lane on INTG-008 to accept HF-DB-022-CONNECT-OWNER-VALIDATION. This handoff has no receiving task record of its own; that is dispatch, not something this lane creates.",
+      "integrations + venue: settle and RECORD which relation owner_id names for owner_type='venue' (venue_profiles.id, venues_v2.id, or organizations.id through the identity triangle), and whether a bare auth.users.id is admissible for owner_type='artist'. This is a product-identity decision the schema cannot make and the database lane deliberately did not invent.",
+      "database, only after that convention is settled: a forward-only migration adding the verified reference plus a current-control predicate, re-deriving this decision rather than inheriting it. The contract goes red when the premise changes, on purpose.",
+      "database: consider whether the vacuous-counter idiom deserves a repository-level check, since the same pattern appears in at least one sibling contract harness. Not done here: it is outside this task's grant and it is another lane's instrument."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T04:40:00.000Z",
+        "summary": "Pre-existing checkpoint from the orchestrator: DB-022 dependency state corrected after DB-023 completed, a disclosed change outside DB-023's working set. Untouched by this task.",
+        "next": "Superseded by the checkpoints below."
+      },
+      {
+        "at": "2026-09-28T05:05:00.000Z",
+        "summary": "Startup and evidence gathering, before anything was authored. Read the chain's own migration in full, the inbound handoff, EVENTS-004, DB-020 and DB-021, and all five consumers of the table. The decisive find was 20260825010000_ticketing_owner_account_resolution.sql: the chain already has a resolver for the IDENTICAL defect on a different column, its own header records the defect it fixed ('ownership only worked when the owner id happened to be a human auth user id'), and its venue arm is EVENT-SCOPED, so it cannot be lifted to a provider connection. A first grep for the control relations used a `public.`-qualified pattern, found none, and was about to conclude the control relations do not exist. They do -- the tables are declared unqualified in their own migrations. Recorded because reporting a MISSING control relation where the real problem is an UNSTATED convention would have been the DB-017 error in a new place, and the harness now asserts their presence first so the wrong answer cannot survive.",
+        "next": "Author the proof harness with the control relations asserted present, and the two disagreeing resolvers as the measurement.",
+        "paths_expanded": [
+          "supabase/migrations/20260825010000_ticketing_owner_account_resolution.sql -- READ ONLY, outside the grant. Read because it is the chain's one precedent for exactly this defect class, and because whether it can be reused decides the AC-2 outcome. Its header comment is the strongest single piece of evidence in this task.",
+          "supabase/migrations/20240415000000_create_profiles.sql, 20250816133000_event_core.sql, 20250816132000_org_rbac.sql, 20260823010000_venue_identity_bridge.sql -- READ ONLY, outside the grant. Read because AC-1's decision turns on whether the control relations exist and on how many candidate references owner_id has. The identity triangle in the last of these is what makes owner_type='venue' ambiguous rather than merely unverified.",
+          "app/api/integrations/bandsintown/{connect,status,disconnect}/route.ts, app/api/events/[id]/claim/route.ts, app/api/cron/events/sync/route.ts -- READ ONLY, outside the grant and explicitly out of scope to edit. Read because the decision requires knowing which consumers write owner_id and which read it, and because naming ONE responsible consumer is meaningless without establishing that the readers are not. No file under either tree was modified.",
+          "supabase/tests/db008_storage_replay_guard.harness.sh and supabase/tests/db023_event_posts_claims.{harness.sh,contract.sql,harness.sh.bootstrap.sql} -- READ ONLY, outside the grant. Read as the precedent for the proof shape (harness + contract + bootstrap, line-range extraction from the chain, fixture self-assertion, negative controls). Mirrored deliberately so this lane's evidence is readable by whoever reads DB-023's.",
+          "supabase/tests/db023_event_posts_claims.harness.sh -- READ ONLY, and one finding is recorded against it: its `grep -c 'as violation'` violation counter is vacuous for the same reason mine was. Its substantive `contains` negative controls did fire, so its conclusions stand, and the counter line is not restated as a defect of that task."
+        ]
+      },
+      {
+        "at": "2026-09-28T05:25:00.000Z",
+        "summary": "First full harness run: 340 checks, 13 failures, and four of them were defects in my own measurement rather than in the schema. (1) The UPDATE path was being measured through the GRANT: a caller-side UPDATE is refused 42501 because the chain grants authenticated SELECT only, so the first revision was about to conclude 'the update policy constrains created_by' from a refusal no policy had participated in. Fixed by issuing the UPDATE grant first, and the correction is recorded in the harness rather than quietly applied. (2) The absent DELETE policy was assumed to be a refusal; it is a SILENT ZERO-ROW NO-OP once the grant exists, because a filtered DELETE is not an error the way a failed WITH CHECK is. The harness now states the exact behaviour, which is more useful than the original claim. (3) The N1 control expected the chain's post-condition to raise UNEXPECTED; it raises the ABSENT list first, so the control was written against the wrong branch. (4) The N8 control expected a MISSING-contract-entries refusal and got the earlier RLS refusal instead, because the post-condition short-circuits. Split into two branches, which is the stronger control anyway.",
+        "next": "Suspect the instrument, because a first clean run is when it deserves suspicion. Run the two mutation tests before trusting any green."
+      },
+      {
+        "at": "2026-09-28T05:35:00.000Z",
+        "summary": "Instrument validation, and it found the most important defect in this task -- in my own work. With the chain's own post-condition validating the fixture, the first fully green run was 340/340. Because a first clean run is exactly the condition under which an instrument deserves suspicion, the same harness was run against two deliberately broken COPIES of the chain in a temp root. (a) Widening the read policy to USING (true) aborted the run at stage 1, as designed. (b) Adding an owner_id FOREIGN KEY in place, with no line shift, produced 19 failures: the chain's own post-condition stayed SILENT (it never enumerates foreign keys) while the db022 contract went red with the DECISION DB-022 message, so the decision is falsifiable and the instrument notices. Chasing a residual oddity in that mutated run then exposed TWO REAL DEFECTS IN MY OWN CONTRACT AND HARNESS: the violation counter `grep -c 'as violation'` matches nothing, because `as violation` is a column ALIAS that tuples-only psql does not print -- so it was always zero and had been reporting 'zero violations' the whole time; and it was masking a genuine contract defect, since the column comparison put information_schema's ARRAY against format_type's text[], so the `scopes` row could never match and the contract was reporting a violation on a HEALTHY target. Both fixed, plus a third gap the honest counter then exposed (a re-defaulted column still printed the summary row, so the summary now asserts the DEFAULT COUNT as well as the five defaults). The contract's 26 messages now carry a printed DB022-VIOLATION prefix, the type comparison is like-for-like, a dedicated pg_attribute text[] assertion covers what information_schema provably cannot see, and a POSITIONAL prefix-independent count is asserted beside the prefix count at every contract run. N11 is the control for the counter itself and is demonstrated moving to 1 and to 2. Final: 377/377, byte-identical across two runs.",
+        "next": "Write the handoff, the STATE.md facts, and the record; then run the repository gates."
+      },
+      {
+        "at": "2026-09-28T05:50:00.000Z",
+        "summary": "Handoff, state, record and gates. Raised HF-DB-022-CONNECT-OWNER-VALIDATION to integrations / INTG-008. Appended the durable facts and the three 'do not' items to the database STATE.md. Recorded the decision, the evidence, both instrument defects and the instrument validation in this record, with the DECISIONS.md text staged under proposed_decisions for the orchestrator. npm run check:migration-chain passes (324 files, informational only: this task authors no migration). The read-only shared working set file is byte-unchanged at d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420, identical to DB-020's recorded hash. npm run agents:validate -- --strict run last, after every file this task writes was in place; its output is recorded in verification.gates. No migration applied, no environment contacted, no hosted evidence claimed.",
+        "next": "Orchestrator: append proposed_decisions to DECISIONS.md, run agents:state:refresh, and dispatch integrations on INTG-008.",
+        "paths_expanded": [
+          "docs/engineering/handoffs/pending/HF-DB-022-CONNECT-OWNER-VALIDATION.json -- NEW, outside the literal working_set by design; handoffs are the sanctioned mechanism for crossing a domain boundary and AC-5 requires one.",
+          "docs/engineering/agents/database/STATE.md -- durable facts only, appended. Deliberately NOT regenerated with agents:generate: other lanes are working in the same shared worktree and a global topology refresh would rewrite their generated blocks."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "id": "HF-DB-022-CONNECT-OWNER-VALIDATION",
+      "path": "docs/engineering/handoffs/pending/HF-DB-022-CONNECT-OWNER-VALIDATION.json",
+      "to_agent": "integrations",
+      "accepting_task_id": "INTG-008",
+      "status": "pending",
+      "summary": "Validate caller control of owner_id BEFORE the insert in app/api/integrations/bandsintown/connect/route.ts. The route inserts owner_type, owner_id and created_by straight from the request body with no account check, and it is the only writer, so it is the ingress at which an unvalidated owner_id enters the table and every later reader inherits it. Harm measured, not described. Also carries the DB-022 decision text and the reason the database lane cannot supply the predicate."
+    },
+    {
+      "id": "HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE",
+      "path": "docs/engineering/handoffs/completed/HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE.json",
+      "to_agent": "events",
+      "status": "completed",
+      "summary": "INBOUND, accepted, and now DISCHARGED and moved to handoffs/completed/ -- agents:validate --strict correctly refused to pass while a handoff named a completed task as its accepting task still sat in pending/. Its completion condition was that DB-022 record an evidence-backed decision plus either the migration with its predicate or a recorded application-side finding naming the responsible consumer. Outcome B was recorded and one consumer was named, so the condition is met. This move is a status edit on an inbound handoff that this lane was the accepting task for, made because the validator required it and the discharge is a fact."
+    }
+  ]
+}

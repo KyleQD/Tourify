@@ -1,0 +1,50 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB-012-VENDOR-ENTITY-MERGE-UNRESOLVED",
+  "task_id": "WFC-004",
+  "from_agent": "database",
+  "to_agent": "organization",
+  "cc_agents": [
+    "database",
+    "orchestrator",
+    "admin",
+    "work",
+    "qa"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T11:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; concurrent lanes present. WFC-004 added ONLY untracked new files under supabase/migrations/**, supabase/tests/** and docs/engineering/migration-validation/**, plus append-only edits to docs/engineering/migration-validation/hosted-history-ledger.json, docs/engineering/DECISIONS.md and docs/engineering/agents/database/STATE.md. No commit was made; agents:generate was deliberately not run.)",
+  "summary": "DECISION 1 is HALF decided, and the half that is not decided is the one DB-012 and ORG-007 were about to build on. WFC-004 created the canonical vendor identity — `public.vendor_entities` — and created NEITHER `vendors` NOR `org_vendors`, because whether those two names are one entity is UNPROVEN and CP-096 forbids guessing it. DB-012 (vendor-to-organization ownership) and ORG-007 (canonical vendor services) must not proceed to author vendor identity or vendor-to-organization ownership until the merge question is settled, because they would be authoring on top of a decision nobody has made.",
+  "what_was_decided_and_why": {
+    "the_shape": "The VEND-102 contract, field for field, in `public.vendor_entities`: id, org_id NOT NULL REFERENCES organizations ON DELETE CASCADE, legal_name, display_name, normalized_legal_name, category (the 8-value VEND-102 vocabulary), status (the 8-value VEND-102 vocabulary), city, region, country, external_accounting_id, primary_contact_name/email/phone, merged_into_id (composite same-org FK, ON DELETE RESTRICT), created_by, updated_by, created_at, updated_at. Plus `public.vendor_entity_aliases` as the real target for `VendorMergePlan.aliasesToRetain` (lib/admin/vendor-identity.ts:292-346), whose column shape is exactly what that function emits.",
+    "the_evidence_for_the_shape": "It is the ONLY vendor table in this repository with a reviewed ADR (docs/admin-feature-specs/adr/VEND-102-vendor-identity-deduplication.md), a tested pure implementation, archived DDL and a verify function. `VendorIdentityRecord` (:93-109) matches that archived DDL field for field, and `buildVendorIdentityRow` (:126-146) produces rows in that shape. `buildVendorIdentityRow`, `planVendorMerge` and `findVendorDuplicateMatches` have ZERO production callers — only the test — so the storage gap is real, not merely unused.",
+    "the_evidence_for_the_NAME_proven_by_execution": "Creating the relation as `vendors` would BREAK the one CP-098-correct reader among the seven. `app/api/admin/vendors/route.ts:21` selects `id, organization_id, name, vendor_type, rating, created_at, updated_at`; against the VEND-102 shape that select raises SQLSTATE 42703 `column \"organization_id\" does not exist` (measured). 42703 is not 42P01, so the route's branch at :31 does not fire, and the outer catch's `msg.includes(\"relation\") && msg.includes(\"does not exist\")` at :56 does not fire either, because a 42703 message contains 'does not exist' but NOT 'relation'. The route would return 503 'Vendors unavailable' instead of today's honest `{success:true, vendors:[], unavailable:true, unavailableReason:\"Vendors table not yet migrated.\"}`. The archived `logistics_vendors` shape (20260605100000) — the only other candidate in the repository — ALSO raises 42703 against the same select, so no candidate was available and this was not a choice between two workable options."
+  },
+  "what_is_UNRESOLVED_and_why_it_cannot_be_resolved_here": {
+    "the_question": "Are `vendors` and `org_vendors` one entity or two?",
+    "why_the_repository_cannot_answer_it": [
+      "The two READERS demand mutually exclusive tenant column names for the same relation name: `vendors` is read with `organization_id`, `org_vendors` with `org_id`. If both names are real DDL on some target they cannot be one table. That is a statement about the READERS.",
+      "NEITHER name has any DDL anywhere in this repository — not in the 315-file active chain, not in supabase/migrations/archive, not in supabase/migrations_backup, not in supabase/migration-archive/pre-reconciliation-local-only-2026-08-20. So there is no entity evidence to reason from.",
+      "DB-002 recorded that some hosted versions were applied by raw Management API SQL, so a target may hold either name and the chain cannot see it.",
+      "Three incompatible status vocabularies exist: `org_vendors`'s reader asks for 5 of the 7 non-'prospective' values of the VEND-102 status CHECK; archived `logistics_vendors` has no status column at all; `vendor_contracts.status` is {draft,active,expired,cancelled} and `event_vendor_requests.status` is {pending,confirmed,declined,cancelled}."
+    ],
+    "THE_ONE_QUERY_THAT_SETTLES_IT": "select n.nspname, c.relname, c.relkind from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relname in ('vendors','org_vendors','vendor_compliance_documents','org_contracts','contract_signature_envelopes','vendor_aliases') order by 1,2;  — run read-only on ANY real target. relkind 'v' for `org_vendors` means it is a projection and the merge is settled as a view; relkind 'r' means it is a distinct entity and two masters are needed. Absent means the chain-absent premise still holds on that target.",
+    "why_no_view_was_created_under_either_name": "A view named `org_vendors` over `vendor_entities` would be a 3-line fix for one reader site, and creating it would RATIFY the merge CP-096 forbids. It was deliberately not created. If the product confirms the merge, that view is the remedy; if it refutes it, a second vendor master is needed and should be authored by the vendor-domain owner against an explicit column contract, not by widening this one.",
+    "and_two_relations_that_are_not_vendor_identity_at_all": "`org_contracts` and `contract_signature_envelopes` have NO archived DDL and NO ADR anywhere, and their readers want a contract lifecycle surface (`title`, `counterparty_name`, `expires_at`, `status`; and `status in (pending,sent)`, `created_at`). Unlike `vendors`/`org_vendors` there is not even a candidate to reconcile against, so these need a product owner and a column contract, not a database decision. `vendor_compliance_documents` is the SAME ENTITY as archived `vendor_documents` (20260720186000) under different column names — `expires_at` vs `expires_on`, `verification_status` vs `status` — so it is a duplicate projection whose canonical spelling is undecided."
+  },
+  "what_the_receiver_must_do": [
+    "DB-012 and ORG-007 read WFC-003's contract and then this handoff, and NEITHER may author vendor identity, a vendor-to-organization ownership rule, or a merge between `vendors` and `org_vendors` until the catalog query above has been run on a real target and its result recorded here.",
+    "The vendor-domain owner decides the `org_contracts` / `contract_signature_envelopes` column contract. Until then those two reader sites stay degraded, and the operator should be told that is the state rather than being shown a plausible zero.",
+    "The two VendorCategory vocabularies (8 values in lib/admin/vendor-identity.ts:8-17, 16 in lib/admin/vendor-domain.ts:23-26) are NOT reconciled. `vendor_entities.category` enforces the 8-value VEND-102 vocabulary; a vendor whose category exists only in the 16-value list cannot be written until a human says which is canonical. WFC-003 §5 item 15."
+  ],
+  "evidence": "executed:supabase/tests/wfc004_workforce_departments.harness.sh stage 1 — the 42P01-versus-42703 measurement, the route's own two gates evaluated as boolean predicates on the server's message, the logistics_vendors control, and a grep assertion that app/api/admin/vendors/route.ts still carries both branches the measurement tested. Full reasoning in supabase/migrations/20260927100000_workforce_vendor_entity_home.sql's header and in docs/engineering/migration-validation/20260927100000_workforce_vendor_entity_home.json's decisionThisFileRecords block.",
+  "related_decisions": [
+    "CP-096",
+    "CP-102",
+    "CP-098"
+  ],
+  "next_action": "Run the catalog query on a real target and record the result in this handoff. Then DB-012 and ORG-007 either consume `public.vendor_entities` as the single vendor identity, or the vendor-domain owner supplies the contracts for the two relations that have neither DDL nor an ADR.",
+  "accepting_task_id": "ORG-007",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": []
+}

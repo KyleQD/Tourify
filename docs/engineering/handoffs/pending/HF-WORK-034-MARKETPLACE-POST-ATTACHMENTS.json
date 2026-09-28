@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-WORK-034-MARKETPLACE-POST-ATTACHMENTS",
   "task_id": "WORK-007",
   "from_agent": "work",
   "to_agent": "marketplace",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T22:08:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "The `marketplace_post_attachments` object was routed to the work lane twice (DB-008 events and DB-008 logistics clusters). This closes the work lane's share with a corrected consumer set: the two files the inventory records as LIVE consumers for this object, `lib/events/canonical-event-service.ts` and `lib/logistics/plans.ts`, contain NO reference to `marketplace_post_attachments` anywhere in the working tree, and both are unmodified from the CI SHA d2176904, so their diagnostic hits were downstream type noise from a missing relation rather than direct references. The only real references are one live route the marketplace lane owns and one dead module it also owns.",
@@ -35,5 +35,8 @@
   "verification": [
     "PASS: rg reference set, git status unmodified check, and an import-graph walk from 1,441 entry points all agree on the two-file reference set and on feed-attachment.ts being unreachable.",
     "NOT RUN: no typecheck, no test run against marketplace surfaces, no migration, no hosted action."
-  ]
+  ],
+  "accepting_task_id": "MKT-004",
+  "completion_condition": "Decide the live route's fate: repoint app/api/marketplace/share-to-feed/route.ts to whatever relation now carries feed attachments, or ask the database lane for an additive forward-only migration if the relation is genuinely required.",
+  "completed": []
 }

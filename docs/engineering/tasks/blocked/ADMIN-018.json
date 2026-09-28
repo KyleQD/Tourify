@@ -1,0 +1,94 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-018",
+  "title": "Discharge accepted admin handoffs",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T21:59:03.693Z",
+  "updated_at": "2026-09-27T21:59:03.693Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (534 entries)",
+  "goal": "Decide and record the disposition of the seven handoffs that ADMIN-013 accepted but did not discharge, so no accepted handoff names a completed task.",
+  "scope": {
+    "in": [
+      "The seven handoffs re-pointed to this task"
+    ],
+    "out": [
+      "New feature work"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "app/admin/dashboard/components/hooks/use-mobile.tsx",
+    "security/security-scan-exceptions.json",
+    "docs/engineering/migration-validation/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "DB-008"
+  ],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete DB-008.",
+      "dependency_task_ids": [
+        "DB-008"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Record a per-object disposition for every re-pointed handoff: keep with a stated reason, delete with a zero-use re-validation, or supersede with the named successor task.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Move every re-pointed handoff out of pending/ into completed/ with a truthful status and evidence.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created; implementation not started.",
+    "completed": [],
+    "next_steps": [
+      "Decide and record the disposition of the seven handoffs that ADMIN-013 accepted but did not discharge, so no accepted handoff names a completed task."
+    ],
+    "blockers": [
+      "Waiting for DB-008."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

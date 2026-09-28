@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DISC-002-FORYOU-REQUESTORIGIN-RESIDUAL",
   "task_id": "DISC-002",
   "from_agent": "discover",
   "to_agent": "social",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T16:08:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
   "summary": "ONE LINE. This is the last remaining call site of the Wave 34 SSRF fix, and it is the only thing still blocking the complete removal of the `@deprecated requestOrigin` field from `BuildNewsFeedParams`. Wave 35 removed the other call site (app/api/news/feed/route.ts) because `app/api/news/**` is discover-owned; `app/api/feed/for-you/**` is a social-owned shared file, so discover must not touch it. Delete the line `requestOrigin: request.nextUrl.origin,` at app/api/feed/for-you/route.ts:27. That is the whole change; it cannot break anything, because nothing reads the field. The field and this argument are then deleted together from lib/news/feed-service.ts:22-38 in a follow-up, also by discover.",
@@ -37,5 +37,7 @@
     "PASS — `rg -n 'nextUrl\\.origin' app/api/discover app/api/hub app/api/search app/api/feed app/api/news app/api/opportunities lib/discover lib/news lib/search lib/opportunities` returns exactly one live occurrence, app/api/feed/for-you/route.ts:27. Every other hit is prose in a doc comment or the guard's own documentation.",
     "PASS — `npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/` -> 12 files, 117 tests, including the Wave 34 guard that asserts the deprecated field is still declared exactly once.",
     "NOT RUN — no edit to app/api/feed/for-you/route.ts by this lane, no hosted or credentialed test, no CodeQL re-analysis. No hosted evidence is claimed."
-  ]
+  ],
+  "accepting_task_id": "SOCIAL-004",
+  "completion_condition": "social: delete the single line `requestOrigin: request.nextUrl.origin,` from app/api/feed/for-you/route.ts. No other edit in that file. `request` is still used at line 18 for `authenticateApiRequest(request)` and line 19 for `request.nextUrl.searchParams`, so nothing becomes unused."
 }

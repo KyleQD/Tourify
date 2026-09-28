@@ -1,5 +1,23 @@
 # Database Agent State
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `DB-005` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-006` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-008` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-009` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-010` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-011` — blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `DB-012` — blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `DB-018` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WFC-011` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-018` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+<!-- generated-agent-state:end -->
+
 Owner: Tourify database agent. Charter: `docs/engineering/agents/database/CHARTER.md`.
 
 ## Current durable facts (2026-09-10, DB-001 reconciliation)
@@ -1047,3 +1065,1410 @@ harnesses; `package.json` and CI are outside this lane and are handed over.
   for that path. The scratch file was deleted. No
   commit/add/checkout/restore/stash/reset/clean/rebase/merge/cherry-pick was
   issued at any point in this wave.
+
+## Workforce Command Center assignment — 2026-09-26
+
+- Goal: own WFC schema evolution, constraints, RLS, generated types, backfills, and reconciliation under CP-051.
+- Queued tasks: `WFC-004` departments/memberships, `WFC-011` canonical scheduling, and `WFC-018` extended workforce schema. All are blocked on their recorded prerequisites.
+- Required handoff: deliver applied-schema contracts, migration evidence, generated types, resource-scope tests, and reconciliation queries to Work; ambiguous tenant ownership is quarantined rather than guessed.
+- Governing plan: `docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md`.
+
+## DB-013 / CP-104 — `staff_members` organization scope, and a grep that could not see a fix — 2026-09-26
+
+- Wave on `codex/qa004-staging-campaign` @ `16fb834f1a03a70f165be470a5f98f389bf6100a`
+  (dirty worktree, 91 pre-existing entries, **none under `supabase/`**). No
+  migration was applied to any environment, no reset, replay or `--include-all`
+  push was run, `agents:generate` was deliberately not run (shared-map race), and
+  no full typecheck was run. CP-051 honoured.
+
+### The finding was partly wrong, and the way it was wrong is the reusable lesson
+
+- CP-104 reported that `public.staff_members` still carries `read_all_staff`,
+  `insert_staff` and `update_staff` from
+  `20250818120000_admin_staffing_core.sql:362,396,427`, and that
+  `staff_members_worker_read_own` is "the only other policy on the table".
+  **On a target where the whole chain has been replayed in order, all three are
+  already gone.** `20260823210000_harden_hiring_onboarding_pii.sql` names
+  `read_all_staff` literally in its `v_permissive` array (`:263`) and catches
+  `insert_staff` / `update_staff` in its "literally authenticated can do
+  anything" sweep (`:300-315`), and the same migration creates
+  `staff_members_employer_manage_hiring` (`:352-364`). Every one of those is a
+  dynamic `execute format(...)` call, so a literal `rg 'drop policy … on
+  staff_members'` returns nothing and the audit that produced CP-104 could not
+  see them. A `staff_members` policy audit that reads the chain must resolve
+  dynamic DDL or it will report both a fixed table and a broken one as identical.
+- The migration was still written and still worth applying, for reasons that
+  survive the correction: DB-002 found that some hosted versions were applied by
+  raw Management API SQL, so *the chain says it was dropped* is not evidence that
+  a target dropped it; and `can_manage_hiring` returns false for a null employer
+  type or id (`20260625000000:203-205`), so the org-scoped event/tour staffing
+  rows `20260821031214` was written for were reachable **only by the worker
+  themselves**. `20260926150000_staff_members_org_scoped_rls.sql` (SHA-256
+  `c261040c50c231a01925e7511d003d578d586b64178b890542370b182c6e71da`) makes the
+  drop unconditional and idempotent at the point of use and adds the org scope
+  the table never had. Manifest is honestly `planned` /
+  manual-apply-pending; operator handover is
+  `HF-DB-013-STAFF-MEMBERS-ORG-SCOPE-APPLY`.
+
+### The fail-closed shape, and the one thing that surprised the harness
+
+- Each new policy requires three conjuncts: `org_id is not null`; an `EXISTS`
+  resolving that `org_id` to a `public.organizations` row; and
+  `(select public.has_perm((select auth.uid()), org_id, …))`. The `EXISTS` is
+  **defence in depth, not the primary control** — with the chain's FK graph
+  (`org_members.org_id references organizations(id)`,
+  `20250816132000:17`) a `has_perm`-true caller necessarily has a real
+  organization row. It is kept because it makes the "unresolvable" clause
+  structural and independently provable, and because it fails closed if
+  `organizations` RLS is ever tightened.
+- What surprised the harness: that `EXISTS` is an RLS-evaluated subquery, so it
+  depends on `authenticated` holding table-level **SELECT on
+  `public.organizations`** — a grant the chain does not manage in SQL. Without
+  it the first harness run failed with `permission denied for table
+  organizations` on every probe. The failure direction is safe (deny, never
+  open), but it is a functional false-denial, so it is a **preflight stop
+  condition** in the operator manifest rather than an assumption this lane can
+  discharge. Any future policy that resolves a tenant through a caller-visible
+  subquery inherits the same grant dependency and should say so in its header.
+- Read scope is `workforce.view` **OR** `workforce.manage`, following
+  `20260903120000:782-783`. This is deliberately wider than
+  `staff_shifts_scoped_read`, which admits `workforce.view` only: a policy that
+  lets an organization manage its roster but not read it is not a scope, and the
+  historical response to that gap in this codebase is to add a permissive policy,
+  which is the defect. `staff_shifts` is out of DB-013's scope and was not
+  touched; the discrepancy is routed, not fixed.
+- `staff_members_employer_manage_hiring` was deliberately **kept**. It is
+  scoped, not permissive, and it is the live path for the VEN-103 venue roster.
+  Because policies OR, keeping it makes the change strictly additive to access:
+  no committed surface can lose a row it could previously reach. The same OR is
+  why the repair cannot be verified by reading the new policies alone.
+
+### Behaviour, measured rather than asserted
+
+- `supabase/tests/db013_staff_members_scope.harness.sh` (SHA-256
+  `8414949f3374b1834e6f58d7111617fbb6f6c8da5365c793e26fd934f51aaed1`): **ALL
+  CHECKS PASSED, 61 PASS / 0 FAIL** on a throwaway PostgreSQL 16.15 cluster. It
+  is a real negative control — the three permissive policies are loaded verbatim
+  and the harness first measures 5 of 5 rows readable, an accepted INSERT and an
+  accepted UPDATE by an account with no membership in the owning org, and asserts
+  the pre-fix write actually landed before restoring the fixture.
+- It extracts the chain's own `public.has_perm`, `public.can_manage_hiring`,
+  `public.is_org_member`, `public._tourify_has_columns` and the `staff_members`
+  `CREATE TABLE` **by line range at run time**, so the emulated authority cannot
+  drift from the chain. Every denial assertion is guarded by a precondition
+  assertion first, so no denial can be vacuously true: the unresolvable-`org_id`
+  case only proves anything because `has_perm(…, 'workforce.manage')` on that
+  same id is asserted TRUE, and the org-scoped-grant case only proves anything
+  because `can_manage_hiring` is asserted FALSE for that user.
+- Zero-drift contract postflight
+  `supabase/tests/db013_staff_members_org_scope_contract.sql` (SHA-256
+  `52212bf3d9a6c37510e5d08e76f39a5cbf87dddd48d3c7e4119b37446a817d2e`), 9 checks,
+  violation rows only plus one summary row computed from the same predicates.
+  **Two instrument defects were found and fixed in this lane's own test, both in
+  the direction of false failure:** (a) it matched the *source* spelling
+  `from public.organizations`, but `pg_get_expr` renders `FROM organizations`
+  unqualified because `public` is in `search_path` — a healthy target was
+  reported as a violation; (b) it required `pg_policies.qual` on a `FOR INSERT`
+  policy, which has no `USING` clause at all, so `staff_members_scoped_insert`
+  could never pass. The same `polqual`/`polwithcheck` confusion produced a
+  false `RAISE` inside the migration's own post-condition. **A policy DDL check
+  must branch on `pg_policy.polcmd` before deciding which clause is expected to be
+  NULL.** The postflight is proven able to fail twice, including the case that
+  matters: `read_all_staff` re-introduced *while* the scoped policy is present.
+
+### The same defect class elsewhere — reported, not fixed
+
+- Read-only chain-order model over the 310 numbered migrations: 1,318 literal
+  policy creates, 1,100 literal drops, 960 live policies at HEAD, with the three
+  dynamic sweeps applied as ordered events. **6 (table, command) pairs have a
+  permissive policy and a scoped policy coexisting** — the CP-104 shape exactly.
+  94 permissive survivors are reachable by `anon`/`PUBLIC`/`authenticated` across
+  75 tables; 29 more are `to service_role USING (true)` and grant nothing
+  (`service_role` has BYPASSRLS), so they are noise, not an exposure class.
+- **Highest priority: `public.staff_performance_metrics`.** The identical defect,
+  in the *same* source migration — `read_all_metrics` (`20250818120000:371`),
+  `insert_metrics` (`:405`), `update_metrics` (`:436`) — and `20260823210000`'s
+  sweep does **not** list this table. Its correctly-scoped
+  `staff_performance_metrics_select` / `_write` (`20250812093500:41-55`,
+  `has_entity_permission` on `venue_id`/`event_id`) are OR'd away, and the table
+  holds `performance_rating`. DB-013's migration is the template for the fix; the
+  fix itself is routed to DB-002 and the orchestrator.
+- `public.event_resources` and `public.event_calendar_items`: `for select to
+  authenticated using (true)` at `20260823221000:36,53`, coexisting with the
+  scoped `*_select_managers` from `20260717194541`. Inside DB-002's already
+  recorded event-HQ surface. These need a **product** decision — whether any
+  authenticated caller may read every event resource — not an oversight fix.
+- Lower priority, likely intentional public surfaces with the same duplication:
+  `public.events` (legacy lineage behind `events_v2`, resolve with DB-009's
+  cutover), `public.profiles` (three overlapping `USING (true)` policies), and
+  `public.venue_profiles`.
+- Verified **cleared**, so nobody chases them: `staff_zones`
+  (`20260903120000:1851-1853`), `team_communications`
+  (`20260416000323:142-144` and `20260911013017:29-31`), `staff_shifts`
+  (`20260821031214:110-112`).
+- Stated limits of the model, so the list is not over-read: any other
+  runtime-computed `execute format('drop policy …')` is not modelled; the
+  permissive-detection regex is **tighter** than `20260823210000`'s sweep, so a
+  survivor may already be clear on a real target; and out-of-band application is
+  invisible to the method entirely. Every candidate needs confirming on the
+  target first.
+
+### Gates and what was not run
+
+- `check:migration-chain` **pass** (310 files, no duplicate policy creations).
+- `check:migration-validation` scoped to the new migration **pass**, exit 0.
+- `agents:validate` **pass** (17 agents, 177 tasks, 0 warnings, 0 errors).
+- **Not run and not claimed:** `npm run verify:feature` and a full-repo
+  `npm run typecheck` do not complete on this machine — `lib/database.types.ts`
+  is ~25,600 lines and exceeds the memory ceiling — so every step of the tier was
+  run individually and the tier is reported as steps, not as a completed tier.
+  `npm run generate:database-types` and `npm run check:database-types` were not
+  run: the generator fails with ENOBUFS above 1 MB and `linked` is a **different
+  database** that must never be regenerated from
+  (`HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE`).
+  `lib/database.types.ts` is byte-unchanged, and this migration changes no table,
+  column or function so it cannot require a type change. `supabase db lint
+  --local` needs a running target. **No hosted evidence of any kind exists or is
+  claimed.**
+- **Gate detail worth not hiding:** `check:migration-validation` in its default
+  mode (changed migrations) exits 0. The opt-in `--all` flag, which forces a scan
+  of every migration in the directory, reports **77 pre-existing historic
+  failures** on 2025-era migrations (missing `NOT VALID` on old constraints,
+  tables created without RLS in the same file, a `DROP POLICY` without a
+  replacement `CREATE` in `20250131000001`). **None of the 77 mentions
+  `staff_members`** and none is caused by DB-013. Anyone running
+  `check:migration-validation --all` and seeing exit 1 should not read it as a
+  DB-013 regression; the opt-in flag was introduced by earlier lanes to surface
+  historic debt that the default gate deliberately does not scan.
+
+## DB-014 / CP-107 — `staff_performance_metrics` closed, and a third instance of the guard-ordering defect found by executing the chain — 2026-09-27
+
+- Wave on `codex/qa004-staging-campaign` @ `16fb834f1a03a70f165be470a5f98f389bf6100a`
+  (dirty worktree, 103 pre-existing entries, three of them DB-013's own untracked
+  `supabase/` files). No migration was applied to any environment, no reset,
+  replay or `--include-all` push was run, `agents:generate` was deliberately not
+  run (shared-map race), and no full typecheck was run. CP-051 honoured.
+
+### The Task 1 premise was right and the finding it rested on was wrong in the same place twice
+
+- The exposure is real and is a mass-disclosure one. `read_all_metrics`
+  (`20250818120000:370-371`), `insert_metrics` (`:404-405`) and `update_metrics`
+  (`:435-436`) are live at chain HEAD, `staff_performance_metrics` is in **neither**
+  `v_tables` array of `20260823210000` (`:244-257`, `:322-334`) and
+  `read_all_metrics` is not in its `v_permissive` name list, so no sweep has ever
+  reached this table. It holds `performance_rating`, `supervisor_rating`,
+  `customer_feedback_score` and `incidents_count`.
+- **Correction 1 — the scoped policies the fix was supposed to sit beside DO NOT
+  EXIST.** `20250812093500:33-56` is guarded on
+  `if exists (... tablename = 'staff_performance_metrics')` and the table is
+  created six days later at `20250818120000:282`, the only `create table
+  staff_performance_metrics` in the chain. On an ordered replay the guard is false
+  and neither `staff_performance_metrics_select` nor `_write` is created.
+  **Correction 2 — the live `_write` text is `20260414120000:26-39`,** which runs
+  after the table exists, drops `_write` and re-creates it `for all` with the
+  `USING` mirrored into `WITH CHECK`. The cited `20250812093500:49-55` body ends in
+  `with check (true)` and is historical.
+- **Net effect: worse than reported.** The permissive policies are not being
+  nullified by a peer; on `SELECT` they are the only policy for most callers and
+  **there is no scoped `SELECT` policy at all**. The sole surviving scoped policy
+  is `FOR ALL` on `ASSIGN_EVENT_ROLES`, a *write* permission, so a holder of the
+  chain's intended *read* permission `EDIT_EVENT_LOGISTICS` has **no read path**
+  once the permissive policy goes. The repair has to create the read path. This is
+  the **third** instance of the repository's dominant instrument class (CP-104,
+  CP-085): a control that reads as a fix because it is written down and that the
+  chain silently never executes.
+- **Correction 3 — the table has no `org_id`.** Organization scope is therefore
+  expressed as **entity scope over the tenant keys the table actually has**
+  (`venue_id`, `event_id`) through the chain's own `SECURITY DEFINER
+  has_entity_permission` (20260823210100:87-129), the authority the table's own
+  intended policies used, with the chain's own two permissions. The `org_id` and
+  `adhoc_venue_id`-as-authority-arm questions are routed, not decided. A useful
+  side effect: these predicates contain **no subquery against another table**, so
+  unlike DB-013's `staff_members` policies they carry **no `authenticated`
+  table-grant dependency** — only a function-`EXECUTE` one.
+- `20260926160000_staff_performance_metrics_scope_rls.sql` (SHA-256
+  `3e58199e6ccb8bf2ac5288521a121858532268ce390e72589993cac727953eb0`): three
+  `drop policy if exists`, three `drop`+`create policy`, three comments, one
+  post-condition block. No table, column, index, constraint, trigger or function;
+  no data row read for update or deleted; **no `DELETE` policy added, so delete is
+  neither widened nor narrowed** — `staff_performance_metrics_write` is retained
+  because it is the only `DELETE` coverage the chain creates for this table.
+  Manifest is honestly `planned` / manual-apply-pending; operator handover is
+  `HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY`.
+
+### The fail-closed rule, and why its first conjunct looks redundant
+
+- Every new predicate requires `(venue_id is not null or event_id is not null)`
+  **and** a `has_entity_permission` call. The first conjunct **is** redundant
+  against today's helper — it compares `ur.entity_id = p_entity_id`, NULL can never
+  satisfy a `WHERE`, so a tenant-less row already fails. It is kept for the reason
+  DB-013 kept its `EXISTS`: a policy that only fails closed because of what some
+  other function happens to do with NULL is a coincidence that survives only until
+  that function is rewritten. With the conjunct the guarantee is structural and
+  assertable, and the contract test fails when it is stripped.
+- `UPDATE` gates `using` and `with check` with the **identical rendered
+  predicate**, asserted by comparing `pg_get_expr(polqual) =
+  pg_get_expr(polwithcheck)` rather than by re-listing conditions, so a future
+  edit that changes one clause and not the other is caught.
+- **A tenant-less row becomes invisible to EVERY caller, including a platform
+  admin,** and an `INSERT` with both keys null is rejected. That is a deliberate
+  narrowing of a state the chain permits and is recorded rather than softened. It
+  is the reason the operator manifest carries the tenant-less row count as a
+  **stop condition** rather than a curiosity.
+- `adhoc_venue_id` is deliberately **not** an authority arm: adding it would widen
+  access inside a security fix, and any widening in a security fix needs its own
+  decision. Consequence stated: a metrics row whose only tenant key is
+  `adhoc_venue_id` becomes unreachable where before it was reachable by everyone.
+  That is a reduction of the exposure, not a new hole.
+
+### CP-107 — the sweep exemption hazard, made detectable rather than fixed
+
+- `20260823210000:293-313` exempts `%employer_manage%`, `%applicant%`,
+  `%worker_read%`, `%pii%`, `%global_template%`, `%published%` **by name** from
+  its permissive-policy sweep, so a genuinely permissive `USING (true)` policy
+  carrying any of those substrings is permanently unsweepable. Measured, not
+  argued: `supabase/tests/db014_sweep_exemption_hazard.harness.sh` runs the chain's
+  own sweep block against a real catalog with two policies that differ **only by
+  name** — it drops `job_applications_read` and keeps
+  `job_applications_employer_manage_hiring`, both `USING (true)`.
+- The detector pair: `scripts/ci/check-sweep-exemption-hazard.mjs` (static;
+  **extracts the chain's exemption list at run time** and fails if it does not
+  know a pattern, which turns CP-104's standing rule into a test) plus its
+  `node:test` sibling (11/11), and
+  `supabase/tests/db014_sweep_exemption_permissive_policies.sql` (read-only,
+  target-side, violation rows plus one summary row). The SQL is a **mirror** of
+  the `.mjs`'s constants and the check fails if they disagree — two
+  implementations of one rule is how a check drifts out of the thing it checks.
+- **The check is proven not to be a name blacklist**: the same exempt name with a
+  genuinely scoped body produces zero violations, and the harness re-runs that
+  after four other policies are added. It also still reports ordinary permissive
+  policies with no exempt name, honours the `to service_role` carve-out
+  (`BYPASSRLS`, DB-013's recorded judgement) and the `polcmd` carve-out (a
+  `FOR INSERT` policy has no `USING` clause), and leaves the catalog
+  byte-identical across three runs.
+- **Its stated limit, because it is the whole risk profile:** it proves a policy
+  is **not merely an authentication test**. It cannot prove a policy is correctly
+  scoped — a predicate that names `org_id` and constrains nothing passes. Both
+  error directions are recorded: an unrecognised scope is a false positive (safe),
+  a recognised construct that constrains nothing is a false negative (unsafe),
+  which is why the construct list is short and leads with the chain's own
+  authority functions. Correct scoping stays a behavioural question.
+- **Not wired into CI.** `package.json` and the CI workflow are outside the
+  database lane's grant, so wiring is handed to release/orchestrator. Until then
+  the detector exists, is proven, and runs on nobody's behalf — stated rather than
+  left implied.
+
+### Task 3 — read-only disposition, and the verified-cleared list
+
+- `public.event_resources` and `public.event_calendar_items` dispositioned
+  **read-only** and routed to **DB-002** (whose declared working set already
+  contains `20260823221000_event_hq_rls_tighten.sql`) in
+  `HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE`. No migration was opened for
+  either. The disposition is precise rather than merely cautious: `using (true)`
+  on `SELECT` **completely nullifies** the `*_select_managers` predicate from
+  `20260717194541:68-72, :99-103`, and `20260823221000:6-8` **documents the
+  permissive read as a deliberate contract** with a named compensating control
+  ("visibility slices like visible_to[] remain enforced application-side"). That
+  makes it a product decision, not an oversight, and the decision turns on
+  verifying that compensating control — which is a consumer inventory the database
+  lane does not own. Three candidate answers with their costs are recorded, plus
+  the one that is explicitly **not** an answer: adding a third permissive read
+  policy. Neither table is in any `v_tables` array, so a *future* sweep reaching
+  either would silently drop the permissive read — one more reason to decide
+  explicitly rather than leave the surface to whichever migration runs next.
+  `public.event_bulletins` has the same read shape at `20260823221000:71` and is
+  recorded in the same handoff so the decision is made once for the event-HQ read
+  surface rather than three times.
+- **Re-verified CLEAR independently** (ordered create/drop model over the 311
+  numbered migrations plus a full-text search for every permissive name — each
+  created exactly once at `20250818120000` and dropped, with no later re-creation):
+  - `public.staff_zones` — `read_all_zones` / `insert_zones` / `update_zones`
+    created `20250818120000:368,402,433`, dropped `20260903120000:1851-1853`.
+    Surviving set is four `sec104_staff_zones_*` policies keyed on
+    `private.user_can_read_staff_zone` / `user_can_edit_staff_zone`
+    (`:1861-1876`). **Do not chase.**
+  - `public.staff_shifts` — `read_all_shifts` / `insert_shifts` /
+    `update_shifts` created `20250818120000:365,399,430`, dropped
+    `20260821031214:110-112`. Surviving set is the four `staff_shifts_scoped_*`.
+    The `staff_shifts_select` / `_write` pair from `20250812093000` is the **same
+    guard-ordering defect** as `staff_performance_metrics` and is likewise never
+    created; it is harmless here only because `20260821031214` supplied the real
+    policies. **Do not chase, and do not churn — CP-104 puts it out of scope.**
+  - `public.team_communications` — `read_all_comms` / `insert_comms` /
+    `update_comms` created `20250818120000:374,408,439`, dropped
+    `20260416000323:142-144` and again `20260911013017:29-31`. **Do not chase the
+    exposure.** But "cleared" must not be read as "healthy": the surviving set is
+    a **single** `SELECT` policy, `team_communications_worker_read_recipient`
+    (`20260911013017:35-48`), because `:33` dropped `team_communications_write`
+    and nothing re-created it. `INSERT` / `UPDATE` / `DELETE` on this table are
+    therefore denied to every caller at chain HEAD. That is an **authorization
+    availability** gap, not a disclosure, it belongs to `20260911013017` and not to
+    any sweep, and it is routed rather than fixed. A bounded pointer for whoever
+    picks it up: `app/api/admin/communications/route.ts` and
+    `lib/services/admin-onboarding-staff.service.ts` reference the table; this
+    lane did **not** determine which client they use, and that is the question.
+- The 29 `to service_role USING (true)` policies remain noise, not an exposure
+  class, and the new detector encodes that carve-out explicitly.
+
+### Two defects in this lane's own work, found by its own gates — the reusable part
+
+- **The migration's first post-condition raised on a HEALTHY target.** It inspected
+  the `USING` of the `FOR INSERT` policy, whose `USING` is structurally absent.
+  That is precisely the `polcmd` / `polqual` confusion DB-013 documented in this
+  same repository three hours earlier, reintroduced anyway. **A policy DDL check
+  must branch on `polcmd` before deciding which clause is expected to be NULL** —
+  and the discipline that catches this is a behavioural harness, because a catalog
+  check cannot tell a healthy target from a broken one.
+- **The detector's scoped-construct list initially contained a bare `role`,** which
+  matches inside `auth.role()` — the exact construct the detector exists to catch.
+  Three must-fire fixture cases came back clean. A construct list that cannot see
+  its own target is worse than a short one, and the fix (`member_role`, not `role`)
+  is a reminder to read each list entry against the string it is meant to reject.
+- Also fixed in this lane's own tooling: the SQL mirror parser matched the
+  detector file's **header prose** before its constant line, so the drift check
+  compared a sentence against an array. The `=` separator on the `db014:` marker
+  lines is load-bearing.
+- Method note carried forward: the first revision of this lane's harness produced
+  **48 downstream FAILs from a one-line extraction error** (an off-by-one on a
+  `CREATE TABLE` line range). The `bail()` guard added to every fixture stage
+  turns that class of failure into an immediate abort. This is the third wave in a
+  row to ship a revision that passed while its fixture had silently failed to
+  build; **assert your own post-state, and check that the instrument can fail
+  before believing that it did not.**
+
+### Gates and what was not run
+
+- `check:migration-chain` **pass** (311 files, no duplicate policy creations).
+  `check:migration-validation` scoped to the new migration **pass**, exit 0.
+  `agents:validate` **pass**.
+- `bash supabase/tests/db014_staff_performance_metrics_scope.harness.sh` →
+  **ALL CHECKS PASSED, 76 PASS / 0 FAIL**, exit 0.
+  `bash supabase/tests/db014_sweep_exemption_hazard.harness.sh` →
+  **ALL CHECKS PASSED, 18 PASS / 0 FAIL**, exit 0.
+  `node scripts/ci/check-sweep-exemption-hazard.mjs` → exit 0.
+  `node --test scripts/ci/check-sweep-exemption-hazard.test.mjs` → 11/11.
+- **Gate detail worth not hiding:** `check:migration-validation` in its default
+  (changed-migrations) mode exits 0. The opt-in `--all` flag exits 1 with **77
+  failures across 275 scanned** — 46 are 2025-era and **31 are 2026-era**, so
+  DB-013's description of them all as "2025-era" understates their spread. None
+  of the 77 mentions `staff_performance_metrics` and none is caused by DB-014.
+  Anyone running `check:migration-validation --all` and seeing exit 1 should not
+  read it as a DB-014 regression.
+- **One of the 77 is the same defect class this lane found by reading, which is
+  worth more than the count.** `20260416000323: DROP POLICY without replacement
+  CREATE POLICY on the same table: team_communications` — the repository's own
+  opt-in gate independently reporting that `20260416000323:142-144` drops
+  `read_all_comms` / `insert_comms` / `update_comms` and creates no replacement,
+  because the replacement it expected came from a block whose existence guard is
+  false. The full scan notices the **shape**; it does not notice that the
+  surviving policy set is **SELECT-only**, which is what makes the consequence a
+  functional hole rather than tidiness. Both halves are needed, and this is a
+  concrete argument for a periodic `--all` lane rather than an opt-in flag nobody
+  runs. Not fixed here — it belongs to `20260416000323` / `20260911013017` and to
+  the workforce lane, and it is an availability gap rather than a disclosure.
+- **Not run and not claimed:** `npm run verify:feature` and a full-repo
+  `npm run typecheck` do not complete on this machine (CP-106,
+  `verify.mjs:44` runs typecheck unconditionally and `lib/database.types.ts` is
+  ~25,600 lines), so every step of the tier was run individually and the tier is
+  reported as steps, not as a completed tier. `npm run generate:database-types`
+  and `npm run check:database-types` were **not** run: the generator fails with
+  ENOBUFS above 1 MB and `linked` is a **different database** that must never be
+  regenerated from (CP-089, CP-092,
+  `HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE`).
+  **This migration needs no type change and that is stated explicitly, not skipped
+  silently: it changes no table, column or function, only policies.**
+  `lib/database.types.ts` is byte-unchanged. `supabase db lint --local` needs a
+  running target. **No hosted evidence of any kind exists or is claimed.**
+
+## The `org_role_permissions` matrix is now a provisioning target, not only a
+## legacy artifact — DB-016, 2026-09-27
+
+- Wave on `codex/qa004-staging-campaign` @ `16fb834f` (dirty worktree, 118
+  pre-existing entries from concurrent lanes). No migration was applied to any
+  environment, no reset or replay was run, `agents:generate` was deliberately not
+  run (shared-map race), and no full typecheck was run.
+
+### What the matrix is, measured
+
+- `public.org_role_permissions` (`role text primary key, perms text[] not null`,
+  `20250816132000_org_rbac.sql:39-42`) is **the only authority every
+  workforce-governed RLS predicate reads**, through
+  `has_perm(uid, org_id, perm)` (`20260821180438:122-151`). It is also
+  **world-readable** — `roleperms_select ... using (true)`
+  (`20250816132000:112`) — which is the fact that decides the provisioning
+  question: a tenant-configurable role matrix would be a public configuration
+  surface *and* would make the RLS grant set differ per tenant, which is CP-104's
+  hazard at a new site.
+- Before DB-016 the chain seeded **five** roles — `owner`, `admin`,
+  `production`, `finance` (`20250816132000:44-49`) and `tour_manager`
+  (`20260712005429:219-235`) — and **none** carried a `workforce.*` permission.
+  `20260821180438:81-95` added `workforce.view` / `workforce.manage` /
+  `workforce.publish` to the **per-member** `org_members.permissions` CHECK
+  constraint and to no role.
+- The split-brain that follows is CP-110 and it is a *plausible zero*: the
+  TypeScript gate unions role catalog with the matrix row
+  (`lib/auth/admin-capabilities.ts:464-480`), so an org admin passed
+  `withAdminCapability('workforce.manage')` and then read **zero** rows. A
+  denial would have been legible; a zero is believed.
+
+### The rule, and why the subtraction is the decision
+
+- `seed(role) = catalog(role) ∩ workforce.* − departmentScoped(role)`. The
+  subtraction is the whole rule: **`has_perm` takes no target argument**, so any
+  permission in the matrix is granted across the **whole organization**.
+  `DEPARTMENT_SCOPED_ROLE_CAPABILITIES` (`lib/auth/admin-capabilities.ts:319-323`)
+  contains exactly one entry, `department_manager: ['workforce.manage']`, so
+  exactly that one capability is withheld from the matrix for that one role.
+  `workforce.view` and `workforce.publish` are **not** department-scoped
+  (ADMIN-012's explicit decision, same file `:304-313`) and are therefore
+  organization-wide for every seeded role.
+- The rule was **verified against the repository, not transcribed from the
+  handoff**: `ROLE_DEFAULT_CAPABILITIES` (`:123-138`) defines exactly the twelve
+  roles the brief names, and the withheld set is exactly one entry. The test
+  re-derives all twelve slices from the live catalog with WFC-003's own
+  `deriveWorkforceRoleSeedDecisions` (`types/vendor-identity-contract.ts:830-860`,
+  imported read-only) and compares them to the seed literal **parsed out of the
+  migration file**, so the two can actually disagree.
+
+### What shipped
+
+- `20260926200000_org_role_permissions_workforce_seed.sql` (SHA-256
+  `4ba9994d`), all twelve roles in **one** migration, as a **sorted
+  de-duplicated union** of the target's existing `perms` and the declared slice.
+  No table, column, index, constraint, trigger, policy or function; no data row
+  read for update or deleted. The snapshot it compares against is a plpgsql
+  variable, not a temp table, so nothing is left in any schema on commit.
+- Post-conditions are **inside the same transaction as the write** — they have to
+  be, because "nothing was removed" is only expressible as a *measurement* of
+  the target's real pre-state. Six assertions; **five are proven able to fail**.
+- `has_perm` is now correct for all 36 `(role, workforce permission)` pairs, and
+  the two layers — the real `resolveEffectiveAdminCapabilities` and the real
+  `has_perm`, measured independently — agree on all 36.
+
+### Durable operational facts
+
+- **`capability_version` digests `org_role_permissions.perms` IN ORDER**
+  (`20260722002848:180-183`, re-checked on every session use at `:317-320`), so
+  writing a **sorted** union changes the digest for **every** role the migration
+  touches, *including for permissions that were already granted*. "Only the new
+  permissions change it" is the wrong answer. **Any** mutation of this matrix
+  invalidates every active acting-context session; land all roles in one
+  migration and verify re-activation as a **preflight** step.
+- A role with **no** matrix row is behaviourally identical to a row with
+  `perms = '{}'`: `has_perm` coalesces the missing row (`:148`) and
+  `admin_current_acting_context` does the same (`20260722002848:290`). Creating
+  the three empty rows is for legibility and for the post-condition, not for
+  behaviour.
+- **`workforce.publish` is read by NO RLS policy anywhere in the chain.** A
+  full-text scan returns only the CHECK constraint at `20260821180438:88`. It is
+  seeded so the matrix agrees with the route gate
+  (`app/api/admin/events/[id]/work-mode/route.ts:32`); it currently changes no
+  row-level access. Do not read the seed as a claim that publish is
+  database-enforced.
+- **CP-110 is closed for the `workforce.*` family only.** The residual outside it
+  is **206 measured `(role, capability)` pairs** the application gate grants and
+  the matrix does not — owner=37 admin=35 tour_manager=26 production=24
+  production_manager=24 department_manager=11 finance=13 finance_manager=14
+  ticketing=7 ticketing_manager=7 viewer=9 worker=0. The workforce family's share
+  is exactly 0. Closing the rest means seeding the full catalog projection, which
+  is a NEW CP authored by WFC-003, not a decision a security lane absorbs.
+
+### The method note that earned its keep this wave
+
+- This harness found **four real defects in this lane's own new code**, and one
+  of them was a **false negative in the test itself**: a comma-separated
+  expectation checked with a space-separated pattern match reported "has_perm
+  does not agree with CP-102" for a matrix that agreed exactly. The others were
+  two PostgreSQL semantics (`insert ... select` does not put the target table in
+  scope — 42P01; and `array_agg` without `DISTINCT` makes an additive union
+  non-idempotent) and one boolean logic error in the postflight (`'x' <> any
+  (arr)` is **not** the negation of `'x' = any (arr)`, so it is true whenever x
+  differs from **any** element; `<> ALL` is what was meant).
+- Reusable rules, now stated in the code: a comparator that reports **zero** must
+  be shown reporting **non-zero** first; an in-transaction post-condition that
+  nobody has seen fire is a comment; a row an operator learns to ignore is how a
+  real violation gets read as noise (every postflight block must be conditional
+  on its own measurement); and a comparison of two arrays must sort **both**
+  sides, or it is a false violation on a healthy target.
+- `bash` on this machine is **3.2**: no associative arrays, no `\s` in `awk`, no
+  `\|` alternation in `sed`, and **no backticks inside a double-quoted string
+  even in an SQL comment**. Two of those cost a full harness run each.
+
+### Gates
+
+- `bash supabase/tests/db016_workforce_role_seed.harness.sh` **ALL CHECKS
+  PASSED, 64 PASS / 0 FAIL**, exit 0, **twice with byte-identical output**,
+  PostgreSQL 16.15 throwaway cluster.
+- `npx vitest run __tests__/admin/db016-capability-matrix-agreement.test.ts` 7
+  passed / 10 skipped without a database fixture; 17 passed with it.
+- `npm run check:migration-chain` **pass** (312 files, no duplicate policy
+  creations). `npm run check:migration-validation` **pass** in its default mode,
+  exit 0. `npm run agents:validate` **pass** (17 agents, 181 tasks, 0 warnings,
+  0 errors). Scoped `npx eslint` and a scoped `npx tsc` **pass**.
+- **Not run and not claimed:** `npm run verify:feature`, full-repo
+  `npm run typecheck` (CP-106, RELEASE-010 owns the tier),
+  `npm run generate:database-types`, `npm run check:database-types`, `supabase db
+  lint --local`, `npm run agents:generate`, and every hosted probe. **No hosted
+  evidence of any kind.**
+- `check:migration-validation --all` still exits 1 with **77** failures on 276
+  scanned — **46 2025-era, 31 2026-era**, the same figures DB-014 recorded.
+  None is caused by DB-016 and DB-016's own migration is reported clean in the
+  same run.
+- **Types: this migration needs none.** It changes no table, no column and no
+  function, only data in one existing table, so `lib/database.types.ts` is
+  byte-unchanged and regeneration is not merely blocked but unnecessary.
+
+
+## WFC-004 / CP-113, CP-114, CP-115, CP-116, CP-117 — workforce departments, memberships, the vendor entity home, and four corrections to my own work — 2026-09-27
+
+- Wave on `codex/qa004-staging-campaign` @ `16fb834f` (dirty working tree, many concurrent lanes; DB-015 and DB-017 running under CP-112). No migration was applied to any environment, no reset, replay or `--include-all` push, `agents:generate` deliberately not run, no commit. CP-051 honoured. Sole owner of `supabase/migrations/**`, `supabase/tests/**` and `docs/engineering/migration-validation/**`; nothing was added to `scripts/ci/**`.
+- Three migrations, all `planned` / manual-apply-pending, each with a full layered plan, labelled probes, explicit preflight **stop conditions**, and a statement of what a CORRECT denial looks like: `20260927100000_workforce_vendor_entity_home.sql` (`public.vendor_entities` + `public.vendor_entity_aliases`), `20260927100100_workforce_departments_and_memberships.sql` (departments, managers, memberships, two views, one SECURITY DEFINER scope function, three triggers), `20260927100200_workforce_reconciliation_and_status_ledger.sql` (reconciliation links, quarantine, audit view, the CP-095 append-only ledger, its current-value view, two triggers, and eleven idempotent backfill statements).
+
+### DECISION 1, half decided, and the half that is open is the one DB-012 would have built on
+
+- **Decided, by execution:** the canonical vendor identity is `public.vendor_entities` at the **VEND-102 field contract**, because that is the only vendor table in this repository with a reviewed ADR, a tested implementation, archived DDL and a verify function — and `VendorIdentityRecord` matches that DDL field for field while `buildVendorIdentityRow` produces rows in that shape. The name is **decided against** `vendors`, not chosen: `app/api/admin/vendors/route.ts:21`'s select raises **SQLSTATE 42703** against the VEND-102 shape, 42703 is not the 42P01 the route branches on at `:31`, and the message contains "does not exist" but **not** "relation" so the outer catch at `:56` does not fire either — so creating `vendors` would take the repository's **only CP-098-correct reader of the seven** from `{unavailable: true}` to **503 "Vendors unavailable"**. The archived `logistics_vendors` shape also fails that select, so no candidate existed.
+- **Left open on purpose:** whether `vendors` and `org_vendors` are one entity. Neither name has any DDL anywhere in this repository; the two *readers* demand mutually exclusive tenant column names for the same relation name; DB-002 found out-of-band Management API applies. **One read-only catalog query settles it** and it is written into `HF-DB-012-VENDOR-ENTITY-MERGE-UNRESOLVED`: `relkind 'v'` means a projection and a 3-line view is the remedy; `'r'` means two entities. **No view named `org_vendors` was created**, though it would be a 3-line fix for a reader site, because it would ratify the merge CP-096 forbids. `org_contracts` and `contract_signature_envelopes` are routed **separately**: a contract-lifecycle surface with no DDL and no ADR anywhere, so they need a product owner, not a database decision. `vendor_compliance_documents` is the same entity as archived `vendor_documents` under different column names.
+- **Measured and not fixed:** `vendor.view` / `vendor.manage` are in **no** role's `org_role_permissions` row, so the new tables deny an org administrator. Fail-closed, WFC-003's decision under CP-102, and widening the matrix from a schema task would invalidate every active acting-context session. Routed as `HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS`. No live route reads `vendor_entities` yet, and that is a consequence of the deferred merge rather than an oversight.
+
+### Four corrections to my own work, all found by executing rather than reading
+
+1. **A column-level boundary cannot live in an RLS `with check`** (CP-115). The first `wfc004_workforce_departments_update` was deliberately asymmetric — `using` admits a department manager, `with check` does not — reasoning that this lets them rename but not re-scope. Executing it measured a department manager's **rename of their own department being refused 42501**, because a `with check` is a ROW-level predicate and cannot say "this column may change, that one may not". The asymmetry granted CP-094's resource scope and then took it away on the first legitimate write. Corrected to a **symmetric** policy plus `workforce_departments_protect_boundaries`, a `SECURITY INVOKER` BEFORE UPDATE trigger on the three boundary columns. Both halves are asserted by the postflight and both were re-injected as defects. **RLS answers "may this caller touch this row"; a trigger answers "may this caller touch these columns."**
+2. **An RLS-filtered write is a silent no-op, not a denial** (CP-114) — the most operationally important fact of the wave. The harness asserted on psql exit codes and reported two `rc=0` "failures" that were both **successes**: a secondary-only member updated a department and inserted into the ledger, both exiting 0 having written nothing. A `VALUES`-form `INSERT` is the only shape that always raises. Measured pair: 0 rows for a secondary-only member, 1 for an org admin, same statement. Routed as `HF-WFC-004-AFFECTED-ROW-COUNT`; `not_authorized` must come from the row count.
+3. **A second, weaker instrument for a defect another lane owns was deleted** (CP-116). I authored a static CP-109 guard-order detector, then found DB-015's concurrently under CP-112 and it is **strictly better** — it replays the chain's DDL into a real catalog and evaluates the chain's own guard expressions verbatim. Mine was a static approximation of a catalog query. Mine is deleted; the replacement keeps only the one check DB-015's does not provide, a chain-anchored agreement test between `20260823210000:304-309`'s six exemption patterns and the WFC-004 postflight's transcribed copy. **The CP-109 answer is therefore DB-015's measurement:** 53 never-executed blocks chain-wide, all with a recorded disposition; **zero** against `20260927100100`/`20260927100200`; one LOW inert-assertion probe against `20260927100000:632`, answered in the replacement's header as a post-condition probe whose subject is *expected* absent.
+4. **A migration's post-condition is new code** (CP-117). Four defects, none findable by reading: my own post-condition compared `polqual` to `polwithcheck` as node trees and **raised on a healthy target on its first apply** (third appearance of the `polcmd` confusion in three lanes); `grant all` to `service_role` left DELETE on both management relations and the postflight caught it; the postflight's summary was a hand-written **parallel recomputation** that printed **zero violations and `f` simultaneously**, fixed by materialising the violation set once and reading rows and count from it; and the harness's `inject` helper had its arguments in the wrong order so **all eight injected defects applied nothing** and the stage would have concluded "the postflight cannot fail".
+
+### Two grant dependencies, both invisible in this repository and both measured
+
+- **`authenticated` needs USAGE on schema `auth`.** The self-keyed arms on `workforce_department_memberships` and `workforce_operational_status_events` call `auth.uid()` in **caller context** (unlike the `auth.uid()` inside `has_perm`/`is_org_member`, which are SECURITY DEFINER). The harness measured `permission denied for schema auth` on its first run. A **schema-level** privilege, a dependency class none of DB-013's predicates had. Supabase grants it everywhere, so it is invisible in this repo and invisible to a reader of a policy. Carried as a labelled preflight probe.
+- **`authenticated` needs SELECT on `public.organizations`** — DB-013's recorded surprise, re-measured. PostgreSQL does not guarantee short-circuit evaluation of an `OR`, so the requirement is **whole-relation**, not per-arm: the self-keyed arm is OR'd against the `EXISTS` branch and still failed with `permission denied for table organizations`. Both fail closed.
+
+### What is measured, and what is not
+
+- `supabase/tests/wfc004_workforce_departments.harness.sh` — **ALL CHECKS PASSED, 158 PASS / 0 FAIL**, exit 0, throwaway PostgreSQL 16.15. Chain authority (tables, `org_members` columns and CHECKs, `is_org_member`, `has_perm`, the original 5-role seed) extracted **by line range at run time**; **DB-016's whole migration file applied verbatim** so `has_perm` is measured against the matrix that actually shipped. Sixteen preconditions asserted before any denial. **Two real two-session concurrency races**, each paired with a **drop-the-index control** proving the index is what enforces it. Negative control on the pre-WFC-004 state: a caller with only `workforce.view` rewrote `staff_members.department` to a string naming **another organization's** department and the write was **accepted**; there is no index and no department relation, so "one accountable manager per department" was not merely unenforced but **unrepresentable**. Reconciliation measured to create **zero** departments and **zero** memberships; idempotency measured as a count (14 links / 13 quarantine, unchanged on a third apply). **Eight injected postflight defects, each reported and each required to clear.**
+- `node supabase/tests/wfc004_sweep_exemption_agreement.mjs` — exit 0, 6/6 patterns agree with `20260823210000:304-309`; `--selftest` 4/4, including the two that matter (remove a pattern → reported missing; add one the chain does not apply → reported extra).
+- `npm run check:migration-chain` **pass** (315 files, no duplicate policy creations). `npm run check:migration-validation` **pass**, exit 0. `npm run check:migration-ledger` **pass** (315 active, 21 classified, 294 explicitly unreconciled; the `sourceSnapshot` was re-derived by the ledger check's own algorithm because my three migrations staled it, and all three are **classified** rather than left in the unclassified bucket to hit a number). `npm run test:rls-matrix` **pass** (3 files, 1 skipped for want of `ADMIN_RLS_TEST_DATABASE_URL`, 16 tests, 2 skipped). `npm run agents:validate` **pass** (17 agents, 182 tasks, 0 warnings, 0 errors).
+- `npm run check:migration-validation:all` — exit 1 with **77 pre-existing historic failures (46 2025-era, 31 2026-era)**, exactly as previously recorded. **None** mentions any WFC-004 object and none is caused by this task.
+- `npm run verify:feature -- --changed` — **NOT PASSED.** It ran eslint over the changed TS roots, ran the CP-106 scoped typecheck (17 roots, 27 of 4313 sources; `lib/database.types.ts` **not** in the program), passed `check:migration-validation`, then **failed** at `check:supabase-target` with `SUPABASE_PROJECT_ID is required`. That is a missing operator **credential**, not a code or schema failure, and supplying it is a release action this lane must not take under CP-051. Reported as a real tier failure at a named step.
+- **Not run and not claimed:** `npm run typecheck` (whole-repo), `npm run generate:database-types`, `npm run check:database-types`, `supabase db lint --local`, and every hosted probe. `lib/database.types.ts` is **byte-unchanged** at SHA-256 `168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7` and **does require regeneration**: the exact specification of the 8 tables, 4 views and 6 callables it must gain is `docs/engineering/migration-validation/wfc004-type-regeneration-specification.json`, so a blocked regeneration cannot be mistaken for a schema that needs no types. `agents:generate` deliberately not run.
+
+### Durable facts for the next lane
+
+- `workforce_department_is_managed_by(uuid, uuid)` is the ONLY department-scope predicate, it reads `workforce_department_managers` and **never** `workforce_department_memberships`, and the contract postflight asserts that omission by name (and the harness injects the widening edit to prove the check fires). Wrap every call in `(select ...)`.
+- `workforce_departments.manager_state` is **deliberately not stored**: a denormalised flag would need an AFTER trigger to write the parent under `force row level security`, whose success depends on whether the executing role holds BYPASSRLS — a **host**-dependent property, not a schema one. `workforce_department_directory` is a `security_invoker` view over an index-only lateral instead, so the invariant has one representation.
+- The **exceptional** status set is `absent` and `excused` only. `released` was first classified exceptional and the harness refused an ordinary present-tense `released` — the constraint was wrong, because requiring a reason for every shift's end trains managers to write "done" fifty times a night.
+- The ledger's `with check` requires department-management authority **AND** `workforce.view`, because DB-016 withholds `workforce.manage` from `department_manager`; without the view conjunct a manager could write presence and never read it back, which is CP-110's plausible zero arriving through authorization.
+- `workforce_operational_status_events` restricts on department delete while managers and memberships cascade. The asymmetry is the point: a department with history is deactivated, never deleted.
+- A query on any target still settles CP-113: `select relname, relkind from pg_class where relname in ('vendors','org_vendors', ...)`.
+
+## DB-015 — a detector for the guard-ordering class, and a measured narrowing of CP-109 — 2026-09-27
+
+- Wave on `codex/qa004-staging-campaign` @ `16fb834f` (dirty worktree, concurrent lanes). No migration was authored, edited, renumbered or applied. No `supabase/tests/**` file and no `docs/engineering/migration-validation/**` manifest was touched (CP-112: WFC-004 owns both this wave). No existing `scripts/ci/` file was edited. `agents:generate` was deliberately not run (shared-map race).
+
+### The instrument
+
+- `scripts/ci/check-never-executed-migration-blocks.mjs` replays the active chain's own DDL event stream **in version order** and evaluates every guard-guarded block's guard **at that block's own version position**. It has two paths sharing one discovery, one classifier and one report: a static path that needs no database (so it can run in any pipeline) and an `--execute` path that runs the chain's own guard expressions against a real catalog.
+- The argument for execution over a regex is that a guard is **arbitrary SQL written by dozens of unrelated authors across three years** — `information_schema.tables`, `.columns`, `to_regclass`, `'x'::regclass`, `pg_class`, `pg_policies`, and PL/pgSQL variables. A static evaluator must understand all of them, and the one it does not is either a silent false negative or a silent false positive. The only correct way to evaluate an arbitrary SQL predicate is to run it.
+- **The harness runs both paths against one PostgreSQL and asserts the invariant that matters: no guard the static path calls live is called dead by the server.** 0 contradictions over 446 executed sites, 32 blocks reported never-executed by both paths independently. The executed path over-reports by construction (one psql connection cannot hold two catalog states at once), so it is a cross-check and not a second finding set; the report says so under `replay.caveat` rather than leaving a reader to assume the two are equivalent.
+
+### What it found, and the correction to CP-109
+
+- 567 guard sites: **53 never executed**, 109 guard-true, 405 unanalysed. All 53 routed to a named owner with a severity, in 12 groups, enforced in **both** directions by `assertDispositionsAreComplete()`.
+- **The class is a family of four spellings, not one:** `if exists`, `if not exists`, `if to_regclass(...) is null then return; end if; <rest>` (which skips the *rest of the block* — the largest reach, and the only spelling that reports itself as `guard-true` when the author got it right), and `if X is null then null; else <control> end if` (an **inverted** guard whose control sits in the `else`). 15 RLS-policy blocks over 8 tables; 4 `drop policy`-only blocks; 10 inert post-condition assertions, three of them in the chain's three newest migrations.
+- **The class is also narrower than CP-109's framing, and that is half the finding.** 47 of the 53 are not absences of a control: they are defensive column back-fills and assertions that are **correctly inert**. Severity is therefore derived from the block's own bytes and from whether its subject exists in the chain at all, not from a human's sense of importance. Reporting 53 findings at one severity would be the same class of error as reporting one at high.
+- **The one instance with a measured exposure window is the most useful result.** `20250813122000_rls_tour_team_access.sql:98` guards on `tour_vendors`, which is created five days later at `20250818121000` — in the same statement that installs `tour_vendors_all ... for all using (auth.role() = 'authenticated')`. The block's two scoped policies never ran, so the permissive policy was the only one on the table until `20260710032714:90` dropped it: **three months**. The migration's own comment says "table added in later migration on fresh installs", so a future auditor reads the policies below it as live.
+- **Re-found DB-014's instance from the version numbers alone**, with no knowledge of DB-014 and by a different method. Two instruments, a day apart, agreeing on a defect neither could see by reading, is the strongest available evidence that the class is real and that the instruments are not reading the same thing twice.
+
+### The standard, applied to the instrument rather than to the target
+
+- **There is no code path in the detector that can emit `clean`.** The vocabulary is `never-executed` / `guard-true` / `unanalysed`, and `unanalysed` is the safe direction: unrecognised shapes, catalog-ATTRIBUTE guards (`relrowsecurity`, `attisdropped`, `current_user` — a shape in the two newest migrations' own post-conditions), conditions whose depth-0 conjuncts do not pair with modelled sources (the `to_regclass(...) and not exists (pg_constraint ...)` shape, nine sites), conditional/deferred creates, and `pg_policies` guards are all `unanalysed`.
+- **The CLI refuses to report clean unless it found both CP-109-confirmed instances.** The order-mutation proof renumbers a real migration past its subject's `CREATE TABLE`, changes no SQL, and requires the finding to disappear.
+- **Five defects in this detector are recorded, not just fixed** (`report.json` → `defectsFoundInThisDetector`, each pinned by a fixture). Three were false positives in files whose names are security migrations: whole-condition polarity inferred from any `not exists` (inverted every conjunction); only the `then` arm measured (reported three live `enable row level security` policies as dead, because they sit in an inverted guard's `else`); and a `drop policy` block at HIGH because a quoted policy name with spaces was read as the next bare word — the policy named `on`, which the chain does create. One was a `\s+` eating the mask's blanks. The fifth is the one that matters: **the mask blanks every dollar-quoted span, so scanning a DO body through it found nothing and the detector would have reported zero guard sites in the whole chain** — a clean report from a broken instrument, caught by the anti-vacuity gate before it could ship. Every one was a matcher slightly too loose producing a confident wrong answer, in the same direction as the answer it was meant to replace.
+
+### Standing facts this lane now owns
+
+- **The guard-ordering class is instrumented.** Any future `if exists (...)` block in this chain is measured at its own version position, and a new one that nobody owns makes the check exit nonzero. Before this, three instances of the same failure (CP-085, CP-104, CP-109) were each found by hand at the cost of a full chain replay.
+- **A dead guarded block is a statement about the chain and says nothing about a target.** `20260414140500:41` relocates the `moddatetime` extension, which the PLATFORM creates — dead on the chain, possibly live on staging. DB-002's out-of-band Management API application means a target may differ in either direction, which is why DB-013's migration ships anyway and why a target-side question needs a preflight query rather than a better static analysis.
+- **The intra-file case exists and needs no cross-file reasoning.** `20250130000001_tour_teams.sql:81` is the only one in the chain: the file creates `tour_teams` WITH `created_by` at line 42 and then conditionally adds it 39 lines later. A model that applied a migration's whole create set before evaluating its guards would call that live.
+- **Not wired into CI, by grant not by omission.** `package.json` and `.github/workflows/ci.yml` are outside DB-015's grant under CP-112. Handed to release as `HF-DB-015-CI-WIRING` with exact commands and exit codes, and the two legitimate ways it can go red on day one (a new unowned finding, or a disposition that stopped matching) are stated so neither is mistaken for a broken check.
+
+## DB-008 — the regeneration source is identified, the ledger is reconciled, and the 1 MB ceiling was already gone — 2026-09-27
+
+- Wave on `release/clean-snapshot` @ `16fb834f` (dirty worktree, 471 pre-existing entries from concurrent lanes, 7 of them untracked migrations under `supabase/migrations/`). No migration was applied to any environment, no reset, replay, `db push --include-all` or rollback was run, no hosted environment was contacted, `agents:generate` was deliberately not run (shared-map race), and no full-repo typecheck was run. CP-051 honoured.
+
+### The 417/402/609 question is answered, and the answer is a set relationship, not a size
+
+- **`lib/database.types.ts` was generated from a CHAIN-BUILT target** — a database carrying the active numbered chain in version order, watermarked at `20260910000001_get_active_organizer_account_for_org.sql`. `--linked` is **permanently disqualified**; `local` is admissible only when the stack is built by the CLI from this repo's `supabase/migrations/` with no hand-applied SQL. Recorded as **CP-127**.
+- The decisive evidence is one property: the contract has **0 out-of-band relations, 0 out-of-band columns, 0 contract-only routines** against the chain, and 5,170/5,170 columns attributed with 0 unsupported. A strict subset is the signature of a chain prefix. The watermark is **contiguous** — all 27 missing relations are created by `20260910230339` or later, and that is the version immediately after the watermark.
+- `--linked` is disqualified by the same property, not by its 609/8,020/151 count: a target holding 78 relations and 112 columns the chain never creates cannot be the source of a contract holding none of them. Wave 35's figures were **not re-measured** in this wave and the verdict does not rest on them.
+- **Two instruments plus an independent re-derivation agree on 402 relations / 5,275 columns / 100 callables** (replay instrument, and a python block parse sharing no code with it). Chain side at this SHA: 316 migrations, 411 tables + 18 views, 230 routines.
+
+### Two instrument defects found, both in the same direction, one of them the fourth of its class
+
+- `20260821025543_unified_guest_list_admissions.sql:9` sets `set search_path = private, public` and creates `ticketing_migration_issues` unqualified, so it lands in **`private`**. The text replay has no `search_path` model and counted it as a public relation — the sole apparent break in an otherwise contiguous watermark. **The public chain count is 428, not 429, and the true regeneration delta is 26 relations, not 27.** It is the only file in the chain whose leading `search_path` entry is a non-public schema that holds tables.
+- Wave 35's "29 of 173 `SelectQueryError` lines are truncated so the table is unrecoverable" is a **display** problem, not a measurement gap: `tsc` abbreviates long unions as `... 380 more ...` unless `--noErrorTruncation` is passed. Separately, **the preserved CI log is not in the repository** — no file contains 173 such lines; `.agents/tmp/scope-results/*.raw.txt` are unrelated scope-scan baselines. So re-reading the log was never an option and a fresh scoped run was the only route.
+
+### The two recorded blockers were stale or misattributed
+
+- **`maxBuffer` is already fixed at HEAD.** `scripts/ci/generate-database-types.mjs:17` and `check-database-types.mjs:17` both carry `maxBuffer: 64 * 1024 * 1024`, added in `16fb834f` — the task's own base SHA. The 1 MB ENOBUFS ceiling no longer exists. The task record's "scripts owner: add maxBuffer" resume condition is void.
+- **Regeneration is blocked on capacity, not code.** `supabase start` was **executed**: Docker Desktop was started, images pulled, and the postgres layer failed to extract with an `input/output error` and the daemon went away. `df` shows **6.7 GiB free on a 228 GiB volume at 97%**; the stack needs roughly 10 GB of images. `npm run generate:database-types` now fails with `supabase start is not running.`
+- **`supabase gen types --db-url` does not dodge it.** The CLI runs its catalog metadata server **inside a container**, so a database bound to host `127.0.0.1` is unreachable: measured `ECONNREFUSED 127.0.0.1:PORT`, then `getaddrinfo ENOTFOUND` for `host.docker.internal` (IPv6 alias only inside a container), then an SSL probe timeout against the Docker bridge gateway. And a chain-built target here would still need a full-chain apply, which CP-051 forbids. Recorded so the next lane does not spend the hour.
+
+### Gates: two were red on entry and are green; the after-numbers are a projection, not a measurement
+
+- `check:migration-ledger` **pass** (was red on 4 items). `sourceSnapshot` re-derived with the checker's own exported `activeMigrationSnapshot()` — 316 active, `lastMigration 20260927110000_events_v2_delete_rls.sql`, digest `7fd2af66…`. `unclassified.count` 294 -> **295**, because the new 316th file is a concurrent-lane migration DB-008 did not classify and it went into the unclassified bucket where the truth puts it. 21 classified, 295 explicitly unreconciled, staging still 0 entries and unverified.
+- `check:migration-validation` **pass repository-wide** (was red for every lane: `20260927110000_events_v2_delete_rls.sql: required manifest is missing`). DB-008 transcribed a `planned` manifest from that file's own header, at the lowest stage, with **no executed evidence claimed** and an explicit `provenance.why` saying EVENTS-001 owns completing it. Turning a red gate green for an unapplied migration is reconciliation; inventing a manifest with evidence would not be.
+- `bash supabase/tests/db008_run_all.sh` -> exit 0, **8 harnesses executed and passed, 1 skipped**: storage-guard 10/10, view-replay (13/13), reproducibility (out-of-band 0), marketplace 33 checks, money-path, interaction-scope, scheduled-posts, attribution (0 unsupported); `view-delta` skipped for want of `DB_LINKED_TYPES`. **The runner's own summary says `ran 9` and it counted the skipped one** — `ran` is incremented before the skip check, which is the same false-green class this file's own header was written to prevent. `supabase/tests/**` is outside the grant, so it is a wiring request, not a fix.
+- `check:migration-chain` **pass**, 316 files. `npm run agents:validate` -> **8 errors, none introduced here**: 7 are the same defect (7 pending handoffs name `ADMIN-013`, which is completed — and DB-008's own routing matrix was stale, recording `ADMIN-017`, `QA-008`, `WORK-010`, `MKT-009`, `TICKET-007`, `DISC-006`, `DESIGN-038`, `INTG-008` where the live records name different tasks) and the 8th is `ADMIN-014`. Handoffs are outside the grant; the matrix now records the live routing read from disk.
+- **Not run and not claimed:** `npm run generate:database-types` (pass), `npm run check:database-types`, `npm run typecheck`, `supabase db lint --local`, every hosted probe, and the `--linked` regeneration form. `lib/database.types.ts` is **byte-unchanged** at `168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7`, verified by sha256 after every command. The `26 / 58 / 43` regeneration delta is **arithmetic on two measured sides** and is labelled a projection everywhere it appears.
+
+### HF-DB-009 — the RPC was already shipped; only the types half is open, and it is a reachability problem
+
+- `public.record_marketplace_entitlement_download(uuid, text, timestamptz)` has existed in the active chain since **Wave 34**, as `20260926120200`: single-statement `UPDATE` with `buyer_user_id = auth.uid() AND status = 'active' AND download_count < max_downloads` **in the WHERE clause**, `SECURITY DEFINER`, `search_path` pinned, EXECUTE revoked from PUBLIC and anon and granted to `authenticated`, raising 42501 on a null actor. It replaces the service-role compare-and-swap in `app/api/marketplace/delivery/[orderItemId]/route.ts:89-120`. 33/33 in its harness, re-executed this wave, including a real two-session race at the last download credit.
+- The types half is genuinely open: `grep -c record_marketplace_entitlement_download lib/database.types.ts` -> **0**, and the replay lists it among the 43 chain-only callables. The contract was **not** hand-edited to close that, because a hand-edit makes the drift invisible to every gate that reads the contract — the exact failure mode this task exists to prevent.
+
+### Method note, because it is the fourth time
+
+- Four waves in a row have shipped a revision that passed while its instrument could not fail or its fixture had not built. This wave's near-miss was the `private` schema relation: a chain-only relation whose creating version is **older** than the watermark should have been impossible, and instead of accepting the anomaly as noise, chasing it to a conclusion is what turned "the contract is stale" into "the contract is a clean chain prefix and here is the exact version it stops at". **An anomaly that contradicts your model is the measurement. Resolve it or retract the model — do not average them.**
+- Stale recorded blockers are a real failure mode too. Two of the task record's own resume conditions were wrong at the base SHA, one already fixed by a commit it names. **A resume condition written three waves ago is a hypothesis about the current tree, not an instruction.**
+
+## DB-020 — `event_provider_connections` restored, and the inventory was wrong in both directions — 2026-09-27
+
+- Wave on `codex/qa004-staging-campaign` @ `16fb834f` (dirty worktree, 568 pre-existing
+  entries from 12 completed lanes). **No migration was applied to any environment**, no
+  reset, replay or `db push --include-all`. The only execution evidence is a throwaway
+  local PostgreSQL 16.15 cluster this lane created and destroyed. CP-051 honoured.
+
+### The outage, and why "zero references" was the wrong answer twice over
+
+- `public.event_provider_connections` is created by exactly one file in this repository,
+  `supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql:67-88`,
+  whose `MANIFEST.csv:283` status is `local_only_unapplied` — so it existed on **no**
+  active environment. It is absent from the chain and from `lib/database.types.ts`, so
+  both barriers are confirmed and regeneration cannot create it.
+- **TWO ROUTES ARE REACHABLE AND WERE RETURNING 500 ON AN AUTHENTICATED REQUEST.**
+  `GET /api/integrations/bandsintown/status` has **no capability gate at all** — it
+  authenticates with `getUser()` and reads through the caller's own client
+  (`status/route.ts:15-20`). `POST /api/integrations/bandsintown/disconnect` is gated by
+  session auth only, never by provider mode, and service-role-**writes** the caller's own
+  row (`:24-40`). Neither exposes a credential; neither mutates beyond the caller's own row.
+- **The inventory was wrong in BOTH directions and was not the contract source.** It named
+  `app/api/hiring/apply/profile-preview/route.ts` as a live consumer — that file contains
+  zero references to this relation. It omitted four real consumers, three of which resolve
+  `.from()` through an untyped service-role client, so they **emit no `tsc` diagnostic and
+  can never appear in an inventory derived from a preserved compiler log.** A sixth
+  reference, `lib/events/providers/bandsintown/client.ts:6`, is prose. **Five consumers,
+  not two.** Absence of a diagnostic is not evidence of absence of a consumer.
+- A **sixth** check the handoff did not make, made here and worth keeping: the archive
+  refers to the relation in **six** places, and the sixth is a comment. When a "zero-use"
+  count and a "N places" count disagree, enumerate and classify before concluding anything.
+
+### What shipped
+
+- `20260927140000_event_provider_connections.sql` (SHA-256 `d3d371ba`), planned manifest
+  `docs/engineering/migration-validation/20260927140000_event_provider_connections.json`.
+  **The column contract is transcribed byte-for-byte from the archive and nothing is
+  invented** — the whole point of the task. Two checks the handoff did not make: (a)
+  `connection_mode` **cannot** receive the `disabled` mode, because `connect` early-returns
+  503 and `getBandsintownMode()` is `disabled | artist_owned_key | partner`
+  (`lib/events/providers/flags.ts:43`) — so the archived CHECK is complete, not merely
+  convenient; (b) **no consumer writes `secret_reference` at all.**
+- RLS **enabled AND forced**; three own-row policies transcribed verbatim; one
+  `to service_role` policy; **no DELETE policy**; three grants.
+
+### Three decisions, each with the reason it is the safe direction
+
+- **`authenticated` gets SELECT only** — a deliberate narrowing of the archive's
+  `grant select, insert, update`. The three owner policies constrain `created_by`, **not
+  `owner_id`**; the archive's own comment records the owning-account check as
+  application-side; and `owner_id` is not a foreign key. An `authenticated` INSERT is
+  therefore an escalation primitive naming **any** `owner_id`. Zero of the five consumers
+  needs it (all four non-status consumers use `createServiceRoleClient()`). The three
+  policies are **kept anyway**, so the guard is already correct if a write grant is added.
+  Recorded in the migration header, the manifest and the task record — not a silent tightening.
+- **A `to service_role` policy despite BYPASSRLS.** DB-013/DB-014 both recorded such
+  policies as unreachable noise. It is included for a measured reason: `disconnect` is
+  reachable **today**, so on a target without BYPASSRLS its absence would fail that route
+  closed with 42501 and **the same outage would recur with a different status code.**
+  Measured in both configurations.
+- **No DELETE anywhere** — no policy, no `service_role` grant. `disconnect` sets
+  `status = 'disconnected'` and preserves. `created_by ... on delete cascade` still removes
+  a deleted user's rows, which is the archived contract; recorded consequence: it does **not**
+  clean up the `secret_reference` pointer, because a pointer into an external store is not
+  a foreign key.
+
+### The guard, and the one thing it hides
+
+- `create table if not exists` is **necessary** (re-runnability is an acceptance criterion;
+  a loud abort is not an option) and its blind spot is paid for in the post-condition, not
+  ignored: a pre-existing relation is left entirely alone, so RLS and grants would be
+  installed on an unknown shape. The post-condition asserts all 17 columns by **name, type,
+  nullability and default**, each CHECK by its **admitted literal set**, the UNIQUE by
+  column set, the FK **with its delete action**, the index's **whole rendered definition**
+  (a same-named *full* index is what `create index if not exists` would keep) and the grant
+  set — **in both directions**, so an extra permissive `USING (true)` policy (the CP-104
+  shape) is reported by name too.
+- **The `private`-schema case is a REPAIR, not a refusal, and that is the finding.** A
+  relation moved to `private` does **not** make the file abort: `create table if not exists
+  public...` finds nothing, creates a correct and **empty** public relation, the
+  post-condition passes, and the pre-existing rows stay **stranded**. Measured: 2 rows in
+  `private`, 0 in the new public relation. So "the relation exists in `public`" is a **Layer
+  0 stop condition**, not something the file pretends to detect. Same class as
+  `20260821025543:9`.
+
+### Gates, and what is NOT claimed
+
+- `check:migration-chain` **pass** (321 files). `check:migration-validation` **pass**
+  repo-wide, exit 0. `check:migration-ledger` **pass** (321 active, 25 classified, 296
+  unreconciled; the `sourceSnapshot` was re-derived by the checker's own exported
+  `activeMigrationSnapshot()` and this migration is **classified**, not left in the
+  unclassified bucket to hit a number). `db008_chain_contract_replay` exit 0,
+  `contract reproducible from chain: true`, `outOfBand 0`, `contract-only routines 0`, and
+  `event_provider_connections` now appears among the **30 chain-only relations** — the chain
+  is one relation **ahead** of the contract, so regeneration may only **ADD** coverage.
+- `bash docs/engineering/migration-validation/db020_event_provider_connections.harness.sh`
+  → **ALL CHECKS PASSED, 53 PASS / 0 FAIL**, exit 0, **byte-identical across two runs**.
+  BEFORE: both reachable routes' queries returned 42P01. AFTER: rows. 4 consecutive applies
+  (4th against a populated table, rows preserved). **9 refusal + 3 repair controls.**
+- `npm run check:db008-harness` → exit 0, **exactly 8 scenario `PASS` lines** (counted from
+  the scenario lines, not the runner's `ran 9`, which counts the 1 skipped `view-delta`).
+- **9 defects in this lane's own work, found by running it, all recorded not hidden**: the
+  `do $tag$;` syntax error that made every later harness PASS meaningless; a plpgsql
+  `declare` item that is not a function; a contract populated only on the column half, so
+  the first successful run reported 29 healthy facts as unexpected; three unparseable
+  subqueries nested in `array(...)`; plus five in the harness — a heredoc passed to a
+  function expecting a filename, a **false-green control summary that reported 12/12 fired
+  when all 12 had failed**, two vacuous preconditions, a control with **no restore step**
+  that contaminated the five after it, and invalid `ALTER ROLE ... NO BYPASSRLS` syntax
+  which made the "rescue" probe pass with BYPASSRLS still on. **The ninth revision of an
+  instrument passing while it could not fail is now the pattern this lane keeps hitting:
+  assert your own post-state, and check that the instrument can fail before believing it did not.**
+
+### Open elsewhere, named, NOT absorbed
+
+- **ORCH-004** — `HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET`. The settlements
+  existence question needs a **provisioned target**; "the chain does not create it" is a
+  repository fact, and DB-002's out-of-band Management API finding means it is **not**
+  evidence that no hosted target has it. AC-2, `transferred`.
+- **VENUE-006** — `HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO`,
+  `lib/venue/finance-snapshot.ts:117`: unavailable is not the same claim as unpaid, and a
+  false zero is believed rather than noticed. AC-3, `transferred`.
+- **Orchestrator** — `event_sync_jobs`, same archived file (`:95-113`), still absent.
+  `connect` remains 503 for a reason that is now **two** missing relations. Not restored
+  here, and no route was made reachable through a half-restored pair.
+- **Integrations** — the `authenticated` INSERT/UPDATE grant decision.
+- **RELEASE-013 / DB-008** — CP-016 regeneration. The 6 integrations-cluster diagnostics are
+  **not** claimed as cleared. `lib/database.types.ts` is byte-unchanged
+  (`168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7`).
+- `docs/engineering/database-type-inventory-2026-09-25.json` was read and **not** edited
+  (TICKET-008 is live against it). The corrected consumer set lives in the manifest and the
+  DB-020 task record.
+- **The harness lives in `migration-validation/`, not `supabase/tests/`,** because
+  `supabase/tests/**` is outside this task's working set. The cost is stated, not hidden:
+  `check:db008-harness` does **not** run it, so the proof runs by hand and by nobody's
+  behalf until the wiring is granted.
+
+## DB-021 — `event_sync_jobs` restored, and the defect turned out to be in the route, not the index — 2026-09-27
+
+- Wave 2026-09-27 on `release/clean-snapshot` @ `16fb834f` (dirty worktree, 575
+  entries at task start from 14+ lanes, all preserved). New additive forward-only
+  migration `supabase/migrations/20260927140100_event_sync_jobs.sql` (SHA-256
+  `7b4c953c50733c2cccf71aee66eb1cf567bdea6ba21da2b97c10d37975b603e0`):
+  `public.event_sync_jobs`, 16 columns, one `status` CHECK, one primary key,
+  **no foreign key**, three indexes. Transcribed byte-for-byte from
+  `supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql:95-113`
+  and `:116-126`, whose `MANIFEST.csv:283` status is `local_only_unapplied`.
+  Second of the two relations DB-020 routed out of that one file.
+
+- **THE CONSUMER SET MUST BE MEASURED, NOT INHERITED.** Three files, and **all
+  three resolve `.from()` through `createServiceRoleClient()`**:
+  `app/api/integrations/bandsintown/connect/route.ts:60-71` (upsert),
+  `app/api/cron/events/sync/route.ts:59-88,235-255` (the queue worker),
+  `app/api/admin/event-sync/route.ts:20-25` (platform-admin read). There is no
+  caller-client, authenticated, or anonymous reader of this table anywhere. The
+  type inventory is wrong again, in **one** direction this time: zero entries for
+  `event_sync_jobs`, omitting all three real consumers, because three of three
+  use an untyped service-role client and so emit no `tsc` diagnostic. Third
+  recorded instance of *absence of a diagnostic is not evidence of absence of a
+  consumer*.
+
+- **A PARTIAL UNIQUE INDEX IS NOT AN `ON CONFLICT` ARBITER — and the tempting
+  schema fix is a regression.** `connect/route.ts:70` upserts with
+  `{ onConflict: "dedupe_key" }`, which the Data API renders as a bare
+  `ON CONFLICT (dedupe_key)`. `idx_event_sync_jobs_dedupe_active` is **partial**
+  (`where status in ('queued','running') and dedupe_key is not null`), and
+  PostgreSQL skips a partial unique index during arbiter inference unless the
+  statement supplies the predicate as an ON CONFLICT arbiter `WHERE` — which
+  PostgREST cannot emit. **Measured: SQLSTATE 42P10.** Measured in *both*
+  directions so the fault is not misattributed: the arbiter-`WHERE` form of the
+  same statement resolves; a second **active** job on a key is rejected 23505;
+  and the same key is **accepted again** once the first job left
+  `queued`/`running`. That last measurement is why a **full** unique index on
+  `dedupe_key` was **rejected**, not merely declined: it is the only DDL that
+  would make the route resolve, and it converts "one active job per dedupe key"
+  into "one job per dedupe key **forever**" — so a connection could never be
+  re-verified and a `dead` job could never be re-enqueued. **This repository
+  already knows the correct shape**: `lib/ticketing/analytics.ts:66-80` handles
+  23505 for the identical partial index on `ticket_analytics_events` rather
+  than relying on inference, and
+  `__tests__/ticketing/issuance-slot-dedup-migration-contract.test.ts:57` pins
+  it. Route-side fix routed to integrations; defect is **latent**, since
+  `external_event_providers` is `status: 'disabled'`
+  (`lib/config/launch-capabilities.ts:46`), so it is the *next* failure when that
+  capability is enabled — not an outage today.
+
+- **`anon` and `authenticated` receive NOTHING, and that is the ARCHIVE's own
+  position, not a narrowing of it** — the opposite direction from DB-020. The
+  archive grants nothing here (`:217`) and states why (`:210-211`). AC-3's
+  question, answered sharper than asked: **the connect route does not read this
+  table at all — it service-role-WRITEs it.** There is neither an
+  unauthenticated nor an authenticated read, so an `authenticated` grant would
+  be unused surface on a table whose `payload` is provider-controlled JSON.
+  `service_role` gets `select, insert, update` and **not** `delete`; no client
+  policy of any kind exists. RLS **enabled and forced**; FORCE is load-bearing
+  here in a way it is not on the sibling, because with zero client policies the
+  flag is the entire security argument.
+
+- **THE EXPLICIT REVOKES ARE LOAD-BEARING, NOT TIDY.** A Supabase `postgres`
+  role commonly carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON
+  TABLES TO ... anon, authenticated, service_role`, so a bare `create table`
+  there hands a client-**writable** job queue to every signed-in user.
+  Precedent `20260823031000_integration_token_vault.sql:45` (VEN-016). Three of
+  eight repair controls inject exactly these grants and prove the apply removes
+  them.
+
+- **Two defects in the migration itself, found by RUNNING it, not reading it.**
+  1. The grant matrix compared as one `acl:{ROLE}:{all privileges}` key meant an
+  **extra** privilege was reported as **MISSING** — naming a removal for an
+  addition. Now one key per `(grantee, privilege)` pair, so extra = UNEXPECTED
+  and missing = MISSING.
+  2. The post-condition raised on the ABSENT pass first, so a **replacement**
+  defect (re-typed column, added foreign key) could only ever say "MISSING" and
+  the "what is actually there now" half was unreachable. Both directions are now
+  collected and raised in **one** message. The harness's controls found both.
+  Eleven further defects in the harness itself, all recorded — the sixth
+  instance of *a revision that passed while its instrument could not fail*.
+
+- **Controls are classified by what they MEASURE.** Four were reclassified from
+  refusals to **repairs** (three client-role/PUBLIC grants, the narrowed
+  service-role policy) because the file re-issues the revokes, the grant, the
+  FORCE statement and the top-level `drop policy` + `create policy` pair, so the
+  drift is gone before the post-condition runs. Asserting a refusal there is a
+  control passing for the wrong reason. The `private`-schema stranded-relation
+  case was **re-measured as a repair a second time** (DB-020 reached the same
+  conclusion independently), with the stranded-row assertion kept as a control:
+  2 rows left in `private`, 0 in the fresh `public` relation.
+
+- **`event_sync_runs` is the third absent relation from the same archived file
+  (`:129-147`) and it alone keeps `cron/events/sync` and `admin/event-sync`
+  broken** — the worker writes it on every job and the admin read selects it
+  *first*. So the honest statement is that **zero of the five provider-sync
+  routes is open** after both DB-020 and DB-021. Measured, not asserted.
+  Routed, not absorbed (it is outside DB-021's working set by name).
+
+- **No queue extension added.** The archive's comment calls this a "durable
+  queue" but names none, and `pgmq` appears nowhere in the repository. What the
+  archive specifies is a hand-rolled **lease** queue (`locked_at`/`locked_by`
+  compare-and-set, `attempt_count`/`max_attempts` with backoff capped at 30 min,
+  `dead` terminal). Standardising on `pgmq` is an integrations/Release decision,
+  named rather than settled by a transcription lane. The real gap in the lease
+  mechanism is a **dead-letter re-enqueue surface** — a `dead` job is listed by
+  `admin/event-sync` and nothing ever re-enqueues it.
+
+- Verification: 4 consecutive applies in one transaction each on a **throwaway
+  local PostgreSQL 16.15**, the 4th against a populated table with 2 rows
+  preserved; **97 PASS / 0 FAIL**, byte-identical across two runs; 12 refusal +
+  8 repair controls. `check:migration-chain` 322 files clean;
+  `check:migration-validation` exit 0; `check:migration-ledger` exit 0 at
+  `322 active (26 classified, 296 unreconciled)`;
+  `db008_chain_contract_replay` `contract reproducible from chain: true` with all
+  blocking counters 0 and `event_sync_jobs` correctly in the chain-only list;
+  `check:db008-harness` **exactly 8 `PASS` lines** (ran 9, skipped 1, failed 0)
+  with `PGBIN` set. **LOCAL EMULATION ONLY** — not Supabase, not hosted, not a
+  chain replay, no `db reset`, no `db push --include-all` (CP-051). Nothing
+  applied to any environment.
+- `lib/database.types.ts` **byte-unchanged**
+  (`168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7`, matching
+  DB-020's recorded value). The chain is now **two** relations ahead of the
+  contract — the safe direction, so regeneration may only ADD coverage. Blocked
+  on RELEASE-013; `--linked` permanently disqualified (CP-127). **No** diagnostic
+  is claimed cleared, and for this relation there are **none** to clear: all
+  three consumers are untyped service-role.
+- The DB-021 harness lives in `migration-validation/`, **not** `supabase/tests/`,
+  so `check:db008-harness` does not run it. No CI coverage is claimed for it.
+
+## DB-017 — the 42-capability catalog reconciled with the RLS matrix, and the fourth answer — 2026-09-28
+
+- Wave on `release/clean-snapshot` @ `16fb834f` (dirty worktree, 676 entries at
+  session start / 693 at close, from 12+ concurrent lanes; all preserved). No
+  migration was authored, applied, edited or renumbered. No reset, replay or
+  `db push --include-all`. No hosted environment contacted, no `psql` against
+  any target. `agents:generate` deliberately not run (shared-map race);
+  `agents:state:refresh` run after the record moved. **No hosted evidence of
+  any kind, and none claimed.**
+
+### The 206 pairs are 42 decisions, and there are FOUR answers
+
+- `scripts/ci/check-capability-matrix-agreement.mjs` +
+  `.test.mjs`. Layer 1 is the **real** `resolveEffectiveAdminCapabilities`,
+  dynamically imported (a *static* import of the `.ts` from a `.mjs` does not
+  resolve under `--import tsx`; measured, and load-bearing). Layer 2 is
+  **replayed** from the chain's own 17 `insert into public.org_role_permissions`
+  writes across its three writers, each conflict clause modelled. Neither
+  transcribed, so they can disagree.
+- **matrix_authoritative 2, zero open pairs** (`workforce.view`,
+  `workforce.manage` — both reconciled by DB-016, both read by RLS, and the
+  check is what keeps them there). **catalog_authoritative 11, 58 open pairs.**
+  **declared_intent_only 29, 148 open pairs.**
+  **deliberately_unseeded 0** — implemented, enforced, and applied to nothing,
+  because the one real instance (CP-094's `workforce.manage` /
+  `department_manager`) is a **pair**-level decision and forcing it onto a
+  capability would misdescribe it. Reported as zero rather than manufactured.
+  `FORBIDDEN_MATRIX_GRANT` is proven reachable by test.
+
+### Standing facts this lane now owns
+
+- **THE GATE IS A STRUCTURAL SUPERSET OF THE MATRIX.** `resolveAdminCapabilities`
+  unions `configuredPermissions` (the matrix row) into the role's catalog
+  defaults (SEC-102, `admin-capabilities.ts:464-480`), so `matrix(role) ⊆
+  gate(role)` for every catalog capability. Measured: 504 pairs, **zero**
+  matrix-exceeds-gate counterexamples, asserted both over the pair table and
+  against the real resolver per role and per carried capability. **So none of
+  the 206 is a disclosure — every one is a caller who passes the route gate and
+  is then denied rows.** A plausible zero, which CP-098 forbids, but a *narrower*
+  surface. Anyone who reads the 206 as an exposure list will prioritise it
+  wrongly.
+- **A capability no RLS policy reads is a declared intent, and a matrix value for
+  it is INERT.** 29 of 42 are in this class. `workforce.publish` is the named
+  instance: read by no policy, function or trigger anywhere in the 323-migration
+  chain, its only occurrence being `org_members_permissions_check`
+  (`20260821180438:88`), which **admits the value and authorizes nothing**.
+  **`finance.manage` is a second, previously unrecorded instance** — in the
+  catalog, in the matrix for `owner`/`admin`/`finance` since
+  `20250816132000:45-48`, read by nothing. With `finance.view`,
+  `finance.approve`, `finance.pay` and `advance.manage` also unread, **the chain
+  enforces no finance capability at the row level.** Removing an inert grant is a
+  *removal*, which DB-016's additivity rule forbids; the correct action is to
+  label it and route the question to the owner.
+- **Enforcement must be classified by TRANSITIVE reachability from a policy
+  predicate, never by a grep of policy text.** `logistics.view` and
+  `logistics.manage` are read only through `private.user_can_read_staff_zone` /
+  `user_can_edit_staff_zone` (`20260903120000:53500`, `:53568`) and appear in NO
+  `create policy` statement — a grep calls both unenforced and they are
+  enforced. The converse: `tour.publish` is enforced by three publication RPCs
+  that call `has_perm` and then `RAISE`, and no policy reads it, on a
+  launch-critical path. 287 chain-defined functions, 50 policy-reachable, 16
+  distinct permissions read through the chain's single matrix authority
+  `public.has_perm`.
+- **THE 42×12 PAIR TABLE IS NOT THE WHOLE AUTHORIZATION STORY.** Three
+  permissions the RLS enforces — `org.manage`, `org.invite`, `staff.manage` —
+  are **not** catalog capabilities, so they generate no pair and cannot appear in
+  any pair count. `org.roles.manage` / `org.settings.manage` /
+  `communications.send` are capabilities with no matrix row, while the chain
+  enforces the first two as `org.manage` and the third as `staff.manage`. The
+  gap is a **vocabulary gap, not a missing control**, and getting that backwards
+  sends people to build controls that already exist. All 9 recorded in
+  `LEGACY_MATRIX_VOCABULARY`; a tenth fails the check.
+- **The chain's only policy touching the matrix directly is
+  `roleperms_select ... using (true)` (`20250816132000:112`) — world-readable and
+  it authorizes nothing.** Every RLS enforcement path goes through
+  `public.has_perm`; the check fails if that ever stops being true.
+
+### The finding DB-016 handed over, reproduced and one figure corrected
+
+- **The total, 206, is reproduced exactly.** But DB-016's per-role distribution
+  **sums to 207** and records `production=24`. The chain-derived value is
+  **23**, and 206 only reconciles at 23. DB-016's own evidence line already
+  printed "production 23 vs 24" and then recorded 24 as authoritative with an
+  explanation that does not account for the arithmetic. Cause, measured:
+  `production_manager`'s catalog slice is **identical** to `production`'s, but
+  DB-016 created its matrix row with only the `workforce.*` slice, so
+  `production_manager` is 24 and `production` is that same 24 minus the one
+  capability `production` already carried — `event.manage`, whose only open pair
+  is `production_manager`. `production_manager` alone is 24 of the 206, and its
+  24 are an artefact of the seed, not a designed asymmetry.
+- The 206 splits **148 `declared_intent_only` / 58 `catalog_authoritative` /
+  0 `matrix_authoritative`**, and by role owner=37 admin=35 tour_manager=26
+  **production=23** production_manager=24 department_manager=11 finance=13
+  finance_manager=14 ticketing=7 ticketing_manager=7 viewer=9.
+
+### The standard, applied to the instrument rather than to the target
+
+- **Proven able to fail four times at the CLI**, each a copy of the real chain
+  with one edit, each with a real exit code, via a documented
+  `CAPABILITY_MATRIX_CHAIN_DIR` override so an operator can reproduce them and not
+  only a test: (1) `MATRIX_AUTHORITATIVE_BREACH`, exit 1, 1 failure; (2)
+  `DECISION_UNDERSTATES_CHAIN` on **`workforce.publish`** — a real injection
+  making a policy read it — exit 1, 1 failure; (3)
+  `UNDECIDED_MATRIX_VOCABULARY` (severity `FALSE_POSITIVE_DIRECTION_SAFE`),
+  exit 1, 1 failure; (4) the **unmutated** chain under `--strict`, exit 1,
+  **exactly 206**. DB-016's standard was 13 disagreements on the before-state;
+  the equivalent here is 206 on the current chain, which is what makes the
+  default mode's 0 a measurement.
+- **Both error directions are labelled in the emitted output, not only in the
+  header.** False positive (safe): an unrecognised construct is reported as
+  UNDECIDED and never silently ignored, because **a silently ignored construct is
+  indistinguishable from a capability that constrains nothing** — which is exactly
+  how `workforce.publish` came to be believed. False negative (unsafe, the
+  dangerous one): a recognised construct recorded as constraining something and no
+  longer doing so is `DECISION_NOT_SUPPORTED_BY_CHAIN`, printed **first**, with
+  its own severity label. A newly added RLS policy — an *improvement* — also
+  fails, because a check that rewards being stale is not a check.
+- **FIVE defects in this lane's own work, all recorded.** Four in the check and
+  one in the test. Three matter: the statement splitter's dollar-quote branch had
+  wrong index arithmetic and lost the second half of any
+  `do $x$ ... $x$; create policy ...` file; the `has_perm` argument extractor was
+  non-greedy, stopped at the first `)`, and therefore reported **41 of the 42
+  capabilities as constraining nothing** while exiting 0 — the **sixth
+  consecutive** instance in this repository of a revision passing while its
+  instrument could not fail; and a `matrix_exceeds_gate` pair on a
+  `matrix_authoritative` capability was classified as an open gap instead of a
+  violation, a real hole in the reverse direction, now
+  `MATRIX_GRANT_UNMODELLED_BY_GATE`. The fourth was `Object.keys` on a `Map`
+  returning `[]`, which printed the per-capability table **empty** on the first
+  green run. Both instrument defects are now prevented *structurally*: probes run
+  on **every invocation** and a failed probe reports that the run proves nothing,
+  and a **second, independent extractor** — deliberately wrong in one specific
+  way — must find the same set of 16 literals, so a broken extractor cannot
+  return a superset of it. **Assert your own post-state, and check that the
+  instrument can fail before believing that it did not.**
+
+### Gates, and what is NOT claimed
+
+- `node --import tsx scripts/ci/check-capability-matrix-agreement.mjs` → **exit 0**,
+  504 pairs, 206 open and dispositioned, 42 decisions, 0 undecided vocabulary.
+  `--strict` → **exit 1, 206 failures**. `node --import tsx --test …test.mjs` →
+  **25 pass / 0 fail, exit 0**. Four CLI inversions → **exit 1** each, counts
+  exact. `npx eslint` on both new files → **exit 0**.
+- `npm run agents:validate -- --strict` → **1 error, not this task's**:
+  `HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE: accepting task is already
+  completed`, an **untracked** events-lane handoff whose accepting task
+  `EVENTS-004` is completed. Handoffs are outside this grant and it was not
+  touched. `npm run agents:state:refresh` → refreshed 27 agents' queue summaries.
+- **Not run and not claimed:** whole-repo `npm run typecheck` (CP-106, OOMs on
+  `lib/database.types.ts` at ~25,600 lines) and `npm run verify:feature`
+  (`verify.mjs:44` runs typecheck unconditionally). **No TypeScript compilation
+  is claimed for the two new files** — both are `.mjs`, neither is in a tsc
+  program, and their correctness evidence is the 25-test run plus four CLI
+  inversions. `npm run generate:database-types` / `check:database-types` **not
+  run and not needed**: this task authored no migration and changed no table,
+  column or function, so `lib/database.types.ts` is byte-unchanged and
+  regeneration is not merely blocked but unnecessary. `supabase db lint --local`
+  needs a running target. `npm run agents:generate` deliberately not run.
+  **A clean local report is not a deployed posture**, and the derived matrix is a
+  CHAIN PREDICTION, not a measurement of any target.
+- **The check is NOT wired into CI.** `package.json` and
+  `.github/workflows/ci.yml` are shared artefacts in a dirty 693-entry worktree
+  and outside this grant under CP-112. Handed to release with the exact command,
+  the exit codes, and the two legitimate day-one failure modes. Until then it is
+  proven and runs on nobody's behalf — the same posture as DB-014's and DB-015's
+  instruments, stated rather than left implied.
+- **Proposed decision text is in the task record**, not in `DECISIONS.md`: three
+  lanes are appending concurrently this wave and the file is a shared claim, so
+  four proposed entries (CP-129 superset/false-denial, CP-130 declared intent,
+  CP-131 transitive classification, CP-132 vocabulary gap) are recorded in
+  `docs/engineering/tasks/completed/DB-017.json` → `progress.proposed_decisions`
+  for the orchestrator to append.
+- **Routed, not absorbed:** the matrix projection is WFC-003's
+  (`HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS` is already pending and this task
+  generalises it from two permissions to eleven capabilities); the
+  `workforce.publish` decision is WFC-005/WFC-006's; the money-path question is
+  finance's; the vocabulary gap is org's; the hosted half is QA's one-query
+  preflight. No handoff file was written — that path is outside this task's
+  `working_set` — so the routing is in the record's `progress.next_steps`.
+
+## DB-023: the event tables the chain never creates — 2026-09-28
+
+- **Both tables are now in the chain.**
+  `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` (SHA-256
+  `d56fdb54df7fdd347a6b7606191d6a122fe3925a66200e98142acef1e693a636`) creates
+  `public.event_posts` and `public.event_claims` with RLS **enabled and forced**,
+  seven policies, explicit grants, one declared dependency grant, and two
+  in-transaction post-conditions that assert the whole contract by name in both
+  directions. **Authored and locally proved only — applied to nothing** (CP-051).
+  Chain is now 324 files.
+- **AC-1 is the same answer for both tables: the chain is the source of truth, and
+  no out-of-band artifact is authoritative.** For `event_posts` the two candidate
+  definitions — the pre-reconciliation archive (MANIFEST.csv:2
+  `duplicate_version_noncanonical`) and `migrations_backup/20250115000003` — are
+  **mutually incompatible** on `media_urls` (`text[]` vs `jsonb`), `type`
+  (NOT NULL/4 literals vs nullable/6) and `visibility` (NOT NULL `'public'`/3
+  literals vs nullable `'attendees'`/3 different literals), and the backup's
+  policy set references `public.events.created_by`, `public.event_collaborators`
+  and `public.event_page_settings`, **none of which any active migration creates**,
+  so transcribing it aborts 42703; it also ships
+  `GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated` at line 443. For
+  `event_claims` the sole definition is `local_only_unapplied` (MANIFEST.csv:285).
+  **Durable rule for this lane: when two archived definitions of one relation
+  disagree, derive the contract from the live code and name every divergence —
+  transcribing either verbatim is not an option when the call sites contradict
+  them.**
+- **The archive is now a known source of false evidence, twice over.** (1) The
+  `ln`-versus-`event_claims` inconsistency named in DB-023's own AC-4 and in
+  `HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE` **does not exist**: the string
+  `ln` occurs zero times in the 182-line archived file, and `public.ln`,
+  `ln_self_read`, `ln_self_insert`, `idx_ln_event` and `idx_ln_claimant` occur in
+  no working-tree file and in no object git has ever held (`git log --all -S` on
+  both, plus a `--no-ignore --hidden` sweep). The two policy *names* the handoff
+  cites as evidence **are** the two real names, which is the likeliest origin.
+  The file is coherent, not inconsistent — merely incomplete. (2) The archived
+  `event_attendance` is not the chain's: the chain's
+  (`20250814091000:18-26`) has **no `event_table` column**, which three live
+  consumers group on. Both are recorded, and the second is routed to social
+  (`HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR`).
+- **Two contract facts were forced by live code, not chosen.** `event_table` must
+  admit `'events_v2'` — DB-009's resolver order puts `events_v2` first and
+  `app/api/events/[id]/posts/route.ts:143` writes `reference.table`, so **both
+  archives would 500 on any canonical event**. `author_id uuid` had to be
+  **added**: two live writers write it, and it is in neither archive *nor* in the
+  archive's own missing-column alignment block at `:135-175`. Same class of defect
+  DB-008 recorded for `event_attendance.event_table`.
+- **The disclosure decision for event posts, now in the schema and measured, not
+  asserted.** anon reads only `visibility = 'public'`; an authenticated caller
+  reads their own rows whatever the visibility; an **attending** authenticated
+  caller reads `'attendees'` posts. `event_posts_attendee_read` is the load-bearing
+  arm and removing the attendance row drops that caller from 4 reads to 2, which
+  is what proves the arm is the cause. **Named residual, installed as the recorded
+  model and routed rather than narrowed:** there is **no predicate on the parent
+  event's publication state**, so a public post on a *draft* event is anon-readable,
+  and the INSERT policy's `visibility = 'public'` disjunct lets any signed-in
+  account post on any event id. Narrowing either would change a live route's
+  documented behaviour, which is the events lane's call
+  (`HF-DB023-EVENT-POSTS-CALLERS`).
+- **AC-5, the load-bearing/decorative split, re-derived by measurement.** On
+  `event_claims`, **every** self-scoped predicate is decorative today: all three
+  consumers resolve `.from()` through `createServiceRoleClient()` and `service_role`
+  carries BYPASSRLS, so a `service_role` insert of `status = 'approved'`
+  **succeeds** with `event_claims_self_insert` in place — and `status` is exactly
+  what `app/api/events/[id]/tour/route.ts:39` reads to grant event ownership. What
+  denies a caller-side path is the **grant**, not the policy (`authenticated` holds
+  SELECT and nothing else). The durable invariant is the **pairing**: grant narrow,
+  policy correct, both asserted. On `event_posts` the opposite holds and each policy
+  is classified by measurement. `event_posts_own_update` is decorative today (no
+  live update consumer) and no DELETE or `service_role` policy exists, both
+  asserted as absences.
+- **Reachability changes the verdict and is now part of the record.**
+  `EVENT_EXTERNAL_CLAIMS` and `EVENT_PROVIDER_ADMIN_TOOLS` sit behind
+  `isLaunchCapabilityAvailable('external_event_providers')`, which is `disabled`
+  at `lib/config/launch-capabilities.ts:46` and therefore unopenable — so the
+  claim **write** path and the admin review path are **permanently 503**. The only
+  live `event_claims` path is `app/api/events/[id]/tour/route.ts`, which has **no**
+  feature gate; that is why a `service_role` policy is installed there and none on
+  `event_posts`. **Rule for this lane: a route behind a `disabled` launch
+  capability is not a reason to install a permissive policy; a route with no gate
+  is.**
+- **The proof found two real defects in this lane's own first revision, and both
+  are now durable rules.**
+  (1) An **unscoped policy subquery** against another relation made *every*
+  caller-side read and write of an event post fail `42501 permission denied for
+  table event_attendance` — **for `anon` too** — because a table-level ACL is
+  checked when the subplan runs, not per row and not per disjunct, so the `OR`
+  does not protect it. The migration would have turned a missing-relation 500 into
+  a **read outage on the public event page**. Fix: scope the arm
+  (`to authenticated`) and **assert `roles=` on every policy entry** so the split
+  cannot be silently reverted. (2) `authenticated` held **no SELECT on
+  `public.event_attendance`**, which `app/api/events/[id]/posts/route.ts:113` and
+  `app/api/events/[id]/page/route.ts:97` **already depend on** and which
+  `20250814091000` never grants (there is no `alter default privileges` anywhere
+  in the chain). The routes swallowed that error silently, so the attendance check
+  has been failing open. The migration now issues the grant, **not to `anon`**
+  (the archived `event_attendance` ships `USING (TRUE)` for SELECT), and asserts it
+  in both directions.
+- **FORCE ROW LEVEL SECURITY binds the OWNER role and is inert against a
+  superuser.** A harness that reads the table as the superuser that created it sees
+  every row with FORCE on and will report FORCE as decorative. On Supabase the
+  owning `postgres` role is NOSUPERUSER, so FORCE is real there — but any proof of
+  it must impersonate a NOSUPERUSER owner, and DB-023's harness now does.
+- **Instrument lessons, all three paid for in this lane's own work and all
+  reusable.** (a) A post-condition's expected list is compared against
+  **normalized** values, so the expected entries are themselves written in
+  normalized form; the rendered double parens on a complex qual and the `public.`
+  prefix are load-bearing, and writing the "obvious" form made the file refuse a
+  healthy target on its first apply. For a namespace in a comparison key, join it
+  with a **colon**, which the `public.`-stripping normalizer does not match, or a
+  `private`-schema relation compares equal to a `public` one.
+  (b) **A negative control that re-applies the migration proves only that the
+  migration repairs damage, not that the post-condition detects it.** Nine of
+  DB-023's thirteen controls were green for that reason. Controls must run the
+  post-condition alone, extracted from the migration at run time.
+  (c) A **multi-statement `psql -c` is one implicit transaction**, so a
+  duplicate-key error on a repeated seed rolled back the `create table` that
+  preceded it and made a control measure a table that did not exist. Seed with
+  `on conflict do nothing` and assert the fixture's own post-state after every
+  rebuild — the Wave 33 and Wave 34 harnesses both shipped revisions that passed
+  while the emulation had silently failed to rebuild.
+- **Verification, real output.** `npm run check:migration-chain` PASS (324 files,
+  no duplicate policy creations). `node scripts/ci/check-migration-validation.mjs`
+  on the new file PASS with a `planned` manifest; repo-wide
+  `npm run check:migration-validation` **exit 0**.
+  `bash supabase/tests/db023_event_posts_claims.harness.sh` → **154 checks, 0
+  failures**, twice, identical, on a throwaway PostgreSQL 16.15 cluster: three
+  applies produce three byte-identical catalog digests, thirteen negative controls
+  each demonstrated failing, plus two anti-vacuity runs (a mutant migration with
+  five defects is refused on its first apply; a harness with three corrupted
+  expected values reports exactly those three red).
+  `npm run agents:validate -- --strict` → **27 agents, 243 tasks, 113 pending
+  handoffs, 0 warnings, 0 errors**. **Not run and not claimed:** `npm run
+  typecheck` (CP-106, OOMs on this machine; this task authored no TypeScript),
+  `generate:database-types` / `check:database-types` (need an applied target, and
+  DB-008's backward drift on `public.venue_profiles` still blocks a chain-only
+  regeneration), `supabase db lint --local` (Docker not running, no target
+  configured). **A clean local replay is not a measurement of any deployed
+  environment.**
+- **Proposed decision text is in the task record**
+  (`docs/engineering/tasks/completed/DB-023.json` → `progress.proposed_decisions`,
+  nine entries), not in `DECISIONS.md`, which is a shared claim this wave.
+- **Routed, not absorbed:** the operator apply is `HF-DB023-EVENT-POSTS-CLAIMS-APPLY`
+  (release); the four `event_posts` call-site defects and the publication-state
+  question are `HF-DB023-EVENT-POSTS-CALLERS` (events); the `events_v2` claim gap,
+  the status-transition authority, the `admin.id` reference and the two 503 gates
+  are `HF-DB023-EVENT-CLAIMS-POLICY-PATH` (events); `event_attendance.event_table`
+  is `HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR` (social). Both inbound
+  `HF-EVENTS-004-*` handoffs are discharged to `completed/`.
+- **Recorded as a co-dependency, NOT absorbed:** the same archived
+  `20260804132000_event_claims_merges.sql` also creates `event_merge_candidates`,
+  `event_merge_decisions`, `event_slug_redirects`, `event_field_overrides` and the
+  `SECURITY DEFINER public.event_merge_execute`, which depends on
+  `event_external_sources`, `event_ticket_offers`, `event_discovery_index` and
+  `event_merge_candidates`. **None of those is created by any active migration**,
+  and the function qualifies nothing — the private-schema `search_path` trap this
+  repository has been bitten by twice. DB-023 created **no function at all**, so
+  there is no unqualified reference in its output. That surface is the same class
+  of gap as DB-023's own and belongs in a bounded follow-on.
+- **Disclosed out-of-working-set change:** `DB-022` was corrected from
+  `blocked`/`waiting_dependency` to `active`/`ready` and moved to `tasks/active/`,
+  because its only recorded dependency was DB-023 and `agents:validate --strict`
+  refuses to pass while a record claims a dependency that is not unfinished. Limited
+  to status, execution_state, depends_on, blocked_on, resume_condition and one
+  checkpoint. No DB-022 scope or criterion was touched and no DB-022 work started.
+
+## DB-022 — owning-account control for event provider connections is APPLICATION-SIDE, and that is now a decided, asserted fact (2026-09-28)
+
+- Wave on `release/clean-snapshot` @ `16fb834f1a03a70f165be470a5f98f389bf6100a`
+  (dirty shared worktree; DB-022 authored **no migration** and applied **nothing**
+  to any environment, CP-051). It discharges
+  `HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE`, inherited from EVENTS-004.
+
+### The decision, and the three facts that carry it
+
+- `public.event_provider_connections.owner_id` is a bare `uuid not null` with **no
+  foreign key** and **no owning-account column**
+  (`20260927140000_event_provider_connections.sql:161-182`). The column records
+  who **CREATED** a connection; it never records who the connection is **FOR**.
+- The table's four policies are own-rows predicates on `created_by` and on nothing
+  else. Measured, not read: a caller reads and updates exactly their own
+  `created_by` rows, and reads and updates a row naming an `artist_profiles.id`
+  owned by a *different* user. With the UPDATE grant issued out of band — the chain
+  grants `authenticated` SELECT only, so a caller-side write is refused by the
+  GRANT before any policy runs — the **policy** is the thing that decides, and it
+  decides on `created_by`.
+- The **absence of a DELETE policy is a decision and is confirmed, not assumed.**
+  Measured precisely, and it is subtler than a refusal: with no DELETE grant the
+  statement is `42501 permission denied`; **with** the grant issued it is a
+  **silent zero-row no-op**, not a `row-level security policy` error. Fail-closed
+  either way, so `bandsintown/disconnect` setting `status = 'disconnected'` is the
+  only way a connection is retired.
+- The three own-row **write** policies are **not on any live path**: all four
+  writers resolve `.from()` through `createServiceRoleClient()`. A `service_role`
+  insert naming an `owner_id` the creator does not control **succeeds** (that is
+  `bandsintown/connect` today), and so does an `authenticated` insert once the
+  grant is issued out of band, because the `WITH CHECK` never mentions `owner_id`.
+
+### AC-2 outcome: the check stays application-side, and ONE consumer owns it
+
+- The tempting answer — "the control relation is missing" — is **false**, and
+  saying it would have been a DB-017-class error: `artist_profiles.user_id`
+  (`20240415000000:17`), `venue_profiles.user_id` (`:30`), `venues_v2.created_by`
+  (`20250816133000:11`), `organizations.created_by` (`20250816132000:12`) and
+  `org_members(org_id, user_id, role)` (`:16-23`) are **all** created by the
+  active chain.
+- The real obstacle is that **nothing states what `owner_id` IS**, and the
+  candidate references are not one-per-`owner_type`.
+  `20260823010000_venue_identity_bridge.sql:36-44` declares a canonical identity
+  **triangle** binding `venue_profiles`, `venues_v2` and `organizations` as three
+  DISTINCT mirrors of one account. Measured: the schema accepts all three ids
+  under one `owner_type = 'venue'` with zero refusals, and an
+  `artist_profiles.id` and a **bare `auth.users.id`** under one
+  `owner_type = 'artist'`. Two resolvers, both implementable from the active
+  chain, return **different sets** for the same rows — A `{venue_profiles,
+  venues_v2}` vs B `{venues_v2, organizations}` via the bridge — and the
+  organization arm disagrees the same way (`created_by` alone = 1 controller;
+  plus `org_members` in `('owner','admin')` = 2). The chain has both conventions
+  and picks neither for this table.
+- So the single consumer responsible for enforcing the owning-account check is
+  **`app/api/integrations/bandsintown/connect/route.ts`** — the only writer of
+  `owner_id` and the only point at which an unvalidated one enters the table.
+  Routed as `HF-DB-022-CONNECT-OWNER-VALIDATION` to integrations / INTG-008.
+  The three **readers** already apply the `created_by` bound
+  (`bandsintown/status:19`, `bandsintown/disconnect:32`,
+  `events/[id]/claim:73`) and are recorded as measured, not as a second owner.
+- Even a settled convention would not make the **existing** policies sufficient
+  today, because the writer bypasses them. Widening a SELECT predicate the one
+  live caller-side reader (`bandsintown/status`, **no capability gate**) already
+  narrows in application code would add a function call, change no reachable
+  behaviour, and risk a fail-closed availability regression the moment the
+  mapping is wrong.
+
+### AC-3: `created_by` is a created-time proxy, and that limit is now executed
+
+- A caller who genuinely controlled the account still reads **and updates** the
+  connection after the control is transferred away — `auth.uid() = created_by`
+  has no dependency on `artist_profiles` at all.
+- The converse: a caller who **now** controls the account is refused the
+  connection, because they did not create it. The proxy is not a current-control
+  test in *either* direction.
+- There is **no expiry, revocation, or owner-verification column**, and
+  `created_at` is caller-settable, so the assertion never decays.
+  `supabase/tests/db022_provider_ownership_contract.sql` asserts the column set,
+  so a future expiry column has to be added to the contract deliberately.
+
+### The instrument, and two defects it found in itself
+
+- `supabase/tests/db022_provider_ownership.harness.sh` (377 checks), with
+  `db022_provider_ownership_contract.sql` and a `.bootstrap.sql` fixture. The
+  emulated authority is extracted **by line range from the chain's own bytes**,
+  and the chain's **own** post-condition
+  (`20260927140000:370-645`) is executed against the fixture, so the same author
+  as the schema validates the emulation. Two runs produced a byte-identical
+  sequence of all 377 check names.
+- **A vacuous counter, found and fixed.** The violation counter was
+  `grep -c 'as violation'` — and `as violation` is the column **alias**, which
+  tuples-only `psql` does not print. It was therefore **always zero**, on a healthy
+  target and a broken one alike, and it was reporting "zero violations" while the
+  contract was in fact emitting violations. It was masking a **real contract
+  defect**: the column comparison put `information_schema`'s `ARRAY` against
+  `format_type`'s `text[]`, so the `scopes` row could never match and the contract
+  reported a violation on a **healthy** target. Fixed both ways — a printed
+  `DB022-VIOLATION: ` prefix on all 26 messages, a like-for-like type comparison,
+  a dedicated `pg_attribute` `text[]` assertion (information_schema calls every
+  array `ARRAY`, so it cannot see `varchar[]`), and a **positional**,
+  prefix-independent count asserted beside the prefix count everywhere.
+  **N11 is the control for the counter itself** and is demonstrated moving.
+  The same `grep -c 'as violation'` idiom appears in at least one sibling contract
+  harness in this repository and is vacuous there for the same reason; that lane's
+  substantive `contains` negative controls did fire, so its conclusions stand.
+- **Instrument validation, which is why the 377/377 is evidence rather than a
+  claim.** The same harness was run against two deliberately broken **copies** of
+  the chain in a temp root: (a) `..._owner_read` widened to `USING (true)` → the
+  chain's own post-condition rejected the fixture and the run **aborted**;
+  (b) an `owner_id` **foreign key** added in place with no line shift → the
+  chain's own post-condition stayed **silent** (it does not enumerate foreign
+  keys), the db022 contract went red with exactly one violation carrying the
+  `DECISION DB-022` message, and 24 behavioural checks failed. **The recorded
+  decision is falsifiable by a future migration, and the instrument is shown to
+  notice** — a contract that tolerated the change it declined would be a rubber
+  stamp.
+
+### Do not
+
+- Do **not** rewrite `20260927140000_event_provider_connections.sql`. It is
+  read-only shared working set and is byte-unchanged: sha256
+  `d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420`, identical to
+  DB-020's recorded hash. A rewritten migration is a divergent history.
+- Do **not** "fix" the missing `owner_id` reference by adding a foreign key to a
+  polymorphic column. `supabase/tests/db022_provider_ownership_contract.sql` will
+  go red **on purpose** and its violation message says the decision must be
+  re-derived, not inherited.
+- Do **not** build a `SECURITY DEFINER` owner resolver here. DB-022 creates no
+  function at all, so the private-schema `search_path` trap is not reachable from
+  this work; if a follow-on adds one, it must pin `search_path` and be re-decided
+  against the settled id convention first.

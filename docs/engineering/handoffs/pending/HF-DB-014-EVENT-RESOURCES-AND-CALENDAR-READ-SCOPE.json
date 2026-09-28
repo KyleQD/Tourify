@@ -1,0 +1,84 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE",
+  "task_id": "DB-014",
+  "from_agent": "database",
+  "to_agent": "orchestrator",
+  "for_task": "DB-002",
+  "cc_agents": [
+    "orchestrator",
+    "security-admin",
+    "admin",
+    "work",
+    "artist",
+    "qa"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T02:00:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; 103 entries at session start)",
+  "summary": "READ-ONLY DISPOSITION, ADDRESSED TO TASK DB-002 (owner_agent: database, P0, active) whose declared working set already contains supabase/migrations/20260823221000_event_hq_rls_tighten.sql. `public.event_resources` and `public.event_calendar_items` carry the CP-104 shape - a permissive `for select to authenticated using (true)` coexisting with correctly-scoped `*_select_managers` policies - and DB-014 deliberately did NOT fix them. Not because the exposure is doubtful but because 20260823221000 documents the permissive read as a deliberate contract with a named compensating control, and a deliberate contract is a product decision rather than an oversight. This handoff states the exact question, the exact evidence, three candidate answers and what each of them costs. No migration was opened for either table and none should be until the decision is made.",
+  "why_not_just_fixed": [
+    "It is documented as intentional, with a stated compensating control. 20260823221000_event_hq_rls_tighten.sql:6-8 states: 'READS: authenticated-only (HQ content is internal; visibility slices like visible_to[] remain enforced application-side as today).' A policy with a written rationale and a named compensating control is a design decision. DB-014's mandate was to close a defect, and CP-104's shape is a heuristic for FINDING defects, not a licence to overwrite decisions.",
+    "The compensating control is testable, which is what makes this a decision rather than an oversight. 'visibility slices like visible_to[] remain enforced application-side' names a specific, checkable claim: every reader of these two tables filters on visibility. That claim can be confirmed or falsified. It cannot be assumed.",
+    "It is not a one-table fix. Narrowing SELECT on these two tables changes what every Event-HQ surface sees, and the blast radius is the whole event-HQ product surface, not one route. That is a product call with a named owner (DB-002), not a database call.",
+    "The write policies on both tables are creator-scoped and the delete policies are creator-or-manager, and they are correct. Narrowing only the read would leave the two tables in a state nobody has specified."
+  ],
+  "what_the_chain_actually_leaves_in_place_at_head": {
+    "note": "An ordered create/drop model over the 310 numbered migrations plus a full-text search for every policy name touching either table. Read-only; nothing was applied. Two ordered create/drop passes on the same tables is the DB-013 lesson applied to this disposition rather than a grep.",
+    "event_resources": {
+      "SELECT": "TWO policies coexist and OR together: `\"event_resources_read\" for select to authenticated using (true)` (20260823221000:36-37) AND `\"event_resources_select_managers\" for select to authenticated using (public.can_manage_event_hq(event_id))` (20260717194541:68-72). Because permissive policies OR, the manager predicate is COMPLETELY NULLIFIED. Any authenticated account reads every row of this table. This is the exposure.",
+      "INSERT": "TWO policies coexist: `\"event_resources_insert\" ... with check (created_by = auth.uid() or <profiles.is_admin>)` (20260823221000:38-39) and `\"event_resources_insert_managers\" ... with check (created_by = auth.uid() and public.can_manage_event_hq(event_id))` (20260717194541:75-82). OR'd, so the effective rule is (creator OR platform admin). Note this is WIDER than 20260717194541 intended: a non-manager creator may insert. That looks intentional per the 20260823221000 header ('users may insert rows they own') and is flagged, not disputed.",
+      "UPDATE": "ONE policy: `event_resources_update ... using (created_by = auth.uid()) with check (created_by = auth.uid())` (20260823221000:40-42). 20260717194541 created no UPDATE policy, so a manager cannot update someone else's resource. That is a functional gap, not an exposure - the read is open to managers anyway.",
+      "DELETE": "TWO policies: `\"event_resources_delete\" ... using (created_by = auth.uid() or <profiles.is_admin>)` (20260823221000:43-45) and `\"event_resources_delete_managers\" ... using (created_by = auth.uid() or public.can_manage_event_hq(event_id))` (20260717194541:84-92). OR'd, so (creator OR platform admin OR event manager)."
+    },
+    "event_calendar_items": {
+      "SELECT": "Identical shape: `\"event_calendar_items_read\" for select to authenticated using (true)` (20260823221000:53-54) OR'd with `\"event_calendar_items_select_managers\" using (public.can_manage_event_hq(event_id))` (20260717194541:99-103). Every authenticated account reads every row.",
+      "INSERT_UPDATE_DELETE": "Same three shapes as event_resources, at 20260823221000:55-62 and 20260717194541:106-123."
+    },
+    "swept": "NEITHER table appears in either v_tables array of 20260823210000_harden_hiring_onboarding_pii.sql, so no sweep in the chain has ever reached them. Unlike staff_members, nothing has cleaned this up incidentally, and unlike event_resources it will not be cleaned up by any future sweep either.",
+    "exempt_name_risk": "Neither table's read policy name matches any of the six 20260823210000 sweep exemptions, so the DB-014 sweep-exemption hazard (CP-107) does not apply to them today. If either table is ever added to a v_tables array while `event_resources_read` still exists, the sweep WOULD drop it - so a future sweep could silently change this surface. That is a reason to make the decision explicitly rather than leave it to whichever migration runs next."
+  },
+  "the_decision_required": {
+    "question": "May ANY authenticated account on the platform read EVERY row of event_resources and event_calendar_items? The migration says yes and names an application-side visibility filter as the compensating control. Confirm the compensating control is real on every reader, or decide that the read must be scoped.",
+    "the_claim_to_verify": "20260823221000:6-8 asserts that 'visibility slices like visible_to[] remain enforced application-side as today'. Make that concrete: enumerate every reader of both tables, and for each one show the filter that restricts it to the rows it is entitled to. A reader with no filter is a confirmed exposure, not a decision.",
+    "answer_a_keep_and_ratify": "If every reader filters correctly, ratify the current contract in writing, and the exposure becomes an accepted risk with a named owner rather than an open finding. Cost: it stays in the CP-104 shape forever, so every future audit will re-raise it, and the ONLY thing preventing a future 20260823210000-style sweep from changing the surface is the policy's NAME not matching an exemption. Write the ratification down somewhere the audit will read, or it will be re-litigated every quarter.",
+    "answer_b_scope_the_read": "Drop `\"event_resources_read\"` / `\"event_calendar_items_read\"` and widen the surviving manager predicate to the intended rule - most plausibly event-manager OR creator, mirroring the delete policies, with `visible_to[]`/status handled in the predicate rather than in the client. Cost: this is a behaviour change on the whole Event-HQ surface and it needs a consumer inventory and a staging probe per reader. It is a real piece of work, and it is DB-002's to size.",
+    "answer_c_creator_or_manager_read": "The middle option: read = creator OR event manager, matching delete. It closes the 'any authenticated account reads everything' exposure while keeping every flow that has a legitimate reason to see a row. Cost: same consumer inventory as B, smaller behavioural delta.",
+    "what_is_NOT_an_answer": "Adding a third permissive read policy. That is the CP-104 shape being extended, and it is the specific response the workforce lane's own history shows this codebase defaulting to when a scoped policy feels too narrow."
+  },
+  "explicitly_out_of_scope_here": [
+    "No migration was opened for public.event_resources or public.event_calendar_items. No DROP, no CREATE, no comment, no policy edit. Both are byte-unchanged.",
+    "No claim is made about any consumer of either table. This handoff does not enumerate readers, does not scan app/ or lib/ for them, and does not assert that the compensating control holds. That inventory is DB-002's and it is the thing the decision actually turns on.",
+    "public.event_bulletins carries the same `for select to authenticated using (true)` at 20260823221000:71. It was found during this read and is recorded here rather than raised as a third table, so the decision is made once for the event-HQ read surface instead of three times. Whether it belongs in the same decision is DB-002's call."
+  ],
+  "working_set": [
+    "supabase/migrations/20260823221000_event_hq_rls_tighten.sql (READ-ONLY)",
+    "supabase/migrations/20260717194541_harden_security_audit_remediation.sql (READ-ONLY)",
+    "supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql (READ-ONLY, sweep-scope confirmation)"
+  ],
+  "completed": [
+    "Read-only ordered create/drop model over the 310 numbered migrations for both tables, including the dynamic `execute 'create policy ...'` bodies, plus a full-text search for every policy name touching either table. Nothing was applied and nothing was written.",
+    "Recorded the surviving policy set per command for both tables, with file:line for each, and identified that the SELECT manager predicates are fully nullified by the OR.",
+    "Located and quoted the migration's OWN stated rationale and named compensating control (20260823221000:6-8), which is what makes this a decision rather than an oversight.",
+    "Confirmed neither table is in any 20260823210000 v_tables array, so nothing has cleaned it up incidentally and nothing will.",
+    "Confirmed neither read policy name matches a sweep exemption, and recorded that a FUTURE sweep reaching either table would silently drop the permissive read - which is a reason to decide explicitly rather than leave the surface to whichever migration runs next.",
+    "Found and recorded the adjacent observations the reader should have in hand: the INSERT rule is wider than 20260717194541 intended (creator OR platform admin), there is no manager UPDATE policy on either table, and public.event_bulletins has the same read shape at 20260823221000:71."
+  ],
+  "next_steps": [
+    "DB-002: own the decision. Enumerate the readers of both tables, verify or falsify the application-side visibility filter, then pick answer A, B or C and record it in DECISIONS.md. If the answer is B or C, open a migration under DB-002's own task - it must be additive, forward-only and idempotent in the shape of 20260926150000 / 20260926160000, and it needs a behavioural harness because the change is invisible to a catalog check.",
+    "DB-002: if the answer is A, also record WHY no future sweep may change the surface. The current protection is that `event_resources_read` happens not to match any of the six exemption patterns, which is not a control anyone would design on purpose.",
+    "ORCHESTRATOR: note that CP-104's shape produced 6 candidate (table, command) pairs in DB-013's model and DB-014 closed one of them. The remaining lower-priority candidates (public.events, public.profiles, public.venue_profiles) are still unrouted. This handoff is the template for dispositioning a CP-104 candidate that turns out to be a decision rather than a defect.",
+    "SECURITY/ADMIN: if the reader inventory turns up a reader with NO visibility filter, that is a confirmed disclosure and it should be raised as a P1 with its own task rather than folded into the product decision. Do not let 'it was a documented decision' absorb a reader that was never checked."
+  ],
+  "blockers": [
+    "The decision cannot be made from the database side. It needs a consumer inventory of every reader of both tables, which is outside the database lane's working set and outside this task's mandate.",
+    "No hosted verification exists. Every statement above is static analysis of the active chain plus read-only reasoning about PostgreSQL's OR semantics. Whether these policies are present on any given target cannot be answered from the chain, because DB-002 found out-of-band Management API application."
+  ],
+  "verification": [
+    "READ-ONLY. No migration opened, no policy created, dropped or altered, no file under supabase/migrations/ written. CP-051 honoured; no reset, no replay, no --include-all.",
+    "Evidence is a chain-order model over the 310 numbered migrations for both tables plus a full-text search for every policy name touching them, with file:line for each surviving policy recorded in this handoff. Every citation in this handoff was read from the migration text during this session.",
+    "NOT RUN AND NOT CLAIMED: no consumer scan of app/ or lib/ was performed, so this handoff makes no claim about whether the application-side compensating control holds. That is the open question, not a settled one. No hosted evidence of any kind exists or is claimed."
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "DB-002: own the decision. Enumerate the readers of both tables, verify or falsify the application-side visibility filter, then pick answer A, B or C and record it in DECISIONS.md. If the answer is B or C, open a migration under DB-002's own task - it must be additive, forward-only and idempotent in the shape of 20260926150000 / 20260926160000, and it needs a behavioural harness because the change is invisible to a catalog check."
+}

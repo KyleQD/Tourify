@@ -1,0 +1,141 @@
+{
+  "schema_version": "2.0",
+  "id": "WORK-008",
+  "title": "Build worker work-history surface",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "work",
+  "created_at": "2026-09-23T21:08:47.239Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (320 entries, 6 concurrent lanes)",
+  "goal": "Let a worker view their completed/upcoming job history with attendance and evaluation state, per SIM-20260922-WORK-004.",
+  "scope": {
+    "in": [
+      "Identify existing worker shift/history data sources",
+      "Build a worker-facing work-history surface",
+      "Cover empty-history and action/follow-up states"
+    ],
+    "out": [
+      "Creating new tracking data where canonical sources exist"
+    ]
+  },
+  "working_set": [
+    "app/work/**",
+    "app/jobs/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "SIM-20260922-WORK-004 reruns and passes with receiving-side evidence",
+      "owner": "work",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "work",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/work-mode/",
+          "npx vitest run __tests__/jobs/ __tests__/hiring/ __tests__/work-mode/"
+        ],
+        "evidence": [
+          "Wave 34 re-run: 43 test files / 231 tests pass across __tests__/jobs/ + __tests__/hiring/ + __tests__/work-mode/, which includes the 8 work-mode history tests (5 read-model + 3 route contract) unchanged.",
+          "Read-model evidence re-confirmed by reading lib/work-mode/read-model.ts: the assignment read is server-side scoped eq(user_id, userId); the check-in/out read is inside `if (workerActionsAvailable && knownRows.length > 0)`; a failed metric read sets availability.events = 'unavailable' and a failed attendance read warns and degrades rather than throwing.",
+          "The timed-attendance relation work_mode_check_in_events is created by the active chain (20260922155356_worker_actions_scope_reconciliation.sql) but absent from lib/database.types.ts, so the read goes through a documented `as SupabaseClient<Database> & { from(table: \"work_mode_check_in_events\"): any }` escape at lib/work-mode/read-model.ts:806-812. It is one of only two chain-created relations missing from the generated contract in the whole DB-008 inventory; only a database-lane regeneration can clear it. Handed off as HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE.",
+          "No code change was made to the history surface this round; no migration, no hosted action, no feature-flag change."
+        ],
+        "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty shared working tree)",
+        "last_run_at": "2026-09-25T03:39:51.186Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Implemented and locally re-verified: the worker work-history surface (server-side read model getWorkModeHistory, GET /api/work-mode/history, the History view in the workspace, and a self-contained client component with loading/error/empty/upcoming/past states) reusing canonical staff_shifts + staff_performance_metrics, with timed attendance gated on FEATURE_WORK_MODE_WORKER_ACTIONS=1. Wave 34 added no code change but did establish why the gate cannot be lifted from this lane: work_mode_check_in_events is chain-created yet missing from the generated contract, which is a database-lane reconciliation, not a work-lane edit. Acceptance (SIM-20260922-WORK-004 rerun with receiving-side evidence) still requires hosted staging, so the task stays active.",
+    "completed": [
+      "Add worker history read (getWorkModeHistory) to lib/work-mode/read-model.ts:\n- filters employment_assignments to active + terminal statuses (completed/cancelled/declined now visible)\n- server-side scope eq(user_id, userId); enriches shift/event/venue/org context + evaluation from staff_performance_metrics\n- attendance from staff_shifts.status, or gated work_mode_check_in_events when FEATURE_WORK_MODE_WORKER_ACTIONS=1\n- buckets upcoming (asc) and completed (desc); fails closed on assignment read error",
+      "Add GET /api/work-mode/history route (401 not_authenticated, 503 unavailable, Cache-Control private no-store; only ever calls the read model with the authenticated user id)",
+      "Add History view ({ id: history, label: History }) to WORK_MODE_VIEWS as the canonical last nav item; contract strings for overview preserved",
+      "Create components/work-mode/work-mode-history.tsx (client): loading skeleton, retry on error, empty-history state, Upcoming jobs + Past jobs sections with status badges, attendance summary, and evaluation summary",
+      "Wire WorkModeHistory into work-mode-workspace.tsx: history branch renders before the no-activeAssignment branch, with its own header title/description",
+      "Add 8 focused tests: 5 read-model unit tests (scoping, bucketing, gating off/on, empty evaluation, fail-closed) + 3 route contract tests (401/200/503)"
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [
+      "Acceptance criterion needs hosted staging evidence (RELEASE-007/QA gates pending); not runnable this round, task stays active",
+      "DB-010 work_mode_check_in_events schema/RLS not applied hosted; timed attendance read is gated on FEATURE_WORK_MODE_WORKER_ACTIONS=1 with fallback to shift status. The relation is in the active chain but not in the generated contract (HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE to the database lane).",
+      "Wave 34 grant boundary: lib/work-mode/** and app/api/work-mode/** are not in this round's work-agent file grant even though WORKING_SET.json lists lib/work-mode/** and the worker's primary data path is app/api/work-mode/** (GAPS R1). No file outside the grant was modified."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-25T03:39:51.186Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Implemented the worker work-history surface: server-side read model (getWorkModeHistory), GET /api/work-mode/history route, History view wired into the work-mode workspace, and a self-contained client component with loading/error/empty/upcoming/past states that reuses canonical shift + staff_performance_metrics sources. Focused verification passes: 40 test files / 199 tests, eslint clean on all 8 changed files, scoped tsc clean. Acceptance (SIM-20260922-WORK-004 rerun with receiving-side evidence) requires hosted staging, so the task stays active. Scope expansions recorded: types/hiring-roster-work-mode.ts (GAPS R1 boundary note) and app/api/work-mode/history/route.ts (work-mode API family); check-in/out attendance read is gated on FEATURE_WORK_MODE_WORKER_ACTIONS=1 because DB-010 is not applied to hosted projects.",
+        "completed": [
+          "Add worker history read (getWorkModeHistory) to lib/work-mode/read-model.ts:\n- filters employment_assignments to active + terminal statuses (completed/cancelled/declined now visible)\n- server-side scope eq(user_id, userId); enriches shift/event/venue/org context + evaluation from staff_performance_metrics\n- attendance from staff_shifts.status, or gated work_mode_check_in_events when FEATURE_WORK_MODE_WORKER_ACTIONS=1\n- buckets upcoming (asc) and completed (desc); fails closed on assignment read error",
+          "Add GET /api/work-mode/history route (401 not_authenticated, 503 unavailable, Cache-Control private no-store; only ever calls the read model with the authenticated user id)",
+          "Add History view ({ id: history, label: History }) to WORK_MODE_VIEWS as the canonical last nav item; contract strings for overview preserved",
+          "Create components/work-mode/work-mode-history.tsx (client): loading skeleton, retry on error, empty-history state, Upcoming jobs + Past jobs sections with status badges, attendance summary, and evaluation summary",
+          "Wire WorkModeHistory into work-mode-workspace.tsx: history branch renders before the no-activeAssignment branch, with its own header title/description",
+          "Add 8 focused tests: 5 read-model unit tests (scoping, bucketing, gating off/on, empty evaluation, fail-closed) + 3 route contract tests (401/200/503)"
+        ],
+        "next_steps": [
+          "Rerun SIM-20260922-WORK-004 with receiving-side evidence once hosted staging is available",
+          "Coordinate completed-status read-back with WORK-005 shift lifecycle data"
+        ],
+        "blockers": [
+          "Acceptance criterion needs hosted staging evidence (RELEASE-007/QA gates pending); not runnable this round, task stays active",
+          "DB-010 work_mode_check_in_events schema/RLS not applied hosted; timed attendance read is gated on FEATURE_WORK_MODE_WORKER_ACTIONS=1 with fallback to shift status",
+          "Scope expansions to record: types/hiring-roster-work-mode.ts (GAPS R1 boundary note) and app/api/work-mode/history/route.ts (work-mode API family outside declared working set)"
+        ]
+      },
+      {
+        "at": "2026-09-25T21:04:05.249Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Re-verified the worker work-history surface this round with no code change: the server-side scoping, the FEATURE_WORK_MODE_WORKER_ACTIONS=1 attendance gate, the empty/evaluation/fail-closed states and the route's 401/200/503 contract all still pass. Two durable findings recorded: the timed-attendance read reaches work_mode_check_in_events through a documented local any-escape because the relation IS created by the active chain (20260922155356) but missing from the generated contract - it is one of only two such objects in the whole DB-008 inventory and only a database-lane regeneration can fix it (HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE); and the worker-action route uses the request-scoped client only, never a service-role client, so worker mutations stay inside RLS.",
+        "completed": [],
+        "next_steps": [
+          "Rerun SIM-20260922-WORK-004 with receiving-side evidence once hosted staging exists; when the database lane reconciles the contract, drop the any-escape at lib/work-mode/read-model.ts:806-812."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-WORK-034-WORKER-ACTIONS-TYPE-SURFACE to the database lane: reconcile the generated contract for work_mode_check_in_events and work_mode_publication_acknowledgements; the work lane will then drop its local any-escape."
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "work",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

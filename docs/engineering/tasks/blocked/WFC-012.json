@@ -1,0 +1,129 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-012",
+  "title": "Implement scheduling services publication and legacy continuity",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Implement secure shift and assignment commands, transactional schedule publishing, reproducible diffs, acknowledgments, and compatibility services.",
+  "scope": {
+    "in": [
+      "Shift/assignment commands",
+      "Publish preview and transaction",
+      "Recipient delivery, retry, and acknowledgment",
+      "Legacy compatibility writes and reconciliation"
+    ],
+    "out": [
+      "Editing published versions",
+      "Silent deduplication without explicit links",
+      "Authoring schedule migrations (WFC-011) or legacy schedule reconciliation (WFC-004)"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/workforce/schedules/**",
+    "lib/workforce/scheduling/**",
+    "types/workforce/scheduling.ts (scheduling types only; WFC-005 owns the base types)",
+    "__tests__/workforce/scheduling/**",
+    "supabase/tests/wfc012_schedule_contract.sql (read-only assertion of the WFC-011 schema you consume)"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-011.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Publishing is transactional and idempotent",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Diffs preserve added/changed/removed and affected-recipient evidence",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Assignment responses carry only when material fields are unchanged",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Failed recipients retry independently",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Legacy Work Mode assignments remain reachable and parity mismatches are reported",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "work",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/workforce/scheduling",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on canonical schedule schema and types.",
+    "completed": [],
+    "next_steps": [
+      "CP-103 partition: app/api/admin/workforce/schedules/** and lib/workforce/scheduling/** are yours alone. WFC-005, WFC-014, and WFC-019 each own a disjoint set of the seven live routes.",
+      "Consume the WFC-011 schema as written. Do not author a migration, and do not reconcile legacy schedule tables yourself; explicit link/reconciliation rows are the WFC-004/WFC-011 contract.",
+      "CP-103 partition: claim only your own subtrees of app/api/admin/workforce/**. WFC-005/012/014/019 previously each claimed the whole tree, which already contains seven live routes (attendance, conflicts, conversions, health, identity-merge, payroll-exports, people).",
+      "Before authoring anything, disposition each route in your subtrees: adopt as-is, reconcile, or leave to its named owner. Do not write a parallel second implementation.",
+      "Implement commands and version publication",
+      "Add compatibility and reconciliation tests"
+    ],
+    "blockers": [
+      "WFC-011 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Work → Admin: schedule read/write, diff, conflict, and publish contracts for WFC-013",
+    "Work → QA: parity and publication failure fixtures"
+  ],
+  "scope_expansions": [],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "work",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103 partition: app/api/admin/workforce/schedules/** and lib/workforce/scheduling/** are yours alone. WFC-005, WFC-014, and WFC-019 each own a disjoint set of the seven live routes.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "work",
+      "condition": "WFC-011 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

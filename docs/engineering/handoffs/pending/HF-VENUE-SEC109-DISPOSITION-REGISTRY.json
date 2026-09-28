@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-VENUE-SEC109-DISPOSITION-REGISTRY",
   "task_id": "VENUE-005",
   "from_agent": "venue",
   "to_agent": "database",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T22:00:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "SEC-109 is green, but the two venue entries it went green on carry no disposition, owner, rationale, or review date, because lib/supabase/service-role-legacy-imports.json is a flat path array with no field for them. The rich registry is lib/supabase/service-role-import-review.json, which the venue file grant does not include and which currently holds a concurrent marketplace lane's uncommitted edits. This handoff carries the four fields so the debt is tracked in the registry that can actually hold them, and asks the SEC-109 owner to decide whether the flat array is the right home for new-format imports at all.",
@@ -42,5 +42,7 @@
   "verification": [
     "lib/supabase/service-role-legacy-imports.json now contains both venue paths, alphabetically placed.",
     "lib/supabase/service-role-job.ts:55-62 (org_not_found), :63-73 (target covers eventId/tourId/saleId only), lib/supabase/service-role-allowlist.ts:6-40 (33 module ids, no venue surface), lib/venue/venue-access.ts:347-395 (lazy operationalOrgId provisioning) — all read from the current bytes."
-  ]
+  ],
+  "accepting_task_id": "DB-008",
+  "completion_condition": "If the reviewed-debt registry is the correct home for a NEW import that is deliberately kept, add these two entries (disposition and ids are the receiver's call; the file currently uses owner 'venue-operations' with ADM-WF-0xx / ADM-M-0xx): { file: 'app/api/venue/availability/route.ts', owner: 'venue-operations', rationale: 'Venue availability blocks are a venue_profiles-scoped boundary that is service-role-only after migration 20260924120000, which revokes client SELECT on the raw table; it is not expressible as an organization job because venue_profiles has no organization_id, nor as a user-RLS read.' } and the same for 'app/api/venue/reservations/route.ts'. NOTE: reviewed-debt entries are checked for staleness and a stale one fails the gate, so removing a later refactor means removing the entry in the same change."
 }

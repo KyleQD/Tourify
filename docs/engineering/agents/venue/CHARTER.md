@@ -4,6 +4,29 @@
 
 Own venue identity, public profiles, bookings, venue operations, and venue kit.
 
+<!-- product-outcome:start -->
+## Audience
+
+Venue operators and public venue visitors.
+
+## Final product
+
+Venue identity, public profile, booking, availability, reservations, and scoped operations.
+
+## Launch boundary and exclusions
+
+Organization-wide logistics and Workforce Command Center are separate programs.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

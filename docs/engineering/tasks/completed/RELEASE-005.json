@@ -1,0 +1,337 @@
+{
+  "schema_version": "2.0",
+  "id": "RELEASE-005",
+  "title": "Enforce production release required checks",
+  "status": "completed",
+  "priority": "P0",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T09:35:24.034Z",
+  "updated_at": "2026-09-27T20:06:41.216Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (release-owned records only: .github/workflows/ci.yml, release STATE/DECISIONS, DECISIONS.md release section, one new evidence note, four handoffs. Concurrent lanes hold the remaining entries — Wave 35 governance lane, 2026-09-25)",
+  "goal": "Require a clean install, green tests, deterministic build, security gates, and matching-SHA deployed E2E before main can promote to production",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    ".github/workflows/e2e.yml",
+    "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+    "docs/engineering/release/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/active/MKT-004.json",
+    "docs/engineering/tasks/active/RELEASE-008.json",
+    "docs/engineering/tasks/active/INTG-006.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The current three Vitest failures, two Jest configuration failures, and production build/typecheck stall are resolved",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "QA-003 passes against the exact staging release SHA with no accidental skips",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Main branch protection requires clean install, lint, typecheck, unit/integration tests, production build, migration checks, service-role audit, security scan, and critical E2E",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Pull requests and main pushes run the required checks and a failed or missing check cannot deploy production",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "The final go/no-go record links the release SHA, CI and E2E runs, deployment IDs, migration evidence, approver, and rollback point",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "release",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/integrations/mfa.service.test.ts --reporter=verbose",
+          "npx vitest run __tests__/logistics/site-map-ops-upgrade.test.ts --reporter=verbose",
+          "npx vitest run __tests__/integrations/mfa.service.test.ts __tests__/logistics/site-map-ops-upgrade.test.ts --reporter=verbose",
+          "npm run test:unit -- --reporter=dot",
+          "npx jest --runInBand lib/marketplace/__tests__/music-commerce-boundary.test.ts lib/music/__tests__/music-commerce-boundary.test.ts lib/auth/__tests__/acting-context.test.ts lib/auth/__tests__/request-public-origin.test.ts lib/auth/__tests__/tourify-auth-helpers.test.ts lib/marketplace/__tests__/checkout-p6.test.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts",
+          "npx vitest run lib/marketplace/__tests__/music-commerce-boundary.test.ts lib/music/__tests__/music-commerce-boundary.test.ts lib/auth/__tests__/acting-context.test.ts lib/auth/__tests__/request-public-origin.test.ts lib/auth/__tests__/tourify-auth-helpers.test.ts --reporter=dot",
+          "npm test -- --runInBand",
+          "npx eslint jest.config.cjs lib/marketplace/__tests__/checkout-p6.test.ts app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts",
+          "gh pr view 14 --json number,title,headRefOid,mergeStateStatus,statusCheckRollup",
+          "gh api repos/KyleQD/Tourify/commits/d21769046d517898144ee09a1c7bb4a7d36b068f/status",
+          "gh api repos/KyleQD/Tourify/check-runs/106862973938",
+          "gh api repos/KyleQD/Tourify/check-runs/106862973938/annotations --paginate",
+          "gh api repos/KyleQD/Tourify/check-suites/96831076767",
+          "gh api repos/KyleQD/Tourify/actions/jobs/106861310047",
+          "gh api repos/KyleQD/Tourify/actions/jobs/106861311050",
+          "gh run view --repo KyleQD/Tourify 35761777731 --json name,conclusion,jobs",
+          "gh run view --repo KyleQD/Tourify --job 106861310047 --log",
+          "gh run view --repo KyleQD/Tourify --job 106862973938",
+          "gh api repos/KyleQD/Tourify/branches/main/protection",
+          "gh api 'repos/KyleQD/Tourify/code-scanning/alerts?pr=14&state=open&per_page=100' (10 pages)",
+          "gh api 'repos/KyleQD/Tourify/code-scanning/alerts?pr=14&severity=critical'",
+          "gh api 'repos/KyleQD/Tourify/code-scanning/alerts?branch=main' (open/dismissed/fixed)",
+          "gh api 'repos/KyleQD/Tourify/code-scanning/analyses?ref=refs/heads/main'",
+          "gh api 'repos/KyleQD/Tourify/pulls/14/files?per_page=100' (9 pages)",
+          "npm run agents:validate",
+          "git diff --check -- docs/engineering/tasks/active/RELEASE-005.json docs/engineering/tasks/active/RELEASE-006.json docs/engineering/tasks/active/RELEASE-007.json docs/engineering/agents/release/DECISIONS.md"
+        ],
+        "evidence": [
+          "Read-only source preflight at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b: full Vitest is not green (5017 passed, 8 skipped, 2 failed across 535 files).",
+          "The two failures are __tests__/integrations/mfa.service.test.ts backup-code bcrypt timeout and __tests__/logistics/site-map-ops-upgrade.test.ts expecting PublicSiteMapViewer.",
+          "Hosted E2E workflow has no run for candidate SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b; the latest 20 listed runs failed, including run 33990768961 failing both Vitest and Playwright jobs.",
+          "Candidate SHA check-runs contain no E2E result; source e2e.yml remains pull_request/manual-only and the hosted workflow cannot prove a post-merge main deployment SHA.",
+          "GET /repos/KyleQD/Tourify/branches/main/protection returned 404: main is not branch-protected and no required-check enforcement evidence exists.",
+          "npm run agents:validate passed: 17 agents, 99 tasks, 0 warnings, 0 errors; changed-path diff check passed. No workflow, deployment, or branch-protection changes were made.",
+          "At SHA ddf3b43d482900c6f7c6d8356e122f59885224c6, the isolated MFA suite passed all 8 tests. The historical bcrypt timeout is stale on this HEAD; the slowest backup-code redemption case completed in 5.425 seconds without a timeout.",
+          "The isolated site-map contract reproduced 1 failure because the 2026-09-19 venue-tree consolidation moved the implementation to app/venue/components/site-map-viewer.tsx while the source-inspection test still read the legacy compatibility export. The test now verifies the canonical PublicSiteMapViewer implementation and the compatibility re-export; both historical suites pass together (2 files, 11 tests).",
+          "Full local Vitest at SHA ddf3b43d482900c6f7c6d8356e122f59885224c6 passed: 567 files passed, 2 skipped; 5313 tests passed, 8 skipped; exit 0 in 24.45 seconds on Node v24.19.0 and npm 11.17.0. This clears the local Vitest blocker only; no hosted, deployment, or branch-protection claim is implied.",
+          "After the concurrent SOCIAL-004 regression test landed, the combined full suite was rerun successfully: 568 files passed, 2 skipped; 5317 tests passed, 8 skipped; exit 0 in 23.04 seconds. Focused messaging tests also passed 24/24.",
+          "Fresh read-only GitHub evidence on 2026-09-20: the newest 10 e2e.yml runs are still failures from 2026-09-05 (newest run 33990768961); none targets ddf3b43d. GET /repos/KyleQD/Tourify/branches/main/protection still returns 404 Branch not protected.",
+          "Focused ESLint and git diff --check passed for the changed test and records. npm run agents:validate reported 17 agents, 113 tasks, 0 errors and 8 expected generated-map SHA warnings; generated maps and TASK_INDEX were intentionally not refreshed in this local slice.",
+          "The reproduced full Jest baseline had 7 failed and 107 passed suites, with 8 failed and 672 passed tests. Five failures were runner-ownership errors: Vitest suites under lib/auth, lib/marketplace, and lib/music were collected by Jest. The remaining 8 test failures were stale checkout and music-royalty webhook fixtures.",
+          "jest.config.cjs now explicitly assigns the five Vitest-importing suites away from Jest. A focused command naming all seven previously failing paths ran only the two Jest-owned suites and passed 18/18 tests; the five reassigned suites passed under Vitest (5 files, 30 tests).",
+          "Checkout fixtures now provide the existing guest-capability mock and required idempotency keys. Music-royalty webhook tests retain the production canonical advanced-webhook deny gate, prove its 503 response before database access, and use a test-only approval mock solely to exercise signature and durable receipt behavior. No runtime route, capability manifest, or idempotency implementation changed.",
+          "Full local Jest at SHA ddf3b43d482900c6f7c6d8356e122f59885224c6 passed: 109 suites and 681 tests, 0 failures or skips, exit 0 in 4.199 seconds. Focused ESLint and changed-path whitespace checks passed.",
+          "2026-09-25 Wave 32 (PR #14 head d2176904, read-only): `CodeQL` check-run 106862973938 resolves to the GitHub Advanced Security app (app.slug `github-advanced-security`, app id 57789) inside check suite 96831076767 with no workflow run attached, which is why `gh run view --job 106862973938` returns HTTP 404. It reports 96 open code-scanning alerts, 0 dismissed and 0 fixed, with dismissed_reason null on all 96; the single critical is alert #16 `js/request-forgery` at app/api/discover/route.ts:351. Nothing was dismissed or reconfigured.",
+          "2026-09-25 Wave 32: main branch protection is CONFIGURED. GET /repos/KyleQD/Tourify/branches/main/protection returns 200 (not the 404 recorded in earlier state and in this task) with required_status_checks.strict true over 10 contexts, required_approving_review_count 1, dismiss_stale_reviews, require_last_push_approval, enforce_admins, required_linear_history, allow_force_pushes disabled, allow_deletions disabled, required_conversation_resolution, and required_signatures disabled. This task's `main is not branch-protected` blocker is retired; remaining enforcement gaps are reported read-only in HF-RELEASE-005-REQUIRED-CHECKS and no protection setting was changed.",
+          "2026-09-25 Wave 32: exactly three required checks block PR #14 - `Database Types` FAILURE, `Lint And Build` FAILURE, `E2E Tests (Playwright)` CANCELLED - and mergeStateStatus is BLOCKED. The `Vercel` StatusContext and the Advanced Security `CodeQL` check are not in the required-check list and therefore do not block the merge.",
+          "2026-09-25 Wave 32 scope discipline: `git status --porcelain -- .github/` shows only `.github/workflows/e2e.yml` modified (a concurrent lane's change); `ci.yml` and `security-scans.yml` are clean and neither required a change. This lane created or modified only release-owned records and docs.",
+          "2026-09-25 Wave 35 SUPERSEDING: the two dated 404 evidence lines above (2026-09-09 and 2026-09-20) are preserved deliberately, because each was true on its date. The live configuration as of 2026-09-25 is GET /repos/KyleQD/Tourify/branches/main/protection -> 200 with strict true over 10 contexts, required_approving_review_count 1, dismiss_stale_reviews, require_last_push_approval, enforce_admins, required_linear_history, allow_force_pushes false, allow_deletions false, required_conversation_resolution, required_signatures.enabled false. See REL-005 for the correction policy: live claims are corrected in place, dated observations are superseded by append.",
+          "2026-09-25 Wave 35 STRUCTURAL FIX LANDED IN-REPO: .github/workflows/ci.yml was restructured from ONE composite job into ELEVEN independent jobs with no needs: edges. On run 35761777731 the step 11 Typecheck failure marked steps 12-27 skipped, which is why d2176904 had no production-build evidence and why check:migration-validation and check:service-role-allowlist were unobservable. Production Build, Migration Gates, Service-Role Audit, Jest Unit Tests, Route And Registry Gates, Regression Safeguards and Mobile Typecheck And Lint are now independent job contexts. Coverage preservation was proven mechanically: a set difference of every npm invocation before and after returns 0 removed and 0 added, and npm audit --audit-level=critical MOVED UP ahead of Typecheck so it is no longer maskable.",
+          "2026-09-25 Wave 35 REQUIRED-CHECK POSTURE DECIDED, NOT APPLIED: REL-003 and CP-077 answer all seven questions. Require Dependency review and the six new unconditional build/migration/audit/test jobs in one atomic PUT. Do NOT require as configured Migrations And RLS Matrix, mobile-checks, redirect-safety or Mobile Typecheck And Lint, because all four are PATH-FILTERED and a required context that does not report for a head SHA blocks the merge. Defer the Advanced Security CodeQL gate until a refs/heads/main baseline exists. Leave required_signatures false. NO PUT was issued and no protection state was changed by this lane; the exact owner procedure is in docs/audits/flow-notes/release-wave35-governance-2026-09-25.md section 2.3.",
+          "2026-09-25 Wave 35 MAIN BASELINE ROOT CAUSE (answers the open question in HF-RELEASE-SEC-CODEQL, third option): neither \"main has not been pushed\" nor \"the SARIF upload is not landing\". main WAS pushed (76d8389ebf939cee70f7070abf74a6bacc46f5de, 2026-07-19, protected true) and the upload IS landing (19 recorded analyses, all refs/pull/*/merge, CodeQL 2.27.0, /language:javascript-typescript). The real cause is that .github/workflows/security-scans.yml HAS NEVER BEEN ON main: git ls-tree --name-only origin/main .github/workflows/ returns 13 files and it is not among them; the file was introduced in be313ca2 (2026-08-04) on an unmerged feature branch, so its on: push: branches: [main] trigger has never existed on the default branch and has never fired. gh run list --workflow security-scans.yml shows 19 runs, ALL event=pull_request, with zero push and zero schedule events. Remediation is a merge-ordering fix, not a configuration fix; the single check that proves it closed is a non-empty GET /code-scanning/analyses?ref=refs/heads/main.",
+          "2026-09-25 Wave 35 NEW GOVERNANCE RISK, sharper than the baseline gap: four of the ten required contexts (Security exception governance, Secret scan, CodeQL (JavaScript/TypeScript), Generate SBOM) are emitted ONLY by security-scans.yml, which is NOT on main. They are satisfiable only because a pull request carries the file, there is zero evidence their push:main path has ever run, and removing the file from main would make four required contexts unproducible and block every future merge.",
+          "2026-09-25 Wave 35 verification: js-yaml parse of all 16 workflows -> 0 failures, ci.yml 11 jobs, every job with runs-on and a job-level timeout-minutes; every referenced npm run script exists in package.json (23/23); ${{ }} expressions balance 11/11; the four ci.yml-owned required context names asserted present; git status --porcelain -- .github/workflows/e2e.yml -> EMPTY (the QA-owned file is untouched); node --test scripts/ci/release-workflow-contract.test.mjs -> 2/2 pass; git diff --check on every changed path -> exit 0; npm run agents:validate -> see the Wave 35 checkpoint.",
+          "Preserved v1 result: blocked"
+        ],
+        "last_run_sha": "ca3bb0b0",
+        "last_run_at": "2026-09-25T23:55:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "release",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "The long-running required-check journal is superseded by bounded runtime, hosted-surface, staging, promotion, and rollback gates.",
+    "completed": [
+      "Reproduced both historically recorded Vitest failures with isolated commands at ddf3b43d.",
+      "Confirmed the MFA bcrypt timeout is stale on current HEAD and corrected the site-map contract test after the canonical venue-tree move.",
+      "Ran the complete local Vitest suite successfully: 567 passed files, 2 skipped; 5313 passed tests, 8 skipped.",
+      "Assigned five Vitest-importing suites explicitly away from Jest and proved all five pass under Vitest (30/30 tests).",
+      "Updated only checkout and royalty-webhook mocks/fixtures for current guest capability, mandatory idempotency, canonical launch-denial, and durable receipt contracts.",
+      "Ran the complete local Jest suite successfully: 109 suites and 681 tests passed with no failures or skips.",
+      "Preserved the release-gate evidence while ending the 18-day journal."
+    ],
+    "next_steps": [
+      "Use RELEASE-013, RELEASE-014, RELEASE-003, RELEASE-004, and RELEASE-007 for the remaining bounded release work."
+    ],
+    "blockers": [
+      "The composite local acceptance criterion is not fully proved: deterministic production typecheck/build evidence remains outstanding.",
+      "No matching-SHA hosted E2E result exists; the latest listed hosted runs failed.",
+      "Branch protection IS configured and verified (10 strict required contexts), but the required-check SET is still incomplete: six new independent release-gate jobs (Production Build, Migration Gates, Service-Role Audit, Jest Unit Tests, Route And Registry Gates, Regression Safeguards) exist in ci.yml and are not yet required, and the decision in REL-003 has not been applied. No branch-protection setting was changed by this lane; the owner-executed atomic PUT is written out in docs/audits/flow-notes/release-wave35-governance-2026-09-25.md section 2.3.",
+      "No final go/no-go record yet links the exact release SHA, CI/E2E runs, deployment IDs, migration evidence, approver, and rollback point.",
+      "NINE OF ELEVEN ci.yml job caps are PROVISIONAL, not measured against a green run, and each is annotated in ci.yml with the green run that would replace it. The Production Build cap rests on a cost model whose static-generation phase has NEVER been measured, because the Build step has never completed on this repository. No claim is made that any of these jobs completes inside its budget.",
+      "The inline full-repo tsc inside next build cannot be removed from any release-owned file: the only switch is typescript.ignoreBuildErrors in next.config.ts, which is not release-owned and whose relaxation would weaken a gate. The E2E-job headroom consequence is raised as HF-QA-035-E2E-BUILD-HEADROOM rather than applied to the QA-owned e2e.yml."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T19:58:51Z",
+        "summary": "Explicitly deferred required E2E enforcement because this pass is local readiness only.",
+        "next": "Use a promotion-scoped task after test stabilization."
+      },
+      {
+        "at": "2026-09-14T08:15:00Z",
+        "summary": "Read-only preflight found RELEASE-005 is not eligible for enforcement. Full Vitest on the candidate SHA has 2 failures; hosted E2E has no matching successful result and recent listed runs failed; main is unprotected with no required-check evidence.",
+        "next": "Resolve the two test failures, obtain matching-SHA hosted E2E evidence, provision branch protection, then rerun this preflight.",
+        "blockers": [
+          "mfa.service.test.ts backup-code bcrypt timeout",
+          "site-map-ops-upgrade.test.ts expects PublicSiteMapViewer",
+          "No branch protection or required-check enforcement on main"
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.573Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted RELEASE-005 to P0. The current gate is three Vitest failures, two Jest configuration failures, deterministic build/typecheck completion, QA-003 matching-SHA certification, branch protection, and release evidence; the stale 27-failure wording is retired.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-21T04:20:52Z",
+        "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+        "summary": "Closed RELEASE-005's local Vitest blocker. The MFA suite passed in isolation (8/8), proving the recorded bcrypt timeout stale. The site-map suite reproduced one stale path assertion after the canonical venue component moved from components/venue to app/venue; the contract test now checks the canonical implementation plus the legacy compatibility export. The two focused files passed together (11/11), then the complete Vitest suite passed (567 files passed, 2 skipped; 5313 tests passed, 8 skipped; 24.45 seconds).",
+        "completed": [
+          "Expanded the working set to __tests__/logistics/site-map-ops-upgrade.test.ts because the recorded failure required direct reproduction and its inspected implementation path had moved.",
+          "Preserved production code and corrected only the stale source-inspection contract.",
+          "Recorded exact local commands, SHA, toolchain, counts, duration, and exit status.",
+          "Validated the task JSON, focused ESLint, whitespace, and the agent control plane; validation had 0 errors and 8 expected generated-map SHA warnings.",
+          "Re-ran the full suite after concurrent SOCIAL-004 coverage landed: 568 files and 5317 tests passed; 2 files and 8 tests skipped.",
+          "Refreshed live GitHub evidence without mutation: no matching-SHA E2E exists, the latest listed E2E runs failed, and main remains unprotected."
+        ],
+        "next_steps": [
+          "Finish the remaining local release checks and obtain hosted exact-SHA QA-003, required-check enforcement, deployment, approver, migration, and rollback evidence before closure."
+        ],
+        "blockers": [
+          "Hosted exact-SHA E2E certification is absent.",
+          "Branch protection and production deployment blocking are not verified.",
+          "The final go/no-go evidence bundle is incomplete."
+        ]
+      },
+      {
+        "at": "2026-09-21T04:28:49Z",
+        "sha": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+        "summary": "Closed RELEASE-005's local Jest blocker without changing production behavior. Five Vitest-importing suites are now explicitly excluded from Jest and pass under Vitest (5 files, 30 tests). Checkout fixtures supply the current guest-capability mock and required idempotency keys. The royalty webhook suite proves the canonical 503 deny gate and uses a test-only approval mock for signature/receipt branches. The focused Jest rerun passed 18/18 and full Jest passed 109 suites/681 tests.",
+        "completed": [
+          "Expanded the working set only to jest.config.cjs and the two stale Jest fixture suites after reproducing their failures.",
+          "Preserved marketplace checkout, webhook, launch-capability, and idempotency runtime code unchanged.",
+          "Focused Jest, owning-runner Vitest, full Jest, focused ESLint, and changed-path whitespace checks passed."
+        ],
+        "next_steps": [
+          "Finish deterministic production typecheck/build and the remaining local release gates, then obtain hosted exact-SHA certification and enforcement evidence."
+        ],
+        "blockers": [
+          "Deterministic production typecheck/build evidence is incomplete.",
+          "Hosted exact-SHA E2E certification is absent.",
+          "Branch protection and production deployment blocking are not verified.",
+          "The final go/no-go evidence bundle is incomplete."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:19:07Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 32 release-lane diagnosis of PR #14 (`codex/qa004-staging-campaign`). Read-only triage only; no workflow, branch-protection, deployment, credential, or product change was made. (iv) The `CodeQL` failure is NOT a workflow job: check-run 106862973938 is a GitHub Advanced Security code-scanning gate (app slug `github-advanced-security`, app id 57789, check suite 96831076767, no workflow run behind it), which is why `gh run view --job 106862973938` returns 404. It carries 96 open, undismissed, unfixed alerts including 1 critical (alert #16, `js/request-forgery`, `app/api/discover/route.ts:351`). The repository's own `CodeQL (JavaScript/TypeScript)` job in security-scans.yml uses the same `security-extended` suite and PASSED - that job asserts the analysis uploaded, the platform check asserts no new alerts. Nothing was dismissed; routed to `integrations` as HF-RELEASE-SEC-CODEQL. (ii) The `Lint And Build` failure is a genuine tsc result, not pipeline instability: step 11 `Typecheck` ran 17:38:34Z->18:46:52Z (68m18s) of a 70m40s job and emitted 1,384 primary diagnostics across 407 files. The invocation (`NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit` on a 4-core/16GB ubuntu-latest runner) and memory setting are correct; the log contains zero heap-out-of-memory/FATAL ERROR/ENOMEM/Killed/SIGKILL matches, and no job `timeout-minutes` is set, so the 360-minute default applied and nothing timed out. The 1h10m40s is real single-pass tsc work, matching the known slow-typecheck profile already recorded in RELEASE-006; no timeout or memory change was made because any value chosen from a FAILING run's timings would be a guess. The root cause is upstream schema/type drift owned by `database` (TS2345 on `venue_crew_members`, `venue_team_contractors`, `get_staff_dashboard_stats`, which exist in no migration and no generated type) - handed off as HF-RELEASE-DB-TYPECHECK. The gate is correctly failing and must not be bypassed: no `continue-on-error`, no `if: always()` on the downstream steps, and no tsconfig relaxation were added. Branch protection on `main` is now CONFIGURED (200, not the stale 404 recorded in this task): strict required checks over 10 contexts, 1 approving review, stale-review dismissal, last-push approval, admin enforcement, linear history, no force pushes, no deletions, conversation resolution; `required_signatures` is false. Exactly three required checks block this PR: `Database Types` FAILURE, `Lint And Build` FAILURE, `E2E Tests (Playwright)` CANCELLED. The `Vercel` and Advanced Security `CodeQL` failures do NOT block the merge because neither is a required check. Remaining enforcement gaps against acceptance criterion 3 (production build, migration checks, and the service-role audit exist only as post-Typecheck steps inside `Lint And Build`; the Advanced Security CodeQL gate, `Dependency review`, and `Migrations And RLS Matrix` run but are not required) are reported read-only as HF-RELEASE-005-REQUIRED-CHECKS; no protection setting was modified.",
+        "completed": [
+          "Produced docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md as the single release-owned evidence record for (i), (ii), and (iv), with the full command and API transcript.",
+          "Identified the `CodeQL` check surface via the check-run and check-suite endpoints and proved there is no workflow run behind it.",
+          "Enumerated and dispositioned all 96 code-scanning alerts: 0 dismissed, 0 fixed, `dismissed_reason` null on all 96.",
+          "Proved the Advanced Security attribution caveat precisely: `main` has 0 alerts in any state and 0 recorded analyses, and every recorded analysis is against a `refs/pull/*/merge` ref, so there is no baseline for the platform gate to diff against; with 900 changed files the check attributes the whole tree to the PR, as its own summary admits.",
+          "Confirmed with step-level API evidence that the `Lint And Build` job has no timeout, no OOM, and no memory misconfiguration.",
+          "Confirmed the release-gate coupling: steps 12-27 (15 release-gate steps plus `Build`) were all `skipped` because `Typecheck` failed, so PR #14 has no production-build evidence at all.",
+          "Retired this task's stale `main is not branch-protected` blocker with live evidence and mapped the enforced set against acceptance criterion 3.",
+          "Verified only `.github/workflows/e2e.yml` is dirty under `.github/` (a concurrent lane's change); `ci.yml` and `security-scans.yml` are clean, and neither required a change.",
+          "Scoped verification: no product file was changed, so no ESLint target existed; `git diff --check` on the changed paths and `npm run agents:validate` are recorded in the task verification block."
+        ],
+        "next_steps": [
+          "Close the upstream schema/type gap via HF-RELEASE-DB-TYPECHECK, then re-run the `Lint And Build` job and confirm the 15 skipped release-gate steps and `Build` actually execute.",
+          "Owner decides the required-check additions in HF-RELEASE-005-REQUIRED-CHECKS: the Advanced Security `CodeQL` gate, `Dependency review`, `Migrations And RLS Matrix`, and whether to split production build / migration checks / service-role audit into independent required jobs.",
+          "Investigate the `E2E Tests (Playwright)` CANCELLED result and the `Database Types` `supabase start` failure. Both are other lanes' and both block this merge.",
+          "Obtain hosted exact-SHA QA-003 certification, deployment evidence, approver, and rollback point before any go/no-go."
+        ],
+        "blockers": [
+          "`Lint And Build` cannot pass until `database` corrects the generated type surface; the release lane must not bypass it.",
+          "`E2E Tests (Playwright)` is CANCELLED on this PR and is a required check, so it independently blocks the merge. Not investigated by this lane.",
+          "96 open Advanced Security code-scanning alerts, including 1 critical SSRF, are not a required check and therefore cannot block a merge. `discover` owns the critical finding.",
+          "No production-build evidence exists for `d2176904`: the `Build` step was skipped behind the `Typecheck` failure.",
+          "The final go/no-go record linking the release SHA, CI/E2E runs, deployment IDs, migration evidence, approver, and rollback point is still incomplete."
+        ]
+      },
+      {
+        "at": "2026-09-25T20:24:49.304Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 32 read-only triage of PR #14. (iv) Identified the non-retrievable 'CodeQL' check as a GitHub Advanced Security code-scanning check-run (app github-advanced-security, suite 96831076767, no workflow run) with 96 open, undismissed, unfixed alerts including 1 critical SSRF at app/api/discover/route.ts:351 - not dismissed, routed to integrations. (ii) Confirmed the Lint And Build pipeline is correct: tsc --noEmit with --max-old-space-size=8192 on 4-core/16GB ubuntu-latest, zero OOM keywords, no timeout-minutes so nothing timed out; the 70m40s job is 68m18s of real single-pass tsc emitting 1,384 diagnostics across 407 files, an upstream schema/type gap owned by database. No timeout, no memory value, and no gate relaxation was added. (i) Recorded that main is now branch-protected (200, retires the stale 404 blocker) with 10 strict required contexts; exactly three required checks block PR #14 (Database Types, Lint And Build, E2E Playwright CANCELLED) while the Vercel and Advanced Security CodeQL failures do not. Verification passed: npm run agents:validate (17 agents, 151 tasks, 0 warnings, 0 errors), git diff --check exit 0, all created/modified JSON and MD free of trailing whitespace; no ESLint target existed because no source file was changed. No workflow, branch-protection, deployment, or credential change was made.",
+        "completed": [],
+        "next_steps": [
+          "Close HF-RELEASE-DB-TYPECHECK (database regenerates the drifted type surface and resolves venue_crew_members/venue_team_contractors/get_staff_dashboard_stats), then re-run Lint And Build and confirm the 15 skipped release-gate steps and Build actually execute. Owner decides required-check additions per HF-RELEASE-005-REQUIRED-CHECKS. Investigate the CANCELLED E2E Playwright job and the Database Types supabase start failure (other lanes, both block the merge)."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:55:00.000Z",
+        "sha": "ca3bb0b0",
+        "summary": "Wave 35 governance lane. The structural defect behind this task is FIXED IN-REPO: ci.yml is now eleven independent jobs with no needs: edges, so a typecheck failure can no longer skip the production build, the migration gates, or the service-role audit. Coverage preservation is proven mechanically (0 npm invocations removed, 0 added) and npm audit --audit-level=critical moved ahead of Typecheck so it is no longer maskable. Nine of eleven job caps are annotated PROVISIONAL with the confirming green run named, because no green Lint And Build timing exists; the Production Build cost model publishes its UNMEASURED static-generation phase rather than hiding it. The required-check posture is DECIDED with rationale in REL-003/CP-077 and recorded as ONE atomic owner-executed PUT - the API replaces the context list wholesale, so there is no window of weaker enforcement, and executing it as partial edits is what would create one. Four path-filtered checks (Migrations And RLS Matrix, mobile-checks, redirect-safety, Mobile Typecheck And Lint) are deliberately NOT required, because a required context that does not report for a head SHA blocks the merge and would brick main on the first unrelated PR. The refs/heads/main code-scanning baseline question is answered: the cause is neither of the two hypotheses, it is that security-scans.yml has never been on main, which is a merge-ordering fix and not a configuration fix - and which also means four required contexts today are emitted only by a file absent from main. The obsolete 404 baseline is retired under REL-005, which corrects live claims in place and supersedes dated observations by append rather than rewriting history. No branch-protection setting, hosted environment, code-scanning configuration, alert, lockfile, or QA-owned file was changed.",
+        "completed": [
+          "Restructured .github/workflows/ci.yml from 1 composite job to 11 independent jobs; production build, migration gates and service-role audit are no longer steps masked behind Typecheck.",
+          "Proved coverage preservation mechanically: 0 npm invocations removed, 0 added; 0 occurrences of continue-on-error, if: always(), || true, || echo, ignoreDuringBuilds.",
+          "Moved npm audit --audit-level=critical ahead of Typecheck so it is no longer maskable (strictly more coverage than before).",
+          "Preserved all four ci.yml-owned required context names byte-for-byte and asserted their presence mechanically (CP-077).",
+          "Annotated every job and step cap as MEASURED or PROVISIONAL in ci.yml itself, each PROVISIONAL value naming the green run that would replace it.",
+          "Decided the required-check posture in REL-003 with per-candidate rationale, including the path-filter/non-reporting-context hazard.",
+          "Diagnosed the missing refs/heads/main code-scanning baseline to a third cause neither of the two hypotheses: security-scans.yml has never been on main, and recorded the five-step owner-executed merge-ordering remediation.",
+          "Retired the obsolete 404 branch-protection baseline across the release domain under an explicit correction policy (REL-005).",
+          "Recorded the type-regeneration and INTERNAL_API_ORIGIN preconditions as named blocking operator-gated items with exact commands, plus the three claims that stay unprovable without a live target."
+        ],
+        "next_steps": [
+          "Owner executes the single atomic PUT in section 2.3 of the Wave 35 evidence record, in the same window as the merge carrying the ci.yml restructure, then reads back all 16 contexts.",
+          "Owner merges a branch carrying .github/workflows/security-scans.yml to main and confirms GET /code-scanning/analyses?ref=refs/heads/main is non-empty. That single check proves the baseline defect closed. Then re-derive the alert triage list from the absolute open count on main, and only then require the Advanced Security CodeQL gate (REL-003 D1).",
+          "Database lane lands the generated-type repairs; then re-run Lint And Build and confirm the six new independent jobs all report, and record the first GREEN Typecheck and Build durations to replace the provisional caps.",
+          "HF-DB-008-*: the 128-object contract gap is routed to 23 handoffs, so expect the typecheck to fall from 1,384 but not to reach zero in one step. Do not tighten any timeout before a green duration is measured."
+        ],
+        "blockers": [
+          "No branch-protection setting was changed. The decision is written; the mutation is the owner's.",
+          "E2E Tests (Playwright) remains a required check and remains ungreen; the QA-owned budget headroom question is HF-QA-035-E2E-BUILD-HEADROOM, not solved here.",
+          "No hosted exact-SHA QA-003 certification, deployment evidence, approver, or rollback point exists, so the final go/no-go record is still incomplete.",
+          "The Advanced Security CodeQL gate is not a valid regression gate until the main baseline exists, and it is not required, so a security regression cannot block a merge today."
+        ]
+      },
+      {
+        "at": "2026-09-25T22:54:02.908Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35: CI release gate restructured from 1 composite job to 11 independent jobs (no needs: edges), so a typecheck failure can no longer skip the production build, the migration gates, or the service-role audit. Coverage preservation proven mechanically: 0 npm invocations removed, 0 added; npm audit --audit-level=critical moved ahead of Typecheck so it is no longer maskable. All 4 ci.yml-owned required context names preserved byte-for-byte and asserted. 9 of 11 job caps annotated PROVISIONAL in ci.yml with the confirming green run named, because no green Lint And Build timing exists; the Production Build cost model publishes its never-measured static-generation phase. Required-check posture DECIDED in REL-003/CP-077 and recorded as ONE atomic owner-executed PUT; 4 path-filtered checks deliberately NOT required because a non-reporting required context blocks the merge. main code-scanning baseline root cause found: security-scans.yml has never been on main, so its push-to-main trigger never fired (SARIF upload is fine) - a merge-ordering fix, and 4 required contexts are emitted only by a file absent from main. Obsolete 404 branch-protection baseline retired under REL-005. PASS: js-yaml parse of 16 workflows 0 failures; 23/23 npm scripts exist; old-vs-new set diff 0/0; release-workflow-contract.test.mjs 2/2; git diff --check exit 0; agents:validate 17 agents/152 tasks/0 errors. NOT changed: any branch-protection setting, hosted environment, code-scanning config, alert, lockfile, or the QA-owned e2e.yml.",
+        "completed": [],
+        "next_steps": [
+          "Owner executes the single atomic PUT (section 2.3 of docs/audits/flow-notes/release-wave35-governance-2026-09-25.md) in the same window as the merge carrying the ci.yml restructure, then reads back all 16 contexts. Owner merges a branch carrying security-scans.yml and confirms analyses?ref=refs/heads/main is non-empty. Database lane lands the type repairs; then record the first GREEN Typecheck and Build durations and replace the provisional caps."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T20:06:41.216Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "The long-running required-check journal is superseded by bounded runtime, hosted-surface, staging, promotion, and rollback gates.",
+        "completed": [
+          "Preserved the release-gate evidence while ending the 18-day journal."
+        ],
+        "next_steps": [
+          "Use RELEASE-013, RELEASE-014, RELEASE-003, RELEASE-004, and RELEASE-007 for the remaining bounded release work."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "execution_state": "superseded",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "release",
+  "decision_owner": "release",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Owner executes the single atomic PUT (section 2.3 of docs/audits/flow-notes/release-wave35-governance-2026-09-25.md) in the same window as the merge carrying the ci.yml restructure, then reads back all 16 contexts. Owner merges a branch carrying security-scans.yml and confirms analyses?ref=refs/heads/main is non-empty. Database lane lands the type repairs; then record the first GREEN Typecheck and Build durations and replace the provisional caps.",
+  "blocked_on": []
+}

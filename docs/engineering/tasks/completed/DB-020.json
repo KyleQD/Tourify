@@ -1,0 +1,179 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-020",
+  "title": "Author event provider connections and the settlement catalog read",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "database",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "created_at": "2026-09-27T22:48:36.315Z",
+  "updated_at": "2026-09-27T23:09:24.458Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (566 entries)",
+  "goal": "Author the additive event_provider_connections migration that two reachable bandsintown routes require today, and settle whether settlements exists in the chain, so three recorded false-zero reads stop reporting unavailable money as unpaid.",
+  "scope": {
+    "in": [
+      "The event_provider_connections contract routed by HF-DB019-EVENT-PROVIDER-CONNECTIONS"
+    ],
+    "out": [
+      "Any hosted apply (CP-051 manual application only)"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260927140000_event_provider_connections.sql",
+    "docs/engineering/migration-validation/**",
+    "docs/engineering/DB008_RECONCILIATION_MATRIX.json"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Author an additive, re-runnable event_provider_connections migration with its planned manifest, matching the exact archived column contract the integrations lane recorded, and leaving it manual-apply only.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "READ-ONLY: `rg -n event_provider_connections` -> 5 real app-code consumers plus 1 archived SQL plus 1 prose mention (lib/events/providers/bandsintown/client.ts:6), confirming the inventory over-attributed app/api/hiring/apply/profile-preview/route.ts and omitted four real consumers.",
+        "READ-ONLY: the five consumers were read in full and the column contract cross-checked against every column each selects or writes; the archived DDL at 20260804130000_event_provider_foundation.sql:67-88 is complete, so no column was invented.",
+        "READ-ONLY: two checks the inbound handoff did not make were made here — connection_mode cannot receive the disabled mode (connect early-returns 503, and getBandsintownMode returns disabled|artist_owned_key|partner), and no consumer writes secret_reference at all.",
+        "AUTHORED: supabase/migrations/20260927140000_event_provider_connections.sql, SHA-256 d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420. Manifest docs/engineering/migration-validation/20260927140000_event_provider_connections.json at status planned / manual-apply-pending (CP-051). NOT APPLIED to any environment.",
+        "EXECUTED: bash docs/engineering/migration-validation/db020_event_provider_connections.harness.sh -> ALL CHECKS PASSED, 53 PASS / 0 FAIL, exit 0, byte-identical across two runs, on a throwaway local PostgreSQL 16.15 cluster this lane created and destroyed. File applied FOUR times consecutively, the fourth against a populated table with rows preserved.",
+        "BEFORE/AFTER: both reachable routes queries returned 42P01 relation does not exist before the file, and rows after. Full output in the harness.",
+        "9 refusal controls and 3 repair controls all fired; every control restored its own fixture."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Record the settlements existence question and its owner. The catalog read that settles it needs a provisioned target, so HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET is held by ORCH-004 as an owner action rather than claimed here. Do not author a settlements table to make the reads work - absence is the finding.",
+      "owner": "database",
+      "state": "transferred",
+      "evidence": [
+        "TRANSFERRED, NOT COMPLETED HERE. AC-2 is held by ORCH-004 as an owner action: HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET settles whether public.settlements exists, and it needs a PROVISIONED TARGET for a catalog read, which this lane has no credential for and must not take under CP-051. No settlements table was authored: absence is the finding, and authoring a table to make the reads work is the failure mode. THE QUESTION REMAINS OPEN.",
+        "This lane established what it could WITHOUT a target, read-only: the relation is named by three recorded false-zero read sites, and no CREATE TABLE for it exists in the active chain, in any archive, or in any root-level SQL. That is a repository fact, not a catalog fact, and it does not settle whether a HOSTED target carries the relation out of band — DB-002 documented out-of-band Management API application, so \"the chain does not create it\" is not evidence that no target has it. That is exactly why the question needs a provisioned target rather than another repository search."
+      ],
+      "transferred_to": "ORCH-004"
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Record the false zero at lib/venue/finance-snapshot.ts:117 for the venue lane, which reports a venue money as unsettled when the truth is unavailable. HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO is addressed to VENUE-006, not here.",
+      "owner": "database",
+      "state": "transferred",
+      "evidence": [
+        "TRANSFERRED, NOT COMPLETED HERE. AC-3 is addressed to VENUE-006: HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO, the false zero at lib/venue/finance-snapshot.ts:117 where a venue money is reported as UNSETTLED when the truth is UNAVAILABLE. The distinction matters and is the reason it belongs to the venue lane: unavailable is not the same claim as unpaid, and a false zero here is believed rather than noticed, which is the same shape as CP-110 and DB-014s tenant-less-row narrowing. THE QUESTION REMAINS OPEN. lib/venue/finance-snapshot.ts was not read or edited by this task; the fix is a caller-side tri-state (unavailable / unpaid / settled) and a database lane has no standing to make it."
+      ],
+      "transferred_to": "VENUE-006"
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "bash docs/engineering/migration-validation/db020_event_provider_connections.harness.sh",
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "npm run check:migration-ledger",
+          "node supabase/tests/db008_chain_contract_replay.mjs .",
+          "npm run check:db008-harness"
+        ],
+        "evidence": [
+          "harness -> ALL CHECKS PASSED, 53 PASS / 0 FAIL, exit 0, byte-identical across two runs, throwaway local PostgreSQL 16.15",
+          "npm run check:migration-chain -> ✓ active migration chain has no duplicate policy creations (321 files scanned), exit 0",
+          "npm run check:migration-validation -> ✓ scanned supabase/migrations/20260927140000_event_provider_connections.sql with planned manifest, exit 0, repository-wide",
+          "npm run check:migration-ledger -> ✓ hosted migration ledger matches 321 active migrations (25 classified, 296 explicitly unreconciled), exit 0; sourceSnapshot re-derived with the checker own exported activeMigrationSnapshot() and this migration CLASSIFIED as launch-required rather than left in the unclassified bucket",
+          "node supabase/tests/db008_chain_contract_replay.mjs . -> exit 0, contract reproducible from chain: true, outOfBand 0, outOfBandRelations 0, contract-only routines 0, and event_provider_connections now listed among the 30 chain-only relations (the chain is ONE relation AHEAD of the contract, so regeneration may only ADD coverage)",
+          "npm run check:db008-harness -> exit 0, exactly 8 scenario PASS lines (storage-guard, view-replay, reproducibility, marketplace, money-path, interaction-scope, scheduled-posts, attribution); 6 of the 8 need a local PostgreSQL 16 via PGBIN. The runner own summary line says ran 9 and counts the 1 skipped scenario (view-delta, needs DB_LINKED_TYPES) — the known false-green, so the 8 was counted from the scenario lines."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T23:08:51.354Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "AC-1 met: additive re-runnable event_provider_connections migration authored (20260927140000, SHA-256 d3d371ba) with the archived column contract transcribed byte-for-byte, RLS enabled AND forced, own-row-only policies, authenticated granted SELECT only. AC-2/AC-3 routed to ORCH-004 and VENUE-006, not claimed. Nothing applied to any environment (CP-051).",
+    "completed": [
+      "Authored supabase/migrations/20260927140000_event_provider_connections.sql (SHA-256 d3d371bacb0c82cd88a510bb2406eaed32a70a6c9fc449c69268a33d887f8420): one new empty relation, 17 columns transcribed from the archived DDL, primary key, the connect onConflict UNIQUE, 3 CHECK constraints, the created_by FK with ON DELETE CASCADE, the partial due index, RLS enabled AND forced, 3 own-row policies, 1 service_role policy, 3 grants, 3 comments, and a post-condition that asserts the entire contract in both directions.",
+      "Planned manifest docs/engineering/migration-validation/20260927140000_event_provider_connections.json (status planned / manual-apply-pending, CP-051), validated by check:migration-validation. Records 11 assumptions, the preflight STOP CONDITIONS, the layered plan, quarantine, recovery and 12 evidence entries.",
+      "Proven, not asserted: bash docs/engineering/migration-validation/db020_event_provider_connections.harness.sh -> ALL CHECKS PASSED, 53 PASS / 0 FAIL, exit 0, byte-identical across two runs, on a throwaway local PostgreSQL 16.15 cluster this lane created and destroyed. 4 consecutive applies with the 4th against a populated table. 9 refusal controls and 3 repair controls all fired.",
+      "Before/after measured for the two reachable routes: 42P01 relation does not exist before, rows after.",
+      "Re-derived docs/engineering/migration-validation/hosted-history-ledger.json sourceSnapshot with the ledger checker own exported algorithm (321 files) and CLASSIFIED this migration as launch-required with a named task, a planned manifest and a rationale, rather than leaving it in the unclassified bucket to hit a number.",
+      "Found 4 defects in the migration and 5 in the harness by running it; all are recorded in the manifest evidence, not quietly fixed. The common shape is the one this repository has now recorded four times: a revision that passed while its instrument could not fail.",
+      "Migration + planned manifest authored. Proof harness 53 PASS / 0 FAIL, byte-identical across two runs on a throwaway local PostgreSQL 16.15: 4 consecutive applies (4th against a populated table, rows preserved), BEFORE/AFTER 42P01->rows for both reachable bandsintown routes, 9 refusal + 3 repair controls all fired. Gates: check:migration-chain 321 files clean; check:migration-validation repo-wide exit 0; check:migration-ledger 321 active / 25 classified / 296 unreconciled with the snapshot re-derived by the checker own algorithm; db008_chain_contract_replay exit 0, contractReproducibleFromChain true, outOfBand 0, event_provider_connections now chain-only (chain ahead of contract, superset preserved); check:db008-harness exit 0 with exactly 8 scenario PASS lines."
+    ],
+    "next_steps": [
+      "Operator CP-051 manual apply after the four Layer 0 stop conditions, then the postflight as two signed-in identities plus anon plus service_role. Open elsewhere: ORCH-004 settlements existence; VENUE-006 venue false zero; orchestrator for event_sync_jobs; integrations for the authenticated write-grant decision; RELEASE-013 for CP-016 regeneration."
+    ],
+    "blockers": [
+      "NOTHING BLOCKS THE AUTHORING, and nothing is blocked on applying it. The apply itself is CP-051: manual, one at a time, reviewed and explicit. This lane did not apply it and will not.",
+      "The two dead routes stay dead until an operator applies this file. They are not credential-exposing and do not mutate beyond the caller own row, but they are a live 500 rather than a clean 404.",
+      "CP-016 regeneration is blocked on RELEASE-013 provisioning a chain-built target. lib/database.types.ts is byte-unchanged (SHA-256 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7) and was NOT hand-edited."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:09:16.215Z",
+        "summary": "AC-1 met. Migration authored, manifest planned, proof executed 3x-plus with 12 controls, all gates green. AC-2 and AC-3 routed, not claimed.",
+        "next": "Operator CP-051 apply; ORCH-004, VENUE-006 and the orchestrator own the open items named above."
+      },
+      {
+        "at": "2026-09-27T23:09:24.458Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1 met: additive re-runnable event_provider_connections migration authored (20260927140000, SHA-256 d3d371ba) with the archived column contract transcribed byte-for-byte, RLS enabled AND forced, own-row-only policies, authenticated granted SELECT only. AC-2/AC-3 routed to ORCH-004 and VENUE-006, not claimed. Nothing applied to any environment (CP-051).",
+        "completed": [
+          "Migration + planned manifest authored. Proof harness 53 PASS / 0 FAIL, byte-identical across two runs on a throwaway local PostgreSQL 16.15: 4 consecutive applies (4th against a populated table, rows preserved), BEFORE/AFTER 42P01->rows for both reachable bandsintown routes, 9 refusal + 3 repair controls all fired. Gates: check:migration-chain 321 files clean; check:migration-validation repo-wide exit 0; check:migration-ledger 321 active / 25 classified / 296 unreconciled with the snapshot re-derived by the checker own algorithm; db008_chain_contract_replay exit 0, contractReproducibleFromChain true, outOfBand 0, event_provider_connections now chain-only (chain ahead of contract, superset preserved); check:db008-harness exit 0 with exactly 8 scenario PASS lines."
+        ],
+        "next_steps": [
+          "Operator CP-051 manual apply after the four Layer 0 stop conditions, then the postflight as two signed-in identities plus anon plus service_role. Open elsewhere: ORCH-004 settlements existence; VENUE-006 venue false zero; orchestrator for event_sync_jobs; integrations for the authenticated write-grant decision; RELEASE-013 for CP-016 regeneration."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DB019-EVENT-PROVIDER-CONNECTIONS — actioned and consumed. The exact archived column contract was used rather than guessed; the three owner-scoped policies and the grant line were carried, with the authenticated grant deliberately narrowed to SELECT and the reason recorded.",
+    "NEW ROUTING NEEDED (outside this working set, recorded not created): event_sync_jobs co-dependency -> orchestrator. The 20260821025543 private-schema precedent is the reason the preflight names the relation schema as a STOP CONDITION."
+  ],
+  "added_paths": [
+    {
+      "path": "docs/engineering/migration-validation/db020_event_provider_connections.harness.sh",
+      "reason": "The behavioural proof harness. It lives here because supabase/tests/** is OUTSIDE this task working set and docs/engineering/migration-validation/** is inside it. Consequence recorded rather than hidden: npm run check:db008-harness does NOT run it, so it is reproducible by hand and by nobody else until the wiring is granted; package.json and .github/workflows/ci.yml are other lanes files in any case."
+    },
+    {
+      "path": "docs/engineering/migration-validation/20260927140000_event_provider_connections.json",
+      "reason": "The planned manifest, matched to the existing convention exactly. Required by check:migration-validation, which was otherwise red for the whole repository without it."
+    },
+    {
+      "path": "docs/engineering/migration-validation/hosted-history-ledger.json",
+      "reason": "Inside the working-set glob. Re-derived sourceSnapshot with the ledger checker own exported algorithm and this migration classified, because adding a migration turns check:migration-ledger red and the correct response is to re-derive rather than to relax the digest."
+    },
+    {
+      "path": "docs/engineering/agents/database/STATE.md",
+      "reason": "Outside the three-path working set, and recorded here rather than absorbed silently. The database charter requires durable domain knowledge in the owning agent STATE.md, and every prior DB lane in this repository appends its wave entry there. It is this agent own state document, not another lane work. The entry is a bounded append: DB-020 wave facts, the three grant decisions and their reasons, the nine self-found defects, and the named open items for ORCH-004, VENUE-006, the orchestrator, integrations and RELEASE-013."
+    },
+    {
+      "path": "docs/engineering/tasks/completed/DB-020.json (moved from active/) and docs/engineering/handoffs/completed/HF-DB019-EVENT-PROVIDER-CONNECTIONS.json (moved from pending/)",
+      "reason": "Both moves are performed by the control plane own commands — `npm run agents:checkpoint` moved the task, and the handoff was moved to completed/ with a discharge_outcome as prior lanes did. Moving a handoff to completed/ is the documented disposition in docs/engineering/handoffs/README.md, and leaving it pending with an already-completed accepting task is a validation ERROR."
+    }
+  ],
+  "paths_read_but_not_edited": [
+    "app/api/integrations/bandsintown/{status,connect,disconnect}/route.ts — read to establish the reachable queries and the before/after. Integrations owns them; not edited.",
+    "app/api/events/[id]/claim/route.ts and app/api/cron/events/sync/route.ts — read to validate the column contract against all five consumers. Not edited.",
+    "lib/events/providers/flags.ts — read to establish the BandsintownMode union and prove connection_mode cannot receive the disabled value. Not edited.",
+    "lib/config/launch-capabilities.ts — read to confirm the three 503 consumers are unopenable. Not edited.",
+    "supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql — the column contract source. Archive, evidence only; not edited.",
+    "docs/engineering/database-type-inventory-2026-09-25.json — the classification source, which was WRONG in both directions. Read; deliberately NOT edited, because TICKET-008 is live against the same file and integrations recorded the same decision. The corrected consumer set is in the manifest."
+  ]
+}

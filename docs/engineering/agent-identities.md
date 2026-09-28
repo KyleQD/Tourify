@@ -3,8 +3,10 @@
 Engineering agents use service principals, not shared human passwords. The
 directory is seeded by
 `supabase/migrations/20260908130000_agent_service_identities.sql` and starts
-with every agent in `docs/engineering/agents/registry.yaml` in `pending`
-status.
+with its initial agents in `pending` status. The additive
+`20260928001035_seed_hierarchical_admin_agent_identities.sql` migration adds
+the seven Admin specialists, two review managers, and the previously missing
+Events identity without changing any existing identity.
 
 ## Security model
 
@@ -15,6 +17,9 @@ status.
   the server.
 - An identity is not usable until an operator explicitly provisions it and
   changes it to `active`.
+- Registry hierarchy metadata (`kind`, `reports_to`, and `execution_policy`)
+  and seeded scopes describe control-plane intent only. They grant no route,
+  organization, application, or platform permission.
 - Optional Supabase Auth linkage uses `app_metadata.actor_type = agent` and
   `app_metadata.agent_id`; authorization must never rely on editable user
   metadata.

@@ -1,0 +1,197 @@
+{
+  "schema_version": "2.0",
+  "id": "ORCH-004",
+  "title": "Operate the core-launch release board",
+  "status": "active",
+  "execution_state": "in_progress",
+  "priority": "P0",
+  "owner_agent": "orchestrator",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "orchestration",
+  "decision_owner": "orchestrator",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-28T02:40:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Track one exact-SHA core-launch critical path with truthful dependencies and owner actions.",
+  "scope": {
+    "in": [
+      "Track one exact-SHA core-launch critical path with truthful dependencies and owner actions."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/PROJECT_STATE.md"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/orchestrator/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Selected as the owner's single active implementation or verification lane.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Track one exact-SHA core-launch critical path with truthful dependencies and owner actions.",
+      "owner": "orchestrator",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "orchestrator",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Wave 37 dispatched eight lane runs across five agents and closed seven tasks: EVENTS-004, DB-017, DB-023, EVENTS-002, DB-022, EVENTS-005, VENUE-007, EVENTS-006. The board was believed exhausted of agent-actionable work; it was not. Every agent-actionable item this wave came from a defect the previous wave had already surfaced but not finished, and the pattern that produced all of them is the same one ADMIN-014 started: a route that derives its scope from a pathname index, or a table the chain never creates, produces a silent whole-feature failure that no typecheck or scanner reports. The launch path is still blocked on owner provisioning, but the code above it is materially safer than it was this morning.",
+    "completed": [
+      "ADMIN-013 complete: the site-map import capability check consumed the PostgREST {data,error} envelope as a boolean, so it was always truthy and never denied; the route also had no path when neither eventId nor tourId was sent. Now capability-gated with scope resolution against admin.orgId. 7 new tests, 6 of which fail on base SHA because the cross-tenant import returned 200 and wrote the row.",
+      "DISC-003 complete: SSRF class closed with 78 tests (66 of 87 assertions failed pre-fix) and the silent-empty news-feed drift is now loud. It also recovered a hard break the prior wave left: reportMissingSchemaOnce was called at two sites and never declared, a ReferenceError inside a catch that vitest could not see.",
+      "INTG-009 complete: unsigned-bypass removed, replay resolved from the completion marker instead of acknowledged, completion writes verified, payloads redacted. Mutation proof M1/M2/M2c/M3/M4 all red on inversion.",
+      "TICKET-006 complete for local scope: partial issuance is now detectably partial via per-position issuance_slot, dedup is a partial unique index rather than a read-then-act pre-check, and the completion alert uses compare-and-set. 12 mutations inverted; 3 initially passed and exposed real test gaps, now closed.",
+      "Control plane repaired: completing ADMIN-013 left 7 accepted handoffs naming a completed task. ADMIN-014 activated, ADMIN-018 created to carry them, INTG-010 created to carry INTG-009's two, and HF-INTG-006-TICKETING-RESOLVED discharged to completed/.",
+      "DB-008 harness wired as npm run check:db008-harness and asserted in the ci.yml migration-gates job, then corrected: six of the eight harnesses default PGBIN to a macOS Homebrew path, so on ubuntu-latest they print SKIP and exit 0 and the runner counts that as PASS. The first wiring would have gone green having run 2 of 8 harnesses. The step now preflights PGBIN, rejects a no-local-PostgreSQL SKIP, and asserts PASS == 8.",
+      "DB-008 split: blocked on RELEASE-013 provisioning a chain-built target, with DB-019 created as the bounded successor for the work no environment can gate.",
+      "ADMIN-014: all three task-messages handlers read the event id as pathname.split('/')[5], which is the literal trailing route name 'task-messages', not the [id] segment at index 4. Every request queried, wrote and authorized against event_id = 'task-messages' - a value the UUID column cannot hold, so the feature was totally non-functional for everyone. PATCH {action:'complete'} also ran no authorization at all, which combined with the segment fix would have let any authenticated user complete any task in any event. Fixed together, with a 10-test denial suite proved red 10/10 on base SHA.",
+      "DB-019: three additive migrations authored for the five chain gaps, with three planned manifests, nothing applied. Ran against a throwaway PostgreSQL 16.15, each migration applied 3x for re-runnability, 11 negative controls fired, and running it found 5 defects in the lane's own work. The music_tracks view migration deliberately has NO existence guard: a guard would trade a loud abort for a silently narrow view, and that precondition is a Layer 0 stop condition instead.",
+      "INTG-010: the three deferred partner webhook routes were proven permanently 503 by two independent barriers, then fixed rather than deferred, because the unsigned flag was one env var from a live bypass with no owner. Mutation proof 12/12 detected across 4 defect families on 3 routes.",
+      "TICKET-008: four type-drift objects dispositioned with evidence - 2 dead consumers (deletion reported, not performed), 2 accepted debt. The private-schema search_path trap caught the lane's own first resolver, which is the second time that trap has appeared.",
+      "Control plane repaired twice more: ADMIN-015 activated by the admin lane after ADMIN-014 completed, and HF-DB019-EVENT-PROVIDER-CONNECTIONS re-pointed to a new DB-020 after it was addressed to DB-019 mid-session, post-completion.",
+      "DB-020 created for the event_provider_connections migration, with the two settlements questions recorded to their real owners rather than claimed.",
+      "EVENTS-004 complete: 7 of 26 event sub-resource route files were broken, 8 defects. Three were the hq at(-2) class I predicted, but the audit also found a cross-event WRITE (the participant permission update filtered on no event_id, so a grant rewrote that person hq_permissions in every other event they belonged to), a service-role read of event_provider_connections that never compared created_by to the caller, two 500-instead-of-404 read-after-write paths, and two GETs with no authorization at all. 19 files verified correct with a reason each. The lane also proved hq/route.ts correct BY PATH SHAPE rather than by construction, and said so instead of claiming a defect that was not there. 170 tests, from a 127/16 baseline. It found a bug in its own first fix: it passed eventId as a third argument to withAuth, which calls (request, auth), so the id arrived undefined and every lookup silently became unfiltered -- the same defect class, reintroduced while repairing it.",
+      "DB-017 complete: 42 capability decisions (2 matrix-authoritative, 11 catalog-authoritative, 29 declared_intent_only, 0 unseeded) collapsing 206 pairs. It found DB-016 s per-role distribution sums to 207, not 206, and named the arithmetic cause. It also found finance.manage is a second, previously unrecorded instance of the declared-intent class, so the chain enforces no finance capability at row level. I wired its check into CI myself (package.json + ci.yml, default mode only) because the release agent is edit:deny and the check is worthless unwired; --strict is deliberately not required since it is red today by 206 design.",
+      "DB-023 complete and it earned its P0: public.event_posts and public.event_claims are read and written by three live routes and were created by NO active migration. The proof found a launch outage in its own work first -- an attendees subquery in an unscoped policy made every caller-side read fail 42501 because a table ACL is checked when the subplan runs, not per disjunct -- and a missing grant that two live routes already needed, meaning the attendance check has been failing open. It also disproved the ln claim I passed it: ln occurs ZERO times in the 182-line archived file and in no git object ever. The only occurrences were two prose sentences in the handoff I forwarded.",
+      "EVENTS-002 complete: the seam existed but read venue_profiles capacity and never read venue_availability, so a venue manager manual block rejected nothing. Measuring the data access found two more: the capacity 409 leaked any venue capacity number to any authenticated caller, and POST inserted the artist booking row before the gate, so a 409 left an orphan. The cross-venue case is proven by DATA, not by asserting a filter was requested.",
+      "DB-022 complete: the owning-account check for event provider connections cannot move to the data boundary, and not for the inviting reason. The control relations all exist; what does not exist is any statement of what owner_id IS. 20260823010000 binds venue_profiles, venues_v2 and organizations as three distinct mirrors of one account, and two implementable current-control resolvers return different sets for the same rows. The lane also found its own violation counter was vacuous (grep for a column alias that tuples-only psql never prints), which was masking a real defect on a healthy target, and noted the same idiom is decorative in a sibling harness.",
+      "EVENTS-005 complete: the PGRST profiles embed removed from both routes in favour of one shared derivation, with a test that now FAILS if anyone adds the foreign key to make the embed resolve again. Both event_claims decisions recorded: event_claims follows public.events and not events_v2, so no discriminator is owed, and the status transition actor is a platform administrator, not service_role. It found the surface that is supposed to be that actor does not work (TS2304: withPlatformAdmin binds only (request, auth)) and that there is currently no actor who can transition at all, because both paths are behind a disabled feature flag.",
+      "VENUE-007 complete: VENUE-D07 ratifies fail-open and WITHDRAWS the venue lane own fail-closed order at source, with a rule rather than a preference: decide by whether a check narrows or gates. It found a fourth read neither lane had named -- the venue policy read discards error and computes allowBookings !== false, so a transient error sets it to TRUE, inverting the venue explicit not-accepting-bookings switch. That is routed as a new fail-closed task.",
+      "EVENTS-006 complete: the anon-readable event posts path is closed at the application layer, with the closure proved to fail (8 of 17 tests red when the direct anon read is restored). The lane found three vacuity modes in its own instrument, one of which was a real crash in its fake that would have shipped, and one guard that was a bare /404/ regex which the new error handling alone satisfies and which therefore guarded nothing.",
+      "CONTROL PLANE: created EVENTS-004, EVENTS-005, EVENTS-006, DB-022, DB-023 and VENUE-007; re-pointed four handoffs that named a task which completed mid-session (the DB-019 to DB-020 precedent, now three times); narrowed three records to resolve collisions truthfully rather than by fiat; moved EVENTS-001 from active to blocked because its only remaining step is an operator apply and holding it active both misrepresented the board and blocked the lane WIP slot; and applied DB-017 s CI wiring myself. Final state: 27 agents, 248 tasks, 113 pending handoffs, 0 warnings, 0 errors.",
+      "DECISIONS.md: appended CP-128 through CP-134, seven decisions the lanes were explicitly told to hand me rather than write concurrently. CP-133 records the reusable process finding that a violation counter matching a column alias is measuring nothing, and names a sibling harness where the same idiom is decorative."
+    ],
+    "next_steps": [
+      "OWNER ACTION 1 (unchanged, still the top blocker): provision a chain-built database target and free disk. Under CP-127 the --linked target is permanently disqualified. DB-023, DB-022 and EVENTS-005 all added relations to the chain, so the CP-016 regeneration delta is now LARGER, which raises the cost of leaving it unaddressed. Unblocks DB-008 types regeneration, the 15 DB-008-blocked reconcile tasks, and the RELEASE-013 apply gates.",
+      "OWNER ACTION 2 (unchanged, and now more urgent): provision one isolated staging deployment at an exact SHA with Stripe test-mode credentials, then apply the three new migrations exactly once under CP-051: 20260927120000_ticketing_issuance_slot_dedup.sql, 20260925130000_intg006_webhook_delivery_receipts.sql, and 20260928010000_event_posts_and_event_claims.sql. The third is new: event_posts and event_claims are read and written by three live routes and exist in no environment. Until it is applied, the events lane fixes are proven against a throwaway cluster and nothing else.",
+      "OWNER ACTION 3 (unchanged): land .github/workflows/security-scans.yml on main and confirm a non-empty code-scanning analysis on refs/heads/main. No alert state can be closed from any lane until that exists.",
+      "OWNER DECISION 4 (unchanged): the full typecheck cannot pass. Keep the gate required and record it red rather than waiving it. Needs a named owner for the 331 Supabase-object diagnostics. Note that EVENTS-005 named the root cause of its own residual diagnostics precisely: event_posts and event_claims are absent from the generated lib/database.types.ts, which is the CP-016 regeneration delta again, not stale typing.",
+      "NEW OWNER DECISION 5: public.event_posts has no predicate on the parent event publication state and anon holds SELECT, so a public-visibility post on an unpublished event is readable by anyone holding the anon key who knows the event id. EVENTS-006 closed the one reachable product path, but a database predicate CANNOT exist for anon: a policy OR containing a subplan over a table the evaluating role cannot read fails the whole query with 42501. This needs an owner decision on whether an application-layer-only gate is acceptable for launch, or whether the public event page should stop reading posts through a browser client entirely.",
+      "NEW OWNER DECISION 6: EVENTS-005 recorded that the admin event-claims review surface does not work (TS2304: withPlatformAdmin binds only (request, auth), so admin is undefined at admin/event-claims/route.ts:53), and that there is currently no actor who can transition event_claims.status because both the write and review paths sit behind external_event_providers=disabled. That is a cross-domain gap between the events lane decision and the admin surface, routed as HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF to ADMIN-028 in the admin session.",
+      "AGENT ACTION: four mounted admin routes still carry the identical split(/)[5] segment defect ADMIN-014 fixed -- events/[id]/communications, communication-settings, group-chats, secure-uploads. Unchanged and outside every active working set; the admin session owns them.",
+      "AGENT ACTION: the database lane is now idle and the events, venue and marketplace lanes are idle. The next agent-actionable item I can see is HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR (event_attendance has no event_table column although three live consumers group on it, and its UNIQUE(event_id,user_id) is two-column so one user cannot RSVP to the same id under two event stores), currently parked on SOCIAL-007 which is blocked on DB-006. That decision is really a database one and should be re-homed rather than left behind a blocked social task."
+    ],
+    "blockers": [
+      "The launch critical path remains blocked on owner provisioning, not on agent capacity: a chain-built database target, an isolated staging deployment with Stripe test mode, and a landed security-scans workflow. Nine further agent dispatches this wave did not move any of them, and further dispatch will not."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T20:17:51.547Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Wave 36 dispatch: validated control plane (18 agents/212 tasks/0 errors) and released 9 active CORE-WEB-LAUNCH tasks with disjoint working sets - ADMIN-013, DB-008, DISC-003, EVENTS-001, INTG-009, MKT-004, RELEASE-013, TICKET-006. All 9 are in_progress at base SHA 16fb834f with empty depends_on/blocked_on. Path claims are disjoint across all 9 lanes, so the batch is collision-free. MKT-004's recorded service-role-allowlist blocker is stale: the gate now passes because both venue files are tracked in HEAD.",
+        "completed": [],
+        "next_steps": [
+          "Collect lane results, verify each focused gate, move completed records, then execute the two orchestrator-owned actions: wire supabase/tests/db008_run_all.sh into package.json and CI asserting scenarios RAN, and resolve the RELEASE-013 conflict where the release agent is edit:deny but its record claims package.json and .github/workflows/ci.yml."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T22:13:23.456Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Wave 36 closed. Four tasks completed (ADMIN-013, DISC-003, INTG-009, TICKET-006 local scope), four remain active with truthful environment blockers (DB-008, EVENTS-001, MKT-004, RELEASE-013), and the control plane is back to 0 warnings / 0 errors at 216 tasks. The real finding is that four of the remaining blockers are owner actions, not agent work: provision a chain-built database target, free disk, provision an isolated staging deployment with Stripe test-mode credentials, and land security-scans.yml on main.",
+        "completed": [
+          "ADMIN-013 complete: the site-map import capability check consumed the PostgREST {data,error} envelope as a boolean, so it was always truthy and never denied; the route also had no path when neither eventId nor tourId was sent. Now capability-gated with scope resolution against admin.orgId. 7 new tests, 6 of which fail on base SHA because the cross-tenant import returned 200 and wrote the row.",
+          "DISC-003 complete: SSRF class closed with 78 tests (66 of 87 assertions failed pre-fix) and the silent-empty news-feed drift is now loud. It also recovered a hard break the prior wave left: reportMissingSchemaOnce was called at two sites and never declared, a ReferenceError inside a catch that vitest could not see.",
+          "INTG-009 complete: unsigned-bypass removed, replay resolved from the completion marker instead of acknowledged, completion writes verified, payloads redacted. Mutation proof M1/M2/M2c/M3/M4 all red on inversion.",
+          "TICKET-006 complete for local scope: partial issuance is now detectably partial via per-position issuance_slot, dedup is a partial unique index rather than a read-then-act pre-check, and the completion alert uses compare-and-set. 12 mutations inverted; 3 initially passed and exposed real test gaps, now closed.",
+          "Control plane repaired: completing ADMIN-013 left 7 accepted handoffs naming a completed task. ADMIN-014 activated, ADMIN-018 created to carry them, INTG-010 created to carry INTG-009's two, and HF-INTG-006-TICKETING-RESOLVED discharged to completed/.",
+          "DB-008 harness wired as npm run check:db008-harness and asserted in the ci.yml migration-gates job, then corrected: six of the eight harnesses default PGBIN to a macOS Homebrew path, so on ubuntu-latest they print SKIP and exit 0 and the runner counts that as PASS. The first wiring would have gone green having run 2 of 8 harnesses. The step now preflights PGBIN, rejects a no-local-PostgreSQL SKIP, and asserts PASS == 8.",
+          "DB-008 split: blocked on RELEASE-013 provisioning a chain-built target, with DB-019 created as the bounded successor for the work no environment can gate."
+        ],
+        "next_steps": [
+          "OWNER ACTION 1: provision a chain-built database target and free disk. Under CP-127 the --linked target is permanently disqualified. This unblocks DB-008 (types regeneration plus hosted migration history) and HF-TICKET-006-DATABASE-TYPES. Until it exists the contract keeps disagreeing with the chain while the test suite passes.",
+          "OWNER ACTION 2: provision one isolated staging deployment at an exact SHA with Stripe test-mode credentials, then apply 20260927120000_ticketing_issuance_slot_dedup.sql and 20260925130000_intg006_webhook_delivery_receipts.sql exactly once under CP-051 and run the postflight probes. This unblocks RELEASE-013, MKT-004 AC-1/AC-4 and the ticketing hosted certification.",
+          "OWNER ACTION 3: merge a branch carrying .github/workflows/security-scans.yml, then confirm a push-event Security scans run on main and a non-empty GET /code-scanning/analyses?ref=refs/heads/main. Until that analysis exists the platform CodeQL gate diffs against nothing and attributes the whole tree to the pull request, so the 96 open alerts are not the real backlog. No local lane can close any alert state.",
+          "OWNER DECISION 4: the full-repo typecheck cannot pass. Best case is 1384 minus 76 regeneration-closable, leaving at least 1308, of which 331 are Supabase-object diagnostics closable by no regeneration. The release lane recommends keeping the gate required and recording it red rather than waiving it. This needs an explicit decision and a named owner for the 331.",
+          "AGENT ACTION: the events registry agent exists in the charter set but was never generated into .opencode/agent/, so no events subagent was available and EVENTS-001 ran under the general agent. Run npm run agents:opencode:sync and restart opencode to close that gap."
+        ],
+        "blockers": [
+          "Four of the five remaining P0 blockers are owner actions, not agent work. No further agent dispatch can clear them."
+        ]
+      },
+      {
+        "at": "2026-09-27T22:49:12.207Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Wave 36 batch 2 closed: all four ready tasks completed (ADMIN-014, DB-019, INTG-010, TICKET-008). Control plane is clean at 217 tasks, 0 warnings, 0 errors. The launch critical path is now blocked almost entirely on owner actions, not agent work: the remaining active tasks are DB-020, MKT-004, EVENTS-001 and RELEASE-013, and three of those four are waiting on provisioning the owner controls.",
+        "completed": [
+          "ADMIN-014: all three task-messages handlers read the event id as pathname.split('/')[5], which is the literal trailing route name 'task-messages', not the [id] segment at index 4. Every request queried, wrote and authorized against event_id = 'task-messages' - a value the UUID column cannot hold, so the feature was totally non-functional for everyone. PATCH {action:'complete'} also ran no authorization at all, which combined with the segment fix would have let any authenticated user complete any task in any event. Fixed together, with a 10-test denial suite proved red 10/10 on base SHA.",
+          "DB-019: three additive migrations authored for the five chain gaps, with three planned manifests, nothing applied. Ran against a throwaway PostgreSQL 16.15, each migration applied 3x for re-runnability, 11 negative controls fired, and running it found 5 defects in the lane's own work. The music_tracks view migration deliberately has NO existence guard: a guard would trade a loud abort for a silently narrow view, and that precondition is a Layer 0 stop condition instead.",
+          "INTG-010: the three deferred partner webhook routes were proven permanently 503 by two independent barriers, then fixed rather than deferred, because the unsigned flag was one env var from a live bypass with no owner. Mutation proof 12/12 detected across 4 defect families on 3 routes.",
+          "TICKET-008: four type-drift objects dispositioned with evidence - 2 dead consumers (deletion reported, not performed), 2 accepted debt. The private-schema search_path trap caught the lane's own first resolver, which is the second time that trap has appeared.",
+          "Control plane repaired twice more: ADMIN-015 activated by the admin lane after ADMIN-014 completed, and HF-DB019-EVENT-PROVIDER-CONNECTIONS re-pointed to a new DB-020 after it was addressed to DB-019 mid-session, post-completion.",
+          "DB-020 created for the event_provider_connections migration, with the two settlements questions recorded to their real owners rather than claimed."
+        ],
+        "next_steps": [
+          "OWNER ACTION 1 (unchanged, still the top blocker): provision a chain-built database target and free disk. Under CP-127 the --linked target is permanently disqualified. This unblocks DB-008 types regeneration, HF-TICKET-006-DATABASE-TYPES, the DB-020 settlements catalog read, and the RELEASE-013 apply gates.",
+          "OWNER ACTION 2 (unchanged): provision one isolated staging deployment at an exact SHA with Stripe test-mode credentials, then apply 20260927120000_ticketing_issuance_slot_dedup.sql and 20260925130000_intg006_webhook_delivery_receipts.sql exactly once under CP-051 and run the postflight probes. Unblocks RELEASE-013, MKT-004 AC-1/AC-4, and EVENTS-001's delete path.",
+          "OWNER ACTION 3 (unchanged): land .github/workflows/security-scans.yml on main and confirm a non-empty code-scanning analysis on refs/heads/main. INTG-010 re-verified live: analyses on main is 0, so the CodeQL gate still diffs against nothing. No alert can be closed from any lane until that exists.",
+          "OWNER DECISION 4 (unchanged): the full typecheck cannot pass. Best case leaves at least 1308 diagnostics, of which 331 are Supabase-object diagnostics closable by no regeneration. The release lane recommends keeping the gate required and recording it red. Needs an explicit decision and a named owner.",
+          "AGENT ACTION: the events registry agent was never generated into .opencode/agent/, so no events subagent exists and EVENTS-001 ran under the general agent. Run npm run agents:opencode:sync and restart opencode.",
+          "AGENT ACTION: four mounted admin routes still carry the identical split('/')[5] segment defect ADMIN-014 just fixed - events/[id]/communications, communication-settings, group-chats, secure-uploads. They are outside every active working set and need a bounded admin task."
+        ],
+        "blockers": [
+          "The remaining launch path is blocked on owner provisioning, not on agent capacity. Further dispatch cannot clear it."
+        ]
+      },
+      {
+        "at": "2026-09-28T02:40:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Wave 37, three batches, eight lane runs, five agents, seven tasks closed. The board looked exhausted; it was not. Every dispatchable item came from surfacing one layer deeper on a finding the previous wave had already recorded, and the recurring root cause is now named: a route that derives its scope from a pathname index, or a table the chain never creates, fails silently in a way no typecheck or scanner reports. Control plane closed at 27 agents / 248 tasks / 113 pending handoffs / 0 warnings / 0 errors.",
+        "completed": [
+          "DB-017 complete: 42 capability decisions (2 matrix-authoritative, 11 catalog-authoritative, 29 declared_intent_only, 0 unseeded) collapsing 206 pairs. It found DB-016 s per-role distribution sums to 207, not 206, and named the arithmetic cause. It also found finance.manage is a second, previously unrecorded instance of the declared-intent class, so the chain enforces no finance capability at row level. I wired its check into CI myself (package.json + ci.yml, default mode only) because the release agent is edit:deny and the check is worthless unwired; --strict is deliberately not required since it is red today by 206 design.",
+          "DB-023 complete and it earned its P0: public.event_posts and public.event_claims are read and written by three live routes and were created by NO active migration. The proof found a launch outage in its own work first -- an attendees subquery in an unscoped policy made every caller-side read fail 42501 because a table ACL is checked when the subplan runs, not per disjunct -- and a missing grant that two live routes already needed, meaning the attendance check has been failing open. It also disproved the ln claim I passed it: ln occurs ZERO times in the 182-line archived file and in no git object ever. The only occurrences were two prose sentences in the handoff I forwarded.",
+          "EVENTS-002 complete: the seam existed but read venue_profiles capacity and never read venue_availability, so a venue manager manual block rejected nothing. Measuring the data access found two more: the capacity 409 leaked any venue capacity number to any authenticated caller, and POST inserted the artist booking row before the gate, so a 409 left an orphan. The cross-venue case is proven by DATA, not by asserting a filter was requested.",
+          "DB-022 complete: the owning-account check for event provider connections cannot move to the data boundary, and not for the inviting reason. The control relations all exist; what does not exist is any statement of what owner_id IS. 20260823010000 binds venue_profiles, venues_v2 and organizations as three distinct mirrors of one account, and two implementable current-control resolvers return different sets for the same rows. The lane also found its own violation counter was vacuous (grep for a column alias that tuples-only psql never prints), which was masking a real defect on a healthy target, and noted the same idiom is decorative in a sibling harness.",
+          "EVENTS-005 complete: the PGRST profiles embed removed from both routes in favour of one shared derivation, with a test that now FAILS if anyone adds the foreign key to make the embed resolve again. Both event_claims decisions recorded: event_claims follows public.events and not events_v2, so no discriminator is owed, and the status transition actor is a platform administrator, not service_role. It found the surface that is supposed to be that actor does not work (TS2304: withPlatformAdmin binds only (request, auth)) and that there is currently no actor who can transition at all, because both paths are behind a disabled feature flag.",
+          "VENUE-007 complete: VENUE-D07 ratifies fail-open and WITHDRAWS the venue lane own fail-closed order at source, with a rule rather than a preference: decide by whether a check narrows or gates. It found a fourth read neither lane had named -- the venue policy read discards error and computes allowBookings !== false, so a transient error sets it to TRUE, inverting the venue explicit not-accepting-bookings switch. That is routed as a new fail-closed task.",
+          "EVENTS-006 complete: the anon-readable event posts path is closed at the application layer, with the closure proved to fail (8 of 17 tests red when the direct anon read is restored). The lane found three vacuity modes in its own instrument, one of which was a real crash in its fake that would have shipped, and one guard that was a bare /404/ regex which the new error handling alone satisfies and which therefore guarded nothing.",
+          "CONTROL PLANE: created EVENTS-004, EVENTS-005, EVENTS-006, DB-022, DB-023 and VENUE-007; re-pointed four handoffs that named a task which completed mid-session (the DB-019 to DB-020 precedent, now three times); narrowed three records to resolve collisions truthfully rather than by fiat; moved EVENTS-001 from active to blocked because its only remaining step is an operator apply and holding it active both misrepresented the board and blocked the lane WIP slot; and applied DB-017 s CI wiring myself. Final state: 27 agents, 248 tasks, 113 pending handoffs, 0 warnings, 0 errors.",
+          "DECISIONS.md: appended CP-128 through CP-134, seven decisions the lanes were explicitly told to hand me rather than write concurrently. CP-133 records the reusable process finding that a violation counter matching a column alias is measuring nothing, and names a sibling harness where the same idiom is decorative."
+        ],
+        "next_steps": [
+          "OWNER ACTION 1 (unchanged, still the top blocker): provision a chain-built database target and free disk. Under CP-127 the --linked target is permanently disqualified. DB-023, DB-022 and EVENTS-005 all added relations to the chain, so the CP-016 regeneration delta is now LARGER, which raises the cost of leaving it unaddressed. Unblocks DB-008 types regeneration, the 15 DB-008-blocked reconcile tasks, and the RELEASE-013 apply gates.",
+          "OWNER ACTION 2 (unchanged, and now more urgent): provision one isolated staging deployment at an exact SHA with Stripe test-mode credentials, then apply the three new migrations exactly once under CP-051: 20260927120000_ticketing_issuance_slot_dedup.sql, 20260925130000_intg006_webhook_delivery_receipts.sql, and 20260928010000_event_posts_and_event_claims.sql. The third is new: event_posts and event_claims are read and written by three live routes and exist in no environment. Until it is applied, the events lane fixes are proven against a throwaway cluster and nothing else.",
+          "OWNER ACTION 3 (unchanged): land .github/workflows/security-scans.yml on main and confirm a non-empty code-scanning analysis on refs/heads/main. No alert state can be closed from any lane until that exists.",
+          "OWNER DECISION 4 (unchanged): the full typecheck cannot pass. Keep the gate required and record it red rather than waiving it. Needs a named owner for the 331 Supabase-object diagnostics. Note that EVENTS-005 named the root cause of its own residual diagnostics precisely: event_posts and event_claims are absent from the generated lib/database.types.ts, which is the CP-016 regeneration delta again, not stale typing.",
+          "NEW OWNER DECISION 5: public.event_posts has no predicate on the parent event publication state and anon holds SELECT, so a public-visibility post on an unpublished event is readable by anyone holding the anon key who knows the event id. EVENTS-006 closed the one reachable product path, but a database predicate CANNOT exist for anon: a policy OR containing a subplan over a table the evaluating role cannot read fails the whole query with 42501. This needs an owner decision on whether an application-layer-only gate is acceptable for launch, or whether the public event page should stop reading posts through a browser client entirely.",
+          "NEW OWNER DECISION 6: EVENTS-005 recorded that the admin event-claims review surface does not work (TS2304: withPlatformAdmin binds only (request, auth), so admin is undefined at admin/event-claims/route.ts:53), and that there is currently no actor who can transition event_claims.status because both the write and review paths sit behind external_event_providers=disabled. That is a cross-domain gap between the events lane decision and the admin surface, routed as HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF to ADMIN-028 in the admin session.",
+          "AGENT ACTION: four mounted admin routes still carry the identical split(/)[5] segment defect ADMIN-014 fixed -- events/[id]/communications, communication-settings, group-chats, secure-uploads. Unchanged and outside every active working set; the admin session owns them.",
+          "AGENT ACTION: the database lane is now idle and the events, venue and marketplace lanes are idle. The next agent-actionable item I can see is HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR (event_attendance has no event_table column although three live consumers group on it, and its UNIQUE(event_id,user_id) is two-column so one user cannot RSVP to the same id under two event stores), currently parked on SOCIAL-007 which is blocked on DB-006. That decision is really a database one and should be re-homed rather than left behind a blocked social task."
+        ],
+        "blockers": [
+          "The launch critical path remains blocked on owner provisioning, not on agent capacity: a chain-built database target, an isolated staging deployment with Stripe test mode, and a landed security-scans workflow. Nine further agent dispatches this wave did not move any of them, and further dispatch will not."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

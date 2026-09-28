@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-ADMIN-034-AUTH-IDENTITY-VERIFICATION-CLUSTER",
   "task_id": "ADMIN-003",
   "from_agent": "admin",
   "to_agent": "design-system",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:00:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
   "dirty_state_caveat": "Security determination and triage only. The admin lane changed no file in this cluster. lib/services/verification.service.ts, lib/services/project-workspace.service.ts and lib/supabase/optimized-client.ts are byte-identical to HEAD. No GitHub alert, hosted environment or credentialed test was used for the parts of this determination that came from the live alert record; the CodeQL retrieval belongs to the admin-lane OAuth entry, not here.",
@@ -90,5 +90,8 @@
     "rg -n \"channel_participants\" across the repository — exactly 2 code hits: lib/services/project-workspace.service.ts:488 and lib/supabase/optimized-client.ts:319.",
     "rg -n \"submit_verification_request|submitVerificationRequest\" across the repository — the only code hit is lib/services/verification.service.ts. venue.service.ts does not reference it.",
     "rg -n \"create or replace function has_entity_permission\" was not run for this cluster; the equivalent signature check used for the ADMIN-003 blocker is recorded in HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS."
-  ]
+  ],
+  "accepting_task_id": "DESIGN-033",
+  "completion_condition": "design-system: accept or decline this handoff, then act on lib/services/verification.service.ts, lib/services/project-workspace.service.ts and components/verification/account-verification.tsx per the disposition above.",
+  "completed": []
 }

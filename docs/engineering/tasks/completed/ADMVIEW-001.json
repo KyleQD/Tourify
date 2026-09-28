@@ -1,0 +1,182 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMVIEW-001",
+  "title": "Admin panel readability and navigation",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-21T22:27:33.122Z",
+  "updated_at": "2026-09-28T00:18:00.000Z",
+  "base_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+  "working_tree_status": "dirty (14 entries)",
+  "goal": "All rendered Admin panels avoid visual overlap and present clear information hierarchy at desktop and mobile sizes",
+  "scope": {
+    "in": [
+      "All rendered app/admin page routes and their mounted panels, tabs, cards, tables, and dialogs",
+      "Readability, responsive layout, clear panel purpose, and direct links to detailed workspaces",
+      "Shared Admin display primitives and route-by-route visual evidence"
+    ],
+    "out": [
+      "API, authorization, and database contract changes",
+      "Unrelated product workflows or visual rebranding"
+    ]
+  },
+  "working_set": [
+    "app/admin/**",
+    "components/admin/**",
+    "__tests__/admin/**",
+    "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md",
+    "docs/admin-audit/registry/ux-audit-program.json",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The dashboard tours and events panels render distinct rows and readable two-line names",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Transferred to ADMVIEW-EXP-001, which owns the Admin dashboard home and its Tours and Events overview panels."
+      ],
+      "transferred_to": "ADMVIEW-EXP-001"
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Every rendered Admin route and reachable panel has a route-matrix disposition and phone, tablet, desktop, and 200% zoom evidence",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Transferred by exact route family to all seven segment-owned ADMVIEW successors."
+      ],
+      "transferred_to": "ADMVIEW-GOV-001, ADMVIEW-TOUR-001, ADMVIEW-EVENT-001, ADMVIEW-LOG-001, ADMVIEW-WORK-001, ADMVIEW-COM-001, ADMVIEW-EXP-001"
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Record identity, status, and actions do not overlap or disappear on narrow screens",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Transferred by exact route family to all seven segment-owned ADMVIEW successors."
+      ],
+      "transferred_to": "ADMVIEW-GOV-001, ADMVIEW-TOUR-001, ADMVIEW-EVENT-001, ADMVIEW-LOG-001, ADMVIEW-WORK-001, ADMVIEW-COM-001, ADMVIEW-EXP-001"
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Shared data tables retain semantic headers, keyboard-reachable links, and mobile access to essential fields",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Transferred by exact route family to all seven segment-owned ADMVIEW successors."
+      ],
+      "transferred_to": "ADMVIEW-GOV-001, ADMVIEW-TOUR-001, ADMVIEW-EVENT-001, ADMVIEW-LOG-001, ADMVIEW-WORK-001, ADMVIEW-COM-001, ADMVIEW-EXP-001"
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Repeated information is reduced without removing the authoritative detail or an existing action",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Transferred by exact route family to all seven segment-owned ADMVIEW successors."
+      ],
+      "transferred_to": "ADMVIEW-GOV-001, ADMVIEW-TOUR-001, ADMVIEW-EVENT-001, ADMVIEW-LOG-001, ADMVIEW-WORK-001, ADMVIEW-COM-001, ADMVIEW-EXP-001"
+    },
+    {
+      "id": "AC-6",
+      "criterion": "Focused tests, lint, feature verification, Admin audit checks, and control-plane validation are recorded",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Transferred by exact route family to all seven segment-owned ADMVIEW successors."
+      ],
+      "transferred_to": "ADMVIEW-GOV-001, ADMVIEW-TOUR-001, ADMVIEW-EVENT-001, ADMVIEW-LOG-001, ADMVIEW-WORK-001, ADMVIEW-COM-001, ADMVIEW-EXP-001"
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/admin-panel-readability.test.tsx",
+          "npx eslint <touched Admin files>",
+          "npm run verify:feature -- --changed",
+          "npm run check:admin-audit",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Dashboard row collision and initial responsive collection pattern implemented; full route audit and visual verification remain open. The remaining 79-route matrix is superseded by seven collision-safe segment-owned successors without discarding completed implementation or verification evidence.",
+    "completed": [
+      "Replaced transform-based virtual row offsets with layout offsets.",
+      "Rendered short overview lists in natural document flow with two-line names and direct links.",
+      "Added a semantic responsive Admin data table and used it for Dashboard Tours and Events.",
+      "Updated Tour and Event collection card titles and scoped Admin card overflow rules."
+    ],
+    "next_steps": [
+      "Continue the preserved route-matrix checks in ADMVIEW-GOV-001, ADMVIEW-TOUR-001, ADMVIEW-EVENT-001, ADMVIEW-LOG-001, ADMVIEW-WORK-001, ADMVIEW-COM-001, and ADMVIEW-EXP-001 when MAINTENANCE-DEBT is activated."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T00:18:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Superseded the broad Admin readability lease without new product implementation. Preserved all completed work and verification evidence, transferred every acceptance criterion, and partitioned the 79-route matrix into seven exact specialist-owned route families.",
+        "completed": [],
+        "next_steps": [
+          "Activate only the collision-free segment successor selected by the Admin dispatcher after MAINTENANCE-DEBT begins."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "ADMVIEW-GOV-001",
+    "ADMVIEW-TOUR-001",
+    "ADMVIEW-EVENT-001",
+    "ADMVIEW-LOG-001",
+    "ADMVIEW-WORK-001",
+    "ADMVIEW-COM-001",
+    "ADMVIEW-EXP-001"
+  ],
+  "execution_state": "superseded",
+  "outcome_id": "MAINTENANCE-DEBT",
+  "deliverable_class": "maintenance",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Review each route and nested panel in the route matrix, repairing any overlap or repeated information found.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "Review each route and nested panel in the route matrix, repairing any overlap or repeated information found.",
+      "dependency_task_ids": []
+    }
+  ]
+}

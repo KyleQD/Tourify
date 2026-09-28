@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-RELEASE-007-VERCEL-HOSTED",
   "task_id": "RELEASE-007",
   "from_agent": "release",
-  "to_agent": "owner",
-  "status": "pending",
+  "to_agent": "orchestrator",
+  "status": "accepted",
   "created_at": "2026-09-25T20:19:07Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "STILL ENTIRELY UNACTIONED, and now with the ordering constraint and the confirming commands written out. The failing Vercel check on PR #14 is a 45-minute Vercel build-duration ceiling, not a product defect. Read-only inspection proves the PR is wired to the PRODUCTION Vercel project: tourify-beta-k2 = prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n, whose targets.production.alias STILL includes demo.tourify.live, and the Vercel Git integration is still building PR preview deployments inside it. That contradicts RELEASE-007 acceptance criterion 1 and docs/DEPLOYMENT_ROUTINE.md section 4. No hosted setting was changed; every item below needs owner authorization. Wave 35 re-confirmed all of it read-only and added: (a) the exact confirming commands for each step, (b) the ordering constraint between step 1 and step 2, and (c) the fact that the 45-minute ceiling is now provably NOT the thing to fix first, because the duplicated full-repo tsc is what consumes the budget.",
@@ -53,5 +53,7 @@
     "Wave 35: .github/workflows/e2e.yml verified UNTOUCHED (git status --porcelain empty) and .github/workflows/ci.yml is the only workflow file changed. The controlled vercel build/deploy --prebuilt path in deploy-demo.yml is unmodified.",
     "Wave 35 build-cost attribution from the recorded Vercel log: 17:36:06 start -> 17:36:59 toolchain (53s incl. runner start) -> 17:37:02 npm ci 49s -> 17:37:03 env contract -> 17:41:33 Compiled successfully in 4.4min -> 17:41:34 \"Linting and checking validity of types ...\" as the final line -> killed at 2738.605s. Install+compile = 327s of 2738.605s = 11.9 percent; the remaining 88 percent was the inline typecheck."
   ],
-  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md"
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "STEP 1 (do this FIRST): disable the Vercel Git integration on tourify-beta-k2, or reassign the repository link to the dedicated staging project tourifydemo, so that no branch can auto-deploy into the production project. This is the single change that makes RELEASE-007 criterion 1 and DEPLOYMENT_ROUTINE section 4 satisfiable."
 }

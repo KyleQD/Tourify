@@ -2,13 +2,13 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
+- Source SHA: `16fb834f1a03a70f165be470a5f98f389bf6100a`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (152 entries)
-- Generated at: 2026-09-25T23:26:47.265Z
+- Working tree: dirty (745 entries)
+- Generated at: 2026-09-28T03:22:14.585Z
 - Generator: `control-plane.mjs generate`
 
-## Objects (716)
+## Objects (740)
 
 | Type | Name | Latest create evidence |
 | --- | --- | --- |
@@ -279,6 +279,12 @@
 | function | `work_mode_security` | `supabase/migrations/20260922155356_worker_actions_scope_reconciliation.sql` |
 | function | `worker_shift_check_in` | `supabase/migrations/20260823170000_worker_checkin_contract.sql` |
 | function | `worker_shift_check_out` | `supabase/migrations/20260823170000_worker_checkin_contract.sql` |
+| function | `workforce_department_is_managed_by` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| function | `workforce_department_managers_require_active_membership` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| function | `workforce_departments_protect_boundaries` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| function | `workforce_status_events_are_append_only` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| function | `workforce_status_events_validate_actor` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| function | `workforce_touch_updated_at` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
 | function | `write_venue_lifecycle_audit` | `supabase/migrations/20260823120000_venue_account_lifecycle.sql` |
 | materialized view | `forum_threads_hot_mv` | `supabase/migrations/20250816130000_scaling_indexes_forum.sql` |
 | materialized view | `forum_threads_top_mv` | `supabase/migrations/20250816130000_scaling_indexes_forum.sql` |
@@ -384,6 +390,7 @@
 | table | `event_budgets` | `supabase/migrations/archive/04_event_management_tables.sql` |
 | table | `event_bulletins` | `supabase/migrations/20260413210000_event_communications_system.sql` |
 | table | `event_calendar_items` | `supabase/migrations/20260413120000_event_hq_tables.sql` |
+| table | `event_claims` | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
 | table | `event_crew_assignments` | `supabase/migrations/archive/enhanced_staff_management_schema.sql` |
 | table | `event_documents` | `supabase/migrations/20260413210000_event_communications_system.sql` |
 | table | `event_expenses` | `supabase/migrations/archive/04_event_management_tables.sql` |
@@ -396,9 +403,12 @@
 | table | `event_package_services` | `supabase/migrations/20250812090500_entity_domain_expansion.sql` |
 | table | `event_packages` | `supabase/migrations/20250812090500_entity_domain_expansion.sql` |
 | table | `event_participants` | `supabase/migrations/20250812090500_entity_domain_expansion.sql` |
+| table | `event_posts` | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
 | table | `event_promo_codes` | `supabase/migrations/archive/04_event_management_tables.sql` |
+| table | `event_provider_connections` | `supabase/migrations/20260927140000_event_provider_connections.sql` |
 | table | `event_resources` | `supabase/migrations/20260413120000_event_hq_tables.sql` |
 | table | `event_secure_uploads` | `supabase/migrations/20260413220000_event_task_messages_secure_uploads.sql` |
+| table | `event_sync_jobs` | `supabase/migrations/20260927140100_event_sync_jobs.sql` |
 | table | `event_task_messages` | `supabase/migrations/20260413220000_event_task_messages_secure_uploads.sql` |
 | table | `event_team_members` | `supabase/migrations/archive/04_event_management_tables.sql` |
 | table | `event_ticket_types` | `supabase/migrations/20250814090000_event_extensions.sql` |
@@ -444,7 +454,7 @@
 | table | `hiring_eligibility_snapshots` | `supabase/migrations/20260409183000_hiring_eligibility_gate.sql` |
 | table | `holds` | `supabase/migrations/20250816133000_event_core.sql` |
 | table | `hotel_room_assignments` | `supabase/migrations/20260413200100_logistics_domain_tables.sql` |
-| table | `IF` | `supabase/migrations/20260413200000_port_missing_tables.sql` |
+| table | `if` | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
 | table | `incidents` | `supabase/migrations/20250816140000_incidents.sql` |
 | table | `integration_audit_log` | `supabase/migrations/20260825040000_integrations_manage_and_audit.sql` |
 | table | `job_applications` | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
@@ -589,7 +599,7 @@
 | table | `staff_onboarding_sensitive_vault` | `supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql` |
 | table | `staff_onboarding_steps` | `supabase/migrations/20260413200000_port_missing_tables.sql` |
 | table | `staff_onboarding_templates` | `supabase/migrations/20260413200000_port_missing_tables.sql` |
-| table | `staff_performance_metrics` | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
+| table | `staff_performance_metrics` | `supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql` |
 | table | `staff_reviews` | `supabase/migrations/archive/enhanced_staff_management_schema.sql` |
 | table | `staff_schedules` | `supabase/migrations/20260413200000_port_missing_tables.sql` |
 | table | `staff_shift_assignments` | `supabase/migrations/20260714015225_hiring_hub_roster_management_compat.sql` |
@@ -644,11 +654,15 @@
 | table | `user_active_profiles` | `supabase/migrations/archive/emergency-fix-safe.sql` |
 | table | `user_badges` | `supabase/migrations/20260327123000_achievements_engine_catalog.sql` |
 | table | `user_music_library` | `supabase/migrations/20260410183000_music_commerce_expansion.sql` |
+| table | `user_news_preferences` | `supabase/migrations/20260927130100_news_preference_tables.sql` |
+| table | `user_news_subscriptions` | `supabase/migrations/20260927130100_news_preference_tables.sql` |
 | table | `user_opportunity_interactions` | `supabase/migrations/20260326150000_opportunities_rss_pipeline.sql` |
 | table | `user_profile_featured_tracks` | `supabase/migrations/20260711160518_native_music_player_ecosystem.sql` |
 | table | `user_reward_wallets` | `supabase/migrations/20260409170000_work_achievements_rewards_resume.sql` |
 | table | `user_sessions` | `supabase/migrations/archive/simple_auth_fix.sql` |
 | table | `vendor_contracts` | `supabase/migrations/20260825131000_phase3_phantom_tables_promotion.sql` |
+| table | `vendor_entities` | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| table | `vendor_entity_aliases` | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
 | table | `venue_analytics` | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | table | `venue_availability` | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | table | `venue_booking_lifecycle_history` | `supabase/migrations/20260823130000_booking_lifecycle.sql` |
@@ -696,6 +710,12 @@
 | table | `workflow_templates` | `supabase/migrations/20260328160000_logistics_vendor_tables.sql` |
 | table | `workflow_threads` | `supabase/migrations/20260409150000_unified_workflow_threads.sql` |
 | table | `workforce_channel_links` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
+| table | `workforce_department_managers` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| table | `workforce_department_memberships` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| table | `workforce_departments` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| table | `workforce_legacy_links` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| table | `workforce_operational_status_events` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| table | `workforce_quarantine` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
 | table | `world_artist_places` | `supabase/migrations/20260822021740_world_music_knowledge_media_foundation.sql` |
 | table | `world_claim_evidence` | `supabase/migrations/20260822021740_world_music_knowledge_media_foundation.sql` |
 | table | `world_claims` | `supabase/migrations/20260822021740_world_music_knowledge_media_foundation.sql` |
@@ -721,15 +741,19 @@
 | view | `entities_venues` | `supabase/migrations/20250812094000_entity_views.sql` |
 | view | `friend_suggestions_view` | `supabase/migrations/20250131000004_friend_suggestions_system.sql` |
 | view | `marketplace_external_listings_public` | `supabase/migrations/20260926120100_marketplace_external_listing_surface.sql` |
-| view | `music_tracks` | `supabase/migrations/20260711165607_native_music_player_hardening.sql` |
+| view | `music_tracks` | `supabase/migrations/20260927130200_music_tracks_certification_view.sql` |
 | view | `policy` | `supabase/migrations/archive/emergency-fix-safe.sql` |
 | view | `public_venue_availability` | `supabase/migrations/20260823140000_reservation_conflict_engine.sql` |
 | view | `tour_plan_normalize_stats_v` | `supabase/migrations/20260720194500_tour_versions_stops_plan201.sql` |
 | view | `unified_staff_roster` | `supabase/migrations/20260602120000_unified_staff_roster.sql` |
 | view | `venue_identity_bridge_audit` | `supabase/migrations/20260823010000_venue_identity_bridge.sql` |
 | view | `work_hub_integrity_issues` | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
+| view | `workforce_department_directory` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| view | `workforce_membership_health` | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| view | `workforce_operational_status_current` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| view | `workforce_reconciliation_audit` | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
 
-## RLS policies (1313)
+## RLS policies (1364)
 
 | Table | Policy | Latest create evidence |
 | --- | --- | --- |
@@ -1006,6 +1030,9 @@
 | `event_calendar_items` | event_calendar_items_read | `supabase/migrations/20260823221000_event_hq_rls_tighten.sql` |
 | `event_calendar_items` | event_calendar_items_select_managers | `supabase/migrations/20260717194541_harden_security_audit_remediation.sql` |
 | `event_calendar_items` | event_calendar_items_update | `supabase/migrations/20260823221000_event_hq_rls_tighten.sql` |
+| `event_claims` | event_claims_self_insert | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
+| `event_claims` | event_claims_self_read | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
+| `event_claims` | event_claims_service_role_all | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
 | `event_collaborators` | event_collaborators_delete | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
 | `event_collaborators` | event_collaborators_insert | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
 | `event_collaborators` | event_collaborators_select | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
@@ -1027,6 +1054,14 @@
 | `event_page_settings` | event_page_settings_select | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
 | `event_page_settings` | event_page_settings_update | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
 | `event_participants` | event_participants_rw | `supabase/migrations/20250812091000_entity_rls_policies.sql` |
+| `event_posts` | event_posts_attendee_read | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
+| `event_posts` | event_posts_own_insert | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
+| `event_posts` | event_posts_own_update | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
+| `event_posts` | event_posts_visibility_read | `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` |
+| `event_provider_connections` | event_provider_connections_owner_insert | `supabase/migrations/20260927140000_event_provider_connections.sql` |
+| `event_provider_connections` | event_provider_connections_owner_read | `supabase/migrations/20260927140000_event_provider_connections.sql` |
+| `event_provider_connections` | event_provider_connections_owner_update | `supabase/migrations/20260927140000_event_provider_connections.sql` |
+| `event_provider_connections` | event_provider_connections_service_role_all | `supabase/migrations/20260927140000_event_provider_connections.sql` |
 | `event_resources` | event_resources_delete | `supabase/migrations/20260823221000_event_hq_rls_tighten.sql` |
 | `event_resources` | event_resources_delete_managers | `supabase/migrations/20260717194541_harden_security_audit_remediation.sql` |
 | `event_resources` | event_resources_insert | `supabase/migrations/20260823221000_event_hq_rls_tighten.sql` |
@@ -1036,6 +1071,7 @@
 | `event_resources` | event_resources_update | `supabase/migrations/20260823221000_event_hq_rls_tighten.sql` |
 | `event_secure_uploads` | Authenticated users read own secure uploads | `supabase/migrations/20260413220000_event_task_messages_secure_uploads.sql` |
 | `event_secure_uploads` | Service role full access | `supabase/migrations/20260413220000_event_task_messages_secure_uploads.sql` |
+| `event_sync_jobs` | event_sync_jobs_service_role_all | `supabase/migrations/20260927140100_event_sync_jobs.sql` |
 | `event_task_messages` | Authenticated users read own task messages | `supabase/migrations/20260413220000_event_task_messages_secure_uploads.sql` |
 | `event_task_messages` | Service role full access | `supabase/migrations/20260413220000_event_task_messages_secure_uploads.sql` |
 | `event_team_members` | Event owners can manage team | `supabase/migrations/archive/06_policies_indexes.sql` |
@@ -1067,6 +1103,7 @@
 | `events` | Users can update their own events | `supabase/migrations/archive/phase2-security-policies.sql` |
 | `events` | Users can view events | `supabase/migrations/archive/06_policies_indexes.sql` |
 | `events` | Users can view public events | `supabase/migrations/archive/06_policies_indexes.sql` |
+| `events_v2` | events_delete | `supabase/migrations/20260927110000_events_v2_delete_rls.sql` |
 | `events_v2` | events_insert | `supabase/migrations/20250816133000_event_core.sql` |
 | `events_v2` | events_select | `supabase/migrations/20250816133000_event_core.sql` |
 | `events_v2` | events_update | `supabase/migrations/20250816133000_event_core.sql` |
@@ -1615,7 +1652,10 @@
 | `staff_member_skills` | Users can manage their own skills | `supabase/migrations/archive/enhanced_staff_management_schema.sql` |
 | `staff_members` | insert_staff | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | `staff_members` | read_all_staff | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
-| `staff_members` | staff_members_worker_read_own | `supabase/migrations/20260625000000_polymorphic_hiring_entity.sql` |
+| `staff_members` | staff_members_scoped_insert | `supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql` |
+| `staff_members` | staff_members_scoped_read | `supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql` |
+| `staff_members` | staff_members_scoped_update | `supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql` |
+| `staff_members` | staff_members_worker_read_own | `supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql` |
 | `staff_members` | update_staff | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | `staff_messages` | staff_messages_all | `supabase/migrations/20250818121500_notifications_and_staff_messages.sql` |
 | `staff_messages` | staff_messages_delete | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
@@ -1644,6 +1684,9 @@
 | `staff_onboarding_templates` | staff_onboarding_templates_update | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
 | `staff_performance_metrics` | insert_metrics | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
 | `staff_performance_metrics` | read_all_metrics | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
+| `staff_performance_metrics` | staff_performance_metrics_scoped_insert | `supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql` |
+| `staff_performance_metrics` | staff_performance_metrics_scoped_read | `supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql` |
+| `staff_performance_metrics` | staff_performance_metrics_scoped_update | `supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql` |
 | `staff_performance_metrics` | staff_performance_metrics_select | `supabase/migrations/20250812093500_entity_rls_policies_more.sql` |
 | `staff_performance_metrics` | staff_performance_metrics_write | `supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql` |
 | `staff_performance_metrics` | update_metrics | `supabase/migrations/20250818120000_admin_staffing_core.sql` |
@@ -1916,6 +1959,12 @@
 | `user_active_profiles` | Users can view their own active profile | `supabase/migrations/archive/emergency-fix-safe.sql` |
 | `user_music_library` | user_music_library_owner_manage | `supabase/migrations/20260410183000_music_commerce_expansion.sql` |
 | `user_music_library` | user_music_library_owner_read | `supabase/migrations/20260410183000_music_commerce_expansion.sql` |
+| `user_news_preferences` | user_news_preferences_owner_read | `supabase/migrations/20260927130100_news_preference_tables.sql` |
+| `user_news_preferences` | user_news_preferences_owner_update | `supabase/migrations/20260927130100_news_preference_tables.sql` |
+| `user_news_preferences` | user_news_preferences_owner_write | `supabase/migrations/20260927130100_news_preference_tables.sql` |
+| `user_news_subscriptions` | user_news_subscriptions_owner_read | `supabase/migrations/20260927130100_news_preference_tables.sql` |
+| `user_news_subscriptions` | user_news_subscriptions_owner_update | `supabase/migrations/20260927130100_news_preference_tables.sql` |
+| `user_news_subscriptions` | user_news_subscriptions_owner_write | `supabase/migrations/20260927130100_news_preference_tables.sql` |
 | `user_opportunity_interactions` | user_opportunity_interactions_insert_owner | `supabase/migrations/20260326150000_opportunities_rss_pipeline.sql` |
 | `user_opportunity_interactions` | user_opportunity_interactions_read_owner | `supabase/migrations/20260326150000_opportunities_rss_pipeline.sql` |
 | `user_profile_featured_tracks` | featured_tracks_owner_manage | `supabase/migrations/20260711160518_native_music_player_ecosystem.sql` |
@@ -1926,6 +1975,14 @@
 | `user_sessions` | Users can manage their own sessions | `supabase/migrations/archive/simple_auth_fix.sql` |
 | `user_sessions` | Users can view their own sessions | `supabase/migrations/archive/simple_auth_fix.sql` |
 | `vendor_contracts` | vendor_contracts_org_member_all | `supabase/migrations/20260825131000_phase3_phantom_tables_promotion.sql` |
+| `vendor_entities` | wfc004_vendor_entities_delete | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entities` | wfc004_vendor_entities_insert | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entities` | wfc004_vendor_entities_select | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entities` | wfc004_vendor_entities_update | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entity_aliases` | wfc004_vendor_entity_aliases_delete | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entity_aliases` | wfc004_vendor_entity_aliases_insert | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entity_aliases` | wfc004_vendor_entity_aliases_select | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
+| `vendor_entity_aliases` | wfc004_vendor_entity_aliases_update | `supabase/migrations/20260927100000_workforce_vendor_entity_home.sql` |
 | `venue_analytics` | Venue owners can view their analytics | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | `venue_availability` | Anyone can view venue availability | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
 | `venue_availability` | Venue owners can manage their availability | `supabase/migrations/archive/VENUE_MIGRATION_SAFE_RERUN.sql` |
@@ -2034,6 +2091,24 @@
 | `workflow_threads` | workflow_threads_write | `supabase/migrations/20260409150000_unified_workflow_threads.sql` |
 | `workforce_channel_links` | workforce_channel_links_manager_manage | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
 | `workforce_channel_links` | workforce_channel_links_worker_read | `supabase/migrations/20260819205907_connected_worker_work_hub.sql` |
+| `workforce_department_managers` | wfc004_workforce_department_managers_insert | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_department_managers` | wfc004_workforce_department_managers_select | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_department_managers` | wfc004_workforce_department_managers_update | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_department_memberships` | wfc004_workforce_department_memberships_insert | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_department_memberships` | wfc004_workforce_department_memberships_select | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_department_memberships` | wfc004_workforce_department_memberships_update | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_departments` | wfc004_workforce_departments_delete | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_departments` | wfc004_workforce_departments_insert | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_departments` | wfc004_workforce_departments_select | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_departments` | wfc004_workforce_departments_update | `supabase/migrations/20260927100100_workforce_departments_and_memberships.sql` |
+| `workforce_legacy_links` | wfc004_workforce_legacy_links_select | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_legacy_links` | wfc004_workforce_legacy_links_update | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_legacy_links` | wfc004_workforce_legacy_links_write | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_operational_status_events` | wfc004_workforce_operational_status_events_insert | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_operational_status_events` | wfc004_workforce_operational_status_events_select | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_quarantine` | wfc004_workforce_quarantine_select | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_quarantine` | wfc004_workforce_quarantine_update | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
+| `workforce_quarantine` | wfc004_workforce_quarantine_write | `supabase/migrations/20260927100200_workforce_reconciliation_and_status_ledger.sql` |
 | `world_artist_places` | world_artist_places_public_read | `supabase/migrations/20260822021740_world_music_knowledge_media_foundation.sql` |
 | `world_claims` | world_claims_public_read | `supabase/migrations/20260822021740_world_music_knowledge_media_foundation.sql` |
 | `world_cultural_entities` | world_cultural_entities_public_read | `supabase/migrations/20260822021740_world_music_knowledge_media_foundation.sql` |

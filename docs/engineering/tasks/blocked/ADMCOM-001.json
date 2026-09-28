@@ -1,0 +1,128 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMCOM-001",
+  "title": "Give the Admin vendor dashboard an explicit principal and boundary",
+  "status": "blocked",
+  "execution_state": "waiting_decision",
+  "priority": "P1",
+  "owner_agent": "admin-commerce",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:30:00.000Z",
+  "updated_at": "2026-09-28T03:18:56.331Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty; successor split from ADMIN-023 before implementation",
+  "goal": "Move the vendor dashboard handler onto a named principal and verified organization or platform boundary.",
+  "scope": {
+    "in": [
+      "Admin vendor dashboard principal and resource boundary"
+    ],
+    "out": [
+      "Workforce and onboarding handlers",
+      "Canonical vendor-domain behavior outside Admin"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/logistics/vendor/dashboard/route.ts",
+    "lib/admin/route-registry/commerce.ts",
+    "__tests__/admin/vendor-dashboard-principal-boundary.test.ts"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/completed/ADMIN-023.json"
+  ],
+  "depends_on": [
+    "ADMIN-022",
+    "ADMWORK-001"
+  ],
+  "resume_condition": "ADMIN-022 is complete and the Admin dispatcher selects this collision-free task.",
+  "blocked_on": [
+    {
+      "type": "ownership_decision",
+      "owner": "admin",
+      "condition": "Two blockers, both found by the orchestrator before activation. FIRST, the working set is wrong: the record declares lib/admin/route-registry/commerce.ts, which resolves cleanly to admin-commerce and would have passed the segment check, but the vendor dashboard registry entry is not there. It is at lib/admin/route-registry/logistics.ts:941, in the admin-logistics segment, with authClass legacy_pending_migration and resourceBoundary kind none_recorded and boundaryOwner ops-logistics. This lane would edit a fragment that does not contain its route and could not touch the one that does. It needs the working set re-pointed to logistics.ts plus a lease on that file, which is a separate decision from the harness lease. SECOND, this task also moves the pinned routesWithoutResourceBoundary figure, exactly as ADMWORK-001 does, so the two must be serialized rather than run concurrently. Note the segment check in control-plane-validation.mjs:275-289 only runs against ACTIVE tasks, so a blocked record can hold a working set that would be rejected at activation; that creation-time gate does not exist.",
+      "dependency_task_ids": [
+        "ADMWORK-001"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The handler uses a named Admin capability, platform principal, or explicitly registered non-user principal.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The route contract declares a resource boundary whose verifiedAt marker exists in source.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "An unauthenticated request is proven to receive 401.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-commerce",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/vendor-dashboard-principal-boundary.test.ts",
+          "npm run check:admin-route-registry"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "State-only correction made by ADMWORK-001, not by this lane and not by its owner. ADMWORK-001 is now completed, which satisfies the only unfinished dependency this record named, so 'waiting_dependency' became false the moment ADMWORK-001 landed and npm run agents:validate -- --strict began failing with 'ADMCOM-001: waiting_dependency has no unfinished dependency'. The execution state is corrected to waiting_decision because that is the true state: the blocker that remains is the ownership_decision already recorded in blocked_on and owned by admin, namely re-pointing the working set from lib/admin/route-registry/commerce.ts to lib/admin/route-registry/logistics.ts and granting a lease on that fragment. No working set, acceptance criterion, dependency edge, owner or product code was changed, and the ownership decision itself is untouched and still open. Recorded in HF-ADMWORK-001-DOMAIN041-LEASE-REVERT next_steps and in ADMWORK-001's control_plane gate.",
+    "completed": [],
+    "next_steps": [
+      "Wait for ADMIN-022, then implement the vendor-dashboard guard and focused proof."
+    ],
+    "blockers": [
+      "Working set is wrong: the route entry lives in lib/admin/route-registry/logistics.ts (admin-logistics), not the declared commerce.ts (admin-commerce).",
+      "Serializes behind ADMWORK-001 because both tasks decrement the same machine-enforced routesWithoutResourceBoundary figure."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T02:36:45.257Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Still blocked, and the orchestrator found a working-set defect that would have failed at activation. The declared registry fragment does not contain this route. No implementation started and no working set was rewritten, because re-pointing it requires a lease on the admin-logistics fragment that has not been granted.",
+        "completed": [],
+        "next_steps": [
+          "Wait for ADMIN-022, then implement the vendor-dashboard guard and focused proof."
+        ],
+        "blockers": [
+          "Working set is wrong: the route entry lives in lib/admin/route-registry/logistics.ts (admin-logistics), not the declared commerce.ts (admin-commerce).",
+          "Serializes behind ADMWORK-001 because both tasks decrement the same machine-enforced routesWithoutResourceBoundary figure."
+        ]
+      },
+      {
+        "at": "2026-09-28T03:18:56.331Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "State-only correction made by ADMWORK-001, not by this lane and not by its owner. ADMWORK-001 is now completed, which satisfies the only unfinished dependency this record named, so 'waiting_dependency' became false the moment ADMWORK-001 landed and npm run agents:validate -- --strict began failing with 'ADMCOM-001: waiting_dependency has no unfinished dependency'. The execution state is corrected to waiting_decision because that is the true state: the blocker that remains is the ownership_decision already recorded in blocked_on and owned by admin, namely re-pointing the working set from lib/admin/route-registry/commerce.ts to lib/admin/route-registry/logistics.ts and granting a lease on that fragment. No working set, acceptance criterion, dependency edge, owner or product code was changed, and the ownership decision itself is untouched and still open. Recorded in HF-ADMWORK-001-DOMAIN041-LEASE-REVERT next_steps and in ADMWORK-001's control_plane gate.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMTOUR-REV-001",
+  "title": "Close the sample Admin tour-simulation routing proof",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P3",
+  "owner_agent": "admin-tour-planning",
+  "outcome_id": "MAINTENANCE-DEBT",
+  "deliverable_class": "verification",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:20:00.000Z",
+  "updated_at": "2026-09-28T00:20:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty; documentation-only routing proof",
+  "goal": "Prove that a tour-manager simulation record can be triaged by Admin, routed to its proposed specialist, and closed without authorizing a product change.",
+  "scope": {
+    "in": ["Sample simulation routing and receiving-side closure"],
+    "out": ["Product implementation", "Production or staging mutation"]
+  },
+  "working_set": ["docs/engineering/admin-reviews/tour-simulations/sample-tour-simulation-review.json"],
+  "shared_working_set": [],
+  "references": ["docs/engineering/admin-reviews/README.md"],
+  "depends_on": [],
+  "resume_condition": "Completed evidence-only proof; reopen only if the review contract changes.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The sample covers one event and a three-stop tour, Admin disposition, proposed specialist, receiving-side evidence, and linked closure task.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": ["docs/engineering/admin-reviews/tour-simulations/sample-tour-simulation-review.json"]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-tour-planning",
+        "required_for": "task",
+        "result": "pass",
+        "commands": ["node scripts/agent-tools/validate-admin-reviews.mjs"],
+        "evidence": ["Schema, routing, and linked-task closure validation passed."],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T00:20:00.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Admin triaged the synthetic tour simulation and the proposed specialist verified receiving-side closure. No product code was changed.",
+    "completed": ["Review creation", "Admin triage", "Specialist routing", "Linked-task closure"],
+    "next_steps": [],
+    "blockers": [],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

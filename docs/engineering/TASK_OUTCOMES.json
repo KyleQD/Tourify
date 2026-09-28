@@ -1,0 +1,998 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-09-28T03:22:19.528Z",
+  "tasks": [
+    {
+      "id": "ADM-DESIGN-REVIEW-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADM-TOUR-REVIEW-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMCOM-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMEXP-REV-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMIN-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-004",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-005",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-006",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-007",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-008",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-009",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-010",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-011",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ADMIN-012",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "ADMIN-013",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-014",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-015",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-016",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-017",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-018",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-019",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-020",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-021",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-022",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-023",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-024",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-025",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-026",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-027",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-028",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMIN-HIER-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMTOUR-REV-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMUX-0102",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMUX-W01",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ADMVIEW-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-COM-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-EVENT-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-EXP-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-GOV-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-LOG-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-TOUR-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMVIEW-WORK-001",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "ADMWORK-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ARTIST-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "AUTH-AGENT-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "CTRL-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-009",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-010",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-011",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "DB-012",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "DB-013",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-014",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-015",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-016",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-017",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-018",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-019",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-020",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-021",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-022",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DB-023",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-009",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-010",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-011",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-012",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-013",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-014",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-015",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-016",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-017",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-018",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-019",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-020",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-021",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-022",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-023",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-024",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-025",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-026",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-027",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-029",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-030",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-031",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-032",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-033",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "DESIGN-034",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-035",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DESIGN-036",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "DESIGN-037",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "DESIGN-038",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DISC-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DISC-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DISC-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DISC-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DISC-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "DISC-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "EVENTS-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "EVENTS-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "EVENTS-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "EVENTS-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "EVENTS-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "EVENTS-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-009",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "INTG-010",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MKT-009",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MUSIC-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MUSIC-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MUSIC-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MUSIC-004",
+      "outcome_id": "DEFERRED-MUSIC-ADVANCED"
+    },
+    {
+      "id": "MUSIC-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "MUSIC-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORCH-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORCH-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORCH-003",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ORCH-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORCH-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "ORG-007",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "ORG-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "QA-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "QA-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "QA-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "QA-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "QA-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "QA-006",
+      "outcome_id": "DEFERRED-MOBILE"
+    },
+    {
+      "id": "QA-007",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "QA-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-002",
+      "outcome_id": "DEFERRED-MUSIC-ADVANCED"
+    },
+    {
+      "id": "RELEASE-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-009",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "RELEASE-010",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-011",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-012",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-013",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "RELEASE-014",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "SOCIAL-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "SOCIAL-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "SOCIAL-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "SOCIAL-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "SOCIAL-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "SOCIAL-006",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "SOCIAL-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "TICKET-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "USER-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "VENUE-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "VENUE-002",
+      "outcome_id": "MAINTENANCE-DEBT"
+    },
+    {
+      "id": "VENUE-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "VENUE-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "VENUE-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "VENUE-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "VENUE-007",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WFC-001",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-002",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-003",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-004",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-005",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-006",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-007",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-008",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-009",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-010",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-011",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-012",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-013",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-014",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-015",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-016",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-017",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-018",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-019",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-020",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-021",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-022",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WFC-023",
+      "outcome_id": "POSTLAUNCH-WORKFORCE"
+    },
+    {
+      "id": "WORK-001",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-002",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-003",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-004",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-005",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-006",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-007",
+      "outcome_id": "POSTLAUNCH-LOGISTICS"
+    },
+    {
+      "id": "WORK-008",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-009",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    },
+    {
+      "id": "WORK-010",
+      "outcome_id": "CORE-WEB-LAUNCH"
+    }
+  ]
+}

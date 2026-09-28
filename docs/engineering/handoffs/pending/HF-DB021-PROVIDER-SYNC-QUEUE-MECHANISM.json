@@ -1,0 +1,53 @@
+{
+  "schema_version": "2.0",
+  "status": "pending",
+  "created_at": "2026-09-27T23:30:11.593Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, branch release/clean-snapshot)",
+  "dirty_state_caveat": "Shared dirty worktree: 575 entries at task start from 14+ completed and concurrent lanes. Every unrelated entry is preserved. This lane wrote exactly: supabase/migrations/20260927140100_event_sync_jobs.sql, docs/engineering/migration-validation/20260927140100_event_sync_jobs.json, docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh, docs/engineering/migration-validation/hosted-history-ledger.json (sourceSnapshot re-derived + one launch.required entry), docs/engineering/agents/database/STATE.md, this task record, and these handoffs. lib/database.types.ts is byte-unchanged at 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7. No migration was applied to any environment.",
+  "completed": [],
+  "blockers": [
+    {
+      "id": "OB-1",
+      "title": "Provider sync work is a hand-rolled lease queue and the repository has no queue extension decision anywhere",
+      "severity": "architecture; not a defect and not a launch blocker on its own",
+      "diagnosis": "MEASURED SURFACE: three indexes support the lease claim — `idx_event_sync_jobs_dedupe_active` (unique, partial on active), `idx_event_sync_jobs_claim` on `(status, run_after, priority, id) where status = 'queued'` (exactly the worker's sort order, and proven USABLE by the harness under `set enable_seqscan = off`), and `idx_event_sync_jobs_stale_locks` on `(locked_at) where status = 'running'`. The claim is a compare-and-set (`.eq('id', …).eq('status','queued')`), so two workers cannot both win a job. The retry ladder is `attempt_count`/`max_attempts` with `min(60_000 * 2**attempt_count, 30 min)` backoff and a `dead` terminal state, and `429`/retryable errors go back to `queued` with a delay so a provider rate limit cannot cause a storm. There is no visibility timeout process, no dead-letter table, and no admin retry surface beyond `admin/event-sync`'s read-only listing — a `dead` job is listed but nothing re-enqueues it. That is the real gap in the mechanism, and it is a product decision rather than a schema one.",
+      "why_not_repaired": "A `create extension` in a migration is an irreversible cluster-level change to every environment, and the archived contract — which is the only contract this lane was given — names no extension. Choosing one here would be a transcription lane making an architecture decision.",
+      "requested_action": "orchestrator, on ORCH-004: decide and record whether provider sync work stays a lease table or moves to `pgmq`. If it stays, the concrete follow-up is a dead-letter re-enqueue surface and a visibility timeout, which are application-side. If it moves, it is a forward additive migration plus a worker rewrite, and the two restored relations become the pgmq payload contract rather than the queue itself."
+    },
+    {
+      "id": "OB-2",
+      "title": "The chain is two relations ahead of the generated contract and regeneration is blocked",
+      "severity": "release gate; the direction is safe, the unblocking is not this lane to do",
+      "diagnosis": "`node supabase/tests/db008_chain_contract_replay.mjs .` reports `contract reproducible from chain: true` with outOfBand 0 and contractOnlyRoutines 0, and names both `event_provider_connections` and `event_sync_jobs` in the chain-only relations list. A strict subset is the signature of a stale generated file rather than a divergent one, so regeneration may only ADD coverage. Blockers: RELEASE-013 must provision a chain-built generation target, and CP-127 permanently disqualifies `--linked` as a source.",
+      "requested_action": "orchestrator, on ORCH-004: sequence the CP-016 regeneration after the staging applies of 20260927140000 and 20260927140100, against a chain-built target. Until then the 6 diagnostics in the integrations cluster that DB-020 recorded are NOT claimed cleared, and the two restored relations' consumers emit no diagnostics to clear."
+    }
+  ],
+  "id": "HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM",
+  "task_id": "DB-021",
+  "from_agent": "database",
+  "to_agent": "orchestrator",
+  "accepting_task_id": "ORCH-004",
+  "title": "Two decisions DB-021 deliberately did not take: the provider-sync queue mechanism (lease table vs pgmq) and the CP-016 regeneration of two chain-ahead relations",
+  "summary": "DB-021 authored 20260927140100_event_sync_jobs.sql, restoring the second of two relations from the archived 20260804130000 provider-foundation file. Two decisions were DELIBERATELY not taken by the transcription lane and are routed here rather than settled silently. (1) QUEUE MECHANISM. The archive's own comment at :94 calls event_sync_jobs a 'durable queue ... claimed by cron workers', so a queue is implied — but the archive names no extension, nothing in the 322-file active chain names one, and `pgmq` appears nowhere in this repository. What the archive actually specifies is a hand-rolled LEASE queue: `locked_at`/`locked_by` with a compare-and-set claim at cron/events/sync:79-86, `attempt_count`/`max_attempts` with bounded exponential backoff capped at 30 minutes, and `dead` as a terminal state. DB-021 transcribed that contract verbatim and added NO `create extension`, because a transcription lane pulling a queue extension into the chain is exactly the scope expansion this lane is chartered to refuse. The question of whether Tourify should standardise on `pgmq` for provider sync work is a real one and it is not answered here. (2) CP-016 REGENERATION. After DB-020 and DB-021 the chain is TWO relations AHEAD of `lib/database.types.ts`: `event_provider_connections` and `event_sync_jobs` both appear in the chain-only list of `node supabase/tests/db008_chain_contract_replay.mjs .`. That is the SAFE direction — the chain is a superset, so regeneration may only ADD coverage and delete nothing — but the regeneration itself remains blocked on RELEASE-013 provisioning a chain-built target, and `--linked` must never be used as a source (CP-127). `lib/database.types.ts` is byte-unchanged at 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7 and is not hand-edited. Worth stating precisely: because all consumers of BOTH relations use an untyped service-role client, they emit NO tsc diagnostic, so there are no diagnostics to clear for this pair and none is claimed.",
+  "working_set": [
+    "supabase/migrations/20260927140000_event_provider_connections.sql — the first chain-ahead relation, DB-020",
+    "supabase/migrations/20260927140100_event_sync_jobs.sql — the second chain-ahead relation, DB-021",
+    "docs/engineering/migration-validation/20260927140000_event_provider_connections.json and 20260927140100_event_sync_jobs.json — the two planned manifests, both recording the CP-016 superset property",
+    "lib/database.types.ts — READ ONLY, byte-unchanged, not regenerated and not hand-edited"
+  ],
+  "next_steps": [
+    "orchestrator: record the provider-sync queue mechanism decision (lease table vs pgmq) and, if lease table, open the dead-letter re-enqueue and visibility-timeout follow-up as an events/integrations item.",
+    "orchestrator: sequence CP-016 regeneration after the 20260927140000 and 20260927140100 staging applies, against a chain-built target only; never `--linked` (CP-127).",
+    "release: the two provider-foundation migrations are authored and green on every local gate but applied to NOTHING. Both need the reviewed manual single-transaction apply (CP-051) plus the Layer 0 stop-condition probes recorded in their manifests.",
+    "database: no further work on either item; both are recorded as not-taken rather than as open migrations."
+  ],
+  "completion_condition": "A recorded decision exists for the provider-sync queue mechanism (lease table retained with a named dead-letter/visibility-timeout follow-up, or a pgmq forward plan), AND a CP-016 regeneration has been executed against a chain-built target after the staging applies of 20260927140000 and 20260927140100 with the regenerated contract adding coverage for both relations without deleting any.",
+  "verification": [
+    "node supabase/tests/db008_chain_contract_replay.mjs . — PASS, `contract reproducible from chain: true`, chainTables 415, contractRelations 402, outOfBand 0, contractOnlyRoutines 0, viewColumnsWithoutProvenance 0, chain-only relations 31 including `event_provider_connections` and `event_sync_jobs`.",
+    "shasum -a 256 lib/database.types.ts — 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7, identical to the value DB-020 recorded, and `git diff` reports no change to it or to types/database.types.ts / types/supabase.ts.",
+    "npm run check:migration-chain — PASS, 322 files scanned, no duplicate policy creations.",
+    "npm run check:migration-ledger — PASS, `hosted migration ledger matches 322 active migrations (26 classified, 296 explicitly unreconciled)`; both migrations classified launch-required with a named task, a planned manifest and a rationale rather than left in the unclassified bucket to hit a number.",
+    "npm run agents:validate — PASS, `validated 18 agents, 218 tasks, 100 pending handoffs, 0 warnings, 0 errors`.",
+    "NOT RUN AND NOT CLAIMED: npm run generate:database-types, npm run check:database-types (no chain-built target), npm run typecheck (68m18s on CI, OOMs on this 8GB box shared by four lanes), supabase db lint --local (no running target), and any apply to any environment. No hosted evidence of any kind exists or is claimed."
+  ]
+}

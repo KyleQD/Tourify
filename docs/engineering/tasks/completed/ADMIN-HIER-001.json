@@ -1,0 +1,235 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-HIER-001",
+  "title": "Roll out the hierarchical Admin agent team",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "orchestration",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:28:02.888Z",
+  "updated_at": "2026-09-28T01:20:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (701 entries)",
+  "goal": "Replace monolithic Admin dispatch with seven bounded implementation specialists and two evidence-only review managers.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "docs/engineering/agents/registry.yaml",
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "scripts/agent-tools/agent-registry.mjs",
+    "scripts/agent-tools/admin-segment-ownership.mjs",
+    "scripts/agent-tools/control-plane.mjs",
+    "scripts/agent-tools/control-plane-validation.mjs",
+    "scripts/agent-tools/sync-opencode-agents.mjs",
+    "scripts/agent-tools/realign-control-plane.mjs",
+    "docs/engineering/admin-reviews/review.schema.json"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The nine Admin child agents are registered, scaffolded, and report to Admin with validated execution policies.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "docs/engineering/agents/registry.yaml",
+        "npm run agents:validate -- --strict: 27 agents, 0 errors",
+        "RE-VERIFIED 2026-09-28, HOLDS UNCHANGED: `npm run agents:validate -- --strict` -> 'validated 27 agents, 243 tasks, 111 pending handoffs, 0 warnings, 0 errors'. The agent count is still 27 and the error count is still 0. The task and handoff counts moved (see the closeout summary); neither is part of this criterion.",
+        "RE-VERIFIED 2026-09-28 by direct read, not inference: `docs/engineering/agents/registry.yaml` lines 16-64 carry exactly nine `reports_to: admin` entries — seven specialists with `execution_policy: implementation` (admin-governance, admin-tour-planning, admin-event-operations, admin-logistics, admin-workforce, admin-commerce, admin-experience-insights) and two managers with `execution_policy: review_only` (admin-design-manager, admin-tour-manager). Seven plus two is the split the goal names.",
+        "RE-VERIFIED 2026-09-28: scaffolding is complete. All nine have a `docs/engineering/agents/<slug>/` directory containing CHARTER.md, STATE.md, DECISIONS.md, WORKING_SET.json, ARCHITECTURE.md, BACKLOG.md, INTERFACES.md, QUESTIONS.md and VERIFICATION.md. No child is a bare registry row.",
+        "The review-only policy is enforced, not just declared: `control-plane-validation.mjs:68-75` rejects a review-only agent owning a non-verification task and rejects a review-only working_set entry outside the review evidence prefixes. A negative control for both is in the 20-test suite."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Task creation, state rollups, context packets, handoffs, OpenCode sync, workspace ownership, and realignment preserve the hierarchy.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "Dry-run task creation passed for all nine Admin children.",
+        "Nine child context packets included the parent Admin charter and state.",
+        "npm run agents:opencode:check: 27 current, 0 drifted",
+        "RE-VERIFIED 2026-09-28, ALL THREE CLAIMS HOLD. (1) Dry-run task creation: `control-plane.mjs create-task --dry-run` exits 0 for all seven specialists with the default `implementation` class, and for both managers once `--deliverable verification` is passed. The managers correctly REFUSE the default `implementation` class with 'Review-only agents may create verification tasks only' — that refusal is the review-only policy working, not a failure, and it is the same guard that AC-1 cites. (2) Context packets: `context --task` was run for one task per child (ADMCOM-001, ADMVIEW-EVENT-001, ADMIN-022, ADMIN-025, ADMIN-021, ADMIN-024, ADMWORK-001, ADM-DESIGN-REVIEW-001, ADM-TOUR-REVIEW-001) and all nine reference both `docs/engineering/agents/admin/CHARTER.md` and `docs/engineering/agents/admin/STATE.md`. (3) `npm run agents:opencode:check` -> 'opencode agent sync check: 27 agents, 27 current, 0 drifted'. The recorded 27/0 has not moved.",
+        "RE-VERIFIED 2026-09-28, not previously claimed as evidence: state rollups. The `Generated queue summary` and `Child-agent queue rollup` blocks in `docs/engineering/agents/admin/STATE.md` were recomputed from the task records and the registry and match byte for byte — 3 admin-owned unfinished tasks and 20 unfinished descendant tasks. The control plane enforces this equality itself (`control-plane-validation.mjs:330-360`), so a rollup that had drifted would fail `agents:validate -- --strict` rather than sit stale.",
+        "RE-VERIFIED 2026-09-28, not previously claimed as evidence: workspace ownership and realignment. `control-plane-validation.mjs:28` requires exactly nine segments, and `SEGMENT_OWNERSHIP.yaml` has nine plus ten explicit `shared:` entries. `npm run agents:realign` (dry-run preservation report) returns `mode: dry-run` with `before` and `after` identical on every dimension — 243 tasks, 822 criteria, 1699 verification-evidence items, 809 checkpoints, 111 handoffs — and `moved_to_completed: []`, `successors_created: []`. Realignment preserves the hierarchy with zero drift and writes nothing (`--apply` is the write mode and was not run)."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Admin paths and route entries resolve to one segment, and shared files require explicit leases.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "scripts/agent-tools/admin-hierarchy.test.mjs",
+        "npm run check:admin-route-registry: 291 routes, 53/53 legacy classifications",
+        "RE-VERIFIED 2026-09-28, HOLDS UNCHANGED: `npm run check:admin-route-registry` -> 'Admin API route files on disk: 291 / Legacy route classifications: 53/53 / REL-103 check OK — route-method contracts are exact and legacy debt did not grow'. Both recorded counts are still exact. Note that the legacy baseline has been unchanged through six later Admin registry tasks (ADMIN-013, ADMIN-016, ADMIN-020 and others), so 53/53 is a stable figure here rather than a coincidence.",
+        "RE-VERIFIED 2026-09-28: the named test file exists and its cases are the ones the criterion claims, not just its filename. `scripts/agent-tools/admin-hierarchy.test.mjs` covers 'all Admin integration files resolve to one effective segment owner' and 'route fragments and legacy vendor carveout resolve to their declared specialists'; the lease half is covered by `control-plane-validation.test.mjs` cases 'rejects overlapping active working sets without a shared lease' and 'enforces Admin child decision ownership and bounded active leases'. Both halves of the criterion are machine-enforced.",
+        "RE-VERIFIED 2026-09-28: the single-owner rule was checked against the live resolver rather than trusted. `resolveAdminSegmentOwner` returns `{owner, shared, include}` and the `shared:` list is checked first, so a `shared:` entry is an explicit, visible override rather than a silent one. The two live overrides were each confirmed to be the one the record claims: `app/api/admin/logistics/vendor/dashboard/route.ts` is the legacy vendor carveout to admin-commerce, and `__tests__/admin/admin-route-capability-matrix.test.ts` is the spent DOMAIN-039 lease to admin-logistics (see the closeout summary; that one is now an open revert obligation, not a settled fact)."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Review managers are evidence-only and both sample review workflows close through Admin triage and specialist routing.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "ADM-DESIGN-REVIEW-001 completed with passing evidence.",
+        "ADM-TOUR-REVIEW-001 completed with passing evidence.",
+        "node scripts/agent-tools/validate-admin-reviews.mjs validated 2 records",
+        "RE-VERIFIED 2026-09-28, the criterion is met: `ADM-DESIGN-REVIEW-001` and `ADM-TOUR-REVIEW-001` are both in `docs/engineering/tasks/completed/`, both `completed`/`done`, both with a `local` verification gate `result: pass` at base SHA 16fb834f (verified 2026-09-28T00:26:15.924Z and 00:26:16.191Z). `node scripts/agent-tools/validate-admin-reviews.mjs` -> 'Validated 2 Admin review records.' The recorded count of 2 is exact.",
+        "WORDING CORRECTED 2026-09-28, the criterion is unaffected: 'completed with passing evidence' reads as though a real product review happened. Both review records are explicitly synthetic — `record_status: \"example\"`, `source_sha: \"EXAMPLE\"`, `environment: \"non_production_example\"`, and their own verification evidence strings say 'Synthetic example only' and 'Example contains no production data'. What passed is the SCHEMA AND WORKFLOW: evidence-only submission, Admin triage, specialist routing, and linked-task closure. The criterion itself says 'both sample review workflows', so it is met on its own terms; the evidence wording is what needed correcting, and it is corrected here rather than left to be over-read.",
+        "RE-VERIFIED 2026-09-28: the review-only boundary is enforced, not merely asserted. `control-plane-validation.mjs:68-75` requires a review-only agent's `deliverable_class` to be `verification` and every `working_set` entry to sit under the review evidence prefixes. `SEGMENT_OWNERSHIP.yaml` scopes each manager to its own review directory and owns no product path: admin-design-manager to `docs/engineering/admin-reviews/design/**`, admin-tour-manager to `docs/engineering/admin-reviews/tour-simulations/**`. The managers route to specialists through findings; they hold no implementation lane."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Existing Admin and WFC work is reassigned or split without activating post-launch work or changing ADMIN-020 ownership.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "SUPERSEDED AS WRITTEN, re-verified 2026-09-28: 'ADMIN-020 remains active and owned by admin.' The ownership half is still exactly right — `ADMIN-020.json` has `owner_agent: \"admin\"` and was never reassigned, which is what this criterion protects. The 'remains active' half is now false: ADMIN-020 is `completed`/`done` in `docs/engineering/tasks/completed/`, having been closed by its own lane after this task's criteria were last written. That is forward progress, not a violation of the criterion, and it is recorded here rather than quietly restated as 'remains active'.",
+        "CORRECTED, re-verified 2026-09-28: 'ADMVIEW-001 is superseded by seven queued_postlaunch specialist tasks covering all 79 routes.' The SUPERSESSION is real and the seven successors exist. The COVERAGE is 75 of 79, not 79 — see the next evidence line. The original words are preserved here so the correction is auditable.",
+        "COVERAGE GAP FOUND 2026-09-28, measured not estimated. `docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md` lists 79 routes and `find app/admin -name page.tsx` returns exactly 79 page files, with every matrix route resolving to a page file — so the '79 routes' figure itself is exact and the matrix is a complete inventory. But the union of the seven successors' `working_set` entries covers only 75 of those 79. Four have no specialist owner: `/admin/dashboard/artists`, `/admin/dashboard/artists/new`, `/admin/dashboard/artists/[id]`, and `/admin/dashboard/test-api`. All four resolve by segment to `admin-experience-insights` (`SEGMENT_OWNERSHIP.yaml`), and ADMVIEW-EXP-001's `working_set` is 22 explicitly enumerated paths with no glob that reaches them. The fix is two working-set additions to ADMVIEW-EXP-001, not new work.",
+        "NO POST-LAUNCH WORK IS ACTIVE, re-verified 2026-09-28 and confirmed exhaustively: all seven ADMVIEW-*-001 successors are `blocked`/`queued_postlaunch` on `MAINTENANCE-DEBT`, and WFC-008, 009, 010, 013, 015, 017 and 020 are all `blocked`/`queued_postlaunch` on `POSTLAUNCH-WORKFORCE`. Nothing carrying a post-launch or maintenance-debt outcome appears in `docs/engineering/tasks/active/`. This is the criterion's substantive requirement and it holds.",
+        "CONFIRMED 2026-09-28: 'ADMIN-023 is superseded by ADMCOM-001 and ADMWORK-001 with transferred criteria.' ADMIN-023 is `completed`/`superseded` with the summary 'Superseded without implementation by two segment-owned successors. ADMCOM-001 owns the vendor dashboard handler; ADMWORK-001 owns the onboarding and staffing handlers. All acceptance criteria and the ADMIN-022 dependency are preserved.' ADMCOM-001 and ADMWORK-001 exist, are owned by `admin-commerce` and `admin-workforce`, and are `blocked`/`waiting_dependency`. ADMIN-023 also carried the `ADMIN-022` dependency edge and that edge survives on ADMIN-022, which still depends on ADMIN-019 and ADMIN-021.",
+        "RE-VERIFIED 2026-09-28: the WFC half of the criterion. All seven WFC tasks are owned by `admin-workforce` with `decision_owner: admin`, so the Admin child holds the decision right and the work stays queued. WFC-008 through WFC-020 appear in the generated child-agent rollup, which is generated from the registry's parent links, so the routing is what the rollup reports rather than a separate claim."
+      ]
+    },
+    {
+      "id": "AC-6",
+      "criterion": "The pending identity migration is additive, idempotent, and creates no credentials or privileges.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "__tests__/admin/hierarchical-agent-identities-migration.test.ts: 4 tests passed",
+        "Migration-validation manifest passed at planned stage; no migration was applied.",
+        "RE-VERIFIED 2026-09-28, HOLDS UNCHANGED: `npx vitest run __tests__/admin/hierarchical-agent-identities-migration.test.ts` -> 'Test Files 1 passed (1) / Tests 4 passed (4)'. The recorded 4 is exact.",
+        "RE-VERIFIED 2026-09-28: `npm run check:migration-validation -- supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql` -> 'scanned supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql with planned manifest'. The manifest at `docs/engineering/migration-validation/20260928001035_seed_hierarchical_admin_agent_identities.json` is still `status: \"planned\"` with `owner: database`, `reviewer: admin-governance`, `riskLevel: low`, and every `evidence` field null. Planned stage, not applied stage.",
+        "RE-VERIFIED 2026-09-28 by reading the SQL rather than trusting the manifest: the file is a single `insert into public.agent_identities (...)` with ten value tuples — the nine Admin children plus the Events domain principal — every one with `status = 'pending'`, closing on `on conflict (slug) do nothing`. Additive, idempotent, and it overwrites nothing. There is no `grant`, no `revoke`, no `alter table`, no `create policy`, no insert into any credentials or membership table, and no `auth_user_id` or `created_by` reference, so it creates no credential and binds no principal. The file's own header comment states the same intent: the scopes 'do not grant route access, credentials, organization membership, or platform capabilities'.",
+        "NOT APPLIED, and deliberately so (CP-051). The migration remains an untracked, unapplied file. No `supabase migration up`, no `supabase db reset`, no forced or full-chain replay, and no psql apply was run by this lane at any point. Applying it is the Database lane's call under `HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION` and only in a proven isolated environment."
+      ]
+    },
+    {
+      "id": "AC-7",
+      "criterion": "Strict control-plane, route-registry, migration, and focused tests pass.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "REPRODUCED 2026-09-28: 'Node control-plane and route-checker suite: 20 tests passed.' -> `node --test scripts/agent-tools/control-plane-validation.test.mjs scripts/agent-tools/admin-hierarchy.test.mjs scripts/ci/check-admin-route-registry.test.mjs` reports `tests 20 / pass 20 / fail 0 / skipped 0`. The recorded 20 is exact and did not move.",
+        "NOT REPRODUCIBLE, recorded as unverifiable rather than corrected, 2026-09-28: 'Focused Vitest suite: 3 files and 39 tests passed.' The three-file SET is right — exactly three test files in the repository reference the Admin child hierarchy: `__tests__/admin/hierarchical-agent-identities-migration.test.ts`, `scripts/agent-tools/admin-hierarchy.test.mjs`, and `scripts/agent-tools/control-plane-validation.test.mjs`. The TOTAL does not reproduce under either runner. `npx vitest run` over those three paths collects 1 file and 4 tests, because vitest does not collect `.mjs` node-test files. `node --test` over the two `.mjs` files reports 17 tests. `node --test` over all three fails to run the vitest file, because it imports from `vitest`. The reproducible figures are 4 under vitest and 17 under node --test, totalling 21 across the two runners, and neither is 39. The two missing files were not identified by any record, checkpoint or artifact, so no honest replacement figure exists. I am NOT rewriting 39 to a number I cannot prove; this is the CP-085/CP-090/CP-104 class the admin state already names, and a plausible-looking substitute would be worse than the gap. The criterion is still met, because the four gates it names were all run and all pass.",
+        "REPRODUCED 2026-09-28: 'npm run agents:validate -- --strict: 0 errors.' -> 'validated 27 agents, 243 tasks, 111 pending handoffs, 0 warnings, 0 errors'. The 0 errors and 0 warnings both hold. Task and handoff counts moved since the original record was written (242 -> 243 tasks and 109 -> 111 pending handoffs at the time of this write) because ADMIN-026 and two routed handoffs were created during this closeout; neither count is part of this criterion.",
+        "RE-VERIFIED 2026-09-28: all four gates named in `verification.gates` were executed in this closeout and each actual result is recorded in the gate's `evidence` below. Nothing in this criterion is asserted on the strength of a prior run."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate -- --strict",
+          "node --test scripts/agent-tools/control-plane-validation.test.mjs scripts/agent-tools/admin-hierarchy.test.mjs scripts/ci/check-admin-route-registry.test.mjs",
+          "npm run check:admin-route-registry",
+          "npm run check:migration-validation -- supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql"
+        ],
+        "evidence": [
+          "RUN 2026-09-28 by the admin agent, all four commands executed, all four pass. No command is reported not_run and none was skipped.",
+          "1/4 `npm run agents:validate -- --strict` -> PASS. Actual output: 'validated 27 agents, 242 tasks, 109 pending handoffs, 0 warnings, 0 errors' on the first run of the closeout, before this record's own corrections were written. Re-run after writing ADMIN-026, the two routed handoffs, the STATE.md correction and this record -> 'validated 27 agents, 243 tasks, 111 pending handoffs, 0 warnings, 0 errors'. The delta is this closeout's own additions, not a regression.",
+          "2/4 `node --test scripts/agent-tools/control-plane-validation.test.mjs scripts/agent-tools/admin-hierarchy.test.mjs scripts/ci/check-admin-route-registry.test.mjs` -> PASS. Actual output: 'tests 20 / suites 0 / pass 20 / fail 0 / cancelled 0 / skipped 0 / todo 0', duration 292.6ms. The 20 cases include the 8 negative controls the AC-3 lease claim depends on: rejection of a WFC-001 folder/status contradiction, invalid verification results, free-form acceptance criteria, an unfinished task without a working set, a stale updated_at, a malformed and self-addressed handoff, a dangling parent, a reporting cycle, an invalid kind/execution-policy pair, an overlapping working set without a shared lease, a fragment hiding entries behind a spread aggregate, and unclassified disk routes.",
+          "3/4 `npm run check:admin-route-registry` -> PASS. Actual output: 'Admin API route files on disk: 291 / Legacy route classifications: 53/53 / REL-103 check OK — route-method contracts are exact and legacy debt did not grow'. Both recorded counts reproduce exactly.",
+          "4/4 `npm run check:migration-validation -- supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql` -> PASS. Actual output: 'scanned supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql with planned manifest'. Validation only; the migration was NOT applied. CP-051 was observed: no `supabase db reset`, no forced or full-chain replay, no `supabase migration up`, no psql apply. The file is still an untracked, unapplied migration with a `planned`-stage manifest whose evidence fields are all null.",
+          "SUPPORTING COMMANDS RUN IN THE SAME CLOSEOUT, outside the four named gates: `npm run agents:opencode:check` -> '27 agents, 27 current, 0 drifted'; `npx vitest run __tests__/admin/hierarchical-agent-identities-migration.test.ts` -> '1 passed / 4 passed'; `node scripts/agent-tools/validate-admin-reviews.mjs` -> 'Validated 2 Admin review records.'; `npm run agents:realign` (dry-run) -> before and after identical on 243 tasks, 822 criteria, 1699 verification-evidence items, 809 checkpoints and 111 handoffs, with moved_to_completed and successors_created both empty. `npm run agents:realign:apply` was NOT run.",
+          "NOT RUN, and why: no hosted, staging, or release gate was run and none is claimed. This task has no hosted evidence and its verification tier is `fast`; the only hosted dependency is the isolated-database apply-twice for the identity migration, which is explicitly transferred to the Database lane under `HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION` and is not owned here.",
+          "NOT RUN, and why: `npm run check:admin-audit` still reports its 3 pre-existing generated-view and workbook errors. They are traceable to generated artifacts dirty from other lanes and clearing them needs `npm run generate:admin-audit`, which writes outside every lane's working set. This task did not cause them, did not fix them, and does not claim a green audit check."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T01:20:00.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "The hierarchical Admin team is rolled out and verified; this record previously said 'Created; implementation not started', which was stale and is corrected here. Nine Admin child agents are registered and scaffolded — seven implementation specialists (admin-governance, admin-tour-planning, admin-event-operations, admin-logistics, admin-workforce, admin-commerce, admin-experience-insights) and two evidence-only review managers (admin-design-manager, admin-tour-manager) — and all nine are generated into this agent's child-agent queue rollup, which was recomputed from the records and matches byte for byte. All four recorded gates were executed in this closeout and all four pass. Re-verification found the recorded counts largely intact and three corrections, none of which was applied silently: AC-5's 'ADMIN-020 remains active' is stale (ADMIN-020 is completed and still owned by admin, which is what the criterion protects); AC-5's 'covering all 79 routes' is 75 of 79, with the three Admin artists routes and /admin/dashboard/test-api unowned by any of the seven successors; and AC-7's '3 files and 39 tests' does not reproduce under either runner, so it is recorded as unverifiable rather than replaced with a number that cannot be proven. The one open handoff, HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION, stays open: its accepting condition is an isolated apply-twice and the Database lane has no proven target, so it is not closed here. Every AC is genuinely met on re-verification, so the task moves to completed.",
+    "completed": [
+      "Nine Admin child agents registered in docs/engineering/agents/registry.yaml with reports_to: admin, seven on execution_policy: implementation and two on execution_policy: review_only, each scaffolded with a full CHARTER/STATE/DECISIONS/WORKING_SET directory.",
+      "Workspace ownership established: SEGMENT_OWNERSHIP.yaml declares exactly nine segments plus ten explicit shared: entries, and the single-owner resolver plus the shared_working_set lease rule are machine-enforced.",
+      "Hierarchy preserved across every control-plane surface: dry-run task creation for all nine children, nine child context packets carrying the parent Admin charter and state, OpenCode sync at 27 current and 0 drifted, generated queue summary and child rollup recomputed and matching byte for byte, and a realignment dry-run with zero drift on 243 tasks, 822 criteria, 1699 evidence items, 809 checkpoints and 111 handoffs.",
+      "Two evidence-only review workflows demonstrated end to end through Admin triage and specialist routing, with the review-only boundary enforced by the control plane and each manager scoped to its own review directory.",
+      "Existing work reassigned or split without activating post-launch work: ADMVIEW-001 and ADMIN-023 both completed/superseded into segment-owned successors; all seven ADMVIEW-*-001 tasks and all seven WFC tasks remain blocked/queued_postlaunch; ADMIN-020's ownership by admin is unchanged.",
+      "The hierarchical identity migration authored, statically proven additive, idempotent and privilege-free, and validated at planned stage. It was NOT applied, per CP-051.",
+      "All four recorded verification gates executed and passing, with actual outputs recorded.",
+      "Record hygiene performed in this closeout: the stale 'implementation not started' summary rewritten; AC-5 and AC-7 evidence corrected in place with the original wording preserved and each correction labelled; the overstated ADMIN-016 impact claim corrected in docs/engineering/agents/admin/STATE.md with its history preserved; two follow-on test-quality findings routed to their real owners; ADMIN-026 and two handoffs created; one routing error in ADMIN-021's own record corrected."
+    ],
+    "next_steps": [
+      "HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION stays open and is not admin's to close. Its accepting condition is an isolated apply-twice proving ten principals remain pending with credentials, memberships, RLS, revokes and platform privileges unchanged. The accepting task DB-008 is blocked/waiting_dependency with no chain-built database target, so the obligation transfers with it and no admin-side action can advance it.",
+      "Orchestrator: the admin implementation queue has no dispatchable item. ADMIN-022, ADMIN-024 and ADMIN-025 are all blocked and none was activated here. ADMIN-025 additionally carries two obligations that must land together — the DOMAIN-039 shared: revert and the weakly-bound pin slice — and is blocked on RELEASE-013 for an unrelated collision on package.json and .github/workflows/ci.yml.",
+      "Orchestrator: two corrections to the brief this closeout acted on. (1) ADMIN-024 fails the control plane's broad-working-set check because it declares `__tests__/admin/**`; ADMIN-022 does NOT — its working set is three narrow paths and it validates clean as active. Re-serializing it needs a dependency edge to the last unfinished admin-chain task and nothing else. (2) The non-discriminating assertion in `__tests__/admin/site-map-route-capability-migration.test.ts` was recorded by ADMIN-021 as routed to admin-governance, but that file resolves to admin-logistics by segment default; it is routed to ADMIN-026 instead, and sending it to admin-governance would have been rejected by control-plane-validation.mjs:283 at activation.",
+      "Route for a future admin task, not done here: add `app/admin/dashboard/artists/**` and `app/admin/dashboard/test-api/page.tsx` to ADMVIEW-EXP-001's working set. That is the whole fix for the 75-of-79 coverage gap in AC-5, both paths already resolve to admin-experience-insights, and the task is queued_postlaunch so nothing is on the launch path. Left alone here because editing a different task's working set from a closeout is scope expansion.",
+      "Route for a future database task: the four ADMVIEW coverage-gap routes and the synthetic review records are documentation-shaped and need no migration. The identity migration remains the only database obligation this task raised."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T01:20:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Closeout and re-verification. The record said 'Created; implementation not started' while all seven ACs were marked met; the summary was stale and has been replaced with what was actually built and verified. All four recorded gates were run and all four pass. Each AC's evidence was re-verified rather than trusted, and three defects in the recorded evidence were found and corrected in place with the original wording preserved: AC-5 'ADMIN-020 remains active' (stale — completed, still owned by admin), AC-5 'covering all 79 routes' (measured at 75 of 79; three artists routes and test-api unowned), and AC-7 '3 files and 39 tests' (does not reproduce under either runner; recorded as unverifiable, not replaced with an unprovable figure). AC-1, AC-2, AC-3, AC-4 and AC-6 evidence reproduced unchanged, and several previously unclaimed surfaces of AC-2 (state rollups, workspace ownership, realignment) were verified for the first time. The overstated ADMIN-016 impact sentence about the site-map activity inversion was corrected in the admin state with its history preserved. Two follow-on test-quality findings were routed to the agents that actually own the files, which required correcting a routing error in ADMIN-021's own record. Nothing was committed or pushed; HEAD stays at 16fb834f.",
+        "completed": [
+          "Ran all four recorded gates; recorded actual results; all pass.",
+          "Re-verified all seven ACs against code and records rather than against the recorded strings; classified each as met, corrected, or unverifiable.",
+          "Rewrote progress.summary to describe what was built and verified.",
+          "Corrected the AC-5 and AC-7 evidence in place, preserving the original wording and labelling every correction.",
+          "Corrected the overstated ADMIN-016 impact claim in docs/engineering/agents/admin/STATE.md, preserving the original sentence and noting what corrected it.",
+          "Routed the non-discriminating assertion to admin-logistics as ADMIN-026 with a correcting handoff, and the weakly-bound pin slice to admin-governance as a second handoff against ADMIN-025, with the control-plane ordering constraint recorded.",
+          "Reported the handoff status for HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION: open, not closable here.",
+          "Moved this record to docs/engineering/tasks/completed/ with status completed and execution_state done."
+        ],
+        "next_steps": [
+          "HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION remains open on DB-008's missing isolated target.",
+          "Orchestrator owns activation and re-serialization of ADMIN-022, ADMIN-024 and ADMIN-025; none was activated here.",
+          "A future admin task adds two working-set entries to ADMVIEW-EXP-001 to close the 75-of-79 coverage gap."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION"
+  ],
+  "closeout_notes": {
+    "why_the_record_was_still_active": "Every AC was marked met with evidence while progress.summary still read 'Created; implementation not started', and the verification gate was still not_run. The rollout had demonstrably happened — nine children registered and validated, and the child-agent queue rollup in the admin state generated from them — so the record's own control surface contradicted its summary. This closeout re-ran the gates rather than asserting them, re-verified each AC's evidence rather than trusting the recorded strings, and found three of those strings wrong. Two of the three are now corrected in place; the third is recorded as unverifiable because no honest replacement figure exists.",
+    "counts_that_moved": {
+      "task_records": "Recorded at no count. Observed 242 at the start of this closeout and 243 at the end; the increment is ADMIN-026, created here to give a routed finding a real accepting task.",
+      "pending_handoffs": "Recorded at no count. Observed 109 at the start of this closeout and 111 at the end; the increment is HF-ADMIN-HIER-001-LOGISTICS-PIN-DISCRIMINATION and HF-ADMIN-HIER-001-GOVERNANCE-PIN-SLICE.",
+      "agents": "27, unchanged and re-verified.",
+      "admin_routes": "291, unchanged and re-verified.",
+      "legacy_route_classifications": "53/53, unchanged and re-verified.",
+      "node_control_plane_suite": "20 tests, unchanged and re-verified.",
+      "identity_migration_tests": "4 tests, unchanged and re-verified.",
+      "admin_review_records": "2, unchanged and re-verified.",
+      "specialist_route_matrix": "79 routes in the matrix and 79 page files under app/admin, both exact. Coverage by the seven successors is 75, not 79 — this one moved from the recorded claim, not from the inventory."
+    },
+    "open_handoff_status": {
+      "id": "HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION",
+      "state": "pending, still open, not closed by this task",
+      "target": "database, accepting task DB-008",
+      "why_not_closed": "Its completion condition is an isolated-environment apply-twice producing evidence that ten principals remain pending, existing rows are unchanged, and credentials, memberships, RLS, revokes and platform privileges are unchanged. That condition needs a database, and the Database lane does not have a proven one. DB-008 is blocked/waiting_dependency and records that no chain-built target exists: `supabase start` is not running, the postgres layer fails to extract, and `--db-url` does not help because the metadata server runs in a container. Nothing on the admin side can advance it, and closing it from local-only static evidence would be exactly the RELEASE-010 failure class.",
+      "what_is_already_done": "Everything the admin lane owns. The migration is authored and additively idempotent, the manifest passes at planned stage, and the static test proves pending-only identities, hierarchy metadata, conflict behavior, and the absence of credentials or privilege changes. Only the isolated execution evidence is outstanding."
+    },
+    "disposition_of_recorded_evidence": "Where a recorded count still reproduced, it was left exactly as written. Where a recorded claim was false, the original wording was kept in place and a labelled correction was added beside it, so the log shows what was believed and what is now known rather than a quiet rewrite. Where a claim could not be reproduced at all, it was recorded as unverifiable and NOT replaced. No historical number was edited to make a gate appear to have run."
+  }
+}

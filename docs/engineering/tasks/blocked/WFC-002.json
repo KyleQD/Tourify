@@ -1,0 +1,118 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-002",
+  "title": "Capture authenticated Workforce baseline",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "qa",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Establish exact-SHA authenticated visual, behavioral, and usability baselines for the current Admin workforce experience.",
+  "scope": {
+    "in": [
+      "Simulated workforce personas",
+      "All current Staff Operations and scheduler views",
+      "Mobile, tablet, desktop, loading, empty, populated, and error evidence",
+      "Task-time and click benchmarks"
+    ],
+    "out": [
+      "Changing production UI",
+      "Using production as a test target"
+    ]
+  },
+  "working_set": [
+    "tests/e2e/**",
+    "docs/engineering/qa/**",
+    "docs/admin-audit/evidence/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/agents/qa/STATE.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Organization admin, department managers, finance, worker, vendor, revoked, and foreign-org actors are distinct",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Every current workforce view is captured at 375x812, 768x1024, and 1440x900",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Five core workflows have exact-SHA timing and click baselines",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "No skipped actor or route is reported as passed",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "qa",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run qa:simulation:provision",
+          "npm run qa:simulation:gate",
+          "npx playwright test --workers=1"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Queued behind program control and an approved isolated authenticated target.",
+    "completed": [],
+    "next_steps": [
+      "Remains blocked on an isolated exact-SHA authenticated target and protected actors. Do not record a baseline from a local dev server or from unseeded data.",
+      "QA also owns the CP-100 radius visual-regression pass over the 973 affected files' surfaces; that gate is independent of this task and can proceed on any target that can render the app.",
+      "Provision the isolated target and actors after WFC-001 completion",
+      "Capture and retain baseline evidence"
+    ],
+    "blockers": [
+      "WFC-001 must complete",
+      "An isolated exact-SHA target and protected simulated actors are required"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Provide baseline timings, screenshots, actor manifest, and route inventory to WFC-021"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "verification",
+  "decision_owner": "qa",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Remains blocked on an isolated exact-SHA authenticated target and protected actors. Do not record a baseline from a local dev server or from unseeded data.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "qa",
+      "condition": "WFC-001 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

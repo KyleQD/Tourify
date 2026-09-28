@@ -1,0 +1,101 @@
+{
+  "schema_version": "2.0",
+  "id": "MUSIC-006",
+  "title": "Make play route fail closed and persist engagement",
+  "status": "blocked",
+  "priority": "P2",
+  "owner_agent": "music",
+  "created_at": "2026-09-23T21:09:03.520Z",
+  "updated_at": "2026-09-27T20:06:41.044Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (88 entries)",
+  "goal": "Replace the unconditional play-route success with a fail-closed, contract-checked playback path and persisted engagement, per SIM-20260922-MUS-001.",
+  "scope": {
+    "in": [
+      "Audit the music play route for unconditional success responses",
+      "Implement a fail-closed playback contract with engagement persistence",
+      "Add tests for denied, missing-asset, and persisted engagement cases"
+    ],
+    "out": [
+      "Reporting success when playback is not actually served"
+    ]
+  },
+  "working_set": [
+    "app/api/music/play/route.ts",
+    "lib/playback/**",
+    "__tests__/music/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "SIM-20260922-MUS-001 reruns and passes with a real served/persisted playback path",
+      "owner": "music",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "music",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Playback repair is queued behind the DB-008 persistence and denial-proof contract.",
+    "completed": [],
+    "next_steps": [
+      "Resume after DB-008 records the playback persistence contract and the working set is collision-free."
+    ],
+    "blockers": [
+      "Waiting for DB-008 to close the playback persistence and denial-proof contract."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T20:06:41.044Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Playback repair is queued behind the DB-008 persistence and denial-proof contract.",
+        "completed": [],
+        "next_steps": [
+          "Resume after DB-008 records the playback persistence contract and the working set is collision-free."
+        ],
+        "blockers": [
+          "Waiting for DB-008 to close the playback persistence and denial-proof contract."
+        ]
+      }
+    ]
+  },
+  "handoffs": [],
+  "execution_state": "waiting_dependency",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "contract",
+  "decision_owner": "music",
+  "shared_working_set": [],
+  "depends_on": [
+    "DB-008"
+  ],
+  "resume_condition": "Coordinate with MUSIC-005 auth contracts and DB-002/DB-008 denial proof.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "database",
+      "condition": "DB-008 closes the playback persistence and denial-proof contract needed by this repair.",
+      "dependency_task_ids": [
+        "DB-008"
+      ]
+    }
+  ]
+}

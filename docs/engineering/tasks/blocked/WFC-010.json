@@ -1,0 +1,124 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-010",
+  "title": "Build department workspace and people directory",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "admin-workforce",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Deliver the persistent department operating workspace and canonical people/membership management experience.",
+  "scope": {
+    "in": [
+      "Department header and secondary navigation",
+      "Organization people and department staff views",
+      "Primary transfers and secondary memberships",
+      "Vendor workers, manager assignment, inspector, and bulk actions"
+    ],
+    "out": [
+      "Scheduling/action/communication feature bodies",
+      "Raw-ID administrator workflows"
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/staff/**",
+    "components/admin/workforce/**",
+    "components/hiring/team-roster-panel.tsx",
+    "__tests__/admin/workforce/**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-005.json",
+    "docs/engineering/tasks/blocked/WFC-009.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Department manager, health, staffing, blockers, and contact actions are visible without scrolling",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Every active worker shows one primary and optional secondary departments",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Membership transfer and bulk actions are human-readable and audited",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Unauthorized departments and finance fields never leak",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Inspector focus and URL state restore correctly across breakpoints",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/workforce",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on Workforce HQ and department/membership commands.",
+    "completed": [],
+    "next_steps": [
+      "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+      "Build workspace frame and people views",
+      "Verify transfers, secondary membership, vendor, and finance-redaction flows"
+    ],
+    "blockers": [
+      "WFC-009 must complete",
+      "WFC-005 department and membership commands must be stable"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Admin → WFC-013/WFC-015/WFC-017/WFC-020: stable department workspace and inspector contract"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "WFC-009 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

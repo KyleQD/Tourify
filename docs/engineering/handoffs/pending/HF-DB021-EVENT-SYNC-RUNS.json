@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.0",
+  "status": "pending",
+  "created_at": "2026-09-27T23:30:11.593Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, branch release/clean-snapshot)",
+  "dirty_state_caveat": "Shared dirty worktree: 575 entries at task start from 14+ completed and concurrent lanes. Every unrelated entry is preserved. This lane wrote exactly: supabase/migrations/20260927140100_event_sync_jobs.sql, docs/engineering/migration-validation/20260927140100_event_sync_jobs.json, docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh, docs/engineering/migration-validation/hosted-history-ledger.json (sourceSnapshot re-derived + one launch.required entry), docs/engineering/agents/database/STATE.md, this task record, and these handoffs. lib/database.types.ts is byte-unchanged at 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7. No migration was applied to any environment.",
+  "completed": [],
+  "blockers": [
+    {
+      "id": "OB-1",
+      "title": "Two of the three event_sync_jobs consumers stay broken on this absent relation after both provider-foundation relations are restored",
+      "severity": "correctness, fail-closed; both routes are currently capability-gated so there is no live outage",
+      "diagnosis": "Archived DDL (transcribed source, not yet authored as an active migration): `create table if not exists public.event_sync_runs` with 16 columns — id, provider, job_id (FK to event_sync_jobs ON DELETE SET NULL), started_at, finished_at, status (CHECK running/succeeded/failed/partial), request_count, records_received, records_created, records_updated, duplicates_matched, merge_candidates_created, rate_limit_remaining, error_summary, correlation_id, created_at — plus `create index idx_event_sync_runs_provider_time on public.event_sync_runs (provider, started_at desc)`. The archive enables RLS at :160 and grants nothing to anon/authenticated (`:217`), the same posture DB-021 applied to event_sync_jobs. Consumers: cron/events/sync writes it twice per job, admin/event-sync reads it first, and lib/events/providers/ticketmaster/rate-limiter.ts references it for rate-limit state. Its `job_id` FK means it is order-dependent on the relation DB-021 just created, so it must be authored at a HIGHER version than 20260927140100.",
+      "why_not_repaired": "Outside DB-021's working set, which names `20260927140100_event_sync_jobs.sql` literally, and the control plane rejects a broad `supabase/migrations/**` claim on an active task. The three consumer columns were cross-checked against the archived DDL by this lane and are complete, so the contract is derivable — but the event lane owns the operational surface and should confirm the column set against live code before it is authored, and `lib/events/providers/ticketmaster/rate-limiter.ts` is a consumer this lane read but does not own.",
+      "requested_action": "events, on EVENTS-003: confirm the archived 16-column contract against all three consumers including the rate-limiter, then request a database working-set amendment for a new additive migration at a version higher than 20260927140100. Do not author it inside the events lane. Note the launch consequence: until it exists, `cron/events/sync` and `admin/event-sync` are non-functional even after DB-020 and DB-021, and the honest statement of the provider-sync family is that zero of its five routes is open."
+    }
+  ],
+  "id": "HF-DB021-EVENT-SYNC-RUNS",
+  "task_id": "DB-021",
+  "from_agent": "database",
+  "to_agent": "events",
+  "accepting_task_id": "EVENTS-003",
+  "title": "event_sync_runs is the third absent relation from the same archived provider-foundation file, and it alone keeps two of the three event_sync_jobs consumers broken",
+  "summary": "DB-021 restored `public.event_sync_jobs` (20260927140100) from supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql:95-113. `public.event_sync_runs` is a SEPARATE relation from the SAME archived file (:129-147) with the same `local_only_unapplied` status (MANIFEST.csv:283), so it is absent from the 322-file active chain and from lib/database.types.ts, and no type regeneration can create it. It is outside DB-021's working set, which names `event_sync_jobs` specifically, so it is ROUTED and not absorbed. This matters more than a routine backlog item: it is the reason NO route in this family opens. `app/api/cron/events/sync/route.ts` reads and writes event_sync_runs on EVERY claimed job (insert at :98-101, terminal update at :257-267), and `app/api/admin/event-sync/route.ts:14-19` selects it FIRST, in a `Promise.all` alongside event_sync_jobs. So both routes remain broken on a second absent relation after both DB-020 and DB-021 land. That was measured, not asserted: the harness runs the admin route's event_sync_runs select against the pre-apply fixture and records 42P01, and asserts the same query still returns 42P01 afterwards.",
+  "working_set": [
+    "supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql:128-150 — event_sync_runs DDL and its index, READ ONLY for this handoff",
+    "app/api/cron/events/sync/route.ts:98-101, 257-267 — the per-job run insert and terminal update",
+    "app/api/admin/event-sync/route.ts:14-19 — the admin read that selects event_sync_runs first",
+    "lib/events/providers/ticketmaster/rate-limiter.ts — a third event_sync_runs consumer not named in the DB-020 inventory"
+  ],
+  "next_steps": [
+    "events: verify the archived event_sync_runs column contract against cron/events/sync, admin/event-sync and lib/events/providers/ticketmaster/rate-limiter.ts, and report any column that cannot be confirmed rather than guessing — that is the same discipline DB-021 applied and the same failure mode it refuses.",
+    "events: request a database working-set amendment naming a specific migration filename at a version higher than 20260927140100, since event_sync_runs.job_id is a foreign key to the relation DB-021 created.",
+    "events + integrations: once it exists, re-check whether `external_event_providers` can move off `disabled`; the family is inert until then regardless of schema.",
+    "database: no further work until a working-set amendment is granted."
+  ],
+  "completion_condition": "The archived `event_sync_runs` column contract at 20260804130000:129-147 is confirmed column-by-column against all three of its consumers by the events lane, and a database working-set amendment has been granted naming a specific migration filename at a version higher than 20260927140100 — or the events lane records a recorded decision that the relation stays archived.",
+  "verification": [
+    "bash docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh — PASS, 97 PASS / 0 FAIL. Stage 3 asserts the BEFORE state: the admin route's event_sync_runs select returns 42P01, and the `HONEST SCOPE` assertion records that it is STILL absent after the event_sync_jobs migration, so 'no route opens on this file' is a measurement.",
+    "node supabase/tests/db008_chain_contract_replay.mjs . — PASS, `contract reproducible from chain: true`; `event_sync_runs` does NOT appear in the chain-only relations list, which is the independent confirmation that this relation is still absent from the chain.",
+    "npm run check:migration-chain — PASS, 322 files scanned, no duplicate policy creations.",
+    "NOT RUN AND NOT CLAIMED: no apply to any environment of any kind, no hosted evidence of any kind. lib/database.types.ts is byte-unchanged and `event_sync_runs` has 0 matches in it."
+  ]
+}

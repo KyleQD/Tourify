@@ -2,10 +2,10 @@
 
 <!-- generated: do not edit -->
 
-- Source SHA: `ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96`
+- Source SHA: `16fb834f1a03a70f165be470a5f98f389bf6100a`
 - Branch: `codex/qa004-staging-campaign`
-- Working tree: dirty (152 entries)
-- Generated at: 2026-09-25T23:26:47.265Z
+- Working tree: dirty (745 entries)
+- Generated at: 2026-09-28T03:22:14.585Z
 - Generator: `control-plane.mjs generate`
 
 ## Route handlers (952)

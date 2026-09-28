@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DESIGN-034-LIB-SERVICES-SWEEP",
   "task_id": "DESIGN-034",
   "from_agent": "design-system",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:30:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "dirty_state_caveat": "Branch codex/qa004-staging-campaign at d2176904 with ~322 dirty entries from six concurrent Wave 34 lanes. lib/services/** was CLEAN at the start of this lane (git status --porcelain -- lib/services/ returned nothing), so every deletion and the one repoint are attributable to this lane alone and no other lane's worktree edit was overwritten. No git history operation, no migration authored or applied, no agents:generate, no lib/database.types.ts or types/** edit, no host touched (CP-051).",
@@ -49,5 +49,7 @@
     "PASS git diff --check: clean.",
     "NOT RUN full npm run typecheck and full npm test, both prohibited in this wave."
   ],
-  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Re-measure the 1,384-diagnostic baseline once a full typecheck is affordable; the 211 figure is the design-system lane's scoped contribution only."
 }

@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DESIGN-034-DEAD-IMPORTER-OWNERS",
   "task_id": "DESIGN-034",
   "from_agent": "design-system",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:34:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "dirty_state_caveat": "Concurrent Wave 34 multi-lane dirty tree. This lane changed only lib/services/**. Every importer named below is outside the design-system grant, so none of them was touched.",
@@ -76,12 +76,18 @@
     },
     {
       "owner": "auth-identity",
-      "deleteTheseDeadImporters": ["components/auth/enhanced-signup-form.tsx (0 importers)"],
-      "thenThisLaneCanDelete": ["lib/services/auth.service.ts"]
+      "deleteTheseDeadImporters": [
+        "components/auth/enhanced-signup-form.tsx (0 importers)"
+      ],
+      "thenThisLaneCanDelete": [
+        "lib/services/auth.service.ts"
+      ]
     },
     {
       "owner": "venue",
-      "deleteTheseDeadImporters": ["app/venue/staff/components/onboarding-wizard.tsx (0 importers)"],
+      "deleteTheseDeadImporters": [
+        "app/venue/staff/components/onboarding-wizard.tsx (0 importers)"
+      ],
       "thenThisLaneCanDelete": [
         "lib/services/staff-onboarding.service.ts (already repointed in this lane; deleting it removes its remaining 2 pre-existing diagnostics, which are a missing createClient import and a missing flow_type column, neither of them a database object)"
       ]
@@ -112,5 +118,7 @@
     "PASS: no TS2307 was introduced anywhere; the focused test run and the SEC-109 check are both unchanged.",
     "NOT MEASURED: the diagnostic count for 10 of the 12 blocked modules. The scoped-tsc budget was spent on the 15 deletions; those 10 are recorded in the inventory artifact with a null measurement rather than a guess."
   ],
-  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json"
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Route each group to its owner. The owner deletes the dead importer and hands the service back to design-system, or the orchestrator grants design-system the importer file and this lane finishes the job."
 }

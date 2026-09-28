@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DESIGN-036-QA-EVIDENCE",
   "task_id": "DESIGN-036",
   "from_agent": "design-system",
   "to_agent": "qa",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T15:52:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "dirty_state_caveat": "No code change accompanies this handoff. components/admin/** is the admin lane's path in Wave 34 and was not touched. No dev server was started, no session provisioned, and no screenshot taken by the design-system lane.",
@@ -43,5 +43,7 @@
     "PASS: `rg -l -i 'logistics' components/admin/logistics/*.tsx` locates logistics-scope-bar.tsx as the only scope UI, outside the set and mid-edit by the admin lane.",
     "NOT RUN: no browser, no 200% zoom, no mobile viewport, no screenshot. All of that is what this handoff asks QA to produce."
   ],
-  "evidence_document": "docs/engineering/tasks/active/DESIGN-036.json"
+  "evidence_document": "docs/engineering/tasks/active/DESIGN-036.json",
+  "accepting_task_id": "QA-007",
+  "completion_condition": "Fold the 200% zoom and show-day mobile journeys into QA-007's existing authenticated logistics pass, or accept this handoff as its own scoped record; either way, record the evidence against DESIGN-036's last acceptance criterion."
 }

@@ -1,5 +1,14 @@
 # General User state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `USER-007` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b`
 - Last reviewed at: 2026-09-11 (USER-003 focused settings-router verification, 18:27 UTC)
 - Active tasks: USER-003 (unified settings surface), USER-005 (account lifecycle

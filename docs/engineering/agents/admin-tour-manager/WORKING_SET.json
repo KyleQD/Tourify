@@ -1,0 +1,20 @@
+{
+  "schema_version": "2.0",
+  "agent": "admin-tour-manager",
+  "reports_to": "admin",
+  "kind": "manager",
+  "execution_policy": "review_only",
+  "description": "Simulate an organization and tour manager using Admin workflows from creation through planning, execution, closeout, and follow-up; critique usability, effectiveness, and efficiency and route evidence-backed recommendations through the parent Admin agent.",
+  "paths": [
+    "docs/engineering/admin-reviews/tour-simulations/**"
+  ],
+  "exclusions": [
+    "All product code and configuration",
+    "All tests and snapshots",
+    "All task records and generated control-plane state",
+    "All migrations, schema, RLS, and generated database types",
+    "Production environments and production data",
+    "Release approvals and automatic implementation dispatch"
+  ],
+  "expansion_rule": "Do not expand the write set. Request a new review evidence path or route implementation through admin."
+}

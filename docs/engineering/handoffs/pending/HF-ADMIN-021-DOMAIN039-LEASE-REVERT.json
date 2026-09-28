@@ -1,0 +1,43 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-021-DOMAIN039-LEASE-REVERT",
+  "task_id": "ADMIN-021",
+  "from_agent": "admin-logistics",
+  "to_agent": "admin-governance",
+  "status": "pending",
+  "accepting_task_id": "ADMIN-025",
+  "completion_condition": "The __tests__/admin/admin-route-capability-matrix.test.ts entry is removed from the shared: list in docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml, `npm run agents:validate -- --strict` is green, and ADMIN-025 records the exact evidence. admin-governance then owns the whole file again with no residual admin-logistics claim.",
+  "created_at": "2026-09-28T01:07:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "decision_record": [
+    "DOMAIN-039"
+  ],
+  "summary": "DOMAIN-039 granted admin-logistics a TEMPORARY single-task shared lease on __tests__/admin/admin-route-capability-matrix.test.ts so ADMIN-021 could fix the site-map activity read/write inversion and re-point the ADMIN-016 pin in the same atomic change. ADMIN-021 is complete and the lease is spent. This record is the revert obligation: admin-governance removes the shared: entry. admin-logistics does not remove it, because the override is the orchestrator's to grant and to revoke.",
+  "working_set": [
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "__tests__/admin/admin-route-capability-matrix.test.ts"
+  ],
+  "what_the_lease_was_used_for": {
+    "authority": "One named test block only: the it(\"pins the site-map activity read/write capability inversion found by ADMIN-016\") case, per DOMAIN-039 and ADMIN-021 AC-3.",
+    "actual_change": "5 changed lines, all inside that block: the it() title, the two expected gate literals, and the two derived adminCommandCapabilities expectations. The block was inverted to the corrected mapping, not deleted. 407 lines before and 407 after; 15699 bytes before and 15737 after.",
+    "why_the_route_and_the_pin_had_to_land_together": "The pin reads app/api/admin/logistics/site-maps/[id]/activity/route.ts source directly, so repairing the route without re-pointing the pin in the same change turns the admin suite red. Measured: with the route reverted to the inverted gates, __tests__/admin/admin-registry-guard-proof.test.ts also goes red with '/api/admin/logistics/site-maps/[id]/activity GET: declared gate \"logistics.view\" does not match source [\"logistics.manage\"]' and the POST mirror. The shared file is the only cross-segment edit ADMIN-021 made.",
+    "not_done_deliberately": "The pin's GET expectation keeps DOMAIN-039's original slice, source.slice(source.indexOf(\"export async function GET\")), which runs to the end of the file and therefore also covers the POST handler. It is a weaker assertion than it looks: it stayed green against the inverted route during ADMIN-021's negative control. The POST expectation is tightly bound and does catch re-inversion, and ADMIN-021's own test file adds a tight per-handler slice. Tightening the shared block's slice was outside the enumerated authority, so it was left alone rather than taken quietly."
+  },
+  "completed": [
+    "The site-map activity route now gates GET on logistics.view and POST on logistics.manage (AC-1).",
+    "lib/admin/route-registry/logistics.ts no longer carries capabilityByMethod for that route, so adminCommandCapabilities derives GET logistics.view and POST logistics.manage from the route-level capability (AC-3).",
+    "The ADMIN-016 pin is inverted to the corrected state and still guards re-inversion (AC-3).",
+    "__tests__/admin/site-map-activity-capability.test.ts proves the behavioural split, including a denial that goes red against the inverted route (AC-2)."
+  ],
+  "next_steps": [
+    "admin-governance removes the __tests__/admin/admin-route-capability-matrix.test.ts entry (and only that entry) from the shared: list at SEGMENT_OWNERSHIP.yaml:328-330, then runs npm run agents:validate -- --strict and records the result in ADMIN-025.",
+    "If a second lane ever needs to edit that file, split it per segment. DOMAIN-039 explicitly rejects a second shared override on this path."
+  ],
+  "blockers": [
+    "ADMIN-025 is currently blocked/waiting_dependency on RELEASE-013 for an unrelated working-set collision, so this obligation is recorded and cannot be discharged in this wave."
+  ],
+  "verification": [
+    "npm run agents:validate -- --strict -> validated 27 agents, 240 tasks, 108 pending handoffs, 0 warnings, 0 errors.",
+    "npx vitest run __tests__/admin -> 283 files passed | 1 skipped; 3770 passed | 12 skipped."
+  ]
+}

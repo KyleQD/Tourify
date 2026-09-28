@@ -4,6 +4,29 @@
 
 Own CI, deployment, environment validation, observability, cron, and release readiness.
 
+<!-- product-outcome:start -->
+## Audience
+
+Operators and release approvers.
+
+## Final product
+
+Reproducible builds, isolated environments, observability, recovery, protected checks, promotion, and rollback.
+
+## Launch boundary and exclusions
+
+Release does not silently waive failing product or security gates.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

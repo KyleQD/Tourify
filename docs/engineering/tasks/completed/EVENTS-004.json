@@ -1,0 +1,491 @@
+{
+  "schema_version": "2.0",
+  "id": "EVENTS-004",
+  "title": "Audit and harden the event sub-resource routes",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "events",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "events",
+  "created_at": "2026-09-28T00:38:50.000Z",
+  "updated_at": "2026-09-27T17:59:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; grew from 676 to ~700 entries during the run because other lanes were committing concurrent work. EVENTS-004 modified exactly 8 route files and added exactly 1 test file, all inside the granted working set, plus this record, 3 handoffs and the events STATE.md. No migration, no app/api/admin/**, no app/events/**, no app/api/events/[id]/route.ts, no app/api/events/_lib/**, no lib/events/**, and no docs/engineering/DECISIONS.md. Nothing was committed or pushed.",
+  "goal": "Make every app/api/events/[id]/* sub-resource route resolve its event id correctly and enforce authorization at the data boundary, and prove the class is closed rather than one instance fixed.",
+  "scope": {
+    "in": [
+      "The 26 sub-resource route files under app/api/events/[id]/**, excluding the core app/api/events/[id]/route.ts lifecycle handler that EVENTS-001 already owns",
+      "The event-id extraction and authorization boundary of each of those routes",
+      "Focused tests under __tests__/events/** that assert extraction, denial, and cross-event non-disclosure"
+    ],
+    "out": [
+      "app/api/events/[id]/route.ts core lifecycle behaviour; EVENTS-001 owns it and is waiting only on the database apply",
+      "app/api/admin/events/**; the admin lane is being managed in a separate session",
+      "Any migration, or any hosted apply. Report schema needs as handoffs to the database lane",
+      "The hq permission model itself, beyond making the existing checks actually run against the right event"
+    ]
+  },
+  "working_set": [
+    "app/api/events/[id]/attendance/route.ts",
+    "app/api/events/[id]/claim/route.ts",
+    "app/api/events/[id]/finances/route.ts",
+    "app/api/events/[id]/group-chats/route.ts",
+    "app/api/events/[id]/group-chats/[chatId]/messages/route.ts",
+    "app/api/events/[id]/guestlist/route.ts",
+    "app/api/events/[id]/hq/route.ts",
+    "app/api/events/[id]/hq/calendar/route.ts",
+    "app/api/events/[id]/hq/permissions/route.ts",
+    "app/api/events/[id]/hq/resources/route.ts",
+    "app/api/events/[id]/incidents/route.ts",
+    "app/api/events/[id]/job-postings/route.ts",
+    "app/api/events/[id]/jobs/route.ts",
+    "app/api/events/[id]/locations/route.ts",
+    "app/api/events/[id]/page/route.ts",
+    "app/api/events/[id]/participants/route.ts",
+    "app/api/events/[id]/posts/route.ts",
+    "app/api/events/[id]/share-message/route.ts",
+    "app/api/events/[id]/staff/route.ts",
+    "app/api/events/[id]/staff/[shiftId]/route.ts",
+    "app/api/events/[id]/staff/invites/route.ts",
+    "app/api/events/[id]/tasks/route.ts",
+    "app/api/events/[id]/tasks/[taskId]/route.ts",
+    "app/api/events/[id]/tour/route.ts",
+    "app/api/events/[id]/vendors/route.ts",
+    "app/api/events/[id]/vendors/[vendorId]/route.ts",
+    "__tests__/events/event-routes-authorization.test.ts (transferred from EVENTS-001: the only sub-resource route it exercises is [id]/hq/calendar)",
+    "__tests__/events/event-subresource-authorization.test.ts (NEW \u2014 this exact filename is yours alone)"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/tasks/active/EVENTS-001.json",
+    "docs/engineering/tasks/completed/ADMIN-014.json",
+    "docs/engineering/agents/events/CHARTER.md",
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Not needed. If reopened, the resume condition is the one named in progress.blockers.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "A proven lead is closed: app/api/events/[id]/hq/resources/route.ts (two call sites) and app/api/events/[id]/hq/permissions/route.ts resolve eventId from pathname.split('/').at(-2)!, which on /api/events/<uuid>/hq/resources yields the literal 'hq' rather than the event id. Each is proved red on the base SHA by a test that fails because of the extraction, not because of an unrelated assertion.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "The lead was verified by reading the source before any test was written, not assumed. Base SHA app/api/events/[id]/hq/resources/route.ts:53 and :84 both read `request.nextUrl.pathname.split('/').at(-2)!`; app/api/events/[id]/hq/permissions/route.ts:27 reads the same. On the runtime path /api/events/<uuid>/hq/resources the segment list is ['', 'api', 'events', '<uuid>', 'hq', 'resources'], so at(-2) is the string 'hq'.",
+        "PROVED RED ON BASE SHA, failing because of the extraction itself. `npx vitest run __tests__/events/event-subresource-authorization.test.ts` against unmodified base routes reported 14 failed / 29 passed. The three AC-1 extraction assertions each failed with the id under test visible in the message: `AssertionError: expected 'hq' to be '44444444-4444-4444-8444-444444444444'` for POST hq/resources, for DELETE hq/resources, and for PATCH hq/permissions. The assertion reads the `id` filter the route put on its events_v2 lookup, so a failure names the wrong constant directly rather than failing on a downstream status code.",
+        "A fourth red proved the same defect is user-visible, not merely internal: 'POST hq/resources writes the resource against the route event id' failed with `expected undefined to be true`, because checkEditPermission looked up id='hq', found no event, and returned not-allowed for the event's own owner. The whole resources feature was non-functional for everyone, exactly as ADMIN-014 found for task-messages.",
+        "FIXED. hq/resources and hq/permissions now read the id from the `[id]` route segment through context.params, validate it with z.string().uuid() before any query, and bind it through a closure \u2014 `withAuth` invokes its handler as (request, auth), so the id is bound by the `authorized()` wrapper, not passed as a third argument. See progress.checkpoints for the bug this caught in my own first attempt.",
+        "The uuid guard is not arbitrary narrowing: events_v2.id is `uuid primary key` (supabase/migrations/20250816133000_event_core.sql:39) and event_resources.event_id is `uuid not null` (supabase/migrations/20260413120000_event_hq_tables.sql), so the string 'hq' could never have been stored. The guard turns a silent constant-scope query into an explicit fail-closed 404.",
+        "NOT OVER-CORRECTED, and this is recorded because the task asked for it. app/api/events/[id]/hq/route.ts:134 also used at(-2) and was CORRECT at base: its only path is /api/events/<uuid>/hq, whose segment list ends [..., '<uuid>', 'hq'], so at(-2) genuinely is the uuid. Correct by path shape, not by construction. Its control test 'GET /api/events/:id/hq resolves the same uuid' passes at base and after the change, so the record does not claim a defect that was not there. The file was still changed to read route params, which is a robustness change with no behavioural delta, and its comment says so."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "All 26 sub-resource route files are enumerated in the task record with, for each, the method set, how it derives the event id, and whether authorization runs before the first data access. A file that authorizes correctly is recorded as clean; a file that does not is fixed or reported with the reason it was left.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "The enumeration is audit_findings.route_audit below: 26 rows, one per granted file, each with its method set, its event-id derivation and the verdict. 19 were already correct and are recorded clean with the reason; 7 were defective and are recorded with the defect and the fix. 8 files were modified, the eighth being hq/route.ts, which was correct at base and was hardened for robustness rather than repaired.",
+        "The set is proved complete rather than asserted. The test 'covers exactly 26 sub-resource route files under app/api/events/[id]' walks the directory on disk, drops only app/api/events/[id]/route.ts (EVENTS-001's lifecycle handler), and asserts the remaining set equals the 26-file list. If a 27th route file appears, or one is deleted, the test fails.",
+        "The class guard is proved, not decorative. Two structural tests cover all 26 files: no file may contain `pathname.split(...).at(`, and any file using a bare literal index must validate the segment. Comments are stripped before the match, so each repaired route can record why its old expression was wrong. Before the fix these failed for hq, hq/permissions and hq/resources; they pass now.",
+        "The two structural tests plus the enumeration test are why the finding is a closed class rather than one instance: a future route that reintroduces a positional pathname index fails the suite, and a future 27th file fails the enumeration."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Any route that mutates event-scoped state performs an authorization check server-side before the write, and a non-member receives a non-disclosing denial rather than data or a 500. Cross-event access is denied, not merely empty.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "Every mutating method in the 26 files was read and classified, not sampled. The verdict column in route_audit records where the check sits relative to the first data access and whether the denial is non-disclosing.",
+        "FOUR defects found and fixed under this criterion, each with a red-before-green test.",
+        "D6, event ownership takeover via claim. app/api/events/[id]/claim/route.ts auto-verifies a claim when it finds ANY active, verified event_provider_connections row for the caller-supplied owner_type/owner_id, then writes `events.artist_id = user.id`. It read through createServiceRoleClient, which bypasses the table's own `auth.uid() = created_by` policies, and it never compared created_by to the caller. Any authenticated user who knew or guessed an account id with a verified connection could auto-approve a claim and take ownership of an unowned imported event. Fixed by adding `.eq('created_by', user.id)` to the lookup, which applies the boundary the migration's own comment assigns to the application. Red before: `expected 'approved' not to be 'approved'`.",
+        "D8 and D9, cross-event access answered with a 500. app/api/events/[id]/tasks/[taskId]/route.ts PATCH and app/api/events/[id]/vendors/[vendorId]/route.ts PATCH both read-after-write with `.single()`. A task or vendor id belonging to another event matches zero rows, PostgREST returns PGRST116, and the route's catch turned that into a 500. AC-3 names a 500 as a failure explicitly, so this counted. Fixed with `.maybeSingle()`, which supabase-js collapses to a null result, plus an explicit 404. Red before, both: `expected 500 to be 404`.",
+        "D10, a cross-event WRITE rather than a cross-event read. app/api/events/[id]/hq/permissions/route.ts verified the permission target inside the target event, but the UPDATE that applied the grant filtered only on participant_id and participant_type. A user who is an Individual participant in several events had their hq_permissions metadata rewritten in every one of them. Fixed by adding `.eq('event_id', eventId)` to the UPDATE. Proved by removing the predicate and watching the test go red on the filter list.",
+        "D4 and D5, missing application-layer viewer gates on reads of event-scoped data. app/api/events/[id]/attendance/route.ts GET had no authentication call, no permission check and no viewer check at all, and returned the full attendee roster with a profile join. app/api/events/[id]/posts/route.ts GET resolved the event and read event_posts with no viewer check. The sibling [id]/page route already gates the same event's attendance and posts with canAccessEventAsViewer, so these two were inconsistent with their own sibling. Both now gate identically and answer 404 rather than 403, so an unpublished event is not confirmed to exist. Red before, both: `expected 200 to be 404`.",
+        "HONEST LIMIT on D4/D5. I read the migration chain and can state that event_attendance has RLS with `user_read_published_event FOR SELECT USING (user_id = auth.uid() OR event creator)` and `creator_manage_attendance` (supabase/migrations/20250814091000_event_attendance_guestlist.sql:55-95, intact in the active chain; 20260821010000_reconcile_event_attendance_shape.sql touches only constraints and indexes). So the attendance disclosure was likely already blocked at the database layer. I could not verify the LIVE policy set, and for event_posts there is no active-chain policy at all, which is a handoff. The application gates are recorded as defence in depth, and the record does not claim the database layer was or was not sufficient.",
+        "What I did NOT find, stated as absence rather than proof: the 19 clean files were read and classified, and 12 of them gate before their first data access through hasEventPermission, withAdminCapability, an explicit membership check, or canAccessEventAsViewer. I did not exercise them at runtime, and absence of a finding in a read is not evidence that a route is safe."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The fix is proved able to fail: each repaired route has a denial test that goes red when the authorization check is inverted, so a green run is evidence rather than an absence of tests.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "The inversion experiments were RUN, not planned, and the real output is in verification.inversion_proofs. Every one of the 8 repaired routes has a test that was observed to go red when its specific repair was undone, and the files were restored and re-verified green afterwards.",
+        "Batch 1, inverting the hq authorization checks (`if (!allowed)` and `if (!isAdmin)` replaced with `if (false)`): 3 failed / 40 passed. POST hq/resources `expected 200 to be 403`; DELETE hq/resources `expected 200 to be 403`; PATCH hq/permissions `expected 404 to be 403`. These are the tests that would have caught ADMIN-014's 'no check at all' class, and they are red the instant the check stops running.",
+        "Batch 2, undoing the other four repairs: 5 failed / 38 passed. tasks/[taskId] `expected 500 to be 404`; vendors/[vendorId] `expected 500 to be 404`; claim `expected 'approved' not to be 'approved'`; attendance GET `expected 200 to be 404`; posts GET `expected 200 to be 404`.",
+        "Batch 3, removing `.eq('event_id', eventId)` from the hq/permissions participant UPDATE: 1 failed / 42 skipped, on the exact filter list. The cross-event write guard is load-bearing.",
+        "The fake Supabase client in the test file evaluates the equality filters a route actually issues, returns PGRST116 for a read-after-write that matches no row, and reproduces supabase-js's `.maybeSingle()` collapse of PGRST116 to a null result while `.single()` keeps the error. Without that fidelity a fake would answer every authorization question 'yes' and the denial tests would prove nothing; it is the reason the D8/D9 fix is observable at all.",
+        "One honest note on rigour: batch 1's 'expected 404 to be 403' for hq/permissions is weaker than the other two, because the broken-at-base route returned 404 before it ever reached the admin check. After the extraction fix the same inversion produces a clean 403-versus-200 inversion. Both states are recorded rather than only the flattering one."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Schemas, objects, or policy gaps discovered during the audit are recorded as handoffs to the database lane with exact object names, and are not worked around in application code.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "Three handoffs raised, all to the database lane, each with exact object names, a recipient-owned accepting task and a concrete completion condition.",
+        "HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE, accepted by DB-008: public.event_posts is read and written by app/api/events/[id]/posts/route.ts and app/api/events/[id]/page/route.ts but is created by NO file under supabase/migrations/. The only definitions are in the pre-reconciliation local-only-unapplied archive (MANIFEST status duplicate_version_noncanonical) and migrations_backup. Its archived policies are named 'Users can view public event posts', 'Users can create posts for events they're attending or organizing', 'Users can update their own posts', 'Users can delete their own posts or event organizers can delete any post'.",
+        "HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE, accepted by DB-008: public.event_claims, which app/api/events/[id]/claim/route.ts writes through a service-role client and app/api/events/[id]/tour/route.ts reads as the ownership fallback, is also created by no active migration. Its only definition writes the table, both indexes and both policies against a table named 'ln' rather than event_claims, so the archived authorization model does not even name the object the routes use. ANNOTATED 2026-09-28 BY EVENTS-005: THE `ln` CLAIM IN THIS EVIDENCE IS FALSE AND IS SUPERSEDED. The archived `event_claims` file does not name a table `ln`; the string `ln` occurs zero times in it (182 lines), and `public.ln`, `ln_self_read`, `ln_self_insert`, `idx_ln_event` and `idx_ln_claimant` appear in no working-tree file and in no object git has ever held. The real object names are `public.event_claims` (47), `idx_event_claims_event` (65), `idx_event_claims_claimant` (66), `alter table public.event_claims enable row level security` (91), `event_claims_self_read` (104) and `event_claims_self_insert` (111) -- the two policy NAMES cited as evidence here were the two real names, which is the likeliest origin of the transcription. Measured by the database lane (DB-023) and recorded at the top of `docs/engineering/handoffs/completed/HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE.json` with the original text retained under `superseded_evidence`. THE CONCLUSION OF THIS EVIDENCE STANDS AND WAS RE-DERIVED INDEPENDENTLY: there is no row-level guarantee on the claim path, because every live consumer resolves `.from()` through `createServiceRoleClient()` and service_role carries BYPASSRLS. That is a different reason than the one recorded here, which is why the transcription mattered.",
+        "HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE, accepted by DB-017: public.event_provider_connections.owner_id has no foreign key and no owning-account column; the active migration's own comment assigns that check to the application. The fix applied in the claim route binds to created_by, which is a create-time proxy only, and the writer of owner_id, app/api/integrations/bandsintown/connect/route.ts, does not validate it. That route is outside this grant and outside the database lane's, so it is named for the orchestrator to route rather than edited here.",
+        "NOT worked around in application code. No migration was authored or applied, nothing under supabase/migrations/** was modified, and no database was touched: CP-051 forbids it and EVENTS-004 did not do it. Where a schema fact was missing, the route behaviour was left to fail closed and the gap was raised, rather than being papered over with a client-side assumption about a table that may not exist.",
+        "A code-level signal corroborating two of the three handoffs: a scoped tsc of app/api/events/[id]/posts/route.ts reports that the generated Database types do not contain event_posts, at base SHA and after the change. The same class of diagnostic appears for lib/services/optimized-notification-service.ts in files outside this grant."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "events",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/events/",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "PASS: npx vitest run __tests__/events/ - 'Test Files 17 passed (17)' and 'Tests 170 passed (170)', duration 1.24s. Baseline before this task was 16 files / 127 tests, so the delta is exactly +1 file and +43 tests: the new __tests__/events/event-subresource-authorization.test.ts. No pre-existing events test changed state.",
+          "PASS: npm run agents:validate -- --strict - 'validated 27 agents, 240 tasks, 108 pending handoffs, 0 warnings, 1 errors' immediately after this record was written, and the single remaining error was this record's own non-canonical verification result value, which was then corrected. NOTE ON A TRANSIENT FOREIGN-LANE FAILURE, recorded rather than hidden: earlier in this session the same command reported '0 warnings, 0 errors', and later runs reported 7 errors, all of the form 'ERROR ADMIN-021: folder/status mismatch', 'Admin path __tests__/admin/admin-route-capability-matrix.test.ts belongs to admin-governance, not admin-logistics', and three generated-queue-rollup mismatches for orchestrator, admin and admin-logistics. Those were caused by a concurrent admin-lane edit landing in the shared worktree and they had cleared again by the final run, which is why result is pass. None of them mentioned events, EVENTS-004, or any path in the events working set. Pending handoffs went 105 -> 108 across this session, which is exactly the three raised here, so they registered and validated.",
+          "SCOPED TYPECHECK, AND IT WAS SCOPED ON PURPOSE. A full-repo tsc was not run: it OOMs on this machine and is roughly 1,300 diagnostics wide by design, so it could not attribute anything. Instead a nine-file slice was typechecked with NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p <slice> --noEmit, covering the 8 changed route files and the new test file. Result: 10 diagnostic lines, in 2 files only \u2014 4 in app/api/events/[id]/posts/route.ts and 6 in lib/services/optimized-notification-service.ts, which is pulled in transitively and which this task does not touch.",
+          "PROVEN PRE-EXISTING, NOT MINE: the base-SHA copy of app/api/events/[id]/posts/route.ts was restored from git and typechecked alone. It produces the same 4 diagnostics (TS2589 and TS2769 at lines 24, 25, 124, 125). After the edit the same 4 appear at lines 38, 39, 138, 139, shifted only by the 14 gate lines added above them. Zero new diagnostics. The base copy was then replaced with the fixed version and the suite re-run green.",
+          "NO HOSTED, DATABASE, OR BROWSER EVIDENCE IS CLAIMED, and none was gathered. Migrations were not applied (CP-051); the RLS policy facts quoted in AC-3 and AC-5 are read from migration files, not from a live database. The live policy set for event_attendance is unverified, and the existence of event_posts and event_claims on any active environment is unverified. Absence of a database finding is not evidence of safety.",
+          "The 26 route verdicts come from reading each file in full, not from a tool. The structural tests in the new test file are assertions about source text and on-disk layout, not about runtime behaviour; the runtime evidence is the 43 behavioural tests over the 8 repaired routes plus the 3 sibling routes exercised for contrast."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T17:57:00.000Z"
+      }
+    ],
+    "inversion_proofs": [
+      "BATCH 1, hq authorization inverted (if (!allowed) and if (!isAdmin) replaced by if (false) in hq/resources and hq/permissions): 3 failed | 40 passed. POST hq/resources: expected 200 to be 403. DELETE hq/resources: expected 200 to be 403. PATCH hq/permissions: expected 404 to be 403. Files restored from backup afterwards.",
+      "BATCH 2, other four repairs undone (attendance and posts gates removed, claim created_by predicate removed, tasks and vendors maybeSingle reverted to single): 5 failed | 38 passed. tasks/[taskId]: expected 500 to be 404. vendors/[vendorId]: expected 500 to be 404. claim: expected 'approved' not to be 'approved'. attendance GET: expected 200 to be 404. posts GET: expected 200 to be 404. Files restored from backup afterwards.",
+      "BATCH 3, cross-event write guard removed (.eq('event_id', eventId) dropped from the hq/permissions participant UPDATE): 1 failed | 42 skipped. 'PATCH hq/permissions never writes a participant row belonging to another event': expected [[participant_id, \u2026], \u2026(1)] to deeply equal [[participant_id, \u2026], \u2026(2)]. File restored afterwards.",
+      "BATCH 4, the fix inside this task that the tests caught: the first implementation of hq/permissions and hq bound eventId as a third parameter of the withAuth handler. withAuth invokes (request, auth), so the id arrived undefined and every lookup silently became unfiltered \u2014 the test reported 'expected undefined to be 44444444-\u2026' and a probe showed the events_v2 filter recorded as [\"id\", null]. Corrected to the closure pattern the sibling hq/calendar already uses. Recorded because it is the same defect class as the one being fixed: a wrong value reaching a query that still succeeds."
+    ]
+  },
+  "progress": {
+    "summary": "Started from the proven lead rather than a theory, proved it red on the base SHA with tests that name the wrong constant, then enumerated all 26 files and found the hq defect was one instance of a broader class. 8 of 26 files were defective; 18 were already correct and are recorded with the reason. Six distinct defects were fixed: a wrong event id in two hq files that made those features non-functional for everyone, a cross-event WRITE in the permission grant, a cross-event 500 in two sub-resource routes, an event-ownership takeover in the claim route, and two missing application-layer viewer gates. Every repair has a test observed to go red when the repair is undone. Three schema gaps were raised to the database lane rather than worked around, the sharpest being that public.event_posts and public.event_claims are created by no file in the active migration chain at all.",
+    "completed": [
+      "Proved the hq lead red on base SHA: 14 failed / 29 passed, with 'expected hq to be 44444444-4444-4444-8444-444444444444' naming the wrong constant directly.",
+      "Enumerated all 26 granted route files with method set, event-id derivation and authorization-order verdict.",
+      "Fixed 8 route files; left 18 recorded clean with reasons; left app/api/events/[id]/hq/calendar/route.ts untouched because it was already correct and already carried another lane's uncommitted edits.",
+      "Ran three inversion batches proving all 8 repairs are load-bearing, plus a fourth run that caught a bug in my own first fix.",
+      "Added __tests__/events/event-subresource-authorization.test.ts: 43 tests, including an on-disk enumeration guard and two class guards over all 26 files.",
+      "Raised 3 handoffs to the database lane: public.event_posts, public.event_claims, public.event_provider_connections owner_id.",
+      "Verified: 17 files / 170 tests pass; agents:validate --strict reports 7 errors, all ADMIN-021 and none in events."
+    ],
+    "next_steps": [
+      "Route app/api/integrations/bandsintown/connect/route.ts to its owning lane. It writes event_provider_connections.owner_id straight from the request body with no owning-account check, which is the origin of the value the claim route now refuses to trust. It is outside this grant and outside the database lane's, so it was named rather than fixed.",
+      "The orchestrator appends the decision text in proposed_decisions below. EVENTS-004 deliberately did not write to docs/engineering/DECISIONS.md, which is a shared claim while three lanes append concurrently.",
+      "EVENTS-001 remains blocked only on the database apply. Its lifecycle handler app/api/events/[id]/route.ts was read once to confirm the scope boundary and was not modified; it also carries another lane's uncommitted changes, which were preserved."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T17:45:00.000Z",
+        "summary": "Startup and audit. Read INDEX, CHARTER, STATE, the task record, and the size-limited context packet. Read all 26 granted route files in full plus the transferred event-routes-authorization.test.ts, the read-only _lib/event-reference.ts and _lib/event-permissions.ts, and lib/auth/api-auth.ts, so that the enumeration rests on the code rather than on file names.",
+        "next": "Verify the hq lead by reading, then write the red test before changing any route.",
+        "paths_expanded": [
+          "app/api/events/_lib/event-reference.ts \u2014 READ ONLY, outside the grant and EVENTS-001's. Read because resolveEventReference and canAccessEventAsViewer are the authorization primitives the correct files use, and a verdict of 'authorizes correctly' is meaningless without knowing what they actually check.",
+          "app/api/events/_lib/event-permissions.ts \u2014 READ ONLY, same reason. hasEventPermission returns true for any org member of the event's org, which is what made staff/invites correct rather than a missing second check; see route_audit.",
+          "lib/auth/api-auth.ts \u2014 READ ONLY, outside the grant. Read to establish withAuth's call signature and that withAdminCapability binds an org context. This mattered: the signature is (request, auth), and getting that wrong is a real defect class, as checkpoint 4 records.",
+          "lib/services/rbac.ts \u2014 READ ONLY, outside the grant. Read because app/api/events/[id]/job-postings/route.ts calls hasEntityPermission with no client argument, and its verdict depends on that function failing closed.",
+          "supabase/migrations/20250814091000_event_attendance_guestlist.sql, 20260821010000_reconcile_event_attendance_shape.sql, 20250816133000_event_core.sql, 20260413120000_event_hq_tables.sql, 20260927140000_event_provider_connections.sql, 20250120000000_event_social_features.sql (archive), 20260804132000_event_claims_merges.sql (archive) \u2014 READ ONLY, database-owned, none modified. Read because AC-5 needs the real RLS and column facts, and because 'is this a schema gap' cannot be answered from application code.",
+          "lib/events/event-task-workflow.ts and lib/workflows/workflow-threads.ts \u2014 READ ONLY, outside the grant and EVENTS-001's. Read to learn that getEventWorkflowContext binds tasks through workflow_threads by scope_id, which is what makes a cross-event taskId unmatchable rather than merely empty."
+        ]
+      },
+      {
+        "at": "2026-09-27T17:49:00.000Z",
+        "summary": "Proved the lead red on base SHA before touching any route. Wrote __tests__/events/event-subresource-authorization.test.ts and ran it against unmodified base routes: 14 failed / 29 passed. The three AC-1 assertions each reported expected 'hq' to be the uuid. Two of my own assertions were also red and turned out to be fake-fidelity problems, not route defects: the /hq control test expected 200 for a user who was not a member, and the cross-event tests asserted that no UPDATE was issued, when PostgREST does issue it and matches zero rows.",
+        "next": "Make the fake faithful before trusting it: PGRST116 on a zero-row read-after-write, supabase-js maybeSingle collapsing PGRST116 to null, and evaluation of the equality filters a route actually issues.",
+        "paths_expanded": []
+      },
+      {
+        "at": "2026-09-27T17:53:00.000Z",
+        "summary": "Fixed 8 route files and got the new file to 43/43. Then proved the fixes could fail with three inversion batches, restoring each file from a backup and re-verifying green. A fourth run caught a bug in my own first fix: I had bound eventId as a third parameter of the withAuth handler, but withAuth invokes (request, auth), so the id arrived undefined and every lookup silently became unfiltered. That is the same defect class as the one under repair \u2014 a wrong value reaching a query that still succeeds \u2014 and it is corrected to the closure pattern the sibling hq/calendar already uses.",
+        "next": "Raise the schema gaps as handoffs, then run the full gates.",
+        "paths_expanded": []
+      },
+      {
+        "at": "2026-09-27T17:58:00.000Z",
+        "summary": "Handoffs, verification and record. Raised 3 handoffs to the database lane. Ran the events suite (17 files, 170 tests) and agents:validate --strict. Scoped the typecheck to 9 files after the full-repo run was judged impractical, then proved the 4 posts/route.ts diagnostics are pre-existing by typechecking the base-SHA copy of that one file. Confirmed all 7 validate errors are ADMIN-021 and that none mention events.",
+        "next": "Orchestrator appends the proposed decision text and routes the bandsintown/connect finding.",
+        "paths_expanded": [
+          "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE.json \u2014 NEW, outside the working set by design; handoffs are the sanctioned mechanism for crossing a domain boundary.",
+          "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE.json \u2014 NEW, same reason.",
+          "docs/engineering/handoffs/pending/HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE.json \u2014 NEW, same reason.",
+          "docs/engineering/agents/events/STATE.md \u2014 durable facts only. Deliberately NOT regenerated with agents:generate: four lanes were appending concurrently and a global topology refresh would have rewritten their generated blocks."
+        ]
+      }
+    ]
+  },
+  "audit_findings": {
+    "method": "Each of the 26 files was read in full at base SHA 16fb834f. For each, three questions were answered from the source: what methods does it export, where does the event id come from, and does an authorization check run before the first data access. The extraction question was also answered mechanically, by a structural test over all 26 files, so that a positional pathname index cannot reappear unnoticed. Verdicts are read-based. No verdict here is backed by a hosted or database run.",
+    "correct_before_this_task": 19,
+    "defective_before_this_task": 7,
+    "files_changed": 8,
+    "files_changed_that_were_correct_at_base": 1,
+    "distinct_defects": 8,
+    "counts_note": "7 of the 26 files were defective at base. 19 were correct, one of which \u2014 hq/route.ts \u2014 was correct by path shape rather than by construction and was hardened anyway, so 8 files were modified in total. 8 distinct defects were fixed across those 7 files: D1 (resources, two call sites), D2 (permissions extraction) and D10 (permissions cross-event write) share one file, D4 (attendance), D5 (posts), D6 (claim), D8 (tasks/[taskId]), D9 (vendors/[vendorId]).",
+    "route_audit": [
+      {
+        "file": "app/api/events/[id]/attendance/route.ts",
+        "methods": "GET, POST, DELETE",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "GET: NONE at base \u2014 no auth call, no permission check, no viewer check; full attendee roster returned. POST: getUser then canAccessEventAsViewer before the upsert. DELETE: getUser, self-scoped delete on user_id = caller.",
+        "verdict": "DEFECTIVE (D4). Added the canAccessEventAsViewer gate to GET, matching the sibling [id]/page route, answering 404 rather than 403.",
+        "status": "fixed"
+      },
+      {
+        "file": "app/api/events/[id]/claim/route.ts",
+        "methods": "POST",
+        "event_id_source": "context.params.id (EVENTS-004, unchanged)",
+        "authorization": "getUser, then only an 'is the event already owned' test \u2014 no caller-identity check before the insert into event_claims or before the events.artist_id update.",
+        "verdict": "DEFECTIVE (D6). Service-role connection read bypassed RLS and never compared created_by, letting any authenticated caller auto-verify against a stranger's connection and take event ownership. Added .eq('created_by', user.id).",
+        "status": "fixed"
+      },
+      {
+        "file": "app/api/events/[id]/finances/route.ts",
+        "methods": "GET",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "withAuth wrapper, then hasEventPermission(EDIT_EVENT_LOGISTICS) before the three reads.",
+        "verdict": "CLEAN. Event existence is resolved before the check, which is required to compute the check, and nothing is returned before it.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/group-chats/route.ts",
+        "methods": "GET",
+        "event_id_source": "pathname.split('/')[3], zod-validated as a uuid before any query (EVENTS-004, unchanged)",
+        "authorization": "withAuth, then an explicit membership check \u2014 Individual event_participants row OR events_v2.created_by OR org_members of the event's org \u2014 returning 403 before the event_group_chats read. Per-group filtering by created_by or member_ids after.",
+        "verdict": "CLEAN, and the index is right for the reason the task anticipated: for /api/events/<id>/group-chats the id is at index 3, and the uuid check means a malformed path is a 400 rather than a constant-scope query.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/group-chats/[chatId]/messages/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "pathname.split('/')[3] and [5], both zod-validated as uuids (EVENTS-004, unchanged)",
+        "authorization": "withAuth, then the group is fetched with BOTH .eq('id', chatId) AND .eq('event_id', eventId); a chat from another event yields 404, and a non-member yields 403, before the message read or insert.",
+        "verdict": "CLEAN, and this is the deeper-route case the task asked to confirm rather than assume: the path is /api/events/<id>/group-chats/<chatId>/messages, so the event id is still at index 3 and index 5 is the chat id, not the event. The zero-row case is handled without a .single() error, and it is covered by a test.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/guestlist/route.ts",
+        "methods": "GET, POST, PATCH",
+        "event_id_source": "params.id, typed as `any` (EVENTS-004, unchanged)",
+        "authorization": "GET: withAuth then hasEventPermission(EDIT_EVENT_LOGISTICS) before the read. POST and PATCH: unconditional 410, no state change and no auth needed.",
+        "verdict": "CLEAN. The `any` context type is a latent typing gap, not a live defect: the derivation is correct. A non-member gets 403; a nonexistent event gets 200 with an empty list, which is a deliberate non-disclosure choice, not a leak.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/hq/route.ts",
+        "methods": "GET",
+        "event_id_source": "pathname.split('/').at(-2)! at base; context.params.id with a uuid guard after this task (EVENTS-004)",
+        "authorization": "withAuth, then resolveUserRole decides membership through five ordered sources (creator, Individual participant with role, venue team member, event_staff row, org member of the event's org) and returns 403 when none match, before the eight aggregate reads.",
+        "verdict": "CORRECT AT BASE, NOT DEFECTIVE \u2014 recorded explicitly because the task asked. Its only path is /api/events/<uuid>/hq, so at(-2) genuinely is the uuid. Correct by path shape, not by construction, and the same expression is the proven defect one segment deeper. Changed to route params as a robustness change with no behavioural delta; its control test passes at base and after.",
+        "status": "clean_at_base_hardened"
+      },
+      {
+        "file": "app/api/events/[id]/hq/calendar/route.ts",
+        "methods": "POST, DELETE",
+        "event_id_source": "context.params.id, checked for presence and delegated to lib/events/event-lifecycle-service (EVENTS-004, unchanged)",
+        "authorization": "withAuth, then the lifecycle service returns a typed result code mapped by lifecycleErrorResponse; the calendar-item write is authorized inside the service, which the transferred event-routes-authorization.test.ts already exercises for both create and delete.",
+        "verdict": "CLEAN, AND DELIBERATELY LEFT UNTOUCHED. It is the one sub-resource route the transferred test covers, it is already correct, and it already carries another lane's uncommitted edits (git status showed it modified before this task started). Editing it would have risked clobbering concurrent work for no gain. Its correct extraction is also the pattern this task adopted for the two defective hq files.",
+        "status": "clean_untouched"
+      },
+      {
+        "file": "app/api/events/[id]/hq/permissions/route.ts",
+        "methods": "PATCH",
+        "event_id_source": "pathname.split('/').at(-2)! at base \u2014 resolves the literal 'hq'; context.params.id with a uuid guard after this task (EVENTS-004)",
+        "authorization": "withAuth, then creator-or-admin/manager before the grant. Authorization was correctly ordered but was being evaluated against event_id = 'hq', so it denied everyone, including the event's own admin.",
+        "verdict": "DEFECTIVE on two counts. D1/D2: wrong event id, so the route returned 404 to every caller and could only ever have written with event_id = 'hq'. D10: the participant UPDATE filtered on participant_id and participant_type but not event_id, so a grant rewrote that person's permission metadata in every other event they belong to. Both fixed; both proved red first.",
+        "status": "fixed"
+      },
+      {
+        "file": "app/api/events/[id]/hq/resources/route.ts",
+        "methods": "POST, DELETE",
+        "event_id_source": "pathname.split('/').at(-2)! at BOTH call sites (lines 53 and 84) \u2014 resolves the literal 'hq'; context.params.id with a uuid guard after this task (EVENTS-004)",
+        "authorization": "withAuth, then checkEditPermission (creator, or Individual participant with role admin/manager, or an explicit metadata.hq_permissions.can_add_resources grant) before the insert and before the delete. Correctly ordered, but evaluated against event_id = 'hq', so it denied everyone.",
+        "verdict": "DEFECTIVE (D1). The entire resources feature was non-functional for all users, and an owner who somehow passed would have written event_resources.event_id = 'hq' into a uuid column. Both call sites fixed and both proved red first.",
+        "status": "fixed"
+      },
+      {
+        "file": "app/api/events/[id]/incidents/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "withAuth on both, then hasEventPermission(EDIT_EVENT_LOGISTICS) before the read and before the insert. POST additionally rejects a non-events_v2 event with 400 before the permission call.",
+        "verdict": "CLEAN. The insert binds event_id and org_id from the authorized event, never from the request body.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/job-postings/route.ts",
+        "methods": "POST",
+        "event_id_source": "context.params.id, used directly against events_v2 (EVENTS-004, unchanged)",
+        "authorization": "getUser, then hasEntityPermission(ASSIGN_EVENT_ROLES) on the event's venue before the insert. The event lookup precedes the check, which is required to learn the venue id.",
+        "verdict": "CLEAN. hasEntityPermission creates its own request-scoped client, passes no client argument, and returns false on error, so it fails closed. The insert takes venue_id and event_id from the authorized event row, never from the body.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/jobs/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "withAuth on both, then hasEventPermission(ASSIGN_EVENT_ROLES) before the read and before the insert. The job_postings-to-templates fallback runs only after the check.",
+        "verdict": "CLEAN. The fallback insert also binds event_id from the authorized reference.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/locations/route.ts",
+        "methods": "GET, POST, DELETE",
+        "event_id_source": "pathname via parts.findIndex(p => p === 'events') + 1 (EVENTS-004, unchanged)",
+        "authorization": "withAuth on all three, then hasEventPermission(EDIT_EVENT_LOGISTICS) before every read and write. POST validates the body after the check.",
+        "verdict": "CLEAN, and its derivation is the best in the tree: findIndex on the literal 'events' is depth-independent, so it cannot break the way a fixed index or a negative index can.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/page/route.ts",
+        "methods": "GET",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "getUser, then canAccessEventAsViewer before the event read, answering 404. This is the reference behaviour the two defective read routes were brought into line with.",
+        "verdict": "CLEAN, and it is the file that made D4 and D5 visible as inconsistencies rather than as design choices.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/participants/route.ts",
+        "methods": "GET, POST, DELETE",
+        "event_id_source": "pathname via parts.findIndex(p => p === 'events') + 1 (EVENTS-004, unchanged)",
+        "authorization": "withAuth on all three, then hasEventPermission(ASSIGN_EVENT_ROLES) before every read and write.",
+        "verdict": "CLEAN, same depth-independent derivation as locations.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/posts/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "GET: NONE at base beyond resolving the event \u2014 no viewer check, so an unpublished event's posts were returned to anyone, including an unauthenticated caller. POST: getUser, then visibility and viewer checks before the insert.",
+        "verdict": "DEFECTIVE (D5). Added the canAccessEventAsViewer gate to GET, matching the sibling [id]/page route, answering 404. Noted that event_posts has no RLS in the active chain at all, which is handoff HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE, so the application gate is the only boundary that is provably present.",
+        "status": "fixed"
+      },
+      {
+        "file": "app/api/events/[id]/share-message/route.ts",
+        "methods": "POST",
+        "event_id_source": "context.params.id, used directly against events (EVENTS-004, unchanged)",
+        "authorization": "authenticateApiRequest, then canShareArtistEvent \u2014 published and non-private, or the caller is the artist or creator \u2014 before any write. The group branch additionally requires thread membership.",
+        "verdict": "CLEAN for the event boundary. It mutates conversations and messages rather than event-scoped state, and its event check is a publish gate by design, not a membership gate. Residual, recorded not fixed: the tour is never checked for a relationship to the caller, so an owner can probe tour existence by attaching an arbitrary tourId. Closing that needs a product decision about who may co-opt a tour, which is outside this task's grant and its stated scope.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/staff/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "context.params.id into requireEventStaffAccess, which resolves the reference and rejects a null or mismatched orgId with a StaffingFlowError (EVENTS-004, unchanged)",
+        "authorization": "withAdminCapability('workforce.view' or 'workforce.manage') for the org context, then an explicit orgId equality check against the event, then hasEventPermission(ASSIGN_EVENT_ROLES) \u2014 all before any read or write.",
+        "verdict": "CLEAN, and the strongest shape in the tree: capability, tenant and resource checks are three independent gates, not one.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "methods": "PATCH, DELETE",
+        "event_id_source": "context.params.id, resolved and org-checked; shiftId is taken from the same params object and is never confused with the event id (EVENTS-004, unchanged)",
+        "authorization": "withAdminCapability('workforce.manage'), then the orgId equality check, then hasEventPermission(ASSIGN_EVENT_ROLES), before the shift lookup or update. Every write additionally filters on id, event_id AND org_id together.",
+        "verdict": "CLEAN, and this is the second deeper-route case the task asked to confirm: the path is /api/events/<id>/staff/<shiftId>, the event id is still at index 3 via params, and the sub-resource id is a separate params key. A shift from another event yields a StaffingFlowError not_found, which maps to 404, not a 500.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/staff/invites/route.ts",
+        "methods": "POST",
+        "event_id_source": "context.params.id, resolved and org-checked (EVENTS-004, unchanged)",
+        "authorization": "withAdminCapability('workforce.manage'), then an explicit orgId equality check against admin.orgId before the invitation is created.",
+        "verdict": "CLEAN, and this looked like a missing second check until hasEventPermission was read. staff/route.ts adds hasEventPermission on top of the org check, but hasEventPermission returns true for ANY org member of the event's org, so adding it here would be weaker than the check already present, not stronger. Recorded rather than 'hardened' \u2014 adding a permissive check to look thorough would have been the wrong call.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/tasks/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "withAuth on both, then hasEventPermission(EDIT_EVENT_LOGISTICS) before the read and before the insert. Tasks are reached through getEventWorkflowContext, which binds them to the event's workflow thread.",
+        "verdict": "CLEAN.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/tasks/[taskId]/route.ts",
+        "methods": "PATCH, DELETE",
+        "event_id_source": "context.params.id; taskId is a separate params key and is never confused with the event id (EVENTS-004, unchanged)",
+        "authorization": "withAuth on both, then hasEventPermission(EDIT_EVENT_LOGISTICS) before any write. The thread_id scoping comes from the authorized reference, so a task from another event cannot match.",
+        "verdict": "DEFECTIVE (D8) on the denial shape, not on the authorization. The permission check ran first and was correct, but PATCH read-after-wrote with .single(), so a cross-event or nonexistent taskId returned PGRST116 and the route answered 500. AC-3 names a 500 as a failure, so this counted. Fixed with .maybeSingle() and an explicit 404. DELETE was already correct: it has no read-after-write.",
+        "status": "fixed"
+      },
+      {
+        "file": "app/api/events/[id]/tour/route.ts",
+        "methods": "POST",
+        "event_id_source": "context.params.id, used directly against events (EVENTS-004, unchanged)",
+        "authorization": "getUser, then the event must be owned via events.artist_id or covered by an APPROVED event_claims row for that user, before the tour is even looked up and well before the update. A caller who is neither gets 403.",
+        "verdict": "CLEAN. Note the ownership source here is the events table rather than events_v2, matching the file's own documented contract; it is a different event store from the rest of the tree, and this task did not change which store it uses. Residual recorded not fixed: the tour's own membership is never checked, so an owner can probe tour existence via the 404-versus-403 distinction. That needs a product decision about tour co-option.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/vendors/route.ts",
+        "methods": "GET, POST",
+        "event_id_source": "context.params.id, then resolveEventReference (EVENTS-004, unchanged)",
+        "authorization": "withAuth on both, then hasEventPermission(EDIT_EVENT_LOGISTICS) before the read and before the insert. POST additionally rejects a non-events_v2 event with 400.",
+        "verdict": "CLEAN. The insert binds event_id and org_id from the authorized event, never from the body.",
+        "status": "clean"
+      },
+      {
+        "file": "app/api/events/[id]/vendors/[vendorId]/route.ts",
+        "methods": "PATCH, DELETE",
+        "event_id_source": "context.params.id; vendorId is a separate params key (EVENTS-004, unchanged)",
+        "authorization": "withAuth on both, then hasEventPermission(EDIT_EVENT_LOGISTICS) before any write. Every statement filters on id AND event_id, so a vendor from another event cannot match.",
+        "verdict": "DEFECTIVE (D9) on the denial shape, same class as D8. PATCH read-after-wrote with .single(), so a cross-event vendorId returned PGRST116 and the route answered 500. Fixed with .maybeSingle() and an explicit 404. DELETE was already correct.",
+        "status": "fixed"
+      }
+    ],
+    "left_deliberately": [
+      "app/api/events/[id]/hq/calendar/route.ts \u2014 correct already, and already modified in the worktree by another lane before this task began. Left untouched to avoid clobbering concurrent work. It is also the file whose correct pattern this task copied for the two defective hq routes.",
+      "app/api/events/[id]/guestlist/route.ts params typed as `any` \u2014 the derivation is correct, so changing the type is a typing cleanup, not part of this task's defect class. Recorded as a latent gap rather than fixed.",
+      "app/api/events/[id]/share-message/route.ts tour-membership check and app/api/events/[id]/tour/route.ts tour-membership check \u2014 both are product decisions about who may co-opt a tour, and both require a membership model this task does not own. Recorded as residuals; neither is the positional-index class.",
+      "app/api/events/[id]/hq/permissions/route.ts writes `event_title: event.id` into the notification metadata, so the notification title field carries an id rather than a title. Cosmetic, unrelated to extraction or authorization, and not fixed to avoid widening scope.",
+      "app/api/events/[id]/attendance/route.ts POST authorizes with canAccessEventAsViewer, which is a publish-status check rather than a membership check, so any authenticated user may RSVP to a published event. Recorded as by-design for a public RSVP surface, not as a defect. DELETE is self-scoped to the caller's own row."
+    ]
+  },
+  "proposed_decisions": [
+    "EVENT-ID DERIVATION IN EVENT ROUTES. Under CP-056/CP-104 discipline, a route handler in app/api/** must take its resource identifier from the framework route params, never from a positional index into request.nextUrl.pathname. A negative index such as at(-2) is correct only for one path depth and is silently wrong for every other, which is how app/api/admin/events/[id]/task-messages/route.ts (ADMIN-014) and app/api/events/[id]/hq/{resources,permissions}/route.ts (EVENTS-004) both ended up querying, writing and authorizing against a constant. Where a pathname read is genuinely needed, the accepted forms are a literal findIndex on the parent collection name plus an offset, or a literal index guarded by a zod uuid parse, so a malformed path fails closed instead of widening. A structural test over the whole route family is the enforcement mechanism, because a review that reads each file once does not catch the next one.",
+    "DENIAL SHAPE IS PART OF AUTHORIZATION. A check that runs before the write is necessary and not sufficient. A cross-event or nonexistent sub-resource id must produce a non-disclosing 404, never a 500, so a PGRST116 from a read-after-write is handled with maybeSingle rather than single. ADMIN-014 found an action with no check at all; EVENTS-004 found two routes where the check was correct and the denial was a 500. Both are the same requirement seen from two sides, and both belong in the same review pass.",
+    "SERVICE-ROLE CLIENTS MAKE THE APPLICATION CHECK THE ONLY BOUNDARY. A route that reads through createServiceRoleClient or createClient(SERVICE_ROLE_KEY) bypasses every RLS policy on the table, so any predicate the policies express must be re-applied in the route. app/api/events/[id]/claim/route.ts did not, and the owning-account check for event_provider_connections has no column to stand on, so created_by is only a create-time proxy. Where a lane finds that the application check is the only one, the correct response is to name the missing schema, as a handoff to the database lane, and not to let the service-role read stand as implicit authorization."
+  ],
+  "handoffs": [
+    "HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE",
+    "HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE",
+    "HF-EVENTS-004-PROVIDER-OWNERSHIP-TO-DATABASE"
+  ],
+  "annotations": [
+    {
+      "by": "EVENTS-005",
+      "at": "2026-09-28",
+      "lane_initiated": true,
+      "measurement_attributed_to": "database (DB-023)",
+      "target": "the `ln` claim in acceptance_criteria evidence for public.event_claims",
+      "finding": "FALSE. The string `ln` occurs zero times in supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804132000_event_claims_merges.sql (182 lines), and `public.ln`, `ln_self_read`, `ln_self_insert`, `idx_ln_event` and `idx_ln_claimant` occur in no working-tree file and in no object git has ever held.",
+      "real_object_names": {
+        "table": "public.event_claims (line 47)",
+        "indexes": [
+          "idx_event_claims_event (65)",
+          "idx_event_claims_claimant (66)"
+        ],
+        "rls": "alter table public.event_claims enable row level security (91)",
+        "policies": [
+          "event_claims_self_read (104)",
+          "event_claims_self_insert (111)"
+        ]
+      },
+      "likely_origin": "the two policy NAMES cited as evidence are the two real policy names",
+      "conclusion_unaffected": "The claim path still has no row-level guarantee, re-derived independently: every live consumer uses createServiceRoleClient() and service_role carries BYPASSRLS.",
+      "why_this_record_was_touched": "AC-6 of EVENTS-005 names only the handoff. This record is the ORIGIN of the claim, and it is the one place outside that handoff where the false observation is still stated as fact rather than as a correction, so it is the likeliest place for a future lane to re-derive a nonexistent object from. Scoped to an append-only annotation; no original text was rewritten."
+    }
+  ]
+}

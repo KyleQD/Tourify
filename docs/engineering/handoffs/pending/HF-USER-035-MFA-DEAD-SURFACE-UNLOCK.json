@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-USER-035-MFA-DEAD-SURFACE-UNLOCK",
   "task_id": "USER-005",
   "from_agent": "general-user",
   "to_agent": "design-system",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-26T00:15:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree, branch codex/qa004-staging-campaign)",
   "dirty_state_caveat": "general-user deleted `hooks/use-mfa.ts` (its own grant). `lib/services/**` and `__tests__/integrations/**` were read and NOT touched. general-user holds the charter decision; integrations holds the test file; design-system holds the service files. This handoff carries the file decision and the ordering constraint, not the product decision.",
@@ -15,12 +15,42 @@
     "Charter decision recorded: RETIRE. Evidence — the `user_mfa_methods`, `user_mfa_setup_temp` and `user_mfa_backup_codes` relations the service reads are created by no SQL file anywhere under `supabase/`, and the newer `20260918213707_mfa_verification_codes` migration already superseded that generation. There is no product journey to adopt it for."
   ],
   "ordered_unlock": [
-    { "step": 1, "file": "hooks/use-mfa.ts", "owner": "general-user", "status": "DONE in this wave" },
-    { "step": 2, "file": "__tests__/integrations/mfa.service.test.ts", "owner": "integrations", "status": "PENDING — this is the only remaining pin" },
-    { "step": 3, "file": "lib/services/mfa.service.ts", "owner": "design-system", "status": "blocked on step 2" },
-    { "step": 4, "file": "lib/services/mfa-verification-code-store.server.ts", "owner": "design-system (consult venue)", "status": "blocked on step 3; listed at lib/supabase/service-role-legacy-imports.json:193" },
-    { "step": 5, "file": "lib/services/mfa-verification-code-store.ts", "owner": "design-system", "status": "blocked on step 3" },
-    { "step": 6, "file": "lib/services/sms-delivery.service.ts", "owner": "design-system", "status": "blocked on step 3; its only importer is mfa.service.ts" }
+    {
+      "step": 1,
+      "file": "hooks/use-mfa.ts",
+      "owner": "general-user",
+      "status": "DONE in this wave"
+    },
+    {
+      "step": 2,
+      "file": "__tests__/integrations/mfa.service.test.ts",
+      "owner": "integrations",
+      "status": "PENDING — this is the only remaining pin"
+    },
+    {
+      "step": 3,
+      "file": "lib/services/mfa.service.ts",
+      "owner": "design-system",
+      "status": "blocked on step 2"
+    },
+    {
+      "step": 4,
+      "file": "lib/services/mfa-verification-code-store.server.ts",
+      "owner": "design-system (consult venue)",
+      "status": "blocked on step 3; listed at lib/supabase/service-role-legacy-imports.json:193"
+    },
+    {
+      "step": 5,
+      "file": "lib/services/mfa-verification-code-store.ts",
+      "owner": "design-system",
+      "status": "blocked on step 3"
+    },
+    {
+      "step": 6,
+      "file": "lib/services/sms-delivery.service.ts",
+      "owner": "design-system",
+      "status": "blocked on step 3; its only importer is mfa.service.ts"
+    }
   ],
   "next_steps": [
     "integrations: retire `__tests__/integrations/mfa.service.test.ts` (344 lines). It is the sole reason four service modules cannot be deleted. Retiring it does not close any product capability — the module has no caller.",
@@ -38,5 +68,7 @@
     "PASS: rg `use-mfa` and the four exported hook names — no importer remains.",
     "PASS: npx vitest run __tests__/auth __tests__/profile __tests__/settings __tests__/seo __tests__/uploads __tests__/security __tests__/onboarding __tests__/general __tests__/dashboard — 32 files, 205 tests, after the deletion.",
     "NOT MEASURED: this lane's own scoped tsc over the MFA graph did not complete (10-minute bound, TS2589 amplification). The 40/1 figures are quoted from the design-system lane's preserved run, not re-measured here."
-  ]
+  ],
+  "accepting_task_id": "DESIGN-033",
+  "completion_condition": "integrations: retire `__tests__/integrations/mfa.service.test.ts` (344 lines). It is the sole reason four service modules cannot be deleted. Retiring it does not close any product capability — the module has no caller."
 }

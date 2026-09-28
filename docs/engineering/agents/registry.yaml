@@ -1,42 +1,144 @@
-schema_version: "1.0"
-updated_at: "2026-09-08"
+schema_version: "3.0"
+updated_at: "2026-09-27"
 startup_protocol:
   - docs/engineering/INDEX.md
+  - docs/engineering/PRODUCT_OUTCOMES.md
   - docs/engineering/agents/<agent>/CHARTER.md
   - docs/engineering/agents/<agent>/STATE.md
   - docs/engineering/tasks/<status>/<task-id>.json
 agents:
   - id: orchestrator
     purpose: Route bounded work, manage dependencies and overlaps, and maintain project-level execution truth.
+    kind: orchestrator
+    reports_to: null
+    execution_policy: orchestration
   - id: admin
-    purpose: Own admin dashboards, admin operations, authorization gates, and audit registries.
+    purpose: Lead the Admin portfolio, route bounded work to Admin specialists, resolve overlaps, and maintain cross-segment execution truth.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: orchestration
+  - id: admin-governance
+    purpose: Own Admin acting context, capabilities, RBAC, platform administration, settings, feature flags, audit contracts, route-registry governance, and security posture.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-tour-planning
+    purpose: Own Admin tour portfolio, lifecycle, builder, stops, routing, holds, collaboration, publication, tour books, and command center.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-event-operations
+    purpose: Own Admin event setup, advancing, readiness, run of show, day sheets, live tasks, incidents, show-day operations, and closeout.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-logistics
+    purpose: Own Admin travel, transportation, lodging, equipment, rentals, catering, logistics boards, site maps, and operational tasking.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-workforce
+    purpose: Own Admin hiring, applications, offers, onboarding, roster, scheduling, attendance, payroll views, workforce communications, and staffing administration.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-commerce
+    purpose: Own Admin ticketing, admissions, guest lists, finance, settlements, marketplace and store administration, vendors, procurement, contracts, and agencies.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-experience-insights
+    purpose: Own the Admin shell, navigation, search, dashboard home, communications, notifications, content and network monitoring, analytics, reporting, exports, accessibility, and responsive integration.
+    kind: specialist
+    reports_to: admin
+    execution_policy: implementation
+  - id: admin-design-manager
+    purpose: Review Admin information architecture, interaction consistency, accessibility, responsiveness, states, and design-system usage, then route evidence-backed findings through Admin.
+    kind: manager
+    reports_to: admin
+    execution_policy: review_only
+  - id: admin-tour-manager
+    purpose: Simulate organization and tour management journeys in isolated staging and route evidence-backed usability, effectiveness, and efficiency findings through Admin.
+    kind: manager
+    reports_to: admin
+    execution_policy: review_only
   - id: artist
     purpose: Own artist identity, private and public profiles, EPKs, dashboards, and artist workflows.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: venue
     purpose: Own venue identity, public profiles, bookings, venue operations, and venue kit.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: organization
     purpose: Own organization identity, membership, tours, collaboration, and tenant context.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
+  - id: events
+    purpose: Own event creation, lifecycle, calendar and holds, public event surfaces, and shared event consumer contracts.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: general-user
     purpose: Own authentication, onboarding, user profiles, settings, accounts, and the general dashboard.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: work
     purpose: Own jobs, hiring, workforce, staffing, shifts, onboarding, and work mode.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: discover
     purpose: Own search, discovery, world data, directories, news, and recommendations.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: music
     purpose: Own music catalog, playback, rights, royalties, ingestion, and music worker flows.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: marketplace
     purpose: Own marketplace listings, services, carts, checkout, orders, and commerce workflows.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: ticketing
     purpose: Own tickets, allocations, transfers, wallet, guest list, door operations, and settlement interfaces.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: social
     purpose: Own feed, posts, follows, friends, groups, messaging, notifications, and collaboration.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: database
     purpose: Own Supabase migrations, schema evolution, RLS, RPCs, generated types, and data integrity.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: design-system
     purpose: Own shared UI primitives, accessibility, layout, tokens, and interaction consistency.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: integrations
     purpose: Own external providers, webhooks, credential boundaries, workers, and integration resilience.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: implementation
   - id: qa
     purpose: Own test strategy, fixtures, end-to-end journeys, regression evidence, and quality gates.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: verification_only
   - id: release
     purpose: Own CI, deployment, environment validation, observability, cron, and release readiness.
+    kind: domain
+    reports_to: orchestrator
+    execution_policy: verification_only

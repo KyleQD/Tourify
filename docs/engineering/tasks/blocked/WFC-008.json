@@ -1,0 +1,120 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-008",
+  "title": "Build Workforce command shell and compatibility routing",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "admin-workforce",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Replace the current Staff Operations shell with URL-backed workforce navigation while preserving legacy links and flag-off rollback.",
+  "scope": {
+    "in": [
+      "Organization and department navigation",
+      "Canonical query-state parsing",
+      "Responsive named navigation",
+      "Legacy route mapping",
+      "admin_workforce_command_v2 fallback"
+    ],
+    "out": [
+      "Implementing feature bodies",
+      "Removing the legacy surface"
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/staff/**",
+    "components/hiring/staff-operations-tabs.tsx",
+    "components/admin/workforce/**",
+    "lib/admin/**workforce**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-006.json",
+    "docs/engineering/tasks/blocked/WFC-007.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Refresh, shared links, back/forward, and organization switching preserve authorized state",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Mobile navigation always has visible names",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Legacy overview/scheduling/team/analytics/roster/payroll links map safely",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Flag-off restores the current surface without losing legacy data",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin",
+          "npm run check:admin-route-registry",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on stable workforce read contracts and shared design primitives.",
+    "completed": [],
+    "next_steps": [
+      "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+      "Consume WFC-006 and WFC-007 handoffs",
+      "Implement shell, URL state, aliases, and flag fallback"
+    ],
+    "blockers": [
+      "WFC-006 and WFC-007 must complete",
+      "Admin working set must not overlap active ADMIN-003 changes"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Admin → WFC-009/WFC-010: stable routed shell and context contract",
+    "Admin → QA: URL and rollback test matrix"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103 partition: app/admin/dashboard/staff/** and components/admin/workforce/** are carved out of ADMVIEW-001 for the WFC admin lanes. components/admin/workforce/event-worker-attendance.tsx stays with WORK-006, and the seven pre-existing files in components/admin/workforce/ stay ADMVIEW-001's to repair. Build only under components/admin/workforce/**; shared primitives come from WFC-007 in components/ui/** and must not be re-authored here (CP-101).",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "WFC-006 and WFC-007 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

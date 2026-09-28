@@ -1,0 +1,125 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-012-DEPARTMENT-SCOPE-TO-WORK",
+  "task_id": "ADMIN-012",
+  "from_agent": "admin",
+  "to_agent": "work",
+  "status": "accepted",
+  "created_at": "2026-09-26T22:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "for_tasks": [
+    "WFC-004",
+    "WFC-005",
+    "WFC-003"
+  ],
+  "decision_record": [
+    "CP-094",
+    "CP-102"
+  ],
+  "dirty_state_caveat": "The worktree was already dirty (91 entries) with live work from ADMIN-003, the ADMIN-004..ADMIN-011 logistics overhaul, ADMVIEW-001, WFC-001/003/007 and others. It grew to 98 while ADMIN-012 ran, because WFC-007 was adding components/ui/ops-*. All of it was preserved untouched. ADMIN-012's own changes are: lib/auth/admin-capabilities.ts (modified), __tests__/admin/admin-capability-department-scope.test.ts (new), lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts (new), tsconfig.admin012-slice.json (new), plus this handoff, docs/engineering/tasks/active/ADMIN-012.json, and an appended section in docs/engineering/agents/admin/STATE.md. No migration, no component, no route, no admin UI, and no other lane's path was modified. Nothing was committed.",
+  "summary": "CP-094 is now expressible. `department` is a first-class AdminCapabilityTarget scope type, and workforce authority is genuinely resource-scoped: a department_manager resolves `workforce.manage` only for a department it is the accountable manager of, never for an organization or untargeted request, and never for a department it is only a member of. ADMIN-012 created no tables. There is still no department table in the repository, so the lookup that produces the managed-department set is left as a narrow, injectable seam that WFC-004's schema and WFC-005's service satisfy. Until that seam is wired, the resolver fails CLOSED: no department manager resolves `workforce.manage` anywhere.",
+  "what_changed": {
+    "scope_catalog": "lib/auth/admin-capabilities.ts:199-206 exports ADMIN_CAPABILITY_TARGET_TYPES = organization | tour | event | site_map | document | department, with isAdminCapabilityTargetType at :214. AdminCapabilityTarget at :227-230 and EntityCapabilityGrant.scopeType at :223 both now derive their type from that catalog instead of repeating a string union.",
+    "exhaustive_decision_point": "grantCoversCapabilityTarget at :255-296 replaces the two inline string comparisons that previously lived inside resolveEffectiveAdminCapabilities' grant filter. It is the only place in the repository that decides whether a capability scope covers a request target. Its switch is exhaustive over the catalog and its `default` arm both fails `tsc` and denies at runtime.",
+    "department_scope_rule": "DEPARTMENT_SCOPED_ROLE_CAPABILITIES at :319-323 lists the role capabilities that are resource-scoped rather than organization-granted. Currently { department_manager: ['workforce.manage'] }. resolveEffectiveAdminCapabilities applies it at :481-487, AFTER the SEC-102 union, so neither a role default nor an entity grant can restore organization-wide workforce.manage to a department manager.",
+    "resolution_rule": "departmentScopeDenial at :372-391 is the whole rule and every branch fails closed. For a department-scoped capability and role, in order: a target is required; the target type must be a known scope type; it must be `department`; the acting organization and actor must be known; a DepartmentAuthorityInput must be supplied; its organizationId must equal the acting orgId; its userId must equal the acting userId; and the target department id must be in managedDepartmentIds. Nine denial codes are exported so a caller can report why.",
+    "seam": "DepartmentAuthorityInput at :346-354 and DepartmentManagementLookup at :410-412. The resolver is pure and synchronous; the lookup is not, because no department table exists. resolveEffectiveAdminCapabilitiesForTarget at :503-529 and hasEffectiveAdminCapabilityForTarget supply it, and both fail closed when the lookup is absent, throws, or is not needed."
+  },
+  "seam_contract": {
+    "what_wfc_004_must_supply": [
+      "A department entity with an id that is unique across the platform and bound to exactly one organizations.id row. The resolver's cross-organization denial depends on a department id being globally unique and org-bound; without that, a same-id department in two organizations would be indistinguishable at this boundary.",
+      "An accountable-manager relation between a department and a user. CP-094: each department has ONE accountable manager. It must be a relation, not an attribute of the free-text staff_members.department or employment_assignments.department column — both are unconstrained nullable text with no foreign key, and WFC-003's contract explicitly forbids treating either as a department scope.",
+      "A membership relation that distinguishes one primary department from secondary memberships, so that 'member of' and 'manager of' are different facts. The forbidden workaround is documented in types/vendor-identity-contract.ts:248-255 and is not repeated here."
+    ],
+    "what_wfc_005_must_supply": [
+      "A DepartmentManagementLookup implementation: listManagedDepartments({ organizationId, userId }) -> Promise<DepartmentAuthorityInput>.",
+      "That implementation must gate on the existing production-shaped authority primitive, has_perm(uid, org_id, 'workforce.manage'), proven at supabase/migrations/20260821031214_repair_event_tour_staffing_flow.sql:110-118 and :142-170. It must also require an active org_members row (status = 'active', per WORKFORCE-IDENTITY-CONTRACT.md section 2.3) and must NOT infer activity from staff_members.status.",
+      "It must return managedDepartmentIds from the accountable-manager relation only. It may populate membershipDepartmentIds for audit or telemetry; the resolver never reads it, and there is a test proving that.",
+      "The authority object must echo back the organizationId and userId it was resolved for. A mismatch with the acting context denies, so a lookup cannot accidentally hand one actor another actor's authority.",
+      "Department-targeted callers for the workforce routes that currently use withAdminCapability('workforce.manage') with no target. Until those exist, a department manager is denied on all of them. That is the intended fail-closed state, not a regression to be worked around by re-widening the role grant."
+    ],
+    "what_nobody_may_do": [
+      "Do not read the managed-department set from a free-text department string, and do not add a second membership table. has_perm plus org_members plus the accountable-manager relation is the whole authority model.",
+      "Do not re-widen DEPARTMENT_SCOPED_ROLE_CAPABILITIES to restore an organization-wide workforce.manage for department managers. That is the exact gap CP-094 closed.",
+      "Do not classify a custom role as department-scoped by inference. Only the roles named in DEPARTMENT_SCOPED_ROLE_CAPABILITIES are department-scoped; deciding that a custom role should be is a WFC-005 / ORG-007 configuration decision."
+    ]
+  },
+  "residual_gaps_named": [
+    "workforce.publish is NOT department-scoped. It is left organization-wide for department_manager because no lane has defined a department-targeted publish command, and scoping it today would deny app/api/admin/events/[id]/work-mode/route.ts with no replacement path. Adding it is a one-line change to DEPARTMENT_SCOPED_ROLE_CAPABILITIES once a department-targeted publish command exists; the decision belongs to WFC-005/WFC-006.",
+    "A custom role name that carries workforce.manage is organization-wide, because role-to-scope classification is configuration and this resolver will not infer it. Owner, admin, tour_manager, production and production_manager are deliberately organization-wide; a test in lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts fails if a new role carrying workforce.manage is added without an explicit classification decision.",
+    "Cross-organization denial is proven at the resolver boundary: the authority set is bound to one organization, the acting orgId must match it, and a department id that is not in that set denies. The end-to-end guarantee additionally requires WFC-004's department id to be globally unique and org-bound. ADMIN-012 cannot prove a property of a table that does not exist.",
+    "withAdminCapability() itself takes no target, so it can only ever evaluate the organization-level projection. A department-targeted guard is WFC-005/WFC-006's to build on resolveEffectiveAdminCapabilitiesForTarget; ADMIN-012 did not add one because that is workforce service enforcement, not capability expression."
+  ],
+  "wfc_003_action_required": {
+    "why": "CP-102 reserves the canonical workforce identity contract for WFC-003. ADMIN-012 consumed it and did not edit types/vendor-identity-contract.ts or __tests__/admin/workforce-identity-contract.test.ts.",
+    "problem": "MANAGER_SCOPE_GAP at types/vendor-identity-contract.ts:551-565 is now FACTUALLY STALE but its test still passes, because currentState is a hardcoded string literal rather than a derived fact. It reads \"AdminCapabilityTarget['type'] has no 'department' member, and department_manager is an org-wide role grant.\" Both halves are now false. Its evidence array cites lib/auth/admin-capabilities.ts:193-195 for the target scope types and :113-119,:129 for the role grant; those line numbers have moved to :199-206 and :113-121,:131. The doc comment at types/vendor-identity-contract.ts:470-476 and the Gap B narrative at WORKFORCE-IDENTITY-CONTRACT.md section 2.4 are stale in the same way, and handoff item 5 in contract section 6 is now satisfied on the capability side.",
+    "risk": "This is the CP-085 / CP-090 / CP-104 class: a green assertion that reads as proof while the statement it locks is wrong. A future reader who trusts MANAGER_SCOPE_GAP will conclude the department scope is still missing, or worse, will re-close it.",
+    "action": "WFC-003 should retire or rewrite MANAGER_SCOPE_GAP, re-point its evidence at the current lines, update Gap B in WORKFORCE-IDENTITY-CONTRACT.md section 2.4, and mark contract section 6 item 5 as satisfied on the capability side with the schema side still outstanding under WFC-004."
+  },
+  "consumers": [
+    {
+      "task": "WFC-004",
+      "agent": "database",
+      "instruction": "Author the department entity, the accountable-manager relation, and the primary/secondary membership relation that the seam above expects. The capability side is done; you are not blocked on ADMIN-012. Keep the authoritative primitive has_perm(uid, org_id, 'workforce.manage') and org_members; do not add a second membership table."
+    },
+    {
+      "task": "WFC-005",
+      "agent": "work",
+      "instruction": "Implement DepartmentManagementLookup against WFC-004's schema and use resolveEffectiveAdminCapabilitiesForTarget / hasEffectiveAdminCapabilityForTarget for department-targeted workforce commands. Populate managedDepartmentIds from the accountable-manager relation only. Every route that today calls withAdminCapability('workforce.manage') with no target denies a department manager, and that is the intended state until a department-targeted guard exists."
+    },
+    {
+      "task": "WFC-006",
+      "agent": "work",
+      "instruction": "Reconcile the seven live app/api/admin/workforce routes against the department-scoped resolver when enforcing service behavior. Department authority is a resolver input, not a second hand-rolled check."
+    },
+    {
+      "task": "WFC-008 through WFC-020",
+      "agent": "admin",
+      "instruction": "No change required. ADMIN-012 built no UI and touched no component. A department manager's UI must read the resolved department scope, not infer it from a department name."
+    },
+    {
+      "task": "WFC-003",
+      "agent": "organization",
+      "instruction": "Retire or rewrite MANAGER_SCOPE_GAP per wfc_003_action_required above. ADMIN-012 did not edit the contract or its test under CP-102."
+    }
+  ],
+  "behavior_change_callers_must_know": {
+    "what": "A department_manager's organization-level capability projection no longer contains workforce.manage.",
+    "where_it_shows_up": "lib/auth/admin-context.ts loadCapabilities() at :222-243 calls resolveEffectiveAdminCapabilities with a role and no target and no department authority, which is exactly the case that now denies. admin.capabilities therefore loses workforce.manage for a department manager.",
+    "routes_that_now_deny_a_department_manager": "Every route gated on withAdminCapability('workforce.manage') or a manual hasAdminCapability(admin.capabilities, 'workforce.manage') check: app/api/admin/staff (POST/PATCH/DELETE), app/api/admin/team-members PATCH, app/api/admin/users/search, app/api/admin/organization/workforce-settings, app/api/admin/onboarding/workflows/advance, app/api/admin/staffing/shifts/publish, app/api/admin/staff-operations/channels (the workforce.manage arm of its anyOf), app/api/admin/artists POST/PATCH, app/api/admin/tours/team-members POST/PATCH/DELETE, app/api/admin/tours/teams POST/PATCH/DELETE, app/api/admin/tours/[id]/team and assign-user, app/api/admin/workforce/{attendance,identity-merge,payroll-exports}, app/api/admin/tours/[id]/collaboration-invites, app/api/tours/[id]/team and assign-user, app/api/events/[id]/staff and staff/invites, plus the field and aggregate projections in lib/admin/workforce-field-projections.ts, lib/admin/protected-data-policy.ts, lib/admin/protected-aggregate-policy.ts and lib/admin/calendar/field-projection.ts.",
+    "why_it_is_correct": "CP-094: department managers receive authority only over departments they manage. A capability check with no target is an organization-wide check, so allowing it would leave the gap open while appearing fixed.",
+    "why_it_is_not_a_regression_to_revert": "There is no department table, so there is no way to know which departments any given manager manages. Any non-deny here would be a guess. WFC-004 plus WFC-005 restore the capability through a department-targeted guard.",
+    "not_a_code_fix_here": "ADMIN-012 did not add a department parameter to withAdminCapability. Changing the shared guard's signature is a wider change than this task's working set and would touch every capability-gated route, several of which are in other lanes' live work."
+  },
+  "scope_expansions": [
+    "lib/auth/admin-context.ts - READ ONLY, not modified. It is the only production caller of resolveEffectiveAdminCapabilities and the reason the no-target case is the organization projection. Recorded because it determines the behavior change above.",
+    "types/vendor-identity-contract.ts and __tests__/admin/workforce-identity-contract.test.ts - READ ONLY, not modified, under CP-102. Read to consume MANAGER_SCOPE_GAP rather than re-derive it, and to establish that the free-text department columns are a forbidden workaround.",
+    "lib/admin/entity-grants.ts - READ ONLY, not modified. It is the SEC-204 external-delegation mechanism with its own ENTITY_GRANT_RESOURCE_TYPES. It is a separate type from EntityCapabilityGrant.scopeType and does not switch on AdminCapabilityTarget, so adding `department` does not reach it. Recorded explicitly because it is the most likely place for a reader to assume a new switch case was required.",
+    "lib/auth/org-command.ts - READ ONLY, not modified. It has target.type occurrences at :273, :283 and :292, but they are AdminCommandTarget, a different discriminated union with AdminEntityType = 'tour' | 'event' at :62. It is not an AdminCapabilityTarget consumer and adding a scope type does not affect it. Recorded because it is the only other file in the repository that switches on something named target.type.",
+    "lib/admin/capability-aware-ui.ts, hooks/use-admin-capabilities.ts, lib/admin/state-aware-authorization.ts, lib/admin/protected-data-policy.ts, lib/admin/protected-aggregate-policy.ts, lib/admin/tour-access.service.ts, lib/admin/event-access.service.ts, lib/admin/calendar/source-access.ts, lib/admin/tour-command-center-summary.ts - READ ONLY. Each was checked for a target-type switch; none has one. All take a flat AdminCapability[] with no target.",
+    "lib/admin/api-route-registry.ts, lib/supabase/service-role-import-review.json, docs/audit/** - READ ONLY, deliberately not modified, to keep check:admin-audit's pre-existing failure attributable to base SHA rather than to this task.",
+    "lib/database.types.ts - NOT READ, deliberately. It is ~25,600 lines and is the known memory-ceiling blocker for full-repo typecheck. WFC-003 already established that no department table exists in it, and this task creates no schema, so the schema fact was consumed rather than re-derived."
+  ],
+  "verification": [
+    "PASS: npm run agents:validate - 'validated 17 agents, 177 tasks, 0 warnings, 0 errors'.",
+    "PASS: npx vitest run lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts - 51 passed (1 file).",
+    "PASS: npx vitest run __tests__/admin/admin-capability-department-scope.test.ts - 26 passed (1 file).",
+    "PASS: focused capability set (admin-capabilities, admin-capability-department-scope, admin-capability-target-exhaustiveness, workforce-identity-contract, authorization-contract, admin-route-capability-matrix) - 6 files, 145 tests passed.",
+    "PASS: npx vitest run __tests__/admin - 272 files passed, 1 skipped; 3615 tests passed, 2 skipped; 22.69s. Baseline before this change was 270 files / 3538 tests passed, 2 skipped. Delta is exactly +2 files and +77 tests, which are the two new files. No existing admin test changed state.",
+    "PASS: npx eslint lib/auth/admin-capabilities.ts lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts __tests__/admin/admin-capability-department-scope.test.ts - no output, exit 0.",
+    "PASS: NODE_OPTIONS='--max-old-space-size=8192' npx tsc -p tsconfig.admin012-slice.json --noEmit - no output, exit 0. The slice covers lib/auth/admin-capabilities.ts, lib/auth/admin-context.ts and the three capability test files.",
+    "PASS (negative control): with a seventh scope type 'vendor_department' temporarily added to ADMIN_CAPABILITY_TARGET_TYPES and no switch arm, the same scoped tsc fails with 'lib/auth/admin-capabilities.ts(292,13): error TS2322: Type \"\\\"vendor_department\\\"\" is not assignable to type \"never\"'. The compile-time exhaustiveness guard is real, not decorative. The file was restored and re-verified: scoped tsc exit 0 and 51/51 tests passing.",
+    "PRE-EXISTING FAILURE, PROVEN AT BASE SHA: npm run check:admin-audit - 'Admin audit registry validation failed (3): Generated view drift: STATUS.md; Generated view drift: coverage.json; Workbook registry source hash is stale'. Proof it is not mine: registrySourceHash() (scripts/audit/admin-workflow-registry.ts:192-208, called at :479) hashes only docs/audit/registry/**/*.json, docs/audit/evidence/**/*.json, lib/supabase/service-role-import-review.json and lib/admin/api-route-registry.ts, and 'git status --porcelain' over all of those paths is empty, so the computed hash is byte-identical to the base-SHA hash. Not fixed here; regenerating the workbook is outside this working set.",
+    "DID NOT COMPLETE: npm run verify:feature - ran to '[verify:feature] npm run typecheck' and produced no further output after 5+ minutes, with tsc still resident. This is the known ceiling: scripts/verify.mjs:36 runs npm run typecheck unconditionally, not gated on --changed, and lib/database.types.ts is ~25,600 lines. Every other step of the tier was run individually and is recorded above. NO GREEN TIER IS CLAIMED FOR verify:feature.",
+    "DID NOT COMPLETE: npm run typecheck - not run to completion; the same memory ceiling. Only the scoped tsc above is claimed.",
+    "FULL-SUITE CONTEXT, NOT A CLAIM FOR THIS TASK: npx vitest run (all 633 files) reported 3 files / 9 tests failing. 8 of the 9 are test timeouts (mfa.service.test.ts x7, event-actions-authorization.test.ts x1) that PASS when the same three files are run in isolation, so they are load-related on this machine, not logic failures. The ninth, __tests__/public-artist/owner-only-empty-states.test.ts:43, is a pre-existing failure at base SHA: it asserts a source string in components/public-artist/public-artist-page.tsx, that path is clean at HEAD, and it has no relationship to lib/auth/. None of the three files imports lib/auth/admin-capabilities.ts.",
+    "NOT CLAIMED: no hosted evidence, no browser evidence, no migration-applied evidence, and no end-to-end department authorization evidence, because there is no department table to exercise."
+  ],
+  "evidence_document": "docs/engineering/tasks/active/ADMIN-012.json",
+  "next_action": "WFC-004 authors the department entity, the accountable-manager relation, and the primary/secondary membership relation; WFC-005 implements DepartmentManagementLookup against them and builds the department-targeted guard. WFC-003 retires MANAGER_SCOPE_GAP, which is now a stale string inside a passing test.",
+  "accepting_task_id": "WFC-005",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": [
+    "Preserved recipient 2 of 3 from multi-recipient handoff HF-ADMIN-012-DEPARTMENT-SCOPE: database, work, organization."
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "agent": "music",
   "description": "Own music catalog, playback, rights, royalties, ingestion, and music worker flows.",
   "paths": [
@@ -8,13 +8,13 @@
     "components/music/**",
     "lib/music/**",
     "lib/playback/**",
-    "scripts/music-*.ts",
     "__tests__/music/**"
   ],
   "exclusions": [
     "node_modules/**",
     ".next/**",
-    "docs/implementation/** unless explicitly referenced"
+    "docs/implementation/** unless explicitly referenced",
+    "Post-launch paths unless the task outcome authorizes them"
   ],
   "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
 }

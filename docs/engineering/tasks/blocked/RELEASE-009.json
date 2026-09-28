@@ -1,0 +1,106 @@
+{
+  "schema_version": "2.0",
+  "id": "RELEASE-009",
+  "title": "Roll out the logistics control tower",
+  "status": "blocked",
+  "priority": "P2",
+  "owner_agent": "release",
+  "created_at": "2026-09-23T19:16:13.098Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (32 entries)",
+  "goal": "Gate, observe, stage, and release the admin logistics control tower with rollback coverage and production monitoring.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "lib/admin/feature-flags/**",
+    "docs/engineering/release/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Gate, observe, stage, and release the admin logistics control tower with rollback coverage and production monitoring.",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm exec vitest run __tests__/admin/admin-feature-flags.test.ts"
+        ],
+        "evidence": [
+          "The versioned control-tower flag definition passes registry validation; staging assignments, telemetry, fallback wiring, and rollout have not been executed.",
+          "Preserved v1 result: partial-pass"
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "release",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "The governed control-tower flag is registered, but rollout remains blocked on authenticated QA and staging telemetry.",
+    "completed": [
+      "Registered admin_logistics_control_tower_v1 with safe default, metrics, expiry, and rollback instructions."
+    ],
+    "next_steps": [
+      "Do not enforce the flag until organization assignments and the temporary old-Overview rollback are wired.",
+      "Capture staging latency, error, degraded-source, map-creation, and urgent-delivery metrics.",
+      "Advance internal to pilot to general availability only after QA-007 passes."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Prepared the release flag definition without hiding the current page behind an unassigned safe-default-false flag.",
+        "next": "Complete authenticated QA and staged assignment wiring before rollout."
+      }
+    ]
+  },
+  "handoffs": [],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-LOGISTICS",
+  "deliverable_class": "release",
+  "decision_owner": "release",
+  "shared_working_set": [],
+  "depends_on": [
+    "QA-007"
+  ],
+  "resume_condition": "Do not enforce the flag until organization assignments and the temporary old-Overview rollback are wired.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "release",
+      "condition": "Do not enforce the flag until organization assignments and the temporary old-Overview rollback are wired.",
+      "dependency_task_ids": [
+        "QA-007"
+      ]
+    }
+  ]
+}

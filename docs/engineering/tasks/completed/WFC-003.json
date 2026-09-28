@@ -1,0 +1,399 @@
+{
+  "schema_version": "1.0",
+  "id": "WFC-003",
+  "title": "Define workforce tenant manager and vendor identity boundaries",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "organization",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T18:57:21.130Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty before WFC-003 with unrelated in-progress work (ADMIN-012, WFC-007, DB-013, DESIGN-033 and others); all of it preserved untouched in both passes",
+  "goal": "Define one canonical organization, active manager, and vendor identity contract for all WFC data and authorization.",
+  "scope": {
+    "in": [
+      "Organization identifier resolution",
+      "Active manager membership validation",
+      "Vendor company identity",
+      "Ambiguous ownership quarantine rules",
+      "Who holds workforce.view / workforce.manage in the role matrix that RLS reads (second pass, CP-102)"
+    ],
+    "out": [
+      "Creating workforce tables or writing any migration",
+      "Guessing or automatically merging identities",
+      "Defining vendor identity already owned by DB-012 or ORG-007; those lanes consume this contract (CP-102)",
+      "Any workforce table, membership, or department schema (WFC-004)",
+      "Editing lib/auth/admin-capabilities.ts (ADMIN-012 owns it) - read only, never written",
+      "Editing the org_members read sites the contract now reports as gaps (WORK-102 / work / admin own them)"
+    ]
+  },
+  "working_set": [
+    "lib/admin/resolve-authorized-org.ts",
+    "lib/admin/org-entity-access.ts",
+    "lib/admin/org-scoped-mutation.ts",
+    "lib/accounts/** (organization identity resolution only; no auth or billing behavior)",
+    "types/**vendor**",
+    "docs/engineering/agents/organization/**",
+    "docs/engineering/tasks/active/WFC-003.json",
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/agents/organization/CHARTER.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/DECISIONS.md#CP-102",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/handoffs/pending/HF-ADMIN-012-DEPARTMENT-SCOPE.json"
+  ],
+  "acceptance_criteria": [
+    "All workforce records resolve through one documented organization key",
+    "Department managers and vendors can be validated as active members/entities of the same organization",
+    "Ambiguous or missing ownership has a fail-closed quarantine outcome",
+    "Database receives a decision-complete identity handoff"
+  ],
+  "acceptance_criteria_state": {
+    "1": "met - organizations.id with a 21-entry alias map (16 at delivery, +5 added 2026-09-27 for WFC-004's org-bound entity columns; the resolver's readable-key sets are now DERIVED from this map rather than transcribed beside it, because the transcription classified all five new canonical keys as cross-tenant), every entry classified and every citation resolved to a file that still exists at the cited line, asserted by test",
+    "2": "MET as of 2026-09-27, and MEASURED rather than restated. The recorded blocker was 'no vendor entity and no department entity exists in the repository'. Both now exist, in the active chain, verified by reading the DDL in the test rather than by a sentence: WFC-004 created public.vendor_entities (20260927100000_workforce_vendor_entity_home.sql:160-210, org_id uuid NOT NULL references public.organizations(id), unique (id, org_id), seven-value status CHECK, a composite self-FK that makes a cross-organization merge impossible by constraint) and public.workforce_departments + workforce_department_managers + workforce_department_memberships (20260927100100_workforce_departments_and_memberships.sql:183-350, org_id NOT NULL FK, unique (id, org_id), one accountable manager per department, one active primary membership per organization and person). A cross-organization manager-to-vendor reference is refused by a FOREIGN KEY (workforce_departments (vendor_entity_id, org_id) -> vendor_entities (id, org_id), :203-204), so the same-organization claim the criterion asks for is a database guarantee rather than a predicate somebody has to remember to write. The criterion TEXT is unchanged and was never deleted. The new block 'WFC-003 acceptance criterion 2, measured against the migration chain' runs validateActiveManagerMembership, classifyVendorOwnership and proveSameOrganization on the MEASURED entity state, so a reverted migration or a renamed column turns it red rather than letting it keep passing on a hardcoded vendorEntityExists: true. TWO RESIDUALS ARE RECORDED, NOT ABSORBED, and neither is WFC-003's: lib/database.types.ts contains neither new entity table, so TypeScript cannot yet select from them (the migrations are the source of truth for schema, so the entities exist and the criterion is met); and no live route reads vendor_entities, with the vendors/org_vendors merge still UNRESOLVED (CP-113, HF-DB-012-VENDOR-ENTITY-MERGE-UNRESOLVED) - that question is about two READER NAMES, not about whether a vendor identity exists. The forcing function for it moves from 'WFC-003 is active' to that open handoff, which is its correct owner.",
+    "3": "met - 11-code fail-closed quarantine vocabulary, 26 recorded ambiguities each with evidence and an owning lane Third pass: 11-code fail-closed quarantine vocabulary unchanged; the six missing-vendor-table readers and the seven un-enforcing org_members read sites unchanged.",
+    "4": "met - three handoffs; the second pass makes the WFC-004 handoff specification-complete including the role-matrix decision that was previously unowned Consumed, not just delivered: WFC-004 authored the vendor entity home, the department/membership schema and the reconciliation substrate from section 6, and DB-016 authored the section 2.5.2 role-matrix migration citing HF-WFC-004-WORKFORCE-RBAC-PROVISIONING as its specification."
+  },
+  "verification": {
+    "tier": "feature",
+    "tier_result": "partial",
+    "tier_result_reason": "CP-120. The tier RAN this pass: scoped eslint passed, scoped typecheck passed (RELEASE-010's scoped program, 27 of 4313 repository TypeScript sources, lib/database.types.ts correctly reported as NOT in the program), and check:migration-validation scanned all five untracked chain migrations green. It then ABORTED at check:supabase-target with 'SUPABASE_PROJECT_ID is required' - an environment prerequisite, not a defect in the code under test. The trigger is scripts/verify.mjs:335 (has(/supabase\\/migrations\\//) over the changed set) and the changed set includes OTHER LANES' UNTRACKED migrations (WFC-004's three, DB-014's, DB-016's), not anything WFC-003 touched; this task's diff is test-and-doc only. Per CP-120 no lane may record a migration-touching feature tier as pass, so this is recorded partial with the aborting step named. The credential was NOT fabricated.",
+    "commands": [
+      "npx vitest run __tests__/admin/workforce-identity-contract.test.ts",
+      "NODE_OPTIONS='--max-old-space-size=8192' npx tsc -p tsconfig.wfc003-slice.json --noEmit",
+      "npx eslint types/vendor-identity-contract.ts __tests__/admin/workforce-identity-contract.test.ts",
+      "npx vitest run __tests__/admin/workforce-identity-contract.test.ts __tests__/admin/db016-capability-matrix-agreement.test.ts __tests__/admin/admin-capability-department-scope.test.ts lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts",
+      "npx vitest run __tests__/admin",
+      "npm run agents:validate",
+      "npm run check:admin-route-registry",
+      "npm run check:admin-audit",
+      "npm run verify:feature -- --changed"
+    ],
+    "evidence": [
+      {
+        "command": "npx vitest run __tests__/admin/workforce-identity-contract.test.ts",
+        "result": "pass",
+        "output": "Test Files 1 passed (1); Tests 77 passed (77); Duration ~0.5-1.5s",
+        "note": "Up from 65. The four CP-119 failures are resolved and twelve tests were added or rewritten. Both negative controls are green."
+      },
+      {
+        "command": "CP-119 DEMONSTRATION A - the superseded value re-inserted as the negative control's final assertion",
+        "result": "fail-by-design",
+        "output": "Test Files 1 failed (1); Tests 1 failed | 76 passed (77). AssertionError: DEMO: assert the superseded value: expected 'closed' to be 'capability_expressed_entity_unsourced'",
+        "note": "Proves the value form is verdict-dependent and the mechanism form is not: all five mechanism assertions BEFORE the re-inserted literal passed. A temporary line added to this lane's own test file and removed in the same pass; file restored from a /tmp copy and re-hashed."
+      },
+      {
+        "command": "CP-119 DEMONSTRATION B - the whole suite against a SIMULATED pre-WFC-004 chain (scanDepartmentEntities forced to exists:false, i.e. the truth of 2026-09-26)",
+        "result": "demonstrated",
+        "output": "Test Files 1 failed (1); Tests 3 failed | 74 passed (77). Failing: 'finds the department entity WFC-004 created on 2026-09-27'; 'classifies CP-094 as CLOSED...'; 'runs the two predicates end to end on the MEASURED entity state'. BOTH NEGATIVE CONTROLS GREEN.",
+        "note": "The verdict moved to 'capability_expressed_entity_unsourced' and the negative control stayed green, because it asserts the retargeting and not the answer. The three failures are the STATE assertions, which is correct: they must refuse to let a changed truth be re-adopted silently. The same run found one more self-inflicted instance (a test named 'pure function' that also pinned today's verdict) and it was rewritten. No repository migration or resolver file was written at any point."
+      },
+      {
+        "command": "NODE_OPTIONS='--max-old-space-size=8192' npx tsc -p tsconfig.wfc003-slice.json --noEmit",
+        "result": "pass",
+        "output": "(no output; exit 0)"
+      },
+      {
+        "command": "npx eslint types/vendor-identity-contract.ts __tests__/admin/workforce-identity-contract.test.ts",
+        "result": "pass",
+        "output": "(no output; exit 0)"
+      },
+      {
+        "command": "npx vitest run __tests__/admin/workforce-identity-contract.test.ts __tests__/admin/db016-capability-matrix-agreement.test.ts __tests__/admin/admin-capability-department-scope.test.ts lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts",
+        "result": "pass",
+        "output": "Test Files 4 passed (4); Tests 161 passed | 10 skipped (171); Duration 654ms",
+        "note": "This lane's suite plus all three suites that own the resolver and the matrix, to prove the CP-119 reconciliation did not weaken or contradict ADMIN-012, DB-016 or WFC-004."
+      },
+      {
+        "command": "npx vitest run __tests__/admin",
+        "result": "pass",
+        "output": "Test Files 273 passed | 1 skipped (274); Tests 3667 passed | 12 skipped (3679); Duration 8.35s",
+        "note": "The brief recorded exactly these 4 failures and no others; there are now 0. The prior delivery's baseline was 3648 passed / 2 skipped."
+      },
+      {
+        "command": "npm run agents:validate",
+        "result": "pass",
+        "output": "validated 17 agents, 183 tasks, 0 warnings, 0 errors"
+      },
+      {
+        "command": "npm run check:admin-route-registry",
+        "result": "pass",
+        "output": "Admin API route files on disk: 291; Legacy route classifications: 54/54; REL-103 check OK - route-method contracts are exact and legacy debt did not grow"
+      },
+      {
+        "command": "npm run check:admin-audit",
+        "result": "pre-existing-failure",
+        "output": "Admin audit registry validation failed (3): - Generated view drift: STATUS.md - Generated view drift: coverage.json - Workbook registry source hash is stale",
+        "note": "Unchanged from the brief's base-SHA finding: 3 failures, not re-derived this pass. Not fixed here - regenerating the workbook is outside this working set and the brief states they are proven pre-existing."
+      },
+      {
+        "command": "npm run verify:feature -- --changed",
+        "result": "partial-aborted-on-credential",
+        "output": "[verify:feature] npx eslint <21 changed source files>  -> no findings; [verify:feature] scoped typecheck: 17 changed TypeScript root(s) ... covered 27 of 4313 repository TypeScript source(s); lib/database.types.ts in program: no; then check:migration-validation scanned 5 migrations OK; then [verify:feature] npm run check:supabase-target -> 'Supabase target actual=<missing> expected=<missing>' / 'SUPABASE_PROJECT_ID is required' / 'EXPECTED_SUPABASE_PROJECT_ID is required' / 'SUPABASE_TARGET_CONFIRMATION must exactly match the approved project ref' -> exit 1",
+        "note": "CP-120. Steps that COMPLETED: scoped eslint, scoped typecheck, migration-chain validation. Step that ABORTED: check:supabase-target, for want of an environment prerequisite. The trigger is scripts/verify.mjs:335 and the changed set it sees includes OTHER LANES' untracked migrations, not anything this task wrote. The credential was not fabricated and no step was disabled to get past it."
+      }
+    ],
+    "hosted_evidence": "none claimed - this task created no schema, applied no migration, and ran no browser surface, in either pass. Every claim is a claim about source and migration text, cited to file:line, and every current-state claim is now derived by test rather than transcribed.",
+    "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+    "last_run_at": "2026-09-27T12:10:00.000Z",
+    "result": "pass-with-exceptions"
+  },
+  "progress": {
+    "summary": "Third pass complete. CP-119 review accepted: all four red tests were the suite working. Three value expectations updated with the date and the task IDs that moved them; the negative control's hardcoded verdict replaced by five mechanism assertions and demonstrated to survive a verdict change in both directions. The sweep found a FALSE GREEN in this lane's own seed scanner, the same anti-pattern in the resolver (transcribed key Sets instead of derived, quarantining five provable tenant keys), and a false test name. Contract reconciled. Acceptance criterion 2 re-run against the chain and MET: both entity tables exist, tenant-bound by constraint, with a foreign key refusing a cross-organization manager-to-vendor reference. Task completed.",
+    "completed": [
+      "First pass: canonical organizations.id with a 16-entry alias map, active-manager validation, vendor identity contract, 11-code quarantine vocabulary, 22 recorded ambiguities, 32 tests, contract document, STATE.md section",
+      "OBLIGATION 1: retired MANAGER_SCOPE_GAP.currentState (the hardcoded string literal) and replaced it with MANAGER_SCOPE_REQUIREMENT (a rule, quotable) plus assessManagerScopeClosure (a pure classifier over a measurement). The literal cannot survive as a claim because there is no longer a claim to be wrong",
+      "OBLIGATION 1: the suite now derives the state from the live resolver module (import), the resolver's source text (parse, with a parse===import cross-check so neither can drift alone), the migration chain and lib/database.types.ts. Current verdict capability_expressed_entity_unsourced, asserted",
+      "OBLIGATION 1: replaced the literal assertion with four real-resolver capability assertions - a department manager has no organization-wide workforce.manage, an organization administrator keeps it for every target, a department manager holds it only for a department it manages, and secondary membership grants nothing. These fail if ADMIN-012 regresses; no string in this repo is consulted",
+      "OBLIGATION 1: negative control proven in both directions and recorded. A one-line /tmp mutant of ADMIN_CAPABILITY_TARGET_TYPES turned 4 tests red including the primary state assertion; unsetting the override restored 65/65. Three negative controls are permanent in the suite, plus one proving the 'closed' state is reachable so the middle state is a real verdict",
+      "OBLIGATION 2: took the CP-102 decision DB-013 declined to take from a security fix. Which roles carry workforce.view / workforce.manage / workforce.publish in org_role_permissions, and that the answer is a rule (catalog INTERSECT workforce.* MINUS department-scoped) rather than a table",
+      "OBLIGATION 2: established WHY the absence hurts - loadCapabilities (lib/auth/admin-context.ts:222-243) unions the matrix with the TypeScript catalog, so an org administrator passes withAdminCapability('workforce.manage') and then reads zero rows through RLS. Measured 20+ gated routes and 20+ staff_members readers. CP-098 plausible-zero, not a 403",
+      "OBLIGATION 2: decided the mechanism - MIGRATION, WFC-004's, CP-051 manual additive apply - for three stated reasons (the matrix is world-readable via roleperms_select using(true); it decides RLS so a per-tenant matrix makes the grant set differ per org; role defaults are a product contract not tenant data). Per-tenant delegation stays configuration on org_members.permissions. Default matrix = schema, deviation = tenant data",
+      "OBLIGATION 2: decided the organization-administrator default (owner and admin get view+manage+publish org-wide, staff.manage retained, additive only) and the department-manager default (view+publish, NEVER manage, because has_perm has no target argument so a matrix grant would be organization-wide - the one change that would actually violate CP-094)",
+      "OBLIGATION 2: answered 'gap or posture' as BOTH and refused to conflate them. Genuine gap for the eight organization-wide roles. Deliberate posture for department_manager, recorded so nobody 'fixes' it by widening the matrix. The decision text says so in the contract, not only here",
+      "OBLIGATION 2: named the operational cost a migration author would otherwise discover mid-apply - admin_acting_context_sessions.capability_version digests org_role_permissions.perms (20260722002848:171,302), so the apply invalidates every active acting-context session for the affected roles. One migration, all roles, verify re-activation before applying",
+      "OBLIGATION 2: recorded that isOrganizationCreator / isMasterAccount bypass has_perm entirely, so a creator with no membership row is authorized at the route and still reads nothing - and deliberately did NOT change it, because the remedy is a membership row and not a new RLS bypass",
+      "SWEEP: found and corrected a false claim about the missing vendor tables. The first delivery said a route reading one 'returns a PostgREST error, not an empty result'; every live reader already handles 42P01, and did so at the base SHA, so the claim was wrong the day it was written. The surviving launch fact is different and now stated: permanently-unavailable health and governance signals, five of seven indistinguishable from a genuine null",
+      "SWEEP: found and corrected an undercount. The reader list was short by three sites - org_contracts is also read by app/api/admin/organization/overview/route.ts:64 and app/api/admin/organization/tours-health/route.ts:98. Seven sites, now enumerated by the test so an eighth turns the suite red",
+      "SWEEP: WITHDREW the first delivery's claim that any authenticated user can read any organization's staff_members. The CP-104 correction block is right - 20260823210000 drops those three policies by literal name and by a dynamic pg_policies sweep a literal grep cannot see, and DB-013's 20260926150000 drops them again. Restated honestly as an availability gap, not a disclosure one",
+      "SWEEP: WITHDREW the overstatement that 'three implementations enforce the membership predicate and all four cannot drift'. Measured: eleven org_members read sites in the workforce authority surface, FOUR enforce status='active' and SEVEN do not, including lib/admin/workforce-authority.service.ts:68 which IS the workforce authority boundary",
+      "SWEEP: found two sites that infer the ORGANIZATION from membership ordering - lib/admin/calendar/aggregate.ts:1013-1019 and lib/admin/tour-event-operations.service.ts:751-775 - which violates this contract's own rule 4.3.1, ratified two directories away from resolve-authorized-org.ts:72-76",
+      "SWEEP: found and classified staff_members.user_id -> org_members.org_id as a BRIDGE, not an alias, because workforce-authority.service.ts:201-216 derives a row's organization from the member's user_id and then WRITES the inference back. resolveWorkforceOrganizationKey now quarantines it. Recorded, not ratified",
+      "SWEEP: re-pointed every stale line citation at the current lines (admin-capabilities.ts:199-206, :113-121, :131, :267-275, :319-323, :372-391, :452-453, :462, :481-487) and added a test that resolves every cited path:line against the filesystem, so a citation into a regenerated or deleted file fails the suite",
+      "Authored three handoffs: HF-WFC-004-WORKFORCE-RBAC-PROVISIONING (the migration specification, no SQL authored), HF-WFC-003-MEMBERSHIP-PREDICATE-AND-ORG-INFERENCE, HF-WFC-003-MISSING-VENDOR-TABLE-READERS",
+      "Appended a second dated section to docs/engineering/agents/organization/STATE.md without rewriting or deleting any existing content",
+      "Verification: focused vitest 65/65 (from 32), full __tests__/admin 3648 passed, scoped tsc clean, eslint clean, agents:validate 0 warnings / 0 errors, check:admin-route-registry OK, check:admin-audit re-verified pre-existing at base SHA by sha256 over all 42 hash inputs",
+      "CP-119 VALUE UPDATE 1: the department-entity expectation now asserts the entity WFC-004 created and checks the two properties that make it usable as a scope (NOT NULL organizations(id) FK and unique (id, org_id)), not the existence of a name. The comment records the old assertion verbatim, the date, and the task that moved it",
+      "CP-119 VALUE UPDATE 2: the CP-094 classification is now 'closed', asserted with the reason naming workforce_departments and with the residual (WFC-005, 'not the same as PROVEN') required to be present. The superseded middle state gets its OWN test that reaches it by flipping one bit of the real measurement, so it cannot be quietly deleted",
+      "CP-119 VALUE UPDATE 3: the seed-statement expectation is now three files and the test is no longer NAMED 'finds both', because a count that also asserts the chain is finished is not something a measurement of the chain can know",
+      "CP-119 MECHANISM FIX: the negative control's closing literal is replaced by five mechanism assertions - override restored, capabilitiesSourcePath() is the real resolver, the retargeted measurement's inputs equal the real file's parsed content, the chain half is unchanged by an override that only retargets the resolver, and the verdict is a legal member of the declared three-state vocabulary AND differs from the mutants'. No expected verdict appears anywhere in it",
+      "CP-119 MECHANISM FIX, PROVEN IN BOTH DIRECTIONS: re-inserting the superseded value as the final assertion produced 1 failed ('expected closed to be capability_expressed_entity_unsourced') with all five mechanism assertions passing; running the whole suite against a SIMULATED pre-WFC-004 chain left BOTH negative controls GREEN with 3 state assertions red. A mechanism assertion survives the move; a state assertion refuses to be re-adopted silently",
+      "SWEEP / FALSE GREEN FIXED: scanSeededWorkforcePermissions now reads BOTH seed spellings (VALUES tuples and the $json$ literal) and reports which shape wrote each statement; a statement in an unrecognised shape yields an empty seed and is asserted to be non-empty, so 'the scanner found nothing' can never read as 'the chain seeds nothing'",
+      "SWEEP / FALSE GREEN FIXED: three assertions that were green over now-false claims are corrected. 'No seeded role carries any workforce.* permission' becomes a test that asserts the EFFECTIVE matrix (the union across statements) against the CP-102 rule, so it no longer depends on the statement count; 'the chain seeds five roles' becomes 'every catalog role has a row'; and 'proves the split-brain: the route admits and the database returns nothing' - which had become a live-defect report for a CLOSED defect - becomes the residual measurement, workforce family agreeing and the outside-family residual non-zero and reported",
+      "SWEEP / THE MOVE IS RECORDED, NOT LAUNDERED: WORKFORCE_RBAC_SEED_IN_CHAIN.history carries DB-013's [] and the five seeded roles beside DB-016's nine carriers, with the date and both task IDs, and the test asserts BOTH ends of the move so neither value can be re-adopted",
+      "SWEEP / THE SAME ANTI-PATTERN IN THE RESOLVER, FIXED: DIRECTLY_READABLE_KEYS and CANONICAL_KEYS were hand-written Set literals transcribing WORKFORCE_ORGANIZATION_KEY_ALIASES, so the map could gain an entry the resolver never saw - and it did: all five of WFC-004's NOT NULL organizations(id) columns were classified cross-tenant, quarantining a provable tenant key as a tenant violation. Both sets are now derived from the map, and the map carries the five new canonical entries with file:line evidence (21 entries)",
+      "SWEEP / A FALSE TEST NAME FIXED: 'still has no vendor entity table in the chain or the generated schema' asserted only the six unproven reader names, so it kept passing after the entity was created. Renamed to what the body measures, and the entity's existence is now asserted in it",
+      "SWEEP / ONE MORE SELF-FOUND INSTANCE: a test named 'the classifier is a pure function of the measurement' also asserted today's verdict from the real measurement - the same anti-pattern, found by the pre-WFC-004 simulation. Rewritten to compare four EXPLICIT synthetic measurements differing in one bit, so purity and sensitivity are tested without pinning any current answer",
+      "ACCEPTANCE CRITERION 2 RE-RUN AGAINST THE CHAIN: a new block measures both entity tables, their tenant bindings, their composite keys, the cross-organization foreign key, the org_members status CHECK vocabulary, and then RUNS validateActiveManagerMembership + classifyVendorOwnership + proveSameOrganization on the measured state, plus both negatives (cross-organization refusal and revoked-manager quarantine). vendorEntityExists is the measured answer, not a literal",
+      "CONTRACT RECONCILED: a new section 0.2 records the third pass as a DIFFERENT failure from 0.1 - claims that were still true and had become too weak - with a table of what each section said, what moved it and who moved it; 2.4 states closed with the superseded state kept; 2.5 states the workforce-family split-brain is closed and the residual outside it is measured; 2.5.1's five-step split-brain is marked as the 2026-09-26 state it describes; 3.2 names the vendor entity while 3.3's six unproven READER names stay unproven; 1.1 gains the five entity keys and the derivation note; section 6 gains a delivery status; section 7.1 gains 7.1.1 with the negative control's own defect and both demonstrations",
+      "REPORTED RATHER THAN EDITED: four value pins in DB-016's own db016-capability-matrix-agreement.test.ts, plus three assertions in it that were checked and deliberately NOT reported with the reason, in HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS. No DB-016 file was modified",
+      "Durable STATE.md third section appended without rewriting or deleting any existing content"
+    ],
+    "next_steps": [
+      "Release/DB-016 apply the role-matrix seed. New handoff needed for regenerating lib/database.types.ts to include WFC-004's five entity tables. DB-002/DB-016/DB-012/ORG-007 settle the vendors/org_vendors merge. DB-016 applies the four value pins reported in HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS. WFC-005 proves CP-094 end to end; closed is not PROVEN."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-26T02:10:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Activated with a corrected working set and CP-102 identity-contract precedence. Design/DB-012 overlap resolved by ruling, not by displacing an active task.",
+        "completed": [
+          "Ownership review",
+          "Working-set repair"
+        ],
+        "next_steps": [
+          "Inventory organization identity resolution"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-26T14:20:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Authored the sole canonical workforce identity contract for the program (CP-102). Read every migration and source file in the working set plus the four real org-resolution modules, lib/organizations/identity.ts, the seven live vendor-reading admin routes, and the VEND-102 vendor identity module. Wrote a decision-complete contract, a typed contract surface, and 32 tests. Recorded 22 ambiguities as quarantine outcomes instead of resolving them. Created no tables and no migrations. Preserved all unrelated worktree changes untouched.",
+        "completed": [
+          "Canonical organization key and 16-entry alias map, each entry cited to file:line",
+          "organization_id vs venue_id vs five legacy staff-organization keys separated and classified",
+          "Active-manager rule pinned to org_members + org_role_permissions and to the three existing enforcing implementations",
+          "Vendor identity contract defined as an entity id owned by exactly one organization, never a name",
+          "11-code fail-closed quarantine vocabulary with terminal/retryable classification",
+          "22 ambiguities recorded and left unresolved, each with evidence and an owning lane",
+          "Decision-complete WFC-004 handoff (9 numbered mandatory requirements)",
+          "Typed contract surface + 32 passing tests + clean scoped tsc + clean eslint",
+          "Durable STATE.md section appended"
+        ],
+        "next_steps": [
+          "WFC-004 authors the schema from contract section 6",
+          "DB-012 and ORG-007 consume the contract rather than authoring vendor identity",
+          "Re-evaluate criterion 2 against real vendor and department entities once WFC-004 lands"
+        ],
+        "blockers": [
+          "Criterion 2 not fully demonstrable: no vendor entity or department entity exists in the repository",
+          "MANAGER_SCOPE_GAP unresolved by design; WFC-004 owns it"
+        ],
+        "scope_expansions": [
+          {
+            "path": "lib/organizations/identity.ts",
+            "reason": "Named in the agent's own durable STATE.md as the ORG-002 canonical identity mapping and the one place the org alias map already lives. Read-only; not modified."
+          },
+          {
+            "path": "supabase/migrations/20250816132000_org_rbac.sql",
+            "reason": "The only CREATE TABLE for organizations, org_members, org_invites, org_role_permissions, and the first org_role_permissions seed."
+          },
+          {
+            "path": "supabase/migrations/20260821180438_job_posting_scopes_and_organization_seats.sql",
+            "reason": "Holds the CURRENT is_org_member and has_perm definitions, the org_members status/permissions CHECK constraints, and has_perm's own null-role denial at :139."
+          },
+          {
+            "path": "supabase/migrations/20260821031214_repair_event_tour_staffing_flow.sql",
+            "reason": "Adds staff_members.org_id, proves the backfill rules, and holds the four correct staff_shifts_scoped_* policies that also read workforce.*."
+          },
+          {
+            "path": "supabase/migrations/20260823010000_venue_identity_bridge.sql",
+            "reason": "The only proven venue-to-organization bridge and the repository's quarantine/provenance precedent."
+          },
+          {
+            "path": "supabase/migrations/20250818120000_admin_staffing_core.sql, 20260714015225_hiring_hub_roster_management_compat.sql, 20260602120000_unified_staff_roster.sql, 20260625000000_polymorphic_hiring_entity.sql, 20260819205907_connected_worker_work_hub.sql, 20260328150000_event_vendor_requests.sql, 20250818121000_tours_core.sql, 20260825131000_phase3_phantom_tables_promotion.sql, 20260910000001_get_active_organizer_account_for_org.sql, 20260909195618_atomic_org_invites.sql",
+            "reason": "Read-only, grep-targeted, to establish which DDL is LAST, prove the six unproven vendor tables absent, and verify revoked_at is never written."
+          },
+          {
+            "path": "lib/admin/vendor-identity.ts, lib/admin/vendor-domain.ts, lib/admin/vendor-field-projection.ts, __tests__/admin/vendor-identity.test.ts, app/api/admin/vendors/route.ts, app/api/admin/organization/vendor-governance/route.ts",
+            "reason": "The recorded glob types/**vendor** matches no file, so the real vendor surface had to be located. Adopting VEND-102 is also what keeps this lane from competing with DB-012/ORG-007."
+          },
+          {
+            "path": "lib/auth/admin-capabilities.ts, lib/database.types.ts, lib/accounts/account-types.ts, lib/admin/tour-access.service.ts, scripts/audit/admin-workflow-registry.ts, scripts/verify.mjs, package.json",
+            "reason": "Read-only. The third implementation of the membership rule and the source of MANAGER_SCOPE_GAP; the generated schema of record; and the three script/package files read only to attribute two verification failures honestly."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-26T16:25:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Second pass. Took both routed-back obligations. Retired the MANAGER_SCOPE_GAP literal and made the CP-094 department-scope state a measurement with a pure classifier, proven self-invalidating by a negative control that went red on a one-line resolver mutant and green on restore. Took the CP-102 workforce.* role-provisioning decision as a rule derived from the live capability catalog, and specified the migration to WFC-004 without authoring any SQL. The requested sweep found four more false claims and one overstatement in this lane's own prior delivery - a wrong PostgREST claim, a reader list short by three, a withdrawn staff_members disclosure claim, a wrong line citation, and 'all four cannot drift' which is actually four-of-eleven - and corrected every one, recording the corrections rather than quietly editing them. Authored no table and no migration, did not write lib/auth/admin-capabilities.ts or any other lane's file, and preserved all unrelated worktree changes untouched. WFC-003 remains active on acceptance criterion 2, which cannot be met against real data until WFC-004 creates a vendor entity and a department entity.",
+        "completed": [
+          "Obligation 1: MANAGER_SCOPE_GAP literal retired; MANAGER_SCOPE_REQUIREMENT + assessManagerScopeClosure + DEPARTMENT_SCOPE_FORBIDDEN_WORKAROUND in its place",
+          "Obligation 1: four real-resolver capability assertions replace the literal string assertion",
+          "Obligation 1: negative control run, red on a mutant and green on restore, plus three permanent in-suite negative controls",
+          "Obligation 2: CP-102 workforce.* role decision recorded as a rule, with mechanism, per-role answer, org-admin default, department-manager default, and an explicit gap-versus-posture verdict",
+          "Contract document reconciled with the code and with the CP-104 correction; a section 0.1 correction table added so the wrong claims stay visible",
+          "Membership-predicate inventory measured (4 enforcing, 7 not) and recorded with owners",
+          "Missing-vendor-table reader list completed to seven sites with per-reader 42P01 behaviour",
+          "Three handoffs authored; second STATE.md section appended; task record updated with real verification output"
+        ],
+        "next_steps": [
+          "WFC-004 authors the role-matrix migration and the department entity",
+          "WORK-102 and work/admin close the org_members status gaps and the two membership-ordering inferences",
+          "DB-002 folds the seven reader sites into the schema-gap inventory",
+          "Re-run criterion 2 against real vendor and department entities when WFC-004 lands"
+        ],
+        "blockers": [
+          "Acceptance criterion 2 remains unmet by design: no vendor entity and no department entity exists in the repository, so the criterion cannot be demonstrated against real data. This is WFC-004's to close and the criterion is deliberately retained."
+        ],
+        "scope_expansions": [
+          {
+            "path": "lib/auth/admin-capabilities.ts",
+            "reason": "The resolver ADMIN-012 owns. Read only, never written, and this is load-bearing: the contract's Obligation 2 rule is DERIVED from ROLE_DEFAULT_CAPABILITIES and DEPARTMENT_SCOPED_ROLE_CAPABILITIES, so an ADMIN-012 change turns this suite red until WFC-003 re-decides. Recorded explicitly because the dependency is now bidirectional in effect even though the file is untouched. Its mtime (14:53) predates this session and its sha256 is unchanged."
+          },
+          {
+            "path": "lib/auth/admin-context.ts",
+            "reason": "Read only. loadCapabilities at :222-243 is what makes the unseeded role matrix a silent availability failure rather than a 403, and loadMembership at :169-182 is the fourth enforcing implementation of the membership predicate. Without both, Obligation 2's consequence cannot be stated honestly."
+          },
+          {
+            "path": "lib/auth/api-auth.ts",
+            "reason": "Read only. Establishes that admin routes receive a USER-SCOPED supabase client, which is the whole reason RLS applies to these reads and the split-brain is real rather than theoretical."
+          },
+          {
+            "path": "supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql",
+            "reason": "DB-013's migration. Its header at :114-125 is where DB-013 raised the role-matrix problem and declined to action it; its :145-147, :161, :186, :209, :273-361 are the policies and the post-condition style the WFC-004 role migration should follow."
+          },
+          {
+            "path": "supabase/migrations/20260722002848_admin_signed_acting_context_sec101.sql",
+            "reason": "Read only. :171 and :302 prove capability_version digests org_role_permissions.perms, which is the session-invalidation cost of the decision. Omitting it would have sent WFC-004 into an apply that silently logs everyone out."
+          },
+          {
+            "path": "supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql",
+            "reason": "Read only. The dynamic pg_policies sweep at :293-313 is why this lane's first delivery's literal-grep evidence for the staff_members disclosure was wrong, per the CP-104 correction block."
+          },
+          {
+            "path": "lib/admin/workforce-authority.service.ts, tour-access.service.ts, event-access.service.ts, tour-event-operations.service.ts, calendar/aggregate.ts, workspace-scope.ts, lib/auth/acting-context.ts, lib/auth/admin.ts, lib/services/admin-workforce-people.service.ts",
+            "reason": "Read only, programmatically. The eleven org_members read sites are enumerated by scanning lib/admin/**, lib/auth/** and lib/services/admin-workforce*.ts, because the contract's 'all implementations agree' claim had to be measured rather than assumed and turned out to be false for seven of them. No file in this set was modified; the finding is handed off."
+          },
+          {
+            "path": "app/api/admin/organization/overview/route.ts, app/api/admin/organization/tours-health/route.ts",
+            "reason": "Read only. Two live org_contracts readers the first delivery missed, found by enumerating every .from(<missing table>) under app/api/**. Unchanged at base SHA."
+          },
+          {
+            "path": "scripts/verify.mjs",
+            "reason": "Read only, to re-check the unconditional typecheck call rather than repeat a remembered line number. The call is at :36, not the :44 previously recorded. Unchanged at base SHA."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-27T12:10:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "THIRD PASS, and the pass that closed the task. CP-119's review accepted the four red tests as the suite working; three expectations were updated to the new truth with the date and the two task IDs that moved each one, and the fourth was fixed as a MECHANISM rather than a value. The negative control no longer contains an expected verdict, and that form was demonstrated to survive a verdict change in both directions - including a simulated pre-WFC-004 chain against which both negative controls stayed green. The requested sweep found more than the anti-pattern: a FALSE GREEN in this lane's own scanner that had left three assertions passing over claims that had stopped being true, the SAME anti-pattern in the resolver (a transcribed Set where a derived one belonged, which was quarantining five provable tenant keys as tenant violations), and a test name asserting a falsehood its body never checked. All three fixed. Four value pins in DB-016's own test were REPORTED, not edited. The contract document was reconciled, and the reconciliation is recorded as a DIFFERENT failure from the second pass's: not claims that went false but claims that went stale-weak, so a reader would under-scope work that is already done. Acceptance criterion 2 was re-run against the chain rather than restated, and it is MET: both entity tables exist, tenant-bound by constraint, with a foreign key refusing a cross-organization manager-to-vendor reference. WFC-003 moves to completed. No migration, no lib/auth/admin-capabilities.ts, no scripts/ci/**, and no other lane's file was written; all unrelated worktree changes are preserved; nothing was committed.",
+        "completed": [
+          "Three CP-119 value updates, each recording what moved it",
+          "The negative control rewritten to assert the mechanism, with both demonstrations recorded",
+          "The false-green scanner fixed, and the three assertions it was fooling corrected with the corrected form diffing the EFFECTIVE matrix",
+          "The transcribed readable-key Sets replaced with derived ones, and five canonical entity keys added to the alias map",
+          "The false test name corrected",
+          "Acceptance criterion 2 measured against the chain and met",
+          "Contract sections 0.2, 1.1, 2.4, 2.5, 2.5.1, 3.2, 6, 7 and 7.1 reconciled, with every superseded value kept",
+          "HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS authored for the database lane",
+          "Third STATE.md section appended",
+          "Task record updated with real verification output, including the two demonstrations and the CP-120 abort"
+        ],
+        "next_steps": [
+          "RELEASE/DB-016 apply the role-matrix seed; WFC-003's involvement is finished",
+          "A new handoff is needed for regenerating lib/database.types.ts to include WFC-004's five entity tables - recorded and asserted here, not fixed here",
+          "DB-002/DB-016/DB-012/ORG-007 settle the vendors/org_vendors merge with the single recorded catalog query",
+          "DB-016 applies the four reported value pins",
+          "WFC-005 proves CP-094 end to end; 'closed' is not 'PROVEN'"
+        ],
+        "blockers": [],
+        "scope_expansions": [
+          {
+            "path": "supabase/migrations/20260927100000_workforce_vendor_entity_home.sql, 20260927100100_workforce_departments_and_memberships.sql, 20260927100200_workforce_reconciliation_and_status_ledger.sql, 20260926200000_org_role_permissions_workforce_seed.sql",
+            "reason": "WFC-004's and DB-016's migrations, read programmatically by the suite. READ ONLY, never written. This is the load-bearing expansion of the pass: acceptance criterion 2 is only decidable by reading them, and the org_role_permissions seed count moved because one of them exists. No migration was authored or modified."
+          },
+          {
+            "path": "supabase/migrations/20260821180438_job_posting_scopes_and_organization_seats.sql",
+            "reason": "Read only, to measure the org_members status CHECK rather than transcribe it, so criterion 2's 'active member' half is a measurement like its vendor half."
+          },
+          {
+            "path": "__tests__/admin/db016-capability-matrix-agreement.test.ts",
+            "reason": "DB-016's file. READ ONLY. Swept for the CP-119 anti-pattern as instructed and four findings reported in HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS rather than edited, because CP-102 makes this lane the sole author of the contract and the file is inside DB-016's working set."
+          },
+          {
+            "path": "docs/engineering/agents/organization/STATE.md",
+            "reason": "A third dated section appended. No existing content was rewritten or deleted, consistent with the standing rule that a record keeps its corrections."
+          },
+          {
+            "path": "docs/engineering/handoffs/pending/HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS.json",
+            "reason": "New handoff to the database lane. Per the operating rules a cross-domain need is a handoff, not a silent scope expansion."
+          },
+          {
+            "path": "lib/auth/admin-capabilities.ts",
+            "reason": "Still read only and still never written. Its sha256 is unchanged. The dependency on it is now bidirectional in effect because the contract's §2.5.2 rule is DERIVED from ROLE_DEFAULT_CAPABILITIES and DEPARTMENT_SCOPED_ROLE_CAPABILITIES, so an ADMIN-012 change turns this suite red until WFC-003 re-decides. With the task complete that dependency becomes a new-CP trigger, recorded as a next step rather than an open blocker."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-27T18:57:21.130Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Third pass complete. CP-119 review accepted: all four red tests were the suite working. Three value expectations updated with the date and the task IDs that moved them; the negative control's hardcoded verdict replaced by five mechanism assertions and demonstrated to survive a verdict change in both directions. The sweep found a FALSE GREEN in this lane's own seed scanner, the same anti-pattern in the resolver (transcribed key Sets instead of derived, quarantining five provable tenant keys), and a false test name. Contract reconciled. Acceptance criterion 2 re-run against the chain and MET: both entity tables exist, tenant-bound by constraint, with a foreign key refusing a cross-organization manager-to-vendor reference. Task completed.",
+        "completed": [],
+        "next_steps": [
+          "Release/DB-016 apply the role-matrix seed. New handoff needed for regenerating lib/database.types.ts to include WFC-004's five entity tables. DB-002/DB-016/DB-012/ORG-007 settle the vendors/org_vendors merge. DB-016 applies the four value pins reported in HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS. WFC-005 proves CP-094 end to end; closed is not PROVEN."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Organization -> Database (WFC-004): canonical tenant key, active-manager validation, vendor identity/ownership, and quarantine contract. Sole authoritative source (CP-102). Section 6 is the schema specification; section 6 item 10 is the role-matrix specification. CONSUMED: WFC-004 authored the vendor entity home, the department/membership schema and the reconciliation substrate from it.",
+    "Organization -> Database (WFC-004): HF-WFC-004-WORKFORCE-RBAC-PROVISIONING. The workforce.* role decision, per-role answer, provisioning mechanism, the transaction post-condition, and the session-invalidation cost. WFC-003 specified it and authored no SQL. CONSUMED by DB-016 as 20260926200000_org_role_permissions_workforce_seed.sql.",
+    "Organization -> Work/Admin/Database: HF-WFC-003-MEMBERSHIP-PREDICATE-AND-ORG-INFERENCE. Seven org_members read sites that do not enforce status='active', two sites that infer the organization from membership ordering, and the staff_members user_id -> org_id inference that writes itself back. STILL OPEN.",
+    "Organization -> Database/Orchestrator: HF-WFC-003-MISSING-VENDOR-TABLE-READERS. Seven live reader sites for six tables with no DDL, with per-reader 42P01 behaviour. STILL OPEN and now more pointed: public.vendor_entities exists, so the open question is which readers migrate to it and whether vendors/org_vendors are one entity.",
+    "Organization -> Database (DB-016), NEW: HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS. Four value pins in DB-016's own agreement test, plus three assertions in it deliberately NOT reported with the reason. Reported, not edited.",
+    "Organization -> Database/DB-012/ORG-007: this contract is an input to vendor identity work; do not author a competing definition. The vendors/org_vendors merge remains UNRESOLVED (CP-113) and is the open half of WFC-004's decision 1.",
+    "Organization -> Work/Admin: organization and manager resolution semantics that WFC-005/WFC-006 and WFC-008/WFC-010 must not re-derive."
+  ],
+  "dependencies": [
+    "WFC-001"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-004-DEPARTMENT-SCOPE-CLOSURE",
+  "task_id": "WFC-004",
+  "from_agent": "database",
+  "to_agent": "work",
+  "cc_agents": [
+    "admin",
+    "orchestrator",
+    "qa",
+    "security-admin",
+    "organization"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T11:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; concurrent lanes present. WFC-004 added ONLY untracked new files under supabase/migrations/**, supabase/tests/** and docs/engineering/migration-validation/**, plus append-only edits to docs/engineering/migration-validation/hosted-history-ledger.json, docs/engineering/DECISIONS.md and docs/engineering/agents/database/STATE.md. No commit was made; agents:generate was deliberately not run.)",
+  "summary": "WFC-003 §2.4 Gap B (`capability_expressed_entity_unsourced`) is CLOSED on the schema side. ADMIN-012 already delivered the capability side; WFC-004 created the entity, the accountable-manager relation and the primary/secondary membership relation that `managedDepartmentIds` needs. WFC-005 owns the `DepartmentManagementLookup` and the department-targeted guard that consume it. WFC-004 did not touch the resolver and does not own it.",
+  "what_exists_now": {
+    "the_entity": "public.workforce_departments — platform-unique uuid id, org_id uuid NOT NULL REFERENCES organizations ON DELETE CASCADE, slug, name, department_kind in (internal, vendor), vendor_entity_id (composite same-org FK to public.vendor_entities, ON DELETE RESTRICT), is_active, description.",
+    "the_manager_relation": "public.workforce_department_managers — (department_id, org_id) composite FK, user_id NOT NULL, source, source_ref, assigned_at, assigned_by, ended_at, ended_reason. AT MOST ONE row per department with ended_at IS NULL, enforced by a partial unique index and proven under concurrency by the harness.",
+    "the_membership_relation": "public.workforce_department_memberships — (department_id, org_id) composite FK, person_user_id NOT NULL, membership_kind in (primary, secondary), is_active, effective_from, effective_to, source, source_ref, notes. AT MOST ONE ACTIVE primary per (organization, person), enforced by a partial unique index and proven under concurrency.",
+    "the_predicate_to_use": "public.workforce_department_is_managed_by(uuid, uuid) — SECURITY DEFINER, search_path pinned to `public, extensions`, EXECUTE revoked from PUBLIC and anon and granted to authenticated and service_role. It reads workforce_department_managers and NEVER workforce_department_memberships, which is what makes CP-094's 'secondary membership never grants management authority' a DATABASE property rather than a resolver convention. It ALSO re-checks active org membership through the chain's own public.is_org_member, so a manager revoked after appointment loses authority immediately without the row being edited. Wrap every call in `(select ...)` so the planner evaluates it once per statement.",
+    "the_helper_views": "public.workforce_department_directory (security_invoker) adds manager_user_id, manager_assigned_at and has_accountable_manager as an index-only LEFT JOIN LATERAL against the partial unique index. public.workforce_membership_health (security_invoker) reports active_primary_count, active_secondary_count and active_department_count per (organization, person)."
+  },
+  "what_WFC_005_must_build": [
+    "The `DepartmentManagementLookup` that produces `managedDepartmentIds` for lib/auth/admin-capabilities.ts:372-391's `departmentScopeDenial`. Source it from workforce_department_managers where ended_at IS NULL AND public.is_org_member(user_id, org_id) — the same two conjuncts the SQL function uses, so the resolver and the database cannot disagree.",
+    "The department-targeted guard. It must call workforce_department_is_managed_by rather than re-deriving management from a membership or a role string, because the database enforces the boundary and a resolver that derives it differently is the CP-110 failure shape.",
+    "Every write command must read the AFFECTED ROW COUNT — see HF-WFC-004-AFFECTED-ROW-COUNT. An RLS-filtered write exits 0 having written nothing."
+  ],
+  "three_boundaries_the_receiver_must_not_widen": [
+    "A department manager's authority is over departments they manage. They may edit their own department's name, slug, description and is_active, and MAY NOT change org_id, department_kind or vendor_entity_id — the latter is enforced by workforce_departments_protect_boundaries, a SECURITY INVOKER BEFORE UPDATE trigger, because an RLS `with check` is a ROW-level predicate and cannot express 'this column may change, that one may not'. A symmetric policy without the trigger would let a manager re-point their own org_id; an asymmetric policy refuses their legitimate rename. Both halves are asserted by the contract postflight.",
+    "A department manager may place a worker in a department they manage, and MAY NOT create a department or appoint a manager. The manager INSERT policy carries NO department-scoped arm, so there is no path from a membership row to management authority. Verified: the postflight reports a department-scoped arm on that policy as a violation, and the harness injects one to prove the check fires.",
+    "A revoked manager loses department authority at READ time even while their manager row is open. Verified on a real catalog. This is the failure WFC-003 §2.3a records in seven live read sites, including the workforce authority boundary itself, and it is not repeated here."
+  ],
+  "two_residuals_stated_rather_than_silently_narrowed": [
+    "`workforce.view` is seeded organization-wide for eight roles including department_manager (DB-016), so a department manager can currently READ every department row in their organization. WFC-003 §2.5.2 records that residual as belonging to WFC-005/WFC-006, which own the read models. The one-line change that would close it is to drop the has_perm(view) arm from wfc004_workforce_departments_select; it is NOT made here because it is a read-model decision and making it in a schema task would silently remove a surface those lanes have not replaced. A department row carries name, slug, kind and a vendor_entity_id, and the vendor entity itself stays behind vendor.view, so the residual exposes no vendor data.",
+    "'At most one active primary membership per (organization, person)' is enforced by an index. 'At least one' is a property of a SET of rows and is NOT enforced: demoting the last active primary to secondary would leave a worker with none. It is DETECTED by public.workforce_membership_health and prevented at the command layer, which is WFC-005's. A deferred cross-row constraint trigger was considered and rejected — it would fire on every membership write including bulk imports and would make a legitimate reorganisation a two-phase operation."
+  ],
+  "a_legacy_table_that_must_not_be_treated_as_a_department": "public.staff_members.department and public.employment_assignments.department are unconstrained nullable TEXT with no foreign key and no department table anywhere in the chain. Reading either as a department scope is recorded as DEPARTMENT_SCOPE_FORBIDDEN_WORKAROUND (WFC-003 §2.4 Gap B). 20260927100200 records every distinct free-text value as a department_not_an_entity quarantine row with its row count and its organizations as evidence, and creates NO department from it. A free-text value may appear in seven organizations and mean something different in each.",
+  "verification": "executed:supabase/tests/wfc004_workforce_departments.harness.sh — stages 3a (two-session race plus a drop-the-index control), 3b (the same for the accountable manager), 3c (the manager trigger firing with RLS bypassed), 3d (revocation honoured at read time), 3e (secondary membership confers nothing, with the silent-no-op measurement and its positive pair), 3f (the department-manager rename-versus-boundary asymmetry), 3g (six cross-organization refusals, each with a positive control), 3h (organization-wide authority for an org admin and the tenant wall against org B), 5 (eight injected postflight defects). 158 checks, 0 failures.",
+  "related_decisions": [
+    "CP-094",
+    "CP-102",
+    "CP-110"
+  ],
+  "next_action": "WFC-005 builds DepartmentManagementLookup from workforce_department_managers joined through is_org_member, wires it into the department-targeted guard, and applies the affected-row-count rule from HF-WFC-004-AFFECTED-ROW-COUNT to every workforce write.",
+  "accepting_task_id": "WFC-005",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": []
+}

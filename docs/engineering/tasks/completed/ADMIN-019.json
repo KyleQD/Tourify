@@ -1,0 +1,256 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-019",
+  "title": "Repair the wrong-segment event id in the four mounted events siblings",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T23:46:10.655Z",
+  "updated_at": "2026-09-27T23:55:03.045Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (585 entries)",
+  "goal": "Make every app/api/admin/events/[id]/* sibling resolve the event UUID from the [id] segment and verify the resource at the data boundary.",
+  "scope": {
+    "in": [
+      "The four mounted sibling routes of task-messages"
+    ],
+    "out": [
+      "The registry proof harness (ADMIN-016 already corrected task-messages)"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/events/[id]/communications/route.ts",
+    "app/api/admin/events/[id]/communication-settings/route.ts",
+    "app/api/admin/events/[id]/group-chats/route.ts",
+    "app/api/admin/events/[id]/secure-uploads/route.ts",
+    "__tests__/admin/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "AC-1: no route under app/api/admin/events/[id] reads a path segment other than the [id] segment, proven by a test that mounts a real UUID and asserts the event_task_messages / event_group_chats / event_secure_uploads predicate value.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "All 9 wrong-segment reads repaired: communications/route.ts:23,107,215; communication-settings/route.ts:38,78; group-chats/route.ts:27,103; secure-uploads/route.ts:26,113,243 now call resolveEventIdFromRequest (segment after the literal \"events\" segment, URL-decoded, UUID-validated, 400 \"Invalid event id\" otherwise) — the ADMIN-014 / events-[id]-analytics shape, not a new scheme.",
+        "__tests__/admin/event-communications-resource-scope.test.ts:5 tests assert the actual predicate value reaching event_bulletins, event_group_chats, event_group_messages, event_secure_uploads, event_task_messages and events_v2 with a real UUID mounted in the path, and that the literal route name never appears.",
+        "The same file walks all 23 route.ts files under app/api/admin/events/[id] and asserts none indexes a fixed path segment and that every path split resolves through indexOf(\"events\") or extractIdFromPath. Verified: no other route in the family had the defect.",
+        "__tests__/admin/admin019-base-sha-proof.test.ts:4 tests regenerate the four route files from git show 16fb834f into a mirror under __tests__/admin/.admin019-base-mirror (removed in afterAll), dynamically import them and assert the base behaviour. The shared worktree is never reverted."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "AC-2: lib/admin/api-route-registry.ts records the enforced class for each repaired method, and __tests__/admin/admin-registry-guard-proof.test.ts stays green.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "npx vitest run __tests__/admin/admin-registry-guard-proof.test.ts -> 10 passed, green after the repair.",
+        "AC-2 is met without a registry edit: ADMIN-016 had already reconciled all four routes. enforced class per method is recorded for /api/admin/events/[id]/communications and /communication-settings at route level (capability_gated, capability event.view, capabilityByMethod PATCH+POST and PATCH respectively, GET inheriting the route capability) and explicitly per method for /group-chats (authClassByMethod GET+POST authenticated_user) and /secure-uploads (authClassByMethod DELETE+GET+POST authenticated_user).",
+        "The repair preserved withAdminCapability(\"event.view\") on communications and communication-settings and withAuth on group-chats and secure-uploads, so every declared authClass, capability literal and resourceBoundary marker still matches the source; the proof test compares all three against the route source and reports zero errors.",
+        "lib/admin/api-route-registry.ts is owned by ADMIN-020/021/022/023 and was NOT edited by ADMIN-019. The exact per-method record ADMIN-019 measured is recorded in this task under registry_entries for them to reconcile; no registry change was required for the proof test to stay green."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "AC-3: cross-tenant denial is proven - a user who is not an event participant, event owner, or admin/manager event participant gets 403 on every method of all four routes.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "event-communications-resource-scope.test.ts \"denies a user with no event relationship on every method of all four routes\": 14 denial requests covering GET/POST/PATCH of communications, GET/PATCH of communication-settings, GET (list + messages) and POST (message + create) of group-chats, and GET (list + download), POST and DELETE of secure-uploads all return 403 for a user with no participant row, no ownership and no employment assignment.",
+        "Anti-vacuity control in the same test: the identical 13 requests are then replayed as the owner of the same event and every one returns 200, so the 403s cannot come from a route that is simply broken.",
+        "A second anti-vacuity control replays the event-B denials for the event-A owner and then authorises the same request shapes on event A.",
+        "Base-SHA proof of vacuity: at 16fb834f all four routes return 403 to the OWNER of the mounted event (admin019-base-sha-proof.test.ts, ownerStatuses [403,403,403,403]), so a bare 403 assertion would have passed at base for the wrong reason."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npx tsc -p tsconfig.admin019-slice.json --noEmit",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/admin/ -> 277 passed | 1 skipped (278 files); 3668 passed | 12 skipped (3680). Baseline 275 passed | 1 skipped (276 files); 3651 passed | 12 skipped. +17 tests, no decrease.",
+          "npm run check:admin-route-registry -> 291 route files, 53/53 legacy, REL-103 check OK",
+          "npx tsc -p tsconfig.admin019-slice.json --noEmit -> zero diagnostics",
+          "npx vitest run __tests__/admin/admin-registry-guard-proof.test.ts -> 10 passed",
+          "npm run agents:validate -- --strict -> 18 agents, 225 tasks, 103 pending handoffs, 0 warnings, 0 errors"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T23:55:03.045Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "AC-1, AC-2 and AC-3 met. All nine wrong-segment reads in the four mounted events siblings now resolve the event UUID from the [id] segment through resolveEventIdFromRequest (the ADMIN-014 / analytics shape: segment after the literal 'events' segment, URL-decoded, UUID-validated, 400 otherwise). Two mutation branches with no authorization at all were found and closed, as ADMIN-014 found in its sibling: communications PATCH mark_read/acknowledge ran no gate and wrote with no event predicate, and group-chats POST create-group ran no gate and could create a group plus upsert arbitrary participants in any event. Three data-boundary gaps also closed: group-chats GET ?messages had no event predicate on event_group_messages, secure-uploads POST completed a task message from any event via task_message_id, and secure-uploads DELETE wrote with no event predicate. 17 new tests; the base-SHA mirror proves the 403s are non-vacuous.",
+    "completed": [
+      "resolveEventIdFromRequest added to all four routes; every handler returns 400 'Invalid event id' on an unresolvable segment",
+      "communications: PATCH now resolves the same participant OR event-owner OR worker-assignment union as GET before any branch, and every bulletin UPDATE/DELETE carries .eq('event_id', eventId)",
+      "group-chats: POST create-group gated on participant OR event owner before any write, including the event_participants upserts",
+      "group-chats: GET ?messages=true&groupId= resolves the group with .eq('id', groupId).eq('event_id', eventId) (404), requires group membership (403), and predicates event_group_messages on event_id",
+      "secure-uploads: task_message_id completion side effect read and update both carry .eq('event_id', eventId); the final DELETE carries .eq('event_id', eventId)",
+      "13 behavioural tests in __tests__/admin/event-communications-resource-scope.test.ts: predicate-value proof per route, non-UUID rejection on all ten methods, cross-tenant denial on every method of all four routes, and an anti-vacuity control that authorises the identical requests as the event owner",
+      "4 base-SHA tests in __tests__/admin/admin019-base-sha-proof.test.ts regenerating the four routes from git show 16fb834f into a generated mirror: at base every predicate is the literal route name, every owner GET is 403, and two ungated mutation branches are reachable by a stranger",
+      "A family-wide test walks all 23 route.ts files under app/api/admin/events/[id] and asserts none indexes a fixed path segment",
+      "ADDED PATH tsconfig.admin019-slice.json (new, outside the declared working set) - scoped typecheck artifact because full-repo typecheck OOMs on this 8GB box"
+    ],
+    "next_steps": [
+      "ADMIN-020/021/022/023 own lib/admin/api-route-registry.ts and must reconcile the per-method record; the exact entries ADMIN-019 measured are in the ADMIN-019 task record under registry_entries. No registry edit was required for the proof test to stay green.",
+      "Residual, not fixed here: group-chats create-group still upserts non-participant member_ids into event_participants (now in-tenant only, but still by any participant role) and secure-uploads POST still completes an event task for any event member rather than the ADMIN-014 sender/recipient union. Both need their own bounded decision.",
+      "ADMIN-020/021/022/023/024/025 were corrected from blocked/waiting_dependency to active/ready with a state-only checkpoint; no implementation was started for them."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:54:52.788Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1, AC-2 and AC-3 met. All nine wrong-segment reads in the four mounted events siblings now resolve the event UUID from the [id] segment through resolveEventIdFromRequest (the ADMIN-014 / analytics shape: segment after the literal 'events' segment, URL-decoded, UUID-validated, 400 otherwise). Two mutation branches with no authorization at all were found and closed, as ADMIN-014 found in its sibling: communications PATCH mark_read/acknowledge ran no gate and wrote with no event predicate, and group-chats POST create-group ran no gate and could create a group plus upsert arbitrary participants in any event. Three data-boundary gaps also closed: group-chats GET ?messages had no event predicate on event_group_messages, secure-uploads POST completed a task message from any event via task_message_id, and secure-uploads DELETE wrote with no event predicate. 17 new tests; the base-SHA mirror proves the 403s are non-vacuous.",
+        "completed": [
+          "resolveEventIdFromRequest added to all four routes; every handler returns 400 'Invalid event id' on an unresolvable segment",
+          "communications: PATCH now resolves the same participant OR event-owner OR worker-assignment union as GET before any branch, and every bulletin UPDATE/DELETE carries .eq('event_id', eventId)",
+          "group-chats: POST create-group gated on participant OR event owner before any write, including the event_participants upserts",
+          "group-chats: GET ?messages=true&groupId= resolves the group with .eq('id', groupId).eq('event_id', eventId) (404), requires group membership (403), and predicates event_group_messages on event_id",
+          "secure-uploads: task_message_id completion side effect read and update both carry .eq('event_id', eventId); the final DELETE carries .eq('event_id', eventId)",
+          "13 behavioural tests in __tests__/admin/event-communications-resource-scope.test.ts: predicate-value proof per route, non-UUID rejection on all ten methods, cross-tenant denial on every method of all four routes, and an anti-vacuity control that authorises the identical requests as the event owner",
+          "4 base-SHA tests in __tests__/admin/admin019-base-sha-proof.test.ts regenerating the four routes from git show 16fb834f into a generated mirror: at base every predicate is the literal route name, every owner GET is 403, and two ungated mutation branches are reachable by a stranger",
+          "A family-wide test walks all 23 route.ts files under app/api/admin/events/[id] and asserts none indexes a fixed path segment",
+          "ADDED PATH tsconfig.admin019-slice.json (new, outside the declared working set) - scoped typecheck artifact because full-repo typecheck OOMs on this 8GB box"
+        ],
+        "next_steps": [
+          "ADMIN-020/021/022/023 own lib/admin/api-route-registry.ts and must reconcile the per-method record; the exact entries ADMIN-019 measured are in the ADMIN-019 task record under registry_entries. No registry edit was required for the proof test to stay green.",
+          "Residual, not fixed here: group-chats create-group still upserts non-participant member_ids into event_participants (now in-tenant only, but still by any participant role) and secure-uploads POST still completes an event task for any event member rather than the ADMIN-014 sender/recipient union. Both need their own bounded decision.",
+          "ADMIN-020/021/022/023/024/025 were corrected from blocked/waiting_dependency to active/ready with a state-only checkpoint; no implementation was started for them."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:55:03.045Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1, AC-2 and AC-3 met. All nine wrong-segment reads in the four mounted events siblings now resolve the event UUID from the [id] segment through resolveEventIdFromRequest (the ADMIN-014 / analytics shape: segment after the literal 'events' segment, URL-decoded, UUID-validated, 400 otherwise). Two mutation branches with no authorization at all were found and closed, as ADMIN-014 found in its sibling: communications PATCH mark_read/acknowledge ran no gate and wrote with no event predicate, and group-chats POST create-group ran no gate and could create a group plus upsert arbitrary participants in any event. Three data-boundary gaps also closed: group-chats GET ?messages had no event predicate on event_group_messages, secure-uploads POST completed a task message from any event via task_message_id, and secure-uploads DELETE wrote with no event predicate. 17 new tests; the base-SHA mirror proves the 403s are non-vacuous.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "registry_entries": {
+    "note": "lib/admin/api-route-registry.ts is owned by ADMIN-020/021/022/023 and was NOT edited by ADMIN-019. __tests__/admin/admin-registry-guard-proof.test.ts was run and is green against the current registry after these repairs (no registry change is required for it to stay green). The entries below are the code-exact per-method record ADMIN-020/021/022/023 should reconcile if they choose to.",
+    "/api/admin/events/[id]/communications": {
+      "authClass": "capability_gated (unchanged)",
+      "authClassByMethod": "omit — the source enforces capability_gated on GET/POST/PATCH via withAdminCapability(\"event.view\")",
+      "capabilityByMethod": "omit — capability: \"event.view\" already covers all three methods",
+      "resourceBoundary": "kind \"event_membership\", verifiedAt \"event_participants\", boundBy [\"event_participants\"] — already correct and still present in the source; now enforced by resolveEventAccess for GET/POST/PATCH alike (it was GET only at base for PATCH)"
+    },
+    "/api/admin/events/[id]/communication-settings": {
+      "authClass": "capability_gated (unchanged)",
+      "authClassByMethod": "omit — capability_gated on GET/PATCH",
+      "capabilityByMethod": "keep { PATCH: \"event.view\" } — the current entry already records it",
+      "resourceBoundary": "kind \"event_membership\", verifiedAt \"event_participants\", boundBy [\"event_participants\"] — unchanged and still present"
+    },
+    "/api/admin/events/[id]/group-chats": {
+      "authClass": "capability_gated (route level), enforced class authenticated_user (unchanged)",
+      "authClassByMethod": "GET: \"authenticated_user\", POST: \"authenticated_user\" — already recorded, unchanged",
+      "capabilityByMethod": "omit",
+      "resourceBoundary": "kind \"event_membership\", verifiedAt \"event_participants\", boundBy [\"event_participants\"] — unchanged and still present; the boundary is now real for POST create-group, which had none"
+    },
+    "/api/admin/events/[id]/secure-uploads": {
+      "authClass": "capability_gated (route level), enforced class authenticated_user (unchanged)",
+      "authClassByMethod": "DELETE: \"authenticated_user\", GET: \"authenticated_user\", POST: \"authenticated_user\" — already recorded, unchanged",
+      "capabilityByMethod": "omit",
+      "resourceBoundary": "kind \"event_membership\", verifiedAt \"checkEventOwnership(\", boundBy [\"checkEventOwnership(\", \"getParticipantRole(\", \"event_participants\"] — unchanged and still present"
+    },
+    "registry_baseline": "npm run check:admin-route-registry after the repair: 291 route files, 53/53 legacy, REL-103 OK. No route was added, removed, or reclassified, so the exact legacy baseline is unaffected."
+  },
+  "per_route": {
+    "communications": {
+      "methods_repaired": [
+        "GET",
+        "POST",
+        "PATCH"
+      ],
+      "predicate_before": "event_bulletins/event_participants/events_v2/employment_assignments event_id = 'communications'",
+      "predicate_after": "the real [id] UUID, e.g. 11111111-1111-4111-8111-111111111111",
+      "extra": "PATCH mark_read and PATCH acknowledge ran NO membership gate at all and their UPDATE carried only .eq(\"id\", id) with no event predicate; PATCH now resolves the same participant OR event-owner OR worker-assignment union as GET and every bulletin UPDATE/DELETE carries .eq(\"event_id\", eventId)."
+    },
+    "communication-settings": {
+      "methods_repaired": [
+        "GET",
+        "PATCH"
+      ],
+      "predicate_before": "events_v2.id = 'communication-settings'",
+      "predicate_after": "the real [id] UUID on both the ownership read and the settings UPDATE",
+      "extra": "No missing gate found: GET required participant OR owner, PATCH required owner, and the settings UPDATE was already .eq(\"id\", eventId)."
+    },
+    "group-chats": {
+      "methods_repaired": [
+        "GET",
+        "POST"
+      ],
+      "predicate_before": "event_group_chats/event_group_messages/event_participants event_id = 'group-chats'",
+      "predicate_after": "the real [id] UUID",
+      "extra": "POST create-group ran NO authorization at all: any authenticated user could create a group in any event AND upsert arbitrary user ids as event_participants of that event. Now gated on participant OR event owner before any write. GET ?messages=true&groupId= had no event predicate on event_group_messages and no group membership check; it now resolves the group with .eq(\"id\", groupId).eq(\"event_id\", eventId) (404 otherwise), requires group membership (403 otherwise), and predicates the message read on event_id."
+    },
+    "secure-uploads": {
+      "methods_repaired": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "predicate_before": "event_secure_uploads/event_participants event_id = 'secure-uploads'",
+      "predicate_after": "the real [id] UUID",
+      "extra": "No missing gate: GET/POST require isOwner OR participant, DELETE requires event owner. Two data-boundary gaps closed: the task_message_id completion side effect read and updated event_task_messages with .eq(\"id\", taskMessageId) only, so a participant could complete a task in ANY event by attaching its id; both now carry .eq(\"event_id\", eventId) and the read is maybeSingle(). The final DELETE also carried only .eq(\"id\", uploadId) and now carries .eq(\"event_id\", eventId)."
+    }
+  },
+  "base_sha_proof": {
+    "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+    "method": "The four base route sources are read with git show 16fb834f:<path>, written to a generated mirror at __tests__/admin/.admin019-base-mirror, dynamically imported, exercised with the same fake Supabase client, and deleted in afterAll. The shared dirty worktree is never stashed, reverted, or checked out.",
+    "base_result": [
+      "Every route predicate is the literal route name, never the mounted UUID: communications -> \"communications\", communication-settings -> \"communication-settings\", group-chats -> \"group-chats\", secure-uploads -> \"secure-uploads\". All AC-1 assertions fail at base.",
+      "Every owner GET returns 403 at base ([403, 403, 403, 403]): the feature was dead for everyone, so a bare 403 denial test passes vacuously at base.",
+      "Owner mutations are denied at base: communications POST 403, PATCH 404, communication-settings PATCH 403, secure-uploads POST 403, DELETE 403.",
+      "Two mutation branches with no authorization at all are reachable by an unrelated authenticated user at base: group-chats POST create-group returns 200 and inserts a group with event_id \"group-chats\" created_by the stranger, and communications PATCH mark_read returns 200 and writes the stranger into read_by."
+    ]
+  },
+  "residual_findings": [
+    "group-chats POST create-group still upserts any requested member_id that is not already an event participant into event_participants. That is now reachable only by a member of that same event, so it is no longer a cross-tenant write, but it is still an in-tenant participant-roster write by any participant (including a plain staff role). ADMIN-019 did not change it because it is a product behaviour (invite-by-adding) rather than the segment defect; it needs its own bounded decision.",
+    "secure-uploads POST marks a task message complete as a side effect for any event member, not only its sender/recipients. It is now event-scoped at the data boundary, so it is in-tenant, but the narrower ADMIN-014 rule (sender OR recipient OR owner OR admin/manager participant) is not applied on this path.",
+    "The communications family is still capability_gated on event.view for all three methods while its resource boundary is event membership; the accepted participant-access risk recorded on 2026-09-13 still applies, and a PATCH participant action is now reachable for a participant who holds the capability."
+  ],
+  "added_paths": [
+    {
+      "path": "__tests__/admin/event-communications-resource-scope.test.ts",
+      "reason": "new evidence file inside the declared working set"
+    },
+    {
+      "path": "__tests__/admin/admin019-base-sha-proof.test.ts",
+      "reason": "new evidence file inside the declared working set"
+    },
+    {
+      "path": "tsconfig.admin019-slice.json",
+      "reason": "scoped typecheck artifact. Full-repo npm run typecheck is documented as 68m18s / 1384 errors and OOMs on this 8GB box, and the verification standard requires a scoped check. Follows the existing tsconfig.admin003/012/014/015/016-slice.json precedent. Not imported by any build or runtime path; delete with the other lane slice configs once accepted."
+    }
+  ],
+  "migrations": "none authored; no schema change was required"
+}

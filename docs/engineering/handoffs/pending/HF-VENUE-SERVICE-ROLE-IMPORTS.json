@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-VENUE-SERVICE-ROLE-IMPORTS",
   "task_id": "MKT-004",
   "from_agent": "marketplace",
   "to_agent": "venue",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T00:00:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree)",
   "summary": "npm run check:service-role-allowlist (SEC-109) is now blocked only by two untracked venue-lane route files that import createServiceRoleClient from @/lib/supabase/service-role. The marketplace lane removed its own stale reviewed-debt entry and reclassified the debt that actually remains, so the gate no longer fails on any marketplace path. The two remaining files are not in HEAD and are outside the marketplace working set, so the marketplace lane deliberately did not classify or edit them.",
@@ -29,5 +29,7 @@
   "verification": [
     "npm run check:service-role-allowlist — after the marketplace registry edit, the stale-entry failure is gone and the command now reports exactly two unexpected importers: app/api/venue/availability/route.ts and app/api/venue/reservations/route.ts (both untracked, not in HEAD, created 2026-09-24 and 2026-09-25 by a concurrent venue lane).",
     "git cat-file -e HEAD:app/api/venue/availability/route.ts — fatal: path exists on disk but not in HEAD; same for app/api/venue/reservations/route.ts."
-  ]
+  ],
+  "accepting_task_id": "VENUE-006",
+  "completion_condition": "Venue lane: either remove the bare createServiceRoleClient import from app/api/venue/availability/route.ts:4 and app/api/venue/reservations/route.ts:3 in favour of executeServiceRoleJob or an authenticated/RLS read, or add a justified reviewed-debt entry to lib/supabase/service-role-import-review.json with disposition, owner venue-operations, workflowId ADM-WF-0xx, findingId ADM-M-0xx and a rationale of at least 20 characters."
 }

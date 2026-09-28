@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE",
   "task_id": "SOCIAL-007",
   "from_agent": "social",
   "to_agent": "database",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-26T00:00:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty shared worktree; 6 concurrent lanes)",
   "dirty_state_caveat": "Social changed no migration and authored no manifest. This is the product answer to the question HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE asked the owning domain, plus the consumer-side column contract that unblocks the authoring decision.",
@@ -39,5 +39,7 @@
     "Read `lib/services/cross-platform-posting.service.ts:195`: the insert payload includes `platform_status: (options.targets || [...]).reduce(...)`.",
     "Read `app/api/artist/content/overview/route.ts:137,180-181`: the select requests `platform_status, platform_errors` and projects them with `|| {}` fallbacks.",
     "HF-DB-011's own replay harness already reports the skip: `node supabase/tests/db008_chain_contract_replay.mjs . <out> --report` names 20250904110000 as skippedRelationAbsentAtReplay with `columns a fresh replay never creates: platform_status, platform_errors`."
-  ]
+  ],
+  "accepting_task_id": "DB-011",
+  "completion_condition": "Author one strictly additive, forward-only migration that adds `platform_status jsonb DEFAULT '{}'::jsonb` and `platform_errors jsonb DEFAULT '{}'::jsonb` to `public.scheduled_posts` unconditionally, plus the two `create index if not exists` statements, and hand the manifest to the operator. Do not edit 20250904110000 in place; a forward-only chain cannot repair an earlier statement's effect on a fresh replay."
 }

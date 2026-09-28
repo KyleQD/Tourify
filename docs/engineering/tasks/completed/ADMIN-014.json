@@ -1,0 +1,155 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-014",
+  "title": "Fix task-message event resource resolution",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T22:26:07.893Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Resolve the task-message event identifier from the correct segment and prove authorization against the intended resource.",
+  "scope": {
+    "in": [
+      "Resolve the task-message event identifier from the correct segment and prove authorization against the intended resource."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/**/task-messages/**",
+    "__tests__/admin/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "ADMIN-013"
+  ],
+  "resume_condition": "All dependencies complete: ADMIN-013.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete ADMIN-013.",
+      "dependency_task_ids": [
+        "ADMIN-013"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Resolve the task-message event identifier from the correct segment and prove authorization against the intended resource.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "app/api/admin/events/[id]/task-messages/route.ts:15-33 — resolveEventIdFromRequest reads the segment after the literal 'events' segment, URL-decodes it, and requires an event UUID; every handler now 400s instead of authorizing against a non-existent resource.",
+        "__tests__/admin/event-task-message-resource-scope.test.ts — 10 tests. All 10 FAIL at base SHA 16fb834f1a03a70f165be470a5f98f389bf6100a (route restored byte-for-byte from `git show 16fb834:<route>`) and all 10 pass on the repaired route.",
+        "Deny controls inside the same tests: owner(A) POST /events/B/task-messages -> 403 with zero rows written to B, then POST /events/A/task-messages -> 200 with task.event_id = A.",
+        "PATCH complete deny control: segment repair alone leaves 3 of the 10 failing (unrelated user, owner-of-A, non-recipient participant all reach the mutation). The added gate closes them."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "PASS: npm run agents:validate -- --strict -> 'validated 18 agents, 216 tasks, 101 pending handoffs, 0 warnings, 0 errors'.",
+          "PASS: npx vitest run __tests__/admin/event-task-message-resource-scope.test.ts -> 1 file, 10 tests passed.",
+          "PASS: npx vitest run __tests__/admin/ -> 273 files passed | 1 skipped (274); 3624 tests passed | 12 skipped (3636). Stated baseline 3613 passed / 273 files. Delta is exactly +1 file and +11 tests: 10 new tests in event-task-message-resource-scope.test.ts, and admin-profile-column-drift.test.ts went 13 -> 14 because the test that pinned the defect was replaced by two that pin the repaired contract. No existing admin test regressed.",
+          "PASS: npm run check:admin-route-registry -> 'Admin API route files on disk: 291 / Legacy route classifications: 53/53 / REL-103 check OK'. Unchanged from the exact baseline: no route file added or removed and the exported GET/POST/PATCH method set is identical, so the contract and the legacy count are untouched.",
+          "PASS (scoped typecheck, full-repo typecheck deliberately NOT run): NODE_OPTIONS='--max-old-space-size=6144' npx tsc -p tsconfig.admin014-slice.json --noEmit -> 15 diagnostics, byte-identical set to the same slice compiled at base SHA (diff of sorted 'file(line,col): error CODE' output is empty). 0 diagnostics in app/api/admin/events/[id]/task-messages/route.ts and 0 in __tests__/admin/event-task-message-resource-scope.test.ts. The 15 are pre-existing in lib/admin/tour-event-operations.service.ts, lib/services/optimized-notification-service.ts, and admin-profile-column-drift.test.ts lines 198/228/241/276/296/323 (all in the tours/artists block, above every line this task edited).",
+          "PASS: npx eslint 'app/api/admin/events/[id]/task-messages/route.ts' -> no output, exit 0. The repo eslint config does not include __tests__ in its lint scope, so test files are not linted (pre-existing config property, not a gap introduced here).",
+          "NEGATIVE CONTROL 1 (base-SHA proof): with the route replaced byte-for-byte by `git show 16fb834f1a03a70f165be470a5f98f389bf6100a:app/api/admin/events/[id]/task-messages/route.ts`, the new file reports 10 failed | 0 passed. Observed base-SHA statuses prove the denial assertions are not vacuous: 403-where-403-expected became 404 (route cannot resolve any task), 200-where-200-expected became 403/404, GET returned [] where the actor's own event task was required, and the non-UUID path returned 200 instead of 400.",
+          "NEGATIVE CONTROL 2 (gate proof): with the segment repair in place but the PATCH complete authorization block deleted, 3 of 10 fail (unrelated authenticated user, owner of event A on event B's task, non-recipient event participant). This isolates the missing-check branch from the segment bug.",
+          "npx vitest run __tests__/admin/event-task-message-resource-scope.test.ts -> 1 file, 10 tests passed",
+          "same file with the route restored byte-for-byte from git show 16fb834:... -> 10 failed | 0 passed",
+          "same file with the PATCH complete gate deleted but the segment repair kept -> 3 failed | 7 passed",
+          "npx vitest run __tests__/admin/ -> 273 files passed | 1 skipped (274); 3624 tests passed | 12 skipped; stated baseline 3613 passed / 273 files; delta exactly +1 file and +11 tests",
+          "npm run check:admin-route-registry -> Admin API route files on disk: 291 / Legacy route classifications: 53/53 / REL-103 check OK",
+          "NODE_OPTIONS='--max-old-space-size=6144' npx tsc -p tsconfig.admin014-slice.json --noEmit -> 15 diagnostics, sorted set byte-identical to the same slice at base SHA, 0 in the route and 0 in the new test file",
+          "npx eslint 'app/api/admin/events/[id]/task-messages/route.ts' -> no output, exit 0"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T22:26:07.893Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "AC-1 met. app/api/admin/events/[id]/task-messages/route.ts resolved the event identifier from pathname segment 5, which is the literal trailing route name 'task-messages' rather than the [id] segment at index 4, so GET/POST/PATCH all read, wrote and authorized against event_id = 'task-messages'. All three handlers now resolve the segment that follows the literal 'events' segment, URL-decode it, UUID-validate it, and 400 when it is not an event id. The ADMIN-013 bug class was partly present: no envelope-as-boolean here, but two of the three shapes were. The PATCH 'complete' branch performed no authorization at all (segment repair alone leaves 3 of 10 new tests failing), so it is now gated on sender OR task recipient OR event owner OR admin/manager event participant, with an .eq('event_id') predicate on the update. POST trusted a client-supplied context.eventId over the path id when building action_url, so the resolved id now wins.",
+    "completed": [
+      "Dependency ADMIN-013 satisfied; ADMIN-014 unblocked",
+      "resolveEventIdFromRequest added: segment after the literal 'events' segment, URL-decoded, UUID-validated; all three handlers return 400 'Invalid event id' rather than proceeding with an unresolvable resource",
+      "POST task link context now spreads validated.context first and eventId last, so a client-supplied context.eventId can no longer override the resolved tenant for action_url",
+      "PATCH complete now authorizes sender OR task recipient OR event owner OR admin/manager event participant before mutating, and the completion UPDATE carries an .eq('event_id', eventId) data-boundary predicate to match the read",
+      "PATCH complete read switched from .single() to .maybeSingle() so the 404 does not depend on swallowing a PostgREST error",
+      "Retired __tests__/admin/admin-profile-column-drift.test.ts's test that pinned the defect (it asserted ownershipFilters contains ['id','task-messages'] and recorded the defect as an 'ADMIN-003 blocker' needing an explicit guard decision). ADMIN-014 is that guard decision. Replaced with a repaired-contract test plus a non-UUID-rejection test; the sender-attribution tests in that file are unchanged in intent and now use a real event UUID.",
+      "10 new tests in __tests__/admin/event-task-message-resource-scope.test.ts, all proven to fail on base SHA",
+      "ADDED PATH outside the declared working set: tsconfig.admin014-slice.json (new file). Reason: full-repo `npm run typecheck` is documented as 68m18s / 1384 errors and OOMs on this 8GB box, and the verification standard requires a scoped check to be run and named. It extends ./tsconfig.json, pins next-env.d.ts, the task-messages route, and the two touched test files, and follows the existing tsconfig.admin003-slice.json / tsconfig.admin012-slice.json / tsconfig.wfc003-slice.json precedent. It is a verification artifact, not product code, and is not imported by any build or runtime path. It should be deleted with the other lane slice configs once this evidence is accepted. No other path outside the working set was added or edited.",
+      "resolveEventIdFromRequest added and wired into GET, POST and PATCH; 400 'Invalid event id' on an unresolvable segment",
+      "PATCH complete authorization gate added; the completion UPDATE now carries the event_id data-boundary predicate",
+      "POST task link context no longer lets a client-supplied context.eventId override the resolved tenant",
+      "Retired the admin-profile-column-drift test that pinned the defect as expected behavior; it had recorded this as an ADMIN-003 blocker awaiting an explicit guard decision, and ADMIN-014 is that decision",
+      "10 new deny tests in __tests__/admin/event-task-message-resource-scope.test.ts; all 10 fail on base SHA 16fb834 and pass on the repair",
+      "ADDED PATH: tsconfig.admin014-slice.json (new, outside the declared working set) - scoped typecheck artifact because full-repo typecheck OOMs on this box"
+    ],
+    "next_steps": [
+      "Four sibling handlers outside this working set carry the identical segment defect and need their own bounded admin task: app/api/admin/events/[id]/communications/route.ts:23,107,215; app/api/admin/events/[id]/communication-settings/route.ts:38,78; app/api/admin/events/[id]/group-chats/route.ts:27,103; app/api/admin/events/[id]/secure-uploads/route.ts:26,113,243",
+      "lib/admin/api-route-registry.ts:703-710 classifies this route capability_gated (event.view) while the code is on withAuth; recorded, not changed, because the registry file is outside this working set and the check does not compare authClass to code"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T21:59:00.526Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "ADMIN-013 is complete, so ADMIN-014's only recorded dependency is satisfied and this task is activated.",
+        "completed": [
+          "Dependency ADMIN-013 satisfied; ADMIN-014 unblocked"
+        ],
+        "next_steps": [
+          "Resolve the task-message event identifier from the correct segment and prove authorization against the intended resource."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T22:26:07.893Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1 met. app/api/admin/events/[id]/task-messages/route.ts resolved the event identifier from pathname segment 5, which is the literal trailing route name 'task-messages' rather than the [id] segment at index 4, so GET/POST/PATCH all read, wrote and authorized against event_id = 'task-messages'. All three handlers now resolve the segment that follows the literal 'events' segment, URL-decode it, UUID-validate it, and 400 when it is not an event id. The ADMIN-013 bug class was partly present: no envelope-as-boolean here, but two of the three shapes were. The PATCH 'complete' branch performed no authorization at all (segment repair alone leaves 3 of 10 new tests failing), so it is now gated on sender OR task recipient OR event owner OR admin/manager event participant, with an .eq('event_id') predicate on the update. POST trusted a client-supplied context.eventId over the path id when building action_url, so the resolved id now wins.",
+        "completed": [
+          "resolveEventIdFromRequest added and wired into GET, POST and PATCH; 400 'Invalid event id' on an unresolvable segment",
+          "PATCH complete authorization gate added; the completion UPDATE now carries the event_id data-boundary predicate",
+          "POST task link context no longer lets a client-supplied context.eventId override the resolved tenant",
+          "Retired the admin-profile-column-drift test that pinned the defect as expected behavior; it had recorded this as an ADMIN-003 blocker awaiting an explicit guard decision, and ADMIN-014 is that decision",
+          "10 new deny tests in __tests__/admin/event-task-message-resource-scope.test.ts; all 10 fail on base SHA 16fb834 and pass on the repair",
+          "ADDED PATH: tsconfig.admin014-slice.json (new, outside the declared working set) - scoped typecheck artifact because full-repo typecheck OOMs on this box"
+        ],
+        "next_steps": [
+          "Four sibling handlers outside this working set carry the identical segment defect and need their own bounded admin task: app/api/admin/events/[id]/communications/route.ts:23,107,215; app/api/admin/events/[id]/communication-settings/route.ts:38,78; app/api/admin/events/[id]/group-chats/route.ts:27,103; app/api/admin/events/[id]/secure-uploads/route.ts:26,113,243",
+          "lib/admin/api-route-registry.ts:703-710 classifies this route capability_gated (event.view) while the code is on withAuth; recorded, not changed, because the registry file is outside this working set and the check does not compare authClass to code"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

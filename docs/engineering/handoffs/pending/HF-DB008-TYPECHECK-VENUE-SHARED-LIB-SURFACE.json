@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE",
   "task_id": "VENUE-005",
   "from_agent": "venue",
   "to_agent": "design-system",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T22:00:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "Venue lane cleared its own half of the DB-008 code-drift cluster 'venue' (7 objects, 135 diagnostic hits). Three archived objects still have consumers under lib/services/**, which the Wave 34 design-system lane owns as the orphaned shared pile. This handoff is that remaining share. The venue lane verified the zero-importer claim on all of them and deleted its own copies; the lib/services copies are identical twins and were not touched because lib/services/** is outside venue file ownership this wave.",
@@ -40,5 +40,7 @@
   ],
   "verification": [
     "__tests__/venue/venue-code-drift-cluster.test.ts — 29 tests. It asserts each archived object is never CREATEd by an active migration (DDL-shaped regex, so a mere string mention in the 20260414223233 RLS-lint name array does not satisfy it), is absent from lib/database.types.ts, and still exists in the archive/backup SQL that proves it was never in the chain. Negative control verified: a known-present routine (refresh_forum_mviews) matches the same declaration pattern."
-  ]
+  ],
+  "accepting_task_id": "DESIGN-033",
+  "completion_condition": "lib/services/staff-management.service.ts: delete it. It is a byte-level twin of the lib/venue/staff-management.service.ts the venue lane just deleted (both declare `export class StaffManagementService` and reference venue_crew_members, venue_team_contractors and get_staff_dashboard_stats), and it has 0 importers. If the design-system lane wants a verified duplicate first, diff the two against the venue lane's deleted file in git history before removing."
 }

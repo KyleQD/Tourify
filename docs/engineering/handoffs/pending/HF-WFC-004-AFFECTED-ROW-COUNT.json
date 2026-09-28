@@ -1,0 +1,39 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-004-AFFECTED-ROW-COUNT",
+  "task_id": "WFC-004",
+  "from_agent": "database",
+  "to_agent": "work",
+  "cc_agents": [
+    "admin",
+    "orchestrator",
+    "qa",
+    "security-admin"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T11:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; concurrent lanes present. WFC-004 added ONLY untracked new files under supabase/migrations/**, supabase/tests/** and docs/engineering/migration-validation/**, plus the append-only edits to docs/engineering/migration-validation/hosted-history-ledger.json, docs/engineering/DECISIONS.md and docs/engineering/agents/database/STATE.md. No committed file was modified, no commit was made, agents:generate was deliberately not run.)",
+  "summary": "AN RLS-FILTERED WRITE IS A SILENT NO-OP, NOT A DENIAL, AND EVERY WORKFORCE COMMAND MUST CHECK THE AFFECTED ROW COUNT. This is the single most operationally important fact WFC-004 produced, and it is CP-110's plausible zero arriving through row-level security rather than through a capability gate.",
+  "the_finding": {
+    "measured": "In supabase/tests/wfc004_workforce_departments.harness.sh, stage 3e, the harness's first revision asserted on the psql exit code and reported two `rc=0` FAILURES that were both SUCCESSES: a worker whose only relationship to a department is a SECONDARY membership ran `update workforce_departments set name='hijacked' where id = <dept>` and got exit 0, and the same caller ran an insert into the operational status ledger and got exit 0. Neither wrote anything.",
+    "why": "PostgreSQL applies a policy by FILTERING candidate rows. `update ... where id = X` matches zero rows the caller may see, updates zero rows and exits 0. An `insert ... select` whose own SELECT is RLS-filtered to zero rows inserts nothing and exits 0. A `VALUES`-form INSERT is the exception: it always evaluates WITH CHECK and raises 42501.",
+    "why_it_is_worse_than_a_denial": "A denial is legible and a zero is believed (CP-110). A route that reports 'saved' or 'recorded' without checking the affected-row count will tell a department manager their change was applied when the database never saw it, and an admin will read an empty department roster as an absence of people rather than an absence of authority.",
+    "the_pair_that_proves_it": "Measured in the harness for the SAME statement run by two different callers: a secondary-only member's UPDATE affects 0 rows and exits 0, while an organization administrator's identical statement reports 1. The two results differ only in who is asking."
+  },
+  "what_the_receiver_must_do": [
+    "Every workforce WRITE command must read the affected-row count and must map 0 to the `not_authorized` state, not to success. The WFC-008..WFC-010 `not_authorized` state must be produced from the row count, not from the absence of an exception.",
+    "A `VALUES`-form INSERT is the reliable way to distinguish 'denied' from 'nothing to do': it always evaluates WITH CHECK. A `SELECT`-form INSERT into a relation the caller cannot read will report success and write nothing, and any command that reads-then-writes must be aware of that.",
+    "A command that reads a set and then updates it (for example 'retire every membership of this person') can report success having changed nothing, because the read was already RLS-filtered. Count the writes, not the reads.",
+    "WFC-005 owns the `app/api/admin/workforce/**` departments/memberships routes. The `not_authorized` state must be produced from the row count per the exec plan's source-state vocabulary."
+  ],
+  "evidence": "executed:supabase/tests/wfc004_workforce_departments.harness.sh stage 3e — 'a secondary-only member's UPDATE of a department affects 0 rows and exits 0 — it is a SILENT NO-OP, not an error', with the positive pair reported immediately after, and the same measurement repeated in stage 3f for a department DELETE where the privilege IS granted and the policy is the only control.",
+  "related_decisions": [
+    "CP-110",
+    "CP-098",
+    "CP-094"
+  ],
+  "next_action": "WFC-005 records the affected-row-count requirement in the departments/memberships command contract before its first write route, and WFC-008 through WFC-010 derive `not_authorized` from the row count rather than from an absent error.",
+  "accepting_task_id": "WFC-005",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": []
+}

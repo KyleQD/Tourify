@@ -1,0 +1,257 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-007",
+  "title": "Create shared Workforce live-operations design system",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Deliver shared Admin primitives for a responsive, accessible, high-density live-operations workforce experience.",
+  "scope": {
+    "in": [
+      "Live-operations primitives in components/ui/** for the workforce command shell, department health, attention, status, timeline, inspector, and dense collections",
+      "Canonical loading/empty/stale/unavailable/not-authorized/denied/error presentation states",
+      "Scheduling theme convergence onto shared tokens",
+      "A published usage contract the admin lanes compose from"
+    ],
+    "out": [
+      "Feature-specific data fetching",
+      "A second independent token system",
+      "Any path under components/admin/** — that is the admin lane's, held by ADMVIEW-001 and claimed by seven WFC admin tasks (CP-101)",
+      "app/globals.css or any change to the app-wide --radius token, frozen by CP-100"
+    ]
+  },
+  "working_set": [
+    "components/ui/**",
+    "__tests__/design-system/**",
+    "docs/engineering/agents/design-system/**",
+    "docs/engineering/tasks/active/WFC-007.json",
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/agents/design-system/CHARTER.md",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md",
+    "docs/engineering/DECISIONS.md#CP-100",
+    "docs/engineering/DECISIONS.md#CP-101",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/work-packets/WFC-007.md",
+    "docs/engineering/agents/design-system/workforce-live-operations-usage-contract.md",
+    "__tests__/design-system/workforce-live-operations.test.tsx",
+    "tsconfig.ds-scope.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Primitives use shared Admin tokens and semantic status colors",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "There is one main landmark and no nested full-page overflow trap",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Primary text is at least 14px and interactive targets at least 44px",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Keyboard, focus, contrast, reduced-motion, and breakpoint states are covered",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Every primitive ships in components/ui/** with a documented admin usage contract, so no WFC admin lane has to author a shared primitive",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "criterion": "No WFC delivery writes a single line under components/admin/**",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "criterion": "Radius is consumed as a frozen token: any surface needing a different radius ships a scoped token and does not modify :root (CP-100)",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "criterion": "All four source-state presentations (fresh, stale, unavailable, not_authorized) are visually distinct and never render an unavailable source as zero (CP-098)",
+      "owner": "design-system",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "design-system",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run check:token-registry",
+          "npm run verify:feature -- --changed",
+          "npm run agents:validate",
+          "npx tsc -p tsconfig.ds-scope.json --noEmit",
+          "npx vitest run __tests__/design-system",
+          "npx eslint components/ui/ops-*.ts components/ui/ops-*.tsx __tests__/design-system/workforce-live-operations.test.tsx __tests__/design-system/helpers/ops-contrast.ts",
+          "npm run agents:map:components"
+        ],
+        "evidence": [
+          "npm run check:token-registry - PASS (exit 0): 126 registry role rows, 69 active runtime vars, 41 Tailwind var projections, 2 registered global token sources; DESIGN-034 check OK.",
+          "npx tsc -p tsconfig.ds-scope.json --noEmit - PASS (exit 0): 0 diagnostics. tsFilesParsed 12, confirmed from --listFiles (ops-tokens, ops-source-state, ops-status-chip, ops-metric, ops-attention, ops-timeline, ops-inspector, ops-collection, ops-filters, ops-shell, helpers/ops-contrast, workforce-live-operations.test.tsx). Recorded so a short-circuiting run cannot masquerade as a clean one. Substituted for the full-repo typecheck, which exceeds this machine's memory ceiling.",
+          "npx vitest run __tests__/design-system - PASS: 5 files / 67 tests, of which 52 are in workforce-live-operations.test.tsx. Measured WCAG AA contrast over --card #030712 with alpha-composited tone backgrounds: ok 14.09:1, info 13.66:1, warn 14.42:1, critical 13.00:1, neutral 19.29:1, muted 7.84:1.",
+          "npm run agents:validate - PASS (exit 0): 17 agents, 175 tasks, 0 warnings, 0 errors.",
+          "npx eslint on the 12 changed source files - PASS (exit 0): 0 errors, 0 warnings. Two files owned by WFC-003 (types/vendor-identity-contract.ts and __tests__/admin/workforce-identity-contract.test.ts) were swept in by verify:feature --changed and also passed; this lane did not modify them.",
+          "npm run verify:feature -- --changed - DID NOT COMPLETE, so no green feature tier is claimed. The eslint leg passed. The npm run typecheck leg was killed with SIGTERM on the first attempt; a second attempt was still running at 25 minutes with zero diagnostics emitted. Root cause is the known full-repo typecheck resource constraint on this 8GB machine (lib/database.types.ts alone is 25,648 lines), not a diagnostic in this lane's files. The tier aborts before its admin-route checks, so the scoped tsc above is the sanctioned substitute.",
+          "Negative control for the guards: three mutations were injected and reverted - OpsSourceValue rendering an unavailable value, one type step changed to text-xs, and app/globals.css --radius set to 0.25rem. They failed 4 distinct tests (false-zero, sub-14px type, readiness-meter, frozen-radius). Reverting returned 67/67 with app/globals.css clean against HEAD.",
+          "CP-101 evidence: git status --porcelain filtered to components/admin returns 0 rows. No line under components/admin/** was written by this lane. A guard test also fails if any components/ui/ops-* module imports from components/admin/**.",
+          "CP-100 evidence: git diff --stat HEAD -- app/globals.css is empty (byte-identical to HEAD). A guard test asserts :root still holds exactly one --radius declaration with value 0.5rem, and that the only other declaration in the file is the pre-existing .staff-scheduling-prototype 0.625rem.",
+          "npm run agents:map:components - PASS: refreshed the one genuinely stale generated map (9 new components/ui/ops-* rows; TSX count 1945 to 1954). The other eight generated maps were deliberately left untouched because they belong to lanes with live in-flight changes and this lane's change touches none of them. agents:validate reports 0 warnings / 0 errors.",
+          "No browser, hosted, or screenshot evidence is claimed from this lane. Static build, type, and test output only; the visual, focus, breakpoint, and reduced-motion passes belong to QA-003 and QA-007."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-26T21:41:01.948Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "WFC-007 delivered ten `components/ui/ops-*` primitives, a published usage contract, and a `not_authorized` presentation that provably withholds the resource name, value, timestamp, retry affordance, and even the count of restricted items. The CP-098 four-state distinction is carried on four channels so it survives greyscale and forced-colours mode. Two criteria remain: the status roles now owned by DESIGN-033 under CP-105, and the verification tier, which RELEASE-010 has since made runnable — so this lane can now complete its recorded tier, which it should do rather than reporting steps again.",
+    "completed": [
+      "Ownership review: DESIGN-033 held app/globals.css and DESIGN-036 held a read-only carve-out under components/admin/**; both conflicts are removed by the CP-100 and CP-101 rulings, so no coordination with an in-flight design lane is required",
+      "Working set narrowed to components/ui/** and __tests__/design-system/**; the seven logistics and social read-only carve-outs stop recurring as escalations",
+      "Inventory of components/ui/** completed before authoring: badge.tsx, empty-state.tsx, skeleton.tsx, scroll-area.tsx, separator.tsx, and sheet.tsx are reused, the button.tsx 44px convention is reused, and the three duplicate risks (DataTable fork, StatusBadge clone, hand-rolled role=listbox) were declined and recorded in the usage contract.",
+      "Added components/ui/ops-tokens.ts: four frozen vocabularies, one OPS_TONE_CLASSES status-colour map, resolveSourceState, opsRadiusStyle, and the OPS_SCHEDULING_TOKEN_CONVERGENCE table.",
+      "Added the four canonical CP-098 source-state presentations in components/ui/ops-source-state.tsx, distinct on wording, icon, border treatment (solid/solid/dashed/dotted) and tone so they survive greyscale and forced-colours mode.",
+      "Added components/ui/ops-status-chip.tsx (chip, dot, meter, resolveOpsStatus), ops-metric.tsx (metric, grid, department health row), ops-attention.tsx, ops-timeline.tsx, ops-inspector.tsx, ops-collection.tsx, ops-filters.tsx, and ops-shell.tsx.",
+      "not_authorized non-disclosure enforced in one resolver: no value, no timestamp, supplied reason discarded, retry never rendered, resourceName never returned, scope-generic label and announcement. Downstream, OpsMetric renders one word, OpsSourceHealthPanel emits one unnamed aggregated line without disclosing a count, and OpsDepartmentHealthRow withholds the name and the drill-down href.",
+      "Single main landmark made structural: OpsShell owns the only main element, no OpsMain is exported, no shell element sets an overflow rule, min-h-0 is carried on the grid and the flex column, and scrolling is opt-in via a declared viewport.",
+      "14px type floor, 44px target floor, single focus-ring recipe, and reduced-motion escape guard-tested in __tests__/design-system/workforce-live-operations.test.tsx (52 tests) plus __tests__/design-system/helpers/ops-contrast.ts. Full design-system suite: 5 files / 67 tests pass.",
+      "CP-100 satisfied: app/globals.css is byte-identical to HEAD, no ops file defines --radius or authors a :root rule, and a differing radius ships a scoped --ops-radius-* token through opsRadiusStyle.",
+      "CP-101 satisfied: git status shows zero changes under components/admin/**, and a guard test fails if any ops module imports from components/admin/**.",
+      "Scheduling-theme convergence published as OPS_SCHEDULING_TOKEN_CONVERGENCE (neon-purple to primary, neon-cyan to chart-1, neon-green/amber/red to ok/warn/critical, staff 0.625rem to var(--radius)) and handed to the scheduling lane rather than applied, because applying it is an edit in components/admin/**.",
+      "Usage contract published at docs/engineering/agents/design-system/workforce-live-operations-usage-contract.md, including a which-primitive-NOT-to-use table, and guard-tested so any future ops module must be documented.",
+      "Guards negative-controlled: three injected mutations (unavailable value rendered, text-xs type step, --radius set to 0.25rem) failed 4 distinct tests; reverting returned 67/67 with app/globals.css clean.",
+      "Generated tsconfig.ds-scope.json and ran scoped tsc: exit 0, 0 diagnostics, 12 files parsed.",
+      "Linked the existing orchestrator work packet docs/work-packets/WFC-007.md and the published usage contract from the task references rather than copying either."
+    ],
+    "next_steps": [
+      "BLOCKER LIFTED: `npm run verify:feature -- --changed` is now genuinely scoped per RELEASE-010 and completes in 4-8s. Run your recorded tier and report a real pass or fail. Do not report steps again.",
+      "Once DESIGN-033 lands the `--status-*` roles, re-point `OPS_TONE_CLASSES` at the registered roles instead of palette steps, re-run `npm run check:token-registry`, and re-measure contrast. This closes criterion 1.",
+      "Keep the CP-100 radius discipline: your scoped recipe, never `:root`.",
+      "Your CP-098 `not_authorized` non-leak behavior is the strongest result in this wave. Make sure its leak probe is part of the permanent suite, not a one-off assertion."
+    ],
+    "blockers": [
+      "Criterion 1 awaits DESIGN-033's CP-105 `--status-*` role family, which is the only lane holding app/globals.css, tailwind.config.ts, and the token registry. Until those roles exist, the ops primitives use Tailwind palette steps and the CP-098 distinction is enforced in the UI layer seven times over instead of once in the token layer."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-26T02:10:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Activated with a narrowed working set. CP-101 resolves the DESIGN-036 widening question against widening, and CP-100 freezes app/globals.css, so this lane no longer conflicts with any in-flight design-system task.",
+        "completed": [
+          "Ownership review",
+          "Working-set narrowing"
+        ],
+        "next_steps": [
+          "Inventory existing components/ui/** primitives"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-26T21:41:01.948Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Shared Workforce live-operations primitives delivered as ten additive modules in components/ui/**, inside the CP-101 grant, with a published usage contract. The false-zero rule (CP-098) is now a type-level contract rather than a convention, and not_authorized is a six-rule non-disclosure contract enforced in one resolver. Reuse came before authoring: six existing shared primitives were composed rather than reimplemented, and three plausible new primitives (a DataTable fork, a StatusBadge clone, a hand-rolled listbox) were deliberately not created. Acceptance criterion 1 is met only partially: status hue is single-sourced and contrast-tested but not token-governed, because no --status-* role exists in the registry and adding one is outside this grant. The recorded feature tier DID NOT COMPLETE: its eslint leg passed and its full-repo typecheck leg was killed, so no green feature tier is claimed and scoped tsc is recorded as the substitute.",
+        "completed": [
+          "Inventory of components/ui/** completed before authoring: badge.tsx, empty-state.tsx, skeleton.tsx, scroll-area.tsx, separator.tsx, and sheet.tsx are reused, the button.tsx 44px convention is reused, and the three duplicate risks (DataTable fork, StatusBadge clone, hand-rolled role=listbox) were declined and recorded in the usage contract.",
+          "Added components/ui/ops-tokens.ts: four frozen vocabularies, one OPS_TONE_CLASSES status-colour map, resolveSourceState, opsRadiusStyle, and the OPS_SCHEDULING_TOKEN_CONVERGENCE table.",
+          "Added the four canonical CP-098 source-state presentations in components/ui/ops-source-state.tsx, distinct on wording, icon, border treatment (solid/solid/dashed/dotted) and tone so they survive greyscale and forced-colours mode.",
+          "Added components/ui/ops-status-chip.tsx (chip, dot, meter, resolveOpsStatus), ops-metric.tsx (metric, grid, department health row), ops-attention.tsx, ops-timeline.tsx, ops-inspector.tsx, ops-collection.tsx, ops-filters.tsx, and ops-shell.tsx.",
+          "not_authorized non-disclosure enforced in one resolver: no value, no timestamp, supplied reason discarded, retry never rendered, resourceName never returned, scope-generic label and announcement. Downstream, OpsMetric renders one word, OpsSourceHealthPanel emits one unnamed aggregated line without disclosing a count, and OpsDepartmentHealthRow withholds the name and the drill-down href.",
+          "Single main landmark made structural: OpsShell owns the only main element, no OpsMain is exported, no shell element sets an overflow rule, min-h-0 is carried on the grid and the flex column, and scrolling is opt-in via a declared viewport.",
+          "14px type floor, 44px target floor, single focus-ring recipe, and reduced-motion escape guard-tested in __tests__/design-system/workforce-live-operations.test.tsx (52 tests) plus __tests__/design-system/helpers/ops-contrast.ts. Full design-system suite: 5 files / 67 tests pass.",
+          "CP-100 satisfied: app/globals.css is byte-identical to HEAD, no ops file defines --radius or authors a :root rule, and a differing radius ships a scoped --ops-radius-* token through opsRadiusStyle.",
+          "CP-101 satisfied: git status shows zero changes under components/admin/**, and a guard test fails if any ops module imports from components/admin/**.",
+          "Scheduling-theme convergence published as OPS_SCHEDULING_TOKEN_CONVERGENCE (neon-purple to primary, neon-cyan to chart-1, neon-green/amber/red to ok/warn/critical, staff 0.625rem to var(--radius)) and handed to the scheduling lane rather than applied, because applying it is an edit in components/admin/**.",
+          "Usage contract published at docs/engineering/agents/design-system/workforce-live-operations-usage-contract.md, including a which-primitive-NOT-to-use table, and guard-tested so any future ops module must be documented.",
+          "Guards negative-controlled: three injected mutations (unavailable value rendered, text-xs type step, --radius set to 0.25rem) failed 4 distinct tests; reverting returned 67/67 with app/globals.css clean.",
+          "Generated tsconfig.ds-scope.json and ran scoped tsc: exit 0, 0 diagnostics, 12 files parsed."
+        ],
+        "next_steps": [
+          "Hand the usage contract to WFC-008/009/010/013/015/017/020: which primitive, which props, which state, which accessibility guarantee, and which primitive NOT to use.",
+          "Hand the primitive inventory and state matrix to QA for WFC-021 so the visual and accessibility pass tests shared components once instead of per page.",
+          "Raise the --status-* token-role gap to the orchestrator as a scoped path-specific decision: it needs app/globals.css, tailwind.config.ts, and TOKEN_REGISTRY.md together, and none are in this grant.",
+          "Hand supersession of components/admin/logistics/command-center/* to ADMVIEW-001 / DESIGN-036 in their own path: status-indicators.tsx models only ready|degraded|unavailable and has no not_authorized, so it cannot satisfy CP-098 as written; attention-row.tsx, summary-stat.tsx, and states.tsx overlap OpsAttentionItem, OpsMetric, and OpsSourceHealthPanel.",
+          "Hand the scheduling-theme convergence table to the scheduling lane (WFC-011/WFC-013/ADMVIEW-001) to apply inside components/admin/**.",
+          "Keep status active until QA records the browser visual, focus, breakpoint, and reduced-motion pass, and until the feature tier's typecheck leg can complete."
+        ],
+        "blockers": [
+          "The recorded feature tier cannot complete on this machine: npm run verify:feature -- --changed escalates to the full-repo npm run typecheck, which is killed by the 8GB memory ceiling (lib/database.types.ts alone is 25,648 lines). Scoped tsc via the generated tsconfig.ds-scope.json is the sanctioned substitute and is green. This is an environment limit rather than a defect in the delivered files, but it means the tier is not reported green and no whole-repo diagnostic count may be attributed to this lane.",
+          "Acceptance criterion 1 is partially met: structural colour uses shared :root tokens and status colour is single-sourced in OPS_TONE_CLASSES, but the tones are Tailwind palette steps rather than registered CSS roles. There is no --status-* family in the registry, and check-token-registry.mjs treats any non-module .css file with a -- declaration as a global token source, so a real status role needs app/globals.css plus tailwind.config.ts plus TOKEN_REGISTRY.md, all outside the CP-101 and CP-100 grants."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "Design System → Admin (WFC-008/009/010/013/015/017/020): tested primitives plus an explicit usage contract stating which primitive to use, which props exist, which state to render, and which accessibility guarantee holds.",
+    "Design System → QA (WFC-021): the primitive inventory and its state matrix, so the visual and accessibility pass tests shared components once instead of per page.",
+    "Design System → Orchestrator: any single path that genuinely cannot live in components/ui/**, raised as a scoped path-specific decision rather than a grant widening (CP-101)."
+  ],
+  "dependencies": [
+    "WFC-001"
+  ],
+  "execution_state": "waiting_dependency",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "design-system",
+  "shared_working_set": [],
+  "depends_on": [
+    "DESIGN-033"
+  ],
+  "resume_condition": "BLOCKER LIFTED: `npm run verify:feature -- --changed` is now genuinely scoped per RELEASE-010 and completes in 4-8s. Run your recorded tier and report a real pass or fail. Do not report steps again.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "design-system",
+      "condition": "Criterion 1 awaits DESIGN-033's CP-105 `--status-*` role family, which is the only lane holding app/globals.css, tailwind.config.ts, and the token registry. Until those roles exist, the ops primitives use Tailwind palette steps and the CP-098 distinction is enforced in the UI layer seven times over instead of once in the token layer.",
+      "dependency_task_ids": [
+        "DESIGN-033"
+      ]
+    }
+  ]
+}

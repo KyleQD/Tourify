@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-RELEASE-035-TYPE-REGEN-OPERATOR",
   "task_id": "RELEASE-006",
   "from_agent": "release",
-  "to_agent": "owner",
-  "status": "pending",
+  "to_agent": "orchestrator",
+  "status": "accepted",
   "created_at": "2026-09-25T23:45:00.000Z",
   "source_sha": "ca3bb0b0",
   "summary": "BLOCKING, OPERATOR-GATED. `lib/database.types.ts` cannot be regenerated from this workspace because regeneration is credential-gated, not permission-gated. `supabase/.temp/linked-project.json` exists, but `supabase/.temp/pooler-url` is 92 bytes and carries NO embedded password, and Docker is unavailable on this 8 GB machine, so all three modes in scripts/ci/database-types-source.mjs are blocked. The database lane withdrew its own blocker: the active chain is now a proven SUPERSET of the generated contract (13 relations, 54 columns, 42 callables added, ZERO contract-only entries), so regeneration would add coverage and delete nothing. lib/database.types.ts is byte-unchanged. No credential was read, fabricated, or copied, and under CP-051 no migration was applied.",
@@ -38,5 +38,7 @@
     "git status --porcelain -- lib/database.types.ts -> empty. The generated file is byte-unchanged, consistent with the database lane's withdrawal.",
     "CP-051: `supabase/.temp/` was inspected read-only; no migration was applied, no reset was run, and no database connection was opened."
   ],
-  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md"
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "OPTION A, local stack (requires Docker): docker compose -f docker/local/docker-compose.yml up -d, then SUPABASE_TYPE_SOURCE=local npm run generate:database-types, then npm run check:database-types."
 }

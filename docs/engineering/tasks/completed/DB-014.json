@@ -1,0 +1,289 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-014",
+  "title": "Close the surviving staffing RLS exposure and the sweep exemption hazard",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-26T22:40:39.541Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (103 entries at session start; three were DB-013's own untracked supabase/ files, the rest are concurrent lanes. Every path this task touched is listed under the checkpoint's paths_changed. Nothing outside that list was read-modified and no commit, add, checkout, restore, stash, reset, clean, rebase, merge or cherry-pick was issued at any point.)",
+  "goal": "Close the verified surviving permissive/scoped policy coexistence on staff_performance_metrics and record the name-based sweep exemption hazard.",
+  "scope": {
+    "in": [
+      "staff_performance_metrics permissive policy removal and fail-closed replacement",
+      "The name-based sweep exemption hazard: documented in DECISIONS.md, with a detection check that fires and a positive control proving it is not a name blacklist",
+      "A bounded READ-ONLY disposition of event_resources and event_calendar_items, routed to DB-002",
+      "Independent re-verification of the three tables DB-013 recorded as cleared"
+    ],
+    "out": [
+      "Fixing event_resources or event_calendar_items, which need a product decision and route to DB-002",
+      "public.staff_members. DB-013 owns it; not re-opened, not read-modified",
+      "public.staff_shifts. CP-104 puts it out of scope and 20260821031214 repaired it correctly; not churned",
+      "lib/database.types.ts and any type regeneration (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE). This migration needs none: it changes no table, column or function",
+      "package.json and the CI workflow. Wiring the new detector into the pipeline is a release/orchestrator job and is handed over, not done",
+      "Wiring the detector into CI or inventing a role matrix. The workforce.view / workforce.manage gap stays with WFC-003 under CP-102"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql (NEW)",
+    "supabase/tests/db014_staff_performance_metrics_scope_contract.sql (NEW)",
+    "supabase/tests/db014_staff_performance_metrics_scope.harness.sh (NEW)",
+    "supabase/tests/db014_sweep_exemption_permissive_policies.sql (NEW)",
+    "supabase/tests/db014_sweep_exemption_hazard.harness.sh (NEW)",
+    "scripts/ci/check-sweep-exemption-hazard.mjs (NEW)",
+    "scripts/ci/check-sweep-exemption-hazard.test.mjs (NEW)",
+    "docs/engineering/migration-validation/20260926160000_staff_performance_metrics_scope_rls.json (NEW)",
+    "docs/engineering/handoffs/pending/HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY.json (NEW)",
+    "docs/engineering/handoffs/pending/HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE.json (NEW)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md (CP-104 and its two correction blocks, CP-051, CP-106, and the new CP-107)",
+    "docs/engineering/tasks/active/DB-013.json",
+    "docs/engineering/tasks/active/DB-002.json",
+    "docs/engineering/handoffs/pending/HF-DB-013-STAFF-MEMBERS-ORG-SCOPE-APPLY.json",
+    "supabase/migrations/20250818120000_admin_staffing_core.sql (the three permissive predecessors, the CREATE TABLE, the RLS enablement)",
+    "supabase/migrations/20250812093500_entity_rls_policies_more.sql (the guard-ordered block that never runs)",
+    "supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql (the _write body that is actually live)",
+    "supabase/migrations/20260823210100_venues_rbac_rls_baseline.sql (public.has_entity_permission)",
+    "supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql (the sweep and its six name exemptions)",
+    "supabase/migrations/20260823221000_event_hq_rls_tighten.sql (the event-HQ read contract, READ-ONLY)",
+    "supabase/tests/db013_staff_members_scope.harness.sh and supabase/tests/db011_emulation_bootstrap.sql (the harness pattern reused)"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Close the verified surviving permissive/scoped policy coexistence on staff_performance_metrics and record the name-based sweep exemption hazard.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "DROPPED: 20260926160000:206-208, three `drop policy if exists`. Proven applied: the harness loads the three policies verbatim from 20250818120000:370-371,404-405,435-436, measures the exposure BEFORE, applies the migration twice, and asserts the final policy set is exactly staff_performance_metrics_scoped_insert,_read,_update plus the retained staff_performance_metrics_write. Idempotent across two applies (policy set byte-identical), and the file's own post-condition DO block RAISEs if any of the three names survives, so a partial drop cannot commit silently. SCOPE — a CORRECTION TO THE CRITERION'S FRAMING, STATED NOT PAPERED OVER: public.staff_performance_metrics HAS NO org_id COLUMN (CREATE TABLE 20250818120000:282-301; the harness asserts this against the extracted DDL). DB-013's has_perm(uid, org_id, ...) shape is therefore not expressible here without adding a column, which is a schema change requiring a generated-type change and a backfill and is not a security fix's vehicle. The three new policies are organization-scoped IN SUBSTANCE and entity-keyed IN MECHANISM: staff_performance_metrics_scoped_read/_insert/_update require (venue_id is not null or event_id is not null) AND has_entity_permission(auth.uid(),'Venue',venue_id,<perm>) OR (event_id is not null AND has_entity_permission(auth.uid(),'Event',event_id,<perm>)), with EDIT_EVENT_LOGISTICS for read and ASSIGN_EVENT_ROLES for insert/update - the same two permissions and the same SECURITY DEFINER helper the table's own intended policies used (20260823210100:87-129). A useful side effect: these predicates contain no subquery against another table, so unlike DB-013's staff_members policies they carry NO authenticated table-grant dependency, only a function-EXECUTE one. Whether the table should gain an org_id, and whether adhoc_venue_id should be an authority arm, are routed to HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE rather than decided here. adhoc_venue_id is deliberately NOT an arm because adding it would widen access inside a security fix.",
+        "Preserved v1 criterion metadata: {\"id\":1,\"text\":\"read_all_metrics, insert_metrics, and update_metrics are dropped and staff_performance_metrics has organization-scoped read and write that fails closed\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Close the verified surviving permissive/scoped policy coexistence on staff_performance_metrics and record the name-based sweep exemption hazard.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "supabase/tests/db014_staff_performance_metrics_scope.harness.sh, EXECUTED: ALL CHECKS PASSED, 76 PASS / 0 FAIL, exit 0, on a throwaway PostgreSQL 16.15 cluster. It is a behavioural proof with a real negative control: an authenticated account holding NO rbac_user_entity_roles row and NO override reads 4 of 4 performance_rating values across both tenants, reads venue B's exact rating (1.0) by id, INSERTs into venue A and REWRITES venue A's rating BEFORE the migration, and the harness asserts the pre-fix write really landed (ROW_A.performance_rating = 0.0) before restoring the fixture. After the migration the same account reads 0 rows, reads 0 performance_rating values, gets an empty result from a targeted cross-tenant read (not an error), INSERT is rejected with `new row violates row-level security policy for table \"staff_performance_metrics\"`, UPDATE matches 0 rows, DELETE matches 0 rows, and venue A's rating is unchanged. WITH CHECK is proven independently of USING: a venue A manager who CAN read the row is rejected re-scoping it onto venue B and separately rejected stripping its tenant entirely. Every assertion about the chain's own authority helper is made against a precondition that is itself asserted first - ten has_entity_permission preconditions are checked before any denial, so no denial can be vacuously true. The zero-drift catalog postflight supabase/tests/db014_staff_performance_metrics_scope_contract.sql (9 checks, violation rows only, one summary row) is proven able to fail THREE times: removing a scoped policy; re-introducing read_all_metrics WHILE the scoped policy is present (the CP-104 case a scoped-successor check scores as safe); and stripping the tenant-key conjunct, leaving a policy that only fails closed because of has_entity_permission's NULL arithmetic.",
+        "Preserved v1 criterion metadata: {\"id\":2,\"text\":\"A cross-tenant read of performance_rating is denied by a SQL test, not by inspection\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Close the verified surviving permissive/scoped policy coexistence on staff_performance_metrics and record the name-based sweep exemption hazard.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "DOCUMENTED: CP-107 in docs/engineering/DECISIONS.md, plus a second CP-104 correction block recording that the staff_performance_metrics half of the original finding was wrong twice. CHECK, static: scripts/ci/check-sweep-exemption-hazard.mjs - exit 0, '6 chain exemptions anchored, SQL mirror in agreement, 12 fixture cases (6 must-fire negative controls, 6 must-not-fire controls)'. It EXTRACTS every `policyname not like` from the active chain at run time and fails if it does not know the pattern, which turns CP-104's standing rule into a test rather than a sentence; a test proves a hypothetical seventh exemption must fail it. CHECK, target-side: supabase/tests/db014_sweep_exemption_permissive_policies.sql - read-only, returns violation rows plus one summary row, and is a MIRROR of the .mjs constants with the mirror-agreement enforced by the .mjs. DEMONSTRATION THAT IT ACTUALLY FIRES, executed: supabase/tests/db014_sweep_exemption_hazard.harness.sh - ALL CHECKS PASSED, 18 PASS / 0 FAIL, exit 0. It extracts the chain's OWN sweep block (20260823210000:243-314) and runs it against a real catalog holding two policies that differ ONLY by name, both `USING (true)`: the sweep DROPS job_applications_read and KEEPS job_applications_employer_manage_hiring. The detector then reports the survivor as exempt-hiding-permissive; when the same name is re-created with a genuinely scoped body the detector returns zero violations and summary t, and it stays clean after four more policies are added - so it is not a name blacklist. It still reports an ordinary permissive policy with no exempt name, honours the `to service_role` carve-out (BYPASSRLS) and the polcmd carve-out (a FOR INSERT policy has no USING clause), and leaves the catalog byte-identical across three runs. STATED LIMIT: it proves a policy is not merely an authentication test; it cannot prove a policy is correctly scoped. Both error directions are recorded - an unrecognised scope is a false positive (safe), a recognised construct that constrains nothing is a false negative (unsafe) - which is why the construct list is short and leads with the chain's own authority functions. NOT WIRED INTO CI: package.json and the CI workflow are outside the database lane's grant, so wiring is handed to release/orchestrator as a two-line job.",
+        "Preserved v1 criterion metadata: {\"id\":3,\"text\":\"The sweep exemption hazard is documented in DECISIONS.md and a detection check exists that would catch a permissive policy hiding behind an exempt name\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Close the verified surviving permissive/scoped policy coexistence on staff_performance_metrics and record the name-based sweep exemption hazard.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "docs/engineering/handoffs/pending/HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE.json, addressed to DB-002 (owner_agent database, P0, active, whose declared working set already contains 20260823221000_event_hq_rls_tighten.sql), cc orchestrator, security-admin, admin, work, artist, qa. NO MIGRATION WAS OPENED for either table; both are byte-unchanged. The disposition is precise rather than merely cautious: the full surviving policy set is recorded per command with file:line for both tables, from an ordered create/drop model over the chain plus a full-text search for every policy name touching them. The measured content: `USING (true)` on SELECT completely NULLIFIES the `*_select_managers` predicate from 20260717194541:68-72,:99-103, so any authenticated account reads every row; and 20260823221000:6-8 DOCUMENTS the permissive read as a deliberate contract with a named compensating control ('visibility slices like visible_to[] remain enforced application-side as today'). That is what makes it a product decision rather than an oversight. The handoff states the exact question, the exact claim to verify, three candidate answers with their costs, and the one that is explicitly NOT an answer (adding a third permissive read policy - the CP-104 shape being extended, which is the response this codebase's own history shows defaulting to when a scoped policy feels too narrow). It also records that neither table is in any 20260823210000 v_tables array, so a FUTURE sweep reaching either would silently drop the permissive read - one more reason to decide explicitly rather than leave the surface to whichever migration runs next - and folds public.event_bulletins, which has the same read shape at 20260823221000:71, into the same handoff so the decision is made once for the event-HQ read surface rather than three times. SECURITY/ADMIN is explicitly told that a reader found with NO visibility filter is a confirmed P1 with its own task and must not be absorbed by 'it was a documented decision'.",
+        "Preserved v1 criterion metadata: {\"id\":4,\"text\":\"event_resources and event_calendar_items are dispositioned read-only with a routed product decision, not silently fixed or not silently ignored\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Close the verified surviving permissive/scoped policy coexistence on staff_performance_metrics and record the name-based sweep exemption hazard.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "No table, column, index, constraint, trigger or function is created, altered or dropped; no data row is read for update or deleted; every existing staff_performance_metrics row is preserved; no DELETE policy is added, so delete is neither widened nor narrowed. `npm run check:migration-chain` PASS (311 files, no duplicate policy creations). `node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql` PASS (scanned with planned manifest, zero failures, exit 0). `npm run agents:validate` PASS. Nothing was applied: no `supabase db reset`, no `db push --include-all`, no forced or full-chain replay, no hosted target touched. Apply is handed to the operator in docs/engineering/handoffs/pending/HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY.json with the exact file, SHA-256, order, six read-only preflight queries, FOUR stop conditions, the postflight contract, EIGHT labelled probes and what each correct denial looks like - including the non-obvious one: this migration can OVER-deny, because the chain never created a scoped SELECT policy at all, so an EDIT_EVENT_LOGISTICS-only holder's read existed only because of the bug.",
+        "Preserved v1 criterion metadata: {\"id\":5,\"text\":\"The migration is additive and forward-only; chain and migration validation pass\",\"met\":true}"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "bash supabase/tests/db014_staff_performance_metrics_scope.harness.sh",
+          "bash supabase/tests/db014_sweep_exemption_hazard.harness.sh",
+          "node scripts/ci/check-sweep-exemption-hazard.mjs",
+          "node --test scripts/ci/check-sweep-exemption-hazard.test.mjs",
+          "npm run check:migration-chain",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql",
+          "npm run agents:validate",
+          "bash -n on both harnesses",
+          "shasum -a 256 on all seven new files",
+          "node scripts/ci/check-migration-validation.mjs --all  (opt-in full scan: 77 pre-existing historic failures, 0 touching staff_performance_metrics, 0 caused by DB-014)"
+        ],
+        "evidence": [
+          "bash supabase/tests/db014_staff_performance_metrics_scope.harness.sh -> ALL CHECKS PASSED, 76 PASS / 0 FAIL, exit 0, PostgreSQL 16.15 throwaway cluster.",
+          "bash supabase/tests/db014_sweep_exemption_hazard.harness.sh -> ALL CHECKS PASSED, 18 PASS / 0 FAIL, exit 0. Key lines: 'the sweep DROPPED job_applications_read - an ordinary permissive name is swept'; 'and KEPT job_applications_employer_manage_hiring - identical USING (true), PERMANENTLY UNSWEEPABLE, because of its NAME'; 'the SAME name with a genuinely scoped body produces ZERO violations and summary t - the detector is not a name blacklist'; 'catalog is byte-identical after three detector runs - the detector is read-only'.",
+          "node scripts/ci/check-sweep-exemption-hazard.mjs -> exit 0, 'sweep-exemption hazard covered: 6 chain exemptions anchored, SQL mirror in agreement, 12 fixture cases (6 must-fire negative controls, 6 must-not-fire controls)'.",
+          "node --test scripts/ci/check-sweep-exemption-hazard.test.mjs -> 11 tests, 11 pass, 0 fail, exit 0.",
+          "npm run check:migration-chain -> exit 0, 'active migration chain has no duplicate policy creations (311 files scanned)'.",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql -> exit 0, 'scanned supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql with planned manifest'.",
+          "npm run agents:validate -> exit 0, 0 warnings, 0 errors.",
+          "SHA-256: migration 3e58199e6ccb8bf2ac5288521a121858532268ce390e72589993cac727953eb0; contract test 4a16dcbd7b89ddf1d0d180c020bd118d4c34f3c366f00748cac3a0c03c1c9443; behavioural harness bd5e8104a58fe4013a17d5efe9b93ddecf281ebdc4c6bc1397fdbec658b187f8; sweep detector SQL 48103955a9c66599ecf6b78db623b500a41c8e35e6d599d7f63893c61fc77464; sweep detector harness e208cd121f030a3e14f8a6d199e220a90b66d8598c5322850944ef7feef711c0; check-sweep-exemption-hazard.mjs 9308b82521de7d9d9aa3d13292416d3eef35b6acf0e77c9f911780fac2f1bb6f; check-sweep-exemption-hazard.test.mjs 59e4b5810d19503e4f09771ab101833c1b4003e670c7d5f1467dff4a350a76ea.",
+          "HONEST GATE DETAIL: `npm run check:migration-validation` in its DEFAULT mode, which is the gate and which scans changed migrations, exits 0. The opt-in `--all` flag, which forces a scan of every migration in the directory, exits 1 with 77 failures on 275 scanned. All 77 are pre-existing historic debt and none is caused by DB-014: 46 are 2025-era, 31 are 2026-era (DB-013 described all 77 as 2025-era, which understates their spread - the 2026 share is the achievements engine, ticketing v2, the staffing overview/telemetry/alert tables, the music player, and the two DROP-POLICY-without-replacement findings below). The single largest category is 21 'existing-table FK/CHECK constraint missing NOT VALID or reviewed lock-budget marker', then 3 UPDATE backfills without a WHERE, 3 destructive renames, 1 SET NOT NULL without a precheck, 1 INSERT...SELECT without a WHERE, and the rest are 'new public table X does not enable RLS in the same migration' across ~40 2025-era catalog tables. Verified by grep: NONE of the 77 mentions staff_performance_metrics, 20260926160000, 20260926150000 or any db014/sweep artefact, and the new migration itself scans clean in the same run. Recorded rather than omitted, because `check:migration-validation --all` exiting 1 is visible to anyone who runs it and should not read as a DB-014 regression.",
+          "CORROBORATION WORTH RECORDING: one of the 77 is `20260416000323_team_comms_fanout_and_rls_cleanup.sql: DROP POLICY without replacement CREATE POLICY on the same table: team_communications`. That is the REPOSITORY'S OWN GATE independently reporting the same defect class this lane found by reading the chain - that migration drops read_all_comms / insert_comms / update_comms on team_communications and creates no replacement, because the replacement it expected came from a block whose existence guard is false. The opt-in full scan notices the SHAPE; it does not notice that the surviving policy set is SELECT-only, which is what makes the consequence a functional hole rather than a mere tidiness issue. Both halves are needed, and this is a concrete argument for wiring `--all` into a periodic lane rather than leaving it opt-in. Not fixed here: it belongs to 20260416000323 / 20260911013017 and to the workforce lane, and it is an availability gap rather than a disclosure.",
+          "RESULT IS RECORDED AS STEPS, NOT AS A COMPLETED TIER. `npm run verify:feature` and a full-repo `npm run typecheck` do not complete on this machine - `verify.mjs:44` runs typecheck unconditionally, ignoring `--changed`, and `lib/database.types.ts` is ~25,600 lines and exceeds the memory ceiling (CP-106, RELEASE-010 owns the fix). Every step of the tier was run individually and is itemised above. RELEASE-010 is fixing the tier; this lane did not work around it and does not claim a green tier.",
+          "TYPES: `npm run generate:database-types` and `npm run check:database-types` were NOT run. The repo's own generator fails with ENOBUFS above 1 MB of type output and the `linked` project is a DIFFERENT database that must never be regenerated from (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE). Stated explicitly rather than skipped silently: THIS MIGRATION REQUIRES NO TYPE CHANGE. It changes no table, no column and no function - only policies - so `lib/database.types.ts` is byte-unchanged and regeneration is not merely blocked but unnecessary here.",
+          "`supabase db lint --local` was NOT run (no running local target). `npm run agents:generate` was deliberately NOT run: the worktree is shared and dirty with concurrent lanes and the generated maps are a shared artefact. NO HOSTED EVIDENCE EXISTS AND NONE IS CLAIMED. No migration was applied to staging or production, no psql session was opened against a hosted target, and no probe was run as a real caller there. Everything above is either static review of the active chain or a local emulation on a throwaway PostgreSQL 16.15 cluster - not Supabase, not a hosted project, not a chain replay."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T02:30:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "DB-014 shipped the additive migration 20260926160000_staff_performance_metrics_scope_rls.sql: drops read_all_metrics / insert_metrics / update_metrics, adds three fail-closed tenant-scoped policies that create the read path the chain never actually had, keeps staff_performance_metrics_write so delete coverage is unchanged, and adds no DELETE policy. Cross-tenant performance_rating denial is proven by a harness at 76 pass / 0 fail, run twice-applied and idempotent. It also CORRECTED the record twice: the scoped policies the finding cited do not exist on an ordered replay (20250812093500's block is guarded on a table created six days later), and the live _write text is 20260414120000's, not the cited one - both proven by executing the chain's own bytes at their own version positions, the third instance of this repository's guard-ordering defect class. CP-107 records the name-based sweep exemption hazard and ships a detection pair proven to fire against a real catalog, with a positive control showing it is not a name blacklist. event_resources / event_calendar_items are dispositioned read-only to DB-002 with three candidate answers. The task stays active only for the manual CP-051 apply.",
+    "completed": [
+      "Read the mandated context: docs/engineering/INDEX.md, the database charter and STATE.md, DECISIONS.md including BOTH CP-104 correction blocks, DB-013.json, DB-002.json, the DB-013 handoff, and the regeneration handoff. Loaded the working set only; no repository re-audit.",
+      "Mapped the full ordered policy history of public.staff_performance_metrics across the 311 numbered migrations, including the dynamic guarded blocks a literal grep cannot see - which is where both corrections came from.",
+      "VERIFIED THE TASK 1 PREMISE: the table is in no v_tables array of 20260823210000, read_all_metrics is not in its v_permissive name list, and the three permissive policies are live at chain HEAD. The exposure is real and is a mass-disclosure one on performance_rating, supervisor_rating, customer_feedback_score, attendance_rate and incidents_count.",
+      "CORRECTED THE PREMISE'S SUPPORTING CLAIM, twice, by execution: (a) 20250812093500:33-56 is guarded on the table existing and the table is created six days later at 20250818120000:282, so NEITHER scoped policy is ever created on an ordered replay; (b) the live _write body is 20260414120000:26-39, which mirrors the USING into WITH CHECK, and the cited 20250812093500:49-55 text ending in `with check (true)` is historical.",
+      "CORRECTED THE REMEDY'S FRAMING: the table has no org_id column, so organization scope is expressed as entity scope over venue_id / event_id through the chain's own SECURITY DEFINER has_entity_permission. Recorded as a correction rather than silently substituting, with the org_id and adhoc_venue_id questions routed.",
+      "Authored supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql (SHA-256 3e58199e6ccb8bf2ac5288521a121858532268ce390e72589993cac727953eb0): three drop policy if exists, three drop+create policy, three comment on policy, and a post-condition DO block that branches on polcmd. No table, column, index, constraint, trigger or function; no data row read for update or deleted; no DELETE policy added.",
+      "Authored supabase/tests/db014_staff_performance_metrics_scope_contract.sql (9 checks, violation rows only, one summary row computed from the same predicates so an unapplied target cannot pass vacuously) and supabase/tests/db014_staff_performance_metrics_scope.harness.sh, and RAN the harness to ALL CHECKS PASSED, 76 PASS / 0 FAIL.",
+      "Authored the CP-107 detection pair and PROVED IT FIRES: scripts/ci/check-sweep-exemption-hazard.mjs plus its node:test sibling (11/11), and supabase/tests/db014_sweep_exemption_permissive_policies.sql executed on a real catalog by supabase/tests/db014_sweep_exemption_hazard.harness.sh (18 PASS / 0 FAIL), which runs the chain's own sweep block and shows it keeping an identically-permissive policy that differs only by name.",
+      "BOUNDED READ-ONLY DISPOSITION of public.event_resources and public.event_calendar_items with a routed handoff to DB-002. No migration opened for either; both byte-unchanged. Recorded the full surviving policy set per command with file:line, the fact that `USING (true)` completely nullifies the manager predicate, the migration's own documented rationale and named compensating control, three candidate answers with costs, and public.event_bulletins folded into the same decision.",
+      "INDEPENDENTLY RE-VERIFIED the three tables DB-013 recorded as cleared, with an ordered create/drop model plus a full-text search per permissive name: staff_zones, staff_shifts and team_communications are all CLEAR, with the surviving policy set recorded for each. Found and recorded one adjacent finding so 'cleared' is not read as 'healthy': team_communications' surviving set is a single SELECT policy, so INSERT/UPDATE/DELETE are denied to every caller at chain HEAD - an authorization availability gap belonging to 20260911013017, routed not fixed.",
+      "Recorded the two defects this lane's own gates caught in its own new code: the migration's first post-condition raised on a HEALTHY target by inspecting a FOR INSERT policy's USING (the polcmd confusion DB-013 documented hours earlier, reintroduced anyway), and the detector's scoped-construct list initially contained a bare `role` which matches inside `auth.role()` - three must-fire cases came back clean. Both fixed, both recorded, because they are the reusable part."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [
+      "No hosted apply, no hosted postflight, no hosted probe and no hosted evidence. The authoring lane cannot produce any and did not fabricate any. Acceptance criterion 5 is met in the sense the criterion states - the migration is authored, validated and the apply is documented as a manual CP-051 operator step - but the manifest is honestly `planned`, not `staging_validated`.",
+      "Whether the three permissive policies are present or absent on any given target cannot be answered from the chain, because DB-002 found out-of-band Management API application. Only the operator's preflight can answer it. This is the single largest reason the file is still worth applying rather than declaring the finding already closed, and it is why the DROP statements are IF EXISTS rather than a comment claiming the target is already clean.",
+      "Whether `authenticated` actually holds EXECUTE on public.has_entity_permission on the hosted project is NOT verified. The chain grants it at 20260823210100:130-131 and re-grants it at 20260914090000:17, but grants are not managed uniformly. If absent the policies deny (safe) and the intended read path disappears (regression) - hence the preflight stop condition. This is a strictly smaller dependency than DB-013's table-grant dependency, and it is called out as such.",
+      "How many tenant-less rows (venue_id AND event_id both null) a given target holds is unknown and decides whether the fail-closed rule reads as a clean deny or as a functional change needing an owner. That is a data question only the operator's preflight can answer, and it is a stop condition rather than an assumption this lane can discharge.",
+      "Whether any consumer reads or writes staff_performance_metrics through a path this change would alter was NOT investigated - the consumer inventory is outside the working set and the task said not to expand. The operator's probes are the first real check of that, and probe 5 (the EDIT_EVENT_LOGISTICS-only viewer) is the one that would catch an over-denial.",
+      "npm run verify:feature and a full-repo npm run typecheck do not complete on this machine. Every step of the verification tier was run individually instead, and the tier is reported as steps rather than as a completed tier (CP-106)."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T02:30:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "DB-014 complete against all five acceptance criteria, locally. Migration 20260926160000 authored and executed on a throwaway PostgreSQL 16.15 cluster with 76 PASS / 0 FAIL. Sweep-exemption detector proven to fire against a real catalog (18 PASS / 0 FAIL) with a positive control showing it is not a name blacklist. Chain 311 files clean, scoped migration validation exit 0, agents:validate 0 warnings / 0 errors. event_resources / event_calendar_items dispositioned read-only to DB-002. Nothing applied to any environment. Task stays ACTIVE for the operator apply and for the CI wiring.",
+        "scope_expansions": [
+          {
+            "path": "scripts/ci/check-sweep-exemption-hazard.mjs, scripts/ci/check-sweep-exemption-hazard.test.mjs, supabase/tests/db014_sweep_exemption_permissive_policies.sql, supabase/tests/db014_sweep_exemption_hazard.harness.sh",
+            "reason": "Acceptance criterion 3 requires a detection check, and the task named scripts/ci/ as the convention. Two files rather than one because the check has two halves that cannot be one file: the static half must not connect to a database (so it can run in any pipeline with no credentials) and the target half must be read-only SQL an operator can run against staging and production. A single file would have had to either connect from CI or re-implement pg_policies parsing in JS, and both were worse. The .test.mjs sibling is the convention for every other scripts/ci check in this repository, run with `node --test` because the vitest include globs do not cover that directory."
+          },
+          {
+            "path": "supabase/tests/db014_sweep_exemption_hazard.harness.sh",
+            "reason": "A fixture inside the .mjs cannot answer the objection that the rule has never touched a real pg_policies. This harness extracts the chain's OWN sweep block and runs it against a real catalog with two policies differing only by name, which is the only way to show the hazard is real rather than asserted, and it is also what proves the detector fires on a policy the chain itself declined to remove."
+          },
+          {
+            "path": "supabase/tests/db011_emulation_bootstrap.sql",
+            "reason": "READ-ONLY reuse, not edited. It creates the auth schema, auth.users, auth.uid() and the anon/authenticated roles both harnesses need. auth.role() and the service_role role are created by the harnesses themselves rather than added to a file other harnesses depend on - service_role specifically because the detector's carve-out is ABOUT it and the bootstrap does not have it."
+          },
+          {
+            "path": "supabase/migrations/20250818120000_admin_staffing_core.sql, supabase/migrations/20250812093500_entity_rls_policies_more.sql, supabase/migrations/20260414120000_security_linter_step3_tighten_rls.sql, supabase/migrations/20250812090000_entity_rbac_core.sql, supabase/migrations/20260823210100_venues_rbac_rls_baseline.sql, supabase/migrations/20260823210000_harden_hiring_onboarding_pii.sql, supabase/migrations/20260823221000_event_hq_rls_tighten.sql, supabase/migrations/20260717194541_harden_security_audit_remediation.sql, supabase/migrations/20260903120000_site_map_zone_security_and_canonical_bridge.sql, supabase/migrations/20260911013017_work_mode_overview_communications.sql, supabase/migrations/20260416000323_team_comms_fanout_and_rls_cleanup.sql, supabase/migrations/20260821031214_repair_event_tour_staffing_flow.sql",
+            "reason": "READ-ONLY. The harnesses extract the chain's own CREATE TABLE, guarded policy blocks, rbac table DDL and has_entity_permission text BY LINE RANGE at run time, so the emulated authority cannot drift from the chain. 20250823210000 was read for the sweep block the exemption-hazard harness executes; 20260823221000 and 20260717194541 were read only for the Task 3 disposition and are NOT modified. 20260903120000, 20260911013017, 20260416000323 and 20260821031214 were read only to re-verify the cleared list. No migration was edited, renumbered, reordered or removed."
+          },
+          {
+            "path": "docs/engineering/handoffs/pending/HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY.json, docs/engineering/handoffs/pending/HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE.json",
+            "reason": "Acceptance criterion 5 requires the apply to remain a manual CP-051 operator step, and criterion 4 requires a routed product decision. Per docs/engineering/handoffs/README.md a cross-domain or cross-task step is a handoff, not an inline note. The event-HQ disposition is addressed to DB-002 rather than to a new agent because DB-002 is owner_agent `database` and its declared working set already contains 20260823221000_event_hq_rls_tighten.sql."
+          },
+          {
+            "path": "package.json, .github/workflows/",
+            "reason": "NOT expanded into. Wiring scripts/ci/check-sweep-exemption-hazard.mjs into the pipeline and its node:test sibling into the scripts/ci test run is a two-line change to files outside this lane's grant, and the CI workflow is a shared artefact in a dirty multi-lane worktree. Handed to release/orchestrator in the handoff's next_steps rather than done."
+          },
+          {
+            "path": "A throwaway ordered create/drop model for the cleared-list re-verification and the event-HQ disposition, in /tmp, NOT in the repository",
+            "reason": "Modelling chain-order policy creates and drops for three cleared tables and two event-HQ tables is throwaway instrumentation for two specific reports, not a durable tool. The durable half of that work IS in the repository as the sweep-exemption detector, which is wired to the chain and will keep running. Stated limits of the throwaway model are recorded in the handoff: it resolves literal and dollar-quoted dynamic DDL but not every runtime-computed `execute format('drop policy ...')`, and it cannot see out-of-band application at all."
+          },
+          {
+            "path": "lib/database.types.ts",
+            "reason": "NOT touched and NOT regenerated. Deliberately confirmed unnecessary rather than merely skipped: this migration changes no table, column or function, only policies, so it cannot require a type change. Regeneration is separately blocked (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE) and the `linked` project is a different database."
+          },
+          {
+            "path": "supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql and the rest of DB-013's output",
+            "reason": "NOT expanded into. DB-013 owns staff_members and the task said not to re-open it; the new migration version 20260926160000 was chosen only to sort after every existing numbered migration, and no existing migration was renumbered, reordered or edited. DB-013's untracked files were left byte-unchanged."
+          }
+        ],
+        "paths_changed": [
+          "supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql (NEW)",
+          "supabase/tests/db014_staff_performance_metrics_scope_contract.sql (NEW)",
+          "supabase/tests/db014_staff_performance_metrics_scope.harness.sh (NEW)",
+          "supabase/tests/db014_sweep_exemption_permissive_policies.sql (NEW)",
+          "supabase/tests/db014_sweep_exemption_hazard.harness.sh (NEW)",
+          "scripts/ci/check-sweep-exemption-hazard.mjs (NEW)",
+          "scripts/ci/check-sweep-exemption-hazard.test.mjs (NEW)",
+          "docs/engineering/migration-validation/20260926160000_staff_performance_metrics_scope_rls.json (NEW)",
+          "docs/engineering/handoffs/pending/HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY.json (NEW)",
+          "docs/engineering/handoffs/pending/HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE.json (NEW)",
+          "docs/engineering/DECISIONS.md (CP-107 and a second CP-104 correction block appended)",
+          "docs/engineering/agents/database/STATE.md (one dated section appended)",
+          "docs/engineering/tasks/active/DB-014.json (this record)"
+        ],
+        "cleared_reverified_do_not_chase": {
+          "method": "Independent of DB-013. An ordered create/drop model over the 311 numbered migrations (literal `create/drop policy` and the dollar-quoted dynamic bodies) plus a full-text search for every permissive name. Each name is created exactly once, at 20250818120000, and dropped, with no later re-creation anywhere in the chain.",
+          "staff_zones": "CLEAR. read_all_zones / insert_zones / update_zones created 20250818120000:368,402,433; dropped 20260903120000:1851-1853. Surviving set: four sec104_staff_zones_* policies keyed on private.user_can_read_staff_zone / user_can_edit_staff_zone (:1861-1876).",
+          "staff_shifts": "CLEAR, and do not churn. read_all_shifts / insert_shifts / update_shifts created 20250818120000:365,399,430; dropped 20260821031214:110-112. Surviving set: the four staff_shifts_scoped_*. NOTE: staff_shifts_select / _write from 20250812093000 are the SAME guard-ordering defect as staff_performance_metrics and are likewise never created on an ordered replay; harmless here only because 20260821031214 supplied the real policies.",
+          "team_communications": "CLEAR of the exposure, but NOT healthy, and the difference matters. read_all_comms / insert_comms / update_comms created 20250818120000:374,408,439; dropped 20260416000323:142-144 and again 20260911013017:29-31. ADJACENT FINDING, routed not fixed: the surviving set is a SINGLE SELECT policy (team_communications_worker_read_recipient, 20260911013017:35-48) because :33 dropped team_communications_write and nothing re-created it, so INSERT / UPDATE / DELETE are denied to every caller at chain HEAD. That is an authorization availability gap, not a disclosure.",
+          "service_role_unconditional_policies": "The 29 `to service_role USING (true)` policies remain noise rather than an exposure class (service_role has BYPASSRLS), and the new sweep-exemption detector now encodes that carve-out explicitly rather than leaving it as prose."
+        },
+        "verification": [
+          "bash supabase/tests/db014_staff_performance_metrics_scope.harness.sh -> ALL CHECKS PASSED, 76 PASS / 0 FAIL, exit 0.",
+          "bash supabase/tests/db014_sweep_exemption_hazard.harness.sh -> ALL CHECKS PASSED, 18 PASS / 0 FAIL, exit 0.",
+          "node scripts/ci/check-sweep-exemption-hazard.mjs -> exit 0, 6 chain exemptions anchored, SQL mirror in agreement, 12 fixture cases.",
+          "node --test scripts/ci/check-sweep-exemption-hazard.test.mjs -> 11 tests, 11 pass, 0 fail.",
+          "npm run check:migration-chain -> exit 0, 311 files scanned, no duplicate policy creations.",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926160000_staff_performance_metrics_scope_rls.sql -> exit 0.",
+          "npm run agents:validate -> exit 0, 0 warnings, 0 errors.",
+          "Not run and not claimed: npm run verify:feature, full-repo npm run typecheck (CP-106), npm run generate:database-types, npm run check:database-types, supabase db lint --local, npm run agents:generate, and every hosted probe. No hosted evidence of any kind."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "id": "HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY",
+      "to": "release",
+      "status": "pending",
+      "path": "docs/engineering/handoffs/pending/HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY.json",
+      "purpose": "The manual CP-051 apply, the postflight contract, and eight real-caller probes across four identities, with four stop conditions and what each correct denial looks like - including the non-obvious one, that this migration can over-deny because the chain never created a scoped SELECT policy at all."
+    },
+    {
+      "id": "HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE",
+      "to": "database (task DB-002)",
+      "status": "pending",
+      "path": "docs/engineering/handoffs/pending/HF-DB-014-EVENT-RESOURCES-AND-CALENDAR-READ-SCOPE.json",
+      "purpose": "A read-only disposition of the event_resources / event_calendar_items permissive read: the surviving policy set per command with file:line, the migration's own documented rationale and named compensating control, the claim that has to be verified, and three candidate answers with their costs."
+    }
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

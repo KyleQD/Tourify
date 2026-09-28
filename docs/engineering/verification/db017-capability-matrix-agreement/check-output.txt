@@ -1,0 +1,56 @@
+chain: 323 active migrations, 17 matrix writes, 12 roles
+chain functions: 287, policy-reachable: 50, distinct permissions read: 16
+naive cross-check: 16 literals, 0 missed by the balanced extractor (0 required)
+pairs: 504 compared (12 roles x 42 capabilities) — agree 298, gate>matrix 206, matrix>gate 0
+the gate is a SUPERSET of the matrix BY CONSTRUCTION (SEC-102 unions configuredPermissions into the catalog defaults), so gate>matrix is the only reachable direction for a catalog capability and every open pair is a FALSE DENIAL, not a disclosure.
+enforcement measured: {"none":29,"rls_policy":10,"non_row_level_only":1,"rls_policy_via_function":2}
+enforced capabilities: 13 of 42; declared_intent_only decisions: 29
+open pairs by decision class: {"declared_intent_only":148,"catalog_authoritative":58}
+open pairs by role: {"owner":37,"admin":35,"tour_manager":26,"production":23,"production_manager":24,"department_manager":11,"finance":13,"finance_manager":14,"ticketing":7,"ticketing_manager":7,"viewer":9}
+INERT MATRIX GRANTS (declared intent, no reader, grants nothing): 9 — owner/workforce.publish admin/workforce.publish production/workforce.publish tour_manager/workforce.publish production_manager/workforce.publish department_manager/workforce.publish owner/finance.manage admin/finance.manage finance/finance.manage
+
+  advance.manage           declared_intent_only   enforcement=none                   openPairs=5
+  audit.view               declared_intent_only   enforcement=none                   openPairs=8
+  communications.broadcast declared_intent_only   enforcement=none                   openPairs=5
+  communications.send      declared_intent_only   enforcement=none                   openPairs=8
+  content.manage           declared_intent_only   enforcement=none                   openPairs=5
+  content.view             declared_intent_only   enforcement=none                   openPairs=9
+  contract.manage          declared_intent_only   enforcement=none                   openPairs=2
+  contract.sign            declared_intent_only   enforcement=none                   openPairs=1
+  contract.view            declared_intent_only   enforcement=none                   openPairs=9
+  event.live_ops           declared_intent_only   enforcement=none                   openPairs=5
+  event.manage             catalog_authoritative  enforcement=rls_policy             openPairs=1
+  event.publish            declared_intent_only   enforcement=none                   openPairs=5
+  event.view               declared_intent_only   enforcement=none                   openPairs=11
+  finance.approve          declared_intent_only   enforcement=none                   openPairs=4
+  finance.manage           declared_intent_only   enforcement=none                   openPairs=1
+  finance.pay              declared_intent_only   enforcement=none                   openPairs=3
+  finance.view             declared_intent_only   enforcement=none                   openPairs=9
+  hiring.manage            catalog_authoritative  enforcement=rls_policy             openPairs=3
+  logistics.manage         catalog_authoritative  enforcement=rls_policy_via_function openPairs=5
+  logistics.sensitive      declared_intent_only   enforcement=none                   openPairs=5
+  logistics.view           catalog_authoritative  enforcement=rls_policy_via_function openPairs=9
+  org.roles.manage         declared_intent_only   enforcement=none                   openPairs=2
+  org.settings.manage      declared_intent_only   enforcement=none                   openPairs=2
+  routing.manage           catalog_authoritative  enforcement=rls_policy             openPairs=5
+  site_map.edit            declared_intent_only   enforcement=none                   openPairs=5
+  site_map.share           declared_intent_only   enforcement=none                   openPairs=5
+  site_map.view            declared_intent_only   enforcement=none                   openPairs=9
+  ticketing.manage         declared_intent_only   enforcement=none                   openPairs=4
+  ticketing.refund         declared_intent_only   enforcement=none                   openPairs=4
+  ticketing.scan           declared_intent_only   enforcement=none                   openPairs=4
+  ticketing.view           declared_intent_only   enforcement=none                   openPairs=11
+  tour.archive             declared_intent_only   enforcement=none                   openPairs=3
+  tour.delete              catalog_authoritative  enforcement=rls_policy             openPairs=2
+  tour.manage              catalog_authoritative  enforcement=rls_policy             openPairs=5
+  tour.publish             catalog_authoritative  enforcement=non_row_level_only     openPairs=3
+  tour.view                catalog_authoritative  enforcement=rls_policy             openPairs=11
+  vendor.manage            catalog_authoritative  enforcement=rls_policy             openPairs=5
+  vendor.sensitive         declared_intent_only   enforcement=none                   openPairs=4
+  vendor.view              catalog_authoritative  enforcement=rls_policy             openPairs=9
+  workforce.manage         matrix_authoritative   enforcement=rls_policy             openPairs=0
+  workforce.publish        declared_intent_only   enforcement=none                   openPairs=0
+  workforce.view           matrix_authoritative   enforcement=rls_policy             openPairs=0
+
+✓ capability/matrix agreement: 504 pairs, every disagreement dispositioned, 42 decisions recorded, 0 undecided vocabulary.
+  note: this is the decision-aware default. --strict fails on every open pair and is red today by design.

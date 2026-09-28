@@ -1,0 +1,83 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-010",
+  "title": "Build scoped and show-day logistics views",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:11.856Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (28 entries)",
+  "goal": "Deliver tour/event-specific logistics summaries and a responsive show-day view with current schedule, blockers, comms, travel, lodging, contacts, and maps.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/admin/**",
+    "app/api/admin/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Deliver tour/event-specific logistics summaries and a responsive show-day view with current schedule, blockers, comms, travel, lodging, contacts, and maps.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx eslint components/admin/logistics/command-center/logistics-overview-panel.tsx",
+          "npm exec vitest run __tests__/admin/logistics-overview.test.ts __tests__/design-system/logistics-command-center-patterns.test.tsx"
+        ],
+        "evidence": [
+          "Event-scoped Overview renders the privacy-safe show-day focus and preserves event/tour scope in Travel, Lodging, Comms, Maps, and event-contact links.",
+          "Preserved v1 result: passed"
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Tour/event scoped Overview and a responsive, privacy-safe show-day focus are implemented over the aggregate contract.",
+    "completed": [
+      "Selected tour and event scope transforms Overview rows, attention, timeline, and remediation links.",
+      "Map and Comms shortcuts preserve the selected scope.",
+      "Event scope exposes current/next timing, venue contact routing, immediate blockers, scoped travel/lodging actions, urgent acknowledgement status, and map status/shortcut without traveler details."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Delivered scoped portfolio drill-down and an event show-day focus without adding sensitive traveler or personnel data to the aggregate.",
+        "next": "Verify responsive and authenticated show-day behavior under QA-007."
+      }
+    ]
+  },
+  "handoffs": [],
+  "execution_state": "done",
+  "outcome_id": "POSTLAUNCH-LOGISTICS",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

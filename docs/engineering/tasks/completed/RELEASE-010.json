@@ -1,0 +1,194 @@
+{
+  "schema_version": "2.0",
+  "id": "RELEASE-010",
+  "title": "Make the feature verification tier actually runnable",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "release",
+  "created_at": "2026-09-26T22:42:06.453Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (124 entries; the shared worktree carries concurrent lanes DB-013/014/015/016, WFC-003/007, ADMIN-012, DESIGN-034 and the logistics work. This lane changed only scripts/verify.mjs, package.json, .github/workflows/ci.yml, docs/DEVELOPMENT_WORKFLOW.md, docs/engineering/DECISIONS.md, docs/engineering/agents/release/STATE.md, docs/engineering/verification/**, and its own record. No commit was made.)",
+  "goal": "Make verify:feature honor the --changed scope so the recorded verification tier is achievable instead of universally skipped.",
+  "scope": {
+    "in": [
+      "Honoring --changed for the typecheck step in the feature tier (CP-106, CP-111)",
+      "Recording what the scoped substitute covers and does not cover, in the tier output and in docs/DEVELOPMENT_WORKFLOW.md",
+      "Inventorying and dispositioning the task records that name an unachievable verification command",
+      "Additively wiring DB-014 already-proven scripts/ci/check-sweep-exemption-hazard.mjs into package.json and ci.yml if it does not collide with DB-015"
+    ],
+    "out": [
+      "Raising the machine memory ceiling — the 8192 MB request is left exactly as it was and the scoped run uses the default heap",
+      "Weakening type coverage for the files the scoped program does contain",
+      "Fixing the two pre-existing type errors it surfaced, or quarantining check:admin-audit",
+      "npm run generate:database-types / check:database-types — the 1 MB ENOBUFS generator ceiling (CP-089, CP-092) is a separate constraint and was not touched",
+      "Any change to lib/database.types.ts, the `linked` Supabase project, or any application code",
+      "npm run agents:generate — a concurrent lane is regenerating the maps and a mid-flight refresh would absorb their work"
+    ]
+  },
+  "working_set": [
+    "scripts/verify.mjs",
+    "package.json",
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/release/STATE.md",
+    "docs/engineering/agents/design-system/STATE.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "verify:feature -- --changed scopes its typecheck step to changed files, or invokes a documented scoped substitute that is not the full-repo run",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The fast tier's existing deferral behavior is unchanged and still exits 0",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "A task record can run its recorded tier to completion on this machine and get a truthful pass or fail",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The 1 MB ENOBUFS type-generation ceiling is documented as a known separate constraint, not conflated",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "The count of task records specifying an unachievable verification command is inventoried and corrected or explicitly accepted",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run verify:feature -- --changed",
+          "npm run verify:fast -- --changed",
+          "npx tsc -p <generated scope project> --noEmit --pretty false --listFiles",
+          "node --test scripts/ci/check-sweep-exemption-hazard.test.mjs",
+          "npm run check:sweep-exemption-hazard",
+          "npm run agents:validate"
+        ],
+        "evidence": [
+          "NEGATIVE CONTROL A (twice, reproducible): an untracked types/release010-negative-control.ts holding `export const release010NegativeControl: number = 'a string'` made `npm run verify:feature -- --changed` exit 2 and print `types/release010-negative-control.ts(3,14): error TS2322: Type 'string' is not assignable to type 'number'`. The scoped step is not vacuous. The file was deleted immediately after.",
+          "NEGATIVE CONTROL B (transitive, real, not a fixture): in a DETACHED CLEAN WORKTREE at 16fb834f, a changed root that only does `import '@/lib/services/account-management.service'` made the tier exit 2 with two real errors in that service (lines 1015 and 1025) — a file that is neither a root nor changed. The program reached unchanged code, and the errors are proven pre-existing at the base SHA.",
+          "ANTI-VACUITY GUARD: `--typecheck-scope` pointing at a project that omitted one changed file made the tier exit 1 with \"the scoped typecheck did not cover 1 changed file(s): types/rel010-omitted.ts\". Adding it to the same project made the tier exit 0 and the program grow from 2 to 3 repository files. A scoped run that silently skips a changed file fails loudly.",
+          "NOT-RUN PATH: a worktree whose only changes were .mjs/.json printed `typecheck: NOT RUN — --changed was passed and the worktree contains no changed TypeScript source.` and the closing RESULT line repeated \"record as not-run, not as a pass\". A 1-file program containing only next-env.d.ts is refused, because that is precisely the short-circuiting green CP-106 warns about.",
+          "GREEN END TO END: detached clean worktree at 16fb834f, `npm run verify:feature -- --changed` exit 0 in 4.0s, \"RESULT: every step this tier ran passed. typecheck: scoped to 1 changed TypeScript root(s) ... 2 of 4303 repository TypeScript sources in the program\".",
+          "TRUTHFUL RED END TO END: shared worktree, `npm run verify:feature -- --changed` exit 1 after the scoped typecheck PASSED, at check:supabase-target — credential-gated, triggered by other lanes untracked supabase/migrations, unrelated to this change.",
+          "BEFORE MEASUREMENT: `NODE_OPTIONS=--max-old-space-size=2048 tsc --noEmit` (the full program, the only heap this 8 GB host can actually grant) died in 19.9s with FATAL ERROR: Ineffective mark-compacts near heap limit / JavaScript heap out of memory and printed ZERO diagnostics. The requested 8192 MB exceeds physical RAM, so it was a request, not a grant.",
+          "SCOPE SIZE FACTS: scoped program with a database-importing root = 949 files, 27 repository sources, 576 MB peak RSS, 2.03s. Repository total the full program would contain = 4313 TypeScript sources (5474 tracked .ts/.tsx, minus the base tsconfig exclude globs). ci.yml measures the full typecheck at 68m18s on a 16 GB runner.",
+          "SWEEP CHECK WIRING: `npm run check:sweep-exemption-hazard` exit 0; `node --test scripts/ci/check-sweep-exemption-hazard.test.mjs` 11 tests pass. ci.yml parses as valid YAML, Migration Gates steps = [Checkout, Setup Node, Install pinned npm, Install dependencies, Migration validation lint, Sweep-exemption hazard fixtures, Sweep-exemption hazard (DB-014 / CP-107)]; no job added, renamed or removed, so no required status-check name in that file's header changes.",
+          "ADMIN-AUDIT PRE-EXISTENCE (re-proven here, not taken on trust): `npm run check:admin-audit` fails with exactly 3 findings (Generated view drift: STATUS.md; Generated view drift: coverage.json; Workbook registry source hash is stale). All 34 non-binary inputs it reads under docs/admin-audit/ plus lib/supabase/service-role-import-review.json, and the 35th input TOURIFY_ADMIN_WORKFLOW_TRACKER.xlsx, are byte-identical to HEAD 16fb834f by sha256. Nothing under docs/admin-audit or scripts/audit is modified in the worktree. NOT quarantined: a gate that fails is reported, not silenced.",
+          "FAST TIER — MEASURED TWICE, AND THE SECOND MEASUREMENT CORRECTS THE FIRST. The fast tier block is byte-identical to the pre-change file (empty diff of that block against the original), and the release tier block is byte-identical too. In a DETACHED CLEAN WORKTREE at base SHA 16fb834f with only scripts/verify.mjs changed, `npm run verify:fast -- --changed` printed \"Fast verification complete. Full typecheck/build is intentionally deferred.\" and exited 0. LATER, in the shared dirty worktree, the same command exits 1 — at `npm run test:unit`, not at the deferral line: __tests__/admin/workforce-identity-contract.test.ts now fails with \"expected [ …(3) ] to deeply equal [ …(2) ]\" because a concurrent lane (DB-016/WFC-003) added supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql, a THIRD org_role_permissions seed statement. Both that test file and that migration are untracked work belonging to other lanes. This is a truthful failure in a step this change does not touch, and it is recorded here rather than left as a stale green.",
+          "FAST/RESLAVE TIER DO NO FILESYSTEM WORK: the scoped-typecheck directory is resolved lazily on first use by the scoped step, so `verify:fast`, `verify:release` and an unknown tier create nothing. Verified by deleting node_modules/.cache/tourify-verify and confirming `npm run verify:fast -- --changed` does not recreate it. An earlier draft resolved it at import time, which would have made the fast tier create a directory it never uses and throw on a host where neither candidate location is writable; that was caught before handoff and corrected, because AC2 requires the fast tier to be unchanged, not merely unchanged in its printed output."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree; no commit made by this lane)",
+        "last_run_at": "2026-09-27T03:30:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "release",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "DONE. `verify:feature -- --changed` now scopes its typecheck to the changed TypeScript sources via a generated tsc project in the repository existing scope-project shape, and the tier runs to a conclusion on this machine. The full-program typecheck is NOT removed: it remains in verify:release, in ci.yml `Lint And Build`/`Typecheck` (a required context), and in RELEASE-006 curated checkout. The fast tier is byte-identical and still exits 0. Coverage bound is printed by the tier on every run, `tsc --listFiles` is recorded, and a changed file missing from the program is a hard failure. DB-014 sweep-exemption hazard check wired additively into package.json and ci.yml job `Migration Gates` with no job or required-context name touched. Inventory measured and dispositioned in docs/engineering/verification/20260927-verify-feature-scope-inventory.json. Two findings routed, not fixed. NOTE ON THE RECORDED RESULT: The feature tier itself returns a truthful red on this shared worktree at check:supabase-target, which is credential-gated and caused by other lanes untracked migrations. The scoped typecheck step — the thing CP-106 said was unrunnable — passes in 4-8s and is proven to fail on real type errors. Every acceptance criterion is met and evidenced above.",
+    "completed": [
+      "scripts/verify.mjs: --changed honored for the feature tier typecheck; scoped project generated per-run under node_modules/.cache/tourify-verify (falling back to the OS temp dir), named per-pid, with dead-pid artifacts swept on the next run and its own removed on exit",
+      "Anti-vacuity: `tsc --listFiles` recorded, repository file list and coverage ratio printed, every changed root asserted present in the program, empty program refused, and a --changed run with no changed TypeScript source reported as NOT RUN rather than passed",
+      "Clean failure reporting for the new step (child exit status, no ESM stack trace); `run()` left alone so the fast and release tiers behave exactly as before",
+      "Optional `--typecheck-scope <path>` so a lane can widen the program with a committed scope project listing its dependents, reusing the artifacts already in the repository",
+      "docs/DEVELOPMENT_WORKFLOW.md: the Feature tier row and a new section stating the scoped substitute, what it covers, what it does not, how to widen it, and how to read its output",
+      "CP-111 in docs/engineering/DECISIONS.md: the decision, the measured before/after, the safety argument that full-program typecheck was never only in this tier, the rejected alternatives, and the generalizable rule",
+      "Inventory artifact with the measured counts, the correction of the ~100 estimate, per-bucket dispositions, and the separately-unachievable commands that this fix does not address",
+      "DB-014 sweep-exemption hazard check wired: `check:sweep-exemption-hazard` in package.json, plus fixtures test and check as two steps in ci.yml job `Migration Gates`, commented for DB-015 to append rather than reorder",
+      "Handoff HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS for the two real pre-existing type errors the new gate surfaced",
+      "Two self-inflicted defects found and fixed during verification: node_modules .d.ts files were being counted as repository sources (inflating coverage to 949/4313 instead of 27/4313), and a non-TypeScript-only change still produced a 1-file passing program instead of reporting NOT RUN",
+      "Shared-worktree hygiene: a detached temp worktree was used for the clean base-SHA runs and removed; no commit; no agents:generate; probe artifacts removed from node_modules/.cache"
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-26T23:00:00.000Z",
+        "summary": "Read CP-106, the tier definitions, the tsconfig scope-project pattern (tsconfig.ds-scope.json, tsconfig.wfc003-slice.json) and verify.mjs. Confirmed the defect: line 36 ran `npm run typecheck` unconditionally.",
+        "note": "Expanded beyond the working set to scripts/ci/check-sweep-exemption-hazard.mjs, .github/workflows/ci.yml, docs/engineering/verification/** and the agent state/decision logs — required by the brief, not by a failing check."
+      },
+      {
+        "at": "2026-09-26T23:20:00.000Z",
+        "summary": "Measured the before. The full program with a 2048 MB ceiling (all an 8 GB host can grant) died in 19.9s with a heap OOM and zero diagnostics. Deliberately did NOT run the 8192 MB variant: it would have pressured live lanes on a shared 8 GB box, and the 2048 MB run already proves the same point more safely.",
+        "note": "Full typecheck is what RELEASE-005 (68m18s on 16 GB in ci.yml) and 1384 diagnostics across 407 files describe."
+      },
+      {
+        "at": "2026-09-26T23:35:00.000Z",
+        "summary": "Implemented the scoped step and proved a database-importing scoped program fits: 2.03s, 576 MB peak RSS, 915 files including lib/database.types.ts. So the 25,648-line contract is NOT the memory problem; the size of the whole program is."
+      },
+      {
+        "at": "2026-09-27T00:10:00.000Z",
+        "summary": "Negative control A: a deliberate type error in a changed root turned the tier red (exit 2, error named) — twice. Anti-vacuity guard, --typecheck-scope widening, the NOT RUN path, and a green end to end all exercised in a detached clean worktree at 16fb834f, then removed."
+      },
+      {
+        "at": "2026-09-27T01:05:00.000Z",
+        "summary": "Found and fixed two defects in my own implementation, both of which would have produced a misleading green: node_modules type declarations counted as repository sources, and a non-TypeScript-only change yielding a 1-file passing program. This is the same failure family as the one being fixed, which is why the coverage figure and the NOT RUN path are now asserted rather than printed.",
+        "note": "A third possible hole was checked and is not present: a root outside the repo or deleted between the two tsc passes would be caught by the missing-root assertion."
+      },
+      {
+        "at": "2026-09-27T02:00:00.000Z",
+        "summary": "Measured the inventory: 27 task records name verify:feature, not ~100. Dispositioned in one artifact rather than editing 27 records, because TASK_INDEX.json is being regenerated by a concurrent lane and because 8 of the records are dated evidence that must not be rewritten."
+      },
+      {
+        "at": "2026-09-27T02:40:00.000Z",
+        "summary": "Wired the DB-014 sweep-exemption hazard check: 1 line in package.json, 2 steps plus a comment in ci.yml job Migration Gates. Does not touch DB-015 files (scripts/ci/**, supabase/tests/**, migration-validation). Validated as YAML with the required-context names intact."
+      },
+      {
+        "at": "2026-09-27T03:25:00.000Z",
+        "summary": "Restored the task schema shape after a first pass wrote acceptance_criteria as objects and added a verification.result_note. task.schema.json types acceptance_criteria as array-of-string and sets additionalProperties:false on both verification and progress, so the per-criterion evidence lives here instead. The content is unchanged; only its container was wrong, and the mistake was caught by reading the schema before running agents:validate rather than after.",
+        "note": "AC1: scripts/verify.mjs runScopedTypecheck() generates a tsc project extending tsconfig.json, rooted at the changed .ts/.tsx sources, and runs `tsc -p`. Measured 4-8s end to end, 27 of 4313 repository TypeScript sources in the program for the shared worktree. Without --changed the full `npm run typecheck` still runs. AC2: The fast tier block is byte-identical to the pre-change file (diff against /tmp/rel010_verify.mjs.orig is empty). `npm run verify:fast -- --changed` printed \"Fast verification complete. Full typecheck/build is intentionally deferred.\" and exited 0. The release tier block is byte-identical too. AC3: GREEN end to end in a detached clean worktree at 16fb834f: `npm run verify:feature -- --changed` exit 0 in 4.0s. TRUTHFUL RED in the shared worktree: exit 1 at check:supabase-target, which is credential-gated (no approved local Supabase target) and is triggered by other lanes untracked migrations, not by this change. The typecheck step itself passed in both. AC4: CP-111, docs/engineering/agents/release/STATE.md, the inventory artifact (still_unachievable_on_this_machine_and_not_affected_by_this_fix), and the handoff all name CP-089/CP-092 and the `linked`-is-a-different-database rule explicitly. scripts/verify.mjs does not mention type generation at all. No regeneration was attempted. AC5: docs/engineering/verification/20260927-verify-feature-scope-inventory.json: 27 task records name verify:feature at all, 22 in verification.commands, 20 with --changed, 18 never run, 8 asserting the tier was unrunnable. The orchestrator brief estimated \"roughly 100\"; the measured figure is high by about four and the artifact says so. Disposition: never-run records RECOVERED (the command now runs; no edit needed because the string was never wrong); the 8 dated unrunnable-assertion records ACCEPTED AND LEFT BYTE-IDENTICAL because they are evidence, not stale instructions."
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS"
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "release",
+  "decision_owner": "release",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-WORK-034-HIRING-JOB-POSTING-TEMPLATES-COLUMN",
   "task_id": "WORK-009",
   "from_agent": "work",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T22:05:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "The `job_posting_templates.application_form_template` column-drift object from the DB-008 work cluster has exactly ONE remaining code reference in the working tree, and it is a one-line repoint the work lane cannot apply because Wave 34's lane grant for the work agent does not include `app/api/hiring/**`. The events-lane half of the object is already resolved: `app/api/events/[id]/posts/route.ts` no longer references `job_posting_templates` at all. Routing to the orchestrator because the owning path (`app/api/hiring/**`) is in the work domain's `WORKING_SET.json` but was withheld from this round's file grant, so it must be assigned explicitly.",
@@ -43,5 +43,8 @@
     "PASS: rg over the working tree (excluding docs/ and supabase/) shows `application_form_template` on a job_posting_templates SELECT in exactly one code file, app/api/hiring/apply/profile-preview/route.ts.",
     "PASS: the canonical replacement is proven by four independent in-repo references listed above.",
     "NOT RUN: no typecheck, no migration, no hosted action. No change was applied to this file by the work lane."
-  ]
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Assign `app/api/hiring/apply/profile-preview/route.ts` to whoever owns `app/api/hiring/**` and apply the one-line embed repoint above.",
+  "completed": []
 }

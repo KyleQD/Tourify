@@ -1,0 +1,95 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-005",
+  "title": "Build logistics overview read model",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "admin",
+  "created_at": "2026-09-23T19:16:09.709Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "working_tree_status": "dirty (21 entries)",
+  "goal": "Add the organization-scoped logistics overview contract, aggregate service, API, attention queue, timeline, facets, and source health.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/admin/**",
+    "app/api/admin/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Add the organization-scoped logistics overview contract, aggregate service, API, attention queue, timeline, facets, and source health.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm exec vitest run __tests__/admin/logistics-overview.test.ts __tests__/logistics/logistics-route-contract.test.ts"
+        ],
+        "evidence": [
+          "Added the typed overview parser, fixed-query-count aggregate service, capability-gated route, registry entry, source health, readiness, attention, timeline, and facets.",
+          "Preserved v1 result: passed"
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Organization-scoped overview API and aggregate read model implemented and covered by focused contract tests.",
+    "completed": [
+      "Authorized tours/events are resolved before batched downstream reads.",
+      "Independent source failure is represented as degraded or unavailable.",
+      "No per-tour or per-event readiness request is issued."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-24T00:38:33Z",
+        "summary": "Implemented and registered GET /api/admin/logistics/overview with the governed response contract.",
+        "next": "Measure staging performance during controlled rollout."
+      }
+    ]
+  },
+  "handoffs": [],
+  "execution_state": "done",
+  "outcome_id": "POSTLAUNCH-LOGISTICS",
+  "deliverable_class": "contract",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

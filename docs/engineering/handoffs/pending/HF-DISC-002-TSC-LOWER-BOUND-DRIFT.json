@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DISC-002-TSC-LOWER-BOUND-DRIFT",
   "task_id": "DISC-002",
   "from_agent": "discover",
   "to_agent": "orchestrator",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-25T16:12:00.000Z",
   "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
   "summary": "SYSTEMIC, NOT DISCOVER-SPECIFIC, AND IT IS A LAUNCH RISK. Generalising what the admin lane proved: `withAdminCapability` types the handler client `any` and `task-messages` builds its client without a `Database` generic, so `display_name` and `primary_genres` produced ZERO tsc diagnostics while breaking both routes at PostgREST. Applying that lesson to discover's own surface found THREE live schema drifts that make parts of the news feed silently empty, plus the SSRF pattern where three identical instances of one defect class produced zero CodeQL alerts. The rule both waves converge on: a tsc error count is a LOWER BOUND on drift, never an upper bound, and the compiler and the scanner each miss whole classes of defect, so absence of findings is not evidence of safety. discover did NOT build any cross-repo infrastructure. This is a request that the release lane consider the gap in CI structure, with three concrete, cheap options and their costs stated.",
@@ -49,5 +49,7 @@
     "PASS — the contract cross-check script: 502 tables parsed from lib/database.types.ts, 7 column-level drift instances in lib/news/** (4 of which are the unresolved music_tracks view drift, 1 the archived press-format column, 2 false positives from an embedded-resource select that were identified and excluded), 5 tables absent from the contract entirely.",
     "PASS — `npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/` -> 12 files, 117 tests. `npx vitest run __tests__/news/ __tests__/press/ __tests__/blog/` -> 8 files, 86 tests.",
     "NOT RUN — no full `npm run typecheck` (OOM risk on this box), no migration apply or `supabase db reset` (CP-051), no hosted or credentialed test, no CodeQL re-analysis, and no change to any file outside discover's grant. No hosted evidence is claimed."
-  ]
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Release/orchestrator: consider ONE of these in the CI structure. They are independent; ordering by cost."
 }

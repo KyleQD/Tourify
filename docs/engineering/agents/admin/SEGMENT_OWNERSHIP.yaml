@@ -1,0 +1,342 @@
+schema_version: "1.0"
+parent: admin
+# Segments are ordered. For discovery, the first matching include prefix owns the path.
+# Entries in shared override segment matches and require coordination with the named owner.
+segments:
+  - agent: admin-governance
+    include:
+      - app/admin/dashboard/rbac/**
+      - app/admin/dashboard/settings/**
+      - app/admin/dashboard/organization/**
+      - app/admin/dashboard/features/**
+      - app/api/admin/audit/**
+      - app/api/admin/capabilities/**
+      - app/api/admin/effective-capabilities/**
+      - app/api/admin/entity-grants/**
+      - app/api/admin/features/**
+      - app/api/admin/organization/**
+      - app/api/admin/rbac/**
+      - components/admin/capability-gate.tsx
+      - components/admin/entity-access-audit.tsx
+      - components/admin/organization/**
+      - components/admin/platform/**
+      - components/admin/rbac/**
+      - lib/admin/audit-registry-contracts.ts
+      - lib/admin/capability-
+      - lib/admin/entity-grants.ts
+      - lib/admin/feature-flags/**
+      - lib/admin/org-
+      - lib/admin/protected-
+      - lib/admin/route-registry/governance.ts
+      - lib/admin/resolve-authorized-org.ts
+      - lib/admin/separation-of-duties.ts
+      - lib/admin/state-aware-authorization.ts
+      - __tests__/admin/admin-capabilit
+      - __tests__/admin/admin-platform-
+      - __tests__/admin/admin-route-capability-
+      - __tests__/admin/authorization-
+      - __tests__/admin/entity-grants
+      - __tests__/admin/org-
+      - __tests__/admin/protected-
+      - __tests__/admin/state-aware-
+  - agent: admin-tour-planning
+    include:
+      - app/admin/dashboard/tours/**
+      - app/admin/dashboard/calendar/**
+      - app/admin/dashboard/publications/**
+      - app/api/admin/calendar/**
+      - app/api/admin/publication/**
+      - app/api/admin/tours/**
+      - app/api/admin/exports/tour-book/**
+      - components/admin/create-tour-form.tsx
+      - components/admin/grant-tour-admins-panel.tsx
+      - components/admin/tour-calendar-sync.tsx
+      - components/admin/tour-event-manager.tsx
+      - components/admin/tours/**
+      - lib/admin/calendar
+      - lib/admin/legacy-tour-
+      - lib/admin/plan-
+      - lib/admin/pub-
+      - lib/admin/publication-
+      - lib/admin/route-registry/tour-planning.ts
+      - lib/admin/schedule-publication.ts
+      - lib/admin/tour-
+      - lib/admin/use-builder-autosave.ts
+      - __tests__/admin/calendar-
+      - __tests__/admin/grant-tour-
+      - __tests__/admin/legacy-tour-
+      - __tests__/admin/plan-
+      - __tests__/admin/pub-
+      - __tests__/admin/publication-
+      - __tests__/admin/schedule-publication
+      - __tests__/admin/tour-
+      - __tests__/admin/tours-
+  - agent: admin-event-operations
+    include:
+      - app/admin/dashboard/events/**
+      - app/api/admin/event-claims/**
+      - app/api/admin/event-merges/**
+      - app/api/admin/event-providers/**
+      - app/api/admin/event-sync/**
+      - app/api/admin/events/**
+      - components/admin/create-event-form.tsx
+      - components/admin/event-communication-hub.tsx
+      - components/admin/event-locations-tab.tsx
+      - components/admin/event-participants-tab.tsx
+      - components/admin/event-parties-panel.tsx
+      - components/admin/event-planner-support.tsx
+      - components/admin/event-secure-uploads.tsx
+      - components/admin/event-setup-completeness-panel.tsx
+      - components/admin/event-task-manager.tsx
+      - components/admin/event-task-messages.tsx
+      - components/admin/events/**
+      - components/admin/operations/**
+      - components/admin/operations-builder/**
+      - lib/admin/advance-
+      - lib/admin/day-sheet-
+      - lib/admin/event-
+      - lib/admin/incident-workflow.ts
+      - lib/admin/live-
+      - lib/admin/operations-readiness.ts
+      - lib/admin/readiness-contract.ts
+      - lib/admin/route-registry/event-operations.ts
+      - lib/admin/ros-
+      - __tests__/admin/advance-
+      - __tests__/admin/day-sheet-
+      - __tests__/admin/event-
+      - __tests__/admin/events-
+      - __tests__/admin/incident-
+      - __tests__/admin/live-
+      - __tests__/admin/operations-
+      - __tests__/admin/ros-
+  - agent: admin-logistics
+    include:
+      - app/admin/dashboard/inventory/**
+      - app/admin/dashboard/logistics/**
+      - app/api/admin/lodging/**
+      - app/api/admin/logistics/**
+      - app/api/admin/rentals/**
+      - app/api/admin/tasks/**
+      - components/admin/lodging-
+      - components/admin/logistics
+      - components/admin/travel-
+      - lib/admin/batch-logistics-
+      - lib/admin/catering-
+      - lib/admin/equipment-
+      - lib/admin/lodging
+      - lib/admin/logistics-
+      - lib/admin/map-access-
+      - lib/admin/rental-
+      - lib/admin/route-logistics-
+      - lib/admin/route-registry/logistics.ts
+      - lib/admin/site-map-
+      - lib/admin/transport-
+      - lib/admin/travel-
+      - lib/admin/traveler-
+      - __tests__/admin/catering-
+      - __tests__/admin/equipment-
+      - __tests__/admin/lodging
+      - __tests__/admin/logistics-
+      - __tests__/admin/map-access-
+      - __tests__/admin/rental-
+      - __tests__/admin/route-logistics-
+      - __tests__/admin/site-map-
+      - __tests__/admin/transport-
+      - __tests__/admin/travel-
+  - agent: admin-workforce
+    include:
+      - app/admin/(dashboard-shell)/applications/**
+      - app/admin/(dashboard-shell)/job-postings/**
+      - app/admin/(dashboard-shell)/reset-onboarding/**
+      - app/admin/(dashboard-shell)/teams/**
+      - app/admin/dashboard/applications/**
+      - app/admin/dashboard/candidates/**
+      - app/admin/dashboard/hiring/**
+      - app/admin/dashboard/jobs/**
+      - app/admin/dashboard/onboarding/**
+      - app/admin/dashboard/payroll/**
+      - app/admin/dashboard/roster/**
+      - app/admin/dashboard/staff/**
+      - app/api/admin/applications/**
+      - app/api/admin/job-postings/**
+      - app/api/admin/onboarding/**
+      - app/api/admin/staff/**
+      - app/api/admin/staff-operations/**
+      - app/api/admin/staffing/**
+      - app/api/admin/team-members/**
+      - components/admin/enhanced-application-
+      - components/admin/enhanced-candidate-
+      - components/admin/enhanced-job-
+      - components/admin/enhanced-onboarding-
+      - components/admin/job-posting-
+      - components/admin/neural-staff-
+      - components/admin/onboarding
+      - components/admin/scheduling/**
+      - components/admin/staff-
+      - components/admin/workforce/**
+      - lib/admin/assignment-workflow.ts
+      - lib/admin/check-in.ts
+      - lib/admin/hiring-
+      - lib/admin/labor-
+      - lib/admin/schedule-templates.ts
+      - lib/admin/shift-
+      - lib/admin/staff-
+      - lib/admin/staffing-
+      - lib/admin/route-registry/workforce.ts
+      - lib/admin/workforce-
+      - __tests__/admin/assignment-
+      - __tests__/admin/check-in
+      - __tests__/admin/hiring-
+      - __tests__/admin/labor-
+      - __tests__/admin/schedule-
+      - __tests__/admin/shift-
+      - __tests__/admin/staff-
+      - __tests__/admin/staffing-
+      - __tests__/admin/workforce-
+  - agent: admin-commerce
+    include:
+      - app/admin/dashboard/agencies/**
+      - app/admin/dashboard/contracts/**
+      - app/admin/dashboard/finances/**
+      - app/admin/dashboard/marketplace/**
+      - app/admin/dashboard/store/**
+      - app/admin/dashboard/ticketing/**
+      - app/api/admin/contracts/**
+      - app/api/admin/finances/**
+      - app/api/admin/marketplace/**
+      - app/api/admin/store/**
+      - app/api/admin/ticketing/**
+      - components/admin/agencies/**
+      - components/admin/finance
+      - components/admin/ticketing
+      - components/admin/vendors/**
+      - components/admin/event-finance-
+      - components/admin/event-ticket-
+      - components/admin/event-vendor-
+      - components/admin/tour-finance-
+      - components/admin/tour-vendor-
+      - lib/admin/commercial-
+      - lib/admin/contract-
+      - lib/admin/finance-
+      - lib/admin/legacy-ticketing-
+      - lib/admin/route-registry/commerce.ts
+      - lib/admin/settlement-
+      - lib/admin/ticketing-
+      - lib/admin/tix
+      - lib/admin/vendor-
+      - __tests__/admin/commercial-
+      - __tests__/admin/contract-
+      - __tests__/admin/finance-
+      - __tests__/admin/legacy-ticketing-
+      - __tests__/admin/settlement-
+      - __tests__/admin/ticketing-
+      - __tests__/admin/tix
+      - __tests__/admin/vendor-
+  - agent: admin-experience-insights
+    include:
+      - app/admin/admin-layout-client.tsx
+      - app/admin/globals.css
+      - app/admin/layout.tsx
+      - app/admin/page.tsx
+      - app/admin/components/**
+      - app/admin/dashboard/analytics/**
+      - app/admin/dashboard/communications/**
+      - app/admin/dashboard/components/**
+      - app/admin/dashboard/connect/**
+      - app/admin/dashboard/content/**
+      - app/admin/dashboard/contexts/**
+      - app/admin/dashboard/feed/**
+      - app/admin/dashboard/hooks/**
+      - app/admin/dashboard/lib/**
+      - app/admin/dashboard/messages/**
+      - app/admin/dashboard/network/**
+      - app/admin/dashboard/website/**
+      - app/admin/utils/**
+      - app/api/admin/analytics/**
+      - app/api/admin/communications/**
+      - app/api/admin/content/**
+      - app/api/admin/content-hub/**
+      - app/api/admin/dashboard/**
+      - app/api/admin/error-reporting/**
+      - app/api/admin/exports/**
+      - app/api/admin/messages/**
+      - app/api/admin/notifications/**
+      - components/admin/analytics/**
+      - components/admin/attention/**
+      - components/admin/communication/**
+      - components/admin/content-hub/**
+      - components/admin/contextual-navigation.tsx
+      - components/admin/customizable-dashboard.tsx
+      - components/admin/enhanced-global-search.tsx
+      - components/admin/navigation/**
+      - components/admin/real-time-indicator.tsx
+      - components/admin/realtime-activity-feed.tsx
+      - components/admin/states/**
+      - components/admin/ui/**
+      - lib/admin/attention/**
+      - lib/admin/command-center-
+      - lib/admin/comms-
+      - lib/admin/content-hub/**
+      - lib/admin/dashboard-
+      - lib/admin/kpi-
+      - lib/admin/navigation/**
+      - lib/admin/realtime-
+      - lib/admin/rep-exp-
+      - lib/admin/reporting-
+      - lib/admin/route-registry/experience-insights.ts
+      - lib/admin/ui/**
+      - __tests__/admin/admin-navigation-
+      - __tests__/admin/admin-panel-
+      - __tests__/admin/analytics-
+      - __tests__/admin/command-center-
+      - __tests__/admin/comms-
+      - __tests__/admin/content-hub
+      - __tests__/admin/dashboard-
+      - __tests__/admin/kpi-
+      - __tests__/admin/realtime-
+      - __tests__/admin/rep-exp-
+      - __tests__/admin/reporting-
+      # Ordered residual classifiers keep every Admin path assigned. They are
+      # never valid broad task leases; active tasks must still name exact files.
+      - app/admin/**
+      - app/api/admin/**
+      - components/admin/**
+      - lib/admin/**
+      - __tests__/admin/**
+  - agent: admin-design-manager
+    include:
+      - docs/engineering/admin-reviews/design/**
+  - agent: admin-tour-manager
+    include:
+      - docs/engineering/admin-reviews/tour-simulations/**
+shared:
+  - path: app/api/admin/logistics/vendor/dashboard/route.ts
+    owner: admin-commerce
+    reason: Vendor administration belongs to commerce even though this legacy route is nested under logistics.
+  - path: components/admin/event-parties-panel.tsx
+    owner: admin-tour-planning
+    reason: The existing ADMIN-024 work treats this collaboration surface as part of tour planning.
+  - path: lib/admin/api-route-registry.ts
+    owner: admin-governance
+    reason: Stable aggregate registry; segment fragments require a coordinated governance lease.
+  - path: __tests__/admin/admin-registry-guard-proof.test.ts
+    owner: admin-workforce
+    reason: TEMPORARY single-task lease for ADMWORK-001, granted under DOMAIN-041. This is the THIRD holder of this path in two days and the reason is the same each time, namely that a proof harness is part of the change that asserts it, and splitting the change from the figures it moves guarantees either a red intermediate state or a window where the harness asserts something false. Authority is bounded to routesWithoutResourceBoundary (pinned at 48) for exactly the three named ADMWORK-001 routes, all of which currently declare resourceBoundary kind none_recorded in lib/admin/route-registry/workforce.ts, so the expected movement is 48 to 45. legacyRouteLimit is a MONOTONIC CEILING, not an exact pin, so this lease must never be used to lower a ceiling into passing. The holder history is admin-governance (standing), then admin-experience-insights (DOMAIN-040, ADMIN-022, discharged), then admin-workforce (DOMAIN-041, ADMWORK-001). ADMCOM-001 is deliberately NOT granted, because it also moves this figure and must serialize behind this task; it additionally needs a separate decision, since its registry entry lives in lib/admin/route-registry/logistics.ts (admin-logistics) rather than the commerce.ts its record declares. Must be returned to admin-governance when ADMWORK-001 completes.
+  - path: __tests__/admin/admin-route-registry-fragments.test.ts
+    owner: admin-governance
+    reason: Cross-fragment completeness and uniqueness proof maintained by registry governance.
+  - path: __tests__/admin/admin-route-capability-matrix.test.ts
+    owner: admin-logistics
+    reason: TEMPORARY single-task lease for ADMIN-021 under DOMAIN-039, not a segment reassignment. The ADMIN-016 inversion pin in this file asserts the route's current inverted state by reading route source, so fixing app/api/admin/logistics/site-maps/[id]/activity without editing this file in the same change turns the admin suite red; atomicity outranks ownership tidiness. Authority is bounded to the one named site-map activity test block and the shared override must be reverted by admin-governance when ADMIN-021 completes (ADMIN-025 is the natural place). Do not add a second shared override to this file; split it per segment instead.
+  - path: app/admin/admin-layout-client.tsx
+    owner: admin-experience-insights
+    reason: Shared Admin shell integration used by every specialist.
+  - path: app/admin/globals.css
+    owner: admin-experience-insights
+    reason: Shared Admin styling boundary; design-system changes require a handoff.
+  - path: docs/engineering/admin-reviews/review.schema.json
+    owner: admin
+    reason: Shared review contract for both advisory managers.
+  - path: docs/engineering/admin-reviews/TEMPLATE.json
+    owner: admin
+    reason: Shared review template; managers write only within their review-specific directories.

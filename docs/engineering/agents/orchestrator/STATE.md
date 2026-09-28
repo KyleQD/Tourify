@@ -1,8 +1,18 @@
 # Orchestrator state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `ORCH-004` — active/in_progress; CORE-WEB-LAUNCH
+- `ORCH-005` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `ea5c36a3b468afb82d83809746d01ad479d38541`
 - Last reviewed at: 2026-09-20
-- Active task: ORCH-002
+- Historical active-task note (superseded by generated queue summary): ORCH-002
 - Confidence: ORCH-001 audit complete; launch orchestration continues in ORCH-002 with hosted release gates still open
 
 ## Durable facts
@@ -784,3 +794,151 @@ The dated sections below are append-only orchestration checkpoints. Present-tens
   manual CP-051 migration application, Stripe test mode, protected campaign
   actors, iOS/Android preview builds, and the expired migration exception owner
   disposition.
+
+## Workforce Command Center assignment — 2026-09-26
+
+- Goal: own WFC sequencing, dependency gates, shared contracts, checkpoints, and cross-agent conflicts without displacing the production-launch graph.
+- Assigned task: `WFC-001` is active. The orchestrator may activate downstream WFC records only after their recorded dependencies and working-set availability are evidenced.
+- Governing plan: `docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md`.
+- Required outcome: maintain one authoritative task graph, enforce the recorded handoffs, prevent competing schemas or interfaces, and keep `admin_workforce_command_v2` off until QA and release gates pass.
+
+## WFC program control and first-activation review — 2026-09-26
+
+- Closed `WFC-001`. The WFC program is no longer queued: `WFC-003` (organization) and `WFC-007` (design-system) are active and both delivered. Every other WFC record remains blocked on its named dependency, and `WFC-002` additionally needs an isolated exact-SHA authenticated target that does not exist.
+- The first-activation ownership review was not a formality. It found **three WFC working sets naming paths that do not exist** (`lib/organization/**` and `lib/admin/organization-context.ts`; `components/admin/**` as a design-system grant), **two WFC tasks claiming the whole `app/api/admin/workforce/**` tree** against seven live routes, **four WFC admin tasks colliding with active ADMVIEW-001 and WORK-005** on `app/admin/dashboard/staff/**` and `components/admin/workforce/**`, and an unresolvable grant request from DESIGN-036.
+- Six rulings recorded: **CP-100** the app-wide `--radius` token is ratified as the de facto baseline and frozen with no claim of prior owner approval, and the visual gate moves to QA (this answered the design-system C-03 escalation and closed `HF-DESIGN-034-C03-APPROVAL-PROVENANCE` as partially-resolved). **CP-101** the design-system grant is *not* widened into `components/admin/**`; WFC-007 ships primitives in `components/ui/**` plus a usage contract. **CP-102** WFC-003 is the sole author of the canonical organization/manager/vendor identity contract, and `DB-012`/`ORG-007` are re-pointed as consumers. **CP-103** path partitions against ADMVIEW-001, WORK-005, and WFC's own lanes. **CP-104** the staffing RLS finding, with an explicit correction block. **CP-105** the `--status-*` token role is added to DESIGN-033, which already holds the only paths that can express it, rather than creating a second design-system task on the same file.
+- Both delivered lanes respected their hard boundaries, and I verified that myself rather than trusting the reports: **0 files changed under `components/admin`, 0 diff on `app/globals.css` and `tailwind.config.ts`, 0 migration files changed.** Both stayed `active` rather than claiming completion, which is the behavior I want from a lane under pressure.
+- **A live security finding surfaced from a contract lane, not a security lane.** WFC-003 reported that `staff_members` retained three `auth.role() = 'authenticated'` policies. I recorded it as CP-104 P0 and created `DB-013`. `DB-013` then **corrected my premise**: `20260823210000_harden_hiring_onboarding_pii.sql` drops those policies both by literal name and by a dynamic `pg_policies` sweep that a literal grep cannot see. I re-verified that correction against the migration text myself and appended an explicit correction block to CP-104. A decision log that overstates a finding is worse than no record, because the next lane verifies against it and is misled. The generalizable rule is now on the record: enumerate the full policy set per command, and never let a detection regex be tighter than the most permissive sweep in the chain.
+- The *shape* of CP-104 was confirmed on a table that is genuinely unswept: `staff_performance_metrics` retains permissive read/insert/update while its correctly scoped policies are OR'd away, and it holds `performance_rating`. Routed as `DB-014` (P1). `event_resources` and `event_calendar_items` carry `USING (true)` to `authenticated` and need a product decision, so they are routed to DB-002 rather than silently fixed.
+- Created and dispatched `ADMIN-012` (P1) for the `MANAGER_SCOPE_GAP`: `AdminCapabilityTarget['type']` had no `department` member, so CP-094's department-scoped authority was not expressible at all. Delivered with an exhaustive switch that fails `tsc` and at runtime, proven by a negative control that broke the build and was reverted. It stays active on a routed obligation and it carries an open behavior-change risk: a department manager now correctly **denies** on roughly 30 untargeted `workforce.manage` routes. That is the right fail-closed direction and it is also a live regression risk that the lane must enumerate and route, not absorb.
+- **Standing obligations routed back to named owners, not quietly closed:** WFC-003 must fix a test that still passes on a hardcoded `MANAGER_SCOPE_GAP` literal that is now false (a green assertion over a false claim is the CP-104 failure class) and must decide which roles carry `workforce.view`/`workforce.manage`, since no seeded role does and the new policies currently grant almost nobody. DB-013 must harmonize a read/manage discrepancy against `staff_shifts_scoped_read`. ADMIN-012 must route its ~30 affected routes to WFC-005.
+- **Tooling defect that blocks every lane's recorded tier:** `npm run verify:feature` hard-codes a full-repo `npm run typecheck`, which exceeds this machine's memory ceiling on a ~25,600-line `lib/database.types.ts`. Four lanes today reported the same wall honestly rather than claiming a green tier. The recorded verification tiers are therefore unachievable as written, and that needs its own decision rather than four more workarounds.
+- Launch priority is unchanged and WFC does not displace it: the staffing RLS exposure is a chain-level production NO-GO item, and `npm run check:admin-audit`'s 3 errors are proven pre-existing at base SHA.
+
+## Orchestration wave — 2026-09-27 (security and truth-in-verification)
+
+- Dispatched and completed five lanes. Every one delivered, and **every one corrected me rather than confirming me**, which is the single most valuable signal in this program. `DB-013` disproved my `staff_members` premise; `DB-014` disproved my `staff_performance_metrics` premise twice over; `WFC-003` withdrew a claim from its own prior delivery and found four more false claims in its own contract; `DB-016` reported a 206-pair residual I had not measured; `RELEASE-010` measured my "roughly 100 task records" estimate at **27** and told me it was 4× high. Corrections are appended to the decision record rather than left to be rediscovered.
+- **A third instance of the repository's dominant instrument class (CP-109):** `20250812093500` guards its `staff_performance_metrics` policy block behind `information_schema.tables`, but the table is created at `20250818120000:282` — a later **version number**. Migrations run in version order, so the guard is false and those policies **never execute**. Confirmed by execution, not by reading. The consequence is worse than "a control is weak": there was **no scoped SELECT policy at all**, and the only surviving scoped policy is `FOR ALL` gated on a *write* permission, so a holder of the chain's own intended *read* permission had no read path. `DB-015` generalizes the detector.
+- **A live split-brain authorization defect, now closed for `workforce.*` (CP-110/DB-016):** the application capability gate **unions** the TypeScript catalog, while `has_perm` reads the `org_role_permissions` matrix. No seeded role carried `workforce.view`/`workforce.manage`, so a legitimate organization administrator **passed** `withAdminCapability('workforce.manage')` on **18 live route files** and then read **zero rows** — a plausible zero, which is exactly what CP-098 forbids, arriving through authorization rather than through an API. `DB-016` seeded the matrix per WFC-003's rule `seed(role) = catalog(role) ∩ workforce.* − departmentScoped(role)` and proved the two layers now agree across all 36 pairs, with a comparator proven able to report disagreements. The subtraction is the decision: `has_perm` has no target argument, so `department_manager` is seeded view+publish and **never** manage, asserted negatively.
+- **Two honesty patterns worth keeping.** Every lane that hit the CP-106 verification wall reported it as `not-run` with completed sub-steps itemized rather than claiming a pass, and two lanes found defects in their own new instruments the same day (`DB-014` twice — a `DO` block inspecting a structurally-absent `USING`, and a detector whose construct list matched inside the construct it existed to catch). `RELEASE-010` declined to rewrite eight dated task records that record the failure, because correcting history to claim a gate ran when it did not would make the log useless. All of that is the behavior I want; the standard is now written into CP-107.
+- **The verification gate is real again (CP-111).** `RELEASE-010` made `verify:feature -- --changed` actually scoped, with four anti-vacuity guards each proven by running them, a negative control that fails on a genuine type error, and an honest statement of the residual: a scoped typecheck roots downwards, so **a change that breaks a caller is not caught** by that tier. That loss is bounded because full-program typecheck is unchanged in `verify:release`, in `ci.yml`'s required `Typecheck` context, and in RELEASE-006's curated checkout. `RELEASE-010` also wired `DB-014`'s sweep-hazard check into `package.json` and `ci.yml` without changing any required-check name, and declined to touch `check:admin-audit` because quarantining a real failing gate is the weakening I forbade — after re-proving its 3 failures pre-existing at base SHA independently.
+- **A governance flag I raised and the lane accepted:** `DB-016`'s seed **widens** `staff_members` INSERT/UPDATE to five roles, because the fail-closed policies `DB-013` shipped are gated on `workforce.manage`. Closing a plausible zero necessarily grants the authority the zero was masking. That is an authorization change and is routed to `DB-002` and `DB-013` for **security-admin review**, not harness acceptance.
+- **State:** 182 tasks, 76 active, control plane validates with 0 warnings and 0 errors. `DB-017` owns the 206-pair catalog residual, which is measured rather than estimated. `WFC-003` remains active on a criterion that cannot be met until `WFC-004` creates the entities it validates — the criterion was **retained** rather than deleted, because deleting it would tidy the record and remove the only thing standing between this program and a false green.
+
+## Admin portfolio wave — 2026-09-28
+
+Dispatched five lanes across four agents. Four tasks closed, one was correctly left open. **Every lane corrected something I asserted**, which continues to be the single most valuable signal in this program.
+
+- **ADMIN-020** (`admin`, P0) closed. The org-bound user search is real: I read `app/api/admin/users/search/route.ts:80` and confirmed the organization comes only from `admin.orgId`, that `org_id`/`ops_org_id`/`organizer_account_id` are rejected with 400 before any read, and that the id list is pushed into the `profiles` query as a predicate. The lane reported that **the implementation already existed in the worktree** when it was dispatched, authored by an interrupted earlier session, while the record still read "No implementation started" — so its real work was verification, not construction. It also reported the AC-3 premise wrong: the pinned `none_recorded` count was already 48, not 49. I confirmed its suite independently: 21/21 pass, and the file carries its own anti-vacuity guard ("returns real rows for the authorized organization, so a denial cannot be vacuous") plus a base-behaviour mirror.
+- **A blocking cross-segment conflict, and a ruling I had to make on evidence rather than procedure.** ADMIN-021 needs to edit `__tests__/admin/admin-route-capability-matrix.test.ts`, which `SEGMENT_OWNERSHIP.yaml:36` assigns to `admin-governance`. The obvious answer — split the criterion so the governance-owned file is edited by governance — is **impossible**, and I only found that by reading what the pin asserts: it reads route source directly and pins the *inverted* state, so fixing the route without editing the pin in the same change turns the admin suite red. Splitting it across two lanes requires a deliberately red intermediate state, which is the CP-098/CP-104 failure class. **Atomicity outranks ownership tidiness.** Recorded as DOMAIN-039 with a temporary `shared:` override bounded to one named test block, plus an explicit revert obligation handed to ADMIN-025. I verified afterward that the lane's diff to that shared file touched only the named block.
+- **ADMIN-021** (`admin-logistics`, P0) closed. The live read/write capability inversion is gone: GET now gates on `logistics.view`, POST on `logistics.manage`, and `capabilityByMethod` was removed from the segment fragment so the derivation is code-exact. The lane corrected `admin/STATE.md`, which overstated the impact as an open write path — the inner `requireSiteMapAccess` boundary meant it was a defense-in-depth inversion. The parent lane then corrected that STATE entry, which had been contradicting my own DOMAIN-039.
+- **ADMIN-HIER-001** (`admin`) closed on re-verification rather than on its recorded strings. It found that AC-5's "all 79 routes" is **75 of 79** (four `/admin/dashboard/artists*` routes are in no specialist's working set), and that AC-7's "3 files and 39 tests" **does not reproduce under any runner** — vitest collects 1 file/4 tests, `node --test` gives 17, and the two cannot be combined. It refused to substitute a plausible number, which is the correct call. It also corrected **two errors of mine**: I had claimed both ADMIN-022 and ADMIN-024 fail the broad-working-set check when only ADMIN-024 declares the `__tests__/admin/**` glob, and I had routed the `site-map-route-capability-migration` finding to `admin-governance` when `resolveAdminSegmentOwner` returns **`admin-logistics`** — my routing would have been rejected at activation. I verified both corrections directly; both were right.
+- **ADMIN-022** (`admin-experience-insights`, P1) is **blocked, not complete**, and that is the correct outcome. Its AC-3 is structurally unsatisfiable by a route lane: reclassifying the route moves four pinned figures, two of which live in `admin-registry-guard-proof.test.ts`, an explicit `shared:` path owned by `admin-governance`, and `control-plane-validation.mjs:279-285` compares the resolved owner to `task.owner_agent` *before* consulting `shared_working_set` — so a lease cannot reach it. The lane implemented the whole six-edit change, measured it, proved it with negative controls, was refused by the control plane, and reverted byte-exactly rather than forcing the lease. AC-1 and AC-2 are met; AC-3 is `failed` with all six edits specified, so nothing needs re-deriving.
+- **A live P0 cross-tenant defect, found by a contract lane and confirmed by me from source before acting on it.** `PATCH /api/admin/communications` was `withAdminAuth` with **no capability gate**, built a **service-role client** that bypasses RLS, destructured only `{ user }`, and filtered `.eq('id', id)` with **no organization predicate** — so any authenticated admin who learned a message UUID could flip another org's `read_by`/`acknowledged_by`. The lane found it *while doing a different task* and did not self-authorize new work; it left the defect in its report and stayed blocked on its actual criterion. I verified it by reading the handler, created **ADMIN-027** (P0), and dispatched it.
+- **ADMIN-027** closed. The fix is four `.eq('org_id', orgId)` predicates across both reads and both writes, and the service-role client is gone from the path. Two corrections from that lane are worth keeping. First, my premise that the fix was "add a predicate" was incomplete: `withAdminAuth`'s handler context is `{ user, supabase }` (`api-auth.ts:229`), so PATCH could not obtain an organization even from its own wrapper and had to resolve one. Second, and better: the lane **declined to add a capability gate** on machine evidence — `guardClassFor` promotes a handler to `capability_gated` on `withAdminCapability`/`withOrgCommand`/`hasAdminCapability`/`requireAdminCapability`, which would have made `proveAdminRouteEntry` error and moved two pinned counts. It routed the missing gate instead of breaking the repo, and recorded the asymmetry (the predicate is free, the gate is registry-costly) so no future lane "helpfully" adds the gate and turns the build red. Its negative control removed all four predicates and observed `ORG_A`'s admin id written into `ORG_B`'s `read_by`; a separate control proved the positive case can return a plausible-but-false zero. It also reported a real limit honestly: with only the *write* predicate removed, the cross-tenant denials stayed green because the scoped read refuses first, so the write predicate is covered structurally rather than behaviourally.
+- **One accident, disclosed and reverted.** A backtick pair inside a shell argument was command-substituted by zsh and ran `npm run generate:admin-audit --write`, rewriting 17 files outside the lane's working set. The lane caught it, reverted it, preserved the patch, and disclosed it in the record. `docs/admin-audit` is at 0 dirty entries. I have repeated the hazard back into the next dispatch rather than treating it as a lapse.
+- **State:** 246 tasks, 0 warnings, 0 errors, HEAD still `16fb834f` and nothing committed. `ADMIN-022` awaits an `admin` ownership grant for the proof harness; `ADMIN-024` needs its `__tests__/admin/**` glob replaced with exact paths before it can be activated; `ADMIN-025` remains blocked behind ADMIN-024 and now carries the DOMAIN-039 lease revert. The DOMAIN-039 `shared:` entry is deliberately still in place — the grant and revoke are mine, and the mechanical removal is governance's.
+
+## Admin portfolio wave 2 — 2026-09-28
+
+Dispatched five lanes across four agents. Four closed, one was correctly held blocked. I made two ownership rulings. **I also broke the control plane twice myself and want that on the record**, because the same failure mode bit me three times and it is trivially avoidable.
+
+- **Two ownership rulings, both forced by reading what a file actually asserts rather than by reasoning about who ought to own it.** **DOMAIN-040** granted `admin-experience-insights` the proof harness for ADMIN-022, on the principle that **a proof harness is part of the change that asserts it, not a third party to be negotiated with** — splitting "make the change" from "update the assertion the change makes true" across two owners guarantees either a red intermediate state or a window where the harness asserts something false. **DOMAIN-041** then had to serialize that same lease between ADMWORK-001 and ADMCOM-001, on the principle that **path-disjointness is necessary but not sufficient for collision-free dispatch**; the correct test is whether two lanes write the same machine-enforced figure, and both of these decrement `routesWithoutResourceBoundary`. That path has now had three holders in two days, which I have recorded as the trigger for splitting the harness per segment rather than granting a fourth lease.
+- **My own repeated error, and it cost three control-plane red states.** I wrote a long `reason:` string into `SEGMENT_OWNERSHIP.yaml` containing a **colon followed by a space** (`asserts it: reclassifying`, then `the same each time: a proof`, then `History: admin-governance`). In a YAML plain scalar that reads as a nested mapping, so the file failed to parse and `agents:validate` reported `Nested mappings are not allowed in compact mappings at line 324`. I hit it three times across three edits before I stopped and read the error literally instead of guessing. The fix each time was to remove the colon-space. **DOMAIN-039's entry had avoided this by luck, not by discipline.** If a `SEGMENT_OWNERSHIP.yaml` edit fails to parse, the cause is a colon-space in a `reason`, not a structural problem.
+- **ADMIN-022 closed** (`admin-experience-insights`) and moved four pinned figures, one of which **rose**: `legacyRoutes 53→51`, `legacyGuardDrift 9→5`, `capabilityGapMethods 30→32`, `routesWithoutResourceBoundary` correctly unmoved at 48. It re-measured every figure from live code rather than copying its own record, and re-ran all three negative controls. It also **corrected its own prior report**: it had recorded control B as 4 tests red when the observed count was 2, because the reverted entries still name GET/POST as `capability_gated` and are therefore internally consistent for a legacy route. It recorded the correction rather than dropping the control. It also found and fixed a weakness in its own evidence file and **strengthened** the divergence pin from `arrayContaining` over 6 of 9 drift methods to an exact `toEqual` over all 5 survivors. And it produced a sharper form of DOMAIN-040's own warning: with the ceiling lowered, **the proof test still passed 11/11** because the harness never reads the ceiling — only the checker does. That is precisely why the ceiling edit is legitimate when the true count is measured first and illegitimate as a way to silence a failure.
+- **ADMIN-024 closed** (`admin-tour-planning`) after I replaced its broad `__tests__/admin/**` glob with one exact test path, which the control plane would otherwise have rejected at activation. Its negative control removed the six scope predicates and the base-SHA route body was shown to contain `"email":"cipher@orgb.test"` **verbatim** — another organization's private email in the response. The lane did **not** copy ADMIN-015's fix, and that was the right call: ADMIN-015's route composes a second leg keyed on `profiles.id`, whereas this surface's ids are `artist_profiles.id`, so transplanting it would have created the exact second scoping rule AC-3 exists to prevent. It reused `resolveOrgArtistRosterScope` and **recorded the cost** of that choice rather than hiding it.
+- **ADMWORK-001 closed** (`admin-workforce`) and **materially escalated the severity of what I briefed.** I had told it the three handlers ran on `withAdminAuth` supplying no organization. It reported that **none of the three used `withAdminAuth` at all** — all three were bare functions the analyzer classes `no_route_guard`, and **two of them authenticated nobody whatsoever**. That is a materially worse finding than the one I sent it, and it came from reading the routes rather than from my brief. It moved five figures, two of which were outside the DOMAIN-041 grant's stated scope (`legacyRoutes 51→48`, `noSourceGuardMethods 4→2`, `nonSourceComparableClasses 0→1`) and disclosed both rather than presenting them as expected. It also **overturned my "the org predicate is free, the capability gate is registry-costly" heuristic** for this shape: reclassifying a gated route out of `legacy_pending_migration` removes it from the drift set, so `legacyGuardDrift` and `capabilityGapMethods` both stayed put.
+- **A real bug found by that lane, in code it was not touching:** `app/api/admin/logistics/items/[id]/status/route.ts` returns an **AsyncFunction instead of a Response**, because `withAdminCapability` is a factory and the route does not call it. The proof harness is **green on this defect and structurally cannot see it** — which is a more important finding than the bug, because it means the guard has a blind spot of a specific class. Routed as F1.
+- **ADMIN-026 closed** (`admin-logistics`) and repaired the weakly-bound GET half of the site-map pin. The control is the part worth keeping: it ran the **pristine** test file against a re-inverted mirrored route and got **27/27 green** — that is the defect reproduced — then ran the edited file against the same mirror and got 2 failures, **the first of which is the GET assertion**. It also found that a one-sided literal deletion *does* red the old whole-file assertion, so the non-discrimination is specifically **both literals present but assigned to the wrong handlers**, refining the record's broader claim. It ran its mirror from a sanitized baseline first, because a harness that reads nothing looks identical to a harness that bites.
+- **ADMCOM-001 was held blocked, and the reason is one I would rather have found now.** Its working set declares `lib/admin/route-registry/commerce.ts`, which resolves cleanly to `admin-commerce` and **would have passed the segment check** — but the vendor dashboard's registry entry is not there. It is at `lib/admin/route-registry/logistics.ts:941`, in **admin-logistics**' segment. The lane would have edited a fragment that does not contain its route while being unable to touch the one that does. It was invisible because **`control-plane-validation.mjs:275-289` only runs the segment check against active tasks**, so a blocked record can hold a working set that no longer reflects reality for as long as it sits blocked. That is a creation-time gate that does not exist, and it is a standing trap for every blocked record in the program.
+- **State:** 248 tasks, 0 warnings, 0 errors, HEAD still `16fb834f`, nothing committed. Both leases remain deliberately in place with revert obligations recorded to `ADMIN-025`. `ADMCOM-001` is blocked on a working-set correction plus a lease on the `logistics.ts` fragment, and is serialized behind ADMWORK-001 for the shared figure.
+
+<!-- generated-child-agent-state:start -->
+## Child-agent queue rollup
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: descendant task records and agent registry
+
+- `ADMCOM-001` — admin-commerce; blocked/waiting_decision; CORE-WEB-LAUNCH
+- `ADMIN-012` — admin-governance; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `ADMIN-017` — admin; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `ADMIN-018` — admin; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `ADMIN-025` — admin-governance; blocked/waiting_decision; CORE-WEB-LAUNCH
+- `ADMIN-028` — admin; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `ADMVIEW-COM-001` — admin-commerce; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ADMVIEW-EVENT-001` — admin-event-operations; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ADMVIEW-EXP-001` — admin-experience-insights; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ADMVIEW-GOV-001` — admin-governance; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ADMVIEW-LOG-001` — admin-logistics; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ADMVIEW-TOUR-001` — admin-tour-planning; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ADMVIEW-WORK-001` — admin-workforce; blocked/queued_postlaunch; MAINTENANCE-DEBT
+- `ARTIST-007` — artist; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-005` — database; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-006` — database; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-008` — database; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-009` — database; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-010` — database; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DB-011` — database; blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `DB-012` — database; blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `DB-018` — database; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DESIGN-033` — design-system; blocked/waiting_decision; MAINTENANCE-DEBT
+- `DESIGN-036` — design-system; blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `DESIGN-038` — design-system; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DISC-004` — discover; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DISC-005` — discover; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `DISC-006` — discover; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `EVENTS-001` — events; blocked/waiting_external; CORE-WEB-LAUNCH
+- `EVENTS-003` — events; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `INTG-008` — integrations; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-002` — marketplace; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-004` — marketplace; active/in_progress; CORE-WEB-LAUNCH
+- `MKT-006` — marketplace; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-007` — marketplace; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-008` — marketplace; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MKT-009` — marketplace; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `MUSIC-004` — music; blocked/queued_postlaunch; DEFERRED-MUSIC-ADVANCED
+- `MUSIC-006` — music; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `ORG-007` — organization; blocked/waiting_dependency; POSTLAUNCH-LOGISTICS
+- `QA-003` — qa; blocked/waiting_external; CORE-WEB-LAUNCH
+- `QA-004` — qa; blocked/waiting_external; CORE-WEB-LAUNCH
+- `QA-005` — qa; blocked/waiting_external; CORE-WEB-LAUNCH
+- `QA-006` — qa; blocked/queued_postlaunch; DEFERRED-MOBILE
+- `QA-007` — qa; blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `QA-008` — qa; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `RELEASE-002` — release; blocked/queued_postlaunch; DEFERRED-MUSIC-ADVANCED
+- `RELEASE-003` — release; blocked/waiting_external; CORE-WEB-LAUNCH
+- `RELEASE-004` — release; blocked/waiting_external; CORE-WEB-LAUNCH
+- `RELEASE-007` — release; blocked/waiting_external; CORE-WEB-LAUNCH
+- `RELEASE-009` — release; blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `RELEASE-012` — release; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `RELEASE-013` — release; active/in_progress; CORE-WEB-LAUNCH
+- `RELEASE-014` — release; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `SOCIAL-004` — social; blocked/waiting_external; CORE-WEB-LAUNCH
+- `SOCIAL-007` — social; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `TICKET-005` — ticketing; blocked/waiting_external; CORE-WEB-LAUNCH
+- `TICKET-007` — ticketing; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `USER-007` — general-user; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `VENUE-006` — venue; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WFC-002` — qa; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-005` — work; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-006` — work; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-007` — design-system; blocked/waiting_dependency; POSTLAUNCH-WORKFORCE
+- `WFC-008` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-009` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-010` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-011` — database; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-012` — work; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-013` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-014` — work; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-015` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-016` — social; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-017` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-018` — database; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-019` — work; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-020` — admin-workforce; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-021` — qa; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-022` — release; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-023` — release; blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WORK-006` — work; blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WORK-010` — work; blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-child-agent-state:end -->

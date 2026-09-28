@@ -1,46 +1,48 @@
 {
- "schema_version": "1.0",
- "id": "HF-DB-011-MARKETPLACE-CHAIN-SURFACE-TRIAGE",
- "task_id": "DB-011",
- "from_agent": "database",
- "to_agent": "marketplace",
- "cc_agents": [
-  "integrations"
- ],
- "status": "pending",
- "created_at": "2026-09-26T01:20:00.000Z",
- "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)",
- "summary": "Objective 2 of Wave 35, triaged. The 66 surface items of the 17 archived local_only_unapplied marketplace migrations classify as 14 already in the chain, 46 blocking, 6 dead. 36 of the 46 blocking are ONE product decision - the external-fulfilment surface from archive 20260704224927 (Shopify/Printful) - and are entangled with a secrets-vault column contract the database lane must not answer unilaterally. The 2 money-path items and the 4 self-contained service-marketplace tables are separately dispositioned. The instrument that produced these numbers had a false-positive defect that this wave fixed; the corrected numbers are below.",
- "working_set": [
-  "supabase/tests/db011_marketplace_local_only_disposition.mjs",
-  "supabase/migrations/20260926140100_marketplace_money_path_tables.sql",
-  "lib/marketplace/integration-sync.ts",
-  "app/api/marketplace/integrations/route.ts"
- ],
- "completed": [
-  "INSTRUMENT DEFECT FOUND AND FIXED. The Wave 34 revision counted a (table, column) pair's consumers by searching for the BARE COLUMN NAME across the whole repository. For `status`, `action`, `metadata` and `actor_user_id` that counts every file that uses the word about some other table. It reported `marketplace_storefronts.status` with 2,158 consumers, citing hooks/use-travel-coordination.ts and contexts/jukebox-context.tsx, neither of which reads a marketplace table, and `marketplace_moderation_queue.action` with 557. Acting on those numbers would have authored columns nobody asked for. Column consumers now require the file to bind the TABLE and mention the COLUMN within 25 lines. The corrected blocking count is 46, not 47, and the two changes are marketplace_listings.external_variant_id (2 real consumers) and marketplace_moderation_queue.* .",
-  "AUTHORED - MONEY PATH, both shipped as 20260926140100_marketplace_money_path_tables.sql with a planned manifest and an executed harness (ALL CHECKS PASSED): public.marketplace_payment_events (the Stripe webhook idempotency claim; unique(provider_event_id) is what stops a retried checkout.session.completed fulfilling an order twice; RLS enabled with NO policy so only a role that bypasses RLS can reach it) and public.marketplace_fee_rules (the versioned fee schedule; admin-write-only behind public.profiles.role = 'admin'; the default 10% rule seeded INACTIVE so applying the migration cannot start charging a fee). Both are reproduced from the archive with the consumer column contract read out of the code.",
-  "AUTHORED - ORDERING DEFECT: 20260926140200_scheduled_posts_platform_columns.sql repairs the scheduled_posts.platform_status/.platform_errors divergence. Reproduced from the real files first, then repaired; the product's own read and write shapes run against the result. Executed, ALL CHECKS PASSED.",
-  "TRIAGED the remaining 44. See next_steps for the per-item disposition."
- ],
- "next_steps": [
-  "BLOCKING, 36 items, ONE DECISION, NOT 36 COLUMN CONTRACTS: archive 20260704224927 contributes 6 tables (marketplace_integration_products, marketplace_integration_sync_runs, marketplace_fulfillment_requests, marketplace_provider_webhook_events, and the marketplace_listings / marketplace_listing_variants integration columns) and roughly 30 columns. The column contract is entangled with `marketplace_integrations.token_envelope` and `.refresh_token_envelope`, which are read by lib/integrations/token-vault.ts:2 consumers and lib/services/organization-social-integrations.service.ts. DECIDE: does external fulfilment ship at launch? If NO, the right answer is to delete the code that queries this surface, not to receive 36 tables. If YES, the token envelope design is a secrets-vault decision that needs a security reviewer, and the database lane will author it only after that decision, not before.",
-  "BLOCKING, 4 tables, self-contained service marketplace, no secrets entanglement: marketplace_service_requests (5 consumers), marketplace_service_offers (3), marketplace_service_bookings (1, app/api/marketplace/service-requests/[id]/route.ts), marketplace_post_attachments (2), marketplace_ticket_collections (1, lib/marketplace/ticket-source-adapter.ts). These have archive DDL and a contained column contract. They are NOT authored in this wave because none is on a money path and the service-booking lifecycle is a product state machine whose rules are yours, not the database lane's. Say the word and they are a two-migration follow-up.",
-  "BLOCKING but LOW: marketplace_listing_variants and marketplace_listings each have 7 integration columns that duplicate each other on both tables (external_product_id, external_variant_id, fulfillment_profile, fulfillment_provider, integration_id, last_external_synced_at, source_provider, sync_status). Both tables carry them, which is itself a question. Resolved together with the 36 above.",
-  "BLOCKING, 2 search columns, cheap: marketplace_listings.search_vector, read by lib/search/global-search-service.ts and lib/marketplace/public-listing-query.ts, and declared by archive 20260728000013 and 20260728000016 but by no active migration. This is a pure gap between the chain and a live read. It is not authored here only because it is not a money path and the wave budget went to the money path; it is a one-line follow-up if you want it.",
-  "BLOCKING, 1 admin read: marketplace_moderation_queue.action / .actor_user_id / .new_status / .previous_status / .resolved_at / .storefront_id, all read by app/api/marketplace/admin/moderation/route.ts. Self-contained, admin-only, low risk. Not authored for the same reason as above.",
-  "DEAD, 6, no action and do not resurrect: marketplace_service_definitions, update_marketplace_listings_search_vector, marketplace_listings_search_vector_update, generate_marketplace_order_number, marketplace_orders_set_order_number, and marketplace_listings.external_variant_id. The two search-vector functions are dead because the search_vector column itself is not in the chain, which is its own entry above; the two order-number functions are dead because order numbering is done in application code. Recording them so a later inventory run does not re-raise them as new findings.",
-  "REMAINING AFTER THIS WAVE: 46 blocking minus the 2 money-path items authored here = 44, of which 36 are the external-fulfilment decision, 4 are the service marketplace, 2 are search_vector, and 2 are the moderation-queue column sets on two tables. NONE of the 44 is a money path. That is the triage answer, and it is why this wave stopped here."
- ],
- "blockers": [
-  "The 36 external-fulfilment items cannot be authored without a product decision and, for the token envelope columns, a security review. Inventing a token-vault column contract to satisfy a compiler is the exact failure mode the release lane warned about.",
-  "The instrument is now a LOWER BOUND for column consumers: a file that builds its column list dynamically is not counted. The money-path items were therefore additionally verified by hand before anything was authored. A future re-run should re-verify rather than trust the count."
- ],
- "verification": [
-  "node supabase/tests/db011_marketplace_local_only_disposition.mjs -> 66 surface items, 14 chain-has, 46 blocking, 6 dead. The 36/4/2/2 split is derived by grouping the 46 by their archive version, which the instrument prints per item.",
-  "bash supabase/tests/db011_marketplace_money_path.harness.sh -> ALL CHECKS PASSED: anon/authenticated/signed-in all read 0 marketplace_payment_events rows; a non-admin reads 0 fee rules and the same row promoted to admin reads 1; a duplicate provider_event_id is refused; 0 fee rules are active after apply; 3 negative controls fire and the postflight returns to green.",
-  "bash supabase/tests/db008_scheduled_posts_platform.harness.sh -> ALL CHECKS PASSED, including the reproduction of the ordering defect from the two real chain files.",
-  "npm run check:migration-chain, check:migration-validation, check:migration-ledger - exit 0, 309 active migrations, 18 classified.",
-  "NOT verified: no hosted apply, no money moved, no Stripe call, no advisor run."
- ]
+  "schema_version": "2.0",
+  "id": "HF-DB-011-MARKETPLACE-CHAIN-SURFACE-TRIAGE",
+  "task_id": "DB-011",
+  "from_agent": "database",
+  "to_agent": "marketplace",
+  "cc_agents": [
+    "integrations"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-26T01:20:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)",
+  "summary": "Objective 2 of Wave 35, triaged. The 66 surface items of the 17 archived local_only_unapplied marketplace migrations classify as 14 already in the chain, 46 blocking, 6 dead. 36 of the 46 blocking are ONE product decision - the external-fulfilment surface from archive 20260704224927 (Shopify/Printful) - and are entangled with a secrets-vault column contract the database lane must not answer unilaterally. The 2 money-path items and the 4 self-contained service-marketplace tables are separately dispositioned. The instrument that produced these numbers had a false-positive defect that this wave fixed; the corrected numbers are below.",
+  "working_set": [
+    "supabase/tests/db011_marketplace_local_only_disposition.mjs",
+    "supabase/migrations/20260926140100_marketplace_money_path_tables.sql",
+    "lib/marketplace/integration-sync.ts",
+    "app/api/marketplace/integrations/route.ts"
+  ],
+  "completed": [
+    "INSTRUMENT DEFECT FOUND AND FIXED. The Wave 34 revision counted a (table, column) pair's consumers by searching for the BARE COLUMN NAME across the whole repository. For `status`, `action`, `metadata` and `actor_user_id` that counts every file that uses the word about some other table. It reported `marketplace_storefronts.status` with 2,158 consumers, citing hooks/use-travel-coordination.ts and contexts/jukebox-context.tsx, neither of which reads a marketplace table, and `marketplace_moderation_queue.action` with 557. Acting on those numbers would have authored columns nobody asked for. Column consumers now require the file to bind the TABLE and mention the COLUMN within 25 lines. The corrected blocking count is 46, not 47, and the two changes are marketplace_listings.external_variant_id (2 real consumers) and marketplace_moderation_queue.* .",
+    "AUTHORED - MONEY PATH, both shipped as 20260926140100_marketplace_money_path_tables.sql with a planned manifest and an executed harness (ALL CHECKS PASSED): public.marketplace_payment_events (the Stripe webhook idempotency claim; unique(provider_event_id) is what stops a retried checkout.session.completed fulfilling an order twice; RLS enabled with NO policy so only a role that bypasses RLS can reach it) and public.marketplace_fee_rules (the versioned fee schedule; admin-write-only behind public.profiles.role = 'admin'; the default 10% rule seeded INACTIVE so applying the migration cannot start charging a fee). Both are reproduced from the archive with the consumer column contract read out of the code.",
+    "AUTHORED - ORDERING DEFECT: 20260926140200_scheduled_posts_platform_columns.sql repairs the scheduled_posts.platform_status/.platform_errors divergence. Reproduced from the real files first, then repaired; the product's own read and write shapes run against the result. Executed, ALL CHECKS PASSED.",
+    "TRIAGED the remaining 44. See next_steps for the per-item disposition."
+  ],
+  "next_steps": [
+    "BLOCKING, 36 items, ONE DECISION, NOT 36 COLUMN CONTRACTS: archive 20260704224927 contributes 6 tables (marketplace_integration_products, marketplace_integration_sync_runs, marketplace_fulfillment_requests, marketplace_provider_webhook_events, and the marketplace_listings / marketplace_listing_variants integration columns) and roughly 30 columns. The column contract is entangled with `marketplace_integrations.token_envelope` and `.refresh_token_envelope`, which are read by lib/integrations/token-vault.ts:2 consumers and lib/services/organization-social-integrations.service.ts. DECIDE: does external fulfilment ship at launch? If NO, the right answer is to delete the code that queries this surface, not to receive 36 tables. If YES, the token envelope design is a secrets-vault decision that needs a security reviewer, and the database lane will author it only after that decision, not before.",
+    "BLOCKING, 4 tables, self-contained service marketplace, no secrets entanglement: marketplace_service_requests (5 consumers), marketplace_service_offers (3), marketplace_service_bookings (1, app/api/marketplace/service-requests/[id]/route.ts), marketplace_post_attachments (2), marketplace_ticket_collections (1, lib/marketplace/ticket-source-adapter.ts). These have archive DDL and a contained column contract. They are NOT authored in this wave because none is on a money path and the service-booking lifecycle is a product state machine whose rules are yours, not the database lane's. Say the word and they are a two-migration follow-up.",
+    "BLOCKING but LOW: marketplace_listing_variants and marketplace_listings each have 7 integration columns that duplicate each other on both tables (external_product_id, external_variant_id, fulfillment_profile, fulfillment_provider, integration_id, last_external_synced_at, source_provider, sync_status). Both tables carry them, which is itself a question. Resolved together with the 36 above.",
+    "BLOCKING, 2 search columns, cheap: marketplace_listings.search_vector, read by lib/search/global-search-service.ts and lib/marketplace/public-listing-query.ts, and declared by archive 20260728000013 and 20260728000016 but by no active migration. This is a pure gap between the chain and a live read. It is not authored here only because it is not a money path and the wave budget went to the money path; it is a one-line follow-up if you want it.",
+    "BLOCKING, 1 admin read: marketplace_moderation_queue.action / .actor_user_id / .new_status / .previous_status / .resolved_at / .storefront_id, all read by app/api/marketplace/admin/moderation/route.ts. Self-contained, admin-only, low risk. Not authored for the same reason as above.",
+    "DEAD, 6, no action and do not resurrect: marketplace_service_definitions, update_marketplace_listings_search_vector, marketplace_listings_search_vector_update, generate_marketplace_order_number, marketplace_orders_set_order_number, and marketplace_listings.external_variant_id. The two search-vector functions are dead because the search_vector column itself is not in the chain, which is its own entry above; the two order-number functions are dead because order numbering is done in application code. Recording them so a later inventory run does not re-raise them as new findings.",
+    "REMAINING AFTER THIS WAVE: 46 blocking minus the 2 money-path items authored here = 44, of which 36 are the external-fulfilment decision, 4 are the service marketplace, 2 are search_vector, and 2 are the moderation-queue column sets on two tables. NONE of the 44 is a money path. That is the triage answer, and it is why this wave stopped here."
+  ],
+  "blockers": [
+    "The 36 external-fulfilment items cannot be authored without a product decision and, for the token envelope columns, a security review. Inventing a token-vault column contract to satisfy a compiler is the exact failure mode the release lane warned about.",
+    "The instrument is now a LOWER BOUND for column consumers: a file that builds its column list dynamically is not counted. The money-path items were therefore additionally verified by hand before anything was authored. A future re-run should re-verify rather than trust the count."
+  ],
+  "verification": [
+    "node supabase/tests/db011_marketplace_local_only_disposition.mjs -> 66 surface items, 14 chain-has, 46 blocking, 6 dead. The 36/4/2/2 split is derived by grouping the 46 by their archive version, which the instrument prints per item.",
+    "bash supabase/tests/db011_marketplace_money_path.harness.sh -> ALL CHECKS PASSED: anon/authenticated/signed-in all read 0 marketplace_payment_events rows; a non-admin reads 0 fee rules and the same row promoted to admin reads 1; a duplicate provider_event_id is refused; 0 fee rules are active after apply; 3 negative controls fire and the postflight returns to green.",
+    "bash supabase/tests/db008_scheduled_posts_platform.harness.sh -> ALL CHECKS PASSED, including the reproduction of the ordering defect from the two real chain files.",
+    "npm run check:migration-chain, check:migration-validation, check:migration-ledger - exit 0, 309 active migrations, 18 classified.",
+    "NOT verified: no hosted apply, no money moved, no Stripe call, no advisor run."
+  ],
+  "accepting_task_id": "MKT-004",
+  "completion_condition": "BLOCKING, 36 items, ONE DECISION, NOT 36 COLUMN CONTRACTS: archive 20260704224927 contributes 6 tables (marketplace_integration_products, marketplace_integration_sync_runs, marketplace_fulfillment_requests, marketplace_provider_webhook_events, and the marketplace_listings / marketplace_listing_variants integration columns) and roughly 30 columns. The column contract is entangled with `marketplace_integrations.token_envelope` and `.refresh_token_envelope`, which are read by lib/integrations/token-vault.ts:2 consumers and lib/services/organization-social-integrations.service.ts. DECIDE: does external fulfilment ship at launch? If NO, the right answer is to delete the code that queries this surface, not to receive 36 tables. If YES, the token envelope design is a secrets-vault decision that needs a security reviewer, and the database lane will author it only after that decision, not before."
 }

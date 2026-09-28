@@ -1,0 +1,70 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMWORK-001-FINDINGS-ROUTING",
+  "task_id": "ADMWORK-001",
+  "from_agent": "admin-workforce",
+  "to_agent": "admin-governance",
+  "status": "pending",
+  "accepting_task_id": "ADMIN-025",
+  "completion_condition": "Each of the four findings below is either assigned to a named owner task or explicitly rejected with a reason recorded in ADMIN-025, and the two that are Admin-route defects (F1 and F3) have a decision about whether the proof harness should be able to see them. admin-governance is the router here rather than the owner of every finding because the owners differ by segment and this handoff exists so none of them is lost; it does not transfer ownership of any of them.",
+  "created_at": "2026-09-28T03:00:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "decision_record": [],
+  "summary": "ADMWORK-001 repaired three Admin onboarding/staffing handlers and, in the course of proving their boundaries, found four defects that are outside its working set. Each is stated with the code evidence that produced it, the owner it belongs to, and what ADMWORK-001 deliberately did not do. None is speculative: F1, F2 and F3 were read in the source during the work; F4 was measured by running npm run verify:feature -- --changed.",
+  "working_set": [],
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "title": "app/api/admin/logistics/items/[id]/status/route.ts returns a function where Next.js expects a response",
+      "owner": "admin-logistics",
+      "evidence": "The route is `export async function POST(request, context) { const { id } = await context.params; return withAdminCapability('logistics.manage', async (_request, {...}) => {...}) }`. `withAdminCapability(capability, handler)` is a FACTORY: it returns `withAuth(...)`, which returns the request-handler function, and does not invoke it. So the route returns an AsyncFunction, not a Response. Confirmed by measurement, not inspection: ADMWORK-001 hit this exact trap in its own first attempt, and the test returned `res` with `typeof res === 'function'` and `res instanceof Response === false`. The correct shape is the one in app/api/admin/vendor-requests/[id]/route.ts and app/api/admin/content/[id]/route.ts, where the handler is assigned to the export: `export const PATCH = withAdminCapability('vendor.manage', async (request, auth) => {...})`, and the id is taken from the pathname.",
+      "impact": "Any POST to that route cannot produce a response. The ADMIN-016 analyzer records its source guard as capability_gated, so the registry proof is green and the harness cannot see this class of defect at all.",
+      "not_done_here": "The file belongs to admin-logistics and is outside ADMWORK-001's working set, and ADMIN-026 is concurrently editing a different test in that segment."
+    },
+    {
+      "id": "F2",
+      "severity": "medium",
+      "title": "staff_onboarding_candidates has no invitation expiry, so an invite token is valid forever",
+      "owner": "admin-misc (route) plus the database owner for the migration",
+      "evidence": "GET /api/admin/onboarding/enhanced-invite resolves its whole authorization with `AdminOnboardingStaffService.getCandidateByToken(token)`, which is `supabase.from('staff_onboarding_candidates').select('*').eq('invitation_token', token).single()`. The table (supabase/migrations/20250818120000_admin_staffing_core.sql:178) has `invitation_token text` and NO expires_at, accepted_at or revoked_at column; the only index is a unique partial index on the token. So the token alone is the credential and it never expires.",
+      "impact": "A leaked or forwarded invitation link discloses candidate_id, template_id, position, department and venue_id indefinitely, and cannot be revoked without a schema change.",
+      "not_done_here": "Fixing it needs a migration, and CP-051 plus ADMWORK-001's scope both forbid one. ADMWORK-001 declared the principal honestly (public_share_token, public_share boundary at shareToken) and made an absent or unrecognised credential a 401; it did not invent an expiry it cannot enforce."
+    },
+    {
+      "id": "F3",
+      "severity": "low today, structural",
+      "title": "HiringOnboardingUploadService.reviewDocument's UPDATE is not bound to the employer, only its SELECT is",
+      "owner": "the workforce/hiring service owner",
+      "evidence": "lib/services/hiring-onboarding-upload.service.ts:285-295 issues `.from('staff_documents').update({...}).eq('id', args.documentId).select('*').single()` with no `employer_entity_type` / `employer_entity_id` predicate, while the read immediately above (lines 274-280) is bound to both. The client is a service-role client (lib/supabase/hiring-service-client.ts -> createServiceRoleClient), so RLS is not a backstop.",
+      "impact": "Not exploitable today, and the reason is worth stating precisely rather than leaving the finding to be over-read: the scoped read runs first and returns early with 'Document not found for this employer' when the document does not belong to the named employer, so the unbound update is only reachable for a document the same request already proved it owns. It is a one-line reorder away from being exploitable, and ADMWORK-001 did not want a future refactor of the read to silently open it.",
+      "not_done_here": "lib/services/hiring-onboarding-upload.service.ts is a canonical workforce service outside ADMWORK-001's working set."
+    },
+    {
+      "id": "F4",
+      "severity": "low",
+      "title": "lib/services/admin-onboarding-staff.service.ts carries 30 pre-existing TypeScript diagnostics",
+      "owner": "the workforce service owner",
+      "evidence": "`npx tsc -p tsconfig.admwork001-slice.json --noEmit` reports exactly 30 diagnostics and all 30 are in lib/services/admin-onboarding-staff.service.ts (nullability on StaffShift.venue_id, Json index signatures, missing resume_url/cover_letter/date_of_birth/experience_years on typed rows, AutoScreeningResult not assignable to Json). Zero are in any of the seven files ADMWORK-001 changed. The same 30 also appear in `npm run verify:feature -- --changed`, whose scoped typecheck reported 136 diagnostics across 18 files, none of them ADMWORK-001's.",
+      "impact": "It is why the scoped slice cannot be green rather than merely narrow, and it is one of the reasons full-repo typecheck is unusable on this machine (CP-106).",
+      "not_done_here": "The file is untracked, unmodified by this task and outside its working set."
+    }
+  ],
+  "completed": [
+    "F1, F2 and F3 read directly in the source while proving the three boundaries.",
+    "F4 measured by running the scoped slice and npm run verify:feature -- --changed, with the diagnostic counts attributed per file rather than reported as a single number."
+  ],
+  "next_steps": [
+    "Route F1 to admin-logistics as a route defect. It is the only one of the four that is a live broken response on a core-launch route.",
+    "Route F2 as a schema decision: adding invitation expiry to staff_onboarding_candidates is a migration plus a product decision about how long an invitation lives, so it belongs to the database owner with the admin-misc route owner, not to a boundary repair.",
+    "Route F3 to the hiring service owner as a hardening change, with the note that it is not currently exploitable and must not be reported as an active exposure.",
+    "Route F4 as typecheck debt on the workforce service."
+  ],
+  "blockers": [
+    "ADMIN-025 exists but is blocked/waiting_decision, so this routing cannot be actioned in this wave."
+  ],
+  "verification": [
+    "npx tsc -p tsconfig.admwork001-slice.json --noEmit -> 30 diagnostics, 30 of them in lib/services/admin-onboarding-staff.service.ts and 0 in the files this task changed.",
+    "npm run verify:feature -- --changed -> eslint step succeeded; typecheck step failed with 136 diagnostics across 18 files, none of them this task's. Recorded as a fail, not as a pass."
+  ]
+}

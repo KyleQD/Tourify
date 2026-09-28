@@ -1,0 +1,789 @@
+{
+  "schemaVersion": 1,
+  "artifact": "WFC-004 type-regeneration specification",
+  "taskId": "WFC-004",
+  "owner": "database",
+  "createdAt": "2026-09-27T11:40:00.000Z",
+  "purpose": "lib/database.types.ts is BYTE-UNCHANGED and these three migrations REQUIRE it to change. Regeneration cannot be run here, and the reason is NOT that the schema is unchanged. This file exists so that a blocked regeneration is not mistaken for a schema that needs no types, and so that whoever runs it can DIFF the result against a list rather than trusting it.",
+  "theBlock": {
+    "what": "scripts/ci/generate-database-types.mjs and scripts/ci/check-database-types.mjs both call spawnSync without maxBuffer, so Node's 1 MB default aborts both with ENOBUFS on any target whose generated output exceeds it. This project's output is 1,183,384 bytes.",
+    "secondBlock": "The only reachable target, SUPABASE_TYPE_SOURCE=linked, is a DIFFERENT DATABASE. It holds 609 relations / 8,020 columns / 151 callables against a 315-migration chain reconstructing 417 relations / 5,363 columns / 224 routines. Regenerating from it would DELETE 78 relations, 112 columns and 27 callables and ADD 285 relations of which 276 no active migration creates. The committed contract has ZERO out-of-band surface against the chain, so it demonstrably did not originate there either.",
+    "authority": "CP-089, CP-092. HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE. CP-016.",
+    "owner": "release / ops. The one-line maxBuffer fix is in scripts/ci/**, which CP-112 denies this lane, and the correct TARGET is `local`, which needs a Docker daemon this host does not have."
+  },
+  "currentContractState": {
+    "path": "lib/database.types.ts",
+    "byteUnchanged": true,
+    "sha256": "168daff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7",
+    "lines": 25648,
+    "chainMigrationsAtCapture": 315
+  },
+  "whatRegenerationMustProduce": {
+    "note": "EVERY item below is a NEW declaration. None exists in the committed contract today. Each is stated as the operator can check it, so a regenerated file is diffed against this list rather than reviewed from scratch.",
+    "tables": [
+      {
+        "name": "vendor_entities",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "legal_name",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "display_name",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "normalized_legal_name",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "category",
+            "type": "text",
+            "nullable": false,
+            "note": "check in the 8-value VEND-102 vocabulary"
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "nullable": false,
+            "default": "'prospective'::text",
+            "note": "check in the 8-value VEND-102 vocabulary"
+          },
+          {
+            "name": "city",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "region",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "country",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "external_accounting_id",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "primary_contact_name",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "primary_contact_email",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "primary_contact_phone",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "merged_into_id",
+            "type": "uuid",
+            "nullable": true,
+            "references": "public.vendor_entities(id) via the composite (merged_into_id, org_id) FK"
+          },
+          {
+            "name": "created_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "updated_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "vendor_entity_aliases",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "vendor_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.vendor_entities(id) via the composite (vendor_id, org_id) FK, on delete cascade"
+          },
+          {
+            "name": "alias_display",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "alias_normalized",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "nullable": false,
+            "note": "check in ('legal_name','display_name','merge','manual')"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "workforce_departments",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "slug",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "name",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "department_kind",
+            "type": "text",
+            "nullable": false,
+            "default": "'internal'::text",
+            "note": "check in ('internal','vendor')"
+          },
+          {
+            "name": "vendor_entity_id",
+            "type": "uuid",
+            "nullable": true,
+            "references": "public.vendor_entities(id) via the composite (vendor_entity_id, org_id) FK, on delete restrict"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "description",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "updated_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "workforce_department_managers",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "department_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.workforce_departments(id) via the composite (department_id, org_id) FK, on delete cascade"
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "auth.users(id) on delete cascade"
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "nullable": false,
+            "default": "'manual'::text"
+          },
+          {
+            "name": "source_ref",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "assigned_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "assigned_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "ended_at",
+            "type": "timestamptz",
+            "nullable": true
+          },
+          {
+            "name": "ended_reason",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "workforce_department_memberships",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "department_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.workforce_departments(id) via the composite (department_id, org_id) FK, on delete cascade"
+          },
+          {
+            "name": "person_user_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "auth.users(id) on delete cascade"
+          },
+          {
+            "name": "membership_kind",
+            "type": "text",
+            "nullable": false,
+            "note": "check in ('primary','secondary')"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "effective_from",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "effective_to",
+            "type": "timestamptz",
+            "nullable": true
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "nullable": false,
+            "default": "'manual'::text"
+          },
+          {
+            "name": "source_ref",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "updated_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "workforce_legacy_links",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": true,
+            "references": "public.organizations(id) on delete cascade",
+            "note": "NULLABLE, and uniquely so in this wave: staffing_agencies has no tenant column at all"
+          },
+          {
+            "name": "subject_table",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "subject_id",
+            "type": "uuid",
+            "nullable": true
+          },
+          {
+            "name": "subject_key",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "target_kind",
+            "type": "text",
+            "nullable": false,
+            "note": "check in ('department','membership','manager','vendor_entity')"
+          },
+          {
+            "name": "target_id",
+            "type": "uuid",
+            "nullable": true
+          },
+          {
+            "name": "link_state",
+            "type": "text",
+            "nullable": false,
+            "note": "check in ('linked','unresolved','rejected')"
+          },
+          {
+            "name": "quarantine_code",
+            "type": "text",
+            "nullable": true,
+            "note": "check over WFC-003's eleven WORKFORCE_QUARANTINE_CODES"
+          },
+          {
+            "name": "provenance",
+            "type": "text",
+            "nullable": false,
+            "default": "'backfill'::text"
+          },
+          {
+            "name": "evidence",
+            "type": "jsonb",
+            "nullable": false,
+            "default": "'{}'::jsonb"
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "resolved_at",
+            "type": "timestamptz",
+            "nullable": true
+          },
+          {
+            "name": "resolved_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "resolution_note",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "workforce_quarantine",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": true,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "code",
+            "type": "text",
+            "nullable": false,
+            "note": "check over WFC-003's eleven WORKFORCE_QUARANTINE_CODES"
+          },
+          {
+            "name": "subject_table",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "subject_id",
+            "type": "uuid",
+            "nullable": true
+          },
+          {
+            "name": "subject_key",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "detail",
+            "type": "jsonb",
+            "nullable": false,
+            "default": "'{}'::jsonb"
+          },
+          {
+            "name": "provenance",
+            "type": "text",
+            "nullable": false,
+            "default": "'backfill'::text"
+          },
+          {
+            "name": "first_observed_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "last_observed_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "observation_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "resolved_at",
+            "type": "timestamptz",
+            "nullable": true
+          },
+          {
+            "name": "resolved_by",
+            "type": "uuid",
+            "nullable": true,
+            "references": "auth.users(id) on delete set null"
+          },
+          {
+            "name": "resolution_note",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      },
+      {
+        "name": "workforce_operational_status_events",
+        "schema": "public",
+        "kind": "table",
+        "rowLevelSecurity": true,
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "nullable": false
+          },
+          {
+            "name": "org_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.organizations(id) on delete cascade"
+          },
+          {
+            "name": "department_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.workforce_departments(id) via the composite (department_id, org_id) FK, on delete RESTRICT"
+          },
+          {
+            "name": "membership_id",
+            "type": "uuid",
+            "nullable": false,
+            "references": "public.workforce_department_memberships(id) via the THREE-column composite (membership_id, department_id, person_user_id) FK, on delete restrict"
+          },
+          {
+            "name": "person_user_id",
+            "type": "uuid",
+            "nullable": false
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "nullable": false,
+            "note": "check over the exec plan's nine-value manager status vocabulary"
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "nullable": false,
+            "default": "'manager'::text"
+          },
+          {
+            "name": "effective_at",
+            "type": "timestamptz",
+            "nullable": false
+          },
+          {
+            "name": "recorded_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "recorded_by",
+            "type": "uuid",
+            "nullable": false,
+            "references": "auth.users(id) on delete restrict"
+          },
+          {
+            "name": "supersedes_event_id",
+            "type": "uuid",
+            "nullable": true,
+            "references": "public.workforce_operational_status_events(id) via the composite (supersedes_event_id, org_id, department_id) FK, on delete restrict"
+          },
+          {
+            "name": "reason",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "metadata",
+            "type": "jsonb",
+            "nullable": false,
+            "default": "'{}'::jsonb"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamptz",
+            "nullable": false,
+            "default": "now()"
+          }
+        ]
+      }
+    ],
+    "views": [
+      {
+        "name": "workforce_department_directory",
+        "note": "security_invoker = true. Must appear in the contract as a view with Insert/Update/Delete = never."
+      },
+      {
+        "name": "workforce_membership_health",
+        "note": "security_invoker = true."
+      },
+      {
+        "name": "workforce_operational_status_current",
+        "note": "security_invoker = true. Derived from the append-only ledger; DISTINCT ON (department_id, person_user_id) over events that no other event supersedes."
+      },
+      {
+        "name": "workforce_reconciliation_audit",
+        "note": "security_invoker = true. Single row of counters plus an open_by_code jsonb map."
+      }
+    ],
+    "callableRoutines": [
+      {
+        "signature": "workforce_department_is_managed_by(uuid, uuid)",
+        "returns": "boolean",
+        "note": "SECURITY DEFINER, STABLE, search_path 'public, extensions'. The ONLY department-scope authority predicate. EXECUTE must NOT be granted to anon or PUBLIC."
+      },
+      {
+        "signature": "workforce_touch_updated_at()",
+        "returns": "trigger",
+        "note": "SECURITY INVOKER. EXECUTE revoked from PUBLIC."
+      },
+      {
+        "signature": "workforce_department_managers_require_active_membership()",
+        "returns": "trigger",
+        "note": "SECURITY INVOKER, deliberately: the privileged read happens inside is_org_member, so the trigger needs no elevated privilege and cannot be repurposed to read org_members. EXECUTE revoked from PUBLIC."
+      },
+      {
+        "signature": "workforce_departments_protect_boundaries()",
+        "returns": "trigger",
+        "note": "SECURITY INVOKER, conditional on a JWT. The column-level half of the department boundary, which an RLS with check cannot express. EXECUTE revoked from PUBLIC."
+      },
+      {
+        "signature": "workforce_status_events_are_append_only()",
+        "returns": "trigger",
+        "note": "SECURITY INVOKER. Raises on UPDATE and DELETE of the ledger."
+      },
+      {
+        "signature": "workforce_status_events_validate_actor()",
+        "returns": "trigger",
+        "note": "SECURITY INVOKER. Requires recorded_by = auth.uid() whenever a JWT is present."
+      }
+    ],
+    "triggersThatDoNotAppear": "TRIGGER FUNCTIONS returning `trigger` are correctly absent from `supabase gen types` output. workforce_touch_updated_at, workforce_department_managers_require_active_membership, workforce_departments_protect_boundaries, workforce_status_events_are_append_only and workforce_status_events_validate_actor should therefore NOT be expected in the Functions block. The database lane's own 2026-09-25 measurement established this for the pre-existing chain: 82 trigger functions reconstructed against 100 declared callables, and the difference is not drift.",
+    "enums": "None. WFC-004 adds no PostgreSQL type."
+  },
+  "how_to_verify_a_regeneration": [
+    "Diff the regenerated lib/database.types.ts against the committed SHA-256 above. It MUST change, because the contract does not declare any of the objects listed here.",
+    "Assert all 8 tables, 4 views and 1 callable appear with the exact column sets above. A regenerated file is DIFFED against this list, not reviewed from scratch - a 25,000-line file cannot be reviewed and a regeneration that silently drops a column is the CP-016 failure this specification exists to prevent.",
+    "Assert NO pre-existing relation, column or callable is REMOVED. The database lane's 2026-09-25 measurement established the chain is a strict SUPERSET of the committed contract: 0 out-of-band columns, 0 out-of-band relations, 0 out-of-band callables. A regeneration that deletes anything was taken from the wrong target.",
+    "Assert the output is between 1.18 MB and roughly 1.25 MB. Below 1.18 MB means coverage was lost; the ENOBUFS ceiling is 1 MB and a result near it means the fix did not take effect.",
+    "Run the scoped typecheck with a program that DOES include lib/database.types.ts, because the default `verify:feature -- --changed` program did not include it on this task (no changed root imports it) and the database lane therefore did not type-check the regenerated contract at all."
+  ],
+  "what_was_NOT_done_and_why": {
+    "regeneration": "Not attempted. The block is real and the target is wrong; attempting it from `--linked` would delete 78 relations and add 285 that no migration creates.",
+    "hand_editing_lib_database_types": "Not done. A hand-edit of a 25,000-line generated file is how the file and the database diverge silently, and the generated header would then be a lie. The specification is the alternative: it says what the file must contain so the operator's regeneration is checkable.",
+    "escalation": "This artifact IS the escalation. It is filed in docs/engineering/migration-validation/**, which CP-112 grants this lane exclusively, and it is referenced from all three migration manifests and from the task record so that 'regeneration is blocked' can never be read as 'the schema is unchanged'."
+  },
+  "nextAction": "release/ops: fix the maxBuffer in scripts/ci/generate-database-types.mjs and check-database-types.mjs, point SUPABASE_TYPE_SOURCE at a target built from the 315-migration chain (NOT `linked`), run regeneration, and diff the result against whatRegenerationMustProduce above."
+}

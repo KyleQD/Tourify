@@ -1,0 +1,238 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-004",
+  "title": "Add canonical workforce departments memberships and scoped authority",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty working tree with many concurrent lanes (DB-015, DB-017, RELEASE-010, ADMIN-012, DESIGN-033 and others). WFC-004 added ONLY untracked new files under supabase/migrations/**, supabase/tests/** and docs/engineering/migration-validation/**, plus append-only edits to docs/engineering/migration-validation/hosted-history-ledger.json, docs/engineering/DECISIONS.md and docs/engineering/agents/database/STATE.md. No committed file was modified, no commit was made, agents:generate was deliberately not run, and nothing was added to scripts/ci/** (CP-112).",
+  "goal": "Create canonical internal/vendor departments, primary/secondary memberships, and organization/department authority boundaries.",
+  "scope": {
+    "in": [
+      "Canonical internal and vendor departments with one accountable manager each",
+      "Primary and secondary workforce memberships",
+      "Organization-wide and department-scoped authority boundaries in RLS",
+      "Explicit links and reconciliation to legacy workforce tables",
+      "The vendor entity home decision the chain currently lacks"
+    ],
+    "out": [
+      "Deleting staff_members.department",
+      "Destructive resets",
+      "Guessing ambiguous managers",
+      "Authoring anything under scripts/ci/** — DB-015 and DB-017 own that directory this wave (CP-112)",
+      "Changing app/globals.css, tailwind.config.ts, or the token registry — DESIGN-033 owns those (CP-105)",
+      "Re-opening the capability resolver — ADMIN-012 owns lib/auth/admin-capabilities.ts"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/** (you own this directory exclusively this wave — see CP-112)",
+    "supabase/tests/** (you own this directory exclusively this wave — see CP-112)",
+    "docs/engineering/migration-validation/** (you own this directory exclusively this wave — see CP-112)",
+    "lib/database.types.ts",
+    "docs/engineering/tasks/active/WFC-004.json",
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/agents/database/CHARTER.md",
+    "docs/engineering/tasks/blocked/WFC-003.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "One active primary membership per organization/person is enforced under concurrency",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "executed:supabase/tests/wfc004_workforce_departments.harness.sh stage 3a. Two simultaneous psql sessions inserted a PRIMARY membership for the same (organization, person) into two DIFFERENT departments: exactly 1 row resulted and at least one 23505 named workforce_department_memberships_one_active_primary_uidx. THE CONTROL: with the index DROPPED, the same two concurrent inserts BOTH succeeded - so the claim is a measurement of that index and not of a coincidence. The same construction and the same drop-the-index control are applied to workforce_department_managers_one_accountable_uidx in stage 3b. The contract postflight asserts the index's WHERE clause, not merely its existence, because an index that silently lost its predicate stops being a guarantee while still being present.",
+        "Preserved v1 criterion metadata: {\"how\":\"workforce_department_memberships_one_active_primary_uidx is a PARTIAL UNIQUE INDEX on (org_id, person_user_id) where membership_kind='primary' and is_active and effective_to is null - an index, not a trigger, because an index is what the database enforces under concurrency.\",\"stated_limit\":\"'At most one' is enforced. 'At least one' is a property of a SET of rows and is NOT enforced - demoting the last active primary to secondary would leave a worker with none. It is DETECTED by public.workforce_membership_health and prevented at WFC-005's command layer. A deferred cross-row constraint trigger was considered and rejected: it would fire on every membership write including bulk imports.\"}"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Secondary memberships do not change primary membership or authority",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "executed: stage 3e. POSITIVE CONTROL FIRST: the appointed manager of the department IS resolved, so the denials are not vacuous. A worker whose only relationship is a SECONDARY membership resolves to FALSE; their UPDATE affects 0 rows and exits 0 (the silent-no-op fact, CP-114); their self-appointment INSERT is refused 42501; their ledger INSERT naming their own membership is refused 42501; and a manager of department A cannot place a membership into department B, with check being evaluated against the department_id being WRITTEN. THE FUNCTIONS BODY is proven by the contract postflight check department_scope_reads_memberships, and the harness INJECTS the widening edit - adding the memberships table to the function - and requires the postflight to report it, then removes it and requires green again.",
+        "Preserved v1 criterion metadata: {\"how\":\"THREE structural facts, each independently assertable and none of them prose. (a) public.workforce_department_is_managed_by is the only department-scope predicate any policy or view uses, and its body reads workforce_department_managers and NEVER workforce_department_memberships. (b) The manager relation's INSERT and UPDATE require organization-wide workforce.manage, which DB-016 deliberately does NOT grant to department_manager, so a worker cannot promote themselves by writing a row. (c) Neither the manager nor the membership relation has a DELETE policy or a DELETE privilege, for authenticated, anon AND service_role.\",\"corrections_this_criterion_needed\":\"The first revision asserted on the psql exit code and reported two rc=0 'failures' that were both SUCCESSES - the silent-no-op finding, now CP-114 and HF-WFC-004-AFFECTED-ROW-COUNT. The checks were rewritten to count affected rows and to pair every 0-row result with the 1-row result for a different caller.\"}"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Cross-organization manager, vendor, worker, and department references fail",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "executed: stage 3g. Six cross-organization refusals, EACH PAIRED WITH A POSITIVE CONTROL using the identical statement at the correct org_id, and each asserted by CONSTRAINT NAME so a refusal for the wrong reason is visible: 23503 on workforce_department_managers_department_fkey, on the vendor-kind FK, on the membership department FK, on the ledger's three-column membership FK, on the alias FK, and on the ledger's cross-scope supersedes FK. The first attempt at the manager case measured 23505 on the one-accountable-manager index instead of 23503 - a real refusal for the wrong reason - and a department with no open manager was used so the tenant check is what answers. Separately an org B administrator reads 0 of org A's departments through RLS, and an org A administrator - holding organization-wide authority - STILL cannot appoint a manager of org B's department, because the composite FK binds the two columns.",
+        "Preserved v1 criterion metadata: {\"how\":\"COMPOSITE FOREIGN KEYS, not policy denials, so the references are structurally impossible rather than merely refused: (vendor_entity_id, org_id) -> vendor_entities(id, org_id); (department_id, org_id) -> workforce_departments(id, org_id) on managers, memberships AND the ledger; (membership_id, department_id, person_user_id) -> memberships, a THREE-column key; (supersedes_event_id, org_id, department_id) on the ledger; (vendor_id, org_id) on aliases; and (merged_into_id, org_id) on the vendor master, so a merge cannot cross a tenant either.\",\"instrument_note\":\"The contract postflight asserts these foreign keys by name AND asserts that each is COMPOSITE, by column count, because a single-column FK with the same name would satisfy an existence check while permitting exactly the cross-tenant reference the name promises to forbid.\"}"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Backfill is idempotent and unresolved records remain explicitly reviewable",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "executed: stage 4. THE BACKFILL IS MEASURED NOT TO REPLACE: re-applying over two free-text department strings, one org-less staff row, one name-only vendor contract, one name-only event request, one tour-scoped vendor and one tenant-less staffing agency created ZERO departments and ZERO memberships and produced 14 link rows and 13 quarantine rows. IDEMPOTENCY IS A COUNT, NOT AN INTENTION: a third apply left both counts identical. REVIEWABILITY IS ASSERTED PER CLASSIFICATION: all thirteen expected (subject_table, quarantine_code) pairs are present by name - department_not_an_entity, vendor_identity_name_only on four tables, org_key_missing, org_key_cross_tenant_only, and vendor_table_unproven on all six chain-absent reader relations. Every link row carries non-empty EVIDENCE rather than only a verdict, and the free-text department observation records the row count it was derived from. THE VISIBILITY SPLIT IS CORRECT AND MEASURED: an org administrator sees 2 of 14 link rows, because rows whose subject has no established organization (staffing_agencies has no tenant column at all) are invisible to every authenticated caller by design, and the operator is pointed at workforce_reconciliation_audit rather than at a policy to widen.",
+        "Preserved v1 criterion metadata: {\"how\":\"Eleven backfill statements, each guarded by `on conflict ... do update ... where <is distinct from>` or `on conflict do nothing`, over a unique key on (subject_table, coalesce(subject_id::text, subject_key)). The two reconciliation tables are constrained so an unresolved row MUST carry a WORKFORCE_QUARANTINE_CODES code and non-empty evidence, a linked row must name a target, and a resolved quarantine must state resolved_at, resolved_by AND a note of at least three characters.\",\"why_no_backfill_of_departments_or_memberships\":\"Because there is NO provable source. The only department-bearing column in the chain is unconstrained nullable TEXT with no foreign key, and WFC-003 §6.9 requires the department entity to replace every free-text column by explicit LINK, never by value comparison. Creating a department named after a string and attaching people to it by matching that string is the merge CP-096 forbids and the resolution that would manufacture the authority the new schema exists to stop inventing.\"}"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "RLS persona and migration validation evidence are recorded",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "EXECUTED, 158 PASS / 0 FAIL, exit 0 on a throwaway PostgreSQL 16.15: supabase/tests/wfc004_workforce_departments.harness.sh. Sixteen has_perm/is_org_member preconditions asserted BEFORE any denial, with the CP-110 shape measured on the extracted matrix (an org admin holds workforce.manage; a department_manager holds view+publish and NOT manage; a worker holds neither; vendor.* is reachable only through the per-member array). Personas exercised: organization administrator (own org read, own org write, blocked at the tenant wall for org B), department_manager who IS an appointed manager (may rename, refused 42501 on the boundary columns, may not create or delete), department_manager who is NOT (may not create, may not delete), worker with a primary membership (reads their own), secondary-only worker (resolves false, 0-row update, three 42501s), revoked manager (row still open, predicate false), invited member (rejected by the trigger), unaffiliated authenticated account (0 rows), member with a per-member vendor permission array (the working path today), an org B administrator (0 rows), and anon (no privilege at all). MIGRATION VALIDATION: three `planned` manifests in docs/engineering/migration-validation/ with layered plans, assumptions, preflight stop conditions, labelled probes, and recovery; `npm run check:migration-validation` exit 0; `check:migration-validation:all` exit 1 with the 77 pre-existing historic failures (46 2025-era, 31 2026-era) of which NONE mentions a WFC-004 object; `check:migration-chain` pass over 315 files; `check:migration-ledger` pass. The contract postflight `supabase/tests/wfc004_workforce_departments_contract.sql` returns zero violations and `WFC-004 workforce departments|t|0`, with its summary computed from the SAME MATERIALISED violation set it prints, and it is proven able to fail by EIGHT injected defects."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "bash supabase/tests/wfc004_workforce_departments.harness.sh",
+          "node supabase/tests/wfc004_sweep_exemption_agreement.mjs --selftest",
+          "node supabase/tests/wfc004_sweep_exemption_agreement.mjs",
+          "node scripts/ci/check-never-executed-migration-blocks.mjs   (DB-015's detector, the CP-109 instrument)",
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "npm run check:migration-validation:all",
+          "npm run check:migration-ledger",
+          "npm run test:rls-matrix",
+          "npm run agents:validate",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [
+          "bash supabase/tests/wfc004_workforce_departments.harness.sh -> ALL CHECKS PASSED, 158 PASS / 0 FAIL, exit 0 (throwaway PostgreSQL 16.15; local emulation, NOT Supabase, NOT a hosted project, NOT a chain replay, no supabase db reset)",
+          "node supabase/tests/wfc004_sweep_exemption_agreement.mjs --selftest -> ALL CHECKS PASSED (4 controls; 2 of them prove the check can report a real disagreement in either direction)",
+          "node supabase/tests/wfc004_sweep_exemption_agreement.mjs -> exit 0, 6/6 patterns agree between 20260823210000:304-309 and the WFC-004 contract postflight's copy",
+          "node scripts/ci/check-never-executed-migration-blocks.mjs -> exit 0; 53 never-executed blocks chain-wide, all with a recorded owned disposition; ZERO findings against 20260927100100 and 20260927100200; ONE LOW inert-assertion probe against 20260927100000:632, answered in the detector's own header as a post-condition whose subject is expected absent",
+          "npm run check:migration-chain -> pass, 315 files scanned, no duplicate policy creations",
+          "npm run check:migration-validation -> pass, exit 0; all three WFC-004 manifests scanned as `planned`",
+          "npm run check:migration-validation:all -> exit 1 with 77 pre-existing historic failures (46 2025-era, 31 2026-era), matching the previously recorded figure exactly. NONE mentions any WFC-004 object and none is caused by this task. Recorded honestly, none fixed.",
+          "npm run check:migration-ledger -> pass, 315 active migrations, 21 classified, 294 explicitly unreconciled. The sourceSnapshot was re-derived by the ledger check's own algorithm because WFC-004's three migrations staled it, and all three are classified with a task, a rationale and a next action rather than left in the unclassified bucket to hit a number.",
+          "npm run test:rls-matrix -> pass; 3 test files passed, 1 skipped (rls-live.test.ts needs ADMIN_RLS_TEST_DATABASE_URL), 16 tests passed, 2 skipped",
+          "npm run agents:validate -> pass; 17 agents, 182 tasks, 0 warnings, 0 errors",
+          "npm run verify:feature -- --changed -> NOT PASSED. The tier ran eslint over the changed TypeScript roots, ran the CP-106 scoped typecheck (17 changed roots; 27 of 4313 repository sources in the program; lib/database.types.ts NOT in the program, so the generated contract was not type-checked), and passed check:migration-validation - then FAILED at its third step, `npm run check:supabase-target`, with `SUPABASE_PROJECT_ID is required`, `EXPECTED_SUPABASE_PROJECT_ID is required`, `SUPABASE_TARGET_CONFIRMATION must exactly match the approved project ref`. That is a missing operator CREDENTIAL, not a code or schema failure, and supplying it is a release/ops action this lane must not take under CP-051. Reported as a real tier failure at a named step, not as a pass and not as a silent skip.",
+          "NOT RUN AND NOT CLAIMED: npm run typecheck (whole repository), npm run generate:database-types, npm run check:database-types (the 1 MB ENOBUFS ceiling; --linked is a different database - CP-089, CP-092), supabase db lint --local (no running target), agents:generate (shared-map race), and every hosted probe. No hosted evidence of any kind exists or is claimed. lib/database.types.ts is byte-unchanged at SHA-256 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7 and DOES require regeneration; the specification is docs/engineering/migration-validation/wfc004-type-regeneration-specification.json.",
+          "Preserved v1 result: partial - all five acceptance criteria met and locally proven; the feature tier itself did not pass and failed at a named step on a missing operator credential; the three migrations are authored and not applied (CP-051)"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T12:00:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "All five acceptance criteria are met, with every claim backed by execution on a throwaway PostgreSQL 16.15 rather than by reading. Three additive forward-only migrations are authored: the vendor entity home, the department/membership/authority schema, and the reconciliation substrate plus the CP-095 append-only status ledger. DECISION 1 is HALF decided and the open half is recorded rather than guessed: the canonical vendor identity is public.vendor_entities at the VEND-102 field contract - the only vendor table in this repository with a reviewed ADR, a tested implementation and archived DDL, and the shape live tested TypeScript already produces rows for - and it is NOT named vendors or org_vendors, because creating either would ratify a merge CP-096 forbids and, for vendors specifically, was MEASURED to convert the repository's only CP-098-correct reader of the six absent relations from {unavailable:true} into a 503. Whether vendors and org_vendors are one entity remains UNRESOLVED, with the single read-only catalog query that settles it written into HF-DB-012-VENDOR-ENTITY-MERGE-UNRESOLVED; org_contracts and contract_signature_envelopes are routed separately as a contract-lifecycle surface with no DDL and no ADR anywhere. Four corrections to my own work were found by executing and are recorded rather than quietly fixed: an RLS with check cannot express a column-level boundary (CP-115), an RLS-filtered write is a silent no-op rather than a denial (CP-114), a second weaker instrument for a defect another lane already owns was deleted (CP-116), and a migration's post-condition is new code that needs the same scrutiny as the migration - four defects in my own, none findable by reading (CP-117). The task is left ACTIVE because the three migrations are authored and proven locally but NOT applied: CP-051 makes the manual additive apply the operator's, and the type-regeneration escalation is filed rather than discharged.",
+    "completed": [
+      "DECISION 1: the canonical vendor identity home decided, recorded, and the unresolved merge question routed with the query that settles it",
+      "public.vendor_entities and public.vendor_entity_aliases created - the VEND-102 identity contract with a real target for VendorMergePlan.aliasesToRetain, and the ONLY vendor-permission consumer is the chain's own has_perm",
+      "public.workforce_departments, public.workforce_department_managers, public.workforce_department_memberships created with one accountable manager per department and one active primary membership per (organization, person) as PARTIAL UNIQUE INDEXES, proven under real two-session concurrency and paired with drop-the-index controls",
+      "public.workforce_department_is_managed_by created: the department-scope predicate reads the manager relation and never the membership relation, and that omission is asserted by name and proven by an injected widening edit",
+      "10 RLS policies, consistent with DB-013's fail-closed three-conjunct shape and with DB-016's seeded matrix; org_role_permissions is NOT re-seeded and no second authority mechanism is introduced",
+      "The department boundary split correctly: a symmetric UPDATE policy plus a SECURITY INVOKER trigger on the three tenant-and-vendor columns, because an RLS with check is row-level (CP-115)",
+      "public.workforce_legacy_links, public.workforce_quarantine, public.workforce_reconciliation_audit created in the venue_identity_bridges shape, with the code column constrained to WFC-003's eleven WORKFORCE_QUARANTINE_CODES",
+      "public.workforce_operational_status_events created as the CP-095 append-only ledger, enforced by three independent mechanisms, with the actor, effective time, source and required-reason requirements all database-enforced",
+      "public.workforce_department_directory and public.workforce_membership_health created as security_invoker views, with has_accountable_manager as an index-only lateral rather than a denormalised column",
+      "An 11-statement idempotent backfill from provable sources only, measured to create zero departments and zero memberships",
+      "supabase/tests/wfc004_workforce_departments_contract.sql: 19-property zero-drift postflight whose summary is computed from the same materialised set it prints, proven able to fail by eight injected defects",
+      "supabase/tests/wfc004_workforce_departments.harness.sh: 158 checks, 0 failures, including a pre-fix negative control, two two-session races, six cross-organization refusals each with a positive control, and three separate attacks on the ledger's append-only property",
+      "A weaker CP-109 detector of mine deleted in favour of DB-015's, and its one finding against my own migration answered rather than left open (CP-116)",
+      "supabase/tests/wfc004_sweep_exemption_agreement.mjs: the CP-107 exemption list chain-anchored, with four self-test controls",
+      "Three planned manifests, four handoffs plus one escalated to organization, and a type-regeneration specification filed as its own artifact",
+      "CP-113 through CP-117 appended to DECISIONS.md, and the durable facts appended to the database agent STATE.md"
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T00:50:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Activated as the WFC critical path. All four recorded blockers were resolved by WFC-003, ADMIN-012, DB-013, and DB-016. Exclusive ownership of supabase/migrations/**, supabase/tests/**, and docs/engineering/migration-validation/** recorded under CP-112 so two concurrent database lanes cannot collide.",
+        "completed": [
+          "Blocker review",
+          "Working-set partition",
+          "Activation"
+        ],
+        "next_steps": [
+          "Decide the vendor entity home",
+          "Author department and membership schema"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T12:00:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Implementation complete and locally proven. Three additive forward-only migrations, a 19-property zero-drift contract postflight proven able to fail by eight injected defects, and a 158-check behavioural harness on a throwaway PostgreSQL 16.15 with the chain's own authority extracted by line range and DB-016's slice applied verbatim. DECISION 1 half decided: the vendor identity home is created and the vendors/org_vendors merge is recorded as UNRESOLVED with the one catalog query that settles it, because CP-096 forbids guessing it and the evidence does not support a decision. Four corrections to this lane's own work were found by executing and are recorded as CP-114 through CP-117.",
+        "completed": [
+          "DECISION 1 recorded with executed evidence",
+          "Three migrations authored, each applied twice or more on a real catalog with a post-condition that RAISEs rather than assuming",
+          "All five acceptance criteria met, each with a named artifact and real output",
+          "Eight injected postflight defects, each reported and each required to clear",
+          "A weaker duplicate instrument deleted in favour of DB-015's, and its finding against this lane's own migration answered",
+          "Three planned manifests, four handoffs, one escalation to organization, one type-regeneration specification",
+          "CP-113 through CP-117 appended to DECISIONS.md; durable facts appended to STATE.md"
+        ],
+        "next_steps": [
+          "Operator: apply the three migrations in order under CP-051, each followed by its postflight and labelled probes",
+          "Run the catalog query that settles the vendors/org_vendors merge and record the result in HF-DB-012-VENDOR-ENTITY-MERGE-UNRESOLVED",
+          "release/ops: regeneration per docs/engineering/migration-validation/wfc004-type-regeneration-specification.json"
+        ],
+        "blockers": [
+          "NOT APPLIED. CP-051 makes the manual additive apply the operator's, and no migration in this task has been applied to any environment. This is the reason the task remains active and it is a gate, not a defect.",
+          "verify:feature did not pass: its third step, check:supabase-target, requires SUPABASE_PROJECT_ID / EXPECTED_SUPABASE_PROJECT_ID / SUPABASE_TARGET_CONFIRMATION. That is an operator credential this lane must not supply.",
+          "lib/database.types.ts regeneration is blocked by the 1 MB ENOBUFS ceiling and by `linked` being a DIFFERENT database (CP-089, CP-092). The specification is filed; the escalation is deliberate and is not to be read as 'the schema needs no types'."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "release (operator apply, in order, with stop conditions): HF-WFC-004-VENDOR-ENTITY-HOME-APPLY, HF-WFC-004-DEPARTMENTS-MEMBERSHIPS-APPLY, HF-WFC-004-RECONCILIATION-LEDGER-APPLY",
+    "organization (ESCALATION, and the one that can unblock two lanes): HF-DB-012-VENDOR-ENTITY-MERGE-UNRESOLVED - the vendors/org_vendors merge is undecided, the query that settles it is named, and DB-012 and ORG-007 must not author vendor identity before it runs",
+    "organization: HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS - vendor.view/vendor.manage are in no role's matrix, measured, and the matrix is WFC-003's decision under CP-102",
+    "work (WFC-005/WFC-006/WFC-014): HF-WFC-004-DEPARTMENT-SCOPE-CLOSURE - the entity, the manager relation, the membership relation, the predicate to use, three boundaries not to widen, and two stated residuals",
+    "work, admin, qa: HF-WFC-004-AFFECTED-ROW-COUNT - an RLS-filtered write is a silent no-op, every workforce command must read the affected-row count, and not_authorized must be derived from it (CP-114)",
+    "orchestrator: the vendor entity home decision, the fact that regeneration is blocked SEPARATELY and is specified rather than skipped, and that the feature tier failed at a named step on a missing operator credential rather than on anything in this change"
+  ],
+  "decisions_recorded": [
+    "CP-113",
+    "CP-114",
+    "CP-115",
+    "CP-116",
+    "CP-117"
+  ],
+  "execution_state": "done",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

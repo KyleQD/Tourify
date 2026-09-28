@@ -1,0 +1,185 @@
+{
+  "schema_version": "2.0",
+  "id": "TICKET-006",
+  "title": "Finish local ticket transaction repair",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "ticketing",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "ticketing",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T22:20:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; no commit, no stash, no reset; unrelated changes preserved",
+  "goal": "Close partial issuance, resume deduplication, and completion-alert behavior before hosted certification.",
+  "scope": {
+    "in": [
+      "Close partial issuance, resume deduplication, and completion-alert behavior before hosted certification."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "app/api/ticketing/**",
+    "lib/ticketing/**",
+    "__tests__/ticketing/**",
+    "supabase/migrations/20260927120000_ticketing_issuance_slot_dedup.sql",
+    "docs/engineering/migration-validation/20260927120000_ticketing_issuance_slot_dedup.json"
+  ],
+  "shared_working_set": [],
+  "working_set_expansions": [
+    {
+      "path": "supabase/migrations/20260927120000_ticketing_issuance_slot_dedup.sql",
+      "reason": "The three behaviors cannot be enforced durably from application code alone. 'Never issue a ticket twice for one purchase' and 'never double-count a resumed delivery' are arbitrated by a partial unique index, and the alert's exactly-once claim is a compare-and-set on a column. The declared working set contains no schema path, so this is an expansion; it is authored additively, recorded as manual-apply only, and never applied, reset, replayed, or pushed from this lane (CP-051). No concurrent lane owns this file."
+    },
+    {
+      "path": "docs/engineering/migration-validation/20260927120000_ticketing_issuance_slot_dedup.json",
+      "reason": "check-migration-validation requires a manifest for any migration newer than the 20260721235608 cutoff. Without it the CI gate fails on the new SQL, so the manifest is part of delivering the migration rather than separate work."
+    }
+  ],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/ticketing/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "None. The local scope is closed; the remaining work is hosted certification and a manual apply, both transferred by handoff.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Close partial issuance, resume deduplication, and completion-alert behavior before hosted certification.",
+      "owner": "ticketing",
+      "state": "met",
+      "evidence": [
+        "lib/ticketing/issuance.ts \u2014 issuance is per position: every admission carries issuance_slot, the order reaches 'issued' only after a verification read proves every position is filled, and any failure before that proof records 'partial' (a database error, a transport throw, or an unreachable verification read all take the same path).",
+        "lib/ticketing/issuance.ts \u2014 a duplicate position is absorbed as a 23505 rather than raised, and the 'already issued?' pre-check is explicitly an optimization that tolerates an unreadable read, so deduplication does not rest on a read.",
+        "lib/ticketing/issuance.ts \u2014 the resume also repairs a missing active credential and writes the ownership audit row before the credential, so an admission left half-built by an interrupted delivery converges instead of being skipped.",
+        "lib/ticketing/analytics.ts \u2014 order-scoped money/completion events carry a dedupe_key and a 23505 is reported as a duplicate, so a resumed delivery cannot inflate the funnel. Refund events stay deliberately unkeyed because a partial-then-full refund is a legitimate repeat.",
+        "lib/ticketing/finalize.ts \u2014 claimIssuanceCompletionAlert is a durable compare-and-set requiring issuance_status = 'issued' AND issuance_alerted_at IS NULL, returns false rather than throwing on either a database error or a transport failure, and the notification is sent only on a won claim.",
+        "npx vitest run __tests__/ticketing/ \u2014 19 files, 187 tests passed (was 17 files, 149 tests).",
+        "Twelve inversions of the invariants were each confirmed to turn the suite red; see progress.checkpoints[1].evidence. One further inversion (M13) was non-discriminating and is reported as such rather than claimed as proof."
+      ],
+      "transferred_to": "RELEASE-013 (hosted certification) and DB-008 (type regeneration); see progress.next_steps and the handoffs array"
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "ticketing",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/ticketing/",
+          "npx tsc -p <scoped tsconfig: lib/ticketing/issuance.ts, lib/ticketing/finalize.ts, lib/ticketing/analytics.ts, lib/ticketing/db-errors.ts, lib/ticketing/orders.ts, app/api/ticketing/webhook/route.ts>",
+          "npx eslint lib/ticketing/issuance.ts lib/ticketing/finalize.ts lib/ticketing/analytics.ts lib/ticketing/db-errors.ts app/api/ticketing/webhook/route.ts __tests__/ticketing/issuance-repair-dedup-alert.test.ts __tests__/ticketing/issuance-slot-dedup-migration-contract.test.ts __tests__/ticketing/webhook-claim-completion.test.ts",
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "git diff --check -- lib/ticketing app/api/ticketing __tests__/ticketing",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/ticketing/ -> Test Files 19 passed (19), Tests 187 passed (187).",
+          "Scoped tsc -> no diagnostics in any of the six scoped files. The only output is 6 pre-existing errors in lib/services/optimized-notification-service.ts, a file this lane never touched, pulled in transitively through lib/ticketing/notifications.ts. A scoped tsc over the three changed test files reports only 2 pre-existing TS7031 implicit-any binding errors in webhook-claim-completion.test.ts, both present at the base SHA and excluded from the repo tsconfig; the one this task added is annotated and type-clean.",
+          "Focused npx eslint over the 8 changed/added TypeScript files -> exit 0, no output.",
+          "npm run check:migration-chain -> active migration chain has no duplicate policy creations (317 files scanned).",
+          "npm run check:migration-validation -> the new migration scanned with its planned manifest, zero failures.",
+          "git diff --check over the working set -> exit 0.",
+          "npm run agents:validate -- --strict -> validated 18 agents, 212 tasks, 99 pending handoffs, 0 warnings, 8 errors. All 8 are the pre-existing handoffs/ADMIN-014 cluster (ADMIN-014 waiting_dependency has no unfinished dependency, and seven HF-DB008/HF-DESIGN-031/HF-INTG-033 handoffs whose accepting task is already completed). None is in this task's scope and none was fixed here."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T22:10:00.000Z"
+      },
+      {
+        "id": "hosted-certification",
+        "level": "hosted",
+        "owner": "release",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Not run and not claimed. This task closed the local code and schema contract only. Hosted create-to-settlement certification, the manual apply of the new migration, and the runtime probes over real Stripe and a real Postgres all remain open and are transferred by handoff."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Closed the three items TICKET-005 left open after the wave-35 claim/complete fix: per-position issuance with a recorded partial state, database-arbitrated resume deduplication, and a durable exactly-once completion alert. Wave-35 behaviour re-certified, not redone.",
+    "completed": [
+      "PARTIAL ISSUANCE \u2014 issueTicketsForOrder now fills only the issuance positions that are empty and records 'partial' on every failure shape that precedes proof of completeness (a database error, a rejected transport call, or a verification read that cannot be performed). The order is never recorded as issued unless a re-read proves every position is filled AND the admission count reaches the purchased quantity. The catch is guarded by a `verified` flag so a post-proof failure cannot downgrade a genuinely complete order.",
+      "PARTIAL ISSUANCE \u2014 the resume repairs what an interrupted delivery left half-built: a missing active credential is created and the ownership audit row is written before the credential, so an admission is never left unscannable or unattributed.",
+      "RESUME DEDUPLICATION \u2014 every admission carries issuance_slot and the database refuses a second admission for a filled position (migration 20260927120000, partial unique index on (order_id, issuance_slot)). The pre-check read is explicitly an optimization that tolerates an unreachable read, and a lost race is absorbed as a 23505 rather than raised as a failure.",
+      "RESUME DEDUPLICATION \u2014 the issuance analytics a resume re-emits carry a dedupe_key under a partial unique index, so a retry cannot double-count checkout_completed, ticket_purchased, ticket_issued or promo_code_used. Events that may legitimately repeat (ticket_refunded, checkout_abandoned) are deliberately left unkeyed.",
+      "COMPLETION ALERT \u2014 the alert is claimed with a compare-and-set on ticket_sales.issuance_alerted_at that requires issuance_status = 'issued', so it fires exactly once per completed issuance, cannot fire for a partial or failed one, does not depend on in-process state, and is placed before the remaining money writes so a later failure cannot leave a finished order unalerted. OptimizedNotificationService.createNotification was confirmed to have no idempotency handling, so the previous metadata idempotency_key deduped nothing.",
+      "COMPLETION ALERT \u2014 an alert-path failure (unwritable claim, transport failure, or a rejecting notification service) never fails the delivery or changes the issuance outcome. The delivery failure is absorbed by the real safeNotify boundary, which the test exercises rather than a test-only mirror of it.",
+      "Authored the additive migration 20260927120000_ticketing_issuance_slot_dedup.sql plus its planned manifest. Three nullable columns, no defaults, two partial unique indexes built over empty sets, no backfill on any key, no RLS or policy change, no new table. Authored only; never applied, reset, replayed, or pushed.",
+      "Corrected the wave-35 stub in webhook-claim-completion.test.ts to model the migrated schema (the (order_id, issuance_slot) unique index, the analytics dedupe key, and the alert compare-and-set filters). No wave-35 assertion or case was changed.",
+      "Re-certified the wave-35 contract from the new file's final describe block: a completed claim is acknowledged with zero side effects, an incomplete claim is resumed rather than acknowledged, and an unavailable claim ledger is a retryable 500.",
+      "Partial issuance: issueTicketsForOrder fills only empty issuance positions and records 'partial' on every failure shape that precedes proof of completeness (DB error, transport throw, unreachable verification read); never 'issued' unless a re-read proves every position filled AND the count reaches the purchased quantity",
+      "Resume deduplication: tickets.issuance_slot under a partial unique index is the guard, so a lost insert race is absorbed as 23505 and deduplication survives a process restart; the pre-check read is explicitly only an optimization",
+      "Completion alert: claimIssuanceCompletionAlert is a compare-and-set requiring issuance_status='issued' AND issuance_alerted_at IS NULL, fires exactly once per completed issuance, cannot fire for a partial issuance, and never fails the delivery it rides on",
+      "Authored migration 20260927120000_ticketing_issuance_slot_dedup.sql (additive, no backfill, empty-set indexes) plus its planned manifest; authored only, manual-apply pending under CP-051",
+      "Corrected the wave-35 test stub to model the migrated schema; no wave-35 assertion changed. Found it had modelled a database with no uniqueness, which the old 'any ticket exists' pre-check masked"
+    ],
+    "next_steps": [
+      "Hosted certification remains a separate open item owned by release/QA: no hosted evidence is claimed. Release takes HF-TICKET-006-ISSUANCE-DEDUP-APPLY (manual apply + duplicate probes + runtime probe); database takes HF-TICKET-006-DATABASE-TYPES (regenerate lib/database.types.ts after the apply)."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T21:40:00.000Z",
+        "summary": "Confirmed the three open items against the code and found that the wave-35 test stub modelled a database with no uniqueness, which the old pre-check had masked.",
+        "next": "Author the additive dedup keys and rewrite issuance around issuance positions."
+      },
+      {
+        "at": "2026-09-27T22:05:00.000Z",
+        "summary": "Mutation-checked the new suite. Twelve inversions of the invariants each turned it red; two initially passed and exposed genuine test gaps, which were closed rather than reported as proof.",
+        "evidence": [
+          "M1 remove the 23505 absorption in the issuance slot loop -> 4 cases red (added 'a repeated delivery that re-runs issuance absorbs the duplicate positions' and tightened the concurrent case to require 200, not 200-or-500).",
+          "M2 stop enforcing (order_id, issuance_slot) in the stub, i.e. remove the unique index -> 2 cases red.",
+          "M3 weaken the completeness guard to 'everyPositionClaimed && issued.length < quantity' -> initially GREEN, which proved the guard was never reached; closed by adding 'never records issued when the admissions do not add up to the quantity' (a verification read that disagrees with the pre-check), after which M3 is red.",
+          "M4 send the alert without claiming it -> 3 cases red.",
+          "M5 let the alert claim fail the delivery -> initially GREEN, because the function's own try/catch absorbed the throw; re-run as a two-part inversion (error branch throws AND the catch rethrows) -> all 19 cases red.",
+          "M6 stop enforcing the analytics dedupe key in the stub -> initially GREEN, because the already-finalized check short-circuited before the analytics were ever re-emitted; closed by making the receipt read unreachable in the third delivery, which forces the repair path and genuinely re-emits them, after which M6 is red.",
+          "M7 downgrade the unique index to a non-unique lookup in the migration -> 2 contract cases red.",
+          "M8 stop writing issuance_slot -> 3 behavioural cases and the contract case red.",
+          "M9 drop the issuance_status = 'issued' predicate from the alert claim -> the contract case red (a partial issuance could then claim the alert).",
+          "M10 restore the pre-fix pre-check (return as soon as any ticket exists) -> 14 cases red.",
+          "M11 remove the issuance_alerted_at IS NULL compare-and-set -> 2 cases red.",
+          "M12 wave-35 inversion: acknowledge a duplicate claim without reading the completion marker -> 10 cases red across both the wave-35 suite and the new one, which is the regression proof that the wave-35 contract still holds.",
+          "M13 wave-35 inversion: treat ANY claim error as a duplicate -> GREEN, and reported as non-discriminating rather than counted as proof. The reason is defence in depth, not a weak test: the resulting 'duplicate' then reads a completion marker for a row that does not exist, readWebhookEventCompletion throws, and the route answers 500 \u2014 the same observable outcome the suite already asserts for an unavailable ledger. The discriminating wave-35 mutation is M12.",
+          "Baseline after all reverts: 3 files, 49 tests passed."
+        ]
+      },
+      {
+        "at": "2026-09-27T21:54:23.449Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Closed the three items TICKET-005 left open after the wave-35 claim/complete fix: per-position issuance with a recorded partial state, database-arbitrated resume deduplication, and a durable exactly-once completion alert. Wave-35 behaviour re-certified, not redone.",
+        "completed": [
+          "Partial issuance: issueTicketsForOrder fills only empty issuance positions and records 'partial' on every failure shape that precedes proof of completeness (DB error, transport throw, unreachable verification read); never 'issued' unless a re-read proves every position filled AND the count reaches the purchased quantity",
+          "Resume deduplication: tickets.issuance_slot under a partial unique index is the guard, so a lost insert race is absorbed as 23505 and deduplication survives a process restart; the pre-check read is explicitly only an optimization",
+          "Completion alert: claimIssuanceCompletionAlert is a compare-and-set requiring issuance_status='issued' AND issuance_alerted_at IS NULL, fires exactly once per completed issuance, cannot fire for a partial issuance, and never fails the delivery it rides on",
+          "Authored migration 20260927120000_ticketing_issuance_slot_dedup.sql (additive, no backfill, empty-set indexes) plus its planned manifest; authored only, manual-apply pending under CP-051",
+          "Corrected the wave-35 test stub to model the migrated schema; no wave-35 assertion changed. Found it had modelled a database with no uniqueness, which the old 'any ticket exists' pre-check masked"
+        ],
+        "next_steps": [
+          "Hosted certification remains a separate open item owned by release/QA: no hosted evidence is claimed. Release takes HF-TICKET-006-ISSUANCE-DEDUP-APPLY (manual apply + duplicate probes + runtime probe); database takes HF-TICKET-006-DATABASE-TYPES (regenerate lib/database.types.ts after the apply)."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-TICKET-006-ISSUANCE-DEDUP-APPLY",
+    "HF-TICKET-006-DATABASE-TYPES"
+  ]
+}

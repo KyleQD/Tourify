@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB-005-STAGING-APPLY",
   "task_id": "DB-005",
   "from_agent": "database",
   "to_agent": "release",
-  "status": "pending",
+  "status": "accepted",
   "created_at": "2026-09-21T16:00:00.000Z",
   "source_sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
   "summary": "DB-005 authored a strictly additive partial unique index closing the distributed DB-unique purchase idempotency gap on ticket_sales that TICKET-005 handed over (PENDING note in TICKET-005.json). Local Postgres is unavailable and CP-051 forbids any non-manual apply, so the migration 20260921120000_ticketing_purchase_idempotency.sql (SHA-256 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106) and its zero-drift contract test supabase/tests/db005b_ticketing_idempotency_contract.sql (SHA-256 c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d) require the approved staging operator to apply once and certify. The index mirrors the app contract exactly (metadata.idempotency_key written by app/api/ticketing/enhanced/route.ts and lib/services/ticketing.service.ts; matched by findIdempotentPurchase), so no application code change rides along.",
@@ -35,5 +35,7 @@
     "PASS: DB-005 task JSON parse check.",
     "PASS: git diff --check on changed tracked paths (DB-005.json, STATE.md); new files carry no trailing whitespace.",
     "BLOCKED: supabase db lint --local requires a live local DB; recorded as BLOCKED (ECONNREFUSED expected), no services started."
-  ]
+  ],
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "Run the migration exactly once against an approved staging target (supabase migration up or targeted psql apply under CP-051) — do not reset, force-replay, or db push --include-all."
 }

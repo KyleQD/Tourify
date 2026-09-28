@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "id": "HF-DB008-TYPECHECK-VENUE-PUBLIC-PROFILE-VIEWS",
   "task_id": "VENUE-005",
   "from_agent": "venue",
-  "to_agent": "venue",
-  "status": "pending",
+  "to_agent": "orchestrator",
+  "status": "accepted",
   "created_at": "2026-09-25T22:00:00.000Z",
   "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
   "summary": "Two of the seven DB-008 code-drift objects remain on a file that is venue-domain work but is outside the Wave 34 venue file-ownership grant, so the venue lane could not edit it this wave. app/api/venues/[id]/route.ts is a public venue profile route (venue charter: 'public profiles'), but docs/engineering/agents/venue/WORKING_SET.json lists app/venues/** and app/api/venue/** and NOT app/api/venues/**, and the Wave 34 brief's allowed-path list repeats the same singular-only spelling. This handoff records the exact bytes so the next venue task with the path grant can finish the cluster in one edit.",
@@ -33,5 +33,7 @@
   ],
   "verification": [
     "app/api/venues/[id]/route.ts:107-118 (rpc, fail-soft) and :192-203 (select, fail-soft) — read directly from the current bytes at d2176904 in the dirty worktree."
-  ]
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "With app/api/venues/** in the venue path grant, decide the disposition of the two fail-soft calls together, because they are the same feature: (a) delete both and set stats.monthly_views = 0 unconditionally, which matches today's actual behaviour on every environment where the chain was applied, or (b) repoint onto a chain-created analytics surface and keep the count. The repo has no view counter in the active chain; the nearest candidates are venue_analytics (declared in lib/database.types.ts, monthly_views is derived from its page_views column in lib/services/venue.service.ts) and venue_profiles.settings. Do NOT author a migration to recreate venue_profile_views or track_venue_profile_view — the database lane proved both exist in no active migration and in no generated type, so regeneration can never satisfy them."
 }

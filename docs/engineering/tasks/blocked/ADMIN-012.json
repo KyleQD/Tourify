@@ -1,0 +1,280 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-012",
+  "title": "Express department scope in the admin capability system",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "admin-governance",
+  "created_at": "2026-09-26T21:43:52.267Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (98 entries at handoff; 91 before this task began, 4 of the difference added by WFC-007 while this task ran)",
+  "goal": "Add department as a first-class AdminCapabilityTarget and make workforce authority resource-scoped so CP-094 is expressible end to end.",
+  "scope": {
+    "in": [
+      "AdminCapabilityTarget department member",
+      "Exhaustive handling of the new member at every call site",
+      "Resource-scoped resolution of workforce.manage for a department-scoped role",
+      "A narrow, injectable department-membership seam for WFC-004 / WFC-005"
+    ],
+    "out": [
+      "Any change to the canonical workforce identity contract or its test (WFC-003 owns that, CP-102)",
+      "Any workforce department or membership table (WFC-004 owns the schema)",
+      "Any workforce admin UI (WFC-008 through WFC-020 own that)",
+      "components/admin/** (carved for ADMVIEW-001 and the WFC lanes)",
+      "Changing withAdminCapability's signature or adding department-targeted workforce routes (WFC-005 / WFC-006 own service enforcement)"
+    ]
+  },
+  "working_set": [
+    "lib/auth/admin-capabilities.ts",
+    "lib/auth/__tests__/**",
+    "__tests__/admin/**capability**"
+  ],
+  "working_set_delivered": [
+    "lib/auth/admin-capabilities.ts (modified; +275 / -18 lines, 278 -> 535)",
+    "__tests__/admin/admin-capability-department-scope.test.ts (new, 26 tests)",
+    "lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts (new, 51 tests)",
+    "tsconfig.admin012-slice.json (new; follows the existing tsconfig.admin003-slice.json and tsconfig.wfc003-slice.json precedent)",
+    "docs/engineering/tasks/active/ADMIN-012.json (edited)",
+    "docs/engineering/agents/admin/STATE.md (appended section; nothing rewritten or deleted)",
+    "docs/engineering/handoffs/pending/HF-ADMIN-012-DEPARTMENT-SCOPE.json (new)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/WFC-003.json",
+    "docs/engineering/DECISIONS.md (CP-094, CP-102)",
+    "docs/engineering/agents/admin/CHARTER.md",
+    "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md (consumed, not modified — CP-102)"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "AdminCapabilityTarget accepts a department scope and the type is exhaustively handled at every call site",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": [
+        "ADMIN_CAPABILITY_TARGET_TYPES at lib/auth/admin-capabilities.ts:199-206; AdminCapabilityTarget at :227-230; EntityCapabilityGrant.scopeType at :223. One decision point switches on the target type — grantCoversCapabilityTarget at :255-296 — with a `default` arm that both fails tsc and denies. Proven by a 6x6 scope/target matrix (36 assertions), by an out-of-catalog scope and out-of-catalog target test each, and by a negative control in which a seventh scope type with no switch arm produced 'TS2322: Type \"vendor_department\" is not assignable to type \"never\"' at :292.",
+        "Preserved v1 criterion metadata: {\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "A department manager resolves workforce.manage only for departments they manage, and the resolution is covered by tests",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": [
+        "DEPARTMENT_SCOPED_ROLE_CAPABILITIES at :319-323 = { department_manager: ['workforce.manage'] }, applied after the SEC-102 union at :481-487. 26 tests in __tests__/admin/admin-capability-department-scope.test.ts cover allow, cross-department deny, organization deny, untargeted deny, and that neither a role default nor a legacy or custom permission row nor a scopeless grant can restore organization-wide workforce.manage.",
+        "Preserved v1 criterion metadata: {\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "A cross-department and a cross-organization request both deny, proven by test rather than by inspection",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": [
+        "Cross-department: departmentScopeDenial returns 'department_not_managed' for DEPT_FINANCE. Cross-organization: four distinct tests — a department belonging to another organization denies as 'department_not_managed' (the seam is org-bound); authority resolved for a different organization denies as 'organization_mismatch'; authority resolved for a different actor denies as 'actor_mismatch'; missing orgId or userId denies as 'organization_required' or 'actor_required'. Scope limit recorded: the resolver proves the boundary; the end-to-end guarantee additionally needs WFC-004 to make a department id globally unique and org-bound, which cannot be proven for a table that does not exist.",
+        "Preserved v1 criterion metadata: {\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Organization administrators retain organization-wide authority unchanged",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": [
+        "owner, admin and tour_manager resolve workforce.manage for null, organization, department and event targets (12 assertions). The isOrganizationCreator and isMasterAccount invariants return before the department filter and keep workforce.manage plus org.roles.manage. Roles outside DEPARTMENT_SCOPED_ROLE_CAPABILITIES are asserted unchanged, and a completeness test fails if any role carrying workforce.manage appears without an explicit classification.",
+        "Preserved v1 criterion metadata: {\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "The existing SEC-102 and SEC-204 behavior does not regress; focused and admin suites stay green",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": [
+        "__tests__/admin/admin-capabilities.test.ts (the SEC-102 / SEC-204 file) was not modified and all of its assertions pass. Focused capability set: 6 files, 145 tests passed. Full admin suite: 272 files passed / 1 skipped, 3615 tests passed / 2 skipped, against a baseline of 270 files / 3538 tests passed / 2 skipped — a delta of exactly +2 files and +77 tests, which are the two new files, with no existing admin test changing state. Scoped tsc and eslint clean. See the caveats recorded under verification.result for verify:feature, typecheck, and check:admin-audit.",
+        "Preserved v1 criterion metadata: {\"met\":true}"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate",
+          "npx vitest run lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts",
+          "npx vitest run __tests__/admin/admin-capability-department-scope.test.ts",
+          "npx vitest run __tests__/admin/admin-capabilities.test.ts __tests__/admin/admin-capability-department-scope.test.ts lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts __tests__/admin/workforce-identity-contract.test.ts __tests__/admin/authorization-contract.test.ts __tests__/admin/admin-route-capability-matrix.test.ts",
+          "npx vitest run __tests__/admin",
+          "npx eslint lib/auth/admin-capabilities.ts lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts __tests__/admin/admin-capability-department-scope.test.ts",
+          "NODE_OPTIONS='--max-old-space-size=8192' npx tsc -p tsconfig.admin012-slice.json --noEmit",
+          "npm run check:admin-audit",
+          "npm run verify:feature",
+          "npx vitest run"
+        ],
+        "evidence": [
+          "PASS — npm run agents:validate: 'validated 17 agents, 177 tasks, 0 warnings, 0 errors' (baseline at task start was the same, 177 tasks).",
+          "PASS — npx vitest run lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts: 1 file, 51 passed, 175ms.",
+          "PASS — npx vitest run __tests__/admin/admin-capability-department-scope.test.ts: 1 file, 26 passed, 192ms.",
+          "PASS — focused capability set (admin-capabilities, admin-capability-department-scope, admin-capability-target-exhaustiveness, workforce-identity-contract, authorization-contract, admin-route-capability-matrix): 6 files passed, 145 tests passed, 950ms.",
+          "PASS — npx vitest run __tests__/admin: 272 files passed, 1 skipped (273); 3615 tests passed, 2 skipped (3617); 22.69s. Baseline captured before any edit was 270 files passed / 1 skipped, 3538 tests passed / 2 skipped, 18.31s. Delta is exactly +2 files and +77 tests = the two new test files. No pre-existing admin test changed state.",
+          "PASS — npx eslint on the three changed/added source and test files: no output, exit 0.",
+          "PASS — scoped tsc: NODE_OPTIONS='--max-old-space-size=8192' npx tsc -p tsconfig.admin012-slice.json --noEmit produced zero output, exit 0. The slice covers lib/auth/admin-capabilities.ts, lib/auth/admin-context.ts and the three capability test files.",
+          "PASS (negative control) — with a seventh scope type 'vendor_department' temporarily appended to ADMIN_CAPABILITY_TARGET_TYPES and no switch arm, the same scoped tsc failed: 'lib/auth/admin-capabilities.ts(292,13): error TS2322: Type \"vendor_department\" is not assignable to type never'. The compile-time exhaustiveness guard is real. The file was restored from a pre-edit copy and re-verified: scoped tsc exit 0 and 51/51 tests passing.",
+          "PRE-EXISTING, PROVEN AT BASE SHA — npm run check:admin-audit: 'Admin audit registry validation failed (3): Generated view drift: STATUS.md; Generated view drift: coverage.json; Workbook registry source hash is stale'. Attribution proof: registrySourceHash() at scripts/audit/admin-workflow-registry.ts:192-208, compared at :479, hashes only the JSON under the registry and evidence roots plus lib/supabase/service-role-import-review.json, lib/admin/api-route-registry.ts and the route baseline; 'git status --porcelain' over every one of those paths is empty, so the computed hash is byte-identical to the hash at base SHA 16fb834f. Not fixed here: regenerating the workbook is outside this working set and the hashed inputs must not be modified. A prior note in admin STATE.md attributed these errors to other lanes' dirty edits to two of those files; as of this SHA those files are clean, so the errors are base-SHA pre-existing.",
+          "DID NOT COMPLETE — npm run verify:feature: ran to '[verify:feature] npm run typecheck' and emitted nothing further. At +10m24s the tsc it had spawned (pid 40153) was at 461 MB RSS with no diagnostics. It was terminated by pid, along with its parent verify.mjs (40117) and npm (40090). Only those three of my own pids were signalled; a sibling tsc from another lane (pid 35646, 17m elapsed) and an unrelated tsc in another workspace (pid 41776) were observed and deliberately left running. The blocker is scripts/verify.mjs:36 running npm run typecheck unconditionally — not gated on --changed — against lib/database.types.ts at ~25,600 lines, with a second tsc competing for memory on the same machine. NO GREEN TIER IS CLAIMED FOR verify:feature.",
+          "DID NOT COMPLETE — npm run typecheck: not run to completion, same ceiling. Only the scoped tsc above is claimed as type evidence.",
+          "CONTEXT ONLY, NOT A CLAIM FOR THIS TASK — npx vitest run (all 633 files) reported 3 files / 9 tests failing. Eight of the nine are test timeouts (mfa.service.test.ts x7 at 15000ms and 5000ms, event-actions-authorization.test.ts x1 at 5000ms) that PASS when the same three files are run in isolation (1 file failed / 23 passed), so they are load-related on this machine rather than logic failures. The ninth, __tests__/public-artist/owner-only-empty-states.test.ts:43, is a pre-existing failure at base SHA: it asserts a source string in components/public-artist/public-artist-page.tsx, that path is clean at HEAD, and it has no relationship to lib/auth/. None of the three files imports lib/auth/admin-capabilities.ts.",
+          "NOT CLAIMED — no hosted evidence, no browser evidence, no migration-applied evidence, and no end-to-end department authorization evidence, because no department table exists to exercise.",
+          "Preserved v1 result: pass-with-recorded-exceptions"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-26T22:38:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "deliberate_behavior_change": {
+    "what": "A department_manager's organization-level capability projection no longer contains workforce.manage, so every route gated on withAdminCapability('workforce.manage') with no target now denies a department manager.",
+    "why_this_is_the_task": "CP-094 requires authority only over managed departments. A capability check with no target is an organization-wide check; allowing it would leave MANAGER_SCOPE_GAP open while making the code look fixed, which the task brief explicitly named as the worse outcome.",
+    "why_it_is_not_reverted_here": "There is no department table, so no lane can know which departments a given manager manages. Any non-deny would be a guess. WFC-004 supplies the schema and WFC-005 supplies the DepartmentManagementLookup and a department-targeted guard.",
+    "forbidden_fix": "Do not re-widen DEPARTMENT_SCOPED_ROLE_CAPABILITIES or restore the role grant to make these routes pass again.",
+    "routes_listed_in": "docs/engineering/agents/admin/STATE.md and docs/engineering/handoffs/pending/HF-ADMIN-012-DEPARTMENT-SCOPE.json"
+  },
+  "progress": {
+    "summary": "ADMIN-012 made CP-094 expressible: `department` is a first-class `AdminCapabilityTarget`, `grantCoversCapabilityTarget` (`lib/auth/admin-capabilities.ts:255-296`) has an exhaustive switch failing both `tsc` and at runtime, nine fail-closed denial codes apply after the SEC-102 union, and secondary membership is structurally unreadable by the resolver. Admin suite 3538 -> 3615. Its stale-assertion blocker is cleared: WFC-003 replaced the hardcoded MANAGER_SCOPE_GAP literal with a derived measurement. What remains is the behavior change it knowingly introduced, which must be enumerated and routed rather than absorbed.",
+    "completed": [
+      "Added 'department' to AdminCapabilityTarget via a single exported catalog ADMIN_CAPABILITY_TARGET_TYPES, with isAdminCapabilityTargetType as the runtime guard; EntityCapabilityGrant.scopeType now derives from the same catalog.",
+      "Replaced the inline grant-scope string comparisons with grantCoversCapabilityTarget, the single exhaustive decision point, whose default arm both fails tsc and denies at runtime.",
+      "Made an unknown target type deny rather than normalize to 'no target', closing the fail-open shape where an organization grant would authorize a resource it never named.",
+      "Added DEPARTMENT_SCOPED_ROLE_CAPABILITIES and applied it after the SEC-102 union, so a role default, a legacy permission row, a custom capability, or a scopeless grant cannot restore organization-wide workforce.manage to a department manager.",
+      "Added departmentScopeDenial with nine fail-closed denial codes as the citable resolution rule.",
+      "Made secondary membership structurally non-authoritative by never reading membershipDepartmentIds, with a test that pins it.",
+      "Left the narrow WFC-004 / WFC-005 seam: DepartmentAuthorityInput, DepartmentManagementLookup, resolveEffectiveAdminCapabilitiesForTarget, hasEffectiveAdminCapabilityForTarget, all fail-closed.",
+      "Wrote 77 new tests: 51 exhaustiveness and classification-drift tests in lib/auth/__tests__/, 26 CP-094 behavior tests in __tests__/admin/.",
+      "Proved the compile-time exhaustiveness guard with a negative control and restored the file afterwards.",
+      "Proved check:admin-audit's 3 errors are pre-existing at base SHA rather than assumed it.",
+      "Appended a dated durable section to docs/engineering/agents/admin/STATE.md without rewriting or deleting existing content, including a correction to an earlier stale note in that file.",
+      "Created docs/engineering/handoffs/pending/HF-ADMIN-012-DEPARTMENT-SCOPE.json for WFC-004, WFC-005, WFC-006 and WFC-003."
+    ],
+    "next_steps": [
+      "PRIMARY OBJECTIVE: enumerate the roughly 30 untargeted `workforce.manage` routes where a department manager now correctly DENIES. Produce the exact list with file:line and the capability each gates.",
+      "For each affected route, decide and record one of: add a department-targeted guard (route to WFC-005, which owns the department/membership commands), it is unreachable behind the `admin_workforce_command_v2` flag, or the denial is correct and permanent. Do not widen the resolver filter to make them pass — that would leave the CP-094 gap open while looking fixed.",
+      "Route the department-targeted guard work to WFC-005 as a handoff, since WFC-004/WFC-005 now unblock the WFC program.",
+      "Record `workforce.publish` and custom-role classification as named deferrals with the route that closes each, not as quiet omissions.",
+      "Re-verify the DB-016 outcome now that the workforce role matrix is seeded: confirm a department manager gains only what CP-102 intended and no more."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-26T22:05:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Established baselines before any edit, so every later number is a comparison and not an impression: admin suite 3538 passed / 2 skipped (18.31s); focused capability tests 58 passed; agents:validate 17 agents / 177 tasks / 0 warnings / 0 errors; check:admin-audit 3 errors. Read CP-094, CP-102, WORKFORCE-IDENTITY-CONTRACT.md section 2.4 Gap B, and lib/auth/admin-capabilities.ts in full."
+      },
+      {
+        "at": "2026-09-26T22:12:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Located every place that could switch on the target type and proved the search was complete rather than sampling it: rg for AdminCapabilityTarget, resolveEffectiveAdminCapabilities, hasEffectiveAdminCapability, EntityCapabilityGrant, scopeType, target.type, resourceType, and case 'organization'|'tour'|'event'|'site_map'|'document' across the repo. Result: the only consumer of AdminCapabilityTarget is lib/auth/admin-capabilities.ts itself.",
+        "scope_expansions": [
+          {
+            "path": "lib/auth/admin-context.ts",
+            "reason": "Sole production caller of resolveEffectiveAdminCapabilities. Read to establish that the untargeted case is the organization-level capability projection, which is what makes the department-scope filter observable. NOT modified — changing it is unnecessary for the deliverable."
+          },
+          {
+            "path": "lib/auth/org-command.ts",
+            "reason": "The only other file reading target.type (:273, :283, :292). Checked and excluded: it is AdminCommandTarget with AdminEntityType = 'tour' | 'event' at :62, a different discriminated union, so adding a scope type does not affect it. Read only, not modified."
+          },
+          {
+            "path": "lib/admin/entity-grants.ts",
+            "reason": "The SEC-204 external-delegation mechanism and the most likely place for a reader to assume a new switch case was required. Checked and excluded: it switches on its own ENTITY_GRANT_RESOURCE_TYPES and never reads AdminCapabilityTarget. Read only, not modified."
+          },
+          {
+            "path": "types/vendor-identity-contract.ts and __tests__/admin/workforce-identity-contract.test.ts",
+            "reason": "WFC-003's canonical contract, read to consume MANAGER_SCOPE_GAP and the forbidden-free-text-department rule rather than re-derive them. NOT modified, under CP-102."
+          },
+          {
+            "path": "lib/admin/capability-aware-ui.ts, hooks/use-admin-capabilities.ts, lib/admin/state-aware-authorization.ts, lib/admin/protected-data-policy.ts, lib/admin/protected-aggregate-policy.ts, lib/admin/tour-access.service.ts, lib/admin/event-access.service.ts, lib/admin/calendar/source-access.ts, lib/admin/tour-command-center-summary.ts, lib/services/hiring-onboarding.service.ts, lib/admin/ticketing-command.service.ts, lib/admin/finance-command.service.ts, lib/admin/workforce-field-projections.ts, lib/admin/finance-field-projection.ts, lib/admin/vendor-field-projection.ts",
+            "reason": "Every module importing the capability surface was checked for a target-type switch. All take a flat AdminCapability[] with no target; none needed a new case. Read only, not modified."
+          },
+          {
+            "path": "app/api/** and components/** consumers of withAdminCapability / hasAdminCapability",
+            "reason": "Enumerated to quantify the blast radius of the department-scope filter. No route was modified; ADMIN-012 changed no route and no component."
+          },
+          {
+            "path": "supabase/migrations/20260821031214_repair_event_tour_staffing_flow.sql",
+            "reason": "The proven has_perm(uid, org_id, 'workforce.manage') policy shape the handoff tells WFC-004/WFC-005 to reuse, so the seam does not invent a second authority mechanism. Read only, not modified."
+          },
+          {
+            "path": "scripts/audit/admin-workflow-registry.ts",
+            "reason": "Read to attribute the 3 check:admin-audit errors honestly rather than assuming they are pre-existing."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-26T22:20:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Implemented in lib/auth/admin-capabilities.ts. Added the scope catalog and guard; replaced the inline grant-scope comparisons with an exhaustive grantCoversCapabilityTarget; added DEPARTMENT_SCOPED_ROLE_CAPABILITIES, DepartmentAuthorityInput, departmentScopeDenial, DepartmentManagementLookup, and the two async helpers; applied the filter after the SEC-102 union; added userId and departmentAuthority to the input interface; annotated DEPARTMENT_MANAGER_CAPABILITIES to point at where workforce.manage is actually scoped. ROLE_DEFAULT_CAPABILITIES is deliberately unchanged, so defaultAdminRolesForCapabilities and every existing role-capability projection are untouched.",
+        "scope_expansions": [
+          {
+            "path": "tsconfig.admin012-slice.json",
+            "reason": "New file. Full-repo typecheck does not complete on this machine, so a scoped tsc is the only available type evidence. Follows the existing tsconfig.admin003-slice.json / tsconfig.wfc003-slice.json precedent rather than inventing a verification convention."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-26T22:28:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Wrote 77 tests. First run of the exhaustiveness file had 8 failures, all from one bug in the test itself: the matrix used a resource id as the scope id for the organization scope, so an org-scoped grant naming org-a was compared against org-a's own id and correctly denied as organization_mismatch. Fixed the test, not the source; the source behavior was right. Second bug was an unknown scope paired with an unknown target, so the target guard fired first and returned unknown_target_type; the test was corrected to pass a null target. Final: 51 + 26 passing.",
+        "scope_expansions": []
+      },
+      {
+        "at": "2026-09-26T22:33:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Ran the negative control for the compile-time exhaustiveness guard: temporarily appended a seventh scope type to ADMIN_CAPABILITY_TARGET_TYPES with no switch arm, confirmed scoped tsc fails with TS2322 at :292, restored the file from a pre-edit copy, and re-verified scoped tsc exit 0 plus 51/51 tests. The guard is real, not decorative.",
+        "scope_expansions": []
+      },
+      {
+        "at": "2026-09-26T22:40:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Ran verify:feature to see whether the standard tier completes, rather than assuming it would not. It reached the typecheck step and stalled for 10m24s at 461 MB RSS. Terminated only my own three pids by number after identifying the process tree; a sibling tsc from another lane (pid 35646) and an unrelated tsc in another workspace (pid 41776) were left running. Recorded as DID NOT COMPLETE with no green tier claimed."
+      }
+    ]
+  },
+  "handoffs": [
+    "docs/engineering/handoffs/pending/HF-ADMIN-012-DEPARTMENT-SCOPE.json"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "PRIMARY OBJECTIVE: enumerate the roughly 30 untargeted `workforce.manage` routes where a department manager now correctly DENIES. Produce the exact list with file:line and the capability each gates.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "PRIMARY OBJECTIVE: enumerate the roughly 30 untargeted `workforce.manage` routes where a department manager now correctly DENIES. Produce the exact list with file:line and the capability each gates.",
+      "dependency_task_ids": []
+    }
+  ]
+}

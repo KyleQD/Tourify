@@ -1,5 +1,23 @@
 # Release state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `RELEASE-002` — blocked/queued_postlaunch; DEFERRED-MUSIC-ADVANCED
+- `RELEASE-003` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `RELEASE-004` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `RELEASE-007` — blocked/waiting_external; CORE-WEB-LAUNCH
+- `RELEASE-009` — blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `RELEASE-012` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `RELEASE-013` — active/in_progress; CORE-WEB-LAUNCH
+- `RELEASE-014` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WFC-022` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+- `WFC-023` — blocked/queued_postlaunch; POSTLAUNCH-WORKFORCE
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `7cf660ad8422dbd3adbdb77369d94638cdc2231b` (RELEASE-001 audit HEAD)
 - Last reviewed at: 2026-09-09
 - Active tasks: RELEASE-002 through RELEASE-008
@@ -26,7 +44,7 @@
 
 - RELEASE-005 is blocked, not complete. Full Vitest at candidate SHA `7cf660ad8422dbd3adbdb77369d94638cdc2231b` reported 5017 passed, 8 skipped, and 2 failed tests: the MFA bcrypt timeout and the `PublicSiteMapViewer` site-map contract.
 - Hosted E2E has no matching successful run for the candidate SHA; the latest listed runs failed, including run `33990768961` failing both Vitest and Playwright jobs. Candidate check-runs contain no E2E result.
-- ~~GitHub branch-protection lookup for `main` returned 404. No required-check enforcement evidence exists, and no workflow, deployment, or branch-protection change was made.~~ **CORRECTED 2026-09-25 (Wave 35, REL-005): this is obsolete.** `GET /repos/KyleQD/Tourify/branches/main/protection` now returns **200, not 404**: `strict: true` over 10 required contexts, `required_approving_review_count: 1`, `dismiss_stale_reviews`, `require_last_push_approval`, `enforce_admins`, `required_linear_history`, no force pushes, no deletions, `required_conversation_resolution`, `required_signatures.enabled: false`. No branch-protection setting has been changed by any agent lane.
+- ~~GitHub branch-protection lookup for `main` returned 404. No required-check enforcement evidence exists, and no workflow, deployment, or branch-protection change was made.~~ **CORRECTED 2026-09-25 (Wave 35, REL-005): this is obsolete.** `GET /repos/KyleQD/Tourify/branches/main/protection` now returns **200, not 404**: `strict: true` over 10 required contexts, `enforce_admins`, `required_linear_history`, no force pushes, no deletions, `required_conversation_resolution`, `required_signatures.enabled: false`. **The 2026-09-25 reading also claimed `required_approving_review_count: 1`, `dismiss_stale_reviews` and `require_last_push_approval`. Re-read 2026-09-28, that claim is false: `required_pull_request_reviews` is absent from the payload, so no human review is required. See the full correction below.** No branch-protection setting has been changed by any agent lane.
 - Closure requires fixing the two tests (both since closed locally, 2026-09-21), a successful matching-SHA hosted E2E run, and the owner-executed required-check set (now decided in REL-003, still unapplied).
 
 ## Known risks
@@ -515,9 +533,36 @@ setting was changed. Full transcript:
   `Unit Tests (Vitest)`, `E2E Tests (Playwright)`,
   `Security exception governance`, `Secret scan`,
   `CodeQL (JavaScript/TypeScript)`, `Generate SBOM`), plus
-  `required_approving_review_count: 1`, `dismiss_stale_reviews`, `require_last_push_approval`,
-  `enforce_admins`, `required_linear_history`, no force pushes, no deletions,
-  `required_conversation_resolution`. `required_signatures` is **false**.
+  `enforce_admins: true`, `required_linear_history`, no force pushes, no
+  deletions, `required_conversation_resolution: true`.
+  `required_signatures` is **false**.
+
+  **NO HUMAN REVIEW IS REQUIRED, AND BOTH PRIOR RECORDS OF IT ARE WRONG.**
+  The 2026-09-25 REL-005 correction in this file, and the matching claim in the
+  2026-09-25 checkpoint above, state `required_approving_review_count: 1`,
+  `dismiss_stale_reviews`, and `require_last_push_approval`. Re-read
+  2026-09-28 against the live API, that is not what the endpoint returns. The
+  field is `required_pull_request_reviews` (plural) and it is **absent from the
+  response entirely** — `GET /repos/KyleQD/Tourify/branches/main/protection`
+  returns the keys `allow_deletions`, `allow_force_pushes`, `allow_fork_syncing`,
+  `block_creations`, `enforce_admins`, `lock_branch`,
+  `required_conversation_resolution`, `required_linear_history`,
+  `required_pull_request_reviews`, `required_signatures`,
+  `required_status_checks`, `url`, and `required_pull_request_reviews` is empty.
+  The earlier reading appears to have queried `required_approving_review_count`,
+  which is not a top-level key on this payload, and recorded the resulting
+  `null` as a value. A `null` read that way is absence, not `1`.
+
+  **What this means operationally, and it is not a small thing:** `main` gates
+  merges on the ten status contexts and on nothing else. `enforce_admins: true`
+  means an admin cannot bypass a failing required check, but once those ten are
+  green the merge is self-service — no second approver is asked for by
+  GitHub. Any plan that assumes "PR approved" is enforced is wrong, and the
+  launch gates in `docs/DEPLOYMENT_ROUTINE.md` §4 that rely on explicit approval
+  are relying on the protected `production` *environment* reviewers, not on
+  branch protection. Whether to close this is an owner decision (REL-003 owns the
+  required-check set); no agent lane changed any protection setting and this
+  entry changes none.
   ~~STATE.md and RELEASE-005 both still record `404 Branch not protected`; that baseline
   is obsolete.~~ **ACTED ON 2026-09-25 (Wave 35, REL-005):** the correction has been
   applied. The live-claim sites in this file and in RELEASE-005 were corrected in
@@ -731,3 +776,24 @@ Four of ten required contexts depend on a workflow file that is not on `main`, a
 `actionlint` is unavailable here, so the restructured `ci.yml` has had YAML parse,
 structural, script-existence and expression-balance checks but **no schema-level
 lint**. The first CI run is the first real lint of the new file.
+
+## RECOVERY NOTE — 2026-09-27, RELEASE-011
+
+- This file was **truncated to zero bytes by a write error in RELEASE-011** and restored from `HEAD` (`16fb834f`) in the same session. The restore is byte-exact for everything that was committed.
+- **What is lost:** the uncommitted sections this domain's STATE.md carried above the committed baseline, including RELEASE-010's dated sections about the scoped `feature` typecheck (CP-106/CP-111). That lane never committed, and git therefore holds no copy. **RELEASE-010's own task record is intact and is the surviving record of that work** — `docs/engineering/tasks/active/RELEASE-010.json`, whose `progress.summary` and `verification.evidence` carry the measured before/after, the negative controls, the coverage figures and the two routed findings in full. Nothing in RELEASE-010's implementation was lost: `scripts/verify.mjs`, `package.json`, `ci.yml` and `docs/DEVELOPMENT_WORKFLOW.md` are all intact and were edited further, not replaced.
+- **Why it is recorded here rather than quietly rewritten:** an agent that reads this file must know that its history has a gap, and must not read the absence of RELEASE-010's sections as a statement that the work never happened. A restored file that looks untouched is worse than a visibly restored one.
+- **The lesson, in the lane's own terms:** RELEASE-011's third self-caught defect was a confident claim in the direction the evidence was easiest to produce (a `ls` in the wrong worktree), and its fourth was writing a file without checking the write landed. Both are the same failure this task exists to remove: a statement that was never verified, made by the agent whose job is to verify things. The check that would have caught it is one `wc -c` after the write, which costs nothing.
+
+## RELEASE-011 credential-gated steps and the three-verdict tier — 2026-09-27
+
+- The `feature` tier now has **three** verdicts, not two: `pass` (exit 0), `incomplete` (exit 3, nothing that ran failed but N step(s) could not run), and `fail` (the failing step's own exit status). The last line of every run is `[verify:feature] RESULT: <verdict>`, and **exit 0 is reserved for a real pass**, so a run with a skipped step cannot be recorded green by a lane that only reads `$?`.
+- `check:supabase-target` declares its environment (`SUPABASE_PROJECT_ID`, `EXPECTED_SUPABASE_PROJECT_ID`, `SUPABASE_TARGET_CONFIRMATION`) in `scripts/verify.mjs`, and the declaration is **printed on every run including green ones**, so the gate cannot be dropped without leaving a trace. Absent variables means skipped and named; present variables means the step runs and any failure is a real failure, including a target mismatch. Fail-closed.
+- A skip no longer stops the tier, so the steps behind a credential-gated step now actually run. The first run after the change failed at `check:admin-audit` with its 3 pre-existing findings: that is the gate working, not masked, and it is the expected consequence of unmasking.
+- A step that did not run is a skip **wherever** the reason is environmental, including the pre-existing `--changed`-with-no-changed-TypeScript-source case, which used to exit 0 while type-checking nothing. A documentation-only change is now `incomplete`; `verify:fast` is the tier for work that cannot affect these checks.
+- The `fast` and `release` tier blocks are byte-identical to the pre-change file (both blocks extracted and diffed against `git show HEAD:scripts/verify.mjs`). `verify:release` deliberately keeps failing loudly on its credential-gated step: a release that cannot be built in a configured environment must not pass.
+- The guarantee is per **applicable** step and is not overclaimed: a docs-only change in an unprovisioned environment can still be `pass`, because `check:supabase-target` does not apply to it.
+- The scoped typecheck now prints the **reverse dependents** of each changed root (textual importers, one `--untracked` `git grep`, measured 0.54s for 17 roots). CP-111's `--typecheck-scope` was not sufficient alone, because the manual step is the part that gets skipped; the printed list is the copy-paste source. It is a pointer, never a gate, and every error it can make is in the safe direction. See CP-122.
+- **A CP-111 correction issued by this lane was WITHDRAWN.** I recorded that the two scope projects CP-111 cites (`tsconfig.ds-scope.json`, `tsconfig.wfc003-slice.json`) do not exist; they do. They are untracked working-tree files created 2026-09-26 by the DESIGN-034 and WFC-003 lanes, with exactly the cited shape, and `tsconfig.wfc003-slice.json` lists a `__tests__` root, which is the precise claim CP-111 makes. The claim came from a `ls` inside a temp detached worktree, which contains only committed content, and was generalised to "at any SHA". Withdrawn in `DECISIONS.md` with the lesson: a claim of absence must be established in the environment where the thing is supposed to be. The surviving refinement is that both files are untracked, so the committed precedents are `tsconfig.admin003-slice.json` and five others.
+- DB-015's never-executed-migration-block detector is **wired**: two `package.json` scripts and two steps in `ci.yml` job `migration-gates`, appended after the DB-014 steps with no job added, renamed or removed, so no required status-check name changed. It exits 0 today (567 sites, 53/53 dispositions, 36/36 fixtures); both of its legitimate reds were demonstrated on an isolated copy of the chain, with a control run on the same copy to license the demonstration.
+- CP-123: the two pre-existing `account-management.service.ts` type errors are ONE defect and the stale side is the **code** — `create_post_with_context` is in neither the active chain nor the generated contract, its only DDL is in `archive/` and is `SECURITY DEFINER` with no `set search_path` and no ownership check on the caller-supplied `profile_id`, and the calling method has zero callers. Routed to `general-user` (cc `social`, `database`) with deletion recommended.
+- A control-plane finding routed, not applied: `verification.result` in a task record is an enum of `not-run | pass | fail` and has no word for a partially-covered run, which is the mechanism by which a lane records a false pass. `HF-RELEASE-011-TASK-SCHEMA-HAS-NO-PARTIAL-RESULT`.

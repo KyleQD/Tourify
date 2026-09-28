@@ -1,0 +1,35 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR",
+  "task_id": "DB-023",
+  "from_agent": "database",
+  "to_agent": "social",
+  "status": "pending",
+  "accepting_task_id": "SOCIAL-007",
+  "completion_condition": "A recorded decision on whether public.event_attendance gains an event_table column with the canonical three-value set, and on whether its UNIQUE(event_id, user_id) becomes three-column. Before the operator apply in HF-DB023-EVENT-POSTS-CLAIMS-APPLY, the target's event_attendance policies are confirmed, because the archived definition ships USING (TRUE) for SELECT and the dependency grant in the new migration is only safe against a narrower one.",
+  "created_at": "2026-09-28T04:20:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, concurrent lanes; this handoff touches only the paths named in its working_set)",
+  "summary": "Found while authoring the event_posts disclosure decision, and it is the same class of gap as DB-023's own, one table over. public.event_attendance is created by the active chain (20250814091000_event_attendance_guestlist.sql:18-26) WITHOUT an `event_table` column. The pre-reconciliation archive's version (20250120000000_event_social_features.sql:20-30) HAS one, with a CHECK limiting it to ('artist_events','events') -- which would itself reject the canonical 'events_v2' value. Three live consumers group or filter on it as if it exists: app/api/events/[id]/posts/route.ts:117, app/api/events/[id]/page/route.ts:100 and lib/feed/attending-event-posts.ts:213, which builds its whole batch key as `${event_table}:${id}`. On a chain-shaped event_attendance those reads fail on a missing column; the posts route ignores the error so `isAttending` silently stays false, and the page route logs it. DB-023 DID NOT TOUCH event_attendance beyond one SELECT grant, and deliberately did NOT reference `event_table` from the two event_posts policies that read it, precisely because the chain's table has no such column -- a transcription from the archived table would have failed at CREATE POLICY with 42703. The grant is needed either way: those two policies evaluate a subquery against event_attendance, so without SELECT on it for `authenticated` every caller-side event-post read and write is 42501. That is a measured finding, not a hypothesis: the first revision of the migration put the subquery in an unscoped policy and every read broke.",
+  "working_set": [
+    "lib/feed/attending-event-posts.ts",
+    "app/api/events/[id]/posts/route.ts (line 117; read-only reference here)",
+    "app/api/events/[id]/page/route.ts (line 100; read-only reference here)",
+    "supabase/migrations/20250814091000_event_attendance_guestlist.sql (READ ONLY, do not re-transcribe)"
+  ],
+  "completed": [
+    "DB-023 side: recorded, not fixed. public.event_attendance is outside DB-023's grant, so no column was added and no policy was written against a column the chain does not create."
+  ],
+  "next_steps": [
+    "Decide whether event_attendance gains an `event_table` column with the canonical three-value set ('artist_events','events','events_v2'), and whether its UNIQUE(event_id, user_id) becomes UNIQUE(event_id, user_id, event_table). Note the chain's UNIQUE is two-column, so one user cannot RSVP to the same id under two different tables today. That is a forward migration for the database lane once the decision is recorded.",
+    "Decide whether app/api/events/[id]/posts/route.ts's silent `isAttending = false` fallback should become an explicit error, because it is what hid the missing grant.",
+    "Decide the disclosure posture of the archived `USING (TRUE)` attendance SELECT policy. DB-023 grants `authenticated` SELECT on the table and deliberately does NOT grant `anon`, precisely because that archived policy would publish every attendance row to an anonymous key if it did. The chain's own policies are narrower (own row, or an event the caller created), so the grant is safe there -- but if any environment holds the archived table, the grant widens what `authenticated` can read. Confirm the target's attendance policies before the apply in HF-DB023-EVENT-POSTS-CLAIMS-APPLY."
+  ],
+  "blockers": [
+    "Not measured against any deployed environment. Which event_attendance a given environment actually holds -- the chain's two-column form or an out-of-band four-column form -- is unresolved, and the postflight in HF-DB023-EVENT-POSTS-CLAIMS-APPLY should record it."
+  ],
+  "verification": [
+    "READ: supabase/migrations/20250814091000_event_attendance_guestlist.sql:18-26 (the chain's create table: id, event_id, user_id, status, created_at, updated_at, UNIQUE(event_id, user_id) -- no event_table); supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20250120000000_event_social_features.sql:20-30 (the archived create table, WITH event_table and a two-value CHECK)",
+    "EXTRACTED AND EXECUTED: the harness builds event_attendance from the chain's own bytes by line range and then asserts `SELECT count(*) FROM information_schema.columns WHERE table_name='event_attendance' AND column_name='event_table'` = 0, so the claim is proven on a live catalog and not by reading",
+    "MEASURED: revoking `select on public.event_attendance from authenticated` makes a caller-side read of public.event_posts fail 42501, and the post-condition names the missing grant. That is the dependency this handoff is about."
+  ]
+}

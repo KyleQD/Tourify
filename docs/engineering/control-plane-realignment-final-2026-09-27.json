@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-27T20:15:12.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "records": {
+    "tasks": 212,
+    "active": 9,
+    "blocked": 74,
+    "completed": 129,
+    "acceptance_criteria": 714,
+    "verification_evidence_entries": 1500,
+    "checkpoints": 741,
+    "pending_handoffs": 101,
+    "completed_or_superseded_handoffs": 21
+  },
+  "outcomes": {
+    "CORE-WEB-LAUNCH": 164,
+    "POSTLAUNCH-LOGISTICS": 17,
+    "POSTLAUNCH-WORKFORCE": 24,
+    "DEFERRED-MOBILE": 1,
+    "DEFERRED-MUSIC-ADVANCED": 2,
+    "MAINTENANCE-DEBT": 4
+  },
+  "active_core_tasks": [
+    "ADMIN-013",
+    "DB-008",
+    "DISC-003",
+    "EVENTS-001",
+    "INTG-009",
+    "MKT-004",
+    "ORCH-004",
+    "RELEASE-013",
+    "TICKET-006"
+  ],
+  "invariants": {
+    "index_matches_task_files": true,
+    "outcome_registry_is_exact": true,
+    "generated_agent_summaries_match": true,
+    "active_non_core_tasks": 0,
+    "core_dependencies_on_non_core_outcomes": 0,
+    "active_locally_complete_tasks_waiting_only_for_hosted_evidence": 0,
+    "pending_handoffs_have_one_recipient_and_unfinished_accepting_task": true,
+    "wfc_001_folder_status_contradiction_repaired": true,
+    "completed_v1_history_preserved": true
+  },
+  "verification": [
+    "npm run test:agents",
+    "npm run agents:validate -- --strict",
+    "node --check scripts/agent-tools/control-plane.mjs",
+    "node --check scripts/agent-tools/control-plane-validation.mjs",
+    "node --check scripts/agent-tools/realign-control-plane.mjs",
+    "git diff --check",
+    "js-yaml parse of .github/workflows/ci.yml"
+  ]
+}

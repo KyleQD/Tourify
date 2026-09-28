@@ -1,0 +1,128 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-011",
+  "title": "Add canonical schedules versions shifts and assignments",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Create versioned workforce schedules with multiple assignments, headcount, non-venue work, and explicit legacy reconciliation.",
+  "scope": {
+    "in": [
+      "Schedules, versions, shifts, assignments, stable keys",
+      "Published-version immutability",
+      "Organization/tour/event/stop/leg scope",
+      "Legacy link and reconciliation ledger"
+    ],
+    "out": [
+      "Automatic merging of similar legacy shifts",
+      "Retiring legacy tables"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/**",
+    "supabase/tests/**",
+    "docs/engineering/migration-validation/**",
+    "lib/database.types.ts"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-004.json",
+    "docs/admin-feature-specs/06_Workforce_Hiring_Roster_and_Scheduling.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "One shift supports required headcount and multiple assignments",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Published versions cannot be mutated",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Organization work requires no fake event or venue",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "All scoped records share the same organization",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Legacy links and migration replay are idempotent and unresolved rows remain visible",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "npm run check:database-types",
+          "npm run test:rls-matrix",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on canonical departments and memberships.",
+    "completed": [],
+    "next_steps": [
+      "CP-102: the canonical organization, active-manager, vendor-identity, and quarantine contract is authored once by WFC-003. Consume that handoff; do not define a competing vendor or manager identity in migration or RLS authoring.",
+      "Consume WFC-003/WFC-004 for department keys; do not redefine manager or vendor authority.",
+      "Author additive scheduling schema and legacy link ledger",
+      "Prove immutability, timezone, tenant, and replay constraints"
+    ],
+    "blockers": [
+      "WFC-004 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Database → Work: canonical scheduling schema, RLS, types, and reconciliation for WFC-012",
+    "Database → WFC-018: canonical assignment keys for attendance and payroll"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-102: the canonical organization, active-manager, vendor-identity, and quarantine contract is authored once by WFC-003. Consume that handoff; do not define a competing vendor or manager identity in migration or RLS authoring.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "database",
+      "condition": "WFC-004 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

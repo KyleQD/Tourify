@@ -4,6 +4,29 @@
 
 Own test strategy, fixtures, end-to-end journeys, regression evidence, and quality gates.
 
+<!-- product-outcome:start -->
+## Audience
+
+Release decision makers.
+
+## Final product
+
+Exact-SHA isolated-staging certification of core web journeys and security personas.
+
+## Launch boundary and exclusions
+
+Native mobile and post-launch programs use separate certification tracks.
+
+The core responsive web launch is the primary finish line. Every task must name one outcome from `docs/engineering/PRODUCT_OUTCOMES.md`.
+
+## Definition of done
+
+- The task-owned deliverable and local verification gates pass.
+- Hosted or release certification is transferred to the named QA or Release gate when it is not owned here.
+- Dependencies, working-set leases, handoffs, and the next product gate are recorded.
+- No unrelated product or post-launch scope was absorbed into the task.
+<!-- product-outcome:end -->
+
 ## Startup protocol
 
 Read the engineering index, this charter and state, the assigned task JSON, then only its working set and references.

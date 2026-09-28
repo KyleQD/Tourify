@@ -1,0 +1,706 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-27T20:10:30.759Z",
+  "source": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+  "policy": "Design System never owns business services by default; each live service belongs to its dominant or deterministic primary entry-reachable consumer domain, and cross-domain consumers coordinate by handoff.",
+  "services": [
+    {
+      "file": "lib/services/account-management.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/accounts/route.ts",
+        "app/api/dashboard/metrics/route.ts",
+        "components/account/account-route-guard.tsx",
+        "components/account/accounts-seed.tsx",
+        "components/messages/inbox-account-selector.tsx",
+        "components/settings/account-management-settings.tsx",
+        "hooks/use-multi-account.tsx",
+        "lib/accounts/resolve-organization-dashboard-account.ts",
+        "lib/accounts/server-load-accounts.ts",
+        "lib/hiring/resolve-admin-workforce-employer.ts",
+        "lib/notifications/account-options.ts",
+        "lib/services/dashboard.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/achievement-engine.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/booking-requests/[id]/decision/route.ts",
+        "app/api/booking-requests/route.ts",
+        "app/api/music/play/route.ts",
+        "app/api/posts/[id]/comments/route.ts",
+        "app/api/posts/[id]/likes/route.ts",
+        "app/api/posts/create/route.ts",
+        "app/api/social/follow/route.ts",
+        "app/api/tours/[id]/events/[eventId]/route.ts",
+        "lib/services/achievement-metric-events.service.ts",
+        "lib/services/achievement.service.ts"
+      ],
+      "rule": "deterministic primary entry-reachable consumer; cross-domain consumers coordinate by handoff"
+    },
+    {
+      "file": "lib/services/achievement-metric-events.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/applications/route.ts",
+        "app/api/job-applications/route.ts",
+        "app/api/settings/certifications/upload/route.ts",
+        "app/api/workflows/threads/[id]/messages/route.ts",
+        "app/api/workflows/threads/[id]/tasks/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/achievement.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/achievements/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/admin-onboarding-staff.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/job-postings/[id]/route.ts",
+        "app/api/admin/job-postings/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/credentials/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/route.ts",
+        "app/api/admin/onboarding/dashboard/route.ts",
+        "app/api/admin/onboarding/enhanced-invite/route.ts",
+        "app/api/admin/onboarding/invite-new-user/route.ts",
+        "app/api/admin/onboarding/review/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/update-status/route.ts",
+        "app/api/admin/onboarding/workflows/analytics/route.ts",
+        "app/api/admin/onboarding/workflows/route.ts",
+        "app/api/admin/staff/dashboard/route.ts",
+        "app/api/venue/onboarding/summary/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/admin-workforce-people.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/staff-operations/channels/[id]/route.ts",
+        "app/api/admin/staff-operations/channels/route.ts",
+        "app/api/admin/team-members/route.ts",
+        "app/api/admin/workforce/people/route.ts",
+        "app/api/events/[id]/staff/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/agreement.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/agreements/accept/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/applicant-profile-snapshot.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/hiring/apply/profile-preview/route.ts",
+        "app/api/job-applications/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/artist-business.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "app/api/artist/business/overview/route.ts",
+        "app/artist/business/_page-client.tsx",
+        "app/artist/business/page.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/artist-collaboration.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "app/artist/business/collaboration/page.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/artist-content.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "components/dashboard/artist-page-client.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/artist-dashboard-layout.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "components/dashboard/artist-dashboard-bottom-sections.tsx",
+        "components/dashboard/sortable-widget-section.tsx"
+      ],
+      "rule": "deterministic primary entry-reachable consumer; cross-domain consumers coordinate by handoff"
+    },
+    {
+      "file": "lib/services/artist-jobs.server.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "app/api/artist-jobs/[id]/applications/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/artist-jobs.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/artist-jobs/[id]/route.ts",
+        "app/artist/collaborations/page.tsx",
+        "components/collaborations/collaboration-detail.tsx",
+        "components/collaborations/collaboration-feed.tsx",
+        "components/collaborations/collaboration-post-form.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/artist.service.ts",
+      "owner_agent": "venue",
+      "evidence": [
+        "app/venue/components/events/create-event-modal.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/candidate-invite-email.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/onboarding/invite-new-user/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/capabilities.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/capabilities/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/contract-email.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/cron/contract-sign-reminders/route.ts",
+        "app/lib/actions/contract-workflow.actions.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/cross-platform-posting.service.ts",
+      "owner_agent": "social",
+      "evidence": [
+        "components/cross-platform/cross-platform-composer.tsx",
+        "components/cross-platform/scheduled-posts-panel.tsx",
+        "hooks/use-cross-platform-posting.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/dashboard.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/dashboard/metrics/route.ts",
+        "components/dashboard/unified-activity-feed.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/email-delivery.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/ticketing/guest-list.server.ts"
+      ],
+      "rule": "deterministic primary entry-reachable consumer; cross-domain consumers coordinate by handoff"
+    },
+    {
+      "file": "lib/services/enhanced-onboarding-templates.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/onboarding/initialize-templates/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/enhanced-onboarding.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/onboarding/submit/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/epk.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "app/api/artist/epk/route.ts",
+        "app/artist/epk/page.tsx",
+        "app/epk/[slug]/page.tsx",
+        "components/epk/epk-builder-toolbar.tsx",
+        "components/epk/epk-builder-view.tsx",
+        "components/epk/epk-editor-tabs.tsx",
+        "components/epk/epk-hidden-sections-panel.tsx",
+        "components/epk/epk-preview.tsx",
+        "components/epk/epk-public-actions.tsx",
+        "components/epk/epk-template-variants.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "hooks/use-epk-sync.ts",
+        "lib/epk/epk-preview-utils.ts",
+        "lib/public-artist/get-public-artist-profile.ts",
+        "lib/public-artist/public-artist-types.ts",
+        "lib/services/venue-kit.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/feed.service.ts",
+      "owner_agent": "social",
+      "evidence": [
+        "contexts/social-context.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/friend-suggestions.ts",
+      "owner_agent": "social",
+      "evidence": [
+        "app/api/social/suggestions/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-application-approval.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/route.ts"
+      ],
+      "rule": "deterministic primary entry-reachable consumer; cross-domain consumers coordinate by handoff"
+    },
+    {
+      "file": "lib/services/hiring-candidate-assignment.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/hiring/candidates/[id]/assignment/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-candidate-workflow.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/documents/[documentId]/review/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-compliance.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/hiring/onboarding/compliance/[candidateId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/compliance/[candidateId]/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-eligibility.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/employer/vetting/[applicationId]/route.ts",
+        "lib/services/admin-onboarding-staff.service.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-onboarding-templates.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/clone/route.ts",
+        "app/api/admin/onboarding/templates/role-packs/route.ts",
+        "app/api/admin/onboarding/templates/route.ts",
+        "app/api/hiring/job-postings/options/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-onboarding-upload.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "app/api/hiring/onboarding/upload/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/upload/route.ts"
+      ],
+      "rule": "deterministic primary entry-reachable consumer; cross-domain consumers coordinate by handoff"
+    },
+    {
+      "file": "lib/services/hiring-onboarding.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/[id]/star/route.ts",
+        "app/api/hiring/applications/route.ts",
+        "app/api/hiring/candidates/[id]/approve/route.ts",
+        "app/api/hiring/candidates/[id]/onboarding/route.ts",
+        "app/api/hiring/dashboard/route.ts",
+        "app/api/hiring/invite/route.ts",
+        "app/api/hiring/job-postings/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/[id]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/dashboard/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/invite/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/job-postings/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/hiring-roster.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "app/api/hiring/roster/[memberId]/route.ts",
+        "app/api/hiring/roster/export/route.ts",
+        "app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/export/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/job-board.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/job-board/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/jukebox.service.ts",
+      "owner_agent": "music",
+      "evidence": [
+        "components/dashboard/jukebox-player.tsx",
+        "components/feed/feed-music-player.tsx",
+        "components/jukebox/full-player-view.tsx",
+        "components/jukebox/player-actions.tsx",
+        "components/jukebox/track-card.tsx",
+        "components/jukebox/track-cover-image.tsx",
+        "components/music/music-player.tsx",
+        "components/music/page/music-discover-section.tsx",
+        "components/music/page/music-home.tsx",
+        "components/music/page/music-library-section.tsx",
+        "components/music/page/music-page-client.tsx",
+        "components/music/page/music-playlists-section.tsx",
+        "components/music/page/music-search-results.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/notification-channels.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/services/notification-delivery.ts"
+      ],
+      "rule": "deterministic primary entry-reachable consumer; cross-domain consumers coordinate by handoff"
+    },
+    {
+      "file": "lib/services/notification-delivery.ts",
+      "owner_agent": "integrations",
+      "evidence": [
+        "app/api/webhooks/supabase/notifications/route.ts",
+        "lib/services/optimized-notification-service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/notification-service.ts",
+      "owner_agent": "social",
+      "evidence": [
+        "app/api/notifications/route.ts",
+        "app/api/notifications/test/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/onboarding-template-resolver.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/optimized-notification-service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/share/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/tasks/route.ts",
+        "app/api/admin/messages/broadcast/route.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "app/api/notifications/analytics/route.ts",
+        "app/api/notifications/preferences/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/skills/endorse/route.ts",
+        "app/api/social/follow/route.ts",
+        "lib/feed/post-collaborators.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/notifications/venue-fanout.ts",
+        "lib/rebuild/hiring-automation.ts",
+        "lib/rebuild/hiring-onboarding-changes-notify.ts",
+        "lib/rebuild/hiring-onboarding-notify.ts",
+        "lib/rebuild/hiring-roster-notify.ts",
+        "lib/rebuild/shift-assignment-notify.ts",
+        "lib/rebuild/workforce-activity-notify.ts",
+        "lib/services/achievement-engine.service.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "lib/services/notification-service.ts",
+        "lib/ticketing/notifications.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/project-workspace.service.ts",
+      "owner_agent": "social",
+      "evidence": [
+        "components/collaboration/project-workspace-dashboard.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/rbac.service.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "hooks/use-rbac.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/rbac.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/actions/staffing/create-job-posting.ts",
+        "app/api/admin/events/[id]/participants/route.ts",
+        "app/api/admin/logistics/items/route.ts",
+        "app/api/admin/staffing/performance/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/admin/staffing/shifts/route.ts",
+        "app/api/admin/staffing/zones/route.ts",
+        "app/api/events/[id]/job-postings/route.ts",
+        "lib/auth/hiring-permissions.ts",
+        "lib/services/capabilities.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/resume-achievement.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/achievements/resume/export/route.ts",
+        "app/api/achievements/resume/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/social-integrations.service.ts",
+      "owner_agent": "artist",
+      "evidence": [
+        "components/artist/content-social-links-panel.tsx",
+        "components/social/social-integrations-manager.tsx",
+        "hooks/use-social-integrations.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/staff-onboarding-sensitive-vault.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/hiring/onboarding/sensitive/[candidateId]/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/staff-shift-assignment-sync.ts",
+      "owner_agent": "admin",
+      "evidence": [
+        "app/api/admin/staff/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/venue/shifts/[id]/route.ts",
+        "app/api/venue/shifts/assignments/route.ts",
+        "app/api/work-mode/assignments/[id]/respond/route.ts",
+        "lib/admin/workforce-assignment.service.ts",
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/staffing-assignment.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/staffing-assignment.service.ts",
+      "owner_agent": "events",
+      "evidence": [
+        "app/api/admin/tours/team-members/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/events/[id]/staff/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/staffing-invitation.service.ts",
+      "owner_agent": "events",
+      "evidence": [
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/ticketing.service.ts",
+      "owner_agent": "ticketing",
+      "evidence": [
+        "components/ticketing/ticket-purchase-form.tsx"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/token-onboarding-payload.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/onboarding/[token]/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/onboarding/validate-invitation/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/app/api/onboarding/[token]/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/unified-onboarding.service.ts",
+      "owner_agent": "general-user",
+      "evidence": [
+        "app/api/onboarding/_lib/flow-submit.ts",
+        "app/api/onboarding/unified/route.ts",
+        "components/onboarding/artist-venue-onboarding.tsx",
+        "lib/onboarding/persona-onboarding.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/venue-kit.service.ts",
+      "owner_agent": "venue",
+      "evidence": [
+        "app/venue/kit/page.tsx",
+        "app/vk/[slug]/page.tsx",
+        "app/vk/[slug]/vk-public-page-client.tsx",
+        "components/venue-kit/amenities-section.tsx",
+        "components/venue-kit/contact-section.tsx",
+        "components/venue-kit/media-section.tsx",
+        "components/venue-kit/overview-section.tsx",
+        "components/venue-kit/press-section.tsx",
+        "components/venue-kit/shows-section.tsx",
+        "components/venue-kit/social-section.tsx",
+        "components/venue-kit/specs-section.tsx",
+        "components/venue-kit/vk-appearance-panel.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "components/venue-kit/vk-editor-tabs.tsx",
+        "components/venue-kit/vk-pdf-export.tsx",
+        "hooks/use-vk-sync.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/venue.service.ts",
+      "owner_agent": "venue",
+      "evidence": [
+        "app/venue/components/recurring-template-form.tsx",
+        "app/venue/context/profile-context.tsx",
+        "app/venue/dashboard/onboarding/page.tsx",
+        "app/venue/documents/page.tsx",
+        "app/venue/equipment/page.tsx",
+        "app/venue/events/[id]/page.tsx",
+        "app/venue/hooks/use-venue-calendar-data.ts",
+        "app/venue/hooks/useCurrentVenue.ts",
+        "app/venue/lib/hooks/use-venue-events.ts",
+        "app/venue/overview/page.tsx",
+        "components/account/account-route-guard.tsx",
+        "hooks/use-multi-account.tsx",
+        "hooks/use-venue.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/worker-onboarding-profile.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    },
+    {
+      "file": "lib/services/worker-ops.service.ts",
+      "owner_agent": "work",
+      "evidence": [
+        "app/api/staff/ops/route.ts"
+      ],
+      "rule": "dominant entry-reachable consumer domain"
+    }
+  ]
+}

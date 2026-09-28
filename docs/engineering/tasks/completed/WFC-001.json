@@ -1,0 +1,181 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-001",
+  "title": "Establish Workforce Command Center program control",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "orchestrator",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Freeze the WFC task graph, shared contracts, decisions, working sets, and cross-agent handoffs before implementation begins.",
+  "scope": {
+    "in": [
+      "WFC dependency and activation control",
+      "Shared API, URL, status, capability, and failure vocabularies",
+      "Cross-agent handoffs and acceptance gates"
+    ],
+    "out": [
+      "Product implementation",
+      "Displacing existing active domain tasks"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/tasks/TASK_INDEX.json",
+    "docs/engineering/agents/orchestrator/STATE.md"
+  ],
+  "references": [
+    "docs/engineering/INDEX.md",
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "WFC-001 through WFC-023 have one owner, bounded scope, dependency state, end product, and verification tier",
+      "owner": "orchestrator",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "CP-093 through CP-099 and the WFC dependency graph encode the approved architecture",
+      "owner": "orchestrator",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "All assigned agent states reference the governing plan without overwriting existing work",
+      "owner": "orchestrator",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Generated control-plane maps validate with zero errors",
+      "owner": "orchestrator",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "orchestrator",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:generate",
+          "npm run agents:validate"
+        ],
+        "evidence": [
+          "npm run agents:generate and npm run agents:validate: 17 agents, 178 tasks, 0 warnings, 0 errors",
+          "Six decisions recorded: CP-100 through CP-105, including an explicit correction block appended to CP-104",
+          "Two lanes activated (WFC-003, WFC-007) and both delivered with recorded evidence and honest unmet criteria",
+          "Boundary audit after both lanes: 0 files changed under components/admin, 0 diff on app/globals.css and tailwind.config.ts, 0 migration files changed",
+          "Four new tasks created: DB-013 (P0), DB-014 (P1), ADMIN-012 (P1); DB-013 and ADMIN-012 delivered",
+          "Three obligations routed back to named owners: WFC-003 (stale assertion, authority provisioning), DB-013 (read/manage discrepancy), ADMIN-012 (~30 routes now fail closed)",
+          "HF-DESIGN-034-C03-APPROVAL-PROVENANCE answered and closed as partially-resolved"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty with WFC control-plane and lane deliverables)",
+        "last_run_at": "2026-09-26T03:12:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "WFC-001 control plane established and the first-activation ownership review is complete. The review was not a formality: it found three of WFC's own recorded working sets named paths that do not exist, two WFC tasks claiming the same API tree, four WFC admin tasks colliding with an active lane on the same subtree, an unresolvable grant request, and a live cross-tenant RLS defect that had been misdiagnosed by my own first pass. WFC-003 and WFC-007 activated with corrected contracts; both delivered, both honestly stayed active on real gaps, and both surfaced work that outranks parts of this program.",
+    "completed": [
+      "Approved WFC execution plan recorded",
+      "Agent ownership and architecture decisions CP-093 through CP-099 recorded",
+      "Created and indexed WFC-001 through WFC-023",
+      "Created a bounded work packet for every WFC task",
+      "Appended queued goals to all 9 assigned agent states",
+      "Regenerated topology and validated 17 agents / 175 tasks with zero warnings or errors",
+      "First-activation ownership review completed across all 9 assigned agents and all 23 WFC records",
+      "Ruled CP-100 (radius token frozen, QA owns the visual gate), CP-101 (design-system grant not widened into components/admin/**), CP-102 (WFC-003 is sole author of the identity contract), CP-103 (path partitions against ADMVIEW-001, WORK-005, and WFC's own lanes)",
+      "Repaired three WFC working sets that named nonexistent paths and split the WFC-005/WFC-019 whole-tree API claim into four disjoint subtrees",
+      "Activated WFC-003 and WFC-007; both delivered; WFC-001 now closes with the program under execution rather than queued",
+      "Verified both lanes' hard boundaries myself: 0 changes under components/admin, 0 diff on app/globals.css and tailwind.config.ts, 0 migration changes",
+      "Answered the design-system C-03 escalation (CP-100) and closed HF-DESIGN-034-C03-APPROVAL-PROVENANCE as partially-resolved",
+      "Routed the surfaced live security finding: DB-013 (P0, delivered) and DB-014 (P1), plus CP-104 with an explicit self-correction",
+      "Created ADMIN-012 for the CP-094 capability gap; it is delivered and its behavior-change risk is routed",
+      "Granted the --status-* token role to the lane that already holds the only path that can express it (CP-105), instead of creating a colliding task"
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-26T00:58:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Registered the complete WFC execution program: active plan, dependency graph, CP-093 through CP-099, 9 agent goal assignments, 23 task records, 23 work packets, regenerated maps/index, and clean control-plane validation. Preserved all existing active work and left every downstream WFC task blocked as requested.",
+        "completed": [
+          "Control-plane mutations",
+          "Task/work-packet creation",
+          "Map generation",
+          "Validation"
+        ],
+        "next_steps": [
+          "Perform first activation ownership review"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-26T03:12:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Closed WFC-001. The first-activation review produced six rulings, repaired three broken working sets, partitioned every colliding path, and activated WFC-003 and WFC-007. Both lanes delivered and both stayed active on honest gaps rather than claiming completion. WFC-003's contract surfaced a live cross-tenant staffing RLS defect; that became DB-013 (P0, delivered, 61-test denial harness) and DB-014. My own first-pass diagnosis of that defect was wrong and is corrected on the record in CP-104, because a decision log that overstates a finding is worse than none.",
+        "completed": [
+          "Ownership review",
+          "Six rulings recorded",
+          "Working sets repaired and paths partitioned",
+          "WFC-003 and WFC-007 activated and delivered",
+          "Security finding routed to DB-013/DB-014",
+          "CP-104 self-corrected"
+        ],
+        "next_steps": [
+          "Activate WFC-004 on WFC-003's handoff",
+          "Hold WFC-002 and the downstream admin/work lanes",
+          "Keep the launch graph ahead of WFC"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "WFC-004 activates on WFC-003's handoff; the MANAGER_SCOPE_GAP blocker is cleared by ADMIN-012 and the vendor-table and DB-013 sequencing blockers stand",
+    "WFC-002 stays blocked until an isolated exact-SHA authenticated target exists",
+    "All WFC admin and work lanes stay blocked on WFC-004 or later; the CP-103 partitions are recorded and not yet load-bearing",
+    "Launch graph outranks WFC: the CP-104 staffing exposure is a production NO-GO item tracked by DB-013/DB-014 and DB-002"
+  ],
+  "completed_at": "2026-09-26T03:12:00.000Z",
+  "execution_state": "done",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "orchestration",
+  "decision_owner": "orchestrator",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

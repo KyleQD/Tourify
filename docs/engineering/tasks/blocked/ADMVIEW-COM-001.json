@@ -1,0 +1,123 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMVIEW-COM-001",
+  "title": "Review Admin commerce route readability and navigation",
+  "status": "blocked",
+  "execution_state": "queued_postlaunch",
+  "priority": "P2",
+  "owner_agent": "admin-commerce",
+  "outcome_id": "MAINTENANCE-DEBT",
+  "deliverable_class": "maintenance",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:18:00.000Z",
+  "updated_at": "2026-09-28T00:18:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (629 entries); successor split from ADMVIEW-001 without implementation",
+  "goal": "Complete the responsive readability and navigation review for Admin finance, ticketing, marketplace, store, contract, and agency routes.",
+  "scope": {
+    "in": [
+      "/admin/dashboard/agencies, contracts, finances, marketplace, store, and ticketing route families"
+    ],
+    "out": [
+      "Non-commerce Admin routes",
+      "Canonical commerce, ticketing, marketplace, or finance services outside Admin"
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/agencies/page.tsx",
+    "app/admin/dashboard/contracts/page.tsx",
+    "app/admin/dashboard/finances/page.tsx",
+    "app/admin/dashboard/marketplace/**",
+    "app/admin/dashboard/store/page.tsx",
+    "app/admin/dashboard/ticketing/**",
+    "__tests__/admin/admview-commerce-readability.test.tsx"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/tasks/completed/ADMVIEW-001.json",
+    "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md",
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The MAINTENANCE-DEBT program is activated and the Admin dispatcher selects this collision-free route family.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "MAINTENANCE-DEBT has not been activated.",
+      "dependency_task_ids": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Every commerce route and reachable panel has a route-matrix disposition and phone, tablet, desktop, and 200% zoom evidence.",
+      "owner": "admin-commerce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Record identity, status, and actions do not overlap or disappear on narrow screens.",
+      "owner": "admin-commerce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Commerce data tables retain semantic headers, keyboard-reachable links, and mobile access to essential fields.",
+      "owner": "admin-commerce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Repeated information is reduced without removing the authoritative detail or an existing action.",
+      "owner": "admin-commerce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Focused tests, lint, feature verification, Admin audit checks, and control-plane validation are recorded.",
+      "owner": "admin-commerce",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-commerce",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/admview-commerce-readability.test.tsx",
+          "npx eslint <touched commerce Admin files>",
+          "npm run verify:feature -- --changed",
+          "npm run check:admin-audit",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created from the exact commerce rows in the ADMVIEW-001 route matrix; partial phone reviews of finances and ticketing remain preserved in the predecessor.",
+    "completed": [],
+    "next_steps": [
+      "Wait for MAINTENANCE-DEBT activation, then resume the preserved finance and ticketing evidence and review only the named commerce routes."
+    ],
+    "blockers": [
+      "MAINTENANCE-DEBT is not active."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

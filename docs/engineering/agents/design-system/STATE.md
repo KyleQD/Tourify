@@ -1,5 +1,17 @@
 # Design System state
 
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `DESIGN-033` — blocked/waiting_decision; MAINTENANCE-DEBT
+- `DESIGN-036` — blocked/queued_postlaunch; POSTLAUNCH-LOGISTICS
+- `DESIGN-038` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+- `WFC-007` — blocked/waiting_dependency; POSTLAUNCH-WORKFORCE
+<!-- generated-agent-state:end -->
+
 - Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f` (branch `codex/qa004-staging-campaign`)
 - Last reviewed at: 2026-09-25 (Wave 34: DESIGN-037 orphaned `lib/services/**` pile
   swept — 15 zero-importer modules / 5,554 lines deleted and 1 module repointed
@@ -624,3 +636,141 @@ durable target. Venue wrappers must not fork shared interaction/state contracts.
   `npm run agents:generate`. Scoped per-file tsc via a generated
   `tsconfig.ds-scope.json` is the sanctioned substitute and is what produced the
   211-diagnostic figure.
+
+## Workforce Command Center assignment — 2026-09-26
+
+- Goal: own the shared WFC live-operations primitives, responsive behavior, accessibility, and convergence away from the isolated scheduling theme.
+- Historical active-task note (superseded by generated queue summary): `WFC-007`, activated 2026-09-26 by the WFC-001 first-activation ownership review.
+- Required handoff: provide Admin with tested command-shell, navigation, department, status, timeline, inspector, collection, and canonical data-state primitives using shared Admin tokens.
+- Governing plan: `docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md`.
+
+## WFC-007 activation rulings — 2026-09-26
+
+- **CP-101 answers the DESIGN-036 escalation against widening.** `components/admin/**` is the admin lane's path, held by ADMVIEW-001 and claimed by seven WFC admin tasks. The design-system grant is **not** widened. WFC-007's working set is `components/ui/**` and `__tests__/design-system/**` only, and it ends with a published usage contract that the admin lanes compose from. The read-only carve-outs recorded in DESIGN-036 and SOCIAL-006 should stop recurring as escalations.
+- **CP-100 answers the C-03 governance escalation.** `--radius: 0.5rem` is ratified as the de facto repository baseline and frozen, with no claim of prior owner approval. `app/globals.css` is removed from WFC-007's working set entirely. Any workforce surface needing a different radius ships a scoped token; nothing modifies `:root`. `HF-DESIGN-034-C03-APPROVAL-PROVENANCE` is answered and closes as partially-resolved, with the visual half moving to DESIGN-033's own QA gate.
+- **CP-098 is a design obligation, not only an API contract.** `fresh`, `stale`, `unavailable`, and `not_authorized` must be visually distinct, and no presentation may render an unavailable source as zero. `not_authorized` must not leak the existence of the resource it hides.
+- With these rulings, WFC-007 no longer conflicts with DESIGN-033 (`app/globals.css`), DESIGN-036 (`components/admin/**`), or DESIGN-037 (`lib/services/**`). The lane is clear to run in parallel with all three.
+- Do not claim browser visual evidence from this lane. Static build, type, and test output are what this lane produces; the visual pass belongs to QA.
+
+## WFC-007 delivery — shared Workforce live-operations primitives (2026-09-26)
+
+- **Ten new shared modules, all in `components/ui/**`, all inside the CP-101 grant.**
+  `ops-tokens.ts` (vocabularies, tone map, `resolveSourceState`, `opsRadiusStyle`,
+  the scheduling convergence table), `ops-source-state.tsx`, `ops-status-chip.tsx`,
+  `ops-metric.tsx`, `ops-attention.tsx`, `ops-timeline.tsx`, `ops-inspector.tsx`,
+  `ops-collection.tsx`, `ops-filters.tsx`, `ops-shell.tsx`. Tests:
+  `__tests__/design-system/workforce-live-operations.test.tsx` (52 tests) plus
+  `__tests__/design-system/helpers/ops-contrast.ts`. Published contract:
+  `docs/engineering/agents/design-system/workforce-live-operations-usage-contract.md`.
+  `tsconfig.ds-scope.json` is the generated scoped-typecheck config for this lane.
+- **Inventory came first and the reuse list is the durable part.** Reused rather
+  than rewritten: `badge.tsx` (chip base), `empty-state.tsx`, `skeleton.tsx`,
+  `scroll-area.tsx` (bounded inspector body), `separator.tsx`, `sheet.tsx` (mobile
+  inspector, so focus trap / escape / scroll lock are Radix behaviour), the
+  `min-h-11` target convention from `button.tsx`, and the focus-ring recipe.
+  **Deliberately NOT created:** a `DataTable` fork (`table.tsx` already exists and
+  is correct for genuinely tabular rows — `OpsCollection` is the collection case,
+  not a replacement), a `StatusBadge` clone, and a hand-rolled
+  `role="listbox"` (native `<input type="checkbox|radio">` gives keyboard
+  operation, focus order, form semantics, and a 44px target for free).
+  `components/ui/alert.tsx` was rejected for the attention queue because it
+  hard-codes `role="alert"`; ten standing items would fire ten announcements.
+- **The CP-098 false-zero rule is enforced by type shape, not by discipline.**
+  `OpsSourceValue` and `OpsMetric` do not accept a bare number — they accept a
+  source state plus an optional value, and `resolveSourceState` decides whether
+  the value is renderable. `data-ops-value` is `numeric` or `suppressed` so QA
+  can assert suppression without reading pixels. The four states differ on four
+  channels (wording, icon, border treatment — solid/solid/dashed/dotted — and
+  tone), so they stay distinguishable in greyscale and in forced-colours mode.
+- **`not_authorized` non-disclosure is a six-rule contract in one function.**
+  `showsValue`, `showsTimestamp`, `showsReason` and `showsRetry` are all `false`,
+  any supplied `reason` is **discarded** (a server string such as "3 vendor
+  payroll records are restricted" cannot be displayed), `resourceName` is
+  accepted by the type and never returned, and the label/announcement are
+  scope-generic. Downstream: `OpsMetric` renders exactly the word "Restricted"
+  for a restricted measurement (name, value, delta, stamp and icon all dropped,
+  because the measurement's *name* is itself the disclosure);
+  `OpsSourceHealthPanel` never renders a row for a restricted source and emits
+  one aggregated unnamed line that does not even disclose how many are
+  restricted; `OpsDepartmentHealthRow` withholds the department name and the
+  drill-down `href`, because a link is a capability disclosure. Restricted
+  sources are classified non-actionable (`isActionableSourceState`) so a scope
+  boundary is never reported as a broken source.
+- **The one `<main>` is structural, not conventional.** `OpsShell` renders it;
+  there is deliberately **no exported `OpsMain`**, because two exported
+  landmarks are two chances to render `<main>` twice. No element in
+  `ops-shell.tsx` sets an overflow rule, and both the grid and the flex column
+  carry `min-h-0` so a tall child compresses its own region instead of pushing a
+  scrollbar onto an ancestor. Scrolling is opt-in and declared
+  (`viewport` on `OpsCollection` / `OpsTimeline` / `OpsInspectorPanel`); without
+  one, `data-ops-viewport="page"` and the page scrolls normally.
+- **The 14px / 44px / focus / reduced-motion floors are guard-tested, not
+  asserted in prose.** A source-scanning test fails on `text-xs` or any
+  arbitrary sub-14px step in `components/ui/ops-*.tsx`; render-level tests check
+  the 44px target on every interactive control (the selection target is the
+  `<label>` wrapper, not the 16px box); a test asserts no ops file introduces an
+  animation and that the inherited `Skeleton` pulse is switched off with
+  `motion-reduce:animate-none` at both call sites; breakpoint classes are
+  asserted on the shell grid and the dense grids.
+- **Contrast is measured from the real inputs, not asserted by eye.** The helper
+  reads the installed `tailwindcss` palette and parses `--card`,
+  `--muted-foreground`, and `--foreground` out of `app/globals.css :root`
+  (read-only), composites each tone's own `bg-<hue>-500/10` over `--card`, and
+  requires WCAG 2.1 AA. Measured at SHA `16fb834f`: ok 14.09:1, info 13.66:1,
+  warn 14.42:1, critical 13.00:1, neutral 19.29:1, muted 7.84:1.
+- **CP-100 radius: consumed, never defined.** No ops file defines `--radius`,
+  none authors a `:root` rule, and `app/globals.css` is byte-identical to HEAD
+  (guard-tested: `:root` still has exactly one `--radius: 0.5rem`, and the only
+  other declaration in the file is the pre-existing
+  `.staff-scheduling-prototype` `0.625rem`). A surface needing a different
+  radius ships a **scoped** token through `opsRadiusStyle(radius, { slot })`,
+  which sets `--ops-radius-panel` / `-control` / `-inline` on that element only;
+  CSS consumes it as `rounded-[var(--ops-radius-panel,var(--radius))]`, so the
+  frozen token is the fallback.
+- **NEW GAP, raised as a path-specific decision rather than acted on: there is
+  no registered CSS role for a status hue.** `OPS_TONE_CLASSES` uses Tailwind
+  palette steps because `app/globals.css` has no `--status-*` family, and
+  `scripts/ci/check-token-registry.mjs` treats any non-module `.css` file with a
+  `--` declaration as a global token source, so a new role needs
+  `app/globals.css` + `tailwind.config.ts` + `TOKEN_REGISTRY.md` — all outside
+  this grant. Status colour in the workforce surface is therefore *single-sourced
+  and contrast-tested* but **not token-governed**. This is the durable answer to
+  "the same word ends up in three hues across three pages".
+- **The admin lane's existing command-center primitives are now superseded but
+  untouched.** `components/admin/logistics/command-center/status-indicators.tsx`
+  models three source states (`ready | degraded | unavailable`) and has **no**
+  `not_authorized`, so it cannot satisfy CP-098 as written; `attention-row.tsx`,
+  `summary-stat.tsx`, and `states.tsx` overlap `OpsAttentionItem`, `OpsMetric`,
+  and `OpsSourceHealthPanel`. Folding them onto this contract is an edit in
+  ADMVIEW-001's / DESIGN-036's path (CP-101) and is handed off, not performed.
+  The same is true of the scheduling-theme convergence: `OPS_SCHEDULING_TOKEN_CONVERGENCE`
+  (neon-purple→primary, neon-cyan→chart-1, neon-green/amber/red→ok/warn/critical,
+  staff 0.625rem→`var(--radius)`) is published as a target, applied by the
+  scheduling lane in its own files.
+- **Verification for WFC-007, at SHA `16fb834f`, tier `feature`.**
+  `npm run check:token-registry` — pass (126 role rows / 69 active vars / 41
+  projections / 2 sources). `npx tsc -p tsconfig.ds-scope.json --noEmit` — exit 0,
+  0 diagnostics, **12 files parsed** (recorded so a short-circuiting run cannot
+  masquerade as a clean one). `npx vitest run __tests__/design-system` — 5 files /
+  67 tests pass. `npm run agents:validate` — 17 agents / 175 tasks / 0 warnings /
+  0 errors. `npx eslint` on the 12 changed source files — exit 0.
+  **NOT green: `npm run verify:feature -- --changed` did not complete.** Its
+  eslint leg passed; its `npm run typecheck` leg is the known full-repo
+  resource constraint on this 8GB machine (attempt 1 died with `SIGTERM`,
+  attempt 2 was still running at 25 minutes with zero diagnostics emitted), so
+  the tier aborts before reaching the admin-route checks. Scoped tsc above is the
+  sanctioned substitute. **A full `npm run typecheck` was therefore not produced
+  and no whole-repo diagnostic count may be attributed to this lane.**
+- **The guards were negative-controlled.** A guard never seen to fail is not a
+  guard. Three mutations were injected and reverted: making `OpsSourceValue`
+  render an unavailable value, changing one type step to `text-xs`, and changing
+  `app/globals.css` `--radius` to `0.25rem`. They failed 4 distinct tests
+  (false-zero, sub-14px type, the readiness-meter guard, and the frozen-radius
+  guard); reverting returned the suite to 67/67 with `app/globals.css` clean
+  against HEAD.
+- **No browser, hosted, or screenshot evidence is claimed from this lane.**
+  Focus rendering, computed layout at each breakpoint, real composited contrast
+  on a rendered surface, and the reduced-motion pass are QA's (QA-003 / QA-007).
+  `agents:map:components` was run to refresh the one genuinely stale generated
+  map; the other eight generated maps were left alone because they belong to
+  lanes with live in-flight changes and this lane's change touches none of them.
