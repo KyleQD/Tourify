@@ -1,6 +1,61 @@
 -- Unified public search candidates. Keep ranking and viewer affinity in the
 -- request-scoped application service; these columns only accelerate retrieval.
-create extension if not exists pg_trgm with schema extensions;
+
+-- pg_trgm must be reachable as `extensions.gin_trgm_ops`, because the eight trgm
+-- indexes below name that schema explicitly. This migration resolves the
+-- extension's location itself rather than assuming it, because it cannot rely on
+-- either earlier migration having done the job:
+--
+--   1. 20250816130000 installs pg_trgm with no schema clause, so it lands in
+--      `public`. A fresh Supabase local database pre-installs only pgcrypto and
+--      uuid-ossp, both already in `extensions`; pg_trgm is genuinely absent and is
+--      created by this chain.
+--   2. 20260414140500 does relocate it, but only when it finds it in `public`, and
+--      it wraps the `alter extension` in `exception when others then raise
+--      notice`. A failed relocation is absorbed as a NOTICE and the chain
+--      continues, so nothing downstream can tell whether it happened.
+--
+-- The statement this replaces, `create extension if not exists pg_trgm with
+-- schema extensions`, is worse than redundant: when the extension already exists
+-- PostgreSQL short-circuits on the name and installs nothing, so it reports
+-- success while leaving the extension where it was. In the local replay it also
+-- failed outright with `permission denied for function pg_read_file
+-- (SQLSTATE 42501)`, which says nothing about the actual problem. Either way the
+-- eight indexes below then fail on an unresolvable `extensions.gin_trgm_ops`.
+--
+-- The block relocates, creates, or does nothing as the state requires, then
+-- asserts the operator class resolves. It raises rather than warns: the indexes
+-- below genuinely need the opclass, so a notice would only move the failure
+-- eight statements down and obscure it. Uses `execute` to match the idiom in
+-- 20260414140500.
+do $global_search_extensions$
+begin
+  if exists (
+    select 1
+    from pg_extension e
+    join pg_namespace n on n.oid = e.extnamespace
+    where e.extname = 'pg_trgm'
+      and n.nspname <> 'extensions'
+  ) then
+    execute 'alter extension pg_trgm set schema extensions';
+  elsif not exists (
+    select 1 from pg_extension where extname = 'pg_trgm'
+  ) then
+    execute 'create extension pg_trgm with schema extensions';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_opclass opc
+    join pg_namespace n on n.oid = opc.opcnamespace
+    where opc.opcname = 'gin_trgm_ops'
+      and n.nspname = 'extensions'
+  ) then
+    raise exception
+      'pg_trgm is installed but extensions.gin_trgm_ops does not resolve; the trgm indexes in this migration cannot be created';
+  end if;
+end
+$global_search_extensions$;
 
 alter table if exists public.profiles
   add column if not exists global_search_vector tsvector generated always as (
