@@ -2472,3 +2472,68 @@ harnesses; `package.json` and CI are outside this lane and are handed over.
   function at all, so the private-schema `search_path` trap is not reachable from
   this work; if a follow-on adds one, it must pin `search_path` and be re-decided
   against the settled id convention first.
+
+## Extension-ownership fragility blocks `Database Types` — 2026-09-28 (release lane)
+
+Reproduced locally, not inferred. Docker up, `supabase start` against the
+committed chain on branch `codex/qa004-staging-campaign` at `91d017b7`. The
+chain now replays **past** `20260701021033` — the `storage.objects` ownership fix
+landed in `16fb834f` and works — and fails later, at:
+
+```
+Applying migration 20260801221454_global_search_indexes.sql...
+ERROR:  permission denied for function pg_read_file (SQLSTATE 42501)
+At statement: 0
+create extension if not exists pg_trgm with schema extensions;
+```
+
+### The mechanism, which is a three-migration interaction
+
+1. `20250816130000_scaling_indexes_forum.sql:6` creates `pg_trgm` with no
+   schema clause, so it lands in `public`.
+2. `20260414140500_security_linter_step5_extensions_schema.sql:20-36` is
+   supposed to move it. It relocates only `if ... n.nspname = 'public'`, and it
+   wraps the `alter extension` in `exception when others then raise notice`. So
+   if the relocation fails for any reason, the chain continues with a NOTICE and
+   **`pg_trgm` stays in `public`**. The failure is absorbed and invisible.
+3. `20260801221454_global_search_indexes.sql:3` then assumes the relocation
+   happened and runs `create extension if not exists pg_trgm with schema
+   extensions`. In the hardened image that is not a no-op even when the
+   extension exists, and it aborts on `pg_read_file`.
+
+So the defect is that step 3 depends on a **best-effort, exception-swallowing**
+step 2 having succeeded, and has no fallback of its own. `20260801221454` also
+genuinely needs the opclass: 8 indexes reference `extensions.gin_trgm_ops`
+(lines 61, 76, 89, 101, 115, 130, 144, 157), so a silent skip is not an option
+and downgrading the create to a warning would just move the failure to the
+indexes. `20260822021738_world_shared_geography_foundation.sql` is the only other
+consumer of `extensions.gin_trgm_ops` and has the same latent dependency.
+
+### Why this is not fixed here
+
+It requires editing a **committed** migration, which changes its checksum
+(`npm run check:migration-checksums`) and the hosted ledger
+(`npm run check:migration-ledger`). `docs/DEPLOYMENT_ROUTINE.md` section 2
+requires migrations to be reviewed and applied one at a time with postflight
+probes, and this one relocates extension objects that a production project may
+already hold in `public`. That is a Database-lane decision, not a release-lane
+edit, and guessing at it would be worse than recording it.
+
+### Candidate fix for the Database lane to accept or reject
+
+Make `20260801221454` self-sufficient and idempotent rather than trusting
+`20260414140500`: branch on `pg_extension`/`pg_opclass` state — relocate with
+`alter extension pg_trgm set schema extensions` when the extension exists in
+`public`, create it when absent, and in every branch assert that
+`extensions.gin_trgm_ops` resolves before the 8 dependent index creations, so
+the failure mode is a clear message rather than `permission denied for function
+pg_read_file`. The alternative — hardening the `20260414140500` backstop to
+`raise warning` at `warning` level so a failed relocation is visible — is worth
+doing too, but it does not by itself fix `20260801221454`.
+
+### Consequence for the release
+
+`Database Types` is a required context on `main` and is red on this branch, so
+no promotion is possible while this stands. It is also the reason
+`lib/database.types.ts` cannot be regenerated, which is what keeps the
+typecheck surface large; the two are the same blocker seen from two ends.
